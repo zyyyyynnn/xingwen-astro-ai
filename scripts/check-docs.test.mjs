@@ -151,6 +151,23 @@ test("rejects work phase identities but allows failure-stage semantics", () => {
   );
 });
 
+test("allows astronomy domain identities while rejecting work phases", () => {
+  assert.equal(
+    containsRepositoryPhaseIdentifier("M1-M20梅西耶天体的赤经赤纬坐标列表"),
+    false,
+  );
+  assert.equal(
+    containsRepositoryPhaseIdentifier("M57 指环星云（行星状星云）"),
+    false,
+  );
+  assert.equal(containsRepositoryPhaseIdentifier("phase: 0.25"), false);
+  assert.equal(
+    containsRepositoryPhaseIdentifier(["phase", ":", "2"].join(" ")),
+    true,
+  );
+  assert.equal(containsRepositoryPhaseIdentifier(["M", "3"].join("")), true);
+});
+
 test("rejects repository pseudo-version identities", () => {
   const short = ["v", "1"].join("");
   const underscored = ["_", "v", "3", "_", "2"].join("");

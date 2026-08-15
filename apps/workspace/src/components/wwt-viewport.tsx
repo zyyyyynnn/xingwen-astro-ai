@@ -12,6 +12,7 @@ import {
 
 interface WwtViewportProps {
   readonly spec: WwtSpec;
+  /** Kept for renderer-registry compatibility; not user-visible. */
   readonly versionNumber: number;
   readonly loadContent: (contentHash: ContentHash) => Promise<ArrayBuffer>;
 }
@@ -36,11 +37,8 @@ function canvasPng(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
-export function WwtViewport({
-  spec,
-  versionNumber,
-  loadContent,
-}: WwtViewportProps) {
+export function WwtViewport(props: WwtViewportProps) {
+  const { spec, loadContent } = props;
   const hostRef = useRef<HTMLDivElement>(null);
   const loadContentRef = useRef(loadContent);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
@@ -120,7 +118,8 @@ export function WwtViewport({
       const blob = await canvasPng(canvas);
       downloadBytes({
         bytes: await blob.arrayBuffer(),
-        fileName: `${spec.mode === "fits_image" ? "fits-view" : "wwt-scene"}-v${versionNumber}.png`,
+        fileName:
+          spec.mode === "fits_image" ? "fits-view.png" : "wwt-scene.png",
         mediaType: "image/png",
       });
       setCaptureState("success");
@@ -194,14 +193,6 @@ export function WwtViewport({
         <summary>查看文本与表格替代视图</summary>
         {spec.mode === "fits_image" ? (
           <dl>
-            <div>
-              <dt>来源快照</dt>
-              <dd>{spec.sourceSnapshotId}</dd>
-            </div>
-            <div>
-              <dt>内容引用</dt>
-              <dd>{spec.contentRef}</dd>
-            </div>
             <div>
               <dt>拉伸</dt>
               <dd>{spec.stretch}</dd>
@@ -310,15 +301,13 @@ export function WwtViewport({
                 <thead>
                   <tr>
                     <th scope="col">图层</th>
-                    <th scope="col">来源快照</th>
                     <th scope="col">透明度</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {spec.fitsLayers.map((layer) => (
+                  {spec.fitsLayers.map((layer, index) => (
                     <tr key={layer.layerId}>
-                      <th scope="row">{layer.layerId}</th>
-                      <td>{layer.sourceSnapshotId}</td>
+                      <th scope="row">FITS 图层 {index + 1}</th>
                       <td>{layer.opacity}</td>
                     </tr>
                   ))}
@@ -333,17 +322,13 @@ export function WwtViewport({
                 <thead>
                   <tr>
                     <th scope="col">图层</th>
-                    <th scope="col">来源快照</th>
-                    <th scope="col">媒体类型</th>
                     <th scope="col">坐标</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {spec.tableLayers.map((layer) => (
+                  {spec.tableLayers.map((layer, index) => (
                     <tr key={layer.layerId}>
-                      <th scope="row">{layer.layerId}</th>
-                      <td>{layer.sourceSnapshotId}</td>
-                      <td>{layer.mediaType}</td>
+                      <th scope="row">表格图层 {index + 1}</th>
                       <td>
                         {layer.coordinates.kind} · {layer.coordinates.frame}
                       </td>
@@ -366,9 +351,11 @@ export function WwtViewport({
                   </tr>
                 </thead>
                 <tbody>
-                  {spec.annotations.map((annotation) => (
+                  {spec.annotations.map((annotation, index) => (
                     <tr key={annotation.annotationId}>
-                      <th scope="row">{annotation.annotationId}</th>
+                      <th scope="row">
+                        {annotation.label ?? `标注 ${index + 1}`}
+                      </th>
                       <td>{annotation.kind}</td>
                       <td>{annotation.label ?? "未提供"}</td>
                       <td>{annotation.points.length}</td>
@@ -393,9 +380,9 @@ export function WwtViewport({
                   </tr>
                 </thead>
                 <tbody>
-                  {spec.tourSteps.map((step) => (
+                  {spec.tourSteps.map((step, index) => (
                     <tr key={step.stepId}>
-                      <th scope="row">{step.stepId}</th>
+                      <th scope="row">第 {index + 1} 步</th>
                       <td>
                         {step.view.kind === "coordinates"
                           ? `RA ${step.view.center.raHours.toFixed(4)}h · Dec ${step.view.center.decDegrees.toFixed(4)}°`

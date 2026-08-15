@@ -292,7 +292,7 @@ describe("WwtViewport", () => {
     expect(screen.getByRole("button", { name: "正在生成 PNG" })).toBeDisabled();
     act(() => finishCapture?.());
     expect(await screen.findByRole("status")).toHaveTextContent("PNG 已下载");
-    expect(downloadedName).toBe(["wwt-scene-v", 2, ".png"].join(""));
+    expect(downloadedName).toBe("wwt-scene.png");
 
     toBlob.mockImplementationOnce(() => {
       throw new DOMException("Tainted canvas", "SecurityError");

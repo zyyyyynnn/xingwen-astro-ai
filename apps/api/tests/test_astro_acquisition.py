@@ -244,8 +244,7 @@ def test_sdss_recorded_fits_returns_existing_spectrum_skill_input() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url == (
-            "https://data.sdss.org/sas/dr17/eboss/spectro/redux/"
-            "v5_13_2/spectra/full/3586/spec-3586-55181-0016.fits"
+            "https://data.sdss.org/sas/dr17/eboss/spectro/redux/v5_13_2/spectra/full/3586/spec-3586-55181-0016.fits"
         )
         return httpx.Response(200, content=content, request=request)
 

@@ -643,6 +643,18 @@ def _visualization(
     return _seal(VisualizationArtifactContent, payload)
 
 
+_SPLIT_STRATEGY_DOMAIN_LABELS = {
+    "random": "holdout",
+    "stratified": "stratified_holdout",
+    "group": "holdout",
+    "entity": "holdout",
+    "time": "time_ordered",
+    "holdout": "holdout",
+    "stratified_holdout": "stratified_holdout",
+    "time_ordered": "time_ordered",
+}
+
+
 def _model_evaluation(
     outcome: ScientificTaskExecutionOutcome,
 ) -> ModelEvaluationArtifactContent:
@@ -654,7 +666,10 @@ def _model_evaluation(
     train_count = _positive_int(raw_split, "train_count")
     test_count = _positive_int(raw_split, "test_count")
     total = train_count + test_count
-    strategy = _text(raw_split, "strategy")
+    raw_strategy = _text(raw_split, "strategy")
+    strategy = _SPLIT_STRATEGY_DOMAIN_LABELS.get(raw_strategy)
+    if strategy is None:
+        raise ValueError(f"unknown split strategy: {raw_strategy}")
     random_seed = raw_split.get("random_seed")
     split = ModelSplitReference(
         strategy=strategy,

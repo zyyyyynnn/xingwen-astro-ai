@@ -78,8 +78,8 @@ def parser_configuration_hash(*, native_engine: str) -> str:
             "schema_hash": compute_scientific_document_schema_hash(),
             "profile_version": _PROFILE_VERSION,
             "native_engine": native_engine,
-            "routing_policy_id": "native-first-v1",
-            "resource_policy_id": "bounded-cpu-v1",
+            "routing_policy_id": "native-first",
+            "resource_policy_id": "bounded-cpu",
             "limits": {
                 "pdf_bytes": _MAX_PDF_BYTES,
                 "text_bytes": _MAX_TEXT_BYTES,
@@ -352,8 +352,8 @@ def _candidate(
         parser_profile_id=profile_id,
         parser_profile_version=_PROFILE_VERSION,
         native_backend=native_engine,
-        routing_policy_id="native-first-v1",
-        resource_policy_id="bounded-cpu-v1",
+        routing_policy_id="native-first",
+        resource_policy_id="bounded-cpu",
         configuration_hash=config_hash,
     )
     output_hash = compute_canonical_payload_hash(

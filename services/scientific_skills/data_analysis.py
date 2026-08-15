@@ -26,19 +26,75 @@ def build_data_profile(request: ScientificSkillRequest) -> dict[str, object]:
         values = [row.get(field) for row in rows]
         non_null = [value for value in values if value is not None]
         type_counts = Counter(_value_kind(value) for value in non_null)
-        profile.append(
-            {
-                "field": field,
-                "non_null_count": len(non_null),
-                "null_count": len(values) - len(non_null),
-                "distinct_count": len({_stable_scalar(value) for value in non_null}),
-                "type_counts": dict(sorted(type_counts.items())),
+        entry: dict[str, object] = {
+            "field": field,
+            "non_null_count": len(non_null),
+            "null_count": len(values) - len(non_null),
+            "distinct_count": len({_stable_scalar(value) for value in non_null}),
+            "type_counts": dict(sorted(type_counts.items())),
+        }
+        entry["categorical_summary"] = _categorical_summary(non_null)
+        numeric = [float(value) for value in non_null if _is_number(value)]
+        if numeric:
+            entry["numeric_summary"] = {
+                "count": len(numeric),
+                "minimum": min(numeric),
+                "maximum": max(numeric),
+                "mean": mean(numeric),
+                "median": median(numeric),
             }
-        )
+            entry["outlier_summary"] = _outlier_summary(numeric)
+        profile.append(entry)
     return {
         "row_count": len(rows),
         "field_count": len(fields),
         "fields": profile,
+    }
+
+
+def _categorical_summary(non_null: list[object]) -> dict[str, object] | None:
+    counts = Counter(_stable_scalar(value) for value in non_null)
+    if len(counts) < 2 or len(counts) > 50:
+        return None
+    representative = {
+        _stable_scalar(value): value
+        for value in non_null
+        if isinstance(value, str | int | float | bool)
+    }
+    total = len(non_null)
+    top = counts.most_common(5)
+    return {
+        "category_count": len(counts),
+        "top_categories": [
+            {
+                "value": representative.get(value, value),
+                "count": count,
+                "share": round(count / total, 4),
+            }
+            for value, count in top
+        ],
+    }
+
+
+def _outlier_summary(numeric: list[float]) -> dict[str, object]:
+    ordered = sorted(numeric)
+    mid = len(ordered) // 2
+    lower_half = ordered[: mid]
+    upper_half = ordered[mid + len(ordered) % 2 :]
+    q1 = median(lower_half) if lower_half else ordered[0]
+    q3 = median(upper_half) if upper_half else ordered[-1]
+    iqr = q3 - q1
+    low_fence = q1 - 1.5 * iqr
+    high_fence = q3 + 1.5 * iqr
+    outliers = [value for value in numeric if value < low_fence or value > high_fence]
+    return {
+        "method": "iqr_fence",
+        "q1": q1,
+        "q3": q3,
+        "iqr": iqr,
+        "low_fence": low_fence,
+        "high_fence": high_fence,
+        "outlier_count": len(outliers),
     }
 
 
@@ -92,9 +148,12 @@ def analyze_statistics(request: ScientificSkillRequest) -> dict[str, object]:
 
 
 def analyze_correlations(request: ScientificSkillRequest) -> dict[str, object]:
-    reject_unknown(request.parameters, {"rows", "fields"})
+    reject_unknown(request.parameters, {"rows", "fields", "method"})
     rows = require_rows(request.parameters, max_rows=request.budget.max_input_rows)
     fields = require_string_list(request.parameters, "fields", max_items=64)
+    method = optional_string(request.parameters, "method", default="pearson")
+    if method not in {"pearson", "spearman"}:
+        raise ValueError("correlation method must be pearson or spearman")
     correlations: list[dict[str, object]] = []
     for index, left in enumerate(fields):
         for right in fields[index + 1 :]:
@@ -105,12 +164,14 @@ def analyze_correlations(request: ScientificSkillRequest) -> dict[str, object]:
             ]
             if len(pairs) < 2:
                 continue
+            value = _spearman(pairs) if method == "spearman" else _pearson(pairs)
             correlations.append(
                 {
                     "left_field": left,
                     "right_field": right,
                     "pair_count": len(pairs),
-                    "pearson_r": _pearson(pairs),
+                    "method": method,
+                    f"{method}_r": value,
                 }
             )
     return {"correlations": correlations}
@@ -235,6 +296,7 @@ def _hypothesis_test(
 
     sample_counts: list[int]
     assumptions: list[str]
+    effect_size: dict[str, float] | None = None
     if kind == "one_sample_t":
         _require_test_keys(raw, {"kind", "field", "expected_mean"})
         field = _test_field(raw, "field")
@@ -243,6 +305,7 @@ def _hypothesis_test(
         result = stats.ttest_1samp(values, popmean=expected)
         sample_counts = [len(values)]
         assumptions = ["independent observations", "approximately normal sample mean"]
+        effect_size = _cohens_d_one_sample(values, expected)
     elif kind in {"independent_t", "paired_t", "mann_whitney_u"}:
         _require_test_keys(raw, {"kind", "left_field", "right_field"})
         left_field = _test_field(raw, "left_field")
@@ -262,18 +325,28 @@ def _hypothesis_test(
             result = stats.ttest_rel(left, right)
             sample_counts = [len(pairs), len(pairs)]
             assumptions = ["paired observations", "approximately normal differences"]
+            differences = [a - b for a, b in pairs]
+            effect_size = _cohens_d_one_sample(differences, 0.0)
         else:
             left = _require_numeric_sample(rows, left_field, minimum=2)
             right = _require_numeric_sample(rows, right_field, minimum=2)
             if kind == "independent_t":
                 result = stats.ttest_ind(left, right, equal_var=False)
                 assumptions = ["independent observations", "Welch unequal variances"]
+                effect_size = _cohens_d_independent(left, right)
             else:
-                result = stats.mannwhitneyu(left, right, alternative="two-sided")
+                outcome = stats.mannwhitneyu(left, right, alternative="two-sided")
+                result = outcome
                 assumptions = [
                     "independent observations",
                     "ordinal or continuous values",
                 ]
+                effect_size = {
+                    "rank_biserial_r": 1.0
+                    - 2.0
+                    * float(outcome.statistic)
+                    / (len(left) * len(right))
+                }
             sample_counts = [len(left), len(right)]
     elif kind == "one_way_anova":
         _require_test_keys(raw, {"kind", "fields"})
@@ -292,6 +365,7 @@ def _hypothesis_test(
         result = stats.f_oneway(*samples)
         sample_counts = [len(sample) for sample in samples]
         assumptions = ["independent groups", "approximately normal residuals"]
+        effect_size = _eta_squared(samples)
     elif kind == "chi_square_independence":
         _require_test_keys(raw, {"kind", "left_field", "right_field"})
         left_field = _test_field(raw, "left_field")
@@ -303,6 +377,8 @@ def _hypothesis_test(
         else:
             assumptions = ["all expected cell counts are at least five"]
         sample_counts = [sum(sum(row) for row in table)]
+        total = sum(sum(row) for row in table)
+        min_dimension = min(len(table), len(table[0])) - 1
         return _test_result(
             test_index=test_index,
             kind=kind,
@@ -311,6 +387,9 @@ def _hypothesis_test(
             alpha=alpha,
             sample_counts=sample_counts,
             assumptions=assumptions,
+            effect_size={
+                "cramers_v": (float(statistic) / (total * min_dimension)) ** 0.5
+            },
         )
     elif kind == "shapiro_wilk":
         _require_test_keys(raw, {"kind", "field"})
@@ -331,6 +410,7 @@ def _hypothesis_test(
         alpha=alpha,
         sample_counts=sample_counts,
         assumptions=assumptions,
+        effect_size=effect_size,
     )
 
 
@@ -401,10 +481,11 @@ def _test_result(
     alpha: float,
     sample_counts: list[int],
     assumptions: list[str],
+    effect_size: dict[str, float] | None = None,
 ) -> dict[str, object]:
     if not isfinite(statistic) or not isfinite(p_value) or not 0 <= p_value <= 1:
         raise ValueError(f"{kind} produced a non-finite statistic or p-value")
-    return {
+    result: dict[str, object] = {
         "test_id": f"hypothesis.{test_index}",
         "kind": kind,
         "statistic": statistic,
@@ -415,6 +496,54 @@ def _test_result(
         "assumptions": assumptions,
         "library_revision": _scipy_version(),
     }
+    if effect_size is not None:
+        result["effect_size"] = effect_size
+    return result
+
+
+def _sample_stddev(values: list[float]) -> float:
+    if len(values) < 2:
+        return 0.0
+    mean_value = mean(values)
+    return (sum((value - mean_value) ** 2 for value in values) / (len(values) - 1)) ** 0.5
+
+
+def _cohens_d_one_sample(values: list[float], expected: float) -> dict[str, float]:
+    stddev = _sample_stddev(values)
+    if stddev == 0.0:
+        return {"cohens_d": 0.0}
+    return {"cohens_d": (mean(values) - expected) / stddev}
+
+
+def _cohens_d_independent(
+    left: list[float], right: list[float]
+) -> dict[str, float]:
+    pooled = (
+        (
+            (len(left) - 1) * _sample_stddev(left) ** 2
+            + (len(right) - 1) * _sample_stddev(right) ** 2
+        )
+        / (len(left) + len(right) - 2)
+    ) ** 0.5
+    if pooled == 0.0:
+        return {"cohens_d": 0.0}
+    return {"cohens_d": (mean(left) - mean(right)) / pooled}
+
+
+def _eta_squared(samples: list[list[float]]) -> dict[str, float]:
+    overall = mean([value for sample in samples for value in sample])
+    between = sum(
+        len(sample) * (mean(sample) - overall) ** 2 for sample in samples
+    )
+    within = sum(
+        (value - mean(sample)) ** 2
+        for sample in samples
+        for value in sample
+    )
+    total = between + within
+    if total == 0.0:
+        return {"eta_squared": 0.0}
+    return {"eta_squared": between / total}
 
 
 def _scipy_version() -> str:
@@ -429,6 +558,29 @@ def _pearson(pairs: list[tuple[float, float]]) -> float:
     if pstdev(left) == 0 or pstdev(right) == 0:
         return 0.0
     return correlation(left, right)
+
+
+def _spearman(pairs: list[tuple[float, float]]) -> float:
+    def _ranks(values: list[float]) -> list[float]:
+        order = sorted(range(len(values)), key=lambda index: values[index])
+        ranks = [0.0] * len(values)
+        index = 0
+        while index < len(order):
+            tie_start = index
+            while (
+                index + 1 < len(order)
+                and values[order[index + 1]] == values[order[tie_start]]
+            ):
+                index += 1
+            average_rank = (tie_start + index) / 2 + 1
+            for position in range(tie_start, index + 1):
+                ranks[order[position]] = average_rank
+            index += 1
+        return ranks
+
+    return _pearson(
+        list(zip(_ranks([item[0] for item in pairs]), _ranks([item[1] for item in pairs]), strict=True))
+    )
 
 
 def _chart_value(value: object, field: str) -> int | float | str:

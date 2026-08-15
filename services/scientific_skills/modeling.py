@@ -10,8 +10,8 @@ from math import ceil, isfinite
 from typing import Any
 
 from .parameters import (
-    optional_number,
     optional_integer,
+    optional_number,
     optional_string,
     reject_unknown,
     require_rows,
@@ -19,6 +19,9 @@ from .parameters import (
     require_string_list,
 )
 from .types import ScientificSkillRequest
+
+
+SPLIT_STRATEGIES = ("random", "stratified", "group", "entity", "time")
 
 
 def evaluate_tabular_model(request: ScientificSkillRequest) -> dict[str, object]:
@@ -30,6 +33,10 @@ def evaluate_tabular_model(request: ScientificSkillRequest) -> dict[str, object]
             "target_field",
             "task_kind",
             "algorithm",
+            "split_strategy",
+            "group_field",
+            "entity_field",
+            "time_field",
             "test_fraction",
             "random_seed",
             "cv_folds",
@@ -64,11 +71,49 @@ def evaluate_tabular_model(request: ScientificSkillRequest) -> dict[str, object]
     if not 0.1 <= test_fraction <= 0.5:
         raise ValueError("test_fraction must be within [0.1, 0.5]")
 
-    matrix, labels, admitted_row_ids = _tabular_matrix(
-        rows, features, target, task=task
+    strategy = optional_string(
+        request.parameters,
+        "split_strategy",
+        default="stratified" if task == "classification" else "random",
+    )
+    if strategy not in SPLIT_STRATEGIES:
+        raise ValueError(
+            f"split_strategy must be one of {', '.join(SPLIT_STRATEGIES)}"
+        )
+    strategy_field = {
+        "group": "group_field",
+        "entity": "entity_field",
+        "time": "time_field",
+    }
+    strategy_parameter = strategy_field.get(strategy)
+    split_field: str | None = None
+    if strategy_parameter is not None:
+        if strategy_parameter not in request.parameters:
+            raise ValueError(f"{strategy} split requires {strategy_parameter}")
+        split_field = require_string(request.parameters, strategy_parameter)
+        if split_field == target:
+            raise ValueError(f"{strategy_parameter} cannot be the target field")
+    carry_fields = (split_field,) if split_field else ()
+
+    matrix, labels, admitted_row_ids, carried = _tabular_matrix(
+        rows, features, target, task=task, carry_fields=carry_fields
     )
     if len(matrix) < 10:
         raise ValueError("tabular model requires at least 10 complete rows")
+
+    groups: list[object] = []
+    times: list[float] = []
+    if strategy in {"group", "entity"} and split_field is not None:
+        groups = [row[split_field] for row in carried]
+        if any(value is None for value in groups):
+            raise ValueError(f"{split_field} must be present on every row")
+        if len({_stable_key(value) for value in groups}) < 2:
+            raise ValueError(f"{split_field} must contain at least two groups")
+    elif strategy == "time" and split_field is not None:
+        for row in carried:
+            _kind, value = _time_sort_value(row[split_field], split_field)
+            times.append(value)
+
     return _fit_tabular(
         matrix=matrix,
         labels=labels,
@@ -81,6 +126,10 @@ def evaluate_tabular_model(request: ScientificSkillRequest) -> dict[str, object]
         seed=seed,
         cv_folds=cv_folds,
         max_output_bytes=request.budget.max_output_bytes,
+        split_strategy=strategy,
+        groups=groups,
+        times=times,
+        split_field_name=split_field,
     )
 
 
@@ -135,7 +184,7 @@ def classify_time_series(request: ScientificSkillRequest) -> dict[str, object]:
     if not 0.1 <= test_fraction <= 0.5:
         raise ValueError("test_fraction must be within [0.1, 0.5]")
 
-    matrix, labels, admitted_row_ids = _tabular_matrix(
+    matrix, labels, admitted_row_ids, _carried = _tabular_matrix(
         rows, series_fields, target, task="classification"
     )
     if len(matrix) < 10:
@@ -400,6 +449,10 @@ def _fit_tabular(
     seed: int,
     cv_folds: int,
     max_output_bytes: int,
+    split_strategy: str | None = None,
+    groups: list[object] | None = None,
+    times: list[float] | None = None,
+    split_field_name: str | None = None,
 ) -> dict[str, object]:
     from sklearn.dummy import DummyClassifier, DummyRegressor
     from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
@@ -407,40 +460,89 @@ def _fit_tabular(
     from sklearn.metrics import (
         accuracy_score,
         brier_score_loss,
+        confusion_matrix,
         f1_score,
         log_loss,
         mean_absolute_error,
         mean_squared_error,
         r2_score,
     )
-    from sklearn.model_selection import train_test_split
+    from sklearn.model_selection import (
+        GroupShuffleSplit,
+        train_test_split,
+    )
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
+
+    if split_strategy is None:
+        split_strategy = "stratified" if task == "classification" else "random"
+    if split_strategy == "stratified" and task != "classification":
+        raise ValueError("stratified split requires a classification target")
 
     label_counts = Counter(labels)
     if task == "classification" and len(label_counts) < 2:
         raise ValueError("classification requires at least two target classes")
     expected_test_count = max(1, ceil(len(matrix) * test_fraction))
-    if task == "classification" and (
-        min(label_counts.values()) < 2 or expected_test_count < len(label_counts)
+    if (
+        task == "classification"
+        and split_strategy in {"random", "stratified"}
+        and (
+            min(label_counts.values()) < 2
+            or expected_test_count < len(label_counts)
+        )
     ):
         raise ValueError(
             "classification split cannot represent every class in both partitions"
         )
-    if task == "classification" and min(label_counts.values()) < cv_folds:
+    if (
+        task == "classification"
+        and split_strategy in {"random", "stratified"}
+        and min(label_counts.values()) < cv_folds
+    ):
         raise ValueError(
             "classification cross-validation folds exceed the smallest class"
         )
-    if task == "regression" and len(matrix) < cv_folds * 2:
+    if (
+        task == "regression"
+        and split_strategy != "time"
+        and len(matrix) < cv_folds * 2
+    ):
         raise ValueError("regression cross-validation requires two rows per fold")
-    stratify = labels if task == "classification" else None
+
     indices = list(range(len(matrix)))
-    train_indices, test_indices = train_test_split(
-        indices,
-        test_size=test_fraction,
-        random_state=seed,
-        stratify=stratify,
-    )
+    train_indices: list[int]
+    test_indices: list[int]
+    if split_strategy in {"group", "entity"}:
+        group_keys = [_stable_key(value) for value in (groups or [])]
+        if not group_keys or len(group_keys) != len(matrix):
+            raise ValueError("group split requires a group value for every row")
+        splitter = GroupShuffleSplit(
+            n_splits=1, test_size=test_fraction, random_state=seed
+        )
+        train_indices, test_indices = next(
+            splitter.split(matrix, labels, groups=group_keys)
+        )
+    elif split_strategy == "time":
+        if not times or len(times) != len(matrix):
+            raise ValueError("time split requires a time value for every row")
+        ordered = sorted(indices, key=lambda index: times[index])
+        cutoff = int(len(ordered) * (1 - test_fraction))
+        if cutoff <= 0 or len(ordered) - cutoff < 2:
+            raise ValueError("time split produces an empty partition")
+        train_indices = ordered[:cutoff]
+        test_indices = ordered[cutoff:]
+    elif split_strategy == "random":
+        train_indices, test_indices = train_test_split(
+            indices, test_size=test_fraction, random_state=seed
+        )
+    else:
+        train_indices, test_indices = train_test_split(
+            indices,
+            test_size=test_fraction,
+            random_state=seed,
+            stratify=labels if task == "classification" else None,
+        )
+
     train_x = [matrix[index] for index in train_indices]
     test_x = [matrix[index] for index in test_indices]
     train_y = [labels[index] for index in train_indices]
@@ -484,10 +586,18 @@ def _fit_tabular(
             "accuracy": float(accuracy_score(test_y, baseline_predicted)),
             "macro_f1": float(f1_score(test_y, baseline_predicted, average="macro")),
         }
+        matrix_table = confusion_matrix(
+            test_y, predicted, labels=list(model.classes_)
+        )
+        confusion = {
+            "labels": [_native(item) for item in model.classes_],
+            "rows": matrix_table.tolist(),
+        }
     else:
         numeric_labels = [float(item) for item in labels]
         train_y = [numeric_labels[index] for index in train_indices]
         test_y = [numeric_labels[index] for index in test_indices]
+        confusion = None
         if algorithm == "random_forest":
             model = RandomForestRegressor(
                 n_estimators=200,
@@ -520,37 +630,80 @@ def _fit_tabular(
                 mean_squared_error(test_y, baseline_predicted) ** 0.5
             ),
         }
-    metrics.update(
-        _cross_validation_metrics(
-            model,
-            matrix,
-            labels,
-            task=task,
-            folds=cv_folds,
-            seed=seed,
+    limitations: list[str] = []
+    if split_strategy == "time":
+        limitations.append(
+            "validation is strictly after the training cutoff; cross-validation is"
+            " skipped to avoid future leakage"
         )
-    )
+    elif split_strategy in {"group", "entity"}:
+        limitations.append(
+            f"rows sharing one {split_field_name} value never cross the"
+            " train/test boundary; cross-validation is grouped"
+        )
+        metrics.update(
+            _cross_validation_metrics(
+                model,
+                matrix,
+                labels,
+                task=task,
+                folds=cv_folds,
+                seed=seed,
+                groups=[_stable_key(value) for value in (groups or [])],
+            )
+        )
+    else:
+        metrics.update(
+            _cross_validation_metrics(
+                model,
+                matrix,
+                labels,
+                task=task,
+                folds=cv_folds,
+                seed=seed,
+            )
+        )
     metrics.update(_feature_importance_metrics(model, features))
+    if task == "classification":
+        if len(label_counts) > 2:
+            limitations.append("calibration is reported only for binary targets")
+        smallest = min(label_counts.values())
+        if smallest < 5:
+            limitations.append(
+                f"the smallest class has only {smallest} observations"
+            )
+    if len(test_indices) < 20:
+        limitations.append(
+            f"the evaluation partition has only {len(test_indices)} rows"
+        )
     model_binary = _serialize_onnx_model(
         model,
         train_x,
         max_output_bytes=max_output_bytes,
     )
-    return {
+    split_report: dict[str, object] = {
+        "strategy": split_strategy,
+        "random_seed": seed,
+        "train_count": len(train_indices),
+        "test_count": len(test_indices),
+        "cross_validation_folds": cv_folds
+        if split_strategy != "time"
+        else None,
+    }
+    if split_field_name is not None:
+        split_report["field"] = split_field_name
+    if split_strategy == "time":
+        split_report["train_cutoff"] = max(times[index] for index in train_indices)
+    result: dict[str, object] = {
         "task_kind": task,
         "algorithm": algorithm,
         "algorithm_version": _sklearn_version(),
         "feature_fields": list(features),
         "target_field": target,
-        "split": {
-            "strategy": "stratified_holdout" if stratify is not None else "holdout",
-            "random_seed": seed,
-            "train_count": len(train_indices),
-            "test_count": len(test_indices),
-            "cross_validation_folds": cv_folds,
-        },
+        "split": split_report,
         "metrics": metrics,
         "baseline_metrics": baseline_metrics,
+        "limitations": limitations,
         "predictions": [
             {
                 "row_id": row_ids[index],
@@ -561,6 +714,9 @@ def _fit_tabular(
         ],
         "model_binary": model_binary,
     }
+    if confusion is not None:
+        result["confusion_matrix"] = confusion
+    return result
 
 
 def _cross_validation_metrics(
@@ -571,31 +727,66 @@ def _cross_validation_metrics(
     task: str,
     folds: int,
     seed: int,
+    groups: list[str] | None = None,
 ) -> dict[str, float]:
     import numpy as np
-    from sklearn.model_selection import KFold, StratifiedKFold, cross_validate
-
-    if task == "classification":
-        splitter = StratifiedKFold(n_splits=folds, shuffle=True, random_state=seed)
-        scoring = {"accuracy": "accuracy", "macro_f1": "f1_macro"}
-        target: list[Any] = labels
-    else:
-        splitter = KFold(n_splits=folds, shuffle=True, random_state=seed)
-        scoring = {
-            "r2": "r2",
-            "mean_absolute_error": "neg_mean_absolute_error",
-            "root_mean_squared_error": "neg_root_mean_squared_error",
-        }
-        target = [float(item) for item in labels]
-    scores = cross_validate(
-        model,
-        matrix,
-        target,
-        cv=splitter,
-        scoring=scoring,
-        n_jobs=1,
-        error_score="raise",
+    from sklearn.model_selection import (
+        GroupKFold,
+        KFold,
+        StratifiedKFold,
+        cross_validate,
     )
+
+    if groups is not None:
+        if len(set(groups)) < folds:
+            raise ValueError("group cross-validation folds exceed the group count")
+        splitter: object = GroupKFold(n_splits=folds)
+        scoring = (
+            {"accuracy": "accuracy", "macro_f1": "f1_macro"}
+            if task == "classification"
+            else {
+                "r2": "r2",
+                "mean_absolute_error": "neg_mean_absolute_error",
+                "root_mean_squared_error": "neg_root_mean_squared_error",
+            }
+        )
+        target: list[Any] = (
+            labels
+            if task == "classification"
+            else [float(item) for item in labels]
+        )
+        scores = cross_validate(
+            model,
+            matrix,
+            target,
+            cv=splitter,
+            scoring=scoring,
+            groups=groups,
+            n_jobs=1,
+            error_score="raise",
+        )
+    else:
+        if task == "classification":
+            splitter = StratifiedKFold(n_splits=folds, shuffle=True, random_state=seed)
+            scoring = {"accuracy": "accuracy", "macro_f1": "f1_macro"}
+            target = labels
+        else:
+            splitter = KFold(n_splits=folds, shuffle=True, random_state=seed)
+            scoring = {
+                "r2": "r2",
+                "mean_absolute_error": "neg_mean_absolute_error",
+                "root_mean_squared_error": "neg_root_mean_squared_error",
+            }
+            target = [float(item) for item in labels]
+        scores = cross_validate(
+            model,
+            matrix,
+            target,
+            cv=splitter,
+            scoring=scoring,
+            n_jobs=1,
+            error_score="raise",
+        )
     metrics: dict[str, float] = {}
     for name in scoring:
         values = np.asarray(scores[f"test_{name}"], dtype=float)
@@ -682,10 +873,12 @@ def _tabular_matrix(
     target: str,
     *,
     task: str,
-) -> tuple[list[list[float]], list[Any], list[str]]:
+    carry_fields: tuple[str, ...] = (),
+) -> tuple[list[list[float]], list[Any], list[str], list[dict[str, object]]]:
     matrix: list[list[float]] = []
     labels: list[Any] = []
     row_ids: list[str] = []
+    carried: list[dict[str, object]] = []
     for index, row in enumerate(rows):
         values = [row.get(field) for field in features]
         label = row.get(target)
@@ -699,7 +892,18 @@ def _tabular_matrix(
         matrix.append([float(value) for value in values])
         labels.append(label)
         row_ids.append(str(row.get("row_id", f"row.{index + 1}")))
-    return matrix, labels, row_ids
+        carried.append({field: row.get(field) for field in carry_fields})
+    return matrix, labels, row_ids, carried
+
+
+def _stable_key(value: object) -> str:
+    if isinstance(value, str):
+        return f"s:{value}"
+    if isinstance(value, bool):
+        return f"b:{value}"
+    if isinstance(value, int | float):
+        return f"n:{value}"
+    return repr(value)
 
 
 def _valid_target(value: object, *, task: str) -> bool:

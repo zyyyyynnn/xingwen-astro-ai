@@ -1,0 +1,1906 @@
+{
+  "schema_version": "1.0.0",
+  "reference_snapshot_digests": {
+    "inosum": "91a022e9c93b67e1f948612b943c4a5257eaec6991a3de7a16920b0cb1772104",
+    "autoastro": "2483b1ea24a06b3cd72de1e93ccc5e805fb231b009346c65d857597859ac50b2",
+    "mavis": "efb87f61f6d3e4274f592fb9c1cc3a07583c86a018bee69215e11219dcee0ce6"
+  },
+  "capabilities": [
+    {
+      "reference": "inosum",
+      "category": "function",
+      "capability_id": "inosum.paper.section_classification",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "adopted",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/paper_pipeline/summary_chunks.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Seven-class section semantics replace the reference whole-document classification prompt."
+    },
+    {
+      "reference": "inosum",
+      "category": "function",
+      "capability_id": "inosum.paper.section_extraction",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/paper_pipeline/summary_chunks.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Structured DocumentParse blocks replace markdown-title splitting; section hints come from heading blocks."
+    },
+    {
+      "reference": "inosum",
+      "category": "function",
+      "capability_id": "inosum.paper.long_document_chunk",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/paper_pipeline/summary_chunks.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Bounded ordered SummaryChunk construction with max text size and max block count; the reference had no chunking."
+    },
+    {
+      "reference": "inosum",
+      "category": "function",
+      "capability_id": "inosum.paper.section_reduction",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/paper_pipeline/summary_chunks.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Deterministic section aggregation over chunk extractions; no model-generated structure."
+    },
+    {
+      "reference": "inosum",
+      "category": "function",
+      "capability_id": "inosum.paper.evidence_preservation",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/paper_pipeline/summary.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Statements must carry evidence ids from supplied candidates; the reducer cannot drop or invent evidence."
+    },
+    {
+      "reference": "inosum",
+      "category": "function",
+      "capability_id": "inosum.summary.structured_summary",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "adopted",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/paper_pipeline/summary.py"
+      ],
+      "verification": [
+        "unit",
+        "contract"
+      ],
+      "notes": "Typed seven-section PaperSummary with admission gates."
+    },
+    {
+      "reference": "inosum",
+      "category": "function",
+      "capability_id": "inosum.summary.missing_unverifiable_semantics",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/paper_pipeline/summary.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "unsupported/unverifiable/missing validation codes replace the reference None-placeholder fallback."
+    },
+    {
+      "reference": "inosum",
+      "category": "function",
+      "capability_id": "inosum.summary.export",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/api/src/app/services/paper_summary_exports.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "JSON and Markdown export through the artifact export seam."
+    },
+    {
+      "reference": "inosum",
+      "category": "presentation",
+      "capability_id": "inosum.presentation.seven_section_report",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "adopted",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/paper-summary-renderer.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Seven fixed-order sections with human titles."
+    },
+    {
+      "reference": "inosum",
+      "category": "presentation",
+      "capability_id": "inosum.presentation.evidence_content",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/paper-summary-renderer.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Quote-first evidence presentation instead of unaudited prose."
+    },
+    {
+      "reference": "inosum",
+      "category": "presentation",
+      "capability_id": "inosum.presentation.source_locator",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/paper-summary-renderer.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Page/section/paragraph locator display derived from document blocks."
+    },
+    {
+      "reference": "inosum",
+      "category": "presentation",
+      "capability_id": "inosum.presentation.human_readable_source",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/paper-summary-renderer.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Paper title and academic identifiers instead of internal ids."
+    },
+    {
+      "reference": "inosum",
+      "category": "presentation",
+      "capability_id": "inosum.presentation.partial_unverifiable_display",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/paper-summary-renderer.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Support states are surfaced instead of silently filling None."
+    },
+    {
+      "reference": "inosum",
+      "category": "interaction",
+      "capability_id": "inosum.interaction.evidence_expand_collapse",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "adopted",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/paper-summary-renderer.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Per-statement evidence disclosure."
+    },
+    {
+      "reference": "inosum",
+      "category": "interaction",
+      "capability_id": "inosum.interaction.evidence_selection",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "adopted",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/paper-summary-renderer.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Evidence selection callback wiring for future shell integration."
+    },
+    {
+      "reference": "inosum",
+      "category": "interaction",
+      "capability_id": "inosum.interaction.source_navigation",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "packages/domain/src/paper-summary.ts"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Precise locator model (page/section/paragraph/text range) with unavailable-locator fallback."
+    },
+    {
+      "reference": "inosum",
+      "category": "interaction",
+      "capability_id": "inosum.interaction.locator_data",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "packages/domain/src/paper-summary.ts"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Machine locator payload that the future PDF shell can consume."
+    },
+    {
+      "reference": "inosum",
+      "category": "interaction",
+      "capability_id": "inosum.interaction.report_pdf_split",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "adopted",
+      "implementation_state": "integration_pending",
+      "eligible": true,
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "Requires the PR #240 Report | PDF workspace shell."
+    },
+    {
+      "reference": "inosum",
+      "category": "interaction",
+      "capability_id": "inosum.interaction.fullscreen",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "adopted",
+      "implementation_state": "integration_pending",
+      "eligible": true,
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "Requires the PR #240 result fullscreen shell."
+    },
+    {
+      "reference": "inosum",
+      "category": "interaction",
+      "capability_id": "inosum.interaction.evidence_pdf_jump",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "adopted",
+      "implementation_state": "integration_pending",
+      "eligible": true,
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "Requires the PR #240 PDF viewer shell; locator payload is already implemented."
+    },
+    {
+      "reference": "inosum",
+      "category": "interaction",
+      "capability_id": "inosum.interaction.right_result_click",
+      "reference_sources": [
+        "inosum/Auto_doc_analysis_summarize.py"
+      ],
+      "disposition": "adopted",
+      "implementation_state": "integration_pending",
+      "eligible": true,
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "Requires the PR #240 right result index."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.data.loading",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/load_and_analyze_data.py",
+        "AutoAstro/AutoAstro/datacode/data_core.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/api/src/app/workflow/scientific_inputs.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Typed dataset upload and content addressing replace local CSV paths and ModelScope clones."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.data.profile",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/load_and_analyze_data.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/data_analysis.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Row/column profile with type counts, distinct counts, and missingness."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.data.missing_understanding",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/error_correction.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/data_analysis.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Missingness counts, categorical summaries, and outlier summaries replace the reference median-fill loop."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.statistics.descriptive",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/error_correction.py",
+        "AutoAstro/AutoAstro/code/prompt.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/data_analysis.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Bounded descriptive statistics instead of generated code."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.statistics.hypothesis_testing",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/prompt.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/data_analysis.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Controlled test catalog (t-tests, Mann-Whitney, ANOVA, chi-square, Shapiro) with assumptions and effect sizes."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.statistics.correlation",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/prompt.py",
+        "AutoAstro/AutoAstro/code/tools.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/data_analysis.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Pearson and Spearman correlations with pair counts."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.visualization.chart",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/prompt.py",
+        "AutoAstro/AutoAstro/code/framework_executor.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/data_analysis.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Declarative Visualization spec (scatter/line/bar/area/histogram/heatmap) instead of generated matplotlib code."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.catalog.crossmatch",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/cross_match.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/data_pipeline/crossmatch/__init__.py"
+      ],
+      "verification": [
+        "unit",
+        "benchmark"
+      ],
+      "notes": "Project-owned crossmatch engine replaces interactive astroquery XMatch selection."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.ml.clustering",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/tools.py",
+        "AutoAstro/AutoAstro/code/prompt.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/unsupervised.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "KMeans and DBSCAN with silhouette on typed numeric matrices."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.ml.pca",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/tools.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/unsupervised.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Deterministic PCA projection with explained variance."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.ml.anomaly_detection",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/error_correction.py",
+        "AutoAstro/AutoAstro/code/tools.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/unsupervised.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "IsolationForest and robust z-score replace generated outlier code."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.ml.tabular_classification",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/prompt.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/modeling.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Bounded estimators with leakage-safe split strategies and baselines."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.ml.tabular_regression",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/prompt.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/modeling.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Random forest and linear regression with MAE/RMSE/R2 and baselines."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.ml.time_series_classification",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/model/self_model/class_model.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/modeling.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Fixed-length series classification through the canonical tabular seam; no remote torch training."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.ml.time_series_forecast",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/model/self_model/pre_model.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/modeling.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Time-ordered split with explicit train cutoff and forecast horizon; no future leakage."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.ml.image_classification",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/framework_executor.py",
+        "AutoAstro/AutoAstro/model/mmpretrain/help.md"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/modeling.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Project-owned ZIP datasets with labels.json and Pillow decoding replace mmpretrain config execution."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.ml.evaluation",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/prompt.py",
+        "AutoAstro/AutoAstro/model/self_model/class_model.py"
+      ],
+      "disposition": "adopted",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/modeling.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Metrics, baselines, cross-validation, calibration, confusion matrix, and split disclosure."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.ml.model_export",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/model/self_model/class_model.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/modeling.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "ONNX serialization with input schema and output semantics; no pickle or torch state_dict."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.ml.inference",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/model/self_model/class_model.py",
+        "AutoAstro/AutoAstro/model/self_model/pre_model.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/inference.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Bounded ONNX runtime inference replaces checkpoint loading."
+    },
+    {
+      "reference": "autoastro",
+      "category": "presentation",
+      "capability_id": "autoastro.presentation.dataset",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/error_correction.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/data-artifact-renderer.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Dataset table with field labels, units, and quality issues."
+    },
+    {
+      "reference": "autoastro",
+      "category": "presentation",
+      "capability_id": "autoastro.presentation.analysis_report",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/analyze.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-content/analysis-report-content.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Analysis report content: question, samples, tests, effect sizes, significance, limitations."
+    },
+    {
+      "reference": "autoastro",
+      "category": "presentation",
+      "capability_id": "autoastro.presentation.chart",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/prompt.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-chart.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Declarative chart renderer for scatter/line/bar/histogram/heatmap/time-series."
+    },
+    {
+      "reference": "autoastro",
+      "category": "presentation",
+      "capability_id": "autoastro.presentation.model_evaluation",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/prompt.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-content/model-evaluation-content.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Split disclosure, baselines, metrics, confusion matrix, cross-validation."
+    },
+    {
+      "reference": "autoastro",
+      "category": "presentation",
+      "capability_id": "autoastro.presentation.model_artifact",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/model/self_model/class_model.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-content/model-evaluation-content.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Model type, task, input requirements, output semantics, training summary, and download; no operator lists or hashes."
+    },
+    {
+      "reference": "autoastro",
+      "category": "presentation",
+      "capability_id": "autoastro.presentation.time_series",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/model/self_model/pre_model.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-chart.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Time-series chart with explicit ordering semantics."
+    },
+    {
+      "reference": "autoastro",
+      "category": "presentation",
+      "capability_id": "autoastro.presentation.quality_limitations",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/analyze.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-content/analysis-report-content.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Failures, partial results, and limitations are first-class content."
+    },
+    {
+      "reference": "autoastro",
+      "category": "interaction",
+      "capability_id": "autoastro.interaction.table_sorting",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/cross_match.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/data-artifact-renderer.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Local presentational column sorting; no second data state source."
+    },
+    {
+      "reference": "autoastro",
+      "category": "interaction",
+      "capability_id": "autoastro.interaction.column_control",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/cross_match.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/data-artifact-renderer.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Column visibility control replaces the reference interactive field pruning."
+    },
+    {
+      "reference": "autoastro",
+      "category": "interaction",
+      "capability_id": "autoastro.interaction.cell_evidence_callback",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/error_correction.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/data-artifact-renderer.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Selected row/cell evidence callback for provenance tracing."
+    },
+    {
+      "reference": "autoastro",
+      "category": "interaction",
+      "capability_id": "autoastro.interaction.chart_interaction",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/code_executor.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-chart.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Tooltip and legend toggle on declarative charts; zoom/pan only where the chart library supports it natively."
+    },
+    {
+      "reference": "autoastro",
+      "category": "interaction",
+      "capability_id": "autoastro.interaction.model_download",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/client.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/artifact-export-actions.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Artifact export actions provide model and report downloads."
+    },
+    {
+      "reference": "autoastro",
+      "category": "interaction",
+      "capability_id": "autoastro.interaction.result_selection",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/load_and_analyze_data.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "integration_pending",
+      "eligible": true,
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "Requires the PR #240 right result index; console input selection is not migrated."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.exec.arbitrary_code_execution",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/framework_executor.py",
+        "AutoAstro/AutoAstro/code/code_executor.py"
+      ],
+      "disposition": "rejected",
+      "implementation_state": "missing",
+      "eligible": false,
+      "exclusion_reason": "arbitrary_python_execution",
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "LLM-generated Python executed by subprocess; replaced by bounded typed skills."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.exec.code_self_correction",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/error_correction.py"
+      ],
+      "disposition": "rejected",
+      "implementation_state": "missing",
+      "eligible": false,
+      "exclusion_reason": "recursive_self_correction",
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "Unbounded LLM rewrite-and-retry loop; not migrated."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.exec.mmpretrain_config",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/model/mmpretrain/help.md",
+        "AutoAstro/AutoAstro/code/framework_executor.py"
+      ],
+      "disposition": "rejected",
+      "implementation_state": "missing",
+      "eligible": false,
+      "exclusion_reason": "python_config_execution",
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "Remote mmpretrain config execution and pretrained checkpoint download."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.infra.remote_code_server",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/client.py"
+      ],
+      "disposition": "rejected",
+      "implementation_state": "missing",
+      "eligible": false,
+      "exclusion_reason": "unauthenticated_remote_code_endpoint",
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "Hardcoded internal-IP execution server."
+    },
+    {
+      "reference": "autoastro",
+      "category": "function",
+      "capability_id": "autoastro.infra.hardcoded_credentials",
+      "reference_sources": [
+        "AutoAstro/AutoAstro/code/llm_api.py",
+        "AutoAstro/AutoAstro/datacode/data_core.py"
+      ],
+      "disposition": "rejected",
+      "implementation_state": "missing",
+      "eligible": false,
+      "exclusion_reason": "hardcoded_credentials",
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "API keys and an oauth2 token embedded in source."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.astronomy.ephemeris",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/skyfield.json",
+        "mavis/local_tools.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astronomy.py"
+      ],
+      "verification": [
+        "unit",
+        "benchmark"
+      ],
+      "notes": "Skyfield + bundled DE421 with explicit frame, epoch, and units."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.astronomy.celestial_events",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/skyfield.json",
+        "mavis/local_tools.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astronomy.py"
+      ],
+      "verification": [
+        "unit",
+        "benchmark"
+      ],
+      "notes": "Conjunction, opposition, occultation, transit, eclipse, moon phase, elongation, and seasonal events with typed geometry."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.astronomy.eclipse_geometry",
+      "reference_sources": [
+        "mavis/local_tools.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/eclipse_geometry.py"
+      ],
+      "verification": [
+        "unit",
+        "benchmark"
+      ],
+      "notes": "Bounded eclipse geometry replaces unbounded while-loop searches with a hardcoded city observer."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.astronomy.rise_set_transit",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/skyfield.json"
+      ],
+      "disposition": "adopted",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astronomy.py"
+      ],
+      "verification": [
+        "unit",
+        "benchmark"
+      ],
+      "notes": "Rise/set/transit and twilight events via almanac with explicit observer context."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.astronomy.body_radius",
+      "reference_sources": [
+        "mavis/local_tools.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astronomy.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Typed body radius table with documented units."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.source.simbad_object",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/getData.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astronomy.py"
+      ],
+      "verification": [
+        "unit",
+        "recorded"
+      ],
+      "notes": "Simbad object lookup through the bounded adapter."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.source.simbad_region",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/getData.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astronomy.py"
+      ],
+      "verification": [
+        "unit",
+        "recorded"
+      ],
+      "notes": "Cone/region query with typed coordinates."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.source.skyview_fits",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/getData.json",
+        "mavis/local_tools.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astronomy.py"
+      ],
+      "verification": [
+        "unit",
+        "recorded"
+      ],
+      "notes": "SkyView FITS retrieval with bounded response bytes."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.source.gaia_cone",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/getData2.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astro_acquisition.py"
+      ],
+      "verification": [
+        "unit",
+        "recorded"
+      ],
+      "notes": "Gaia DR3 cone search through the acquisition skill."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.source.vizier_tap",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/getData2.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astro_acquisition.py"
+      ],
+      "verification": [
+        "unit",
+        "recorded"
+      ],
+      "notes": "VizieR TAP queries replace the reference crossmatch plumbing."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.source.sdss_spectrum",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/getData2.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astro_acquisition.py"
+      ],
+      "verification": [
+        "unit",
+        "recorded"
+      ],
+      "notes": "SDSS spectrum acquisition and analysis."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.source.mast_light_curve",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/getData2.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astro_acquisition.py"
+      ],
+      "verification": [
+        "unit",
+        "recorded"
+      ],
+      "notes": "MAST/TESS light curve acquisition and analysis."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.fits.background_estimation",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/photutils.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astronomy.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Sigma-clipped background statistics."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.fits.source_detection",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/photutils.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astronomy.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "StarFinder detection on background-subtracted data."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.fits.centroid",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/photutils.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astronomy.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Center-of-mass centroid."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.fits.segmentation",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/photutils.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astronomy.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Detect/deblend segmentation with a source catalog."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.fits.aperture_photometry",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/photutils.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astronomy.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Circular aperture photometry with local background."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.fits.psf_photometry",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/photutils.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astronomy.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "PSF-style photometry with a circular Gaussian PRF."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.spectrum.analysis",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/getData2.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astro_series.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Typed spectrum analysis with wavelength/flux units."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.light_curve.analysis",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/getData2.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astro_series.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Typed light-curve analysis with period and significance metrics."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.wwt.scene",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/wwt_agent.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astronomy.py",
+        "services/scientific_skills/wwt_capabilities.py"
+      ],
+      "verification": [
+        "unit",
+        "contract"
+      ],
+      "notes": "Declarative WWT scene spec replaces WebSocket free commands."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.observer.geocoding",
+      "reference_sources": [
+        "mavis/local_tools.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astronomy.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Explicit typed observer coordinates replace an external geocoding API keyed by a hardcoded token."
+    },
+    {
+      "reference": "mavis",
+      "category": "presentation",
+      "capability_id": "mavis.presentation.spectrum",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/getData2.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-content/spectrum-content.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Spectrum display with units and provenance instead of a downloaded FITS file."
+    },
+    {
+      "reference": "mavis",
+      "category": "presentation",
+      "capability_id": "mavis.presentation.light_curve",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/getData2.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-content/light-curve-content.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Light-curve display with time and magnitude axes."
+    },
+    {
+      "reference": "mavis",
+      "category": "presentation",
+      "capability_id": "mavis.presentation.fits",
+      "reference_sources": [
+        "mavis/local_tools.py"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-viewport.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "FITS display in the WWT viewport with stretch and colormap controls."
+    },
+    {
+      "reference": "mavis",
+      "category": "presentation",
+      "capability_id": "mavis.presentation.wwt_scene",
+      "reference_sources": [
+        "mavis/web_django/myvue/src/components/WWTComponent.vue"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-viewport.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Declarative WWT viewport with text and table alternatives."
+    },
+    {
+      "reference": "mavis",
+      "category": "presentation",
+      "capability_id": "mavis.presentation.event_list",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/skyfield.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astronomy.py"
+      ],
+      "verification": [
+        "unit"
+      ],
+      "notes": "Celestial event lists with times, geometry, and observer context."
+    },
+    {
+      "reference": "mavis",
+      "category": "presentation",
+      "capability_id": "mavis.presentation.source_results",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/getData.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "services/scientific_skills/astronomy.py",
+        "apps/workspace/src/components/data-artifact-renderer.tsx"
+      ],
+      "verification": [
+        "unit",
+        "component"
+      ],
+      "notes": "Simbad/Gaia/VizieR result tables with human column labels."
+    },
+    {
+      "reference": "mavis",
+      "category": "presentation",
+      "capability_id": "mavis.presentation.celestial_coordinates",
+      "reference_sources": [
+        "mavis/web_django/myvue/src/components/WWTComponent.vue"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-viewport.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Explicit RA hours / Dec degrees presentation with readback."
+    },
+    {
+      "reference": "mavis",
+      "category": "interaction",
+      "capability_id": "mavis.interaction.wwt_navigation",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/wwt_agent.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-session.ts"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Declarative center, track, field of view, and camera roll."
+    },
+    {
+      "reference": "mavis",
+      "category": "interaction",
+      "capability_id": "mavis.interaction.wwt_time_control",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/wwt_agent.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-session.ts"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Fixed time, playback rate, pause, and system clock."
+    },
+    {
+      "reference": "mavis",
+      "category": "interaction",
+      "capability_id": "mavis.interaction.wwt_layers",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/wwt_agent2.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-session.ts"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "FITS and table layers with cleanup and failed-layer recovery."
+    },
+    {
+      "reference": "mavis",
+      "category": "interaction",
+      "capability_id": "mavis.interaction.wwt_annotation",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/wwt_agent.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-session.ts"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Circle, line, point, and label annotations with typed coordinates."
+    },
+    {
+      "reference": "mavis",
+      "category": "interaction",
+      "capability_id": "mavis.interaction.wwt_tour",
+      "reference_sources": [
+        "mavis/data/api_for_prompt/wwt_agent.json"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-session.ts"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Tour step navigation with hold durations and autoplay."
+    },
+    {
+      "reference": "mavis",
+      "category": "interaction",
+      "capability_id": "mavis.interaction.wwt_readback",
+      "reference_sources": [
+        "mavis/web_django/myvue/src/components/WWTComponent.vue"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-session.ts"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Current center, field of view, roll, and time readback without polling loops."
+    },
+    {
+      "reference": "mavis",
+      "category": "interaction",
+      "capability_id": "mavis.interaction.wwt_png_export",
+      "reference_sources": [
+        "mavis/web_django/myvue/src/components/WWTComponent.vue"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-viewport.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Explicit user-triggered PNG export with semantic file names."
+    },
+    {
+      "reference": "mavis",
+      "category": "interaction",
+      "capability_id": "mavis.interaction.view_interaction",
+      "reference_sources": [
+        "mavis/web_django/myvue/src/components/WWTComponent.vue"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "implemented",
+      "eligible": true,
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-viewport.tsx"
+      ],
+      "verification": [
+        "component"
+      ],
+      "notes": "Keyboard-focusable engine-native pan/zoom interaction."
+    },
+    {
+      "reference": "mavis",
+      "category": "interaction",
+      "capability_id": "mavis.interaction.result_selection",
+      "reference_sources": [
+        "mavis/web_django/myvue/src/views/Tt.vue"
+      ],
+      "disposition": "replaced",
+      "implementation_state": "integration_pending",
+      "eligible": true,
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "Requires the PR #240 right result index; the reference screenshot-polling page is not migrated."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.exec.websocket_remote_control",
+      "reference_sources": [
+        "mavis/server.py",
+        "mavis/local_tools.py",
+        "mavis/web_django/myvue/src/components/WWTComponent.vue"
+      ],
+      "disposition": "rejected",
+      "implementation_state": "missing",
+      "eligible": false,
+      "exclusion_reason": "browser_remote_control_websocket",
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "Unauthenticated WebSocket command channel; replaced by declarative scenes."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.exec.screenshot_polling",
+      "reference_sources": [
+        "mavis/web_django/myvue/src/views/Tt.vue",
+        "mavis/web_django/myvue/src/layout/Home.vue"
+      ],
+      "disposition": "rejected",
+      "implementation_state": "missing",
+      "eligible": false,
+      "exclusion_reason": "screenshot_polling",
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "100-500ms polling loops and screenshot auto-upload."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.exec.arbitrary_python",
+      "reference_sources": [
+        "mavis/mutil_agent10.py"
+      ],
+      "disposition": "rejected",
+      "implementation_state": "missing",
+      "eligible": false,
+      "exclusion_reason": "arbitrary_python_execution",
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "runpy execution of LLM-generated code."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.exec.jupyter_execution",
+      "reference_sources": [
+        "mavis/utils.py"
+      ],
+      "disposition": "rejected",
+      "implementation_state": "missing",
+      "eligible": false,
+      "exclusion_reason": "jupyter_arbitrary_execution",
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "Remote Jupyter kernel execution with an embedded token."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.exec.recursive_self_correction",
+      "reference_sources": [
+        "mavis/mutil_agent10.py"
+      ],
+      "disposition": "rejected",
+      "implementation_state": "missing",
+      "eligible": false,
+      "exclusion_reason": "recursive_self_correction",
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "Up to fourteen regenerate-and-execute retries with visual evaluation loops."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.infra.hardcoded_credentials",
+      "reference_sources": [
+        "mavis/web_django/mydjango/mydjango/settings.py",
+        "mavis/model.py",
+        "mavis/utils.py",
+        "mavis/local_tools.py"
+      ],
+      "disposition": "rejected",
+      "implementation_state": "missing",
+      "eligible": false,
+      "exclusion_reason": "hardcoded_credentials",
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "Django secret, database passwords, and LLM API keys in source."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.infra.hardcoded_paths",
+      "reference_sources": [
+        "mavis/local_tools.py",
+        "mavis/prompt10.py",
+        "mavis/mutil_agent10.py"
+      ],
+      "disposition": "rejected",
+      "implementation_state": "missing",
+      "eligible": false,
+      "exclusion_reason": "hardcoded_personal_paths",
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "Absolute desktop paths and internal IPs throughout."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.infra.redis_state",
+      "reference_sources": [
+        "mavis/local_tools.py",
+        "mavis/mutil_agent10.py"
+      ],
+      "disposition": "rejected",
+      "implementation_state": "missing",
+      "eligible": false,
+      "exclusion_reason": "redis_second_business_state_source",
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "Redis used as cross-request business state."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.data.fake_weather",
+      "reference_sources": [
+        "mavis/local_tools.py"
+      ],
+      "disposition": "rejected",
+      "implementation_state": "missing",
+      "eligible": false,
+      "exclusion_reason": "fabricated_data",
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "search_weather always returns sunny."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.shell.django_vue_app",
+      "reference_sources": [
+        "mavis/web_django/mydjango/mydjango/settings.py",
+        "mavis/web_django/myvue/src/App.vue"
+      ],
+      "disposition": "rejected",
+      "implementation_state": "missing",
+      "eligible": false,
+      "exclusion_reason": "legacy_application_shell",
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "Historical Django/Vue application shell with CORS fully open and DEBUG on."
+    },
+    {
+      "reference": "mavis",
+      "category": "function",
+      "capability_id": "mavis.wwt.vendor_bundle",
+      "reference_sources": [
+        "mavis/wwt-tutorial/my11.js"
+      ],
+      "disposition": "rejected",
+      "implementation_state": "missing",
+      "eligible": false,
+      "exclusion_reason": "reference_vendor_bundle",
+      "xingwen_owners": [],
+      "verification": [],
+      "notes": "Vendored minified WWT engine bundle; the project uses @wwtelescope/engine packages."
+    }
+  ]
+}

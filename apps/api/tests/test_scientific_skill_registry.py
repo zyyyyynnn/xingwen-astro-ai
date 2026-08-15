@@ -810,6 +810,10 @@ async def test_step_adapter_materializes_skyview_fits_and_builds_visualization()
             ScientificSkillDefinition(
                 skill_id=ScientificSkillId.skyview_fits,
                 revision="1.0.0",
+                phase="acquiring_observations",
+                accepted_input_kinds=("sky_coordinates",),
+                produced_artifact_kinds=("fits_image",),
+                workload_class="network",
                 handler=fake_skyview,
             )
         ]
@@ -855,6 +859,10 @@ async def test_step_adapter_preserves_each_produced_physical_source_snapshot() -
             ScientificSkillDefinition(
                 skill_id=ScientificSkillId.ephemeris,
                 revision="1.0.0",
+                phase="acquiring_observations",
+                accepted_input_kinds=("target_name", "time_range"),
+                produced_artifact_kinds=("ephemeris_coordinates",),
+                workload_class="cpu_light",
                 handler=fake_ephemeris,
             )
         ]

@@ -3,7 +3,7 @@
 | 元数据 | 值 |
 | --- | --- |
 | Authority | MAVIS 160 例迁移与受控科学技能集成台账规范 |
-| Source Authority | [mavis_adoption_ledger.json](../../services/reference_integration/mavis_adoption_ledger.json) |
+| Authoring source | [mavis_adoption_ledger.json](../../services/reference_integration/mavis_adoption_ledger.json) |
 | Scope | 参考项目集成、受控能力映射、旧运行机制拒绝与 Live 验收门禁 |
 
 本文档是星文智析为参考项目 MAVIS（Multi-Agent Visual Interaction System for Astronomy）160 个基准测试案例建立的架构迁移与治理台账说明。机器可读唯一事实源为 [mavis_adoption_ledger.json](../../services/reference_integration/mavis_adoption_ledger.json)。
@@ -91,7 +91,7 @@
 ```text
 [拒绝: 旧 MAVIS 运行机制]                      [采用: 星文智析规范架构]
 LLM 生成自由 Python / exec()      ───►  受控参数白名单 + Pydantic Schema + ScientificSkillRegistry
-多轮 Prompt 递归自动纠错          ───►  WorkflowExecutor 状态机 + StepAttempt 显式预算与重试
+多轮 Prompt 递归自动纠错          ───►  ResearchRun 状态机 + StepAttempt 显式预算与重试
 私有 WebSocket 远程遥控 Vue      ───►  声明式 WwtSceneVisualizationSpec 产物 + 前端标准渲染
 截图轮询与图片文件回传           ───►  标准 Renderer 读取状态 + 必填文本替代
 Django 全局共享输出目录          ───►  Run/Attempt 隔离临时执行环境 + Content-Addressed Storage

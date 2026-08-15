@@ -10,7 +10,7 @@ MAVIS 把 Python Agent、私有 WebSocket、Vue 组件和 WWT 引擎连成远程
 flowchart LR
   Contract["Frozen ScientificTask parameters"] --> Skill["Bounded wwt_scene skill"]
   Skill --> Spec["WwtSceneVisualizationSpec"]
-  Spec --> Artifact["Versioned Visualization Artifact"]
+  Spec --> Artifact["Immutable Visualization Artifact"]
   Artifact --> Renderer["Standard WWT Renderer"]
   Renderer --> Engine["Official WWT engine package"]
   Artifact --> Text["Required text alternative"]

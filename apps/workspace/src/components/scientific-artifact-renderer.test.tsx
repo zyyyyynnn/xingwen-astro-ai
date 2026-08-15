@@ -98,12 +98,13 @@ describe("Scientific artifact renderer", () => {
       />,
     );
 
-    expect(screen.getByText("claim_01")).toBeInTheDocument();
+    expect(screen.queryByText("claim_01")).not.toBeInTheDocument();
     expect(
       screen.getAllByText(
         "The host star TIC-5678 has an effective temperature of 5800 K.",
       ).length,
     ).toBeGreaterThan(0);
+    expect(screen.getByText("已接受")).toBeInTheDocument();
   });
 
   it("renders relation and trace surfaces as structured tables and steps", async () => {
@@ -143,7 +144,7 @@ describe("Scientific artifact renderer", () => {
         surface="thread"
       />,
     );
-    expect(screen.getByText("trace_01")).toBeInTheDocument();
+    expect(screen.queryByText("trace_01")).not.toBeInTheDocument();
     expect(
       screen.getByText("Compare the host-star identity in each claim."),
     ).toBeInTheDocument();
@@ -164,12 +165,13 @@ describe("Scientific artifact renderer", () => {
       />,
     );
 
-    expect(screen.getByText("node_01")).toBeInTheDocument();
-    expect(screen.getByText("edge_01")).toBeInTheDocument();
+    expect(screen.queryByText("node_01")).not.toBeInTheDocument();
+    expect(screen.queryByText("edge_01")).not.toBeInTheDocument();
     expect(screen.getByText("Exoplanet candidate dataset")).toBeInTheDocument();
     expect(
       screen.getByText("Host-star temperature finding"),
     ).toBeInTheDocument();
+    expect(screen.getByText("支持发现")).toBeInTheDocument();
   });
 
   it.each(["thread", "docked", "fullscreen"] as const)(
@@ -232,7 +234,8 @@ describe("Scientific artifact renderer", () => {
       expect(
         screen.getByRole("table", { name: "光谱采样点" }),
       ).toBeInTheDocument();
-      expect(screen.getByText("line_01")).toBeInTheDocument();
+      expect(screen.queryByText("line_01")).not.toBeInTheDocument();
+      expect(screen.getByText("发射")).toBeInTheDocument();
     },
   );
 
@@ -316,7 +319,8 @@ describe("Scientific artifact renderer", () => {
           `.scientific-artifact[data-surface="${surface}"]`,
         ),
       ).toBeInTheDocument();
-      expect(screen.getByText("line_h_alpha")).toBeInTheDocument();
+      expect(screen.queryByText("line_h_alpha")).not.toBeInTheDocument();
+      expect(screen.getByText("发射")).toBeInTheDocument();
     },
   );
 

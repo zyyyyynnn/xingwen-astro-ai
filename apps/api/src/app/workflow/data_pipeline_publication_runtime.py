@@ -88,7 +88,7 @@ class DataPipelinePublicationRuntime:
                 "contract_id": contract.id,
                 "contract_version": contract.version,
                 "contract_content_hash": contract.content_hash,
-                "policy_id": "nearby-confirmed-tic-cross-source-v1",
+                "policy_id": "nearby-confirmed-tic-cross-source",
             }
         )
         acquisition_execution = self._producers.start_producer_execution(

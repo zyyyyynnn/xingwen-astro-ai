@@ -175,7 +175,7 @@ const field: FieldDefinition = {
   conflict_resolution_rule_version: "1.0.0",
   conflict_resolution_strategy: "prefer_source_priority_preserve_all",
   crossmatch_rule_version: "1.0.0",
-  evidence_locator_rule_id: "catalog-cell-v1",
+  evidence_locator_rule_id: "catalog-cell",
   quality_metric_inputs: ["completeness", "evidence_coverage"],
   transformation_rule_version: "1.0.0",
   limit_policy: {

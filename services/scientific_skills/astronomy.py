@@ -219,6 +219,12 @@ def calculate_ephemeris(request: ScientificSkillRequest) -> dict[str, object]:
         "light_time_minutes": float(apparent.light_time * 24 * 60),
         "altitude_degrees": float(altitude.degrees),
         "azimuth_degrees": float(azimuth.degrees),
+        "frame": "gcrs_apparent_epoch_of_date",
+        "time_scale": "UTC",
+        "observer_latitude_degrees": latitude,
+        "observer_longitude_degrees": longitude,
+        "observer_elevation_meters": elevation,
+        "ephemeris": "jpl_de421",
     }
     if magnitude is not None:
         output["apparent_magnitude"] = magnitude
@@ -666,6 +672,7 @@ def analyze_fits_image(request: ScientificSkillRequest) -> dict[str, object]:
         "source_detection",
         "segmentation",
         "aperture_photometry",
+        "psf_photometry",
     }:
         raise ValueError("FITS image operation is not supported")
     import numpy as np
@@ -781,6 +788,33 @@ def analyze_fits_image(request: ScientificSkillRequest) -> dict[str, object]:
             "minimum_connected_pixels": npixels,
             "segment_count": len(rows),
             "segments": rows,
+        }
+    if operation == "psf_photometry":
+        from photutils.detection import DAOStarFinder
+        from photutils.psf import CircularGaussianPRF, PSFPhotometry
+
+        if clipped_stddev <= 0:
+            raise ValueError("PSF photometry requires non-zero background noise")
+        fwhm = _bounded_number(
+            request, "fwhm_pixels", default=3, lower=0, upper=1000
+        )
+        radius = _bounded_number(
+            request, "radius_pixels", default=3, lower=0, upper=10_000
+        )
+        finder = DAOStarFinder(fwhm=fwhm, threshold=5.0 * float(clipped_stddev))
+        psf_model = CircularGaussianPRF(flux=1.0, fwhm=fwhm)
+        photometry = PSFPhotometry(
+            psf_model, fit_shape=(5, 5), finder=finder, aperture_radius=radius
+        )
+        result_table = photometry(background_subtracted)
+        rows = _table_rows(result_table, request.budget.max_output_rows)
+        return common | {
+            "background_per_pixel": background,
+            "fwhm_pixels": fwhm,
+            "fit_shape": [5, 5],
+            "psf_model": "circular_gaussian_prf",
+            "source_count": len(rows),
+            "sources": rows,
         }
     x = require_number(request.parameters, "x")
     y = require_number(request.parameters, "y")

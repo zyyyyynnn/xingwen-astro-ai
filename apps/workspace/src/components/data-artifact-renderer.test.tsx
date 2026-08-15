@@ -51,7 +51,6 @@ describe("Data Artifact renderer", () => {
     expect(
       screen.getByRole("table", { name: "规范字段定义、单位与来源映射" }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("planet.toi_id").length).toBeGreaterThan(0);
     expect(
       screen.getAllByText(
         "Stable identifier assigned by the TESS Object of Interest catalog.",
@@ -74,8 +73,10 @@ describe("Data Artifact renderer", () => {
       />,
     );
 
-    expect(screen.getByText("来源集合 · v1")).toBeInTheDocument();
-    expect(screen.getByText("snap_01")).toBeInTheDocument();
-    expect(screen.getByText("nasa_exoplanet_archive")).toBeInTheDocument();
+    expect(screen.getByText(/来源集合 · \d+ 个来源成员/)).toBeInTheDocument();
+    expect(screen.queryByText("snap_01")).not.toBeInTheDocument();
+    expect(
+      screen.getAllByText("nasa_exoplanet_archive").length,
+    ).toBeGreaterThan(0);
   });
 });
