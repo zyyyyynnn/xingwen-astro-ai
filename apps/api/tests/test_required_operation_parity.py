@@ -9,11 +9,27 @@ required set.
 
 from __future__ import annotations
 
+from typing import Any
+
+import pytest
+
 from app.contracts.api import create_api_contract_app
 from app.main import create_app
 
 
 _HTTP_METHODS = {"get", "post", "put", "patch", "delete"}
+
+
+@pytest.fixture(scope="module")
+def contract_document() -> dict[str, Any]:
+    """Composed contract OpenAPI, generated once per module (read-only)."""
+    return create_api_contract_app().openapi()
+
+
+@pytest.fixture(scope="module")
+def runtime_document() -> dict[str, Any]:
+    """Mounted runtime OpenAPI, generated once per module (read-only)."""
+    return create_app().openapi()
 
 
 def _operations(document: dict[str, object]) -> set[tuple[str, str, str]]:
@@ -56,17 +72,19 @@ def _required_headers(operation: dict[str, object]) -> set[str]:
     }
 
 
-def test_runtime_implements_every_required_contract_operation() -> None:
-    contract = _operations(create_api_contract_app().openapi())
-    runtime = _operations(create_app().openapi())
+def test_runtime_implements_every_required_contract_operation(
+    contract_document: dict[str, Any], runtime_document: dict[str, Any]
+) -> None:
+    contract = _operations(contract_document)
+    runtime = _operations(runtime_document)
 
     # The required set is the complete composed contract surface.
     missing = sorted(contract - runtime)
     assert not missing, f"runtime is missing required operations: {missing}"
 
 
-def test_runtime_operation_ids_are_unique() -> None:
-    document = create_app().openapi()
+def test_runtime_operation_ids_are_unique(runtime_document: dict[str, Any]) -> None:
+    document = runtime_document
     operation_ids = [
         operation["operationId"]
         for item in document["paths"].values()
@@ -76,11 +94,13 @@ def test_runtime_operation_ids_are_unique() -> None:
     assert len(operation_ids) == len(set(operation_ids))
 
 
-def test_required_operations_match_method_and_path_exactly() -> None:
-    contract = _operations(create_api_contract_app().openapi())
+def test_required_operations_match_method_and_path_exactly(
+    contract_document: dict[str, Any], runtime_document: dict[str, Any]
+) -> None:
+    contract = _operations(contract_document)
     runtime_by_op = {
         op_id: (method, path)
-        for method, path, op_id in _operations(create_app().openapi())
+        for method, path, op_id in _operations(runtime_document)
     }
     mismatched: list[str] = []
     for method, path, op_id in sorted(contract):
@@ -91,9 +111,11 @@ def test_required_operations_match_method_and_path_exactly() -> None:
     assert not mismatched, "; ".join(mismatched)
 
 
-def test_required_operations_declare_the_same_required_headers() -> None:
-    contract = _operations_by_id(create_api_contract_app().openapi())
-    runtime = _operations_by_id(create_app().openapi())
+def test_required_operations_declare_the_same_required_headers(
+    contract_document: dict[str, Any], runtime_document: dict[str, Any]
+) -> None:
+    contract = _operations_by_id(contract_document)
+    runtime = _operations_by_id(runtime_document)
 
     mismatched = {
         operation_id: {
@@ -107,9 +129,11 @@ def test_required_operations_declare_the_same_required_headers() -> None:
     assert not mismatched, f"required header mismatch: {mismatched}"
 
 
-def test_required_operations_use_the_same_success_response_schema() -> None:
-    contract = _operations_by_id(create_api_contract_app().openapi())
-    runtime = _operations_by_id(create_app().openapi())
+def test_required_operations_use_the_same_success_response_schema(
+    contract_document: dict[str, Any], runtime_document: dict[str, Any]
+) -> None:
+    contract = _operations_by_id(contract_document)
+    runtime = _operations_by_id(runtime_document)
 
     mismatched: dict[str, object] = {}
     for operation_id, operation in contract.items():

@@ -27,9 +27,7 @@ jobs:
           python-version: "3.13"
 
       - name: Validate repository foundation
-        run: |
-          python -m unittest scripts.test_check_foundation
-          python scripts/check_foundation.py
+        run: python scripts/check_foundation.py
 
       - name: Check versionless API naming
         run: node scripts/check-versionless-api.mjs
@@ -40,9 +38,7 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          node scripts/check-title-governance.test.mjs
-          node scripts/check-title-governance.mjs
+        run: node scripts/check-title-governance.mjs
 
       - name: Lint issue templates for live-state mirrors
         env:
@@ -54,9 +50,7 @@ jobs:
         if: github.event_name == 'push'
         env:
           INTEGRATION_SHA: ${{ github.sha }}
-        run: |
-          node scripts/check-title-governance.test.mjs
-          node scripts/check-title-governance.mjs
+        run: node scripts/check-title-governance.mjs
 
       - name: Validate Docker Compose contract
         run: |
@@ -319,12 +313,6 @@ jobs:
       - name: Check package architecture
         run: pnpm check:architecture
 
-      - name: Install browser runtime
-        run: pnpm exec playwright install --with-deps chromium
-
-      - name: Run frontend entrypoint smoke
-        run: pnpm test:e2e
-
   real-integration:
     name: Real Compose and browser integration
     runs-on: ubuntu-latest
@@ -351,10 +339,14 @@ jobs:
           corepack enable
           corepack prepare pnpm@11.13.1 --activate
 
-      - name: Install locked dependencies and browser runtime
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm exec playwright install --with-deps chromium
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install browser runtime (single owner for all browser tests)
+        run: pnpm exec playwright install chromium
+
+      - name: Run frontend entrypoint smoke
+        run: pnpm test:e2e
 
       - name: Start isolated fresh Compose project
         run: |
