@@ -12,10 +12,50 @@
       ],
       "title": "RunStepStatus",
       "type": "string"
+    },
+    "ScientificSkillId": {
+      "enum": [
+        "catalog_crossmatch",
+        "data_profile",
+        "statistical_analysis",
+        "correlation_analysis",
+        "clustering_analysis",
+        "anomaly_detection",
+        "chart_visualization",
+        "simbad_lookup",
+        "skyview_fits",
+        "ephemeris",
+        "celestial_events",
+        "gaia_cone_search",
+        "vizier_tap",
+        "fits_image_analysis",
+        "spectrum_analysis",
+        "spectrum_acquisition",
+        "light_curve_analysis",
+        "light_curve_acquisition",
+        "tabular_machine_learning",
+        "time_series_classification",
+        "time_series_forecast",
+        "image_classification",
+        "model_inference",
+        "wwt_scene"
+      ],
+      "title": "ScientificSkillId",
+      "type": "string"
     }
   },
   "additionalProperties": false,
   "properties": {
+    "depends_on_step_keys": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Depends On Step Keys",
+      "type": "array"
+    },
     "failure_code": {
       "anyOf": [
         {
@@ -58,6 +98,12 @@
       "title": "Label",
       "type": "string"
     },
+    "phase": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Phase",
+      "type": "string"
+    },
     "position": {
       "minimum": 0,
       "title": "Position",
@@ -79,6 +125,17 @@
       "title": "Run Id",
       "type": "string"
     },
+    "skill_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ScientificSkillId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "started_at": {
       "anyOf": [
         {
@@ -94,6 +151,20 @@
     },
     "status": {
       "$ref": "#/$defs/RunStepStatus"
+    },
+    "task_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Task Id"
     }
   },
   "required": [
@@ -102,6 +173,7 @@
     "position",
     "key",
     "label",
+    "phase",
     "status",
     "progress",
     "public_message"

@@ -255,6 +255,10 @@ function navigationStatus(
     case "planning":
     case "fetching_data":
     case "cleaning_data":
+    case "acquiring_observations":
+    case "analyzing_data":
+    case "training_models":
+    case "building_visualizations":
     case "searching_papers":
     case "summarizing_papers":
     case "reasoning_literature":

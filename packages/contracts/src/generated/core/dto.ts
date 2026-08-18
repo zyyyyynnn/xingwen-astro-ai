@@ -25,6 +25,12 @@ export type ArtifactKind =
   | "dataset"
   | "field_dictionary"
   | "source_collection"
+  | "analysis_report"
+  | "visualization"
+  | "spectrum"
+  | "light_curve"
+  | "model_evaluation"
+  | "model_artifact"
   | "paper_collection"
   | "paper_summary"
   | "literature_claims"
@@ -229,7 +235,8 @@ export type ResearchInputStatus = "accepted" | "unsupported_processing" | "faile
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ResearchInputType".
  */
-export type ResearchInputType = "url" | "pdf" | "csv" | "fits" | "json" | "image" | "text";
+export type ResearchInputType =
+  "url" | "pdf" | "csv" | "xlsx" | "parquet" | "fits" | "json" | "image" | "image_dataset" | "text";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "RunStatus".
@@ -239,6 +246,10 @@ export type RunStatus =
   | "planning"
   | "fetching_data"
   | "cleaning_data"
+  | "acquiring_observations"
+  | "analyzing_data"
+  | "training_models"
+  | "building_visualizations"
   | "searching_papers"
   | "summarizing_papers"
   | "reasoning_literature"
@@ -257,6 +268,35 @@ export type ResearchThreadEntryKind =
   | "assistant_reasoning"
   | "clarification_question"
   | "clarification_answer";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ScientificSkillId".
+ */
+export type ScientificSkillId =
+  | "catalog_crossmatch"
+  | "data_profile"
+  | "statistical_analysis"
+  | "correlation_analysis"
+  | "clustering_analysis"
+  | "anomaly_detection"
+  | "chart_visualization"
+  | "simbad_lookup"
+  | "skyview_fits"
+  | "ephemeris"
+  | "celestial_events"
+  | "gaia_cone_search"
+  | "vizier_tap"
+  | "fits_image_analysis"
+  | "spectrum_analysis"
+  | "spectrum_acquisition"
+  | "light_curve_analysis"
+  | "light_curve_acquisition"
+  | "tabular_machine_learning"
+  | "time_series_classification"
+  | "time_series_forecast"
+  | "image_classification"
+  | "model_inference"
+  | "wwt_scene";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "RunStepStatus".
@@ -1736,17 +1776,21 @@ export interface CollectionEnvelope_RunStepRead_ {
  * via the `definition` "RunStepRead".
  */
 export interface RunStepRead {
+  depends_on_step_keys?: string[];
   failure_code?: string | null;
   finished_at?: string | null;
   id: string;
   key: string;
   label: string;
+  phase: string;
   position: number;
   progress: number;
   public_message: string;
   run_id: string;
+  skill_id?: ScientificSkillId | null;
   started_at?: string | null;
   status: RunStepStatus;
+  task_id?: string | null;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -1831,6 +1875,7 @@ export interface ResearchContractInput {
    */
   requested_fields: [string, ...string[]];
   research_goal: string;
+  scientific_tasks?: ScientificTaskInput[];
   source_scope: SourceScope;
   /**
    * @minItems 1
@@ -1873,6 +1918,20 @@ export interface QualityConstraints {
   unit_consistency_min?: number;
 }
 /**
+ * One bounded invocation of a registered scientific skill.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ScientificTaskInput".
+ */
+export interface ScientificTaskInput {
+  input_refs?: string[];
+  parameters?: {
+    [k: string]: JsonValue;
+  };
+  skill_id: ScientificSkillId;
+  task_id: string;
+}
+/**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "SourceScope".
  */
@@ -1896,7 +1955,7 @@ export interface CreateResearchInputMultipartRequest {
   filename?: string | null;
   mime_type?: string | null;
   project_id: string;
-  type: "pdf" | "csv" | "fits" | "json" | "image";
+  type: "pdf" | "csv" | "xlsx" | "parquet" | "fits" | "json" | "image" | "image_dataset";
 }
 /**
  * Minimal project creation payload; `case_key` stays frozen to the main case.
@@ -3469,6 +3528,7 @@ export interface ResearchContract {
    */
   requested_fields: [string, ...string[]];
   research_goal: string;
+  scientific_tasks?: ScientificTaskInput[];
   source_scope: SourceScope;
   /**
    * @minItems 1
@@ -3535,6 +3595,7 @@ export interface ResearchPlanningCatalog {
   output_requirements: ResearchCatalogOption[];
   project_id: string;
   requested_fields: ResearchCatalogOption[];
+  scientific_skills: ResearchCatalogOption[];
   target_objects: ResearchCatalogOption[];
 }
 /**

@@ -174,9 +174,12 @@
         "url",
         "pdf",
         "csv",
+        "xlsx",
+        "parquet",
         "fits",
         "json",
         "image",
+        "image_dataset",
         "text"
       ],
       "title": "ResearchInputType",

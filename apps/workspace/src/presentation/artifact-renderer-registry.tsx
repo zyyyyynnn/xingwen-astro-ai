@@ -86,7 +86,7 @@ export interface ArtifactRendererDescriptor {
   readonly kind: ArtifactKind;
   readonly label: string;
   readonly capability: "supported" | "unsupported";
-  readonly contentFamily: ArtifactContentFamily | "export";
+  readonly contentFamily: ArtifactContentFamily | "export" | "scientific";
   readonly displayPriority: number;
   readonly layoutMode: ArtifactLayoutMode;
   readonly capabilities: ArtifactRendererCapabilities;
@@ -430,12 +430,57 @@ const exportUnsupported: ArtifactRendererDescriptor = {
   TextFallback: () => <p>导出数据暂无专属读取契约。</p>,
 };
 
+type ScientificKind =
+  | "analysis_report"
+  | "visualization"
+  | "spectrum"
+  | "light_curve"
+  | "model_evaluation"
+  | "model_artifact";
+
+function scientificUnsupported(
+  kind: ScientificKind,
+  displayPriority: number,
+): ArtifactRendererDescriptor {
+  return {
+    kind,
+    label: artifactKindLabel(kind),
+    capability: "unsupported",
+    contentFamily: "scientific",
+    displayPriority,
+    layoutMode: "reading",
+    capabilities: {
+      evidence: false,
+      download: false,
+      history: true,
+      revision: true,
+      pdf: false,
+    },
+    ThreadRenderer: ThreadResultBlock,
+    FullscreenRenderer: () => (
+      <Alert className="m-5">
+        <AlertDescription>
+          {artifactKindLabel(kind)}
+          已发布为不可变研究结果；当前暂无专用可视化，证据与下载能力开放后可查看。
+        </AlertDescription>
+      </Alert>
+    ),
+    TextFallback: () => <p>{artifactKindLabel(kind)}当前暂无专用可视化。</p>,
+  };
+}
+
 const ARTIFACT_RENDERER_DESCRIPTORS = [
   paperSummary,
   paperCollection,
   data("dataset", 30),
   data("field_dictionary", 40),
   data("source_collection", 50),
+  scientificUnsupported("analysis_report", 52),
+  scientificUnsupported("visualization", 54),
+  scientificUnsupported("spectrum", 56),
+  scientificUnsupported("light_curve", 58),
+  scientificUnsupported("model_evaluation", 62),
+  scientificUnsupported("model_artifact", 64),
   literature("literature_claims", 70),
   literature("literature_relations", 80),
   literature("reasoning_traces", 90),

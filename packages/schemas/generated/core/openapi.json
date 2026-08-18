@@ -96,6 +96,12 @@
           "dataset",
           "field_dictionary",
           "source_collection",
+          "analysis_report",
+          "visualization",
+          "spectrum",
+          "light_curve",
+          "model_evaluation",
+          "model_artifact",
           "paper_collection",
           "paper_summary",
           "literature_claims",
@@ -1164,9 +1170,12 @@
             "enum": [
               "pdf",
               "csv",
+              "xlsx",
+              "parquet",
               "fits",
               "json",
-              "image"
+              "image",
+              "image_dataset"
             ],
             "title": "Type",
             "type": "string"
@@ -10912,6 +10921,14 @@
             "title": "Research Goal",
             "type": "string"
           },
+          "scientific_tasks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ScientificTaskInput"
+            },
+            "title": "Scientific Tasks",
+            "type": "array"
+          },
           "source_scope": {
             "$ref": "#/components/schemas/SourceScope"
           },
@@ -11108,6 +11125,14 @@
             "minLength": 4,
             "title": "Research Goal",
             "type": "string"
+          },
+          "scientific_tasks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ScientificTaskInput"
+            },
+            "title": "Scientific Tasks",
+            "type": "array"
           },
           "source_scope": {
             "$ref": "#/components/schemas/SourceScope"
@@ -11338,9 +11363,12 @@
           "url",
           "pdf",
           "csv",
+          "xlsx",
+          "parquet",
           "fits",
           "json",
           "image",
+          "image_dataset",
           "text"
         ],
         "title": "ResearchInputType",
@@ -11383,6 +11411,13 @@
             "title": "Requested Fields",
             "type": "array"
           },
+          "scientific_skills": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchCatalogOption"
+            },
+            "title": "Scientific Skills",
+            "type": "array"
+          },
           "target_objects": {
             "items": {
               "$ref": "#/components/schemas/ResearchCatalogOption"
@@ -11397,6 +11432,7 @@
           "target_objects",
           "requested_fields",
           "allowed_sources",
+          "scientific_skills",
           "output_requirements"
         ],
         "title": "ResearchPlanningCatalog",
@@ -12517,6 +12553,10 @@
           "planning",
           "fetching_data",
           "cleaning_data",
+          "acquiring_observations",
+          "analyzing_data",
+          "training_models",
+          "building_visualizations",
           "searching_papers",
           "summarizing_papers",
           "reasoning_literature",
@@ -12532,6 +12572,16 @@
       "RunStepRead": {
         "additionalProperties": false,
         "properties": {
+          "depends_on_step_keys": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Depends On Step Keys",
+            "type": "array"
+          },
           "failure_code": {
             "anyOf": [
               {
@@ -12572,6 +12622,12 @@
             "title": "Label",
             "type": "string"
           },
+          "phase": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Phase",
+            "type": "string"
+          },
           "position": {
             "minimum": 0.0,
             "title": "Position",
@@ -12593,6 +12649,16 @@
             "title": "Run Id",
             "type": "string"
           },
+          "skill_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScientificSkillId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "started_at": {
             "anyOf": [
               {
@@ -12607,6 +12673,19 @@
           },
           "status": {
             "$ref": "#/components/schemas/RunStepStatus"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
           }
         },
         "required": [
@@ -12615,6 +12694,7 @@
           "position",
           "key",
           "label",
+          "phase",
           "status",
           "progress",
           "public_message"
@@ -12634,6 +12714,78 @@
         ],
         "title": "RunStepStatus",
         "type": "string"
+      },
+      "ScientificSkillId": {
+        "enum": [
+          "catalog_crossmatch",
+          "data_profile",
+          "statistical_analysis",
+          "correlation_analysis",
+          "clustering_analysis",
+          "anomaly_detection",
+          "chart_visualization",
+          "simbad_lookup",
+          "skyview_fits",
+          "ephemeris",
+          "celestial_events",
+          "gaia_cone_search",
+          "vizier_tap",
+          "fits_image_analysis",
+          "spectrum_analysis",
+          "spectrum_acquisition",
+          "light_curve_analysis",
+          "light_curve_acquisition",
+          "tabular_machine_learning",
+          "time_series_classification",
+          "time_series_forecast",
+          "image_classification",
+          "model_inference",
+          "wwt_scene"
+        ],
+        "title": "ScientificSkillId",
+        "type": "string"
+      },
+      "ScientificTaskInput": {
+        "additionalProperties": false,
+        "description": "One bounded invocation of a registered scientific skill.",
+        "properties": {
+          "input_refs": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Input Refs",
+            "type": "array"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "propertyNames": {
+              "maxLength": 128,
+              "minLength": 1
+            },
+            "title": "Parameters",
+            "type": "object"
+          },
+          "skill_id": {
+            "$ref": "#/components/schemas/ScientificSkillId"
+          },
+          "task_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Task Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "skill_id"
+        ],
+        "title": "ScientificTaskInput",
+        "type": "object"
       },
       "SelectionStatus": {
         "enum": [

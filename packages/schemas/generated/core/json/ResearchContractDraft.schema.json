@@ -5,6 +5,12 @@
         "dataset",
         "field_dictionary",
         "source_collection",
+        "analysis_report",
+        "visualization",
+        "spectrum",
+        "light_curve",
+        "model_evaluation",
+        "model_artifact",
         "paper_collection",
         "paper_summary",
         "literature_claims",
@@ -60,6 +66,7 @@
       "title": "EvidenceRequirements",
       "type": "object"
     },
+    "JsonValue": {},
     "PaperSearchScope": {
       "additionalProperties": false,
       "properties": {
@@ -182,6 +189,14 @@
           "title": "Research Goal",
           "type": "string"
         },
+        "scientific_tasks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ScientificTaskInput"
+          },
+          "title": "Scientific Tasks",
+          "type": "array"
+        },
         "source_scope": {
           "$ref": "#/$defs/SourceScope"
         },
@@ -208,6 +223,78 @@
         "quality_constraints"
       ],
       "title": "ResearchContractInput",
+      "type": "object"
+    },
+    "ScientificSkillId": {
+      "enum": [
+        "catalog_crossmatch",
+        "data_profile",
+        "statistical_analysis",
+        "correlation_analysis",
+        "clustering_analysis",
+        "anomaly_detection",
+        "chart_visualization",
+        "simbad_lookup",
+        "skyview_fits",
+        "ephemeris",
+        "celestial_events",
+        "gaia_cone_search",
+        "vizier_tap",
+        "fits_image_analysis",
+        "spectrum_analysis",
+        "spectrum_acquisition",
+        "light_curve_analysis",
+        "light_curve_acquisition",
+        "tabular_machine_learning",
+        "time_series_classification",
+        "time_series_forecast",
+        "image_classification",
+        "model_inference",
+        "wwt_scene"
+      ],
+      "title": "ScientificSkillId",
+      "type": "string"
+    },
+    "ScientificTaskInput": {
+      "additionalProperties": false,
+      "description": "One bounded invocation of a registered scientific skill.",
+      "properties": {
+        "input_refs": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Input Refs",
+          "type": "array"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "propertyNames": {
+            "maxLength": 128,
+            "minLength": 1
+          },
+          "title": "Parameters",
+          "type": "object"
+        },
+        "skill_id": {
+          "$ref": "#/$defs/ScientificSkillId"
+        },
+        "task_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "skill_id"
+      ],
+      "title": "ScientificTaskInput",
       "type": "object"
     },
     "SourceScope": {
