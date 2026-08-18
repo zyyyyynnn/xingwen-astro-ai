@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from uuid import NAMESPACE_URL, uuid5
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.artifact_publication import canonical_artifact_content_payload
@@ -34,8 +35,10 @@ from services.paper_pipeline.relation_benchmark_cases import (
 )
 
 NOW = datetime(2026, 8, 1, 8, 0, tzinfo=UTC)
-PROJECT_ID = "project.literature_relation_benchmark"
-RUN_ID = "run-literature"
+PROJECT_ID = str(
+    uuid5(NAMESPACE_URL, "xingwen.literature-relation-benchmark:project")
+)
+RUN_ID = str(uuid5(NAMESPACE_URL, "xingwen.literature-benchmark:run"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,7 +113,7 @@ class FixturePaperSummaryReads:
             or runtime.producer.type != producer.producer_type
             or runtime.producer.name != producer.producer_name
             or runtime.producer.version != producer.producer_version
-            or runtime.producer.model_name != producer.model_name
+            or runtime.producer.requested_model != producer.model_name
             or runtime.producer.prompt_name != producer.prompt_name
             or runtime.producer.prompt_version != producer.prompt_version
             or runtime.producer.prompt_hash != producer.prompt_hash
@@ -277,24 +280,30 @@ def _relation_version(
     }
     pipeline_evidence = {item.evidence_id: item for item in candidate.evidence}
     evidence: list[EvidenceDetail] = []
-    seen: set[tuple[str, str]] = set()
+    seen: set[tuple[str, str, str]] = set()
     for reference in candidate.evidence_references:
-        pair = (reference.relation_id, reference.evidence_id)
-        if pair in seen:
-            continue
-        seen.add(pair)
-        item = pipeline_evidence[reference.evidence_id]
-        evidence.append(
-            _evidence(
-                version_id=version_id,
-                target_type="relation",
-                target_id=reference.relation_id,
-                pipeline_evidence_id=reference.evidence_id,
-                source_record_id=item.source_record_id,
-                snapshot_id=persisted_by_pipeline_id[reference.source_snapshot_id].id,
-                paper_id=reference.paper_id,
+        for target_type, target_id in (
+            ("claim", reference.claim_id),
+            ("relation", reference.relation_id),
+        ):
+            key = (target_type, target_id, reference.evidence_id)
+            if key in seen:
+                continue
+            seen.add(key)
+            item = pipeline_evidence[reference.evidence_id]
+            evidence.append(
+                _evidence(
+                    version_id=version_id,
+                    target_type=target_type,
+                    target_id=target_id,
+                    pipeline_evidence_id=reference.evidence_id,
+                    source_record_id=item.source_record_id,
+                    snapshot_id=(
+                        persisted_by_pipeline_id[reference.source_snapshot_id].id
+                    ),
+                    paper_id=reference.paper_id,
+                )
             )
-        )
     return _version(
         version_id=version_id,
         kind="literature_relations",
@@ -363,7 +372,7 @@ def _producer(
         type=nested.producer_type,
         name=nested.producer_name,
         version=nested.producer_version,
-        model_name=nested.model_name,
+        requested_model=nested.model_name,
         prompt_name=nested.prompt_name,
         prompt_version=nested.prompt_version,
         prompt_hash=nested.prompt_hash,

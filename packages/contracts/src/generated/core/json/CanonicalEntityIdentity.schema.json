@@ -1,0 +1,73 @@
+{
+  "$defs": {
+    "CanonicalEntityIdentityValue": {
+      "additionalProperties": false,
+      "properties": {
+        "field_id": {
+          "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Field Id",
+          "type": "string"
+        },
+        "normalization_rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Normalization Rule Version",
+          "type": "string"
+        },
+        "normalized_value": {
+          "minLength": 1,
+          "title": "Normalized Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field_id",
+        "normalized_value",
+        "normalization_rule_version"
+      ],
+      "title": "CanonicalEntityIdentityValue",
+      "type": "object"
+    },
+    "EntityLevel": {
+      "enum": [
+        "host_star",
+        "planet_candidate",
+        "planet_assertion"
+      ],
+      "title": "EntityLevel",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "entity_level": {
+      "$ref": "#/$defs/EntityLevel"
+    },
+    "identity_values": {
+      "items": {
+        "$ref": "#/$defs/CanonicalEntityIdentityValue"
+      },
+      "minItems": 1,
+      "title": "Identity Values",
+      "type": "array"
+    },
+    "logical_assertion_key": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Logical Assertion Key"
+    }
+  },
+  "required": [
+    "entity_level",
+    "identity_values"
+  ],
+  "title": "CanonicalEntityIdentity",
+  "type": "object"
+}

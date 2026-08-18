@@ -1,7 +1,7 @@
 """PostgreSQL publication and replay contracts for Evidence Graph artifacts.
 
 Set TEST_DATABASE_URL to an isolated database whose name contains ``test``.
-The module reuses the Publisher integration migration fixture and deletes only
+The module reuses the Publisher integration schema fixture and deletes only
 the deterministic Evidence Graph project between cases.
 """
 
@@ -220,7 +220,7 @@ def _active_graph_publication(
     input_hash = candidate.input_hash
     parameters = graph_algorithm_parameters(candidate.policies, candidate.taxonomy)
     model_provider = None
-    model_name = None
+    requested_model = None
     prompt_name = None
     prompt_version = None
     prompt_hash = None
@@ -236,8 +236,8 @@ def _active_graph_publication(
         parameters = {**parameters, "max_nodes": parameters["max_nodes"] - 1}
     elif producer_mutation == "model_provider":
         model_provider = "fabricated-provider"
-    elif producer_mutation == "model_name":
-        model_name = "fabricated-model"
+    elif producer_mutation == "requested_model":
+        requested_model = "fabricated-model"
     elif producer_mutation == "prompt_name":
         prompt_name = "fabricated-prompt"
     elif producer_mutation == "prompt_version":
@@ -258,7 +258,7 @@ def _active_graph_publication(
             input_hash=input_hash,
             parameters=parameters,
             model_provider=model_provider,
-            model_name=model_name,
+            requested_model=requested_model,
             prompt_name=prompt_name,
             prompt_version=prompt_version,
             prompt_hash=prompt_hash,
@@ -358,7 +358,7 @@ def _seed_upstream_graph_closure(
         producer_name=pins.producer_execution.producer.name,
         producer_version=pins.producer_execution.producer.version,
         model_provider=pins.producer_execution.producer.model_provider,
-        model_name=pins.producer_execution.producer.model_name,
+        requested_model=pins.producer_execution.producer.requested_model,
         prompt_name=pins.producer_execution.producer.prompt_name,
         prompt_version=pins.producer_execution.producer.prompt_version,
         prompt_hash=pins.producer_execution.producer.prompt_hash,
@@ -608,7 +608,7 @@ def test_graph_target_kind_is_checked_before_idempotent_replay(
         "version",
         "parameters_hash",
         "model_provider",
-        "model_name",
+        "requested_model",
         "prompt_name",
         "prompt_version",
         "prompt_hash",

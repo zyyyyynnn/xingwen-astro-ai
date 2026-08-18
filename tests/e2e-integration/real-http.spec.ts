@@ -24,10 +24,242 @@ function cookieFetch(): typeof fetch {
   };
 }
 
-test("real HTTP Research Thread reaches the configured Qwen runtime", async () => {
+function collectRuntimeErrors(page: Page) {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  return errors;
+}
+
+test("real Compose exposes the current empty Research Workspace without provider secrets", async ({
+  page,
+}) => {
+  const runtimeErrors = collectRuntimeErrors(page);
+  const requestFailures: string[] = [];
+  page.on("requestfailed", (request) => {
+    if (new URL(request.url()).pathname.startsWith("/api/")) {
+      requestFailures.push(
+        `${request.method()} ${request.url()} ${request.failure()?.errorText ?? "unknown"}`,
+      );
+    }
+  });
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/workspace");
+  await expect(page.getByTestId("root-layout")).toBeVisible();
+  await expect(page.getByText("开始你的研究", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("textbox", { name: "输入研究消息" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "添加研究资料" }),
+  ).toBeVisible();
+
+  // Sidebar owns the single explicit Project creation action.
+  await expect(page.getByRole("button", { name: "新建研究" })).toHaveCount(1);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 1280, height: 800 },
+    { width: 1024, height: 768 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await expect(page.getByTestId("interactive-chat-box")).toBeVisible();
+    expect(
+      await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth <=
+          document.documentElement.clientWidth,
+      ),
+    ).toBe(true);
+  }
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(page.getByTestId("interactive-chat-box")).toBeVisible();
+  expect(
+    requestFailures.filter((failure) => !failure.includes("net::ERR_ABORTED")),
+  ).toEqual([]);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test("mandatory browser path establishes a Project, exposes public analysis, confirms Contract, and starts the returned Contract", async ({
+  page,
+}) => {
+  const runtimeErrors = collectRuntimeErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/workspace");
+
+  const goal =
+    "比较公开系外行星候选体及其宿主恒星参数，并形成可核验的数据结果。";
+  const composer = page.getByRole("textbox", { name: "输入研究消息" });
+  await composer.fill(goal);
+  await page.getByRole("button", { name: "发送研究消息" }).click();
+
+  await expect(page.getByText(goal, { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/workspace\/[^/]+$/);
+  await expect(page.getByTestId("collapsible-thinking")).toBeVisible();
+  await expect(
+    page.getByText(
+      "我已根据当前研究目标整理好研究协议。确认后会按冻结的研究边界开始执行。",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(page.getByTestId("protocol-summary-card")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "确认协议并开始研究" }),
+  ).toBeVisible();
+
+  const confirmResponsePromise = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      /\/api\/projects\/[^/]+\/contracts$/.test(
+        new URL(response.url()).pathname,
+      ),
+  );
+  const runRequestPromise = page.waitForRequest(
+    (request) =>
+      request.method() === "POST" &&
+      /\/api\/projects\/[^/]+\/runs$/.test(new URL(request.url()).pathname),
+  );
+  await page.getByRole("button", { name: "确认协议并开始研究" }).click();
+  const [confirmResponse, runRequest] = await Promise.all([
+    confirmResponsePromise,
+    runRequestPromise,
+  ]);
+  expect(confirmResponse.ok()).toBe(true);
+  const confirmed = (await confirmResponse.json()) as { data: { id: string } };
+  const runPayload = runRequest.postDataJSON() as { contract_id: string };
+  expect(runPayload.contract_id).toBe(confirmed.data.id);
+
+  await expect(page.getByText("已确认", { exact: true })).toHaveCount(1);
+  // The queued state is mirrored by the topbar and research plan section, so
+  // scope the lifecycle assertion to its canonical control.
+  await expect(
+    page
+      .getByTestId("run-lifecycle-controls")
+      .getByText("已排队", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("textbox", { name: "输入研究消息" }),
+  ).toBeEnabled();
+  await expect(page.getByRole("button", { name: "停止研究" })).toBeVisible();
+  expect(runtimeErrors).toEqual([]);
+});
+
+test("mandatory real HTTP fixture path publishes one result, opens Fullscreen, and reads real Evidence", async ({
+  page,
+}) => {
+  const runtimeErrors = collectRuntimeErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/workspace");
+
+  const goal = "整理公开系外行星宿主星参数并交付结构化数据。";
+  await page.getByRole("textbox", { name: "输入研究消息" }).fill(goal);
+  await page.getByRole("button", { name: "发送研究消息" }).click();
+  await expect(page.getByTestId("protocol-summary-card")).toBeVisible();
+  const projectId = new URL(page.url()).pathname
+    .split("/")
+    .filter(Boolean)
+    .at(-1);
+  expect(projectId).toBeTruthy();
+
+  const bootstrap = await page.evaluate(
+    async ({ apiOrigin, projectId }) => {
+      async function json(response: Response) {
+        if (!response.ok)
+          throw new Error(`${response.status} ${await response.text()}`);
+        return response.json();
+      }
+      const session = await json(
+        await fetch(`${apiOrigin}/api/sessions`, {
+          method: "POST",
+          credentials: "include",
+        }),
+      );
+      const csrf = session.data.csrf_token as string;
+      const headers = {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrf,
+      };
+      const project = await json(
+        await fetch(`${apiOrigin}/api/projects/${projectId}`, {
+          credentials: "include",
+        }),
+      );
+      const draftId = project.data.active_draft_id as string;
+      const draft = await json(
+        await fetch(`${apiOrigin}/api/contracts/drafts/${draftId}`, {
+          credentials: "include",
+        }),
+      );
+      const confirmed = await json(
+        await fetch(`${apiOrigin}/api/projects/${projectId}/contracts`, {
+          method: "POST",
+          credentials: "include",
+          headers: { ...headers, "Idempotency-Key": "browser-fixture-confirm" },
+          body: JSON.stringify({
+            draft_id: draftId,
+            expected_draft_version: draft.data.version,
+          }),
+        }),
+      );
+      const run = await json(
+        await fetch(`${apiOrigin}/api/projects/${projectId}/runs`, {
+          method: "POST",
+          credentials: "include",
+          headers: { ...headers, "Idempotency-Key": "browser-fixture-run" },
+          body: JSON.stringify({
+            contract_id: confirmed.data.id,
+            execution_mode: "demo_replay",
+          }),
+        }),
+      );
+      const seeded = await json(
+        await fetch(
+          `${apiOrigin}/api/test/bootstrap?run_id=${encodeURIComponent(run.data.id)}`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers,
+          },
+        ),
+      );
+      return {
+        runId: run.data.id as string,
+        versionId: seeded.data.artifact_version_id as string,
+      };
+    },
+    { apiOrigin: API_ORIGIN, projectId: projectId ?? "" },
+  );
+  expect(bootstrap.runId).toBeTruthy();
+  expect(bootstrap.versionId).toBeTruthy();
+
+  await page.reload();
+  // The published result appears as an in-thread result card (title heading
+  // plus an open action) and in the Right Rail result index.
+  await expect(
+    page.getByRole("heading", { name: "Exoplanet host-star dataset" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "查看完整结果" }).first().click();
+  await expect(page.getByTestId("artifact-fullscreen-workspace")).toBeVisible();
+  await expect(page.getByText("演示数据", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "证据" }).click();
+  await expect(page.getByRole("heading", { name: "研究证据" })).toBeVisible();
+  await expect(page.getByText("来源内容", { exact: true })).toBeVisible();
+  await expect(page.getByText("来源", { exact: true })).toBeVisible();
+  await expect(page.getByText(/获取于/)).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("heading", { name: "研究证据" })).toHaveCount(0);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test("provider-backed Research Thread reaches the configured Qwen runtime", async () => {
   test.skip(
     process.env.REAL_INTEGRATION_QWEN_ENABLED !== "1",
-    "BLOCKED: REAL_INTEGRATION_QWEN_ENABLED=1 and a configured API DASHSCOPE_API_KEY are required for live model evidence.",
+    "REAL_INTEGRATION_QWEN_ENABLED=1 and DASHSCOPE_API_KEY are required for provider-backed verification.",
   );
 
   const fetchImpl = cookieFetch();
@@ -60,220 +292,11 @@ test("real HTTP Research Thread reaches the configured Qwen runtime", async () =
     "refused",
   ]).toContain(turn.outcome);
   expect(turn.entries.map((entry) => entry.kind)).toEqual(
-    expect.arrayContaining([
-      "user_message",
-      "assistant_analysis",
-      "assistant_message",
-    ]),
+    expect.arrayContaining(["user_message", "assistant_message"]),
   );
   const persisted = await repositories.researchThread.list(project.id);
   expect(persisted.items.length).toBeGreaterThanOrEqual(turn.entries.length);
   expect(persisted.items.every((entry) => entry.publicContent.length > 0)).toBe(
     true,
   );
-});
-
-function collectRuntimeErrors(page: Page) {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text());
-  });
-  return errors;
-}
-
-test("real browser persists Research Thread and exposes the Run Record path", async ({
-  page,
-}) => {
-  test.skip(
-    process.env.REAL_INTEGRATION_QWEN_ENABLED !== "1",
-    "BLOCKED: REAL_INTEGRATION_QWEN_ENABLED=1 and a configured API DASHSCOPE_API_KEY are required for live model evidence.",
-  );
-  const runtimeErrors = collectRuntimeErrors(page);
-  const apiRequests: string[] = [];
-  const apiResponses: string[] = [];
-  const requestFailures: string[] = [];
-  page.on("request", (request) => {
-    if (new URL(request.url()).pathname.startsWith("/api/")) {
-      apiRequests.push(`${request.method()} ${request.url()}`);
-    }
-  });
-  page.on("requestfailed", (request) => {
-    if (new URL(request.url()).pathname.startsWith("/api/")) {
-      requestFailures.push(
-        `${request.method()} ${request.url()} ${request.failure()?.errorText ?? "unknown"}`,
-      );
-    }
-  });
-  page.on("response", (response) => {
-    if (new URL(response.url()).pathname.startsWith("/api/")) {
-      apiResponses.push(`${String(response.status())} ${response.url()}`);
-    }
-  });
-
-  await page.goto("/workspace");
-  const rootLayout = page.getByTestId("root-layout");
-  const loadFailure = page.getByRole("heading", { name: "页面载入失败" });
-  await expect
-    .poll(async () =>
-      Math.max(await rootLayout.count(), await loadFailure.count()),
-    )
-    .toBeGreaterThan(0);
-  if ((await rootLayout.count()) === 0) {
-    throw new Error(
-      `Workspace load failed. responses=${JSON.stringify(apiResponses)} failures=${JSON.stringify(requestFailures)} runtime=${JSON.stringify(runtimeErrors)}`,
-    );
-  }
-  await expect(rootLayout).toBeVisible();
-  await expect(page.getByRole("heading", { name: "新研究" })).toBeVisible();
-
-  await page.getByRole("button", { name: "新建研究项目" }).click();
-  const projectName = `浏览器真实纵向链 ${String(Date.now())}`;
-  await page.getByRole("textbox", { name: "项目名称" }).fill(projectName);
-  await page
-    .getByRole("textbox", { name: "研究说明" })
-    .fill("验证 Session、协议、运行快照与公开活动的真实闭环");
-  await page.getByRole("button", { name: "创建并进入项目" }).click();
-
-  await expect(page.locator("#research-project-heading")).toHaveText(
-    projectName,
-  );
-  const intent =
-    "比较 2020 年后的公开 TESS 系外行星候选体及其宿主恒星质量、半径和有效温度；仅使用 NASA 系外行星档案，交付结构化数据、字段字典、文献候选与证据图谱，证据覆盖率至少 80%。";
-  await page.getByRole("textbox", { name: "输入研究消息" }).fill(intent);
-  await page.getByRole("button", { name: "发送研究消息" }).click();
-  await expect(page.getByText(intent, { exact: true })).toBeVisible();
-
-  const draftButton = page.getByRole("button", { name: "查看协议" });
-  for (
-    let clarificationRound = 0;
-    clarificationRound < 3;
-    clarificationRound += 1
-  ) {
-    const answerButton = page
-      .getByRole("button", { name: /回答这个问题|填写其他回答/u })
-      .last();
-    try {
-      await expect
-        .poll(async () =>
-          Math.max(await draftButton.count(), await answerButton.count()),
-        )
-        .toBeGreaterThan(0);
-    } catch (error) {
-      throw new Error(
-        `Research turn did not reach a protocol outcome. responses=${JSON.stringify(apiResponses)} failures=${JSON.stringify(requestFailures)} runtime=${JSON.stringify(runtimeErrors)}`,
-        { cause: error },
-      );
-    }
-    if ((await draftButton.count()) > 0) break;
-    await answerButton.click();
-    await page
-      .getByRole("textbox", { name: "输入研究消息" })
-      .fill(
-        "研究范围限定为 2020 年后的公开 TESS 候选体和 NASA 系外行星档案宿主星参数；交付结构化数据、字段字典、文献候选与证据图谱，证据覆盖率至少 80%。",
-      );
-    await page.getByRole("button", { name: "发送研究消息" }).click();
-  }
-  await expect(draftButton).toBeVisible();
-  expect(runtimeErrors).toEqual([]);
-
-  await draftButton.click();
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await page.getByRole("button", { name: "确认研究协议" }).click();
-  const confirmedContractButton = page.getByRole("button", {
-    name: "研究协议 · 已确认",
-  });
-  await expect(confirmedContractButton).toBeVisible();
-  await confirmedContractButton.click();
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await page.getByRole("button", { name: "开始真实研究" }).click();
-  await expect(page.getByRole("dialog")).not.toBeVisible();
-  await expect(page.getByRole("region", { name: "研究过程" })).toBeVisible();
-  const floatingInspector = page.getByRole("complementary", {
-    name: "悬浮研究概览",
-  });
-  await expect(floatingInspector).toBeVisible();
-
-  for (const width of [1024, 1280, 1440]) {
-    await page.setViewportSize({ width, height: 800 });
-    await expect(page.getByTestId("interactive-chat-box")).toBeVisible();
-    await expect
-      .poll(async () => {
-        const main = await page
-          .getByTestId("workspace-main-track")
-          .boundingBox();
-        const floating = await floatingInspector.boundingBox();
-        if (!main || !floating) return Number.POSITIVE_INFINITY;
-        return main.x + main.width - floating.x;
-      })
-      .toBeLessThanOrEqual(0);
-    expect(
-      await page.evaluate(
-        () =>
-          document.documentElement.scrollWidth <=
-          document.documentElement.clientWidth,
-      ),
-    ).toBe(true);
-  }
-
-  await page.getByRole("button", { name: "展开右侧栏" }).click();
-  await expect(
-    page.getByRole("complementary", { name: "右侧研究栏" }),
-  ).toBeVisible();
-  await expect(page.getByTestId("workspace-topbar")).toContainText(projectName);
-  await expect(
-    page.getByTestId("workspace-topbar").getByRole("button", {
-      name: "收起右侧栏",
-    }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "收起右侧栏" }).click();
-  await page.getByRole("button", { name: "展示悬浮概览" }).click();
-  await expect(floatingInspector).toBeVisible();
-
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await expect(floatingInspector).toHaveCSS("transition-property", "none");
-  await page.evaluate(() => {
-    document.documentElement.style.fontSize = "200%";
-  });
-  await expect(page.getByTestId("interactive-chat-box")).toBeVisible();
-  expect(
-    await page.evaluate(
-      () =>
-        document.documentElement.scrollWidth <=
-        document.documentElement.clientWidth,
-    ),
-  ).toBe(true);
-  await page.evaluate(() => {
-    document.documentElement.style.removeProperty("font-size");
-  });
-  await expect
-    .poll(() =>
-      apiRequests.some(
-        (request) =>
-          request.startsWith("GET ") &&
-          /\/api\/runs\/[^/]+$/u.test(request.split(" ", 2)[1] ?? ""),
-      ),
-    )
-    .toBe(true);
-  await expect
-    .poll(() =>
-      apiRequests.some(
-        (request) => request.startsWith("GET ") && request.includes("/steps"),
-      ),
-    )
-    .toBe(true);
-  expect(runtimeErrors).toEqual([]);
-
-  await page.reload();
-  await expect(page.getByTestId("root-layout")).toBeVisible();
-  await expect(page.locator("#research-project-heading")).toHaveText(
-    projectName,
-  );
-  await expect(floatingInspector).toBeVisible();
-  await expect(page.getByRole("region", { name: "研究过程" })).toBeVisible();
-
-  expect(
-    requestFailures.filter((failure) => !failure.includes("net::ERR_ABORTED")),
-  ).toEqual([]);
-  expect(runtimeErrors).toEqual([]);
 });

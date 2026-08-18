@@ -1,0 +1,341 @@
+{
+  "$defs": {
+    "ConditionOperator": {
+      "enum": [
+        "exact",
+        "curated_alias",
+        "angular_separation_lte",
+        "angular_separation_gt",
+        "contradicts",
+        "source_scope"
+      ],
+      "title": "ConditionOperator",
+      "type": "string"
+    },
+    "ConfidenceBand": {
+      "enum": [
+        "high",
+        "medium",
+        "low",
+        "not_applicable"
+      ],
+      "title": "ConfidenceBand",
+      "type": "string"
+    },
+    "CrossmatchCondition": {
+      "additionalProperties": false,
+      "properties": {
+        "condition_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Condition Id",
+          "type": "string"
+        },
+        "field_id": {
+          "anyOf": [
+            {
+              "pattern": "^(planet|star|system)\\.[a-z][a-z0-9_]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field Id"
+        },
+        "left_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Left Value"
+        },
+        "manual_review_threshold_arcsec": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manual Review Threshold Arcsec"
+        },
+        "operator": {
+          "$ref": "#/$defs/ConditionOperator"
+        },
+        "right_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Right Value"
+        },
+        "rule_reference": {
+          "minLength": 1,
+          "title": "Rule Reference",
+          "type": "string"
+        },
+        "separation_arcsec": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Separation Arcsec"
+        },
+        "strict_threshold_arcsec": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Strict Threshold Arcsec"
+        }
+      },
+      "required": [
+        "condition_id",
+        "operator",
+        "rule_reference"
+      ],
+      "title": "CrossmatchCondition",
+      "type": "object"
+    },
+    "CrossmatchMethod": {
+      "enum": [
+        "exact_identifier",
+        "curated_entity_alias",
+        "coordinate",
+        "compound"
+      ],
+      "title": "CrossmatchMethod",
+      "type": "string"
+    },
+    "CrossmatchSide": {
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "CrossmatchSide",
+      "type": "string"
+    },
+    "EntityLevel": {
+      "enum": [
+        "host_star",
+        "planet_candidate",
+        "planet_assertion"
+      ],
+      "title": "EntityLevel",
+      "type": "string"
+    },
+    "EvidenceLocator": {
+      "additionalProperties": false,
+      "properties": {
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "raw_field": {
+          "minLength": 1,
+          "title": "Raw Field",
+          "type": "string"
+        },
+        "row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Row Key",
+          "type": "array"
+        },
+        "side": {
+          "$ref": "#/$defs/CrossmatchSide"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Snapshot Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "side",
+        "source_snapshot_id",
+        "source_id",
+        "query_hash",
+        "row_key",
+        "raw_field"
+      ],
+      "title": "EvidenceLocator",
+      "type": "object"
+    },
+    "MatchDecision": {
+      "enum": [
+        "accepted",
+        "rejected",
+        "review_required",
+        "conflict",
+        "inconclusive",
+        "unmatched"
+      ],
+      "title": "MatchDecision",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "conditions": {
+      "items": {
+        "$ref": "#/$defs/CrossmatchCondition"
+      },
+      "minItems": 1,
+      "title": "Conditions",
+      "type": "array"
+    },
+    "confidence": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "confidence_band": {
+      "$ref": "#/$defs/ConfidenceBand"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "decision": {
+      "$ref": "#/$defs/MatchDecision"
+    },
+    "entity_level": {
+      "$ref": "#/$defs/EntityLevel"
+    },
+    "evidence_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Evidence Id",
+      "type": "string"
+    },
+    "left_candidate_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Left Candidate Id",
+      "type": "string"
+    },
+    "left_locators": {
+      "items": {
+        "$ref": "#/$defs/EvidenceLocator"
+      },
+      "minItems": 1,
+      "title": "Left Locators",
+      "type": "array"
+    },
+    "method": {
+      "$ref": "#/$defs/CrossmatchMethod"
+    },
+    "right_candidate_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Right Candidate Id",
+      "type": "string"
+    },
+    "right_locators": {
+      "items": {
+        "$ref": "#/$defs/EvidenceLocator"
+      },
+      "minItems": 1,
+      "title": "Right Locators",
+      "type": "array"
+    },
+    "rule_set_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Rule Set Content Hash",
+      "type": "string"
+    },
+    "rule_set_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Rule Set Id",
+      "type": "string"
+    },
+    "rule_set_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Rule Set Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "evidence_id",
+    "entity_level",
+    "method",
+    "decision",
+    "confidence",
+    "confidence_band",
+    "left_candidate_id",
+    "right_candidate_id",
+    "left_locators",
+    "right_locators",
+    "conditions",
+    "rule_set_id",
+    "rule_set_version",
+    "rule_set_content_hash",
+    "content_hash"
+  ],
+  "title": "CrossmatchEvidence",
+  "type": "object"
+}

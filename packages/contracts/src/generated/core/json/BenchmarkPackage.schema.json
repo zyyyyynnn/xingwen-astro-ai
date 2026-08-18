@@ -1,0 +1,1772 @@
+{
+  "$defs": {
+    "BenchmarkAdmissionStatus": {
+      "enum": [
+        "candidate",
+        "accepted",
+        "rejected"
+      ],
+      "title": "BenchmarkAdmissionStatus",
+      "type": "string"
+    },
+    "BenchmarkClaim": {
+      "additionalProperties": false,
+      "properties": {
+        "claim_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "claim_type": {
+          "$ref": "#/$defs/ClaimType"
+        },
+        "conditions": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Conditions",
+          "type": "array"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "normalized_text": {
+          "minLength": 1,
+          "title": "Normalized Text",
+          "type": "string"
+        },
+        "paper_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Paper Id",
+          "type": "string"
+        },
+        "rejection_reason": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rejection Reason"
+        },
+        "review_status": {
+          "$ref": "#/$defs/BenchmarkReviewStatus"
+        },
+        "status": {
+          "$ref": "#/$defs/BenchmarkAdmissionStatus"
+        },
+        "summary_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Summary Id",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "claim_id",
+        "summary_id",
+        "paper_id",
+        "claim_type",
+        "text",
+        "normalized_text",
+        "conditions",
+        "evidence_ids",
+        "confidence",
+        "status",
+        "review_status"
+      ],
+      "title": "BenchmarkClaim",
+      "type": "object"
+    },
+    "BenchmarkCrossrefDocumentedPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "applicability_note": {
+          "minLength": 1,
+          "title": "Applicability Note",
+          "type": "string"
+        },
+        "known_conflict_note": {
+          "minLength": 1,
+          "title": "Known Conflict Note",
+          "type": "string"
+        },
+        "limits": {
+          "items": {
+            "$ref": "#/$defs/BenchmarkCrossrefRateLimit"
+          },
+          "minItems": 1,
+          "title": "Limits",
+          "type": "array"
+        },
+        "official_source_url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Official Source Url",
+          "type": "string"
+        },
+        "policy_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Policy Id",
+          "type": "string"
+        },
+        "verified_at": {
+          "format": "date",
+          "title": "Verified At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "policy_id",
+        "official_source_url",
+        "verified_at",
+        "applicability_note",
+        "known_conflict_note",
+        "limits"
+      ],
+      "title": "BenchmarkCrossrefDocumentedPolicy",
+      "type": "object"
+    },
+    "BenchmarkCrossrefObservedRuntimeLimit": {
+      "additionalProperties": false,
+      "properties": {
+        "endpoint": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Endpoint",
+          "type": "string"
+        },
+        "observation_note": {
+          "minLength": 1,
+          "title": "Observation Note",
+          "type": "string"
+        },
+        "rate_limit_ceiling": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "const": "unavailable",
+              "type": "string"
+            }
+          ],
+          "title": "Rate Limit Ceiling"
+        },
+        "request_class": {
+          "enum": [
+            "single_record",
+            "list_or_search"
+          ],
+          "title": "Request Class",
+          "type": "string"
+        },
+        "response_status": {
+          "maximum": 599,
+          "minimum": 100,
+          "title": "Response Status",
+          "type": "integer"
+        },
+        "retrieved_at": {
+          "format": "date-time",
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "x_api_pool": {
+          "enum": [
+            "public",
+            "polite",
+            "plus",
+            "unavailable"
+          ],
+          "title": "X Api Pool",
+          "type": "string"
+        },
+        "x_concurrency_limit": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "const": "unavailable",
+              "type": "string"
+            }
+          ],
+          "title": "X Concurrency Limit"
+        },
+        "x_rate_limit_interval": {
+          "minLength": 1,
+          "title": "X Rate Limit Interval",
+          "type": "string"
+        }
+      },
+      "required": [
+        "endpoint",
+        "request_class",
+        "retrieved_at",
+        "x_api_pool",
+        "rate_limit_ceiling",
+        "x_rate_limit_interval",
+        "x_concurrency_limit",
+        "response_status",
+        "observation_note"
+      ],
+      "title": "BenchmarkCrossrefObservedRuntimeLimit",
+      "type": "object"
+    },
+    "BenchmarkCrossrefRateLimit": {
+      "additionalProperties": false,
+      "properties": {
+        "concurrency_limit": {
+          "exclusiveMinimum": 0,
+          "title": "Concurrency Limit",
+          "type": "integer"
+        },
+        "interval_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Interval Seconds",
+          "type": "integer"
+        },
+        "pool": {
+          "enum": [
+            "public",
+            "polite"
+          ],
+          "title": "Pool",
+          "type": "string"
+        },
+        "request_class": {
+          "enum": [
+            "all_requests",
+            "single_record",
+            "list_or_search"
+          ],
+          "title": "Request Class",
+          "type": "string"
+        },
+        "requests_per_interval": {
+          "exclusiveMinimum": 0,
+          "title": "Requests Per Interval",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "pool",
+        "request_class",
+        "requests_per_interval",
+        "interval_seconds",
+        "concurrency_limit"
+      ],
+      "title": "BenchmarkCrossrefRateLimit",
+      "type": "object"
+    },
+    "BenchmarkCrossrefRateLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "documented_policy": {
+          "items": {
+            "$ref": "#/$defs/BenchmarkCrossrefDocumentedPolicy"
+          },
+          "minItems": 2,
+          "title": "Documented Policy",
+          "type": "array"
+        },
+        "handles_429_with_backoff": {
+          "const": true,
+          "title": "Handles 429 With Backoff",
+          "type": "boolean"
+        },
+        "missing_headers_strategy": {
+          "const": "conservative",
+          "title": "Missing Headers Strategy",
+          "type": "string"
+        },
+        "observation_boundary": {
+          "minLength": 1,
+          "title": "Observation Boundary",
+          "type": "string"
+        },
+        "observed_runtime_limits": {
+          "items": {
+            "$ref": "#/$defs/BenchmarkCrossrefObservedRuntimeLimit"
+          },
+          "minItems": 1,
+          "title": "Observed Runtime Limits",
+          "type": "array"
+        },
+        "runtime_uses_response_headers": {
+          "const": true,
+          "title": "Runtime Uses Response Headers",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "documented_policy",
+        "observed_runtime_limits",
+        "runtime_uses_response_headers",
+        "handles_429_with_backoff",
+        "missing_headers_strategy",
+        "observation_boundary"
+      ],
+      "title": "BenchmarkCrossrefRateLimits",
+      "type": "object"
+    },
+    "BenchmarkEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "evidence_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "evidence_level": {
+          "$ref": "#/$defs/BenchmarkEvidenceLevel"
+        },
+        "evidence_type": {
+          "const": "paper_text",
+          "title": "Evidence Type",
+          "type": "string"
+        },
+        "extraction_method": {
+          "enum": [
+            "manual_transcription_from_verified_source",
+            "manual_paraphrase_from_verified_source"
+          ],
+          "title": "Extraction Method",
+          "type": "string"
+        },
+        "locator": {
+          "$ref": "#/$defs/BenchmarkPaperTextLocator"
+        },
+        "paper_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Paper Id",
+          "type": "string"
+        },
+        "quote_or_value": {
+          "minLength": 1,
+          "title": "Quote Or Value",
+          "type": "string"
+        },
+        "review_status": {
+          "$ref": "#/$defs/BenchmarkReviewStatus",
+          "default": "pending_scientific_review"
+        },
+        "target_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Target Id",
+          "type": "string"
+        },
+        "target_type": {
+          "enum": [
+            "summary_statement",
+            "claim",
+            "relation",
+            "graph_edge"
+          ],
+          "title": "Target Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "paper_id",
+        "target_type",
+        "target_id",
+        "evidence_type",
+        "evidence_level",
+        "locator",
+        "quote_or_value",
+        "extraction_method",
+        "confidence"
+      ],
+      "title": "BenchmarkEvidence",
+      "type": "object"
+    },
+    "BenchmarkEvidenceLevel": {
+      "enum": [
+        "public_abstract",
+        "open_full_text",
+        "publisher_metadata"
+      ],
+      "title": "BenchmarkEvidenceLevel",
+      "type": "string"
+    },
+    "BenchmarkFullTextAccess": {
+      "enum": [
+        "open_preprint",
+        "publisher_dependent",
+        "not_verified"
+      ],
+      "title": "BenchmarkFullTextAccess",
+      "type": "string"
+    },
+    "BenchmarkGraph": {
+      "additionalProperties": false,
+      "properties": {
+        "edges": {
+          "items": {
+            "$ref": "#/$defs/BenchmarkGraphEdge"
+          },
+          "minItems": 1,
+          "title": "Edges",
+          "type": "array"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/BenchmarkGraphNode"
+          },
+          "minItems": 1,
+          "title": "Nodes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "nodes",
+        "edges"
+      ],
+      "title": "BenchmarkGraph",
+      "type": "object"
+    },
+    "BenchmarkGraphEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "cross_document": {
+          "title": "Cross Document",
+          "type": "boolean"
+        },
+        "edge_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "edge_type": {
+          "$ref": "#/$defs/GraphEdgeType"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "reasoning_trace_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reasoning Trace Id"
+        },
+        "relation_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Relation Id"
+        },
+        "source": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source",
+          "type": "string"
+        },
+        "target": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Target",
+          "type": "string"
+        }
+      },
+      "required": [
+        "edge_id",
+        "source",
+        "target",
+        "edge_type",
+        "evidence_ids",
+        "cross_document"
+      ],
+      "title": "BenchmarkGraphEdge",
+      "type": "object"
+    },
+    "BenchmarkGraphNode": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "node_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Node Id",
+          "type": "string"
+        },
+        "node_type": {
+          "$ref": "#/$defs/GraphNodeType"
+        },
+        "ref_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Ref Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "node_id",
+        "node_type",
+        "label",
+        "ref_id"
+      ],
+      "title": "BenchmarkGraphNode",
+      "type": "object"
+    },
+    "BenchmarkGraphTaxonomy": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_edge_types": {
+          "items": {
+            "$ref": "#/$defs/GraphEdgeType"
+          },
+          "minItems": 1,
+          "title": "Allowed Edge Types",
+          "type": "array"
+        },
+        "allowed_node_types": {
+          "items": {
+            "$ref": "#/$defs/GraphNodeType"
+          },
+          "minItems": 1,
+          "title": "Allowed Node Types",
+          "type": "array"
+        },
+        "integrity_rules": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Integrity Rules",
+          "type": "array"
+        }
+      },
+      "required": [
+        "allowed_node_types",
+        "allowed_edge_types",
+        "integrity_rules"
+      ],
+      "title": "BenchmarkGraphTaxonomy",
+      "type": "object"
+    },
+    "BenchmarkMaintainer": {
+      "additionalProperties": false,
+      "properties": {
+        "module": {
+          "const": "paper_pipeline",
+          "title": "Module",
+          "type": "string"
+        },
+        "role": {
+          "const": "paper_and_graph_pipeline",
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "module",
+        "role"
+      ],
+      "title": "BenchmarkMaintainer",
+      "type": "object"
+    },
+    "BenchmarkMetricId": {
+      "enum": [
+        "candidate_recall",
+        "schema_pass_rate",
+        "evidence_coverage",
+        "relation_scientific_accuracy",
+        "evidence_less_relation_block_rate"
+      ],
+      "title": "BenchmarkMetricId",
+      "type": "string"
+    },
+    "BenchmarkMetricsExpectation": {
+      "additionalProperties": false,
+      "properties": {
+        "denominator_definition": {
+          "minLength": 1,
+          "title": "Denominator Definition",
+          "type": "string"
+        },
+        "empty_set_behavior": {
+          "const": "report_not_available",
+          "title": "Empty Set Behavior",
+          "type": "string"
+        },
+        "metric_id": {
+          "$ref": "#/$defs/BenchmarkMetricId"
+        },
+        "numerator_definition": {
+          "minLength": 1,
+          "title": "Numerator Definition",
+          "type": "string"
+        }
+      },
+      "required": [
+        "metric_id",
+        "numerator_definition",
+        "denominator_definition",
+        "empty_set_behavior"
+      ],
+      "title": "BenchmarkMetricsExpectation",
+      "type": "object"
+    },
+    "BenchmarkPaperSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "dataset": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BenchmarkSupportedStatement"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/BenchmarkSupportedStatement"
+          },
+          "minItems": 1,
+          "title": "Findings",
+          "type": "array"
+        },
+        "future_work": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/BenchmarkSupportedStatement"
+          },
+          "title": "Future Work",
+          "type": "array"
+        },
+        "limitations": {
+          "items": {
+            "$ref": "#/$defs/BenchmarkSupportedStatement"
+          },
+          "minItems": 1,
+          "title": "Limitations",
+          "type": "array"
+        },
+        "method": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BenchmarkSupportedStatement"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "paper_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Paper Id",
+          "type": "string"
+        },
+        "research_goal": {
+          "minLength": 1,
+          "title": "Research Goal",
+          "type": "string"
+        },
+        "review_status": {
+          "$ref": "#/$defs/BenchmarkReviewStatus"
+        },
+        "summary_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Summary Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "summary_id",
+        "paper_id",
+        "research_goal",
+        "findings",
+        "limitations",
+        "review_status"
+      ],
+      "title": "BenchmarkPaperSummary",
+      "type": "object"
+    },
+    "BenchmarkPaperTextLocator": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "paper_text",
+          "title": "Kind",
+          "type": "string"
+        },
+        "paragraph": {
+          "minimum": 1,
+          "title": "Paragraph",
+          "type": "integer"
+        },
+        "section": {
+          "enum": [
+            "abstract",
+            "full_text"
+          ],
+          "title": "Section",
+          "type": "string"
+        },
+        "source_url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Source Url",
+          "type": "string"
+        },
+        "text_range": {
+          "minLength": 1,
+          "title": "Text Range",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "source_url",
+        "section",
+        "paragraph",
+        "text_range"
+      ],
+      "title": "BenchmarkPaperTextLocator",
+      "type": "object"
+    },
+    "BenchmarkQueryFixture": {
+      "additionalProperties": false,
+      "properties": {
+        "keywords": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Keywords",
+          "type": "array"
+        },
+        "query_string": {
+          "minLength": 1,
+          "title": "Query String",
+          "type": "string"
+        },
+        "year_from": {
+          "maximum": 2100,
+          "minimum": 1900,
+          "title": "Year From",
+          "type": "integer"
+        },
+        "year_to": {
+          "maximum": 2100,
+          "minimum": 1900,
+          "title": "Year To",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "keywords",
+        "query_string",
+        "year_from",
+        "year_to"
+      ],
+      "title": "BenchmarkQueryFixture",
+      "type": "object"
+    },
+    "BenchmarkReasoningTrace": {
+      "additionalProperties": false,
+      "properties": {
+        "conditions": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Conditions",
+          "type": "array"
+        },
+        "limitations": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Limitations",
+          "type": "array"
+        },
+        "premise_claim_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 2,
+          "title": "Premise Claim Ids",
+          "type": "array"
+        },
+        "provenance": {
+          "const": "web_gpt_benchmark_draft",
+          "title": "Provenance",
+          "type": "string"
+        },
+        "relation_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Relation Id",
+          "type": "string"
+        },
+        "review_status": {
+          "$ref": "#/$defs/BenchmarkReviewStatus"
+        },
+        "rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Rule Version",
+          "type": "string"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/BenchmarkTraceStep"
+          },
+          "minItems": 1,
+          "title": "Steps",
+          "type": "array"
+        },
+        "trace_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Trace Id",
+          "type": "string"
+        },
+        "uncertainty": {
+          "minLength": 1,
+          "title": "Uncertainty",
+          "type": "string"
+        }
+      },
+      "required": [
+        "trace_id",
+        "relation_id",
+        "premise_claim_ids",
+        "steps",
+        "conditions",
+        "limitations",
+        "uncertainty",
+        "provenance",
+        "rule_version",
+        "review_status"
+      ],
+      "title": "BenchmarkReasoningTrace",
+      "type": "object"
+    },
+    "BenchmarkRelation": {
+      "additionalProperties": false,
+      "properties": {
+        "comparability_note": {
+          "minLength": 1,
+          "title": "Comparability Note",
+          "type": "string"
+        },
+        "conditions": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Conditions",
+          "type": "array"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "reasoning_trace_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reasoning Trace Id"
+        },
+        "rejection_reason": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rejection Reason"
+        },
+        "relation_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Relation Id",
+          "type": "string"
+        },
+        "relation_type": {
+          "$ref": "#/$defs/LiteratureRelationType"
+        },
+        "review_status": {
+          "$ref": "#/$defs/BenchmarkReviewStatus"
+        },
+        "source_claim_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Claim Id",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/BenchmarkAdmissionStatus"
+        },
+        "target_claim_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Target Claim Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "relation_id",
+        "source_claim_id",
+        "target_claim_id",
+        "relation_type",
+        "conditions",
+        "comparability_note",
+        "evidence_ids",
+        "confidence",
+        "status",
+        "review_status"
+      ],
+      "title": "BenchmarkRelation",
+      "type": "object"
+    },
+    "BenchmarkReviewPurpose": {
+      "enum": [
+        "benchmark_scientific_review"
+      ],
+      "title": "BenchmarkReviewPurpose",
+      "type": "string"
+    },
+    "BenchmarkReviewRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "blocking_findings": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Blocking Findings",
+          "type": "array"
+        },
+        "non_blocking_findings": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Non Blocking Findings",
+          "type": "array"
+        },
+        "notes": {
+          "minLength": 1,
+          "title": "Notes",
+          "type": "string"
+        },
+        "review_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Review Id",
+          "type": "string"
+        },
+        "review_purpose": {
+          "$ref": "#/$defs/BenchmarkReviewPurpose"
+        },
+        "reviewed_at": {
+          "format": "date-time",
+          "title": "Reviewed At",
+          "type": "string"
+        },
+        "reviewed_benchmark_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Reviewed Benchmark Version",
+          "type": "string"
+        },
+        "reviewed_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Reviewed Content Hash",
+          "type": "string"
+        },
+        "reviewer_identity": {
+          "pattern": "^[a-z][a-z0-9_]*:[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "title": "Reviewer Identity",
+          "type": "string"
+        },
+        "reviewer_role": {
+          "minLength": 1,
+          "title": "Reviewer Role",
+          "type": "string"
+        },
+        "reviewer_type": {
+          "$ref": "#/$defs/BenchmarkReviewerType"
+        },
+        "scope": {
+          "items": {
+            "$ref": "#/$defs/BenchmarkReviewScope"
+          },
+          "minItems": 1,
+          "title": "Scope",
+          "type": "array"
+        },
+        "verdict": {
+          "$ref": "#/$defs/BenchmarkReviewVerdict"
+        }
+      },
+      "required": [
+        "review_id",
+        "reviewed_at",
+        "reviewer_type",
+        "reviewer_identity",
+        "reviewer_role",
+        "review_purpose",
+        "verdict",
+        "reviewed_benchmark_version",
+        "reviewed_content_hash",
+        "scope",
+        "notes"
+      ],
+      "title": "BenchmarkReviewRecord",
+      "type": "object"
+    },
+    "BenchmarkReviewScope": {
+      "additionalProperties": false,
+      "properties": {
+        "target_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Target Ids",
+          "type": "array"
+        },
+        "target_type": {
+          "$ref": "#/$defs/BenchmarkReviewTargetType"
+        }
+      },
+      "required": [
+        "target_type",
+        "target_ids"
+      ],
+      "title": "BenchmarkReviewScope",
+      "type": "object"
+    },
+    "BenchmarkReviewStatus": {
+      "enum": [
+        "pending_scientific_review",
+        "approved",
+        "changes_requested"
+      ],
+      "title": "BenchmarkReviewStatus",
+      "type": "string"
+    },
+    "BenchmarkReviewTargetType": {
+      "enum": [
+        "benchmark_package",
+        "source_policy",
+        "seed_paper",
+        "paper_summary",
+        "evidence",
+        "claim",
+        "relation",
+        "reasoning_trace",
+        "graph_edge"
+      ],
+      "title": "BenchmarkReviewTargetType",
+      "type": "string"
+    },
+    "BenchmarkReviewVerdict": {
+      "enum": [
+        "pass",
+        "blocked"
+      ],
+      "title": "BenchmarkReviewVerdict",
+      "type": "string"
+    },
+    "BenchmarkReviewerType": {
+      "enum": [
+        "web_gpt",
+        "automation"
+      ],
+      "title": "BenchmarkReviewerType",
+      "type": "string"
+    },
+    "BenchmarkSearchScenario": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_limit": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Candidate Limit",
+          "type": "integer"
+        },
+        "dedupe_expectation": {
+          "minLength": 1,
+          "title": "Dedupe Expectation",
+          "type": "string"
+        },
+        "expected_paper_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Expected Paper Ids",
+          "type": "array"
+        },
+        "purpose": {
+          "minLength": 1,
+          "title": "Purpose",
+          "type": "string"
+        },
+        "query": {
+          "$ref": "#/$defs/BenchmarkQueryFixture"
+        },
+        "ranking_expectation": {
+          "minLength": 1,
+          "title": "Ranking Expectation",
+          "type": "string"
+        },
+        "scenario_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "source_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "purpose",
+        "query",
+        "source_ids",
+        "candidate_limit",
+        "dedupe_expectation",
+        "ranking_expectation",
+        "expected_paper_ids"
+      ],
+      "title": "BenchmarkSearchScenario",
+      "type": "object"
+    },
+    "BenchmarkSeedPaper": {
+      "additionalProperties": false,
+      "properties": {
+        "abstract_public": {
+          "title": "Abstract Public",
+          "type": "boolean"
+        },
+        "arxiv_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arxiv Id"
+        },
+        "authentication_required": {
+          "title": "Authentication Required",
+          "type": "boolean"
+        },
+        "authors": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Authors",
+          "type": "array"
+        },
+        "authors_complete": {
+          "title": "Authors Complete",
+          "type": "boolean"
+        },
+        "doi": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Doi"
+        },
+        "full_text_access": {
+          "$ref": "#/$defs/BenchmarkFullTextAccess"
+        },
+        "intended_uses": {
+          "items": {
+            "enum": [
+              "benchmark",
+              "scientific_review",
+              "fixture"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Intended Uses",
+          "type": "array"
+        },
+        "license_or_usage_boundary": {
+          "minLength": 1,
+          "title": "License Or Usage Boundary",
+          "type": "string"
+        },
+        "metadata_public": {
+          "title": "Metadata Public",
+          "type": "boolean"
+        },
+        "official_url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Official Url",
+          "type": "string"
+        },
+        "paper_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Paper Id",
+          "type": "string"
+        },
+        "rate_limit_or_runtime_risk": {
+          "minLength": 1,
+          "title": "Rate Limit Or Runtime Risk",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "verification_sources": {
+          "items": {
+            "$ref": "#/$defs/BenchmarkVerificationSource"
+          },
+          "minItems": 1,
+          "title": "Verification Sources",
+          "type": "array"
+        },
+        "year": {
+          "maximum": 2100,
+          "minimum": 1900,
+          "title": "Year",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "paper_id",
+        "title",
+        "authors",
+        "authors_complete",
+        "year",
+        "official_url",
+        "verification_sources",
+        "intended_uses",
+        "metadata_public",
+        "abstract_public",
+        "full_text_access",
+        "authentication_required",
+        "license_or_usage_boundary",
+        "rate_limit_or_runtime_risk"
+      ],
+      "title": "BenchmarkSeedPaper",
+      "type": "object"
+    },
+    "BenchmarkSourcePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "abstracts_public": {
+          "title": "Abstracts Public",
+          "type": "boolean"
+        },
+        "access_method": {
+          "minLength": 1,
+          "title": "Access Method",
+          "type": "string"
+        },
+        "access_url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Access Url",
+          "type": "string"
+        },
+        "authentication_required": {
+          "title": "Authentication Required",
+          "type": "boolean"
+        },
+        "crossref_rate_limits": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BenchmarkCrossrefRateLimits"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "full_text_boundary": {
+          "minLength": 1,
+          "title": "Full Text Boundary",
+          "type": "string"
+        },
+        "license_boundary": {
+          "minLength": 1,
+          "title": "License Boundary",
+          "type": "string"
+        },
+        "metadata_public": {
+          "title": "Metadata Public",
+          "type": "boolean"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "public_runtime_risk": {
+          "minLength": 1,
+          "title": "Public Runtime Risk",
+          "type": "string"
+        },
+        "rate_limit_policy": {
+          "minLength": 1,
+          "title": "Rate Limit Policy",
+          "type": "string"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "name",
+        "access_method",
+        "access_url",
+        "authentication_required",
+        "metadata_public",
+        "abstracts_public",
+        "full_text_boundary",
+        "license_boundary",
+        "rate_limit_policy",
+        "public_runtime_risk"
+      ],
+      "title": "BenchmarkSourcePolicy",
+      "type": "object"
+    },
+    "BenchmarkSupportedStatement": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "statement_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Statement Id",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "statement_id",
+        "text",
+        "evidence_ids"
+      ],
+      "title": "BenchmarkSupportedStatement",
+      "type": "object"
+    },
+    "BenchmarkTraceStep": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "order": {
+          "minimum": 1,
+          "title": "Order",
+          "type": "integer"
+        },
+        "statement": {
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "order",
+        "statement",
+        "evidence_ids"
+      ],
+      "title": "BenchmarkTraceStep",
+      "type": "object"
+    },
+    "BenchmarkVerificationSource": {
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        },
+        "verified_at": {
+          "format": "date",
+          "title": "Verified At",
+          "type": "string"
+        },
+        "verified_fields": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Verified Fields",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source_id",
+        "url",
+        "verified_at",
+        "verified_fields"
+      ],
+      "title": "BenchmarkVerificationSource",
+      "type": "object"
+    },
+    "ClaimType": {
+      "enum": [
+        "goal",
+        "method",
+        "dataset",
+        "finding",
+        "limitation",
+        "future_work"
+      ],
+      "title": "ClaimType",
+      "type": "string"
+    },
+    "GraphEdgeType": {
+      "enum": [
+        "uses_dataset",
+        "provides_field",
+        "supports_finding",
+        "cites",
+        "derived_from",
+        "supports",
+        "extends",
+        "limits",
+        "contradicts",
+        "uses_same_dataset",
+        "compares_method",
+        "corrected_by_feedback"
+      ],
+      "title": "GraphEdgeType",
+      "type": "string"
+    },
+    "GraphNodeType": {
+      "enum": [
+        "research_goal",
+        "dataset",
+        "field",
+        "source",
+        "paper",
+        "finding",
+        "claim",
+        "relation",
+        "reasoning_trace",
+        "evidence"
+      ],
+      "title": "GraphNodeType",
+      "type": "string"
+    },
+    "LiteratureRelationType": {
+      "enum": [
+        "supports",
+        "extends",
+        "derived_from",
+        "limits",
+        "contradicts",
+        "uses_same_dataset",
+        "compares_method"
+      ],
+      "title": "LiteratureRelationType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "benchmark_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Benchmark Id",
+      "type": "string"
+    },
+    "benchmark_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Benchmark Version",
+      "type": "string"
+    },
+    "case_id": {
+      "const": "exoplanet_host_star",
+      "title": "Case Id",
+      "type": "string"
+    },
+    "claims": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkClaim"
+      },
+      "minItems": 5,
+      "title": "Claims",
+      "type": "array"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date",
+      "title": "Created At",
+      "type": "string"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkEvidence"
+      },
+      "minItems": 1,
+      "title": "Evidence",
+      "type": "array"
+    },
+    "graph": {
+      "$ref": "#/$defs/BenchmarkGraph"
+    },
+    "graph_taxonomy": {
+      "$ref": "#/$defs/BenchmarkGraphTaxonomy"
+    },
+    "maintainers": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkMaintainer"
+      },
+      "minItems": 1,
+      "title": "Maintainers",
+      "type": "array"
+    },
+    "metrics_expectations": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkMetricsExpectation"
+      },
+      "minItems": 5,
+      "title": "Metrics Expectations",
+      "type": "array"
+    },
+    "paper_summaries": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkPaperSummary"
+      },
+      "minItems": 1,
+      "title": "Paper Summaries",
+      "type": "array"
+    },
+    "reasoning_traces": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkReasoningTrace"
+      },
+      "minItems": 1,
+      "title": "Reasoning Traces",
+      "type": "array"
+    },
+    "relations": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkRelation"
+      },
+      "minItems": 3,
+      "title": "Relations",
+      "type": "array"
+    },
+    "review_status": {
+      "$ref": "#/$defs/BenchmarkReviewStatus"
+    },
+    "schema_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "scientific_payload_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Scientific Payload Hash",
+      "type": "string"
+    },
+    "scientific_review": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BenchmarkReviewRecord"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "search_scenarios": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkSearchScenario"
+      },
+      "minItems": 1,
+      "title": "Search Scenarios",
+      "type": "array"
+    },
+    "seed_papers": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkSeedPaper"
+      },
+      "maxItems": 8,
+      "minItems": 5,
+      "title": "Seed Papers",
+      "type": "array"
+    },
+    "source_policies": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkSourcePolicy"
+      },
+      "minItems": 1,
+      "title": "Source Policies",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "benchmark_id",
+    "benchmark_version",
+    "case_id",
+    "created_at",
+    "maintainers",
+    "review_status",
+    "scientific_payload_hash",
+    "source_policies",
+    "search_scenarios",
+    "seed_papers",
+    "paper_summaries",
+    "evidence",
+    "claims",
+    "relations",
+    "reasoning_traces",
+    "graph_taxonomy",
+    "graph",
+    "metrics_expectations",
+    "content_hash"
+  ],
+  "title": "BenchmarkPackage",
+  "type": "object"
+}

@@ -28,8 +28,9 @@ Copy-Item .env.example .env
 `.env.example` 只声明当前运行时实际消费的配置。严禁提交 `.env`、密钥、Cookie 或其他凭据。
 
 真实研究助手使用千问 AI 平台的 OpenAI 兼容接口。根目录 `.env` 或 Windows 用户
-环境变量使用平台官方名称 `DASHSCOPE_API_KEY`。模型 family 与不可漂移的 snapshot
-分别由 `DASHSCOPE_MODEL` 和 `DASHSCOPE_MODEL_REVISION` 指定。这些变量只由 API 读取，不得使用
+环境变量使用平台官方名称 `DASHSCOPE_API_KEY`。`DASHSCOPE_MODEL` 指定批准池内的
+模型身份（默认 `qwen3.8-max`）；`DASHSCOPE_EXPLICIT_MODEL_REVISION` 仅在显式日期快照时填写，
+浮动别名必须留空，不得伪造 revision。这些变量只由 API 读取，不得使用
 `PUBLIC_*` 或 `VITE_*` 前缀。双击 `start-dev.bat` 时，健康门禁要求研究助手状态为
 `ready`；未配置凭据会明确停止启动，不会用 fixture 或模板回答伪装真实 Agent。
 
@@ -61,7 +62,7 @@ docker compose up --build --wait
 .\start-dev.bat
 ```
 
-脚本使用三个窗口：当前窗口执行工具、依赖、PostgreSQL 与 Alembic 前置检查；Backend
+脚本使用三个窗口：当前窗口执行工具、依赖、PostgreSQL 与当前 schema 前置检查；Backend
 窗口运行 FastAPI；Frontend 窗口运行 Brand Site 与 Workspace。后端可访问后才启动前端，
 两个前端均可访问后自动打开 Brand Site 首页。脚本会停止同一 Compose project 中占用应用
 端口的容器，但保留 PostgreSQL 与数据卷。关闭本地服务时，在 Backend/Frontend 窗口按
@@ -72,11 +73,11 @@ docker compose up --build --wait
 | `site`      | Astro Brand Site                | `http://localhost:4321` |
 | `workspace` | React Research Workspace        | `http://localhost:5173` |
 | `api`       | FastAPI `/api`                  | `http://localhost:8000` |
-| `migrate`   | Alembic `upgrade head` one-shot | 无端口                  |
+| `schema`    | 当前 SQLAlchemy 模型建表 one-shot | 无端口                  |
 | `postgres`  | PostgreSQL 17                   | `localhost:5432`        |
 
-完整容器栈的依赖顺序为 `postgres healthy -> migrate exited 0 -> api healthy -> workspace`。
-分窗口启动时，前置检查显式完成 Alembic migration，应用进程不隐式执行 migration。
+完整容器栈的依赖顺序为 `postgres healthy -> schema exited 0 -> api healthy -> workspace`。
+分窗口启动时，前置检查显式从当前 SQLAlchemy 模型建立 schema，应用进程不隐式改表。
 
 ## 4. 前端本机调试
 
@@ -109,14 +110,14 @@ uv run pytest
 uv run uvicorn app.main:app --reload
 ```
 
-数据库 Migration：
+数据库 Schema：
 
 ```powershell
 $env:DATABASE_URL = "postgresql+psycopg://postgres:postgres@127.0.0.1:5432/xingwen_astro_ai"
-uv run alembic upgrade head
+uv run python -m app.db.schema
 ```
 
-活动 migration 是描述当前数据库的单一 baseline；开发数据库需要跨 schema 变化时直接重建，不维护开发期升级兼容链。
+当前 SQLAlchemy 模型与 PostgreSQL 不变量是唯一 schema 权威；开发数据库发生结构变化时直接重建。
 
 Schema 导出：
 

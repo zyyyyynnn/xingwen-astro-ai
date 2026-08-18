@@ -31,8 +31,8 @@ def main() -> int:
     planner = ResearchContractPlanner(
         model_port=adapter,
         provider="qwen",
-        model=settings.DASHSCOPE_MODEL,
-        model_revision=settings.DASHSCOPE_MODEL_REVISION,
+        requested_model=settings.DASHSCOPE_MODEL,
+        explicit_revision=settings.DASHSCOPE_EXPLICIT_MODEL_REVISION,
         manifests=load_manifest_bundle(
             "services/data_pipeline/manifests/exoplanet_host_star/case-manifest.json",
             "services/data_pipeline/manifests/exoplanet_host_star/field-manifest.json",

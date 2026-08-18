@@ -27,6 +27,7 @@ from ._graph_seal import (
 )
 from ._hashing import compute_canonical_payload_hash
 from .enums import EvidenceType, GraphEdgeType, GraphNodeType
+from .persistence import PersistedUuid
 
 
 GRAPH_SCHEMA_VERSION = "2.0.0"
@@ -72,15 +73,6 @@ ContentHash = Annotated[
     str,
     StringConstraints(pattern=r"^sha256:[0-9a-f]{64}$", max_length=71),
 ]
-PersistedUuid = Annotated[
-    str,
-    StringConstraints(
-        pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-        max_length=36,
-    ),
-]
-
-
 def _json_compatible(value: Any) -> Any:
     """Normalize nested model payloads before canonical hashing.
 

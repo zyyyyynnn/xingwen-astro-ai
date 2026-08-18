@@ -47,7 +47,7 @@
 - Evidence、Share 与 Export 固定引用 `version_id`，不引用动态 `latest`。
 - 修订创建派生 Run 与新 `ArtifactVersion`，保留 `supersedes` 关系与历史版本。
 - 数据库事务同时维护 Version、Evidence、latest 指针与 Event 一致性。
-- Migration 必须具备升级、失败退出与回滚预案。
+- Schema 变更必须更新当前 SQLAlchemy 模型与 PostgreSQL 不变量，并具备失败退出与恢复预案。
 
 ## 6. 命名与代码风格
 

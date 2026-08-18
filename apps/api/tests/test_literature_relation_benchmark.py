@@ -4,6 +4,7 @@ from datetime import timedelta
 import json
 from pathlib import Path
 import sys
+from uuid import NAMESPACE_URL, uuid5
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
@@ -155,7 +156,15 @@ def test_formal_cases_consume_resolved_literature_claim_artifact_versions(
         assert all(reference.schema_version == "1.0.0" for reference in references)
         assert all(reference.content_hash is not None for reference in references)
         assert all(reference.output_hash is not None for reference in references)
-        assert all(reference.project_id == "project.literature_relation_benchmark" for reference in references)
+        expected_project_id = str(
+            uuid5(
+                NAMESPACE_URL,
+                "xingwen.literature-relation-benchmark:project",
+            )
+        )
+        assert all(
+            reference.project_id == expected_project_id for reference in references
+        )
         assert {record.source_claim_id, record.target_claim_id}.issubset(claim_ids)
         assert record.source_claim_artifact_version_id in {
             item.artifact_version_id for item in references

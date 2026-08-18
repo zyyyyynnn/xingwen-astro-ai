@@ -22,6 +22,12 @@ from app.security import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _use_in_memory_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Security unit tests must not inherit a host/container database URL."""
+    monkeypatch.setattr("app.main.settings.DATABASE_URL", None)
+
+
 def test_session_cookie_lifecycle_and_public_payload(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -1,0 +1,62 @@
+{
+  "$defs": {
+    "LiteratureTraceOperation": {
+      "enum": [
+        "identify_premises",
+        "compare_objects",
+        "compare_metric",
+        "compare_unit",
+        "check_conditions",
+        "check_evidence",
+        "classify_relation",
+        "record_limitation"
+      ],
+      "title": "LiteratureTraceOperation",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One public, verifiable operation; never a private reasoning token log.",
+  "properties": {
+    "claim_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "title": "Claim Ids",
+      "type": "array"
+    },
+    "evidence_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "operation": {
+      "$ref": "#/$defs/LiteratureTraceOperation"
+    },
+    "order": {
+      "maximum": 32,
+      "minimum": 1,
+      "title": "Order",
+      "type": "integer"
+    },
+    "statement": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Statement",
+      "type": "string"
+    }
+  },
+  "required": [
+    "order",
+    "operation",
+    "statement",
+    "claim_ids",
+    "evidence_ids"
+  ],
+  "title": "LiteratureReasoningTraceStepCandidate",
+  "type": "object"
+}

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import json
 from datetime import timedelta
 from time import monotonic
-from typing import Any, Protocol, cast
+from typing import Any, Callable, Literal, Protocol, cast
 
 from openai import APIConnectionError, APIError, APIStatusError, APITimeoutError, OpenAI
 
@@ -36,14 +36,18 @@ def qwen_execution_lease_duration(
 @dataclass(frozen=True, slots=True)
 class ModelExecutionRequest:
     provider: str
-    model: str
-    model_revision: str
+    requested_model: str
+    explicit_revision: str | None
     prompt_name: str
     prompt_version: str
     prompt_hash: str
     prompt: str
     input_payload: dict[str, Any]
     parameters: dict[str, Any]
+    conversation: tuple[dict[str, Any], ...] = ()
+    tools: tuple[dict[str, Any], ...] = ()
+    response_mode: Literal["json", "tool"] = "json"
+    enable_thinking: bool = True
 
     @property
     def input_hash(self) -> str:
@@ -55,12 +59,21 @@ class ModelExecutionRequest:
 
 
 @dataclass(frozen=True, slots=True)
+class ModelToolCall:
+    id: str
+    name: str
+    arguments: dict[str, Any]
+
+
+@dataclass(frozen=True, slots=True)
 class ModelExecutionResponse:
     payload: dict[str, Any]
     output_hash: str
-    token_usage: dict[str, Any] | None
+    token_usage: dict[str, int] | None
     latency_ms: int
     provider_request_id: str | None
+    provider_returned_model: str | None = None
+    tool_calls: tuple[ModelToolCall, ...] = ()
 
 
 class ModelExecutionPort(Protocol):
@@ -77,7 +90,7 @@ class ModelExecutionError(RuntimeError):
         message: str,
         *,
         output_hash: str | None = None,
-        token_usage: dict[str, Any] | None = None,
+        token_usage: dict[str, int] | None = None,
         latency_ms: int | None = None,
         provider_request_id: str | None = None,
     ) -> None:
@@ -138,25 +151,39 @@ class QwenModelExecutionAdapter:
 
         client = cast(OpenAI, self._client)
         started = monotonic()
+        messages = (
+            list(request.conversation)
+            if request.conversation
+            else [
+                {"role": "system", "content": request.prompt},
+                {
+                    "role": "user",
+                    "content": json.dumps(
+                        request.input_payload,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ),
+                },
+            ]
+        )
+        create_arguments: dict[str, Any] = {
+            "model": request.explicit_revision or request.requested_model,
+            "messages": messages,
+            "extra_body": {
+                "enable_thinking": request.enable_thinking,
+                "preserve_thinking": request.enable_thinking,
+            },
+            **request.parameters,
+        }
+        if request.response_mode == "json":
+            create_arguments["response_format"] = {"type": "json_object"}
+        if request.tools:
+            create_arguments["tools"] = list(request.tools)
+            create_arguments["tool_choice"] = "auto"
         try:
-            completion = client.chat.completions.create(
-                model=request.model_revision,
-                messages=[
-                    {"role": "system", "content": request.prompt},
-                    {
-                        "role": "user",
-                        "content": json.dumps(
-                            request.input_payload,
-                            ensure_ascii=False,
-                            sort_keys=True,
-                            separators=(",", ":"),
-                        ),
-                    },
-                ],
-                response_format={"type": "json_object"},
-                extra_body={"enable_thinking": False},
-                **request.parameters,
-            )
+            completion = client.chat.completions.create(**create_arguments)
+            raw = _consume_completion(completion)
         except APITimeoutError as exc:
             raise ModelExecutionError(
                 "MODEL_PROVIDER_TIMEOUT",
@@ -169,6 +196,7 @@ class QwenModelExecutionAdapter:
                 "latency_ms": _elapsed_ms(started),
                 "provider_request_id": getattr(exc, "request_id", None),
             }
+            provider_code = _provider_error_code(exc)
             if exc.status_code == 429:
                 raise ModelExecutionError(
                     "MODEL_RATE_LIMITED",
@@ -179,6 +207,15 @@ class QwenModelExecutionAdapter:
                 raise ModelExecutionError(
                     "MODEL_PROVIDER_UNAVAILABLE",
                     "研究助手服务暂时不可用，请稍后重试。",
+                    **failure_metadata,
+                ) from exc
+            if provider_code in {
+                "access_denied",
+                "AllocationQuota.FreeTierOnly",
+            }:
+                raise ModelExecutionError(
+                    "MODEL_ACCESS_UNAVAILABLE",
+                    "当前研究模型尚未开通或额度不足，请检查模型套餐后重试。",
                     **failure_metadata,
                 ) from exc
             raise ModelExecutionError(
@@ -193,36 +230,127 @@ class QwenModelExecutionAdapter:
             ) from exc
 
         latency_ms = _elapsed_ms(started)
-        content = completion.choices[0].message.content if completion.choices else None
-        provider_request_id = getattr(completion, "_request_id", None) or completion.id
-        token_usage = (
-            completion.usage.model_dump(exclude_none=True)
-            if completion.usage is not None
-            else None
-        )
         try:
-            payload = _parse_json_content(content)
-        except (ValueError, IndexError, TypeError) as exc:
+            payload = (
+                _parse_json_content(raw.content)
+                if request.response_mode == "json"
+                else {}
+            )
+            tool_calls = tuple(_parse_tool_call(item) for item in raw.tool_calls)
+        except (ValueError, IndexError, TypeError, json.JSONDecodeError) as exc:
             raise ModelExecutionError(
                 "MODEL_RESPONSE_INVALID",
                 "研究助手返回了无法验证的结果。",
-                output_hash=canonical_request_hash({"provider_content": content}),
-                token_usage=token_usage,
+                output_hash=canonical_request_hash(
+                    {
+                        "provider_content": raw.content,
+                        "tool_calls": raw.tool_calls,
+                    }
+                ),
+                token_usage=raw.token_usage,
                 latency_ms=latency_ms,
-                provider_request_id=provider_request_id,
+                provider_request_id=raw.provider_request_id,
             ) from exc
 
         return ModelExecutionResponse(
             payload=payload,
-            output_hash=canonical_request_hash(payload),
-            token_usage=token_usage,
+            output_hash=canonical_request_hash(
+                payload
+                if request.response_mode == "json"
+                else {
+                    "content": raw.content,
+                    "tool_calls": [
+                        {
+                            "id": item.id,
+                            "name": item.name,
+                            "arguments": item.arguments,
+                        }
+                        for item in tool_calls
+                    ],
+                }
+            ),
+            token_usage=raw.token_usage,
             latency_ms=latency_ms,
-            provider_request_id=provider_request_id,
+            provider_request_id=raw.provider_request_id,
+            provider_returned_model=raw.model,
+            tool_calls=tool_calls,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class _RawCompletion:
+    content: str
+    tool_calls: tuple[dict[str, str], ...]
+    token_usage: dict[str, int] | None
+    provider_request_id: str | None
+    model: str | None
+
+
+def _consume_completion(
+    completion: Any,  # noqa: ANN401
+) -> _RawCompletion:
+    message = completion.choices[0].message if completion.choices else None
+    content = getattr(message, "content", None) or ""
+    # Provider private reasoning_content is deliberately not read, stored or
+    # returned: it must never enter Thread, RunEvent, shares, exports or
+    # renderers. Only the governed public path (tool arguments / JSON output)
+    # is consumed.
+    tool_calls = tuple(
+        {
+            "id": str(getattr(item, "id", "")),
+            "name": str(getattr(getattr(item, "function", None), "name", "")),
+            "arguments": str(
+                getattr(getattr(item, "function", None), "arguments", "")
+            ),
+        }
+        for item in (getattr(message, "tool_calls", None) or ())
+    )
+    returned_model = getattr(completion, "model", None)
+    return _RawCompletion(
+        content=content,
+        tool_calls=tool_calls,
+        token_usage=_standard_token_usage(getattr(completion, "usage", None)),
+        provider_request_id=(
+            getattr(completion, "_request_id", None)
+            or getattr(completion, "id", None)
+        ),
+        model=returned_model if isinstance(returned_model, str) and returned_model else None,
+    )
+
+
+def _parse_tool_call(value: dict[str, str]) -> ModelToolCall:
+    call_id = value["id"].strip()
+    name = value["name"].strip()
+    if not call_id or not name:
+        raise ValueError("tool call identity is incomplete")
+    parsed = json.loads(value["arguments"] or "{}")
+    if not isinstance(parsed, dict):
+        raise ValueError("tool call arguments must be a JSON object")
+    return ModelToolCall(id=call_id, name=name, arguments=parsed)
 
 
 def _elapsed_ms(started: float) -> int:
     return max(0, round((monotonic() - started) * 1000))
+
+
+def _provider_error_code(error: APIStatusError) -> str | None:
+    body = getattr(error, "body", None)
+    if not isinstance(body, dict):
+        return None
+    code = body.get("code")
+    return code if isinstance(code, str) else None
+
+
+def _standard_token_usage(usage: Any) -> dict[str, int] | None:  # noqa: ANN401
+    if usage is None:
+        return None
+    payload = usage.model_dump(exclude_none=True)
+    normalized = {
+        key: value
+        for key in ("prompt_tokens", "completion_tokens", "total_tokens")
+        if type(value := payload.get(key)) is int and value >= 0
+    }
+    return normalized or None
 
 
 def _parse_json_content(content: Any) -> dict[str, Any]:  # noqa: ANN401
@@ -244,6 +372,7 @@ __all__ = [
     "ModelExecutionPort",
     "ModelExecutionRequest",
     "ModelExecutionResponse",
+    "ModelToolCall",
     "ModelRuntimeUnavailable",
     "QwenModelExecutionAdapter",
     "qwen_execution_lease_duration",

@@ -192,8 +192,9 @@ class ModelExecutionModel(TimestampMixin, Base):
         nullable=False,
     )
     provider: Mapped[str] = mapped_column(String(128), nullable=False)
-    model: Mapped[str] = mapped_column(String(128), nullable=False)
-    model_revision: Mapped[str] = mapped_column(String(128), nullable=False)
+    requested_model: Mapped[str] = mapped_column(String(128), nullable=False)
+    provider_returned_model: Mapped[str | None] = mapped_column(String(128))
+    explicit_revision: Mapped[str | None] = mapped_column(String(128))
     prompt_name: Mapped[str] = mapped_column(String(128), nullable=False)
     prompt_version: Mapped[str] = mapped_column(String(64), nullable=False)
     prompt_hash: Mapped[str] = mapped_column(String(71), nullable=False)
@@ -280,7 +281,7 @@ class ResearchThreadEntryModel(TimestampMixin, Base):
         ),
         CheckConstraint("sequence >= 1", name="thread_entry_sequence_positive"),
         CheckConstraint(
-            "kind IN ('user_message','assistant_message','assistant_analysis',"
+            "kind IN ('user_message','assistant_message','assistant_reasoning',"
             "'clarification_question','clarification_answer')",
             name="thread_entry_kind",
         ),
@@ -430,6 +431,14 @@ class ResearchRunModel(TimestampMixin, Base):
         UniqueConstraint("id", "project_id", name="uq_research_run_id_project"),
         UniqueConstraint(
             "project_id", "idempotency_key", name="uq_research_run_idempotency"
+        ),
+        Index(
+            "uq_research_run_single_active_per_project",
+            "project_id",
+            unique=True,
+            postgresql_where=text(
+                "status NOT IN ('completed', 'failed', 'cancelled')"
+            ),
         ),
         ForeignKeyConstraint(
             ["contract_id", "project_id"],
@@ -585,10 +594,16 @@ class RunEventModel(Base):
         nullable=False,
     )
     sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    event_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    activity_id: Mapped[str] = mapped_column(String(256), nullable=False)
+    activity_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    activity_phase: Mapped[str] = mapped_column(String(32), nullable=False)
+    activity_name: Mapped[str] = mapped_column(String(160), nullable=False)
     step_key: Mapped[str | None] = mapped_column(String(128))
     progress: Mapped[int | None] = mapped_column(Integer)
-    public_message: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    details: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict
+    )
     artifact_version_ids: Mapped[list[str]] = mapped_column(
         JSONB, nullable=False, default=list
     )
@@ -604,7 +619,55 @@ class RunEventModel(Base):
         CheckConstraint(
             "progress IS NULL OR progress BETWEEN 0 AND 100", name="progress_range"
         ),
+        CheckConstraint(
+            "activity_kind IN ('reasoning','tool','observation','status',"
+            "'artifact','retry','error','completion')",
+            name="run_event_activity_kind",
+        ),
+        CheckConstraint(
+            "activity_phase IN ('queued','streaming','running','completed',"
+            "'failed','retrying')",
+            name="run_event_activity_phase",
+        ),
         Index("ix_run_events_run_occurred", "run_id", "occurred_at"),
+    )
+
+
+class RunCheckpointModel(TimestampMixin, Base):
+    __tablename__ = "run_checkpoints"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    run_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("research_runs.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    step_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    options: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("run_id", "step_key", name="uq_run_checkpoint_run_step"),
+        CheckConstraint("jsonb_array_length(options) >= 1", name="checkpoint_options"),
+    )
+
+
+class RunCheckpointDecisionModel(Base):
+    __tablename__ = "run_checkpoint_decisions"
+
+    checkpoint_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("run_checkpoints.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    selected_option: Mapped[str] = mapped_column(Text, nullable=False)
+    free_text: Mapped[str | None] = mapped_column(Text)
+    decided_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
 
 
@@ -659,7 +722,10 @@ class ProducerExecutionModel(TimestampMixin, Base):
     producer_name: Mapped[str] = mapped_column(String(128), nullable=False)
     producer_version: Mapped[str] = mapped_column(String(64), nullable=False)
     model_provider: Mapped[str | None] = mapped_column(String(128))
-    model_name: Mapped[str | None] = mapped_column(String(128))
+    requested_model: Mapped[str | None] = mapped_column(String(128))
+    provider_returned_model: Mapped[str | None] = mapped_column(String(128))
+    provider_request_id: Mapped[str | None] = mapped_column(String(256))
+    explicit_revision: Mapped[str | None] = mapped_column(String(128))
     prompt_name: Mapped[str | None] = mapped_column(String(128))
     prompt_version: Mapped[str | None] = mapped_column(String(64))
     prompt_hash: Mapped[str | None] = mapped_column(String(71))

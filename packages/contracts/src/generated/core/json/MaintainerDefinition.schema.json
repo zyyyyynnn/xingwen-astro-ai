@@ -1,0 +1,22 @@
+{
+  "additionalProperties": false,
+  "description": "Ownership metadata for a manifest release.",
+  "properties": {
+    "module": {
+      "const": "data_pipeline",
+      "title": "Module",
+      "type": "string"
+    },
+    "role": {
+      "const": "data_pipeline",
+      "title": "Role",
+      "type": "string"
+    }
+  },
+  "required": [
+    "module",
+    "role"
+  ],
+  "title": "MaintainerDefinition",
+  "type": "object"
+}

@@ -1,0 +1,95 @@
+{
+  "$defs": {
+    "EvidenceType": {
+      "enum": [
+        "database_query",
+        "paper_search",
+        "paper_metadata",
+        "paper_text",
+        "model_extraction",
+        "reasoning_trace",
+        "user_feedback",
+        "cache_record"
+      ],
+      "title": "EvidenceType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "evidence_type": {
+      "$ref": "#/$defs/EvidenceType"
+    },
+    "evidence_use_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Evidence Use Id",
+      "type": "string"
+    },
+    "graph_edge_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Graph Edge Id",
+      "type": "string"
+    },
+    "source_snapshot_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Source Snapshot Id",
+      "type": "string"
+    },
+    "upstream_artifact_version_id": {
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "title": "Upstream Artifact Version Id",
+      "type": "string"
+    },
+    "upstream_evidence_hash": {
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Upstream Evidence Hash",
+      "type": "string"
+    },
+    "upstream_evidence_id": {
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "title": "Upstream Evidence Id",
+      "type": "string"
+    },
+    "upstream_is_restricted": {
+      "title": "Upstream Is Restricted",
+      "type": "boolean"
+    },
+    "upstream_target_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Upstream Target Id",
+      "type": "string"
+    },
+    "upstream_target_type": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Upstream Target Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "evidence_use_id",
+    "graph_edge_id",
+    "upstream_artifact_version_id",
+    "upstream_evidence_id",
+    "upstream_target_type",
+    "upstream_target_id",
+    "source_snapshot_id",
+    "evidence_type",
+    "upstream_evidence_hash",
+    "upstream_is_restricted"
+  ],
+  "title": "GraphEvidenceUse",
+  "type": "object"
+}

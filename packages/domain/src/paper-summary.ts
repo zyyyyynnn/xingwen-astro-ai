@@ -44,6 +44,12 @@ export interface PaperSummaryTextLocator {
   readonly section: string;
   readonly paragraph: number | null;
   readonly textRange: string;
+  /**
+   * Preserved canonical DocumentLocator page (0-based) when a reliable
+   * DocumentParse relationship exists; null when only a source-level location
+   * is known.
+   */
+  readonly pageIndex: number | null;
 }
 
 /** Evidence locator for a bibliographic metadata field value. */
@@ -181,4 +187,15 @@ export interface PaperSummaryReview {
   readonly producerExecution: ProducerExecutionSummary;
   readonly sourceSnapshots: readonly SourceSnapshotSummary[];
   readonly evidence: readonly Evidence[];
+}
+
+/**
+ * The authorized full-text ResearchInput bound to the summarized paper.
+ *
+ * Resolved server-side through the recorded PaperCandidate → ResearchInput
+ * provenance bridge; `null` means no authorized full-text relation exists and
+ * the UI must show the plain unavailable state, never an inferred PDF URL.
+ */
+export interface PaperSummaryPdfSourceReview {
+  readonly researchInputId: DomainEntityId | null;
 }

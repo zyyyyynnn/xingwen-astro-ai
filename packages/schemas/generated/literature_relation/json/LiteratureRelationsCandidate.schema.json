@@ -16,7 +16,8 @@
       "additionalProperties": false,
       "properties": {
         "artifact_version_id": {
-          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
           "title": "Artifact Version Id",
           "type": "string"
         },
@@ -58,7 +59,8 @@
         "paper_summary_artifact_version_ids": {
           "default": [],
           "items": {
-            "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
             "type": "string"
           },
           "title": "Paper Summary Artifact Version Ids",
@@ -67,7 +69,8 @@
         "project_id": {
           "anyOf": [
             {
-              "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
               "type": "string"
             },
             {
@@ -262,7 +265,8 @@
           "type": "array"
         },
         "source_paper_summary_artifact_version_id": {
-          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
           "title": "Source Paper Summary Artifact Version Id",
           "type": "string"
         },
@@ -731,7 +735,8 @@
         "source_claim_artifact_version_id": {
           "anyOf": [
             {
-              "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
               "type": "string"
             },
             {
@@ -749,7 +754,8 @@
         "source_paper_summary_artifact_version_id": {
           "anyOf": [
             {
-              "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
               "type": "string"
             },
             {
@@ -773,7 +779,8 @@
         "target_claim_artifact_version_id": {
           "anyOf": [
             {
-              "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
               "type": "string"
             },
             {
@@ -791,7 +798,8 @@
         "target_paper_summary_artifact_version_id": {
           "anyOf": [
             {
-              "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
               "type": "string"
             },
             {
@@ -1006,7 +1014,8 @@
           "$ref": "#/$defs/LiteratureRelationType"
         },
         "source_claim_artifact_version_id": {
-          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
           "title": "Source Claim Artifact Version Id",
           "type": "string"
         },
@@ -1016,7 +1025,8 @@
           "type": "string"
         },
         "target_claim_artifact_version_id": {
-          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
           "title": "Target Claim Artifact Version Id",
           "type": "string"
         },
@@ -1069,7 +1079,8 @@
       "additionalProperties": false,
       "properties": {
         "claim_artifact_version_id": {
-          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
           "title": "Claim Artifact Version Id",
           "type": "string"
         },
@@ -1089,7 +1100,8 @@
           "type": "string"
         },
         "paper_summary_artifact_version_id": {
-          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
           "title": "Paper Summary Artifact Version Id",
           "type": "string"
         },
@@ -1185,7 +1197,8 @@
           "type": "array"
         },
         "project_id": {
-          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
           "title": "Project Id",
           "type": "string"
         }
@@ -1357,7 +1370,8 @@
         "run_id": {
           "anyOf": [
             {
-              "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
               "type": "string"
             },
             {
@@ -1655,6 +1669,19 @@
           "default": null,
           "title": "Metadata Field"
         },
+        "page_index": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page Index"
+        },
         "paragraph": {
           "anyOf": [
             {
@@ -1728,7 +1755,6 @@
       "items": {
         "$ref": "#/$defs/LiteratureClaimCandidate"
       },
-      "minItems": 2,
       "title": "Claims",
       "type": "array"
     },
@@ -1736,7 +1762,6 @@
       "items": {
         "$ref": "#/$defs/PaperSummaryEvidence"
       },
-      "minItems": 1,
       "title": "Evidence",
       "type": "array"
     },
@@ -1745,7 +1770,6 @@
         "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
         "type": "string"
       },
-      "minItems": 1,
       "title": "Evidence Ids",
       "type": "array"
     },
@@ -1753,7 +1777,6 @@
       "items": {
         "$ref": "#/$defs/LiteratureRelationEvidenceReference"
       },
-      "minItems": 1,
       "title": "Evidence References",
       "type": "array"
     },
@@ -1783,7 +1806,6 @@
       "items": {
         "$ref": "#/$defs/LiteratureReasoningTraceCandidate"
       },
-      "minItems": 1,
       "title": "Reasoning Traces",
       "type": "array"
     },
@@ -1806,7 +1828,6 @@
         "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
         "type": "string"
       },
-      "minItems": 1,
       "title": "Source Snapshot Ids",
       "type": "array"
     },

@@ -1,0 +1,105 @@
+{
+  "$defs": {
+    "GraphLogicalReferencePart": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "title": "GraphLogicalReferencePart",
+      "type": "object"
+    },
+    "GraphNodeVersionBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_version_id": {
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "title": "Artifact Version Id",
+          "type": "string"
+        },
+        "domain_object_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Domain Object Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_version_id",
+        "domain_object_id"
+      ],
+      "title": "GraphNodeVersionBinding",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "label": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Label",
+      "type": "string"
+    },
+    "logical_reference": {
+      "items": {
+        "$ref": "#/$defs/GraphLogicalReferencePart"
+      },
+      "minItems": 1,
+      "title": "Logical Reference",
+      "type": "array"
+    },
+    "node_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Node Id",
+      "type": "string"
+    },
+    "node_type": {
+      "enum": [
+        "research_goal",
+        "dataset",
+        "field",
+        "paper",
+        "claim"
+      ],
+      "title": "Node Type",
+      "type": "string"
+    },
+    "version_bindings": {
+      "items": {
+        "$ref": "#/$defs/GraphNodeVersionBinding"
+      },
+      "minItems": 1,
+      "title": "Version Bindings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "node_id",
+    "node_type",
+    "label",
+    "logical_reference",
+    "version_bindings"
+  ],
+  "title": "GraphArtifactNode",
+  "type": "object"
+}

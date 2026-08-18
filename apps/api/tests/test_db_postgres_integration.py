@@ -1,5 +1,5 @@
 
-"""PostgreSQL migration and repository integration tests.
+"""PostgreSQL schema and repository integration tests.
 
 Set TEST_DATABASE_URL to an isolated database whose name contains ``test``.
 The suite intentionally skips when PostgreSQL is unavailable rather than
@@ -10,14 +10,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 import os
-from pathlib import Path
 from uuid import uuid4
 
-from alembic import command
-from alembic.config import Config
-from alembic.migration import MigrationContext
-from alembic.autogenerate import compare_metadata
 import pytest
+
+from db_bootstrap import reset_current_schema
 from sqlalchemy import Engine, inspect
 from sqlalchemy.exc import IntegrityError
 
@@ -44,25 +41,15 @@ TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured")
 
 
-def _alembic_config(url: str) -> Config:
-    root = Path(__file__).resolve().parents[1]
-    config = Config(root / "alembic.ini")
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    return config
-
-
 @pytest.fixture(scope="module")
 def postgres_engine() -> Engine:
     assert TEST_DATABASE_URL is not None
     assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower(), "refusing non-test database"
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
     engine = create_engine_from_url(TEST_DATABASE_URL)
     yield engine
     engine.dispose()
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 def _seed_run(engine: Engine) -> tuple[ResearchRunModel, RunStepModel]:
@@ -110,8 +97,6 @@ def _seed_run(engine: Engine) -> tuple[ResearchRunModel, RunStepModel]:
 def test_upgrade_schema_matches_reviewed_metadata(postgres_engine: Engine) -> None:
     tables = set(inspect(postgres_engine).get_table_names())
     assert set(Base.metadata.tables) <= tables
-    with postgres_engine.connect() as connection:
-        assert compare_metadata(MigrationContext.configure(connection), Base.metadata) == []
 
 
 def test_repository_create_read_unique_conflict_and_rollback(postgres_engine: Engine) -> None:
@@ -133,8 +118,12 @@ def test_repository_create_read_unique_conflict_and_rollback(postgres_engine: En
             RunEventModel(
                 run_id=run.id,
                 sequence=1,
-                event_type="run.queued",
-                public_message="Queued",
+                activity_id=f"run:{run.id}",
+                activity_kind="status",
+                activity_phase="queued",
+                activity_name="研究任务",
+                content="Queued",
+                details={},
                 artifact_version_ids=[],
                 occurred_at=datetime.now(UTC),
             )
@@ -150,12 +139,18 @@ def test_database_rejects_all_version_and_sequence_duplicates(postgres_engine: E
     duplicates = [
         (
             RunEventModel(
-                id=uuid4(), run_id=run.id, sequence=1, event_type="run.queued",
-                public_message="First", artifact_version_ids=[], occurred_at=datetime.now(UTC)
+                id=uuid4(), run_id=run.id, sequence=1,
+                activity_id=f"run:{run.id}", activity_kind="status",
+                activity_phase="queued", activity_name="研究任务",
+                content="First", details={}, artifact_version_ids=[],
+                occurred_at=datetime.now(UTC)
             ),
             RunEventModel(
-                id=uuid4(), run_id=run.id, sequence=1, event_type="run.queued",
-                public_message="Duplicate", artifact_version_ids=[], occurred_at=datetime.now(UTC)
+                id=uuid4(), run_id=run.id, sequence=1,
+                activity_id=f"run:{run.id}", activity_kind="status",
+                activity_phase="queued", activity_name="研究任务",
+                content="Duplicate", details={}, artifact_version_ids=[],
+                occurred_at=datetime.now(UTC)
             ),
         ),
         (
@@ -241,8 +236,12 @@ def test_database_rejects_foreign_key_failure(postgres_engine: Engine) -> None:
             RunEventModel(
                 run_id=uuid4(),
                 sequence=1,
-                event_type="run.queued",
-                public_message="Invalid",
+                activity_id="run:missing",
+                activity_kind="status",
+                activity_phase="queued",
+                activity_name="研究任务",
+                content="Invalid",
+                details={},
                 artifact_version_ids=[],
                 occurred_at=datetime.now(UTC),
             )

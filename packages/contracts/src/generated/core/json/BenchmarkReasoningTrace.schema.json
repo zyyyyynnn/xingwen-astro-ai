@@ -1,0 +1,124 @@
+{
+  "$defs": {
+    "BenchmarkReviewStatus": {
+      "enum": [
+        "pending_scientific_review",
+        "approved",
+        "changes_requested"
+      ],
+      "title": "BenchmarkReviewStatus",
+      "type": "string"
+    },
+    "BenchmarkTraceStep": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "order": {
+          "minimum": 1,
+          "title": "Order",
+          "type": "integer"
+        },
+        "statement": {
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "order",
+        "statement",
+        "evidence_ids"
+      ],
+      "title": "BenchmarkTraceStep",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "conditions": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Conditions",
+      "type": "array"
+    },
+    "limitations": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Limitations",
+      "type": "array"
+    },
+    "premise_claim_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "minItems": 2,
+      "title": "Premise Claim Ids",
+      "type": "array"
+    },
+    "provenance": {
+      "const": "web_gpt_benchmark_draft",
+      "title": "Provenance",
+      "type": "string"
+    },
+    "relation_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Relation Id",
+      "type": "string"
+    },
+    "review_status": {
+      "$ref": "#/$defs/BenchmarkReviewStatus"
+    },
+    "rule_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Rule Version",
+      "type": "string"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkTraceStep"
+      },
+      "minItems": 1,
+      "title": "Steps",
+      "type": "array"
+    },
+    "trace_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Trace Id",
+      "type": "string"
+    },
+    "uncertainty": {
+      "minLength": 1,
+      "title": "Uncertainty",
+      "type": "string"
+    }
+  },
+  "required": [
+    "trace_id",
+    "relation_id",
+    "premise_claim_ids",
+    "steps",
+    "conditions",
+    "limitations",
+    "uncertainty",
+    "provenance",
+    "rule_version",
+    "review_status"
+  ],
+  "title": "BenchmarkReasoningTrace",
+  "type": "object"
+}

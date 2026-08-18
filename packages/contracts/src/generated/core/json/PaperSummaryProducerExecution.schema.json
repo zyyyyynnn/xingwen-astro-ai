@@ -1,0 +1,233 @@
+{
+  "$defs": {
+    "PaperSummaryInputVersions": {
+      "additionalProperties": false,
+      "properties": {
+        "paper_collection_output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Paper Collection Output Hash",
+          "type": "string"
+        },
+        "paper_collection_schema_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Paper Collection Schema Version",
+          "type": "string"
+        },
+        "paper_collection_version_id": {
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "title": "Paper Collection Version Id",
+          "type": "string"
+        },
+        "source_snapshots": {
+          "items": {
+            "$ref": "#/$defs/PaperSummarySourceSnapshotReference"
+          },
+          "title": "Source Snapshots",
+          "type": "array"
+        }
+      },
+      "required": [
+        "paper_collection_version_id",
+        "paper_collection_schema_version",
+        "paper_collection_output_hash",
+        "source_snapshots"
+      ],
+      "title": "PaperSummaryInputVersions",
+      "type": "object"
+    },
+    "PaperSummarySourceSnapshotReference": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Snapshot Id",
+          "type": "string"
+        },
+        "source_version": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Source Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_snapshot_id",
+        "source_id",
+        "source_version",
+        "content_hash"
+      ],
+      "title": "PaperSummarySourceSnapshotReference",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "error_code": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error Code"
+    },
+    "execution_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Execution Id",
+      "type": "string"
+    },
+    "finished_at": {
+      "format": "date-time",
+      "title": "Finished At",
+      "type": "string"
+    },
+    "input_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Input Hash",
+      "type": "string"
+    },
+    "input_versions": {
+      "$ref": "#/$defs/PaperSummaryInputVersions"
+    },
+    "latency_ms": {
+      "minimum": 0,
+      "title": "Latency Ms",
+      "type": "integer"
+    },
+    "model_name": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Model Name",
+      "type": "string"
+    },
+    "model_response_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Model Response Hash",
+      "type": "string"
+    },
+    "output_hash": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Output Hash"
+    },
+    "parameters_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Parameters Hash",
+      "type": "string"
+    },
+    "parameters_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Parameters Version",
+      "type": "string"
+    },
+    "producer_name": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Producer Name",
+      "type": "string"
+    },
+    "producer_type": {
+      "const": "model",
+      "default": "model",
+      "title": "Producer Type",
+      "type": "string"
+    },
+    "producer_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Producer Version",
+      "type": "string"
+    },
+    "prompt_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Prompt Hash",
+      "type": "string"
+    },
+    "prompt_name": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Prompt Name",
+      "type": "string"
+    },
+    "prompt_version": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Prompt Version",
+      "type": "string"
+    },
+    "run_id": {
+      "anyOf": [
+        {
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Run Id"
+    },
+    "started_at": {
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "rejected"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "step_key": {
+      "const": "summarizing_papers",
+      "default": "summarizing_papers",
+      "title": "Step Key",
+      "type": "string"
+    }
+  },
+  "required": [
+    "execution_id",
+    "producer_name",
+    "producer_version",
+    "model_name",
+    "prompt_name",
+    "prompt_version",
+    "prompt_hash",
+    "parameters_version",
+    "parameters_hash",
+    "input_versions",
+    "input_hash",
+    "model_response_hash",
+    "status",
+    "started_at",
+    "finished_at",
+    "latency_ms"
+  ],
+  "title": "PaperSummaryProducerExecution",
+  "type": "object"
+}

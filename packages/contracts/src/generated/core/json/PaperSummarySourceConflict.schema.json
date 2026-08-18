@@ -1,0 +1,47 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "claimed_source_version": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Claimed Source Version",
+      "type": "string"
+    },
+    "conflict_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Conflict Id",
+      "type": "string"
+    },
+    "evidence_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Evidence Id",
+      "type": "string"
+    },
+    "resolution": {
+      "const": "source_snapshot_version_retained",
+      "default": "source_snapshot_version_retained",
+      "title": "Resolution",
+      "type": "string"
+    },
+    "source_snapshot_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Source Snapshot Id",
+      "type": "string"
+    },
+    "source_snapshot_version": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Source Snapshot Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "conflict_id",
+    "evidence_id",
+    "source_snapshot_id",
+    "claimed_source_version",
+    "source_snapshot_version"
+  ],
+  "title": "PaperSummarySourceConflict",
+  "type": "object"
+}

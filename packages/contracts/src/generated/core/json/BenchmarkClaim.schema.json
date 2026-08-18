@@ -1,0 +1,123 @@
+{
+  "$defs": {
+    "BenchmarkAdmissionStatus": {
+      "enum": [
+        "candidate",
+        "accepted",
+        "rejected"
+      ],
+      "title": "BenchmarkAdmissionStatus",
+      "type": "string"
+    },
+    "BenchmarkReviewStatus": {
+      "enum": [
+        "pending_scientific_review",
+        "approved",
+        "changes_requested"
+      ],
+      "title": "BenchmarkReviewStatus",
+      "type": "string"
+    },
+    "ClaimType": {
+      "enum": [
+        "goal",
+        "method",
+        "dataset",
+        "finding",
+        "limitation",
+        "future_work"
+      ],
+      "title": "ClaimType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "claim_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Claim Id",
+      "type": "string"
+    },
+    "claim_type": {
+      "$ref": "#/$defs/ClaimType"
+    },
+    "conditions": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Conditions",
+      "type": "array"
+    },
+    "confidence": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "evidence_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "normalized_text": {
+      "minLength": 1,
+      "title": "Normalized Text",
+      "type": "string"
+    },
+    "paper_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Paper Id",
+      "type": "string"
+    },
+    "rejection_reason": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rejection Reason"
+    },
+    "review_status": {
+      "$ref": "#/$defs/BenchmarkReviewStatus"
+    },
+    "status": {
+      "$ref": "#/$defs/BenchmarkAdmissionStatus"
+    },
+    "summary_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Summary Id",
+      "type": "string"
+    },
+    "text": {
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    }
+  },
+  "required": [
+    "claim_id",
+    "summary_id",
+    "paper_id",
+    "claim_type",
+    "text",
+    "normalized_text",
+    "conditions",
+    "evidence_ids",
+    "confidence",
+    "status",
+    "review_status"
+  ],
+  "title": "BenchmarkClaim",
+  "type": "object"
+}

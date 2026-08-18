@@ -61,7 +61,7 @@ DEMO_SELECTION_LIMIT = 3
 _BASE_TIME = datetime(2026, 7, 21, 8, 24, tzinfo=timezone.utc)
 _RETRIEVED_AT = datetime(2026, 7, 21, 8, 24, 30, tzinfo=timezone.utc)
 
-_ARTIFACT_VERSION_ID = "artv_papcol_01"
+_ARTIFACT_VERSION_ID = "11111111-1111-4111-8111-111111111111"
 _ARTIFACT_ID = "art_papcol_01"
 _PROJECT_ID = "proj_01JEXAMPLE"
 _RUN_ID = "run_01JEXAMPLE"

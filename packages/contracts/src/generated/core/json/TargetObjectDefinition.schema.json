@@ -1,0 +1,58 @@
+{
+  "$defs": {
+    "ObjectType": {
+      "description": "Objects represented by the exoplanet/host-star case.",
+      "enum": [
+        "planet",
+        "star",
+        "system"
+      ],
+      "title": "ObjectType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Identity and declared crossmatch inputs for a case object.",
+  "properties": {
+    "crossmatch_fields": {
+      "items": {
+        "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Crossmatch Fields",
+      "type": "array"
+    },
+    "evidence_locator_rule_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Evidence Locator Rule Id",
+      "type": "string"
+    },
+    "identity_fields": {
+      "items": {
+        "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Identity Fields",
+      "type": "array"
+    },
+    "object_type": {
+      "$ref": "#/$defs/ObjectType"
+    },
+    "role": {
+      "minLength": 1,
+      "title": "Role",
+      "type": "string"
+    }
+  },
+  "required": [
+    "object_type",
+    "role",
+    "identity_fields",
+    "crossmatch_fields",
+    "evidence_locator_rule_id"
+  ],
+  "title": "TargetObjectDefinition",
+  "type": "object"
+}

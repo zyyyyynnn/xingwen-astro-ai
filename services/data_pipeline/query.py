@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 import re
 
 from app.schemas.manifest import ManifestBundle
@@ -17,6 +18,8 @@ from .constants import QUERY_NORMALIZATION_VERSION
 
 _TOI_SOURCE_ID = "nasa_exoplanet_archive.toi"
 _ADQL_IDENTIFIER = re.compile(r"^[a-z][a-z0-9_]*$")
+_TIC_IDENTIFIER = re.compile(r"^(?:tic\s*)?([1-9][0-9]{0,18})$", re.IGNORECASE)
+_MAX_TIC_IDENTIFIERS = 100
 
 
 def normalize_toi_query(
@@ -25,6 +28,8 @@ def normalize_toi_query(
     page_size: int,
     max_pages: int,
     record_limit: int,
+    tic_ids: Iterable[str | int] | None = None,
+    confirmed_only: bool = False,
 ) -> NormalizedDataSourceQuery:
     source = next(
         (item for item in bundle.field_manifest.sources if item.source_id == _TOI_SOURCE_ID),
@@ -34,6 +39,23 @@ def normalize_toi_query(
         raise ValueError("frozen Field Manifest does not define the TOI source")
     if source.provider_source_id not in bundle.case_manifest.allowed_source_ids:
         raise ValueError("TOI provider is not allowed by the frozen Case Manifest")
+
+    normalized_tic_ids: set[int] = set()
+    for input_count, value in enumerate(tic_ids or (), start=1):
+        if input_count > _MAX_TIC_IDENTIFIERS:
+            raise ValueError("at most 100 TIC identifiers are allowed")
+        match = _TIC_IDENTIFIER.fullmatch(str(value).strip())
+        if match is None:
+            raise ValueError(f"invalid TIC identifier: {value!r}")
+        normalized_tic_ids.add(int(match.group(1)))
+
+    constraints = ["tid is not null", "toi is not null"]
+    if confirmed_only:
+        constraints.append("tfopwg_disp = 'CP'")
+    if normalized_tic_ids:
+        constraints.append(
+            "tid in (" + ",".join(str(value) for value in sorted(normalized_tic_ids)) + ")"
+        )
 
     pagination = DataQueryPagination(
         page_size=page_size,
@@ -53,7 +75,7 @@ def normalize_toi_query(
         "source_table": source.source_table,
         "selected_columns": source.approved_columns,
         "row_key_fields": source.row_key_fields,
-        "constraints": ("tid is not null", "toi is not null"),
+        "constraints": tuple(constraints),
         "order_by": ("tid", "toi"),
         "pagination": pagination.model_dump(mode="json"),
     }

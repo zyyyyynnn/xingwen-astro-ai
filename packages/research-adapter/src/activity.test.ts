@@ -1,105 +1,128 @@
 import { asEntityId, type RunEvent } from "@xingwen/domain";
 import { describe, expect, it } from "vitest";
 
-import { toActivityPresentationEvent } from "./activity";
+import {
+  mergeActivityPresentationEvents,
+  toActivityPresentationEvent,
+} from "./activity";
 
 const runId = asEntityId("run_activity");
-const artifactVersionIds = [
-  asEntityId("version_a"),
-  asEntityId("version_b"),
-] as const;
 
-function event(eventType: string, sequence = 7): RunEvent {
+function event(sequence: number, overrides: Partial<RunEvent> = {}): RunEvent {
   return {
     runId,
     sequence,
-    eventType: asEntityId(eventType),
-    stepKey: asEntityId("step_data"),
-    progress: 42,
-    publicMessage: "Public activity message",
-    artifactVersionIds,
-    occurredAt: "2026-08-11T00:08:00Z",
+    activityId: "tool:paper-search",
+    activityKind: "tool",
+    activityPhase: "running",
+    activityName: "检索研究论文",
+    stepKey: asEntityId("searching_papers"),
+    progress: 40,
+    content: "正在检索研究论文。",
+    details: { tool_name: "search_research_papers", tool_kind: "search" },
+    artifactVersionIds: [],
+    occurredAt: `2026-08-11T00:08:0${String(sequence)}Z`,
+    ...overrides,
   };
 }
 
-describe("RunEvent to public ActivityPresentationEvent", () => {
-  it("maps every current producer taxonomy entry explicitly", () => {
-    const expected = new Map([
-      ["run.queued", ["message", "pending", "pending"]],
-      ["run.planning", ["progress", "running", "running"]],
-      ["run.fetching_data", ["progress", "running", "running"]],
-      ["run.cleaning_data", ["progress", "running", "running"]],
-      ["run.searching_papers", ["progress", "running", "running"]],
-      ["run.summarizing_papers", ["progress", "running", "running"]],
-      ["run.reasoning_literature", ["progress", "running", "running"]],
-      ["run.building_graph", ["progress", "running", "running"]],
-      ["step.started", ["action", "running", "running"]],
-      ["step.retry_scheduled", ["action", "pending", "pending"]],
-      ["step.completed", ["result", "success", "success"]],
-      ["run.completed", ["completion", "success", "success"]],
-      ["run.failed", ["error", "error", "failed"]],
-      ["run.cancelled", ["error", "error", "cancelled"]],
-    ] as const);
-
-    for (const [eventType, [kind, status, outcome]] of expected) {
-      const result = toActivityPresentationEvent(event(eventType));
-
-      expect(result.kind).toBe(kind);
-      expect(result.status).toBe(status);
-      expect(result.outcome).toBe(outcome);
-      expect(result.runId).toBe(runId);
-      expect(result.sequence).toBe(7);
-      expect(result.id).toBe("run_activity:7");
-      expect(result.timestamp).toBe("2026-08-11T00:08:00Z");
-      expect(result.stepKey).toBe(asEntityId("step_data"));
-      expect(result.progress).toBe(42);
-      expect(result.artifactVersionIds).toEqual(artifactVersionIds);
-      expect(result.detail).toBe("Public activity message");
-    }
+describe("RunEvent Activity projection", () => {
+  it("projects server-owned Agent semantics without rewriting content", () => {
+    expect(toActivityPresentationEvent(event(1))).toMatchObject({
+      id: "tool:paper-search",
+      kind: "tool",
+      operation: "search",
+      title: "检索研究论文",
+      summary: "正在检索研究论文。",
+      status: "running",
+      outcome: "running",
+    });
   });
 
-  it("keeps failed and cancelled distinct from success", () => {
-    expect(toActivityPresentationEvent(event("run.failed")).outcome).toBe(
-      "failed",
-    );
-    expect(toActivityPresentationEvent(event("run.cancelled")).outcome).toBe(
-      "cancelled",
-    );
-    expect(toActivityPresentationEvent(event("run.failed")).status).toBe(
-      "error",
-    );
+  it("folds Action, Observation and artifact commit into one row", () => {
+    const projected = [
+      event(1),
+      event(2, {
+        activityKind: "observation",
+        content: "已检索 10 篇候选论文。",
+        details: {
+          tool_name: "search_research_papers",
+          tool_kind: "search",
+          result: { candidate_count: 10 },
+        },
+      }),
+      event(3, {
+        activityKind: "artifact",
+        activityPhase: "completed",
+        content: "论文集合已生成。",
+        artifactVersionIds: [asEntityId("version-paper-collection")],
+      }),
+    ].map(toActivityPresentationEvent);
+
+    const [activity] = mergeActivityPresentationEvents([], projected);
+
+    expect(activity).toMatchObject({
+      id: "tool:paper-search",
+      kind: "tool",
+      operation: "search",
+      status: "success",
+      sequence: 3,
+      timestamp: "2026-08-11T00:08:01Z",
+    });
+    expect(activity?.updates.map((update) => update.phase)).toEqual([
+      "running",
+      "running",
+      "completed",
+    ]);
+    expect(activity?.artifactVersionIds).toEqual(["version-paper-collection"]);
   });
 
-  it("fails visibly for an unknown event without exposing raw payload", () => {
-    const result = toActivityPresentationEvent(
-      event("run.future_private_event"),
+  it("replaces streaming reasoning in place while retaining update order", () => {
+    const result = mergeActivityPresentationEvents(
+      [],
+      [
+        event(1, {
+          activityId: "reasoning:1",
+          activityKind: "reasoning",
+          activityPhase: "streaming",
+          activityName: "分析",
+          content: "先核对来源",
+          details: {},
+        }),
+        event(2, {
+          activityId: "reasoning:1",
+          activityKind: "reasoning",
+          activityPhase: "completed",
+          activityName: "分析",
+          content: "先核对来源，再确定检索范围。",
+          details: {},
+        }),
+      ].map(toActivityPresentationEvent),
     );
 
-    expect(result.outcome).toBe("unsupported");
-    expect(result.status).toBe("error");
-    expect(result.kind).toBe("error");
-    expect(result.title).toBe("暂无法显示此运行事件");
-    expect(result.detail).toBe("Public activity message");
-    expect(JSON.stringify(result)).not.toContain("future_private_event");
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      operation: "analysis",
+      summary: "先核对来源，再确定检索范围。",
+      status: "success",
+    });
   });
 
-  it("uses deterministic identity and preserves event ordering context", () => {
-    const input = event("step.completed", 11);
-    const first = toActivityPresentationEvent(input);
-    const second = toActivityPresentationEvent(input);
-
-    expect(first).toEqual(second);
-    expect(first.id).toBe("run_activity:11");
-    expect(first.artifactVersionIds).toEqual(["version_a", "version_b"]);
-    expect(first.groupId).toBe("run_activity:step_data");
-  });
-
-  it("uses deterministic run and step grouping scopes", () => {
-    expect(toActivityPresentationEvent(event("run.planning")).groupId).toBe(
-      "run_activity:run",
+  it("keeps distinct activities in first-seen sequence order", () => {
+    const result = mergeActivityPresentationEvents(
+      [],
+      [
+        event(2),
+        event(1, {
+          activityId: "data-query",
+          activityName: "查询天文数据",
+          details: { tool_kind: "data_query" },
+        }),
+      ].map(toActivityPresentationEvent),
     );
-    expect(toActivityPresentationEvent(event("run.completed")).groupId).toBe(
-      undefined,
-    );
+    expect(result.map((activity) => activity.operation)).toEqual([
+      "data_query",
+      "search",
+    ]);
   });
 });

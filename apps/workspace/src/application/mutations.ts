@@ -1,7 +1,9 @@
 import { mutationOptions, type QueryClient } from "@tanstack/react-query";
 import type {
   CreateResearchProjectInput,
+  CreateResearchInputInput,
   RepositorySet,
+  ResearchInputRef,
   SubmitResearchTurnInput,
   UpdateResearchProjectInput,
   UpdateResearchContractDraftInput,
@@ -22,7 +24,12 @@ import { workspaceQueryKeys } from "./query-keys";
 interface WorkspaceMutationDependencies {
   readonly repositories: Pick<
     RepositorySet,
-    "projects" | "contracts" | "runs" | "researchThread"
+    | "projects"
+    | "contracts"
+    | "runs"
+    | "researchThread"
+    | "researchInputs"
+    | "revisions"
   >;
   readonly researchAdapter: ResearchAdapter;
   readonly queryClient: QueryClient;
@@ -113,10 +120,81 @@ export interface ConfirmContractVariables {
   readonly expectedDraftVersion: number;
 }
 
+export interface RunLifecycleVariables {
+  readonly projectId: DomainEntityId;
+  readonly runId: DomainEntityId;
+}
+
+export interface CheckpointDecisionVariables extends RunLifecycleVariables {
+  readonly selectedOption: string;
+  readonly freeText?: string | null;
+}
+
 export interface CreateRunVariables {
   readonly projectId: DomainEntityId;
   readonly contractId: DomainEntityId;
   readonly executionMode: ExecutionMode;
+}
+
+export interface DeleteResearchInputVariables {
+  readonly inputId: DomainEntityId;
+  readonly projectId?: DomainEntityId;
+}
+
+export interface BindResearchInputToDraftVariables {
+  readonly inputId: DomainEntityId;
+  readonly projectId: DomainEntityId;
+  readonly draftId: DomainEntityId;
+}
+
+export interface CreateRevisionFeedbackVariables {
+  readonly projectId: DomainEntityId;
+  readonly artifactVersionId: DomainEntityId;
+  readonly expectedVersionNumber: number;
+  readonly summary: string;
+  readonly requestedChange: string;
+}
+
+export interface CreateRevisionPlanVariables {
+  readonly projectId: DomainEntityId;
+  readonly feedbackId: DomainEntityId;
+  readonly expectedParentRunRevision: number;
+}
+
+export interface ConfirmRevisionPlanVariables {
+  readonly projectId: DomainEntityId;
+  readonly planId: DomainEntityId;
+  readonly expectedPlanVersion: number;
+}
+
+function _invalidateRunState(
+  queryClient: QueryClient,
+  projectId: DomainEntityId,
+  runId: DomainEntityId,
+): void {
+  void queryClient.invalidateQueries({
+    queryKey: workspaceQueryKeys.project(projectId),
+    exact: true,
+  });
+  void queryClient.invalidateQueries({
+    queryKey: workspaceQueryKeys.run(projectId, runId),
+    exact: true,
+  });
+  void queryClient.invalidateQueries({
+    queryKey: workspaceQueryKeys.runCheckpoint(projectId, runId),
+    exact: true,
+  });
+  void queryClient.invalidateQueries({
+    queryKey: workspaceQueryKeys.runSteps(projectId, runId),
+    exact: true,
+  });
+  void queryClient.invalidateQueries({
+    queryKey: workspaceQueryKeys.runEvents(projectId, runId),
+  });
+  void queryClient.invalidateQueries({
+    queryKey: workspaceQueryKeys.thread(projectId),
+    exact: true,
+  });
 }
 
 export function createWorkspaceMutations({
@@ -127,6 +205,104 @@ export function createWorkspaceMutations({
 }: WorkspaceMutationDependencies) {
   const idempotency = createIdempotencyLedger(createIdempotencyKey);
   return Object.freeze({
+    researchInputCreate: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "research-input", "create"],
+        retry: false,
+        mutationFn: (
+          input: CreateResearchInputInput,
+        ): Promise<ResearchInputRef> =>
+          repositories.researchInputs.create(input),
+        onSuccess: (_input, variables) => {
+          void queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.researchInputs(variables.projectId),
+            exact: true,
+          });
+        },
+      }),
+    researchInputDelete: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "research-input", "delete"],
+        retry: false,
+        mutationFn: ({ inputId }: DeleteResearchInputVariables) =>
+          repositories.researchInputs.delete(inputId),
+        onSuccess: (_value, variables) => {
+          if (!variables.projectId) return;
+          void queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.researchInputs(variables.projectId),
+            exact: true,
+          });
+        },
+      }),
+    researchInputBindToDraft: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "research-input", "bind-draft"],
+        retry: false,
+        mutationFn: ({
+          inputId,
+          projectId,
+          draftId,
+        }: BindResearchInputToDraftVariables) =>
+          repositories.researchInputs.bindToDraft(inputId, projectId, draftId),
+      }),
+    revisionFeedbackCreate: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "revision", "feedback"],
+        retry: false,
+        mutationFn: (variables: CreateRevisionFeedbackVariables) =>
+          repositories.revisions.createFeedback({
+            artifactVersionId: variables.artifactVersionId,
+            expectedVersionNumber: variables.expectedVersionNumber,
+            summary: variables.summary,
+            requestedChange: variables.requestedChange,
+            idempotencyKey: idempotency.keyFor(
+              "revision.feedback.create",
+              variables,
+            ),
+          }),
+        onSuccess: (_feedback, variables) => {
+          idempotency.complete("revision.feedback.create", variables);
+        },
+      }),
+    revisionPlanCreate: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "revision", "plan", "create"],
+        retry: false,
+        mutationFn: (variables: CreateRevisionPlanVariables) =>
+          repositories.revisions.createPlan({
+            projectId: variables.projectId,
+            feedbackId: variables.feedbackId,
+            expectedParentRunRevision: variables.expectedParentRunRevision,
+            idempotencyKey: idempotency.keyFor(
+              "revision.plan.create",
+              variables,
+            ),
+          }),
+        onSuccess: (_plan, variables) => {
+          idempotency.complete("revision.plan.create", variables);
+        },
+      }),
+    revisionPlanConfirm: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "revision", "plan", "confirm"],
+        retry: false,
+        mutationFn: async (variables: ConfirmRevisionPlanVariables) =>
+          researchAdapter.toRunViewModel(
+            await repositories.revisions.confirmPlan(
+              variables.planId,
+              variables.expectedPlanVersion,
+              idempotency.keyFor("revision.plan.confirm", variables),
+            ),
+          ),
+        onSuccess: (run, variables) => {
+          idempotency.complete("revision.plan.confirm", variables);
+          queryClient.setQueryData(
+            workspaceQueryKeys.run(variables.projectId, run.id),
+            run,
+          );
+          void _invalidateRunState(queryClient, variables.projectId, run.id);
+        },
+      }),
     projectCreate: () =>
       mutationOptions({
         mutationKey: ["workspace", "project", "create"],
@@ -158,6 +334,55 @@ export function createWorkspaceMutations({
             workspaceQueryKeys.project(project.id),
             project,
           );
+        },
+      }),
+    runCancel: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "run", "cancel"],
+        retry: false,
+        mutationFn: async (
+          variables: RunLifecycleVariables,
+        ): Promise<ResearchRunViewModel> =>
+          researchAdapter.toRunViewModel(
+            await repositories.runs.cancel(variables.runId),
+          ),
+        onSuccess: (run, variables) => {
+          void _invalidateRunState(queryClient, variables.projectId, run.id);
+        },
+      }),
+    runRetry: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "run", "retry"],
+        retry: false,
+        mutationFn: async (
+          variables: RunLifecycleVariables,
+        ): Promise<ResearchRunViewModel> =>
+          researchAdapter.toRunViewModel(
+            await repositories.runs.retry(
+              variables.runId,
+              idempotency.keyFor("run.retry", variables),
+            ),
+          ),
+        onSuccess: (run, variables) => {
+          idempotency.complete("run.retry", variables);
+          void _invalidateRunState(queryClient, variables.projectId, run.id);
+        },
+      }),
+    checkpointDecisionSubmit: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "run", "checkpoint-decision"],
+        retry: false,
+        mutationFn: async (
+          variables: CheckpointDecisionVariables,
+        ): Promise<ResearchRunViewModel> =>
+          researchAdapter.toRunViewModel(
+            await repositories.runs.submitCheckpointDecision(variables.runId, {
+              selectedOption: variables.selectedOption,
+              freeText: variables.freeText ?? null,
+            }),
+          ),
+        onSuccess: (run, variables) => {
+          void _invalidateRunState(queryClient, variables.projectId, run.id);
         },
       }),
     projectUpdate: () =>

@@ -184,6 +184,30 @@ def get_research_input(
     )
 
 
+@router.get(
+    "/research-inputs/{input_id}/content",
+    operation_id="getResearchInputContent",
+    response_class=Response,
+    responses={
+        200: {
+            "content": {"application/octet-stream": {}},
+            "description": "Stored content bytes of one accepted file input.",
+        }
+    },
+)
+async def get_research_input_content(
+    input_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+) -> Response:
+    content, mime_type, filename = await _ingestion_service(request).read_content(
+        session_id=_session_id(request), input_id=input_id
+    )
+    response = Response(content=content, media_type=mime_type)
+    _no_store(response)
+    response.headers["Content-Disposition"] = _content_disposition(filename)
+    return response
+
+
 @router.delete(
     "/research-inputs/{input_id}",
     operation_id="deleteResearchInput",
@@ -438,6 +462,17 @@ def _not_found() -> SecurityProblem:
         title="Resource not found",
         detail="Resource not found",
     )
+
+
+def _content_disposition(filename: str | None) -> str:
+    """Inline disposition with a quoted, ASCII-safe filename (never a path)."""
+
+    if not filename:
+        return "inline"
+    safe = "".join(ch for ch in filename if 32 <= ord(ch) < 127 and ch not in '\\"')
+    if not safe:
+        return "inline"
+    return f'inline; filename="{safe}"'
 
 
 __all__ = ["router"]

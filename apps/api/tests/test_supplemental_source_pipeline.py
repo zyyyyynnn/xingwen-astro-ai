@@ -214,6 +214,20 @@ def test_ps_query_is_manifest_driven_and_pins_runtime_schema() -> None:
     assert query.runtime_schema_contract_content_hash.startswith("sha256:")
 
 
+def test_ps_query_can_close_default_nearby_system_selection() -> None:
+    query = normalize_ps_supplemental_query(
+        load_frozen_manifest_bundle(),
+        tic_ids=("261136679", "307210830"),
+        page_size=100,
+        max_pages=1,
+        record_limit=100,
+        default_only=True,
+        max_distance_parsecs=20,
+    )
+
+    assert query.constraints[-2:] == ("default_flag = 1", "sy_dist <= 20")
+
+
 def test_ps_query_hashes_are_stable_for_order_whitespace_and_duplicates() -> None:
     first = ps_query(
         tic_ids=(" TIC   18121498 ", "tic 164830162"),

@@ -126,6 +126,30 @@ def write_contracts(output_dir: Path, rendered: dict[str, str]) -> None:
         target.write_text(content, encoding="utf-8", newline="\n")
 
 
+def prune_owned_json_schemas(
+    output_dir: Path, expected_paths: Any
+) -> int:
+    """Delete generated ``*.schema.json`` files not in ``expected_paths``.
+
+    Pruning is confined to ``<output_dir>/json`` so a previously wider export
+    can no longer permanently poison a narrower owned directory. Callers pass
+    the rendered relative paths (``json/<Model>.schema.json`` plus
+    ``manifest.json``); nothing outside the owned output directory is ever
+    deleted.
+    """
+
+    json_dir = output_dir / "json"
+    if not json_dir.is_dir():
+        return 0
+    expected_names = {Path(path).name for path in expected_paths}
+    removed = 0
+    for existing in sorted(json_dir.glob("*.schema.json")):
+        if existing.name not in expected_names:
+            existing.unlink()
+            removed += 1
+    return removed
+
+
 def check_contracts(output_dir: Path, rendered: dict[str, str]) -> int:
     mismatches: list[str] = []
 
@@ -195,7 +219,10 @@ def main() -> int:
         return check_contracts(args.output, rendered)
 
     write_contracts(args.output, rendered)
+    removed = prune_owned_json_schemas(args.output, rendered)
     print(f"exported {len(rendered) - 1} schemas to {args.output}")
+    if removed:
+        print(f"pruned {removed} orphan schema file(s) from {args.output / 'json'}")
     return 0
 
 

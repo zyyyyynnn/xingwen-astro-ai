@@ -1,8 +1,7 @@
-"""Crossref metadata-only source adapter with bounded retries."""
+"""Crossref metadata and accessible-abstract adapter with bounded retries."""
 
 from __future__ import annotations
 
-import html
 import json
 import logging
 import re
@@ -14,6 +13,7 @@ import urllib.request
 from collections.abc import Mapping
 from datetime import datetime, timezone
 from email.message import Message
+from html.parser import HTMLParser
 from typing import Any
 
 from app.schemas._hashing import compute_canonical_payload_hash
@@ -48,7 +48,6 @@ _SAFE_HEADERS = frozenset(
         "x-request-id",
     }
 )
-_HTML_TAG = re.compile(r"<[^>]*>")
 _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _ARXIV = re.compile(
     r"(?:arxiv:\s*|arxiv\.org/(?:abs|pdf)/)?"
@@ -476,6 +475,7 @@ def _parse_item(item: object) -> RawSourceRecord:
         doi=doi,
         arxiv_id=arxiv_id,
         url=url,
+        abstract=_optional_text(item.get("abstract"), 16_000),
     )
 
 
@@ -513,9 +513,20 @@ def _parse_year(item: Mapping[str, Any]) -> int | None:
     return None
 
 
+class _PlainTextParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+
+    def handle_data(self, data: str) -> None:
+        self.parts.append(data)
+
+
 def _sanitize_text(value: str, *, max_length: int) -> str:
-    without_html = _HTML_TAG.sub(" ", html.unescape(value))
-    without_control = _CONTROL.sub("", without_html)
+    parser = _PlainTextParser()
+    parser.feed(value)
+    parser.close()
+    without_control = _CONTROL.sub("", " ".join(parser.parts))
     return " ".join(without_control.split())[:max_length].strip()
 
 

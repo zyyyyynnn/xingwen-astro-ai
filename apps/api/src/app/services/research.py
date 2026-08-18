@@ -18,7 +18,7 @@ import json
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import exists, func, select
+from sqlalchemy import exists, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
@@ -38,7 +38,10 @@ from app.db.models import (
     RevisionPlanFeedbackModel,
     RevisionPlanModel,
     RevisionPlanVersionModel,
+    RunCheckpointDecisionModel,
+    RunCheckpointModel,
     RunStepModel,
+    StepAttemptModel,
 )
 from app.schemas.core import (
     ArtifactKind,
@@ -59,6 +62,8 @@ from app.schemas.core import (
     ResearchThreadSummary,
     ResearchTurnRequest,
     ResearchTurnResult,
+    RunCheckpoint,
+    RunCheckpointDecisionRequest,
     RunStepRead,
     RunEvent,
     PlannerOutcome,
@@ -68,16 +73,21 @@ from app.schemas.core import (
     compute_research_contract_content_hash,
     validate_research_contract_content_hash,
 )
+from app.services.research_thread import append_thread_entry
 from app.schemas.manifest import ManifestBundle
 from app.security import SecurityProblem, canonical_request_hash, require_revision
 from app.services.model_execution import ModelExecutionError, ModelExecutionResponse
 from app.services.research_planner import PlannerResult, ResearchContractPlanner
 from app.workflow.run_plan import UnsupportedRunPlanError, compile_run_plan
 from app.workflow.store import (
+    TERMINAL_RUN_STATUSES,
+    CheckpointDecisionConflictError,
+    CheckpointOptionInvalidError,
     EventSnapshot,
     PersistentWorkflowStore,
     RunNotFoundError,
     RunSnapshot,
+    StaleWorkflowWriteError,
     WorkflowConflictError,
 )
 
@@ -513,6 +523,8 @@ class ResearchApplicationService:
                 request_hash=request_hash,
                 steps=run_steps,
             )
+        except IntegrityError as exc:
+            raise _active_run_conflict() from exc
         except WorkflowConflictError as exc:
             raise _idempotency_conflict() from exc
         return _run(snapshot)
@@ -608,6 +620,218 @@ class ResearchApplicationService:
                 .order_by(RunStepModel.position.asc())
             )
             return tuple(_run_step(row, run_id=run_id) for row in rows)
+
+    def cancel_run(self, *, run_id: str, session_id: str) -> ResearchRun:
+        snapshot = self._load_owned_run(run_id, session_id)
+        if snapshot.status in TERMINAL_RUN_STATUSES:
+            return _run(snapshot)
+        try:
+            self._workflow.cancel_run(
+                snapshot.id,
+                expected_status=snapshot.status,
+                expected_revision=snapshot.revision,
+                public_message="研究任务已取消。",
+            )
+        except StaleWorkflowWriteError as exc:
+            raise SecurityProblem(
+                status=409,
+                code="RUN_CANCEL_CONFLICT",
+                title="Run cancel conflict",
+                detail="The run changed before cancellation; reload and retry.",
+            ) from exc
+        return _run(self._load_owned_run(run_id, session_id))
+
+    def get_run_checkpoint(
+        self, *, run_id: str, session_id: str
+    ) -> RunCheckpoint | None:
+        snapshot = self._load_owned_run(run_id, session_id)
+        with self._factory() as session:
+            checkpoint = session.scalar(
+                select(RunCheckpointModel)
+                .where(RunCheckpointModel.run_id == snapshot.id)
+                .order_by(RunCheckpointModel.created_at.desc())
+                .limit(1)
+            )
+            if checkpoint is None:
+                # Absence of a checkpoint is a normal run state, not an error;
+                # clients poll this read for every owned run.
+                return None
+            decision = session.get(RunCheckpointDecisionModel, checkpoint.id)
+            return _run_checkpoint(checkpoint, decision)
+
+    def submit_run_checkpoint_decision(
+        self,
+        *,
+        run_id: str,
+        session_id: str,
+        request: RunCheckpointDecisionRequest,
+    ) -> ResearchRun:
+        snapshot = self._load_owned_run(run_id, session_id)
+        if snapshot.status in TERMINAL_RUN_STATUSES:
+            raise SecurityProblem(
+                status=409,
+                code="RUN_CHECKPOINT_CONFLICT",
+                title="Run checkpoint conflict",
+                detail="The run already reached a terminal state.",
+            )
+        with self._factory() as session:
+            checkpoint = session.scalar(
+                select(RunCheckpointModel)
+                .where(RunCheckpointModel.run_id == snapshot.id)
+                .order_by(RunCheckpointModel.created_at.desc())
+                .limit(1)
+            )
+            if checkpoint is None:
+                raise _not_found("RUN_CHECKPOINT_NOT_FOUND")
+            checkpoint_id = checkpoint.id
+        try:
+            self._workflow.submit_checkpoint_decision(
+                snapshot.id,
+                checkpoint_id=checkpoint_id,
+                selected_option=request.selected_option,
+                free_text=request.free_text,
+                expected_status=snapshot.status,
+                expected_revision=snapshot.revision,
+            )
+        except CheckpointDecisionConflictError as exc:
+            raise SecurityProblem(
+                status=409,
+                code="RUN_CHECKPOINT_CONFLICT",
+                title="Run checkpoint conflict",
+                detail="A different decision was already recorded for this checkpoint.",
+            ) from exc
+        except CheckpointOptionInvalidError as exc:
+            raise SecurityProblem(
+                status=422,
+                code="RUN_CHECKPOINT_OPTION_INVALID",
+                title="Run checkpoint option invalid",
+                detail="The selected option is not part of the checkpoint.",
+            ) from exc
+        except StaleWorkflowWriteError as exc:
+            raise SecurityProblem(
+                status=409,
+                code="RUN_CHECKPOINT_CONFLICT",
+                title="Run checkpoint conflict",
+                detail="The run changed before the decision committed; reload and retry.",
+            ) from exc
+        return _run(self._load_owned_run(run_id, session_id))
+
+    def retry_run(
+        self,
+        *,
+        run_id: str,
+        session_id: str,
+        idempotency_key: str,
+    ) -> ResearchRun:
+        snapshot = self._load_owned_run(run_id, session_id)
+        if snapshot.status != "failed":
+            raise SecurityProblem(
+                status=409,
+                code="RUN_RETRY_NOT_ALLOWED",
+                title="Run retry not allowed",
+                detail="Only a failed run can be retried.",
+            )
+        with self._factory() as session:
+            failed_step = session.scalar(
+                select(RunStepModel)
+                .where(
+                    RunStepModel.run_id == snapshot.id,
+                    RunStepModel.status == "failed",
+                )
+                .order_by(RunStepModel.position.asc())
+                .limit(1)
+            )
+            if failed_step is None:
+                raise SecurityProblem(
+                    status=409,
+                    code="RUN_RETRY_NOT_ALLOWED",
+                    title="Run retry not allowed",
+                    detail="The failed run has no failed step to retry from.",
+                )
+            retryable = session.scalar(
+                select(StepAttemptModel.retryable)
+                .where(
+                    StepAttemptModel.run_step_id == failed_step.id,
+                    StepAttemptModel.status == "failed",
+                )
+                .order_by(StepAttemptModel.attempt_number.desc())
+                .limit(1)
+            )
+            if not retryable:
+                raise SecurityProblem(
+                    status=409,
+                    code="RUN_RETRY_NOT_ALLOWED",
+                    title="Run retry not allowed",
+                    detail="The failed step is not retryable.",
+                )
+            retry_from_step = failed_step.key
+            contract = session.get(ResearchContractModel, snapshot.contract_id)
+            if contract is None:  # pragma: no cover - protected by foreign keys
+                raise _not_found("CONTRACT_NOT_FOUND")
+            try:
+                run_steps = compile_run_plan(_contract_input(contract.content))
+            except UnsupportedRunPlanError as exc:
+                raise SecurityProblem(
+                    status=409,
+                    code="RUN_PLAN_UNSUPPORTED_OUTPUT",
+                    title="Run plan unsupported",
+                    detail="The confirmed Contract requests an output without an executable RunStep mapping",
+                ) from exc
+            retry_position = next(
+                (
+                    position
+                    for position, definition in enumerate(run_steps)
+                    if definition.key == retry_from_step
+                ),
+                None,
+            )
+            if retry_position is None:
+                raise SecurityProblem(
+                    status=409,
+                    code="RUN_RETRY_NOT_ALLOWED",
+                    title="Run retry not allowed",
+                    detail="The failed step is not part of the current run plan.",
+                )
+            skipped = {
+                definition.key
+                for position, definition in enumerate(run_steps)
+                if position < retry_position
+            }
+            request_hash = canonical_request_hash(
+                {
+                    "parent_run_id": str(snapshot.id),
+                    "derivation_kind": "retry",
+                    "retry_from_step": retry_from_step,
+                }
+            )
+            try:
+                with session.begin():
+                    derived_run_id = self._workflow.create_run_in_session(
+                        session,
+                        project_id=snapshot.project_id,
+                        contract_id=snapshot.contract_id,
+                        execution_mode=snapshot.execution_mode,
+                        idempotency_key=idempotency_key,
+                        request_hash=request_hash,
+                        steps=run_steps,
+                        parent_run_id=snapshot.id,
+                        derivation_kind="retry",
+                        retry_from_step=retry_from_step,
+                        queued_message="重试任务已进入执行队列。",
+                    )
+                    if skipped:
+                        session.execute(
+                            update(RunStepModel)
+                            .where(
+                                RunStepModel.run_id == derived_run_id,
+                                RunStepModel.key.in_(skipped),
+                            )
+                            .values(status="skipped")
+                            .execution_options(synchronize_session=False)
+                        )
+            except WorkflowConflictError as exc:
+                raise _idempotency_conflict() from exc
+        return _run(self._load_owned_run(str(derived_run_id), session_id))
 
     def list_thread_entries(
         self,
@@ -746,8 +970,9 @@ class ResearchApplicationService:
             execution = ModelExecutionModel(
                 project_id=project.id,
                 provider=prepared_request.provider,
-                model=prepared_request.model,
-                model_revision=prepared_request.model_revision,
+                requested_model=prepared_request.requested_model,
+                provider_returned_model=None,
+                explicit_revision=prepared_request.explicit_revision,
                 prompt_name=prepared_request.prompt_name,
                 prompt_version=prepared_request.prompt_version,
                 prompt_hash=prepared_request.prompt_hash,
@@ -765,7 +990,7 @@ class ResearchApplicationService:
             )
             session.add(execution)
             session.flush()
-            _append_thread_entry(
+            append_thread_entry(
                 session,
                 project_id=project.id,
                 kind=(
@@ -905,6 +1130,9 @@ class ResearchApplicationService:
             execution.token_usage = planner_result.response.token_usage
             execution.latency_ms = planner_result.response.latency_ms
             execution.provider_request_id = planner_result.response.provider_request_id
+            execution.provider_returned_model = (
+                planner_result.response.provider_returned_model
+            )
             execution.finished_at = now
             output = planner_result.output
             outcome = PlannerOutcomeKind(output.outcome)
@@ -928,17 +1156,19 @@ class ResearchApplicationService:
                 session.flush()
                 draft_id = draft.id
                 project.active_draft_id = draft.id
+                if project.name == "新建研究" and output.project_title:
+                    project.name = output.project_title.strip()
             payload = _planner_public_payload(output, draft_id=draft_id)
-            _append_thread_entry(
+            append_thread_entry(
                 session,
                 project_id=project.id,
-                kind=ResearchThreadEntryKind.assistant_analysis,
+                kind=ResearchThreadEntryKind.assistant_reasoning,
                 actor="assistant",
                 public_content=output.public_analysis,
-                structured_payload=payload,
+                structured_payload={**payload, "analysis_type": "public"},
                 model_execution_id=execution.id,
             )
-            _append_thread_entry(
+            append_thread_entry(
                 session,
                 project_id=project.id,
                 kind=ResearchThreadEntryKind.assistant_message,
@@ -948,7 +1178,7 @@ class ResearchApplicationService:
                 model_execution_id=execution.id,
             )
             if output.outcome == PlannerOutcomeKind.clarification_required.value:
-                question_entry = _append_thread_entry(
+                question_entry = append_thread_entry(
                     session,
                     project_id=project.id,
                     kind=ResearchThreadEntryKind.clarification_question,
@@ -1143,7 +1373,7 @@ class ResearchApplicationService:
             execution.error_code = error.code
             execution.error_summary = error.public_message
             execution.finished_at = datetime.now(UTC)
-            _append_thread_entry(
+            append_thread_entry(
                 session,
                 project_id=project.id,
                 kind=ResearchThreadEntryKind.assistant_message,
@@ -1173,6 +1403,21 @@ class ResearchApplicationService:
         if project is None or project.session_id != session_id:
             raise _not_found("PROJECT_NOT_FOUND")
         return project
+
+    @staticmethod
+    def _require_no_active_run(session: Session, project_uuid: UUID) -> None:
+        """One non-terminal Run per Project; the partial unique index is the fence."""
+
+        active_run_id = session.scalar(
+            select(ResearchRunModel.id)
+            .where(
+                ResearchRunModel.project_id == project_uuid,
+                ResearchRunModel.status.not_in(tuple(TERMINAL_RUN_STATUSES)),
+            )
+            .limit(1)
+        )
+        if active_run_id is not None:
+            raise _active_run_conflict()
 
     @staticmethod
     def _project_replay(
@@ -1226,7 +1471,7 @@ def _expire_stale_model_executions(
         execution.error_code = "MODEL_EXECUTION_LEASE_EXPIRED"
         execution.error_summary = "研究助手上一次执行已中断，你可以重新发送研究消息。"
         execution.finished_at = now
-        _append_thread_entry(
+        append_thread_entry(
             session,
             project_id=project.id,
             kind=ResearchThreadEntryKind.assistant_message,
@@ -1260,6 +1505,15 @@ def _idempotency_conflict() -> SecurityProblem:
         code="IDEMPOTENCY_CONFLICT",
         title="Idempotency conflict",
         detail="The idempotency key was already used with a different request",
+    )
+
+
+def _active_run_conflict() -> SecurityProblem:
+    return SecurityProblem(
+        status=409,
+        code="RUN_ACTIVE_CONFLICT",
+        title="Active run conflict",
+        detail="This project already has a research run in progress.",
     )
 
 
@@ -1522,6 +1776,7 @@ def _run(
         execution_mode=snapshot.execution_mode,
         status=snapshot.status,
         progress=snapshot.progress,
+        revision=snapshot.revision,
         parent_run_id=(str(snapshot.parent_run_id) if snapshot.parent_run_id else None),
         derivation_kind=snapshot.derivation_kind,
         retry_from_step=snapshot.retry_from_step,
@@ -1544,10 +1799,14 @@ def _event(item: EventSnapshot, *, run_id: str) -> RunEvent:
     return RunEvent(
         run_id=run_id,
         sequence=item.sequence,
-        event_type=item.event_type,
+        activity_id=item.activity_id,
+        activity_kind=item.activity_kind,
+        activity_phase=item.activity_phase,
+        activity_name=item.activity_name,
         step_key=item.step_key,
         progress=item.progress,
-        public_message=item.public_message,
+        content=item.content,
+        details=item.details,
         artifact_version_ids=tuple(item.artifact_version_ids),
         occurred_at=_utc(item.occurred_at),
     )
@@ -1566,6 +1825,22 @@ def _run_step(row: RunStepModel, *, run_id: str) -> RunStepRead:
         started_at=_utc(row.started_at) if row.started_at else None,
         finished_at=_utc(row.finished_at) if row.finished_at else None,
         failure_code=row.failure_code,
+    )
+
+
+def _run_checkpoint(
+    row: RunCheckpointModel, decision: RunCheckpointDecisionModel | None
+) -> RunCheckpoint:
+    return RunCheckpoint(
+        id=str(row.id),
+        run_id=str(row.run_id),
+        step_key=row.step_key,
+        question=row.question,
+        options=tuple(row.options),
+        created_at=_utc(row.created_at),
+        selected_option=decision.selected_option if decision else None,
+        free_text=decision.free_text if decision else None,
+        decided_at=_utc(decision.decided_at) if decision else None,
     )
 
 
@@ -1728,39 +2003,6 @@ def _root_research_intent(
             break
         current = previous
     raise _not_found("QUESTION_NOT_FOUND")
-
-
-def _append_thread_entry(
-    session: Session,
-    *,
-    project_id: UUID,
-    kind: ResearchThreadEntryKind,
-    actor: str,
-    public_content: str,
-    structured_payload: dict[str, Any],
-    model_execution_id: UUID | None,
-) -> ResearchThreadEntryModel:
-    next_sequence = (
-        session.scalar(
-            select(func.coalesce(func.max(ResearchThreadEntryModel.sequence), 0)).where(
-                ResearchThreadEntryModel.project_id == project_id
-            )
-        )
-        or 0
-    ) + 1
-    row = ResearchThreadEntryModel(
-        project_id=project_id,
-        sequence=next_sequence,
-        kind=kind.value,
-        actor=actor,
-        public_content=public_content,
-        structured_payload=structured_payload,
-        model_execution_id=model_execution_id,
-        created_at=datetime.now(UTC),
-    )
-    session.add(row)
-    session.flush()
-    return row
 
 
 def _planner_public_payload(output: Any, *, draft_id: UUID | None) -> dict[str, Any]:  # noqa: ANN401

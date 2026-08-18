@@ -16,7 +16,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertTitle,
-  Badge,
   Button,
   Collapsible,
   CollapsibleContent,
@@ -24,7 +23,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   ScrollArea,
@@ -32,7 +30,6 @@ import {
 } from "@xingwen/ui";
 import {
   Check,
-  CheckCircle2,
   ChevronDown,
   Database,
   ListChecks,
@@ -59,9 +56,8 @@ interface ResearchContractReviewDialogProps {
     intent: string,
     contract: ResearchContractDraftViewModel["contract"],
   ) => Promise<void>;
-  readonly onConfirm: () => Promise<void>;
-  readonly onCreateRun: () => Promise<void>;
-  readonly onViewPlan: () => void;
+  readonly onConfirmAndRun: () => Promise<void>;
+  readonly onViewPlan?: () => void;
 }
 
 function FactLabel({
@@ -177,9 +173,7 @@ export function ResearchContractReviewDialog({
   pendingAction,
   errorMessage,
   onSave,
-  onConfirm,
-  onCreateRun,
-  onViewPlan,
+  onConfirmAndRun,
 }: ResearchContractReviewDialogProps) {
   const [dirty, setDirty] = useState(false);
   const [discardPromptOpen, setDiscardPromptOpen] = useState(false);
@@ -205,28 +199,24 @@ export function ResearchContractReviewDialog({
         >
           <DialogHeader className="research-contract-dialog__header">
             <div className="research-contract-dialog__intro">
-              {contract ? (
-                <div className="research-contract-dialog__status">
-                  <Badge variant="secondary">
-                    <CheckCircle2 aria-hidden="true" />
+              <DialogTitle
+                ref={titleRef}
+                tabIndex={-1}
+                className="flex items-center gap-2"
+              >
+                <span>{contract ? "研究协议" : "研究协议草案"}</span>
+                {contract ? (
+                  <span className="text-sm font-normal text-[var(--oh-status-success)]">
                     已确认
-                  </Badge>
-                  {runStatusLabel ? (
-                    <span className="research-contract-dialog__run-status">
-                      {runStatusLabel}
-                    </span>
-                  ) : null}
-                </div>
-              ) : null}
-              <DialogTitle ref={titleRef} tabIndex={-1}>
-                {contract ? "确认后的研究协议" : "研究协议草案"}
+                  </span>
+                ) : null}
               </DialogTitle>
               <DialogDescription>
                 {draft
                   ? "逐项核对研究边界、来源和目标产物；保存后才能确认。"
                   : runStatusLabel
                     ? "研究边界已锁定；当前研究将持续遵循这份协议。"
-                    : "研究边界已锁定；确认无误后即可开始真实研究。"}
+                    : "研究边界已锁定；确认无误后即可开始研究。"}
               </DialogDescription>
             </div>
           </DialogHeader>
@@ -244,7 +234,7 @@ export function ResearchContractReviewDialog({
                 }
                 errorMessage={errorMessage}
                 onSaveDraft={onSave}
-                onConfirmContract={onConfirm}
+                onConfirmAndRun={onConfirmAndRun}
                 onDirtyChange={setDirty}
               />
 
@@ -266,26 +256,6 @@ export function ResearchContractReviewDialog({
                   <Alert variant="destructive">
                     <AlertDescription>{errorMessage}</AlertDescription>
                   </Alert>
-                ) : null}
-
-                {contract ? (
-                  <DialogFooter className="research-contract-dialog__footer">
-                    {runStatusLabel ? (
-                      <Button variant="secondary" onClick={onViewPlan}>
-                        <ListChecks aria-hidden="true" />
-                        查看研究计划
-                      </Button>
-                    ) : (
-                      <Button
-                        disabled={pendingAction !== null}
-                        onClick={() => void onCreateRun()}
-                      >
-                        {pendingAction === "create-run"
-                          ? "正在创建…"
-                          : "开始真实研究"}
-                      </Button>
-                    )}
-                  </DialogFooter>
                 ) : null}
               </div>
             </ScrollArea>

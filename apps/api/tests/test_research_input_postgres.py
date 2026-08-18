@@ -1,7 +1,8 @@
 """PostgreSQL integration tests for research-input persistence.
 
 Gate: requires TEST_DATABASE_URL naming a database whose name contains "test"
-(never touches a production database). Schema is rebuilt from Alembic on each
+(never touches a production database). Schema is rebuilt from the current
+model contract on each
 module run.
 """
 
@@ -13,9 +14,9 @@ import threading
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from alembic import command
-from alembic.config import Config
 import pytest
+
+from db_bootstrap import reset_current_schema
 from sqlalchemy import Engine
 from sqlalchemy.exc import IntegrityError
 
@@ -54,27 +55,17 @@ pytestmark = pytest.mark.skipif(
 NOW = datetime(2026, 8, 6, 8, 0, tzinfo=UTC)
 
 
-def _alembic_config(url: str) -> Config:
-    root = Path(__file__).resolve().parents[1]
-    config = Config(root / "alembic.ini")
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    return config
-
-
 @pytest.fixture(scope="module")
 def postgres_engine() -> Engine:
     assert TEST_DATABASE_URL is not None
     assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower(), (
         "refusing non-test database"
     )
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
     engine = create_engine_from_url(TEST_DATABASE_URL)
     yield engine
     engine.dispose()
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 @pytest.fixture(scope="module")

@@ -19,7 +19,7 @@ interface EventGroupProps {
   readonly children: React.ReactNode;
 }
 
-/** OpenHands collapsible action-run group adapted to public research events. */
+/** OpenHands consecutive action/observation group presentation. */
 export function EventGroup({
   events,
   isFinalized = false,
@@ -48,7 +48,10 @@ export function EventGroup({
           data-testid="event-group-toggle"
           className="oh-narrative-row oh-narrative-trigger"
         >
-          <ChevronDown className="oh-narrative-chevron" aria-hidden="true" />
+          <ChevronDown
+            className="oh-narrative-chevron xw-disclosure-chevron"
+            aria-hidden="true"
+          />
           <span className="oh-narrative-title flex items-center gap-[var(--oh-space-2)]">
             <span className="truncate">
               {isFinalized

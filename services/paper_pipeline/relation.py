@@ -14,6 +14,7 @@ from pydantic_core import PydanticSerializationError
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.artifact_publication import canonical_artifact_content_payload
+from app.schemas.enums import LiteratureRelationType
 from app.schemas.literature_claim import (
     LiteratureClaimCandidate,
     LiteratureClaimStatus,
@@ -61,6 +62,7 @@ from .constants import (
     RELATION_CONFIDENCE_APPLICABILITY_SCOPE,
     RELATION_CONFIDENCE_CALIBRATION_ID,
     RELATION_CONFIDENCE_CALIBRATION_METHOD,
+    RELATION_CONFIDENCE_CALIBRATION_SAMPLE_SIZE,
     RELATION_CONFIDENCE_CALIBRATION_VERSION,
     RELATION_CONFIDENCE_DEFINITION_ID,
     RELATION_CONFIDENCE_DEFINITION_VERSION,
@@ -76,7 +78,6 @@ from .summary import ParameterValue, _validate_parameters
 
 Clock = Callable[[], datetime]
 SUPPORTED_CLAIM_SCHEMA_VERSIONS = frozenset({"1.0.0"})
-RELATION_CONFIDENCE_CALIBRATION_SAMPLE_SIZE = 4
 _ZERO_HASH = "sha256:" + "0" * 64
 _UNSAFE_TRACE = re.compile(
     r"(?:chain[- ]of[- ]thought|private reasoning|hidden (?:system |developer )?prompt|"
@@ -318,34 +319,6 @@ class LiteratureRelationPipeline:
             )
         )
         status = _aggregate_status(records)
-        publishable = any(
-            item.status is not LiteratureRelationStatus.rejected for item in records
-        )
-        if not publishable:
-            producer_payload = {
-                **producer_fields,
-                "output_hash": _ZERO_HASH,
-                "status": "completed",
-            }
-            result_payload = {
-                "admission_status": status,
-                "records": [
-                    item.model_dump(mode="json", exclude_none=True) for item in records
-                ],
-                "reasoning_traces": [
-                    item.model_dump(mode="json", exclude_none=True) for item in traces
-                ],
-                "publisher_candidate": None,
-                "producer": producer_payload,
-                "output_hash": _ZERO_HASH,
-            }
-            output_hash = compute_literature_relation_admission_output_hash(
-                result_payload
-            )
-            producer_payload["output_hash"] = output_hash
-            result_payload["output_hash"] = output_hash
-            return LiteratureRelationAdmissionResult.model_validate(result_payload)
-
         producer_payload = {
             **producer_fields,
             "output_hash": _ZERO_HASH,
@@ -1105,6 +1078,22 @@ def _comparability_failure(
             LiteratureRelationFailureStage.comparability,
             LiteratureRelationRejectionReason.object_incomparable,
         )
+    if candidate.relation_type in {
+        LiteratureRelationType.derived_from,
+        LiteratureRelationType.uses_same_dataset,
+        LiteratureRelationType.compares_method,
+    }:
+        if comparison.metric_status is not LiteratureComparabilityStatus.not_applicable:
+            return (
+                LiteratureRelationFailureStage.comparability,
+                LiteratureRelationRejectionReason.metric_incomparable,
+            )
+        if comparison.unit_status is not LiteratureComparabilityStatus.not_applicable:
+            return (
+                LiteratureRelationFailureStage.comparability,
+                LiteratureRelationRejectionReason.unit_incomparable,
+            )
+        return None, None
     metric_expected = _expected_comparability(source_claim.metric, target_claim.metric)
     if (
         comparison.metric_status is not metric_expected

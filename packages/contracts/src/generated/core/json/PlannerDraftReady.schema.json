@@ -244,8 +244,23 @@
       "title": "Outcome",
       "type": "string"
     },
+    "project_title": {
+      "anyOf": [
+        {
+          "maxLength": 60,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Project Title"
+    },
     "public_analysis": {
-      "minLength": 1,
+      "maxLength": 500,
+      "minLength": 12,
       "title": "Public Analysis",
       "type": "string"
     },

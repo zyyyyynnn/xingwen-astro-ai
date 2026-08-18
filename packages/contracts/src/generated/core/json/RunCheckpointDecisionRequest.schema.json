@@ -1,0 +1,29 @@
+{
+  "additionalProperties": false,
+  "description": "Immutable decision payload for one pending Run checkpoint.",
+  "properties": {
+    "free_text": {
+      "anyOf": [
+        {
+          "maxLength": 10000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Free Text"
+    },
+    "selected_option": {
+      "minLength": 1,
+      "title": "Selected Option",
+      "type": "string"
+    }
+  },
+  "required": [
+    "selected_option"
+  ],
+  "title": "RunCheckpointDecisionRequest",
+  "type": "object"
+}

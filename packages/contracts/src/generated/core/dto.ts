@@ -229,7 +229,7 @@ export type ResearchInputStatus = "accepted" | "unsupported_processing" | "faile
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ResearchInputType".
  */
-export type ResearchInputType = "url" | "pdf" | "csv" | "json" | "image" | "text";
+export type ResearchInputType = "url" | "pdf" | "csv" | "fits" | "json" | "image" | "text";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "RunStatus".
@@ -254,7 +254,7 @@ export type RunStatus =
 export type ResearchThreadEntryKind =
   | "user_message"
   | "assistant_message"
-  | "assistant_analysis"
+  | "assistant_reasoning"
   | "clarification_question"
   | "clarification_answer";
 /**
@@ -725,13 +725,15 @@ export interface EvidenceDetail {
  * via the `definition` "ProducerReference".
  */
 export interface ProducerReference {
-  model_name?: string | null;
+  explicit_revision?: string | null;
   model_provider?: string | null;
   name: string;
   parameters_hash?: string | null;
   prompt_hash?: string | null;
   prompt_name?: string | null;
   prompt_version?: string | null;
+  provider_returned_model?: string | null;
+  requested_model?: string | null;
   type: "pipeline" | "model" | "algorithm";
   version: string;
 }
@@ -753,6 +755,7 @@ export interface ProducerExecutionDetail {
   };
   parameters_hash: string;
   producer: ProducerReference;
+  provider_request_id?: string | null;
   run_id: string;
   started_at: string;
   status: "running" | "completed" | "failed" | "rejected" | "cancelled";
@@ -881,6 +884,41 @@ export interface CanonicalRowIdentity {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CollectionEnvelope_ArtifactVersionSummary_".
+ */
+export interface CollectionEnvelope_ArtifactVersionSummary_ {
+  data: ArtifactVersionSummary[];
+  links: ResponseLinks;
+  meta: ResponseMeta;
+  page: CursorPage;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResponseLinks".
+ */
+export interface ResponseLinks {
+  self: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResponseMeta".
+ */
+export interface ResponseMeta {
+  generated_at: string;
+  request_id: string;
+  schema_version?: "2.0.0";
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CursorPage".
+ */
+export interface CursorPage {
+  has_more: boolean;
+  limit?: number;
+  next_cursor?: string | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "CollectionEnvelope_DataArtifactRowRead_".
  */
 export interface CollectionEnvelope_DataArtifactRowRead_ {
@@ -954,31 +992,6 @@ export interface UnresolvedCanonicalValue {
   reason: string;
   status?: "unresolved";
   transformation_evidence_ids: string[];
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "ResponseLinks".
- */
-export interface ResponseLinks {
-  self: string;
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "ResponseMeta".
- */
-export interface ResponseMeta {
-  generated_at: string;
-  request_id: string;
-  schema_version?: "2.0.0";
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "CursorPage".
- */
-export interface CursorPage {
-  has_more: boolean;
-  limit?: number;
-  next_cursor?: string | null;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -1526,6 +1539,7 @@ export interface PaperCandidateConflict {
  * via the `definition` "RawPaperCandidate".
  */
 export interface RawPaperCandidate {
+  abstract?: string | null;
   arxiv_id?: string | null;
   authors?: string[];
   doi?: string | null;
@@ -1691,11 +1705,18 @@ export interface CollectionEnvelope_RunEvent_ {
  * via the `definition` "RunEvent".
  */
 export interface RunEvent {
+  activity_id: string;
+  activity_kind:
+    "reasoning" | "tool" | "observation" | "status" | "artifact" | "retry" | "error" | "completion";
+  activity_name: string;
+  activity_phase: "queued" | "streaming" | "running" | "completed" | "failed" | "retrying";
   artifact_version_ids?: string[];
-  event_type: string;
+  content: string;
+  details?: {
+    [k: string]: JsonValue;
+  };
   occurred_at: string;
   progress?: number | null;
-  public_message: string;
   run_id: string;
   sequence: number;
   step_key?: string | null;
@@ -1875,7 +1896,7 @@ export interface CreateResearchInputMultipartRequest {
   filename?: string | null;
   mime_type?: string | null;
   project_id: string;
-  type: "pdf" | "csv" | "json" | "image";
+  type: "pdf" | "csv" | "fits" | "json" | "image";
 }
 /**
  * Minimal project creation payload; `case_key` stays frozen to the main case.
@@ -2876,7 +2897,7 @@ export interface PaperCollectionRead {
  */
 export interface PaperCollection {
   acquisition_run: PaperCollectionAcquisitionRun;
-  benchmark: PaperBenchmarkReference;
+  benchmark?: PaperBenchmarkReference | null;
   candidates?: PaperCollectionCandidate[];
   dedupe_rule: string;
   duplicate_groups?: PaperDuplicateGroup[];
@@ -2889,7 +2910,7 @@ export interface PaperCollection {
   query: NormalizedPaperQuery;
   ranking_rule: string;
   rules: PaperCollectionRules;
-  schema_version?: "2.0.0";
+  schema_version?: "2.1.0";
   selected_paper_ids?: string[];
   /**
    * @minItems 1
@@ -2935,8 +2956,8 @@ export interface PaperCollectionMetrics {
   candidate_recall?: number | null;
   duplicate_candidate_count: number;
   duplicate_rate: number;
-  expected_candidate_count: number;
-  recalled_expected_candidate_count: number;
+  expected_candidate_count?: number | null;
+  recalled_expected_candidate_count?: number | null;
   selected_count: number;
   source_empty_result_count: number;
   source_execution_count: number;
@@ -3109,6 +3130,24 @@ export interface SourceSnapshotRecord {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_PaperSummaryPdfSourceRead_".
+ */
+export interface Envelope_PaperSummaryPdfSourceRead_ {
+  data: PaperSummaryPdfSourceRead;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * Authorized full-text ResearchInput bound to the summarized paper.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummaryPdfSourceRead".
+ */
+export interface PaperSummaryPdfSourceRead {
+  research_input?: ResearchInputRef | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "Envelope_PaperSummaryRead_".
  */
 export interface Envelope_PaperSummaryRead_ {
@@ -3230,6 +3269,7 @@ export interface PaperSummaryEvidenceLocator {
   kind: "paper_text" | "paper_metadata";
   metadata_field?:
     ("source_record_id" | "title" | "authors" | "year" | "doi" | "arxiv_id" | "url") | null;
+  page_index?: number | null;
   paragraph?: number | null;
   section?: string | null;
   source_url: string;
@@ -3549,6 +3589,7 @@ export interface ResearchRun {
   recompute_steps?: string[];
   retry_from_step?: string | null;
   reused_artifact_version_ids?: string[];
+  revision?: number;
   revision_plan_id?: string | null;
   started_at?: string | null;
   status: RunStatus;
@@ -3807,6 +3848,35 @@ export interface Envelope_SourceSnapshotDetail_ {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_Union_RunCheckpoint__NoneType__".
+ */
+export interface Envelope_Union_RunCheckpoint__NoneType__ {
+  data: RunCheckpoint | null;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * One human-input request on a Run's ``waiting_for_input`` boundary.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RunCheckpoint".
+ */
+export interface RunCheckpoint {
+  created_at: string;
+  decided_at?: string | null;
+  free_text?: string | null;
+  id: string;
+  /**
+   * @minItems 1
+   */
+  options: [string, ...string[]];
+  question: string;
+  run_id: string;
+  selected_option?: string | null;
+  step_key: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "Envelope_UserFeedback_".
  */
 export interface Envelope_UserFeedback_ {
@@ -3953,6 +4023,16 @@ export interface ResearchTurnRequest {
   message: string;
 }
 /**
+ * Immutable decision payload for one pending Run checkpoint.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RunCheckpointDecisionRequest".
+ */
+export interface RunCheckpointDecisionRequest {
+  free_text?: string | null;
+  selected_option: string;
+}
+/**
  * JSON create for ``type=text``: the body carries the text itself.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -4075,6 +4155,7 @@ export interface ModelExecutionRecord {
   created_at: string;
   error_code?: string | null;
   error_summary?: string | null;
+  explicit_revision?: string | null;
   finished_at?: string | null;
   id: string;
   input_hash?: string | null;
@@ -4082,8 +4163,6 @@ export interface ModelExecutionRecord {
     [k: string]: JsonValue;
   };
   latency_ms?: number | null;
-  model: string;
-  model_revision: string;
   output_hash?: string | null;
   output_snapshot?: {
     [k: string]: JsonValue;
@@ -4099,6 +4178,8 @@ export interface ModelExecutionRecord {
   prompt_version: string;
   provider: string;
   provider_request_id?: string | null;
+  provider_returned_model?: string | null;
+  requested_model: string;
   status: ModelExecutionStatus;
   token_usage?: {
     [k: string]: JsonValue;
@@ -4124,6 +4205,7 @@ export interface PlannerDraftReady {
   assistant_message: string;
   contract: ResearchContractInput;
   outcome: "draft_ready";
+  project_title?: string | null;
   public_analysis: string;
   warnings?: string[];
 }

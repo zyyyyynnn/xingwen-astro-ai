@@ -26,10 +26,10 @@ import os
 from pathlib import Path
 from uuid import uuid4
 
-from alembic import command
-from alembic.config import Config
 from fastapi.testclient import TestClient
 import pytest
+
+from db_bootstrap import reset_current_schema
 from pydantic import SecretStr
 
 from app.config import settings
@@ -65,22 +65,13 @@ def _contract_input() -> dict[str, object]:
     }
 
 
-def _alembic_config(url: str) -> Config:
-    root = Path(__file__).resolve().parents[1]
-    config = Config(root / "alembic.ini")
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    return config
-
-
 @pytest.fixture()
 def runtime(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, object]]:
     assert TEST_DATABASE_URL is not None
     assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower(), (
         "refusing non-test database"
     )
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
     monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(TEST_DATABASE_URL))
     monkeypatch.setattr(settings, "APP_ENV", "test")
@@ -121,9 +112,9 @@ def runtime(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, object]]:
         )
         persist_authoring_models(session, project=project, draft=draft)
 
-    with TestClient(app, base_url="https://testserver") as client:
-        client.cookies.set(settings.SESSION_COOKIE_NAME, owner_credential)
-        try:
+    try:
+        with TestClient(app, base_url="https://testserver") as client:
+            client.cookies.set(settings.SESSION_COOKIE_NAME, owner_credential)
             yield {
                 "app": app,
                 "client": client,
@@ -135,9 +126,8 @@ def runtime(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, object]]:
                 "project_id": str(project_id),
                 "draft_id": str(draft_id),
             }
-        finally:
-            command.downgrade(config, "base")
-            command.upgrade(config, "head")
+    finally:
+        reset_current_schema(TEST_DATABASE_URL)
 
 
 def _confirm_and_run(runtime: dict[str, object], *, key_suffix: str) -> tuple[str, str]:
@@ -569,6 +559,24 @@ def test_session_resume_preserves_ownership_across_refresh(
     reloaded = client.get(f"/api/projects/{data['project_id']}/workspace-snapshot")
     assert reloaded.status_code == 200
     assert reloaded.json()["data"]["active_run_id"] == data["run_id"]
+
+
+def test_session_resume_preserves_ownership_across_api_restart(
+    runtime: dict[str, object],
+) -> None:
+    """A persisted browser credential must recover its owner in a new app."""
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    credential = client.cookies.get(settings.SESSION_COOKIE_NAME)
+    assert credential is not None
+
+    restarted_app = create_app()
+    with TestClient(restarted_app, base_url="https://testserver") as restarted:
+        restarted.cookies.set(settings.SESSION_COOKIE_NAME, credential)
+        resumed = restarted.post("/api/sessions")
+        assert resumed.status_code == 201
+
+        project = restarted.get(f"/api/projects/{runtime['project_id']}")
+        assert project.status_code == 200
 
 
 def test_session_resume_keeps_recent_csrf_tokens_valid_within_bound(

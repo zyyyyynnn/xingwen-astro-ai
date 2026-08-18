@@ -1,0 +1,30 @@
+{
+  "$defs": {
+    "ExecutionMode": {
+      "enum": [
+        "demo_replay",
+        "live"
+      ],
+      "title": "ExecutionMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "contract_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Contract Id",
+      "type": "string"
+    },
+    "execution_mode": {
+      "$ref": "#/$defs/ExecutionMode"
+    }
+  },
+  "required": [
+    "contract_id",
+    "execution_mode"
+  ],
+  "title": "CreateRunRequest",
+  "type": "object"
+}

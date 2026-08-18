@@ -1,0 +1,31 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "evidence_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "order": {
+      "minimum": 1,
+      "title": "Order",
+      "type": "integer"
+    },
+    "statement": {
+      "minLength": 1,
+      "title": "Statement",
+      "type": "string"
+    }
+  },
+  "required": [
+    "order",
+    "statement",
+    "evidence_ids"
+  ],
+  "title": "BenchmarkTraceStep",
+  "type": "object"
+}

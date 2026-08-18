@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, time, timezone
 import json
 from typing import Any
+from uuid import NAMESPACE_URL, uuid5
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.literature_claim import LiteratureClaimCandidate
@@ -48,16 +49,20 @@ from .relation import (
 )
 
 
-_PROJECT_ID = "project.literature_relation_benchmark"
+def _persisted_uuid(value: str) -> str:
+    return str(uuid5(NAMESPACE_URL, f"xingwen.literature-relation-benchmark:{value}"))
+
+
+_PROJECT_ID = _persisted_uuid("project")
 _REPLAY_MODEL_NAME = "paper_benchmark-approved-label-replay"
 _REPLAY_PARAMETERS: dict[str, str | int] = {
     "temperature": 0,
     "max_output_tokens": 4096,
     "response_format": "json_schema",
 }
-_MISSING_CLAIM_VERSION_ID = "artifact_version.literature_claim.missing"
+_MISSING_CLAIM_VERSION_ID = _persisted_uuid("literature-claim.missing")
 _MISSING_CLAIM_ID = "claim.literature_claim.missing"
-_MISSING_SUMMARY_VERSION_ID = "artifact_version.paper_summary.missing"
+_MISSING_SUMMARY_VERSION_ID = _persisted_uuid("paper-summary.missing")
 _INVALID_CALIBRATION_HASH = "sha256:" + "1" * 64
 
 
@@ -317,8 +322,8 @@ def _claim_inputs(benchmark: BenchmarkPackage) -> dict[str, _ClaimInput]:
         )
         if len(records) != 1:
             raise ValueError("LiteratureClaim Pipeline benchmark Claim identity is not exact")
-        artifact_version_id = (
-            "artifact_version.literature_claim_relation_input."
+        artifact_version_id = _persisted_uuid(
+            "literature-claim-input."
             f"{case.benchmark_claim_id.removeprefix('claim.')}"
         )
         version = LiteratureClaimsArtifactVersionInput(
@@ -558,7 +563,7 @@ def _negative_cases(
             artifact_version_id=value.artifact_version_id,
             schema_version=value.schema_version,
             content_hash=value.content_hash,
-            project_id="project.literature_relation_other",
+            project_id=_persisted_uuid("project.other"),
             content=value.content,
         )
         for key, value in fixture.versions.items()

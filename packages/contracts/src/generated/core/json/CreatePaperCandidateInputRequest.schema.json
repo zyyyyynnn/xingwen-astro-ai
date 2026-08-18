@@ -1,0 +1,180 @@
+{
+  "$defs": {
+    "ExistingPaperCandidateInputRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "access_evidence": {
+          "$ref": "#/$defs/PaperCandidateAccessEvidence"
+        },
+        "mode": {
+          "const": "existing_research_input",
+          "title": "Mode",
+          "type": "string"
+        },
+        "research_input_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Research Input Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mode",
+        "research_input_id",
+        "access_evidence"
+      ],
+      "title": "ExistingPaperCandidateInputRequest",
+      "type": "object"
+    },
+    "MetadataOnlyPaperCandidateInputRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "const": "metadata_only",
+          "title": "Mode",
+          "type": "string"
+        },
+        "reason": {
+          "$ref": "#/$defs/PaperCandidateMetadataReason"
+        }
+      },
+      "required": [
+        "mode",
+        "reason"
+      ],
+      "title": "MetadataOnlyPaperCandidateInputRequest",
+      "type": "object"
+    },
+    "OpenAccessPaperCandidateInputRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "access_evidence": {
+          "$ref": "#/$defs/PaperCandidateAccessEvidence"
+        },
+        "access_url": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Access Url",
+          "type": "string"
+        },
+        "filename": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Filename"
+        },
+        "mode": {
+          "const": "open_access_url",
+          "title": "Mode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mode",
+        "access_url",
+        "access_evidence"
+      ],
+      "title": "OpenAccessPaperCandidateInputRequest",
+      "type": "object"
+    },
+    "PaperAccessEvidenceKind": {
+      "enum": [
+        "publisher_open_access",
+        "repository_open_access",
+        "author_provided",
+        "user_provided"
+      ],
+      "title": "PaperAccessEvidenceKind",
+      "type": "string"
+    },
+    "PaperCandidateAccessEvidence": {
+      "additionalProperties": false,
+      "description": "Bounded lawful-access assertion retained without restricted content.",
+      "properties": {
+        "canonical_paper_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Canonical Paper Id",
+          "type": "string"
+        },
+        "evidence_url": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Evidence Url",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/PaperAccessEvidenceKind"
+        },
+        "license": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "License",
+          "type": "string"
+        },
+        "resource_identity_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Resource Identity Hash",
+          "type": "string"
+        },
+        "resource_type": {
+          "enum": [
+            "access_url",
+            "research_input"
+          ],
+          "title": "Resource Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "license",
+        "evidence_url",
+        "canonical_paper_id",
+        "resource_type",
+        "resource_identity_hash"
+      ],
+      "title": "PaperCandidateAccessEvidence",
+      "type": "object"
+    },
+    "PaperCandidateMetadataReason": {
+      "enum": [
+        "access_not_proven",
+        "metadata_url_only",
+        "paywalled",
+        "restricted_full_text",
+        "partial_metadata",
+        "unsupported_access"
+      ],
+      "title": "PaperCandidateMetadataReason",
+      "type": "string"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "existing_research_input": "#/$defs/ExistingPaperCandidateInputRequest",
+      "metadata_only": "#/$defs/MetadataOnlyPaperCandidateInputRequest",
+      "open_access_url": "#/$defs/OpenAccessPaperCandidateInputRequest"
+    },
+    "propertyName": "mode"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/OpenAccessPaperCandidateInputRequest"
+    },
+    {
+      "$ref": "#/$defs/ExistingPaperCandidateInputRequest"
+    },
+    {
+      "$ref": "#/$defs/MetadataOnlyPaperCandidateInputRequest"
+    }
+  ]
+}

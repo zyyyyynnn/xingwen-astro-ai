@@ -437,12 +437,22 @@ def _validate_query_contract(
     query: NormalizedSupplementalSourceQuery,
 ) -> SourceColumnRuntimeContract:
     bundle = load_frozen_manifest_bundle()
+    default_only = "default_flag = 1" in query.constraints
+    max_distance_parsecs: int | None = None
+    for constraint in query.constraints:
+        if constraint.startswith("sy_dist <= "):
+            try:
+                max_distance_parsecs = int(constraint.removeprefix("sy_dist <= "))
+            except ValueError:
+                max_distance_parsecs = None
     expected = normalize_ps_supplemental_query(
         bundle,
         tic_ids=query.input_values,
         page_size=query.pagination.page_size,
         max_pages=query.pagination.max_pages,
         record_limit=query.pagination.record_limit,
+        default_only=default_only,
+        max_distance_parsecs=max_distance_parsecs,
     )
     if query != expected:
         raise SourceFailure(

@@ -1,0 +1,157 @@
+{
+  "$defs": {
+    "DataQueryPagination": {
+      "additionalProperties": false,
+      "properties": {
+        "max_pages": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Max Pages",
+          "type": "integer"
+        },
+        "page_size": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000,
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "record_limit": {
+          "exclusiveMinimum": 0,
+          "maximum": 100000,
+          "title": "Record Limit",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "page_size",
+        "max_pages",
+        "record_limit"
+      ],
+      "title": "DataQueryPagination",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "case_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Case Id",
+      "type": "string"
+    },
+    "case_manifest_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Case Manifest Content Hash",
+      "type": "string"
+    },
+    "case_manifest_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Case Manifest Version",
+      "type": "string"
+    },
+    "constraints": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Constraints",
+      "type": "array"
+    },
+    "field_manifest_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Field Manifest Content Hash",
+      "type": "string"
+    },
+    "field_manifest_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Field Manifest Id",
+      "type": "string"
+    },
+    "field_manifest_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Field Manifest Version",
+      "type": "string"
+    },
+    "normalization_rule_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Normalization Rule Version",
+      "type": "string"
+    },
+    "order_by": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Order By",
+      "type": "array"
+    },
+    "pagination": {
+      "$ref": "#/$defs/DataQueryPagination"
+    },
+    "provider_source_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Provider Source Id",
+      "type": "string"
+    },
+    "query_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Query Hash",
+      "type": "string"
+    },
+    "query_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Query Id",
+      "type": "string"
+    },
+    "row_key_fields": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Row Key Fields",
+      "type": "array"
+    },
+    "selected_columns": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Selected Columns",
+      "type": "array"
+    },
+    "source_table": {
+      "minLength": 1,
+      "title": "Source Table",
+      "type": "string"
+    },
+    "table_source_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Table Source Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "query_id",
+    "normalization_rule_version",
+    "case_id",
+    "case_manifest_version",
+    "case_manifest_content_hash",
+    "field_manifest_id",
+    "field_manifest_version",
+    "field_manifest_content_hash",
+    "provider_source_id",
+    "table_source_id",
+    "source_table",
+    "selected_columns",
+    "row_key_fields",
+    "constraints",
+    "order_by",
+    "pagination",
+    "query_hash"
+  ],
+  "title": "NormalizedDataSourceQuery",
+  "type": "object"
+}

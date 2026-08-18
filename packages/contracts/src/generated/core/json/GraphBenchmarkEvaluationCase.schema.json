@@ -1,0 +1,179 @@
+{
+  "$defs": {
+    "GraphBenchmarkCaseKind": {
+      "enum": [
+        "scientific_graph",
+        "data_mapping_fixture",
+        "rejection_case",
+        "size_boundary"
+      ],
+      "title": "GraphBenchmarkCaseKind",
+      "type": "string"
+    },
+    "GraphIntegrityStage": {
+      "enum": [
+        "input_schema",
+        "artifact_version",
+        "ownership",
+        "taxonomy",
+        "identity",
+        "endpoint",
+        "evidence_snapshot",
+        "relation_trace",
+        "direction_type",
+        "capacity_progressive",
+        "hash_commitment"
+      ],
+      "title": "GraphIntegrityStage",
+      "type": "string"
+    },
+    "GraphIntegrityStatus": {
+      "enum": [
+        "passed",
+        "failed"
+      ],
+      "title": "GraphIntegrityStatus",
+      "type": "string"
+    },
+    "GraphRejectionReason": {
+      "enum": [
+        "invalid_json",
+        "schema_invalid",
+        "input_version_unknown",
+        "input_version_unpublished",
+        "wrong_artifact_kind",
+        "unsupported_schema_version",
+        "content_hash_mismatch",
+        "input_hash_mismatch",
+        "producer_execution_mismatch",
+        "cross_project_ownership",
+        "cross_version_reference",
+        "taxonomy_violation",
+        "duplicate_node_identity",
+        "duplicate_edge_identity",
+        "identity_collision",
+        "dangling_endpoint",
+        "evidence_missing",
+        "evidence_unknown",
+        "evidence_inconsistent",
+        "source_snapshot_missing",
+        "source_snapshot_unknown",
+        "source_snapshot_inconsistent",
+        "relation_not_accepted",
+        "reasoning_trace_missing",
+        "reasoning_trace_mismatch",
+        "reasoning_trace_incomplete",
+        "wrong_direction",
+        "relation_type_mismatch",
+        "provenance_version_mismatch",
+        "evidence_hidden_by_filter",
+        "aggregation_incomplete",
+        "size_limit_exceeded",
+        "silent_truncation",
+        "progressive_input_incomplete",
+        "candidate_hash_mismatch",
+        "report_hash_mismatch",
+        "admission_commitment_mismatch"
+      ],
+      "title": "GraphRejectionReason",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "case_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Case Id",
+      "type": "string"
+    },
+    "content_hash": {
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "data_level": {
+      "enum": [
+        "benchmark",
+        "fixture"
+      ],
+      "title": "Data Level",
+      "type": "string"
+    },
+    "expected_edge_ids": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+        "type": "string"
+      },
+      "title": "Expected Edge Ids",
+      "type": "array"
+    },
+    "expected_evidence_use_count": {
+      "default": 0,
+      "maximum": 50000,
+      "minimum": 0,
+      "title": "Expected Evidence Use Count",
+      "type": "integer"
+    },
+    "expected_failure_stage": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GraphIntegrityStage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "expected_node_ids": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+        "type": "string"
+      },
+      "title": "Expected Node Ids",
+      "type": "array"
+    },
+    "expected_rejection_reason": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GraphRejectionReason"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "expected_status": {
+      "$ref": "#/$defs/GraphIntegrityStatus"
+    },
+    "input_json": {
+      "maxLength": 4194304,
+      "minLength": 1,
+      "title": "Input Json",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/GraphBenchmarkCaseKind"
+    }
+  },
+  "required": [
+    "case_id",
+    "kind",
+    "data_level",
+    "input_json",
+    "expected_status",
+    "content_hash"
+  ],
+  "title": "GraphBenchmarkEvaluationCase",
+  "type": "object"
+}

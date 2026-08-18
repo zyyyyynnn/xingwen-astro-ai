@@ -18,6 +18,8 @@ from sqlalchemy.orm import Session
 
 from app.db.models import (
     ResearchRunModel,
+    RunCheckpointDecisionModel,
+    RunCheckpointModel,
     RunEventModel,
     RunStepModel,
     StepAttemptModel,
@@ -60,6 +62,14 @@ class StaleWorkflowWriteError(WorkflowConflictError):
 
 class RetryBudgetExhaustedError(WorkflowConflictError):
     code = "STEP_RETRY_BUDGET_EXHAUSTED"
+
+
+class CheckpointDecisionConflictError(WorkflowConflictError):
+    code = "CHECKPOINT_DECISION_CONFLICT"
+
+
+class CheckpointOptionInvalidError(WorkflowStoreError):
+    code = "CHECKPOINT_OPTION_INVALID"
 
 
 class StepNotFoundError(WorkflowStoreError):
@@ -139,10 +149,14 @@ class StepSnapshot:
 @dataclass(frozen=True, slots=True)
 class EventSnapshot:
     sequence: int
-    event_type: str
+    activity_id: str
+    activity_kind: str
+    activity_phase: str
+    activity_name: str
     step_key: str | None
     progress: int | None
-    public_message: str
+    content: str
+    details: dict[str, object]
     artifact_version_ids: tuple[str, ...]
     occurred_at: datetime
 
@@ -295,9 +309,14 @@ class PersistentWorkflowStore:
             RunEventModel(
                 run_id=run_id,
                 sequence=1,
-                event_type="run.queued",
+                activity_id=f"run:{run_id}",
+                activity_kind="status",
+                activity_phase="queued",
+                activity_name="研究任务",
+                step_key=None,
                 progress=0,
-                public_message=queued_message,
+                content=queued_message,
+                details={},
                 artifact_version_ids=[],
             )
         )
@@ -546,10 +565,14 @@ class PersistentWorkflowStore:
                 session,
                 run_id=run_id,
                 sequence=sequence,
-                event_type="step.started",
+                activity_id=f"{attempt.id}:step",
+                activity_kind="status",
+                activity_phase="running",
+                activity_name=step.label,
                 step_key=step.key,
                 progress=run.progress,
-                public_message=public_message,
+                content=public_message,
+                details={},
             )
             return AttemptHandle(
                 run_id=run_id,
@@ -560,6 +583,70 @@ class PersistentWorkflowStore:
                 run_revision=expected_revision + 1,
                 event_sequence=sequence,
             )
+
+    def append_activity_event(
+        self,
+        run_id: UUID,
+        *,
+        token: UUID,
+        generation: int,
+        expected_status: str,
+        expected_revision: int,
+        activity_id: str,
+        activity_kind: str,
+        activity_phase: str,
+        activity_name: str,
+        content: str,
+        step_key: str | None = None,
+        progress: int | None = None,
+        details: dict[str, object] | None = None,
+        artifact_version_ids: Sequence[str] = (),
+    ) -> MutationResult:
+        """Append a streaming Activity event without advancing the run revision.
+
+        Activity events are presentation appends emitted while a step attempt is
+        running. The active worker keeps one revision for the whole attempt, so
+        only the event cursor moves here; command-level mutations own revision.
+        """
+
+        with self._factory() as session, session.begin():
+            run = self._lock_run(session, run_id)
+            self._require_lease(
+                session,
+                run,
+                token=token,
+                generation=generation,
+                expected_status=expected_status,
+                expected_revision=expected_revision,
+            )
+            sequence = run.latest_event_sequence + 1
+            self._conditional_run_update(
+                session,
+                run_id=run_id,
+                token=token,
+                generation=generation,
+                expected_status=expected_status,
+                expected_revision=expected_revision,
+                values={
+                    "latest_event_sequence": sequence,
+                    "updated_at": func.clock_timestamp(),
+                },
+            )
+            self._add_event(
+                session,
+                run_id=run_id,
+                sequence=sequence,
+                activity_id=activity_id,
+                activity_kind=activity_kind,
+                activity_phase=activity_phase,
+                activity_name=activity_name,
+                step_key=step_key,
+                progress=progress,
+                content=content,
+                details=details,
+                artifact_version_ids=artifact_version_ids,
+            )
+            return MutationResult(run_id, expected_status, expected_revision, sequence)
 
     def record_retryable_failure(
         self,
@@ -575,6 +662,9 @@ class PersistentWorkflowStore:
         error_code: str,
         public_message: str,
         upstream_request_id: str | None = None,
+        failure_activity_id: str | None = None,
+        failure_activity_kind: str | None = None,
+        failure_activity_name: str | None = None,
     ) -> MutationResult:
         with self._factory() as session, session.begin():
             run = self._lock_run(session, run_id)
@@ -622,10 +712,14 @@ class PersistentWorkflowStore:
                 session,
                 run_id=run_id,
                 sequence=sequence,
-                event_type="step.retry_scheduled",
+                activity_id=failure_activity_id or f"{attempt.id}:retry",
+                activity_kind="retry",
+                activity_phase="retrying",
+                activity_name=failure_activity_name or step.label,
                 step_key=step.key,
                 progress=run.progress,
-                public_message=public_message,
+                content=public_message,
+                details={"error_code": error_code},
             )
             return MutationResult(
                 run_id=run_id,
@@ -649,6 +743,9 @@ class PersistentWorkflowStore:
         public_message: str,
         retryable: bool = False,
         upstream_request_id: str | None = None,
+        failure_activity_id: str | None = None,
+        failure_activity_kind: str | None = None,
+        failure_activity_name: str | None = None,
     ) -> MutationResult:
         with self._factory() as session, session.begin():
             run = self._lock_run(session, run_id)
@@ -699,10 +796,14 @@ class PersistentWorkflowStore:
                 session,
                 run_id=run_id,
                 sequence=sequence,
-                event_type="run.failed",
+                activity_id=failure_activity_id or f"{attempt.id}:failure",
+                activity_kind=failure_activity_kind or "error",
+                activity_phase="failed",
+                activity_name=failure_activity_name or step.label,
                 step_key=step.key,
                 progress=run.progress,
-                public_message=public_message,
+                content=public_message,
+                details={"error_code": error_code, "error_class": error_class},
             )
             return MutationResult(run_id, "failed", expected_revision + 1, sequence)
 
@@ -714,7 +815,7 @@ class PersistentWorkflowStore:
         expected_revision: int,
         public_message: str = "Run cancelled",
     ) -> MutationResult:
-        """Cancel an existing Run without exposing an unimplemented HTTP command."""
+        """Cancel a Run with one conditional write; idempotent on terminal Runs."""
 
         with self._factory() as session, session.begin():
             run = self._lock_run(session, run_id)
@@ -773,12 +874,204 @@ class PersistentWorkflowStore:
                 session,
                 run_id=run_id,
                 sequence=sequence,
-                event_type="run.cancelled",
+                activity_id=f"run:{run_id}",
+                activity_kind="status",
+                activity_phase="completed",
+                activity_name="研究任务",
                 step_key=None,
                 progress=run.progress,
-                public_message=public_message,
+                content=public_message,
+                details={"run_status": "cancelled"},
             )
             return MutationResult(run_id, "cancelled", expected_revision + 1, sequence)
+
+    def request_checkpoint(
+        self,
+        run_id: UUID,
+        *,
+        step_key: str,
+        token: UUID,
+        generation: int,
+        expected_status: str,
+        expected_revision: int,
+        question: str,
+        options: Sequence[str],
+    ) -> MutationResult:
+        """Persist a human-input checkpoint and park the Run at waiting_for_input."""
+
+        with self._factory() as session, session.begin():
+            run = self._lock_run(session, run_id)
+            self._require_lease(
+                session,
+                run,
+                token=token,
+                generation=generation,
+                expected_status=expected_status,
+                expected_revision=expected_revision,
+            )
+            step = session.scalar(
+                select(RunStepModel)
+                .where(RunStepModel.run_id == run_id, RunStepModel.key == step_key)
+                .with_for_update()
+            )
+            if step is None:
+                raise StepNotFoundError(
+                    f"step {step_key!r} was not found for run {run_id}"
+                )
+            checkpoint = session.scalar(
+                select(RunCheckpointModel).where(
+                    RunCheckpointModel.run_id == run_id,
+                    RunCheckpointModel.step_key == step_key,
+                )
+            )
+            if checkpoint is None:
+                checkpoint = RunCheckpointModel(
+                    run_id=run_id,
+                    step_key=step_key,
+                    question=question,
+                    options=list(options),
+                )
+                session.add(checkpoint)
+                session.flush()
+            step.status = "waiting"
+            now_value = session.scalar(select(func.clock_timestamp()))
+            sequence = run.latest_event_sequence + 1
+            self._conditional_run_update(
+                session,
+                run_id=run_id,
+                token=token,
+                generation=generation,
+                expected_status=expected_status,
+                expected_revision=expected_revision,
+                values={
+                    "status": "waiting_for_input",
+                    "lease_token": None,
+                    "lease_owner": None,
+                    "lease_expires_at": None,
+                    "revision": ResearchRunModel.revision + 1,
+                    "latest_event_sequence": sequence,
+                    "updated_at": now_value,
+                },
+            )
+            self._add_event(
+                session,
+                run_id=run_id,
+                sequence=sequence,
+                activity_id=f"checkpoint:{checkpoint.id}",
+                activity_kind="status",
+                activity_phase="running",
+                activity_name="等待用户决定",
+                step_key=step_key,
+                progress=run.progress,
+                content=question,
+                details={"checkpoint_id": str(checkpoint.id)},
+            )
+            return MutationResult(
+                run_id, "waiting_for_input", expected_revision + 1, sequence
+            )
+
+    def submit_checkpoint_decision(
+        self,
+        run_id: UUID,
+        *,
+        checkpoint_id: UUID,
+        selected_option: str,
+        free_text: str | None,
+        expected_status: str,
+        expected_revision: int,
+    ) -> MutationResult:
+        """Record an immutable decision and resume the same Run for execution."""
+
+        with self._factory() as session, session.begin():
+            run = self._lock_run(session, run_id)
+            checkpoint = session.scalar(
+                select(RunCheckpointModel)
+                .where(
+                    RunCheckpointModel.id == checkpoint_id,
+                    RunCheckpointModel.run_id == run_id,
+                )
+                .with_for_update()
+            )
+            if checkpoint is None:
+                raise RunNotFoundError(
+                    f"checkpoint {checkpoint_id} was not found for run {run_id}"
+                )
+            existing = session.get(RunCheckpointDecisionModel, checkpoint_id)
+            if existing is not None:
+                if (
+                    existing.selected_option == selected_option
+                    and existing.free_text == free_text
+                ):
+                    return MutationResult(
+                        run.id, run.status, run.revision, run.latest_event_sequence
+                    )
+                raise CheckpointDecisionConflictError(
+                    "checkpoint decision already recorded"
+                )
+            if selected_option not in checkpoint.options:
+                raise CheckpointOptionInvalidError(
+                    "selected option is not part of the checkpoint"
+                )
+            if run.status != expected_status or run.revision != expected_revision:
+                raise StaleWorkflowWriteError("run snapshot is stale")
+            if run.status != "waiting_for_input":
+                raise StaleWorkflowWriteError("run is not waiting for input")
+            session.add(
+                RunCheckpointDecisionModel(
+                    checkpoint_id=checkpoint_id,
+                    selected_option=selected_option,
+                    free_text=free_text,
+                )
+            )
+            step = session.scalar(
+                select(RunStepModel)
+                .where(
+                    RunStepModel.run_id == run_id,
+                    RunStepModel.key == checkpoint.step_key,
+                )
+                .with_for_update()
+            )
+            if step is not None and step.status == "waiting":
+                step.status = "pending"
+                step.started_at = None
+            now_value = session.scalar(select(func.clock_timestamp()))
+            sequence = run.latest_event_sequence + 1
+            result = session.execute(
+                update(ResearchRunModel)
+                .where(
+                    ResearchRunModel.id == run_id,
+                    ResearchRunModel.status == expected_status,
+                    ResearchRunModel.revision == expected_revision,
+                )
+                .values(
+                    status="queued",
+                    revision=ResearchRunModel.revision + 1,
+                    latest_event_sequence=sequence,
+                    updated_at=now_value,
+                )
+                .execution_options(synchronize_session=False)
+            )
+            if result.rowcount != 1:
+                raise StaleWorkflowWriteError(
+                    "run changed before the decision committed"
+                )
+            self._add_event(
+                session,
+                run_id=run_id,
+                sequence=sequence,
+                activity_id=f"checkpoint:{checkpoint_id}",
+                activity_kind="status",
+                activity_phase="completed",
+                activity_name="等待用户决定",
+                step_key=checkpoint.step_key,
+                progress=run.progress,
+                content=f"用户已作出选择：{selected_option}",
+                details={
+                    "checkpoint_id": str(checkpoint_id),
+                    "selected_option": selected_option,
+                },
+            )
+            return MutationResult(run_id, "queued", expected_revision + 1, sequence)
 
     def load_snapshot(
         self, run_id: UUID, *, after_event_sequence: int = 0, event_limit: int = 100
@@ -843,10 +1136,14 @@ class PersistentWorkflowStore:
             events = tuple(
                 EventSnapshot(
                     sequence=event.sequence,
-                    event_type=event.event_type,
+                    activity_id=event.activity_id,
+                    activity_kind=event.activity_kind,
+                    activity_phase=event.activity_phase,
+                    activity_name=event.activity_name,
                     step_key=event.step_key,
                     progress=event.progress,
-                    public_message=event.public_message,
+                    content=event.content,
+                    details=dict(event.details),
                     artifact_version_ids=tuple(event.artifact_version_ids),
                     occurred_at=event.occurred_at,
                 )
@@ -1022,20 +1319,29 @@ class PersistentWorkflowStore:
         *,
         run_id: UUID,
         sequence: int,
-        event_type: str,
+        activity_id: str,
+        activity_kind: str,
+        activity_phase: str,
+        activity_name: str,
         step_key: str | None,
         progress: int | None,
-        public_message: str,
+        content: str,
+        details: dict[str, object] | None = None,
+        artifact_version_ids: Sequence[str] = (),
     ) -> None:
         session.add(
             RunEventModel(
                 run_id=run_id,
                 sequence=sequence,
-                event_type=event_type,
+                activity_id=activity_id,
+                activity_kind=activity_kind,
+                activity_phase=activity_phase,
+                activity_name=activity_name,
                 step_key=step_key,
                 progress=progress,
-                public_message=public_message,
-                artifact_version_ids=[],
+                content=content,
+                details=dict(details or {}),
+                artifact_version_ids=list(artifact_version_ids),
             )
         )
 

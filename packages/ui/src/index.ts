@@ -19,6 +19,8 @@ export type {
   ButtonSize,
   ButtonVariant,
 } from "./button";
+export { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./card";
+export type { CardSize } from "./card";
 export {
   Dialog,
   DialogContent,
@@ -54,6 +56,7 @@ export {
 export {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuCheckboxItem,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -70,3 +73,18 @@ export {
   CommandItem,
   CommandList,
 } from "./command";
+export { RadioGroup, RadioGroupItem } from "./radio-group";
+export {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "./sheet";
+export type { SheetSide } from "./sheet";
+export { ResizablePanelGroup } from "./resizable-panel-group";
+export type { ResizablePanelGroupProps } from "./resizable-panel-group";
+export { ResizablePanel } from "./resizable-panel";
+export type { ResizablePanelProps } from "./resizable-panel";
+export { ResizableHandle } from "./resizable-handle";
+export type { ResizableHandleProps } from "./resizable-handle";

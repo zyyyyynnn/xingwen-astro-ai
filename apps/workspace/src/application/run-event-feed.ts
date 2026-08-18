@@ -94,7 +94,12 @@ export function createRunEventFeed({
     snapshot: ResearchRunViewModel,
     fromCursor: string | null,
     previous: RunEventFeedCache,
-  ): Promise<{ readonly cache: RunEventFeedCache; readonly gap: boolean }> => {
+  ): Promise<{
+    readonly cache: RunEventFeedCache;
+    readonly gap: boolean;
+    readonly hasPublishedResults: boolean;
+    readonly publishedVersionIds: readonly DomainEntityId[];
+  }> => {
     const recovery = await runs.recoverEvents(runId, fromCursor);
     const events = sortedUniqueEvents(recovery.events).filter(
       (event) => event.sequence > previous.lastSequence,
@@ -102,12 +107,19 @@ export function createRunEventFeed({
     const first = events[0]?.sequence;
     const expected = previous.lastSequence + 1;
     const gap = first !== undefined && first !== expected;
-    if (gap) return { cache: previous, gap: true };
+    if (gap) {
+      return {
+        cache: previous,
+        gap: true,
+        hasPublishedResults: false,
+        publishedVersionIds: [],
+      };
+    }
 
-    const allEvents = [
-      ...previous.events,
-      ...events.map(researchAdapter.toActivityPresentationEvent),
-    ];
+    const allEvents = researchAdapter.mergeActivityPresentationEvents(
+      previous.events,
+      events.map(researchAdapter.toActivityPresentationEvent),
+    );
     const lastSequence = events.at(-1)?.sequence ?? previous.lastSequence;
     return {
       gap: false,
@@ -118,6 +130,12 @@ export function createRunEventFeed({
         latestSequence: snapshot.latestEventSequence,
         error: null,
       },
+      hasPublishedResults: events.some(
+        (event) => event.artifactVersionIds.length > 0,
+      ),
+      publishedVersionIds: [
+        ...new Set(events.flatMap((event) => event.artifactVersionIds)),
+      ],
     };
   };
 
@@ -145,10 +163,28 @@ export function createRunEventFeed({
       }
       const previousLastSequence = cache.lastSequence;
       writeCache(recovered.cache);
-      if (recovered.cache.lastSequence > previousLastSequence) {
+      const hasNewEvents = recovered.cache.lastSequence > previousLastSequence;
+      const hasPublishedResults = recovered.hasPublishedResults;
+      if (hasNewEvents) {
         await queryClient.invalidateQueries({
           queryKey: workspaceQueryKeys.runSteps(projectId, runId),
         });
+        await queryClient.invalidateQueries({
+          queryKey: workspaceQueryKeys.thread(projectId),
+        });
+        if (hasPublishedResults) {
+          await queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.artifactsByRun(projectId, runId),
+          });
+          for (const artifactVersionId of recovered.publishedVersionIds) {
+            await queryClient.invalidateQueries({
+              queryKey: workspaceQueryKeys.artifactVersion(
+                projectId,
+                artifactVersionId,
+              ),
+            });
+          }
+        }
       }
       failureCount = 0;
       nextDelayMs = NORMAL_DELAY_MS;
@@ -156,6 +192,19 @@ export function createRunEventFeed({
         snapshot.isTerminal &&
         recovered.cache.lastSequence >= snapshot.latestEventSequence
       ) {
+        // Reconcile the terminal snapshot even when the final event was
+        // already present in the cursor cache. New event batches were
+        // invalidated above as soon as they arrived.
+        if (!hasPublishedResults) {
+          await queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.artifactsByRun(projectId, runId),
+          });
+        }
+        if (!hasNewEvents) {
+          await queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.thread(projectId),
+          });
+        }
         status = "stopped";
         cancelTimer();
         return;

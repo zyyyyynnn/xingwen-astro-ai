@@ -15,11 +15,17 @@
 
 import { HttpClient } from "./http-client";
 import type { HttpAdapterConfig } from "./http-client";
+import { createArtifactExportRepository } from "./artifact-export-repository";
 import { createArtifactRepository } from "./artifact-repository";
+import { createDataArtifactRepository } from "./data-artifact-repository";
+import { createGraphArtifactRepository } from "./graph-artifact-repository";
+import { createLiteratureArtifactRepository } from "./literature-artifact-repository";
 import { createPaperAcquisitionRepository } from "./paper-acquisition-repository";
 import { createPaperSummaryRepository } from "./paper-summary-repository";
 import type { RepositorySet } from "./ports";
 import { createResearchRepositories } from "./research-repositories";
+import { createResearchInputRepository } from "./research-input-repository";
+import { createRevisionRepository } from "./revision-repository";
 import { createSnapshotShareRepositories } from "./snapshot-share-repositories";
 
 export type { HttpAdapterConfig };
@@ -42,8 +48,14 @@ export function createHttpRepositories(
   const { projects, researchCatalog, contracts, runs, researchThread } =
     createResearchRepositories(http);
   const artifacts = createArtifactRepository(http);
+  const researchInputs = createResearchInputRepository(http);
   const paperAcquisition = createPaperAcquisitionRepository(http);
   const paperSummary = createPaperSummaryRepository(http);
+  const dataArtifacts = createDataArtifactRepository(http);
+  const literatureArtifacts = createLiteratureArtifactRepository(http);
+  const graphArtifacts = createGraphArtifactRepository(http);
+  const artifactExports = createArtifactExportRepository(http);
+  const revisions = createRevisionRepository(http);
   const { workspaces, shares } = createSnapshotShareRepositories(http);
   return {
     projects,
@@ -52,8 +64,14 @@ export function createHttpRepositories(
     contracts,
     runs,
     artifacts,
+    researchInputs,
     paperAcquisition,
     paperSummary,
+    dataArtifacts,
+    literatureArtifacts,
+    graphArtifacts,
+    artifactExports,
+    revisions,
     workspaces,
     shares,
   };

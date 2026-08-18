@@ -237,6 +237,37 @@ class PaperCandidateInputService:
             )
         )
 
+    def accepted_research_input(
+        self,
+        *,
+        session_id: str,
+        project_id: str,
+        paper_collection_version_id: str,
+        canonical_paper_id: str,
+    ) -> ResearchInputRecord | None:
+        """Resolve the newest accepted full-text ResearchInput bound to one paper."""
+        accepted = self._repository.accepted_input_for_paper(
+            project_id=project_id,
+            paper_collection_version_id=paper_collection_version_id,
+            canonical_paper_id=canonical_paper_id,
+        )
+        if accepted is None:
+            return None
+        record = self._research_inputs.get(
+            session_id=session_id, input_id=accepted.research_input_id
+        )
+        if (
+            record is None
+            or record.project_id != project_id
+            or record.content_hash != accepted.research_input_content_hash
+            or (
+                record.type is not ResearchInputType.pdf
+                and record.mime_type != "application/pdf"
+            )
+        ):
+            return None
+        return record
+
     def _project(
         self,
         row: _BindingRecord,
@@ -304,6 +335,14 @@ class _BindingRecord:
 class _BridgeReservation:
     replayed: _BindingRecord | None
     lease_token: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class AcceptedPaperInput:
+    """Newest accepted binding's pinned ResearchInput identity for one paper."""
+
+    research_input_id: str
+    research_input_content_hash: str | None
 
 
 class PaperCandidateInputRepository:
@@ -418,6 +457,39 @@ class PaperCandidateInputRepository:
         row.lease_expires_at = now + self._lease_ttl
         row.updated_at = now
         return _BridgeReservation(replayed=None, lease_token=token)
+
+    def accepted_input_for_paper(
+        self,
+        *,
+        project_id: str,
+        paper_collection_version_id: str,
+        canonical_paper_id: str,
+    ) -> AcceptedPaperInput | None:
+        with self._factory() as session:
+            row = session.scalar(
+                select(PaperCandidateInputBindingModel)
+                .where(
+                    PaperCandidateInputBindingModel.project_id
+                    == _uuid(project_id),
+                    PaperCandidateInputBindingModel.paper_collection_version_id
+                    == _uuid(paper_collection_version_id),
+                    PaperCandidateInputBindingModel.canonical_paper_id
+                    == canonical_paper_id,
+                    PaperCandidateInputBindingModel.outcome == "accepted",
+                    PaperCandidateInputBindingModel.research_input_id.is_not(None),
+                )
+                .order_by(
+                    PaperCandidateInputBindingModel.created_at.desc(),
+                    PaperCandidateInputBindingModel.id.desc(),
+                )
+                .limit(1)
+            )
+        if row is None or row.research_input_id is None:
+            return None
+        return AcceptedPaperInput(
+            research_input_id=str(row.research_input_id),
+            research_input_content_hash=row.research_input_content_hash,
+        )
 
     def persist(
         self,
@@ -765,6 +837,7 @@ def _problem(status: int, code: str, title: str, detail: str) -> SecurityProblem
 
 
 __all__ = [
+    "AcceptedPaperInput",
     "CreatePaperCandidateInputCommand",
     "PaperCandidateInputRepository",
     "PaperCandidateInputService",

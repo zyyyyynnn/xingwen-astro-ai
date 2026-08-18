@@ -291,7 +291,7 @@ def build_demo_summary_read() -> tuple[PaperSummaryRead, ArtifactVersionDetail]:
             type=producer.producer_type,
             name=producer.producer_name,
             version=producer.producer_version,
-            model_name=producer.model_name,
+            requested_model=producer.model_name,
             prompt_name=producer.prompt_name,
             prompt_version=producer.prompt_version,
             prompt_hash=producer.prompt_hash,

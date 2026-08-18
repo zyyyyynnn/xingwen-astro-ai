@@ -463,6 +463,19 @@
           "default": null,
           "title": "Metadata Field"
         },
+        "page_index": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page Index"
+        },
         "paragraph": {
           "anyOf": [
             {
@@ -533,7 +546,8 @@
           "type": "string"
         },
         "paper_collection_version_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
           "title": "Paper Collection Version Id",
           "type": "string"
         },
@@ -709,7 +723,8 @@
         "run_id": {
           "anyOf": [
             {
-              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
               "type": "string"
             },
             {
@@ -974,6 +989,19 @@
         "producer": {
           "$ref": "#/$defs/ProducerReference"
         },
+        "provider_request_id": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Request Id"
+        },
         "run_id": {
           "maxLength": 128,
           "minLength": 1,
@@ -1042,7 +1070,7 @@
     "ProducerReference": {
       "additionalProperties": false,
       "properties": {
-        "model_name": {
+        "explicit_revision": {
           "anyOf": [
             {
               "type": "string"
@@ -1052,7 +1080,7 @@
             }
           ],
           "default": null,
-          "title": "Model Name"
+          "title": "Explicit Revision"
         },
         "model_provider": {
           "anyOf": [
@@ -1120,6 +1148,30 @@
           ],
           "default": null,
           "title": "Prompt Version"
+        },
+        "provider_returned_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Returned Model"
+        },
+        "requested_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requested Model"
         },
         "type": {
           "enum": [

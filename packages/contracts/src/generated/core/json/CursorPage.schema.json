@@ -1,0 +1,33 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "has_more": {
+      "title": "Has More",
+      "type": "boolean"
+    },
+    "limit": {
+      "default": 20,
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Next Cursor"
+    }
+  },
+  "required": [
+    "has_more"
+  ],
+  "title": "CursorPage",
+  "type": "object"
+}

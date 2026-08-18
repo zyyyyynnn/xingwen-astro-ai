@@ -740,7 +740,22 @@ def derive_field_conflicts(
         else None,
         "relative_difference": serialize_decimal(relative) if relative is not None else None,
     }
-    return (_hashed(FieldConflictRecord, payload),)
+    # Decimal inputs must be normalized through the persisted model before the
+    # canonical hash is computed. Hashing the pre-validation strings makes
+    # values such as scientific notation commit to a different payload than
+    # the Decimal serialization validated by ``FieldConflictRecord``.
+    normalized_source = {
+        **payload,
+        "absolute_difference": absolute,
+        "relative_denominator": denominator,
+        "relative_difference": relative,
+    }
+    normalized = FieldConflictRecord.model_construct(
+        **normalized_source,
+        content_hash="sha256:" + "0" * 64,
+    ).model_dump(mode="json")
+    normalized["content_hash"] = compute_data_artifact_content_hash(normalized)
+    return (FieldConflictRecord.model_validate(normalized),)
 
 
 def _source_members(input_value: DataArtifactBuildInput) -> tuple[SourceCollectionMember, ...]:
@@ -834,8 +849,15 @@ def derive_data_artifact_domain_projection(
         for field in fields:
             if field.object_type not in allowed_object_types:
                 continue
+            applicable_members = tuple(
+                member
+                for member in members
+                if field.source_aliases_for(member.source_record.source_id)
+            )
+            if not applicable_members:
+                continue
             source_values: list[SourceValueCandidate] = []
-            for member in members:
+            for member in applicable_members:
                 source_id = member.source_record.source_id
                 raw = raw_by_reference.get((source_id, member.source_record.row_key))
                 if raw is None or raw.content_hash != member.source_record.record_content_hash:
@@ -880,6 +902,7 @@ def derive_data_artifact_domain_projection(
             )
             selected = non_null[0] if non_null else None
             identity_unresolved = alignment in {
+                AlignmentStatus.inconclusive,
                 AlignmentStatus.review_required,
                 AlignmentStatus.rejected,
                 AlignmentStatus.conflict,

@@ -551,7 +551,7 @@ def _validate_literature_producer(
         or producer.type != expected.producer_type
         or producer.name != expected.producer_name
         or producer.version != expected.producer_version
-        or producer.model_name != expected.model_name
+        or producer.requested_model != expected.model_name
         or producer.prompt_name != expected.prompt_name
         or producer.prompt_version != expected.prompt_version
         or producer.prompt_hash != expected.prompt_hash
@@ -872,12 +872,12 @@ class PublishedLiteratureRelationsVersion:
                 )
 
         expected_references = {
-            (
-                item.relation_id,
-                item.evidence_id,
-                item.source_snapshot_id,
-            )
+            (target_type, target_id, item.evidence_id, item.source_snapshot_id)
             for item in candidate.evidence_references
+            for target_type, target_id in (
+                ("claim", item.claim_id),
+                ("relation", item.relation_id),
+            )
         }
         pipeline_snapshot_by_persisted = {
             item.persisted_source_snapshot_id: item.pipeline_source_snapshot_id
@@ -885,12 +885,13 @@ class PublishedLiteratureRelationsVersion:
         }
         actual_references = {
             (
+                item.evidence.target_type,
                 item.evidence.target_id,
                 item.pipeline_evidence_id,
                 pipeline_snapshot_by_persisted.get(item.evidence.source_snapshot_id),
             )
             for item in evidence_bindings
-            if item.evidence.target_type == "relation"
+            if item.evidence.target_type in {"claim", "relation"}
         }
         pipeline_evidence_hashes = {
             item.evidence_id: compute_canonical_payload_hash(
@@ -899,7 +900,7 @@ class PublishedLiteratureRelationsVersion:
             for item in candidate.evidence
         }
         if actual_references != expected_references or any(
-            item.evidence.target_type != "relation"
+            item.evidence.target_type not in {"claim", "relation"}
             or item.evidence.locator.get("summary_evidence_id")
             != item.pipeline_evidence_id
             or item.pipeline_evidence_content_hash

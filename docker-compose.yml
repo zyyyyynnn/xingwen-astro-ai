@@ -1,6 +1,6 @@
 # Docker Compose 本地开发编排：品牌站、科研工作台、API 与 PostgreSQL。
 #
-# 服务启动顺序：postgres healthy → migrate(alembic upgrade head，一次性) → api → workspace/site。
+# 服务启动顺序：postgres healthy → schema(当前模型建表，一次性) → api → workspace/site。
 # 服务名由 Compose Project 自动生成，不写固定 container_name，`docker compose -p <name>` 可完全隔离。
 
 services:
@@ -25,7 +25,7 @@ services:
       timeout: 5s
       retries: 10
 
-  migrate:
+  schema:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
@@ -37,7 +37,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: ["alembic", "upgrade", "head"]
+    command: ["python", "-m", "app.db.schema"]
 
   api:
     build:
@@ -59,7 +59,7 @@ services:
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
-      migrate:
+      schema:
         condition: service_completed_successfully
     healthcheck:
       test:

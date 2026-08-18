@@ -10,14 +10,23 @@
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
 
+import artifactExportReadSchema from "./generated/core/json/ArtifactExportRead.schema.json";
 import artifactVersionSchema from "./generated/core/json/ArtifactVersion.schema.json";
 import artifactVersionDetailSchema from "./generated/core/json/ArtifactVersionDetail.schema.json";
+import artifactVersionSummarySchema from "./generated/core/json/ArtifactVersionSummary.schema.json";
+import datasetArtifactReadSchema from "./generated/core/json/DatasetArtifactRead.schema.json";
 import evidenceReadSchema from "./generated/core/json/EvidenceRead.schema.json";
+import fieldDictionaryArtifactReadSchema from "./generated/core/json/FieldDictionaryArtifactRead.schema.json";
+import graphArtifactReadSchema from "./generated/core/json/GraphArtifactRead.schema.json";
+import literatureClaimReadSchema from "./generated/core/json/LiteratureClaimRead.schema.json";
+import literatureReasoningTraceReadSchema from "./generated/core/json/LiteratureReasoningTraceRead.schema.json";
+import literatureRelationReadSchema from "./generated/core/json/LiteratureRelationRead.schema.json";
 import manifest from "./generated/core/manifest.json";
 import modelExecutionRecordSchema from "./generated/core/json/ModelExecutionRecord.schema.json";
 import researchPlanningCatalogSchema from "./generated/core/json/ResearchPlanningCatalog.schema.json";
 import paperCollectionCandidateReadSchema from "./generated/core/json/PaperCollectionCandidateRead.schema.json";
 import paperCollectionReadSchema from "./generated/core/json/PaperCollectionRead.schema.json";
+import paperSummaryPdfSourceReadSchema from "./generated/core/json/PaperSummaryPdfSourceRead.schema.json";
 import paperSummaryReadSchema from "./generated/core/json/PaperSummaryRead.schema.json";
 import publicShareSnapshotSchema from "./generated/core/json/PublicShareSnapshot.schema.json";
 import researchThreadEntrySchema from "./generated/core/json/ResearchThreadEntry.schema.json";
@@ -27,13 +36,18 @@ import researchArtifactDetailSchema from "./generated/core/json/ResearchArtifact
 import researchContractDraftSchema from "./generated/core/json/ResearchContractDraft.schema.json";
 import researchContractSchema from "./generated/core/json/ResearchContract.schema.json";
 import researchProjectSchema from "./generated/core/json/ResearchProject.schema.json";
+import researchInputRefSchema from "./generated/core/json/ResearchInputRef.schema.json";
 import researchRunSchema from "./generated/core/json/ResearchRun.schema.json";
+import runCheckpointSchema from "./generated/core/json/RunCheckpoint.schema.json";
 import runEventSchema from "./generated/core/json/RunEvent.schema.json";
 import runStepReadSchema from "./generated/core/json/RunStepRead.schema.json";
 import sessionCreatedSchema from "./generated/core/json/SessionCreated.schema.json";
 import shareSnapshotSchema from "./generated/core/json/ShareSnapshot.schema.json";
 import shareSnapshotCreatedSchema from "./generated/core/json/ShareSnapshotCreated.schema.json";
+import sourceCollectionArtifactReadSchema from "./generated/core/json/SourceCollectionArtifactRead.schema.json";
 import sourceSnapshotDetailSchema from "./generated/core/json/SourceSnapshotDetail.schema.json";
+import userFeedbackSchema from "./generated/core/json/UserFeedback.schema.json";
+import revisionPlanSchema from "./generated/core/json/RevisionPlan.schema.json";
 import workspaceSnapshotSchema from "./generated/core/json/WorkspaceSnapshot.schema.json";
 
 /** Schema version from the Core Domain and Transport Contract generation manifest. */
@@ -45,9 +59,11 @@ export const CONTRACT_AUTHORING_SOURCE: string = manifest.authoring_source;
 /** Core entity and generic provenance read models with standalone schemas. */
 export const CORE_MODEL_NAMES = [
   "ResearchProject",
+  "ResearchInputRef",
   "ResearchContractDraft",
   "ResearchContract",
   "ResearchRun",
+  "RunCheckpoint",
   "RunEvent",
   "ResearchThreadEntry",
   "ResearchTurnResult",
@@ -55,6 +71,7 @@ export const CORE_MODEL_NAMES = [
   "ModelExecutionRecord",
   "ResearchPlanningCatalog",
   "ArtifactVersion",
+  "ArtifactVersionSummary",
   "ResearchArtifact",
   "ResearchArtifactDetail",
   "ArtifactVersionDetail",
@@ -63,11 +80,22 @@ export const CORE_MODEL_NAMES = [
   "PaperCollectionRead",
   "PaperCollectionCandidateRead",
   "PaperSummaryRead",
+  "PaperSummaryPdfSourceRead",
+  "ArtifactExportRead",
+  "DatasetArtifactRead",
+  "FieldDictionaryArtifactRead",
+  "SourceCollectionArtifactRead",
+  "LiteratureClaimRead",
+  "LiteratureRelationRead",
+  "LiteratureReasoningTraceRead",
+  "GraphArtifactRead",
   "SessionCreated",
   "WorkspaceSnapshot",
   "ShareSnapshot",
   "ShareSnapshotCreated",
   "PublicShareSnapshot",
+  "UserFeedback",
+  "RevisionPlan",
 ] as const;
 export type CoreModelName = (typeof CORE_MODEL_NAMES)[number];
 
@@ -94,9 +122,11 @@ type SchemaMap = Record<CoreModelName, Record<string, unknown>>;
 
 const schemas: SchemaMap = {
   ResearchProject: researchProjectSchema,
+  ResearchInputRef: researchInputRefSchema,
   ResearchContractDraft: researchContractDraftSchema,
   ResearchContract: researchContractSchema,
   ResearchRun: researchRunSchema,
+  RunCheckpoint: runCheckpointSchema,
   RunEvent: runEventSchema,
   ResearchThreadEntry: researchThreadEntrySchema,
   ResearchTurnResult: researchTurnResultSchema,
@@ -104,6 +134,7 @@ const schemas: SchemaMap = {
   ModelExecutionRecord: modelExecutionRecordSchema,
   ResearchPlanningCatalog: researchPlanningCatalogSchema,
   ArtifactVersion: artifactVersionSchema,
+  ArtifactVersionSummary: artifactVersionSummarySchema,
   ResearchArtifact: researchArtifactSchema,
   ResearchArtifactDetail: researchArtifactDetailSchema,
   ArtifactVersionDetail: artifactVersionDetailSchema,
@@ -112,11 +143,22 @@ const schemas: SchemaMap = {
   PaperCollectionRead: paperCollectionReadSchema,
   PaperCollectionCandidateRead: paperCollectionCandidateReadSchema,
   PaperSummaryRead: paperSummaryReadSchema,
+  PaperSummaryPdfSourceRead: paperSummaryPdfSourceReadSchema,
+  ArtifactExportRead: artifactExportReadSchema,
+  DatasetArtifactRead: datasetArtifactReadSchema,
+  FieldDictionaryArtifactRead: fieldDictionaryArtifactReadSchema,
+  SourceCollectionArtifactRead: sourceCollectionArtifactReadSchema,
+  LiteratureClaimRead: literatureClaimReadSchema,
+  LiteratureRelationRead: literatureRelationReadSchema,
+  LiteratureReasoningTraceRead: literatureReasoningTraceReadSchema,
+  GraphArtifactRead: graphArtifactReadSchema,
   SessionCreated: sessionCreatedSchema,
   WorkspaceSnapshot: workspaceSnapshotSchema,
   ShareSnapshot: shareSnapshotSchema,
   ShareSnapshotCreated: shareSnapshotCreatedSchema,
   PublicShareSnapshot: publicShareSnapshotSchema,
+  UserFeedback: userFeedbackSchema,
+  RevisionPlan: revisionPlanSchema,
 };
 
 /** A compiled ajv validator function with its errors property. */
@@ -206,6 +248,7 @@ export function isDto(model: CoreModelName, value: unknown): boolean {
 export type {
   ArtifactVersion as ArtifactVersionDto,
   ArtifactVersionDetail as ArtifactVersionDetailDto,
+  ArtifactVersionSummary as ArtifactVersionSummaryDto,
   EvidenceRead as EvidenceReadDto,
   ResearchArtifact as ResearchArtifactDto,
   ResearchArtifactDetail as ResearchArtifactDetailDto,
@@ -213,6 +256,8 @@ export type {
   ResearchContractDraft as ResearchContractDraftDto,
   ResearchProject as ResearchProjectDto,
   ResearchRun as ResearchRunDto,
+  RunCheckpoint as RunCheckpointDto,
+  RunCheckpointDecisionRequest as RunCheckpointDecisionRequestDto,
   ResearchThreadEntry as ResearchThreadEntryDto,
   ResearchTurnRequest as ResearchTurnRequestDto,
   ResearchTurnResult as ResearchTurnResultDto,

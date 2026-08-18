@@ -50,9 +50,11 @@ const boundaryRuntimeDependencyAllowlist = new Map([
     new Set([
       "clsx",
       "cmdk",
+      "embla-carousel-react",
       "lucide-react",
       "radix-ui",
       "react",
+      "react-resizable-panels",
       "sonner",
       "tslib",
     ]),
@@ -501,9 +503,12 @@ if (!existsSync(componentSourcesPath)) {
       }
     }
 
-    if (!component.source?.startsWith("@shadcn/")) {
+    const approvedComponentSource =
+      component.source?.startsWith("@shadcn/") ||
+      component.source === "react-resizable-panels";
+    if (!approvedComponentSource) {
       failures.push(
-        `UI component ${component.name ?? "unknown"} has an unapproved shadcn source.`,
+        `UI component ${component.name ?? "unknown"} has an unapproved component source.`,
       );
     }
 
@@ -722,11 +727,13 @@ const boundaryRules = new Map([
       allowedBareImports: new Set([
         "clsx",
         "cmdk",
+        "embla-carousel-react",
         "lucide-react",
         "radix-ui",
         "react",
         "react/jsx-runtime",
         "react/jsx-dev-runtime",
+        "react-resizable-panels",
         "sonner",
         "tslib",
       ]),

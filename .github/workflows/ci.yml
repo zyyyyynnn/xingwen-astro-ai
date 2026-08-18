@@ -27,9 +27,7 @@ jobs:
           python-version: "3.13"
 
       - name: Validate repository foundation
-        run: |
-          python -m unittest scripts.test_check_foundation
-          python scripts/check_foundation.py
+        run: python scripts/check_foundation.py
 
       - name: Check versionless API naming
         run: node scripts/check-versionless-api.mjs
@@ -40,9 +38,7 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          node scripts/check-title-governance.test.mjs
-          node scripts/check-title-governance.mjs
+        run: node scripts/check-title-governance.mjs
 
       - name: Lint issue templates for live-state mirrors
         env:
@@ -54,9 +50,7 @@ jobs:
         if: github.event_name == 'push'
         env:
           INTEGRATION_SHA: ${{ github.sha }}
-        run: |
-          node scripts/check-title-governance.test.mjs
-          node scripts/check-title-governance.mjs
+        run: node scripts/check-title-governance.mjs
 
       - name: Validate Docker Compose contract
         run: |
@@ -116,10 +110,10 @@ jobs:
           PY
           uv run python -m compileall -q src tests
 
-      - name: Upgrade isolated PostgreSQL schema
+      - name: Bootstrap isolated PostgreSQL schema
         env:
           DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
-        run: uv run alembic upgrade head
+        run: uv run python -m app.db.schema
 
       - name: Run backend tests
         run: uv run pytest -m "not scientific_document_native"
@@ -216,71 +210,7 @@ jobs:
 
       - name: Check core contracts
         run: |
-          uv run python ../../scripts/export_schemas.py \
-            --output ../../packages/schemas/generated/core \
-            --include ResearchProject \
-            --include UpdateResearchProjectRequest \
-            --include ResearchCatalogOption \
-            --include ResearchPlanningCatalog \
-            --include ModelExecutionRecord \
-            --include PlannerClarificationRequired \
-            --include PlannerDraftReady \
-            --include PlannerPartial \
-            --include PlannerUnsupported \
-            --include PlannerRefused \
-            --include PlannerOutcome \
-            --include ResearchThreadEntry \
-            --include ResearchThreadSummary \
-            --include ResearchTurnRequest \
-            --include ResearchTurnResult \
-            --include ResearchContractDraft \
-            --include ResearchContract \
-            --include ResearchRun \
-            --include CreateUserFeedbackRequest \
-            --include UserFeedback \
-            --include CreateRevisionPlanRequest \
-            --include RevisionVersionDecision \
-            --include RevisionConflict \
-            --include RevisionPlan \
-            --include ConfirmRevisionPlanRequest \
-            --include RunEvent \
-            --include RunStepRead \
-            --include ResearchArtifact \
-            --include ArtifactVersion \
-            --include ResearchArtifactDetail \
-            --include ArtifactVersionDetail \
-            --include PaperSummaryArtifactContent \
-            --include PaperSummaryRead \
-            --include PaperCollectionRead \
-            --include PaperCollectionCandidateRead \
-            --include PaperCandidateInputBinding \
-            --include DataArtifactReadBase \
-            --include DatasetArtifactRead \
-            --include FieldDictionaryArtifactRead \
-            --include SourceCollectionArtifactRead \
-            --include DataArtifactRowRead \
-            --include LiteratureClaimRead \
-            --include LiteratureRelationRead \
-            --include LiteratureReasoningTraceRead \
-            --include GraphArtifactRead \
-            --include GraphNodeRead \
-            --include GraphEdgeRead \
-            --include GraphEvidenceUseRead \
-            --include CreateArtifactExportRequest \
-            --include ArtifactExportRead \
-            --include EvidenceRead \
-            --include SourceSnapshotDetail \
-            --include SessionCreated \
-            --include WorkspaceSnapshot \
-            --include ShareSnapshot \
-            --include ShareSnapshotCreated \
-            --include PublicShareSnapshot \
-            --include ResearchInputRef \
-            --include ResearchInputDetail \
-            --include CreateResearchInputRequest \
-            --include CreateResearchInputMultipartRequest \
-            --include BindResearchInputRequest \
-            --check
+          uv run python ../../scripts/export_core_schemas.py --check
           uv run python ../../scripts/export_openapi.py \
             --output ../../packages/schemas/generated/core/openapi.json \
             --check
@@ -333,7 +263,7 @@ jobs:
           --check
 
   frontend:
-    name: Frontend quality and entrypoint smoke
+    name: Frontend quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -383,12 +313,6 @@ jobs:
       - name: Check package architecture
         run: pnpm check:architecture
 
-      - name: Install browser runtime
-        run: pnpm exec playwright install --with-deps chromium
-
-      - name: Run frontend entrypoint smoke
-        run: pnpm test:e2e
-
   real-integration:
     name: Real Compose and browser integration
     runs-on: ubuntu-latest
@@ -415,10 +339,14 @@ jobs:
           corepack enable
           corepack prepare pnpm@11.13.1 --activate
 
-      - name: Install locked dependencies and browser runtime
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm exec playwright install --with-deps chromium
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install browser runtime (single owner for all browser tests)
+        run: pnpm exec playwright install chromium
+
+      - name: Run frontend entrypoint smoke
+        run: pnpm test:e2e
 
       - name: Start isolated fresh Compose project
         run: |
@@ -426,9 +354,9 @@ jobs:
           docker compose -f docker-compose.yml -f docker-compose.integration.yml config --quiet
           docker compose -f docker-compose.yml -f docker-compose.integration.yml up --build --detach --wait --remove-orphans
           docker compose -f docker-compose.yml -f docker-compose.integration.yml ps --all
-          migrate_id="$(docker compose -f docker-compose.yml -f docker-compose.integration.yml ps --all -q migrate)"
-          test -n "$migrate_id"
-          test "$(docker inspect --format '{{.State.ExitCode}}' "$migrate_id")" = "0"
+          schema_id="$(docker compose -f docker-compose.yml -f docker-compose.integration.yml ps --all -q schema)"
+          test -n "$schema_id"
+          test "$(docker inspect --format '{{.State.ExitCode}}' "$schema_id")" = "0"
           curl --fail --silent --show-error http://localhost:8000/api/health
 
       - name: Run real HTTP Browser and Fixture parity integration

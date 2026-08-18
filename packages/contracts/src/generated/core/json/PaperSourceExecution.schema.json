@@ -1,0 +1,319 @@
+{
+  "$defs": {
+    "PaperDataLevel": {
+      "description": "Scientific data level, kept separate from ``source_mode``.",
+      "enum": [
+        "live_result",
+        "real_run_cache",
+        "fixture",
+        "recorded_response",
+        "benchmark",
+        "manual_review"
+      ],
+      "title": "PaperDataLevel",
+      "type": "string"
+    },
+    "PaperQueryPagination": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_limit": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Candidate Limit",
+          "type": "integer"
+        },
+        "max_pages": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Max Pages",
+          "type": "integer"
+        },
+        "page_size": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Page Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "page_size",
+        "max_pages",
+        "candidate_limit"
+      ],
+      "title": "PaperQueryPagination",
+      "type": "object"
+    },
+    "PaperSourceExecutionStatus": {
+      "enum": [
+        "completed",
+        "failed"
+      ],
+      "title": "PaperSourceExecutionStatus",
+      "type": "string"
+    },
+    "PaperSourcePage": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt_count": {
+          "exclusiveMinimum": 0,
+          "title": "Attempt Count",
+          "type": "integer"
+        },
+        "offset": {
+          "minimum": 0,
+          "title": "Offset",
+          "type": "integer"
+        },
+        "page_number": {
+          "exclusiveMinimum": 0,
+          "title": "Page Number",
+          "type": "integer"
+        },
+        "rate_limit_metadata": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Rate Limit Metadata",
+          "type": "object"
+        },
+        "request_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Request Hash",
+          "type": "string"
+        },
+        "requested_rows": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Requested Rows",
+          "type": "integer"
+        },
+        "response_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Response Hash",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "format": "date-time",
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "returned_rows": {
+          "minimum": 0,
+          "title": "Returned Rows",
+          "type": "integer"
+        },
+        "status_code": {
+          "maximum": 599,
+          "minimum": 100,
+          "title": "Status Code",
+          "type": "integer"
+        },
+        "total_results": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Total Results"
+        }
+      },
+      "required": [
+        "page_number",
+        "offset",
+        "requested_rows",
+        "returned_rows",
+        "attempt_count",
+        "status_code",
+        "retrieved_at",
+        "request_hash",
+        "response_hash"
+      ],
+      "title": "PaperSourcePage",
+      "type": "object"
+    },
+    "SourceMode": {
+      "description": "Actual origin of an ArtifactVersion-compatible pipeline payload.",
+      "enum": [
+        "fixture",
+        "live",
+        "cached"
+      ],
+      "title": "SourceMode",
+      "type": "string"
+    },
+    "UpstreamFailureClass": {
+      "enum": [
+        "timeout",
+        "rate_limited",
+        "transport",
+        "upstream_server",
+        "upstream_client",
+        "invalid_response",
+        "policy_violation"
+      ],
+      "title": "UpstreamFailureClass",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "cache_applicability": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cache Applicability"
+    },
+    "candidate_count": {
+      "minimum": 0,
+      "title": "Candidate Count",
+      "type": "integer"
+    },
+    "data_level": {
+      "$ref": "#/$defs/PaperDataLevel"
+    },
+    "failure_class": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/UpstreamFailureClass"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "failure_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Failure Code"
+    },
+    "finished_at": {
+      "format": "date-time",
+      "title": "Finished At",
+      "type": "string"
+    },
+    "live_failure_class": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/UpstreamFailureClass"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "live_failure_code": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Live Failure Code"
+    },
+    "pages": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PaperSourcePage"
+      },
+      "title": "Pages",
+      "type": "array"
+    },
+    "pagination": {
+      "$ref": "#/$defs/PaperQueryPagination"
+    },
+    "query_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Query Hash",
+      "type": "string"
+    },
+    "request_parameters_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Request Parameters Hash",
+      "type": "string"
+    },
+    "retry_count": {
+      "minimum": 0,
+      "title": "Retry Count",
+      "type": "integer"
+    },
+    "source_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Source Id",
+      "type": "string"
+    },
+    "source_mode": {
+      "$ref": "#/$defs/SourceMode"
+    },
+    "source_snapshot_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Snapshot Id"
+    },
+    "started_at": {
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/PaperSourceExecutionStatus"
+    }
+  },
+  "required": [
+    "source_id",
+    "source_mode",
+    "data_level",
+    "status",
+    "query_hash",
+    "request_parameters_hash",
+    "pagination",
+    "started_at",
+    "finished_at",
+    "candidate_count",
+    "retry_count"
+  ],
+  "title": "PaperSourceExecution",
+  "type": "object"
+}

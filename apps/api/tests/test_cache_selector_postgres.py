@@ -10,9 +10,9 @@ from pathlib import Path
 from threading import Barrier
 from uuid import UUID, uuid4
 
-from alembic import command
-from alembic.config import Config
 import pytest
+
+from db_bootstrap import reset_current_schema
 from sqlalchemy import Engine, func, select
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 
@@ -79,27 +79,17 @@ NASA_TOI_SOURCE_ID = "nasa_exoplanet_archive.toi"
 CROSSREF_SOURCE_ID = "crossref"
 
 
-def _alembic_config(url: str) -> Config:
-    root = Path(__file__).resolve().parents[1]
-    config = Config(root / "alembic.ini")
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    return config
-
-
 @pytest.fixture(scope="module")
 def postgres_engine() -> Engine:
     assert TEST_DATABASE_URL is not None
     assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower(), (
         "refusing non-test database"
     )
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
     engine = create_engine_from_url(TEST_DATABASE_URL)
     yield engine
     engine.dispose()
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 def _contract_input(
@@ -276,7 +266,7 @@ def _producer_values(*, status: str, output_hash: str | None) -> dict[str, objec
         "producer_name": "cache-test-producer",
         "producer_version": "1.0.0",
         "model_provider": "test-provider",
-        "model_name": "test-model",
+        "requested_model": "test-model",
         "prompt_name": "artifact-generation",
         "prompt_version": "1.0.0",
         "prompt_hash": HASH_A,
@@ -295,7 +285,7 @@ def _public_producer(values: dict[str, object]) -> dict[str, object]:
         "version": values["producer_version"],
         "parameters_hash": values["parameters_hash"],
         "model_provider": values["model_provider"],
-        "model_name": values["model_name"],
+        "requested_model": values["requested_model"],
         "prompt_name": values["prompt_name"],
         "prompt_version": values["prompt_version"],
         "prompt_hash": values["prompt_hash"],
@@ -389,10 +379,14 @@ def _persist_run_execution(
         RunEventModel(
             run_id=run.id,
             sequence=1,
-            event_type="run.completed" if completed else "run.failed",
+            activity_id=f"run:{run.id}",
+            activity_kind="completion" if completed else "error",
+            activity_phase="completed" if completed else "failed",
+            activity_name="研究任务",
             step_key=step.key,
             progress=run.progress,
-            public_message="Run completed" if completed else "Live source timed out",
+            content="Run completed" if completed else "Live source timed out",
+            details={},
             artifact_version_ids=[],
         )
     )
@@ -577,7 +571,10 @@ def test_selector_hits_all_governed_artifact_families_without_republishing(
         assert failed_run is not None and failed_run.status == "failed"
         assert failed_run.failure_code == "UPSTREAM_TIMEOUT"
         assert origin_run is not None and origin_run.status == "completed"
-        assert [event.event_type for event in events] == ["run.failed", "cache.selected"]
+        assert [event.details.get("cache_outcome") for event in events] == [
+            None,
+            "selected",
+        ]
         assert events[-1].artifact_version_ids == [str(version_id)]
         assert session.scalar(select(func.count()).select_from(ArtifactVersionModel)) == version_count
         assert session.scalar(
@@ -691,7 +688,10 @@ def test_selector_records_stable_strict_mismatch_reasons(
                 .order_by(RunEventModel.sequence)
             )
         )
-        assert [event.event_type for event in events] == ["run.failed", "cache.rejected"]
+        assert [event.details.get("cache_outcome") for event in events] == [
+            None,
+            "rejected",
+        ]
 
 
 def test_selector_rejects_expired_record_with_injected_clock(
@@ -996,7 +996,7 @@ def test_concurrent_selector_is_idempotent_and_does_not_publish(
         assert session.scalar(
             select(func.count()).select_from(RunEventModel).where(
                 RunEventModel.run_id == failed_run_id,
-                RunEventModel.event_type == "cache.selected",
+                RunEventModel.details["cache_outcome"].astext == "selected",
             )
         ) == 1
         assert session.scalar(

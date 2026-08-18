@@ -11,6 +11,7 @@ from fastapi.responses import Response as RawResponse
 from app.schemas.core import (
     ArtifactKind,
     ArtifactVersionDetail,
+    ArtifactVersionSummary,
     CollectionEnvelope,
     CursorPage,
     Envelope,
@@ -49,7 +50,7 @@ from app.schemas.paper_collection_api import (
     PaperCollectionCandidateRead,
     PaperCollectionRead,
 )
-from app.schemas.paper_summary_api import PaperSummaryRead
+from app.schemas.paper_summary_api import PaperSummaryPdfSourceRead, PaperSummaryRead
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
 from app.services.data_artifacts import DataArtifactReadService
@@ -98,7 +99,13 @@ def _paper_input_service(request: Request) -> PaperCandidateInputService:
 
 
 def _summary_service(request: Request) -> PaperSummaryReadService:
-    return PaperSummaryReadService(_service(request))
+    pdf_source_resolver = None
+    input_service = request.app.state.paper_candidate_input_service
+    if input_service is not None:
+        pdf_source_resolver = input_service.accepted_research_input
+    return PaperSummaryReadService(
+        _service(request), pdf_source_resolver=pdf_source_resolver
+    )
 
 
 def _data_service(request: Request) -> DataArtifactReadService:
@@ -183,6 +190,34 @@ def get_research_artifact(
 
 
 @router.get(
+    "/artifacts/{artifact_id}/versions",
+    operation_id="listArtifactVersions",
+    response_model=CollectionEnvelope[ArtifactVersionSummary],
+)
+def list_artifact_versions(
+    artifact_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+    cursor: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> CollectionEnvelope[ArtifactVersionSummary]:
+    versions, next_cursor, has_more = _service(request).list_artifact_versions(
+        artifact_id=artifact_id,
+        session_id=_session_id(request),
+        cursor=cursor,
+        limit=limit,
+    )
+    _no_store(response)
+    path = f"/api/artifacts/{artifact_id}/versions"
+    return CollectionEnvelope(
+        data=versions,
+        page=CursorPage(next_cursor=next_cursor, has_more=has_more, limit=limit),
+        meta=_meta(request),
+        links=ResponseLinks(self=path),
+    )
+
+
+@router.get(
     "/artifact-versions/{version_id}",
     operation_id="getArtifactVersion",
     response_model=Envelope[ArtifactVersionDetail],
@@ -233,6 +268,24 @@ def get_paper_summary(
     )
     _no_store(response)
     path = f"/api/artifact-versions/{version_id}/paper-summary"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/artifact-versions/{version_id}/paper-summary/pdf-source",
+    operation_id="getPaperSummaryPdfSource",
+    response_model=Envelope[PaperSummaryPdfSourceRead],
+)
+def get_paper_summary_pdf_source(
+    version_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+) -> Envelope[PaperSummaryPdfSourceRead]:
+    data = _summary_service(request).get_pdf_source(
+        version_id=version_id, session_id=_session_id(request)
+    )
+    _no_store(response)
+    path = f"/api/artifact-versions/{version_id}/paper-summary/pdf-source"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 

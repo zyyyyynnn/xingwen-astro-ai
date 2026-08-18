@@ -67,6 +67,7 @@ def canonicalize_record(
         doi=record.doi,
         arxiv_id=record.arxiv_id,
         url=record.url,
+        abstract=record.abstract,
         record_hash=record_hash,
         synthetic_note=record.synthetic_note,
     )

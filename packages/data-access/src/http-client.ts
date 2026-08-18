@@ -63,9 +63,19 @@ export class HttpClient {
     return `${this.config.baseUrl}${path}`;
   }
 
-  private prepareHeaders(method: string, extra?: HeadersInit): Headers {
+  private prepareHeaders(
+    method: string,
+    extra?: HeadersInit,
+    body?: unknown,
+  ): Headers {
     const headers = new Headers(extra);
-    if (method.toUpperCase() !== "GET" && !headers.has("Content-Type")) {
+    const isMultipart =
+      typeof FormData !== "undefined" && body instanceof FormData;
+    if (
+      method.toUpperCase() !== "GET" &&
+      !isMultipart &&
+      !headers.has("Content-Type")
+    ) {
       headers.set("Content-Type", "application/json");
     }
     if (!SAFE_METHODS.has(method.toUpperCase())) {
@@ -181,6 +191,52 @@ export class HttpClient {
     return response.body.data;
   }
 
+  /** POST a multipart body without setting a boundary-breaking JSON header. */
+  async postMultipart<T>(
+    path: string,
+    body: FormData,
+    headers?: HeadersInit,
+  ): Promise<T> {
+    const response = await this.request<Envelope<T>>(
+      "POST",
+      path,
+      body,
+      headers,
+    );
+    if (!response.body) {
+      throw new UnexpectedHttpError(
+        "Empty response body on multipart POST",
+        response.status,
+        null,
+      );
+    }
+    return response.body.data;
+  }
+
+  /** Read a binary endpoint through the same session/error boundary. */
+  async getBlob(path: string): Promise<Blob> {
+    const response = await this.rawRequest("GET", path);
+    if (response.status === 404) {
+      throw await errorFromResponse(response);
+    }
+    if (!response.ok) {
+      await this.throwFromResponse(response);
+    }
+    return response.blob();
+  }
+
+  /** Read a binary endpoint as ArrayBuffer through the same session/error boundary. */
+  async getArrayBuffer(path: string): Promise<ArrayBuffer> {
+    const response = await this.rawRequest("GET", path);
+    if (response.status === 404) {
+      throw await errorFromResponse(response);
+    }
+    if (!response.ok) {
+      await this.throwFromResponse(response);
+    }
+    return response.arrayBuffer();
+  }
+
   /** PATCH updating a resource; returns parsed `data`. */
   async patch<T>(
     path: string,
@@ -237,13 +293,20 @@ export class HttpClient {
     body?: unknown,
     extraHeaders?: HeadersInit,
   ): Promise<Response> {
-    const headers = this.prepareHeaders(method, extraHeaders);
+    const headers = this.prepareHeaders(method, extraHeaders, body);
+    const isFormData =
+      typeof FormData !== "undefined" && body instanceof FormData;
     let response: Response;
     try {
       response = await this.fetchImpl(this.buildUrl(path), {
         method,
         headers,
-        body: body !== undefined ? JSON.stringify(body) : undefined,
+        body:
+          body === undefined
+            ? undefined
+            : isFormData
+              ? body
+              : JSON.stringify(body),
         credentials: "include",
       });
     } catch (err) {

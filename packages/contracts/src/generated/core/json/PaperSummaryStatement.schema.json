@@ -1,0 +1,52 @@
+{
+  "$defs": {
+    "PaperSummarySupportStatus": {
+      "enum": [
+        "supported",
+        "unsupported",
+        "unverifiable"
+      ],
+      "title": "PaperSummarySupportStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "evidence_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "statement_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Statement Id",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/PaperSummarySupportStatus"
+    },
+    "text": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    },
+    "validation_code": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Validation Code",
+      "type": "string"
+    }
+  },
+  "required": [
+    "statement_id",
+    "text",
+    "evidence_ids",
+    "status",
+    "validation_code"
+  ],
+  "title": "PaperSummaryStatement",
+  "type": "object"
+}

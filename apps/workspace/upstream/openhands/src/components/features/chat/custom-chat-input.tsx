@@ -13,6 +13,11 @@ interface CustomChatInputProps {
   readonly leadingActions: ReactNode;
   readonly onValueChange: (value: string) => void;
   readonly onSubmit: (message: string) => Promise<void>;
+  readonly onFilesSelected?: (files: readonly File[]) => void;
+  readonly onDragOver?: () => void;
+  readonly onDragLeave?: () => void;
+  readonly onDropFiles?: (files: readonly File[]) => void;
+  readonly dragActive?: boolean;
 }
 
 export function CustomChatInput({
@@ -23,6 +28,11 @@ export function CustomChatInput({
   leadingActions,
   onValueChange,
   onSubmit,
+  onFilesSelected,
+  onDragOver,
+  onDragLeave,
+  onDropFiles,
+  dragActive = false,
 }: CustomChatInputProps) {
   const chatInputRef = React.useRef<HTMLDivElement>(null);
   const chatContainerRef = React.useRef<HTMLDivElement>(null);
@@ -65,6 +75,12 @@ export function CustomChatInput({
   }, [disabled, onSubmit, onValueChange, resetHeight, submitting]);
 
   const handlePaste = (event: React.ClipboardEvent) => {
+    const files = Array.from(event.clipboardData.files ?? []);
+    if (files.length > 0) {
+      event.preventDefault();
+      onFilesSelected?.(files);
+      return;
+    }
     const text = event.clipboardData.getData("text/plain");
     if (!text) return;
     event.preventDefault();
@@ -125,6 +141,14 @@ export function CustomChatInput({
             void handleSubmit();
           }
         }}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={(event) => {
+          event.preventDefault();
+          onDragLeave?.();
+          onDropFiles?.(Array.from(event.dataTransfer.files));
+        }}
+        dragActive={dragActive}
       />
     </div>
   );

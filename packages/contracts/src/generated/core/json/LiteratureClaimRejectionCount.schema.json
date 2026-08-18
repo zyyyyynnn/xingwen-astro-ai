@@ -1,0 +1,47 @@
+{
+  "$defs": {
+    "LiteratureClaimRejectionReason": {
+      "enum": [
+        "literature_claim.json_invalid",
+        "literature_claim.schema_invalid",
+        "literature_claim.input_artifact_version_unknown",
+        "literature_claim.input_schema_version_unsupported",
+        "literature_claim.evidence_missing",
+        "literature_claim.evidence_not_found",
+        "literature_claim.source_snapshot_not_found",
+        "literature_claim.ownership_mismatch",
+        "literature_claim.normalization_unsafe",
+        "literature_claim.duplicate"
+      ],
+      "title": "LiteratureClaimRejectionReason",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "count": {
+      "minimum": 1,
+      "title": "Count",
+      "type": "integer"
+    },
+    "rejection_reason": {
+      "$ref": "#/$defs/LiteratureClaimRejectionReason"
+    },
+    "sample_case_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Sample Case Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "rejection_reason",
+    "count",
+    "sample_case_ids"
+  ],
+  "title": "LiteratureClaimRejectionCount",
+  "type": "object"
+}

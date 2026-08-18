@@ -24,7 +24,7 @@ import fixtureDocument from "./paper-acquisition.fixture.json";
 /** Generation provenance: tool, command, benchmark identity and demo note. */
 export const paperAcquisitionFixtureProvenance = fixtureDocument.$generated;
 
-/** The complete PaperCollection API collection read pinned to `artv_papcol_01`. */
+/** The complete PaperCollection API collection read pinned to its persisted UUID. */
 export const paperCollectionReadFixture =
   fixtureDocument.read as unknown as PaperCollectionReadDto;
 

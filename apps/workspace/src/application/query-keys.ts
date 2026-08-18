@@ -13,6 +13,8 @@ export const workspaceQueryKeys = Object.freeze({
       ...workspaceQueryKeys.projectScope(projectId),
       "research-catalog",
     ] as const,
+  researchInputs: (projectId: DomainEntityId) =>
+    [...workspaceQueryKeys.projectScope(projectId), "research-inputs"] as const,
   thread: (projectId: DomainEntityId) =>
     [...workspaceQueryKeys.projectScope(projectId), "research-thread"] as const,
   draft: (projectId: DomainEntityId, draftId: DomainEntityId) =>
@@ -25,10 +27,96 @@ export const workspaceQueryKeys = Object.freeze({
     ] as const,
   run: (projectId: DomainEntityId, runId: DomainEntityId) =>
     [...workspaceQueryKeys.projectScope(projectId), "run", runId] as const,
+  runCheckpoint: (projectId: DomainEntityId, runId: DomainEntityId) =>
+    [...workspaceQueryKeys.run(projectId, runId), "checkpoint"] as const,
   runEvents: (projectId: DomainEntityId, runId: DomainEntityId) =>
     [...workspaceQueryKeys.run(projectId, runId), "events"] as const,
   runSteps: (projectId: DomainEntityId, runId: DomainEntityId) =>
     [...workspaceQueryKeys.run(projectId, runId), "steps"] as const,
+  artifactsByRun: (projectId: DomainEntityId, runId: DomainEntityId) =>
+    [...workspaceQueryKeys.run(projectId, runId), "artifacts"] as const,
+  artifact: (projectId: DomainEntityId, artifactId: DomainEntityId) =>
+    [
+      ...workspaceQueryKeys.projectScope(projectId),
+      "artifact",
+      artifactId,
+    ] as const,
+  artifactVersions: (projectId: DomainEntityId, artifactId: DomainEntityId) =>
+    [
+      ...workspaceQueryKeys.artifact(projectId, artifactId),
+      "versions",
+    ] as const,
+  artifactVersion: (
+    projectId: DomainEntityId,
+    artifactVersionId: DomainEntityId,
+  ) =>
+    [
+      ...workspaceQueryKeys.projectScope(projectId),
+      "artifact-version",
+      artifactVersionId,
+    ] as const,
+  evidence: (projectId: DomainEntityId, evidenceId: DomainEntityId) =>
+    [
+      ...workspaceQueryKeys.projectScope(projectId),
+      "evidence",
+      evidenceId,
+    ] as const,
+  paperSummary: (
+    projectId: DomainEntityId,
+    artifactVersionId: DomainEntityId,
+  ) =>
+    [
+      ...workspaceQueryKeys.artifactVersion(projectId, artifactVersionId),
+      "paper-summary",
+    ] as const,
+  paperSummaryPdfSource: (
+    projectId: DomainEntityId,
+    artifactVersionId: DomainEntityId,
+  ) =>
+    [
+      ...workspaceQueryKeys.paperSummary(projectId, artifactVersionId),
+      "pdf-source",
+    ] as const,
+  dataArtifact: (
+    projectId: DomainEntityId,
+    artifactVersionId: DomainEntityId,
+    kind: string,
+  ) =>
+    [
+      ...workspaceQueryKeys.projectScope(projectId),
+      "data-artifact",
+      kind,
+      artifactVersionId,
+    ] as const,
+  paperAcquisition: (
+    projectId: DomainEntityId,
+    artifactVersionId: DomainEntityId,
+  ) =>
+    [
+      ...workspaceQueryKeys.projectScope(projectId),
+      "paper-acquisition",
+      artifactVersionId,
+    ] as const,
+  literatureArtifact: (
+    projectId: DomainEntityId,
+    artifactVersionId: DomainEntityId,
+    kind: string,
+  ) =>
+    [
+      ...workspaceQueryKeys.projectScope(projectId),
+      "literature-artifact",
+      kind,
+      artifactVersionId,
+    ] as const,
+  graphArtifact: (
+    projectId: DomainEntityId,
+    artifactVersionId: DomainEntityId,
+  ) =>
+    [
+      ...workspaceQueryKeys.projectScope(projectId),
+      "graph-artifact",
+      artifactVersionId,
+    ] as const,
 });
 
 export function isPrivateWorkspaceQuery(queryKey: readonly unknown[]): boolean {

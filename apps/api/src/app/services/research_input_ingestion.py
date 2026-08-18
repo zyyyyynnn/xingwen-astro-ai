@@ -26,10 +26,14 @@ import dataclasses
 from dataclasses import dataclass
 
 from app.schemas.research_input import (
+    RESEARCH_INPUT_CONTENT_NOT_READABLE,
     RESEARCH_INPUT_FILENAME_INVALID,
     RESEARCH_INPUT_MIME_REJECTED,
+    RESEARCH_INPUT_NOT_FOUND,
+    UPLOAD_SOURCE_TYPE,
     URL_FETCH_BLOCKED,
     ResearchInputCreate,
+    ResearchInputStatus,
     ResearchInputType,
 )
 from app.security import SecurityProblem
@@ -112,6 +116,46 @@ class ResearchInputIngestionService:
         return await self._create_bytes(
             command, canonical_project_id=canonical_project_id
         )
+
+    async def read_content(
+        self, *, session_id: str, input_id: str
+    ) -> tuple[bytes, str, str | None]:
+        """Return ``(content, mime_type, filename)`` for one owned file input.
+
+        Browser-safe content read for an accepted, file-backed input owned by
+        the current session. The bytes come from the same immutable
+        content-addressed store ingestion published to; this method never
+        accepts a path or URL and never acts as a proxy. Missing and foreign
+        inputs are indistinguishable (404).
+        """
+
+        record = self._repository.get(session_id=session_id, input_id=input_id)
+        if record is None:
+            raise SecurityProblem(
+                status=404,
+                code=RESEARCH_INPUT_NOT_FOUND,
+                title="Research input not found",
+                detail="The research input does not exist or is not owned by this session",
+            )
+        if (
+            record.status is not ResearchInputStatus.accepted
+            or record.source_type != UPLOAD_SOURCE_TYPE
+        ):
+            raise SecurityProblem(
+                status=409,
+                code=RESEARCH_INPUT_CONTENT_NOT_READABLE,
+                title="Research input content not readable",
+                detail="Only accepted file uploads expose readable content",
+            )
+        content = await self._storage.retrieve(record.content_hash)
+        if content is None:
+            raise SecurityProblem(
+                status=409,
+                code=RESEARCH_INPUT_CONTENT_NOT_READABLE,
+                title="Research input content not readable",
+                detail="The stored content for this input is not available",
+            )
+        return content, record.mime_type or "application/octet-stream", record.filename
 
     # ---- URL ---------------------------------------------------------------
 

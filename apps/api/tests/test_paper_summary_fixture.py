@@ -68,7 +68,10 @@ def test_committed_read_passes_pydantic(committed_document: dict[str, Any]) -> N
     )
     assert read.source_mode.value == "fixture"
     assert read.summary.summary_id == summary.summary_id
-    assert summary.input_versions.paper_collection_version_id == "artv_papcol_01"
+    assert (
+        summary.input_versions.paper_collection_version_id
+        == "11111111-1111-4111-8111-111111111111"
+    )
     assert summary.evidence_ids == tuple(
         sorted(item.evidence_id for item in summary.evidence)
     )
@@ -94,7 +97,7 @@ def test_artifact_version_identity_is_consistent_with_the_summary(
     assert producer == read["producer_execution"]["producer"]
     assert producer["name"] == read["summary"]["producer"]["producer_name"]
     assert producer["version"] == read["summary"]["producer"]["producer_version"]
-    assert producer["model_name"] == read["summary"]["producer"]["model_name"]
+    assert producer["requested_model"] == read["summary"]["producer"]["model_name"]
     assert producer["prompt_hash"] == read["summary"]["producer"]["prompt_hash"]
     assert (
         producer["parameters_hash"]

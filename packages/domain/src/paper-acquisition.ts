@@ -100,8 +100,8 @@ export interface PaperAcquisitionMetrics {
   readonly selectedCount: number;
   readonly duplicateCandidateCount: number;
   readonly duplicateRate: number;
-  readonly expectedCandidateCount: number;
-  readonly recalledExpectedCandidateCount: number;
+  readonly expectedCandidateCount: number | null;
+  readonly recalledExpectedCandidateCount: number | null;
   readonly candidateRecall: number | null;
   readonly sourceExecutionCount: number;
   readonly sourceFailureCount: number;
@@ -288,7 +288,8 @@ export interface PaperAcquisitionReview {
   readonly createdAt: UtcIsoTimestamp;
   readonly query: PaperSearchReview;
   readonly acquisition: PaperAcquisitionRunReview;
-  readonly benchmark: PaperBenchmarkReview;
+  /** Null for contract-driven live collections; only frozen benchmark scenarios carry one. */
+  readonly benchmark: PaperBenchmarkReview | null;
   readonly metrics: PaperAcquisitionMetrics;
   readonly rules: PaperAcquisitionRules;
   readonly sourceExecutions: readonly PaperSourceExecutionReview[];

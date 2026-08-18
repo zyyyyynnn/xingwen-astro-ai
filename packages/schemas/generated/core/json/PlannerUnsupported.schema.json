@@ -12,7 +12,8 @@
       "type": "string"
     },
     "public_analysis": {
-      "minLength": 1,
+      "maxLength": 500,
+      "minLength": 12,
       "title": "Public Analysis",
       "type": "string"
     },

@@ -3,7 +3,7 @@
  * check-agent-upstream-adoption.mjs
  *
  * Machine gate enforcing OpenHands as the UNIQUE upstream Agent Product source,
- * a fail-closed provenance contract, and a private-reasoning boundary. Runs as
+ * a fail-closed provenance contract, and a public-analysis boundary. Runs as
  * part of `pnpm check:architecture`.
  *
  * Gates:
@@ -15,7 +15,7 @@
  *   G6  No rewrite class       — adoption_class forbids REWRITE/RECREATE/REIMPLEMENT/INSPIRED_BY.
  *   G7  Coding surface         — excluded coding surfaces must not enter production graph.
  *   G8  Only OpenHands src     — no file sourced from a non-OpenHands repository.
- *   G9  Private reasoning boundary — policy_sets honored (excluded/disclosure).
+ *   G9  Public analysis boundary — policy_sets honored (excluded/disclosure).
  *   G10 Source closure         — vendored files are reachable and imports resolve.
  *
  * The check is injectable: `checkAgentUpstreamAdoption(root)` where root is any
@@ -53,8 +53,9 @@ const VALID_CLASSIFICATIONS = new Set([
 const HASH_RE = /^[0-9a-f]{64}$/u;
 const DISCLOSURE_CONSTRAINTS = [
   "preserve-disclosure-mechanics",
-  "forbid-private-reasoning-input",
-  "public-auditable-reasoning-only",
+  "server-validated-public-analysis-only",
+  "exclude-from-share-export-and-formal-artifacts",
+  "collapsed-by-default-user-controlled-disclosure",
 ];
 
 function readJSON(root, rel) {
@@ -354,28 +355,28 @@ export function checkAgentUpstreamAdoption(root) {
     );
   }
 
-  // ---- G9 : private reasoning boundary (policy_sets) ----
+  // ---- G9 : public analysis boundary (policy_sets) ----
   // source-policy is the complete inventory; compact source-scope files only
   // need to reject a private path when it is explicitly represented there.
   const policySets = scope.policy_sets ?? {};
-  if (policySets.private_reasoning_excluded) {
-    for (const p of policySets.private_reasoning_excluded) {
+  if (policySets.foreign_runtime_excluded) {
+    for (const p of policySets.foreign_runtime_excluded) {
       const sf = seenPaths.has(p)
         ? files.find((f) => f.upstream_path === p)
         : null;
       if (sf && sf.classification !== "EXCLUDED") {
         failures.push(
-          `G9: private_reasoning_excluded path not classified EXCLUDED: ${p}.`,
+          `G9: foreign_runtime_excluded path not classified EXCLUDED: ${p}.`,
         );
       }
     }
   }
-  if (policySets.public_reasoning_disclosure) {
-    for (const p of policySets.public_reasoning_disclosure) {
+  if (policySets.public_step_analysis_disclosure) {
+    for (const p of policySets.public_step_analysis_disclosure) {
       const sf = files.find((f) => f.upstream_path === p);
       if (!sf || sf.classification !== "PARTIAL_SURGICAL") {
         failures.push(
-          `G9: public_reasoning_disclosure path not classified PARTIAL_SURGICAL: ${p}.`,
+          `G9: public_step_analysis_disclosure path not classified PARTIAL_SURGICAL: ${p}.`,
         );
         continue;
       }

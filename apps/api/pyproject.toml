@@ -8,7 +8,6 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "aiofiles>=24.1.0",
-    "alembic>=1.16.1,<2",
     "fastapi>=0.139.0",
     "httpx>=0.28.0",
     "openai>=3.0.0",

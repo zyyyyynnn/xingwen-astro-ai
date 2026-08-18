@@ -1,0 +1,112 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "content_hash": {
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "edge_types": {
+      "maxItems": 10,
+      "minItems": 10,
+      "prefixItems": [
+        {
+          "const": "compares_method",
+          "type": "string"
+        },
+        {
+          "const": "contradicts",
+          "type": "string"
+        },
+        {
+          "const": "derived_from",
+          "type": "string"
+        },
+        {
+          "const": "extends",
+          "type": "string"
+        },
+        {
+          "const": "limits",
+          "type": "string"
+        },
+        {
+          "const": "provides_field",
+          "type": "string"
+        },
+        {
+          "const": "supports",
+          "type": "string"
+        },
+        {
+          "const": "supports_finding",
+          "type": "string"
+        },
+        {
+          "const": "uses_dataset",
+          "type": "string"
+        },
+        {
+          "const": "uses_same_dataset",
+          "type": "string"
+        }
+      ],
+      "title": "Edge Types",
+      "type": "array"
+    },
+    "node_types": {
+      "maxItems": 5,
+      "minItems": 5,
+      "prefixItems": [
+        {
+          "const": "claim",
+          "type": "string"
+        },
+        {
+          "const": "dataset",
+          "type": "string"
+        },
+        {
+          "const": "field",
+          "type": "string"
+        },
+        {
+          "const": "paper",
+          "type": "string"
+        },
+        {
+          "const": "research_goal",
+          "type": "string"
+        }
+      ],
+      "title": "Node Types",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "2.0.0",
+      "default": "2.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "taxonomy_id": {
+      "const": "taxonomy.graph.evidence_graph",
+      "default": "taxonomy.graph.evidence_graph",
+      "title": "Taxonomy Id",
+      "type": "string"
+    },
+    "version": {
+      "const": "2.0.0",
+      "default": "2.0.0",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "node_types",
+    "edge_types",
+    "content_hash"
+  ],
+  "title": "GraphTaxonomy",
+  "type": "object"
+}

@@ -35,7 +35,7 @@ import {
   TEST_BASE_URL,
 } from "./http-helpers";
 
-const VERSION_ID = "artv_papcol_01" as never;
+const VERSION_ID = "11111111-1111-4111-8111-111111111111" as never;
 
 function setupHttpRepos() {
   httpServer.use(...defaultHandlers);

@@ -46,6 +46,21 @@
       ]
     },
     {
+      "name": "Card",
+      "local_path": "packages/ui/src/card.tsx",
+      "source": "@shadcn/card",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "card",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains the registry Card composition with clsx composition while mapping spacing, typography, surfaces and footer treatment to Xingwen semantic tokens.",
+      "production_consumers": [
+        "apps/workspace/src/components/protocol-draft-card.tsx"
+      ]
+    },
+    {
       "name": "Badge",
       "local_path": "packages/ui/src/badge.tsx",
       "source": "@shadcn/badge",
@@ -57,7 +72,7 @@
       "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
       "adaptation": "Retains the registry badge slot and variant contract with clsx composition and semantic Xingwen status tokens, without unused Slot or CVA dependencies.",
       "production_consumers": [
-        "apps/workspace/src/components/research-contract-review-dialog.tsx"
+        "apps/workspace/src/components/paper-summary-renderer.tsx"
       ]
     },
     {
@@ -117,7 +132,7 @@
       "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
       "adaptation": "Retains Radix dialog focus, escape and portal mechanics with clsx composition, Chinese controls and semantic motion.",
       "production_consumers": [
-        "apps/workspace/src/components/research-contract-review-dialog.tsx"
+        "apps/workspace/src/components/project-action-dialogs.tsx"
       ]
     },
     {
@@ -280,6 +295,81 @@
       "adaptation": "Uses clsx composition with semantic multiline input, focus, validation and disabled-state tokens.",
       "production_consumers": [
         "apps/workspace/src/components/research-contract-form.tsx"
+      ]
+    },
+    {
+      "name": "RadioGroup",
+      "local_path": "packages/ui/src/radio-group.tsx",
+      "source": "@shadcn/radio-group",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "radio-group",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains Radix radio selection and accessibility mechanics with clsx composition and Xingwen tokens.",
+      "production_consumers": [
+        "apps/workspace/src/components/choice-prompt.tsx"
+      ]
+    },
+    {
+      "name": "Sheet",
+      "local_path": "packages/ui/src/sheet.tsx",
+      "source": "@shadcn/sheet",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "sheet",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains Radix Dialog overlay, focus-trap and Escape mechanics with clsx composition, side modifier classes and Xingwen tokens.",
+      "production_consumers": [
+        "apps/workspace/upstream/openhands/src/components/features/conversation/conversation-main/conversation-main.tsx"
+      ]
+    },
+    {
+      "name": "ResizablePanelGroup",
+      "local_path": "packages/ui/src/resizable-panel-group.tsx",
+      "source": "react-resizable-panels",
+      "upstream_repository": "https://github.com/bvaughn/react-resizable-panels",
+      "upstream_revision": "react-resizable-panels@4.12.2",
+      "upstream_commit": "a1eeb7aefdb024bb5879a323218e0ac05f77f28e",
+      "registry_item": "Group",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Thin governed alias over the maintained Group runtime; no local resize state machine.",
+      "production_consumers": [
+        "apps/workspace/src/components/paper-result-workspace.tsx"
+      ]
+    },
+    {
+      "name": "ResizablePanel",
+      "local_path": "packages/ui/src/resizable-panel.tsx",
+      "source": "react-resizable-panels",
+      "upstream_repository": "https://github.com/bvaughn/react-resizable-panels",
+      "upstream_revision": "react-resizable-panels@4.12.2",
+      "upstream_commit": "a1eeb7aefdb024bb5879a323218e0ac05f77f28e",
+      "registry_item": "Panel",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Thin governed alias over the maintained Panel runtime; product sizing remains declarative.",
+      "production_consumers": [
+        "apps/workspace/src/components/paper-result-workspace.tsx"
+      ]
+    },
+    {
+      "name": "ResizableHandle",
+      "local_path": "packages/ui/src/resizable-handle.tsx",
+      "source": "react-resizable-panels",
+      "upstream_repository": "https://github.com/bvaughn/react-resizable-panels",
+      "upstream_revision": "react-resizable-panels@4.12.2",
+      "upstream_commit": "a1eeb7aefdb024bb5879a323218e0ac05f77f28e",
+      "registry_item": "Separator",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Thin governed alias over the maintained accessible Separator runtime; keyboard and pointer behavior stay upstream-owned.",
+      "production_consumers": [
+        "apps/workspace/src/components/paper-result-workspace.tsx"
       ]
     }
   ]

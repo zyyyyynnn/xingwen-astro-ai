@@ -10,6 +10,21 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _MIME_PATTERN = re.compile(r"^[a-zA-Z0-9!#$&^_\-\.\+]+/[a-zA-Z0-9!#$&^_\-\.\+]+$")
 
+# The approved Qwen model pool. The model name is itself the version
+# identity: floating aliases stay unpinned, explicit dated snapshots pin
+# themselves. A floating alias must never carry a fabricated revision.
+QWEN_APPROVED_MODELS = frozenset(
+    {
+        "qwen3.8-max",
+        "qwen3.7-max",
+        "qwen3.7-max-2026-06-08",
+        "qwen3.7-max-2026-05-20",
+        "qwen3.7-max-2026-05-17",
+        "qwen3.7-max-preview",
+    }
+)
+QWEN_FLOATING_ALIASES = frozenset({"qwen3.8-max", "qwen3.7-max"})
+
 
 def _settings_env_files() -> tuple[Path, ...]:
     """Load the repository dotenv regardless of the API process cwd."""
@@ -70,13 +85,14 @@ class Settings(BaseSettings):
     DATABASE_URL: SecretStr | None = None
     POSTGRES_PASSWORD: SecretStr | None = None
 
-    # Qwen is the sole Research Assistant provider. The family and exact
-    # snapshot are recorded separately so provenance remains stable while the
-    # provider request always targets an immutable model identity.
+    # Qwen is the sole Research Assistant provider. The model name is itself
+    # the version identity: floating aliases (qwen3.8-max, qwen3.7-max) or
+    # explicit dated snapshots from the approved pool. An explicit revision
+    # must never be fabricated for a floating alias.
     DASHSCOPE_API_KEY: SecretStr | None = None
     DASHSCOPE_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    DASHSCOPE_MODEL: str = "qwen3.7-plus"
-    DASHSCOPE_MODEL_REVISION: str = "qwen3.7-plus-2026-05-26"
+    DASHSCOPE_MODEL: str = "qwen3.8-max"
+    DASHSCOPE_EXPLICIT_MODEL_REVISION: str | None = None
     DASHSCOPE_TIMEOUT_SECONDS: float = Field(default=45.0, gt=0)
     DASHSCOPE_MAX_RETRIES: int = Field(default=2, ge=0, le=4)
     MODEL_EXECUTION_LEASE_GRACE_SECONDS: float = Field(default=30.0, gt=0)
@@ -88,6 +104,8 @@ class Settings(BaseSettings):
         default=[
             "application/pdf",
             "text/csv",
+            "application/fits",
+            "image/fits",
             "application/json",
             "image/png",
             "image/jpeg",
@@ -177,16 +195,20 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_safety(self) -> Settings:
-        if (
-            self._secret_value(self.DASHSCOPE_API_KEY)
-            and not self.DASHSCOPE_MODEL_REVISION.strip()
-        ):
+        if self.DASHSCOPE_MODEL not in QWEN_APPROVED_MODELS:
             raise ValueError(
-                "DASHSCOPE_MODEL_REVISION must be configured when DASHSCOPE_API_KEY is set"
+                "DASHSCOPE_MODEL must belong to the approved Qwen model pool"
             )
-        if not self.DASHSCOPE_MODEL_REVISION.startswith(f"{self.DASHSCOPE_MODEL}-"):
+        revision = (self.DASHSCOPE_EXPLICIT_MODEL_REVISION or "").strip()
+        self.DASHSCOPE_EXPLICIT_MODEL_REVISION = revision or None
+        if self.DASHSCOPE_MODEL in QWEN_FLOATING_ALIASES and revision:
             raise ValueError(
-                "DASHSCOPE_MODEL_REVISION must be an immutable snapshot of DASHSCOPE_MODEL"
+                "floating Qwen aliases must not carry a fabricated model revision"
+            )
+        if revision and revision != self.DASHSCOPE_MODEL:
+            raise ValueError(
+                "DASHSCOPE_EXPLICIT_MODEL_REVISION must equal the explicit "
+                "DASHSCOPE_MODEL identity"
             )
         if self.URL_FETCH_MAX_RESPONSE_BYTES > self.RESEARCH_INPUT_MAX_SIZE_BYTES:
             raise ValueError(

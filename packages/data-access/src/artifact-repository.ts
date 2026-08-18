@@ -9,6 +9,7 @@
 
 import type {
   ArtifactVersionMetadata,
+  ArtifactVersionSummary,
   Evidence,
   ResearchArtifact,
 } from "@xingwen/domain";
@@ -16,6 +17,7 @@ import type {
 import { HttpClient, seg, validateAndMap } from "./http-client";
 import {
   mapArtifactVersionMetadata,
+  mapArtifactVersionSummary,
   mapEvidenceRead,
   mapResearchArtifact,
   mapResearchArtifactDetail,
@@ -43,6 +45,14 @@ export function createArtifactRepository(
             mapResearchArtifactDetail,
           )
         : null;
+    },
+    async listVersions(artifactId): Promise<readonly ArtifactVersionSummary[]> {
+      const payloads = await http.list<unknown>(
+        `/api/artifacts/${seg(artifactId)}/versions`,
+      );
+      return payloads.map((p) =>
+        validateAndMap("ArtifactVersionSummary", p, mapArtifactVersionSummary),
+      );
     },
     async getVersion(id): Promise<ArtifactVersionMetadata | null> {
       const payload = await http.get<unknown>(

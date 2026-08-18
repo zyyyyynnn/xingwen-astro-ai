@@ -1,0 +1,121 @@
+{
+  "$defs": {
+    "DataArtifactAdmissionSnapshot": {
+      "properties": {
+        "bundle_commitment_hash": {
+          "title": "Bundle Commitment Hash",
+          "type": "string"
+        },
+        "context_hash": {
+          "title": "Context Hash",
+          "type": "string"
+        },
+        "input_hash": {
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "input_json": {
+          "title": "Input Json",
+          "type": "string"
+        }
+      },
+      "required": [
+        "input_json",
+        "input_hash",
+        "context_hash",
+        "bundle_commitment_hash"
+      ],
+      "title": "DataArtifactAdmissionSnapshot",
+      "type": "object"
+    },
+    "DataArtifactPublicationSeal": {
+      "properties": {
+        "bundle_commitment_hash": {
+          "title": "Bundle Commitment Hash",
+          "type": "string"
+        },
+        "candidate_id": {
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "candidate_kind": {
+          "title": "Candidate Kind",
+          "type": "string"
+        },
+        "context_hash": {
+          "title": "Context Hash",
+          "type": "string"
+        },
+        "input_hash": {
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "object_id": {
+          "title": "Object Id",
+          "type": "integer"
+        },
+        "output_hash": {
+          "title": "Output Hash",
+          "type": "string"
+        },
+        "public_payload_hash": {
+          "title": "Public Payload Hash",
+          "type": "string"
+        },
+        "token": {
+          "title": "Token"
+        }
+      },
+      "required": [
+        "token",
+        "object_id",
+        "candidate_kind",
+        "candidate_id",
+        "input_hash",
+        "output_hash",
+        "public_payload_hash",
+        "context_hash",
+        "bundle_commitment_hash"
+      ],
+      "title": "DataArtifactPublicationSeal",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "context": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DataArtifactAdmissionSnapshot"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "public_payload_hash": {
+      "title": "Public Payload Hash",
+      "type": "string"
+    },
+    "seal": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DataArtifactPublicationSeal"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "value": {
+      "title": "Value"
+    }
+  },
+  "required": [
+    "value",
+    "seal",
+    "context",
+    "public_payload_hash"
+  ],
+  "type": "object"
+}

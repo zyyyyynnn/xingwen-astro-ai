@@ -16,6 +16,10 @@ interface ChatInputContainerProps {
   readonly onInput: () => void;
   readonly onPaste: (event: React.ClipboardEvent) => void;
   readonly onKeyDown: (event: React.KeyboardEvent) => void;
+  readonly onDragOver?: () => void;
+  readonly onDragLeave?: () => void;
+  readonly onDrop: (event: React.DragEvent<HTMLDivElement>) => void;
+  readonly dragActive: boolean;
 }
 
 export function ChatInputContainer({
@@ -30,12 +34,22 @@ export function ChatInputContainer({
   onInput,
   onPaste,
   onKeyDown,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  dragActive,
 }: ChatInputContainerProps) {
   return (
     <div
       ref={chatContainerRef}
       data-testid="chat-input-container"
-      className="chat-input-container flex h-full min-h-0 w-full flex-col justify-between gap-y-[var(--oh-composer-row-gap)] rounded-[var(--oh-radius-lg)] border border-[var(--oh-border)] bg-[var(--oh-surface)] px-[var(--oh-composer-padding-inline)] py-[var(--oh-composer-padding-block)] transition-colors focus-within:border-[var(--oh-border-strong)]"
+      className={`chat-input-container flex h-full min-h-0 w-full flex-col justify-between gap-y-[var(--oh-composer-row-gap)] rounded-[var(--oh-radius-lg)] border bg-[var(--oh-surface)] px-[var(--oh-composer-padding-inline)] py-[var(--oh-composer-padding-block)] transition-colors focus-within:border-[var(--oh-border-strong)] ${dragActive ? "border-[var(--oh-border-strong)] bg-[var(--oh-surface-raised)]" : "border-[var(--oh-border)]"}`}
+      onDragOver={(event) => {
+        event.preventDefault();
+        onDragOver?.();
+      }}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
     >
       <ChatInputRow
         chatInputRef={chatInputRef}

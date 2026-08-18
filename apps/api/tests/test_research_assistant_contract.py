@@ -51,7 +51,7 @@ def test_planner_outcome_is_discriminated_and_draft_is_validated() -> None:
     output = planner_outcome.validate_python(
         {
             "outcome": "draft_ready",
-            "public_analysis": "已明确研究对象、字段和来源范围。",
+            "public_analysis": "已核对研究对象、目标字段与允许的数据来源。",
             "assistant_message": "我已整理出一份待确认的研究协议。",
             "warnings": [],
             "contract": _contract_input().model_dump(mode="json"),
@@ -65,7 +65,17 @@ def test_planner_outcome_is_discriminated_and_draft_is_validated() -> None:
         planner_outcome.validate_python(
             {
                 "outcome": "draft_ready",
-                "public_analysis": "分析",
+                "public_analysis": "Analyze scope before preparing the contract.",
+                "assistant_message": "请确认协议。",
+                "contract": _contract_input().model_dump(mode="json"),
+            }
+        )
+
+    with pytest.raises(ValidationError):
+        planner_outcome.validate_python(
+            {
+                "outcome": "draft_ready",
+                "public_analysis": "已核对研究对象、目标字段与允许的数据来源。",
                 "assistant_message": "协议",
                 "warnings": [],
                 "contract": {
@@ -79,7 +89,7 @@ def test_planner_outcome_is_discriminated_and_draft_is_validated() -> None:
 def test_planner_draft_must_pass_manifest_admission_before_persistence() -> None:
     output = PlannerDraftReady(
         outcome="draft_ready",
-        public_analysis="已整理协议。",
+        public_analysis="已核对研究对象、目标字段与允许的数据来源。",
         assistant_message="请确认协议。",
         contract=_contract_input().model_copy(
             update={"requested_fields": ("invented.observation_bias",)}
@@ -124,8 +134,8 @@ def test_thread_entry_and_model_execution_are_public_safe_records() -> None:
         id="execution_01JEXAMPLE",
         project_id="project_01JEXAMPLE",
         provider="qwen",
-        model="qwen-plus",
-        model_revision="2026-07-01",
+        requested_model="qwen-plus",
+        explicit_revision="2026-07-01",
         prompt_name="research_contract_planner",
         prompt_version="1.0.0",
         prompt_hash="sha256:" + "a" * 64,

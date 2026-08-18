@@ -103,10 +103,10 @@ docker compose -p %COMPOSE_PROJECT_NAME% up -d --wait postgres >nul 2>&1 || goto
 echo [INFO] Preflight: applying the current database schema...
 pushd "%API_DIR%"
 set "DATABASE_URL=%LOCAL_DATABASE_URL%"
-uv run alembic upgrade head >nul 2>&1
-set "MIGRATION_RESULT=%ERRORLEVEL%"
+uv run python -m app.db.schema >nul 2>&1
+set "SCHEMA_RESULT=%ERRORLEVEL%"
 popd
-if not "%MIGRATION_RESULT%"=="0" goto :abort
+if not "%SCHEMA_RESULT%"=="0" goto :abort
 
 echo [INFO] Preflight: validating the real API import path...
 uv run --project "%API_DIR%" python -c "from app.config import settings; from app.main import app; assert settings.research_assistant_ready, 'DASHSCOPE_API_KEY is not configured'; print(app.title)" >nul 2>&1 || goto :abort

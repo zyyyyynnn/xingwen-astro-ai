@@ -29,12 +29,15 @@ _TYPE_MIME_FAMILIES: dict[ResearchInputType, tuple[str, ...]] = {
     ResearchInputType.url: (
         "application/pdf",
         "text/csv",
+        "application/fits",
+        "image/fits",
         "application/json",
         "image/",
         "text/plain",
     ),
     ResearchInputType.pdf: ("application/pdf",),
     ResearchInputType.csv: ("text/csv",),
+    ResearchInputType.fits: ("application/fits", "image/fits"),
     ResearchInputType.json: ("application/json",),
     ResearchInputType.image: ("image/",),
     ResearchInputType.text: ("text/plain",),
@@ -43,6 +46,9 @@ _TYPE_MIME_FAMILIES: dict[ResearchInputType, tuple[str, ...]] = {
 _FILENAME_EXTENSION_MIME: dict[str, tuple[str, ...]] = {
     "pdf": ("application/pdf",),
     "csv": ("text/csv",),
+    "fits": ("application/fits", "image/fits"),
+    "fit": ("application/fits", "image/fits"),
+    "fts": ("application/fits", "image/fits"),
     "json": ("application/json",),
     "png": ("image/png",),
     "jpg": ("image/jpeg",),
@@ -54,6 +60,19 @@ _FILENAME_EXTENSION_MIME: dict[str, tuple[str, ...]] = {
 
 _CONTROL_CHARACTERS = re.compile(r"[\x00-\x1f\x7f]")
 _ANY_CHARACTER_BUT_SEPARATORS = re.compile(r"[^/\\]+$")
+
+#: Registered spellings that name the same content type. FITS is formally
+#: registered as ``application/fits`` while astronomy tooling historically
+#: declares ``image/fits``; both describe identical bytes.
+_MIME_EQUIVALENTS: tuple[frozenset[str], ...] = (
+    frozenset({"application/fits", "image/fits"}),
+)
+
+
+def _same_mime(left: str, right: str) -> bool:
+    if left == right:
+        return True
+    return any(left in group and right in group for group in _MIME_EQUIVALENTS)
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +109,8 @@ def sniff_mime_type(content: bytes) -> str | None:
 
     if content.startswith(b"%PDF"):
         return "application/pdf"
+    if content.startswith(b"SIMPLE  ="):
+        return "application/fits"
     if content.startswith(b"\x89PNG\r\n\x1a\n"):
         return "image/png"
     if content.startswith(b"\xff\xd8\xff"):
@@ -126,9 +147,11 @@ def validate_declared_mime(
         return None
     if not mime_matches_type(sniffed_mime, declared_type):
         return None
-    if client_mime is not None and normalize_mime(client_mime) != sniffed_mime:
+    if client_mime is not None and not _same_mime(
+        normalize_mime(client_mime), sniffed_mime
+    ):
         return None
-    if sniffed_mime not in allowed_mimes:
+    if not any(_same_mime(sniffed_mime, allowed) for allowed in allowed_mimes):
         return None
     return sniffed_mime
 

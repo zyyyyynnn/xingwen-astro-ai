@@ -24,12 +24,12 @@ COPY apps/api/pyproject.toml apps/api/uv.lock ./
 # 先同步依赖以保留缓存层；源码复制后再安装当前项目本身。
 RUN uv sync --frozen --no-install-project
 
-# 复制源码与迁移资产（migrate one-shot service 与运行时共用同一镜像）
-COPY apps/api/alembic.ini ./
-COPY apps/api/migrations ./migrations
+# 复制当前应用源码（schema one-shot service 与运行时共用同一镜像）
 COPY apps/api/src ./src
 COPY packages/prompts ./packages/prompts
 COPY services/data_pipeline ./services/data_pipeline
+COPY services/paper_pipeline ./services/paper_pipeline
+COPY services/graph_pipeline ./services/graph_pipeline
 
 # 安装当前 API distribution，使运行时 package metadata 与实际项目版本同源。
 RUN uv sync --frozen

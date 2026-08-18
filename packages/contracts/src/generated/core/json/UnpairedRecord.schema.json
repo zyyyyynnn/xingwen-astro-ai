@@ -1,0 +1,86 @@
+{
+  "$defs": {
+    "CrossmatchSide": {
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "CrossmatchSide",
+      "type": "string"
+    },
+    "EntityLevel": {
+      "enum": [
+        "host_star",
+        "planet_candidate",
+        "planet_assertion"
+      ],
+      "title": "EntityLevel",
+      "type": "string"
+    },
+    "MatchDecision": {
+      "enum": [
+        "accepted",
+        "rejected",
+        "review_required",
+        "conflict",
+        "inconclusive",
+        "unmatched"
+      ],
+      "title": "MatchDecision",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "candidate_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Candidate Id",
+      "type": "string"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "decision": {
+      "$ref": "#/$defs/MatchDecision"
+    },
+    "entity_level": {
+      "$ref": "#/$defs/EntityLevel"
+    },
+    "reason": {
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "record_type": {
+      "const": "unpaired",
+      "default": "unpaired",
+      "title": "Record Type",
+      "type": "string"
+    },
+    "side": {
+      "$ref": "#/$defs/CrossmatchSide"
+    },
+    "source_completion_status": {
+      "enum": [
+        "complete",
+        "truncated",
+        "unknown"
+      ],
+      "title": "Source Completion Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "candidate_id",
+    "side",
+    "entity_level",
+    "decision",
+    "source_completion_status",
+    "reason",
+    "content_hash"
+  ],
+  "title": "UnpairedRecord",
+  "type": "object"
+}

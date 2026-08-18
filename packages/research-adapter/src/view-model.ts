@@ -4,9 +4,13 @@ import type {
   CaseKey,
   ContractDraftStatus,
   ContentHash,
+  DataArtifactReview,
   DerivationKind,
   DomainEntityId,
   ExecutionMode,
+  GraphArtifactReview,
+  LiteratureArtifactReview,
+  PaperAcquisitionReview,
   ResearchGoal,
   ResearchPlanningCatalog,
   ResearchThreadAssistantPayload,
@@ -64,7 +68,7 @@ export type ResearchThreadEntryViewModel =
       ResearchThreadUserPayload
     >
   | ResearchThreadEntryViewModelBase<
-      "assistant_analysis",
+      "assistant_reasoning",
       "assistant",
       ResearchThreadAssistantPayload
     >
@@ -171,6 +175,7 @@ export interface ResearchRunViewModel {
   readonly executionMode: ExecutionMode;
   readonly status: RunStatus;
   readonly progress: number;
+  readonly revision: number;
   readonly latestEventSequence: number;
   readonly parentRunId: DomainEntityId | null;
   readonly derivationKind: DerivationKind;
@@ -277,4 +282,60 @@ export interface EvidenceViewModel {
   readonly extractionMethod: string;
   readonly confidence: number;
   readonly createdAt: UtcIsoTimestamp;
+  readonly source: {
+    readonly sourceId: string;
+    readonly sourceType: string;
+    readonly retrievedAt: UtcIsoTimestamp;
+    readonly licenseNote: string;
+    readonly sourceVersionOrEtag: string | null;
+    readonly requestMetadata: Readonly<Record<string, unknown>>;
+  } | null;
 }
+
+export interface RunCheckpointViewModel {
+  readonly id: DomainEntityId;
+  readonly runId: DomainEntityId;
+  readonly stepKey: DomainEntityId;
+  readonly question: string;
+  readonly options: readonly string[];
+  readonly createdAt: UtcIsoTimestamp;
+  readonly selectedOption: string | null;
+  readonly freeText: string | null;
+  readonly decidedAt: UtcIsoTimestamp | null;
+  readonly isAnswered: boolean;
+}
+
+/** UI-safe projection of typed data artifact reads. */
+export type DataArtifactReviewViewModel = DataArtifactReview;
+export type PaperAcquisitionReviewViewModel = PaperAcquisitionReview;
+export type LiteratureArtifactReviewViewModel = LiteratureArtifactReview;
+export type LiteratureClaimsArtifactReviewViewModel = Extract<
+  LiteratureArtifactReview,
+  { readonly kind: "literature_claims" }
+>;
+export type LiteratureRelationsArtifactReviewViewModel = Extract<
+  LiteratureArtifactReview,
+  { readonly kind: "literature_relations" }
+>;
+export type ReasoningTracesArtifactReviewViewModel = Extract<
+  LiteratureArtifactReview,
+  { readonly kind: "reasoning_traces" }
+>;
+export type GraphArtifactReviewViewModel = GraphArtifactReview;
+export type DatasetArtifactReviewViewModel = Extract<
+  DataArtifactReview,
+  { readonly kind: "dataset" }
+>;
+export type FieldDictionaryArtifactReviewViewModel = Extract<
+  DataArtifactReview,
+  { readonly kind: "field_dictionary" }
+>;
+export type SourceCollectionArtifactReviewViewModel = Extract<
+  DataArtifactReview,
+  { readonly kind: "source_collection" }
+>;
+export type DataArtifactFieldDefinitionViewModel =
+  | DatasetArtifactReviewViewModel["columns"][number]
+  | FieldDictionaryArtifactReviewViewModel["fieldDefinitions"][number];
+export type DatasetCellReviewViewModel =
+  DatasetArtifactReviewViewModel["rows"][number]["cells"][number];

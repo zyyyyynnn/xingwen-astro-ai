@@ -437,21 +437,24 @@ export function assemblePaperAcquisitionReview(
       duplicateGroupCount: collection.acquisition_run.duplicate_group_count,
       sourceFailureCount: collection.acquisition_run.source_failure_count,
     },
-    benchmark: {
-      benchmarkId: mapId(collection.benchmark.benchmark_id),
-      benchmarkVersion: collection.benchmark.benchmark_version,
-      scenarioId: mapId(collection.benchmark.scenario_id),
-      schemaVersion: collection.benchmark.schema_version,
-      contentHash: collection.benchmark.content_hash as ContentHash,
-    },
+    benchmark: collection.benchmark
+      ? {
+          benchmarkId: mapId(collection.benchmark.benchmark_id),
+          benchmarkVersion: collection.benchmark.benchmark_version,
+          scenarioId: mapId(collection.benchmark.scenario_id),
+          schemaVersion: collection.benchmark.schema_version,
+          contentHash: collection.benchmark.content_hash as ContentHash,
+        }
+      : null,
     metrics: {
       candidateCount: collection.metrics.candidate_count,
       selectedCount: collection.metrics.selected_count,
       duplicateCandidateCount: collection.metrics.duplicate_candidate_count,
       duplicateRate: collection.metrics.duplicate_rate,
-      expectedCandidateCount: collection.metrics.expected_candidate_count,
+      expectedCandidateCount:
+        collection.metrics.expected_candidate_count ?? null,
       recalledExpectedCandidateCount:
-        collection.metrics.recalled_expected_candidate_count,
+        collection.metrics.recalled_expected_candidate_count ?? null,
       candidateRecall: collection.metrics.candidate_recall ?? null,
       sourceExecutionCount: collection.metrics.source_execution_count,
       sourceFailureCount: collection.metrics.source_failure_count,

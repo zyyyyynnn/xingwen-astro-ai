@@ -152,11 +152,13 @@
   --motion-instant: 90ms;
   --motion-fast: 150ms;
   --motion-base: 220ms;
+  --motion-panel: 200ms;
   --motion-slow: 420ms;
   --motion-scene: 900ms;
 
   /* Easing */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-panel: cubic-bezier(0, 0, 0.58, 1);
   --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
 }

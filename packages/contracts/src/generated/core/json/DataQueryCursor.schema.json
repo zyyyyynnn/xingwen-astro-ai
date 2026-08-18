@@ -1,0 +1,21 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "tid": {
+      "minimum": 0,
+      "title": "Tid",
+      "type": "integer"
+    },
+    "toi": {
+      "pattern": "^[0-9]+(?:\\.[0-9]+)?$",
+      "title": "Toi",
+      "type": "string"
+    }
+  },
+  "required": [
+    "tid",
+    "toi"
+  ],
+  "title": "DataQueryCursor",
+  "type": "object"
+}

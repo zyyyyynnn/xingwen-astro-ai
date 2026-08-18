@@ -64,8 +64,7 @@ Cold Paper / Surface    72–82%
 Brand 强调               3–7%
 状态色                   <2%
 ```
-
-Workspace 不使用全屏深色。深色只用于 Raw 输出、代码或局部执行视图。
+Workspace 正式主题为 Light。
 
 ## 5. 字体
 
@@ -160,14 +159,14 @@ Workspace 壳层统一消费 `--font-size-ui-*` 与 `--line-height-ui-*` 成对�
 
 ## 12. 视觉回归
 
-固定桌面验收视口：
+固定 Web 验收视口：
 
 ```text
 1440×900
 1280×800
-200% font scale
+1024×768
 ```
 
-至少覆盖 Empty、Running、Needs Review、Completed、Artifact Review、Evidence Inspector、Compare、Error 与窄屏桌面边界提示。
+至少覆盖 Empty、Running、Needs Review、Completed、Artifact Review、Evidence Inspector、Compare 与 Error。
 
 视觉通过由用户确认。

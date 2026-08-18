@@ -54,12 +54,12 @@ export function ChatMessage({
         type === "user" &&
           "mt-6 self-end bg-[var(--oh-surface-muted)] px-4 py-2.5",
         type === "agent" && "mt-6 w-full bg-transparent",
-        interactive &&
-          type === "agent" &&
-          "mt-2 border border-[var(--oh-border)] bg-[var(--oh-surface)] p-4",
         pendingStatus === "sending" && "opacity-70",
         pendingStatus === "error" &&
           "border border-[var(--oh-status-error)]/40",
+        interactive &&
+          type === "agent" &&
+          "mt-2 border border-[var(--oh-border)] bg-[var(--oh-surface)] p-4",
         "last:mb-4",
       )}
     >

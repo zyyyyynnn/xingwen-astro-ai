@@ -71,7 +71,7 @@ REQUIRED_ENV_KEYS = {
     "DASHSCOPE_API_KEY",
     "DASHSCOPE_BASE_URL",
     "DASHSCOPE_MODEL",
-    "DASHSCOPE_MODEL_REVISION",
+    "DASHSCOPE_EXPLICIT_MODEL_REVISION",
     "DASHSCOPE_TIMEOUT_SECONDS",
     "RESEARCH_INPUT_MAX_SIZE_BYTES",
     "RESEARCH_INPUT_ALLOWED_MIME_TYPES",
@@ -149,22 +149,19 @@ def is_forbidden_frontend_package(name: str) -> bool:
 
 def lockfile_package_names(content: str) -> set[str]:
     names: set[str] = set()
-    in_resolution_section = False
+    in_importers = False
     for line in content.splitlines():
         top_level = re.fullmatch(r"([a-z][a-zA-Z]*):\s*", line)
         if top_level:
-            in_resolution_section = top_level.group(1) in {"packages", "snapshots"}
+            in_importers = top_level.group(1) == "importers"
             continue
-        if not in_resolution_section:
+        if not in_importers:
             continue
-        entry = re.fullmatch(r"  (.+):\s*", line)
+        entry = re.fullmatch(r" {6}(.+):\s*", line)
         if not entry:
             continue
         key = entry.group(1).strip("'\"").lstrip("/")
-        separator = (
-            key.find("@", key.find("/") + 1) if key.startswith("@") else key.find("@")
-        )
-        names.add(key[:separator] if separator > 0 else key)
+        names.add(key)
     return names
 
 

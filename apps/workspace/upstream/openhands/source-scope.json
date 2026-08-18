@@ -20,7 +20,9 @@
         "single-entry composition",
         "desktop rails",
         "split panel",
-        "panel visibility"
+        "Docked to zero-width Collapsed panel visibility",
+        "non-overlay Inspector layout participation",
+        "stable panel transition geometry"
       ]
     },
     {
@@ -138,17 +140,17 @@
     {
       "upstream_path": "src/components/conversation-events/chat/event-message-components/event-group.tsx",
       "classification": "REQUIRED_VENDOR",
-      "reason": "Preserve the OpenHands collapsible action-run grouping mechanic while accepting only public research presentation events."
+      "reason": "Preserve the OpenHands collapsible action-run grouping mechanic over persisted project-private research Activities."
     },
     {
       "upstream_path": "src/components/conversation-events/chat/event-message.tsx",
       "classification": "REQUIRED_VENDOR",
-      "reason": "Preserve the OpenHands generic event disclosure and status presentation mechanic over the research event adapter."
+      "reason": "Preserve the OpenHands Action to Observation event disclosure and status presentation mechanic over the research event adapter."
     },
     {
       "upstream_path": "src/components/conversation-events/chat/group-events.ts",
       "classification": "REQUIRED_VENDOR",
-      "reason": "Preserve the OpenHands consecutive action grouping algorithm over a public presentation contract."
+      "reason": "Preserve the OpenHands consecutive action grouping algorithm over the project-private Activity presentation contract."
     },
     {
       "upstream_path": "src/components/conversation-events/chat/messages.tsx",
@@ -158,17 +160,18 @@
     {
       "upstream_path": "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
       "classification": "PARTIAL_SURGICAL",
-      "reason": "Preserve disclosure interaction mechanics only. Private model reasoning semantics must be removed; future content may only come from an explicit public/auditable reasoning ViewModel.",
+      "reason": "Preserve OpenHands CollapsibleThinking mechanics for server-validated public step analysis persisted inside the authorized project Thread.",
       "constraints": [
         "preserve-disclosure-mechanics",
-        "forbid-private-reasoning-input",
-        "public-auditable-reasoning-only"
+        "server-validated-public-analysis-only",
+        "exclude-from-share-export-and-formal-artifacts",
+        "collapsed-by-default-user-controlled-disclosure"
       ]
     },
     {
       "upstream_path": "src/components/features/chat/chat-interface.tsx",
       "classification": "REQUIRED_TRANSITIVE",
-      "reason": "Transitive OpenHands ChatInterface mechanic required by the adopted conversation wrapper; retained for activation and public Thread composition."
+      "reason": "Transitive OpenHands ChatInterface mechanic required by the adopted conversation wrapper; retained for activation, public Thread composition, native main scrolling, and Composer alignment within the Inspector-safe workspace."
     },
     {
       "upstream_path": "src/components/features/chat/chat-message.tsx",
@@ -288,7 +291,7 @@
     {
       "upstream_path": "src/root.tsx",
       "classification": "REQUIRED_VENDOR",
-      "reason": "Core Agent Product mechanic (Shell/navigation/panel/overlay/primitives/infra) — vendored as-is or minimal patch."
+      "reason": "Preserve the OpenHands root composition and thin runtime seam, including one-shot versioned Inspector presentation requests without creating a second panel state owner."
     },
     {
       "upstream_path": "src/routes/conversation.tsx",
@@ -350,8 +353,8 @@
     {
       "upstream_path": "src/components/features/conversation/conversation-main/conversation-main.tsx",
       "classification": "REQUIRED_VENDOR",
-      "reason": "Retain the OpenHands ConversationMain split-panel composition while removing mobile and coding surfaces.",
-      "preserved_mechanics": "ConversationMain: panel widths, resize handle, panel visibility, header composition, panel content frame",
+      "reason": "Retain the OpenHands ConversationMain split-panel composition while removing mobile and coding surfaces and adapting its panel mechanics to the governed Inspector flow.",
+      "preserved_mechanics": "ConversationMain: panel widths, resize handle, docked-to-zero-width-collapsed visibility, non-overlay layout participation, stable transition geometry, header composition, panel content frame",
       "removed_domain": "Mobile panel routing and coding-specific panel content"
     },
     {
@@ -363,7 +366,7 @@
     }
   ],
   "policy_sets": {
-    "private_reasoning_excluded": [
+    "foreign_runtime_excluded": [
       "src/components/conversation-events/chat/event-content-helpers/get-action-content.ts",
       "src/components/conversation-events/chat/event-content-helpers/get-action-event-title.ts",
       "src/components/conversation-events/chat/event-content-helpers/get-event-content.tsx",
@@ -381,10 +384,9 @@
       "src/types/agent-server/core/base/observation.ts",
       "src/types/agent-server/core/events/action-event.ts",
       "src/types/agent-server/core/events/streaming-delta-event.ts",
-      "src/utils/handle-event-for-ui.ts",
       "src/utils/transcript-export/index.ts"
     ],
-    "public_reasoning_disclosure": [
+    "public_step_analysis_disclosure": [
       "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx"
     ]
   },
@@ -393,6 +395,6 @@
     "Authentication, session, WebSocket, and telemetry",
     "Terminal, editor, browser, Git, repository, sandbox, and deployment",
     "Cloud, Enterprise, Electron, and mobile-only navigation",
-    "Coding-specific content and private model reasoning"
+    "Coding-specific content and foreign runtime integration"
   ]
 }

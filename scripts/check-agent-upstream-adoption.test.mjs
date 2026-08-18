@@ -103,8 +103,8 @@ function alignScopeToEntries(root, entries) {
   for (const entry of scope.files) {
     scope.summary[entry.classification] += 1;
   }
-  scope.policy_sets.public_reasoning_disclosure =
-    scope.policy_sets.public_reasoning_disclosure.filter((path) =>
+  scope.policy_sets.public_step_analysis_disclosure =
+    scope.policy_sets.public_step_analysis_disclosure.filter((path) =>
       adoptedPaths.has(path),
     );
   save(root, "source-scope.json", scope);

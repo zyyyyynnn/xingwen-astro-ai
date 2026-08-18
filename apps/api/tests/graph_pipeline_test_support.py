@@ -685,7 +685,7 @@ def _published_literature_version(
         type=nested_producer.producer_type,
         name=nested_producer.producer_name,
         version=nested_producer.producer_version,
-        model_name=nested_producer.model_name,
+        requested_model=nested_producer.model_name,
         prompt_name=nested_producer.prompt_name,
         prompt_version=nested_producer.prompt_version,
         prompt_hash=nested_producer.prompt_hash,
@@ -752,48 +752,60 @@ def _published_literature_version(
         item.pipeline_source_snapshot_id: item for item in snapshot_bindings
     }
     evidence_bindings = []
+    seen_evidence_targets: set[tuple[str, str, str, str]] = set()
     for reference in candidate.evidence_references:
         evidence = pipeline_evidence[reference.evidence_id]
         persisted_snapshot = snapshot_by_pipeline[reference.source_snapshot_id]
-        evidence_bindings.append(
-            PersistedEvidenceBinding(
-                pipeline_evidence_id=reference.evidence_id,
-                pipeline_evidence_content_hash=compute_canonical_payload_hash(
-                    evidence.model_dump(mode="json", exclude_none=True)
-                ),
-                pipeline_source_snapshot_id=reference.source_snapshot_id,
-                pipeline_target_type="relation",
-                pipeline_target_id=reference.relation_id,
-                pipeline_locator={
-                    "summary_evidence_id": reference.evidence_id,
-                    "source_record_id": evidence.source_record_id,
-                },
-                evidence=EvidenceDetail(
-                    id=stable_uuid(
-                        "evidence:"
-                        f"{relation_version_id}:{reference.relation_id}:"
-                        f"{reference.evidence_id}"
-                    ),
-                    artifact_version_id=relation_version_id,
-                    target_type="relation",
-                    target_id=reference.relation_id,
-                    evidence_type="paper_text",
-                    source_snapshot_id=(
-                        persisted_snapshot.persisted_source_snapshot_id
-                    ),
-                    paper_id=reference.paper_id,
-                    locator={
-                        "summary_evidence_id": reference.evidence_id,
-                        "source_record_id": evidence.source_record_id,
-                    },
-                    quote_or_value="Frozen benchmark evidence",
-                    extraction_method="literature_admission",
-                    confidence=1.0,
-                    created_at=NOW,
-                ),
-                is_restricted=False,
+        for target_type, target_id in (
+            ("claim", reference.claim_id),
+            ("relation", reference.relation_id),
+        ):
+            key = (
+                target_type,
+                target_id,
+                reference.evidence_id,
+                reference.source_snapshot_id,
             )
-        )
+            if key in seen_evidence_targets:
+                continue
+            seen_evidence_targets.add(key)
+            locator = {
+                "summary_evidence_id": reference.evidence_id,
+                "source_record_id": evidence.source_record_id,
+            }
+            evidence_bindings.append(
+                PersistedEvidenceBinding(
+                    pipeline_evidence_id=reference.evidence_id,
+                    pipeline_evidence_content_hash=compute_canonical_payload_hash(
+                        evidence.model_dump(mode="json", exclude_none=True)
+                    ),
+                    pipeline_source_snapshot_id=reference.source_snapshot_id,
+                    pipeline_target_type=target_type,
+                    pipeline_target_id=target_id,
+                    pipeline_locator=locator,
+                    evidence=EvidenceDetail(
+                        id=stable_uuid(
+                            "evidence:"
+                            f"{relation_version_id}:{target_type}:{target_id}:"
+                            f"{reference.evidence_id}"
+                        ),
+                        artifact_version_id=relation_version_id,
+                        target_type=target_type,
+                        target_id=target_id,
+                        evidence_type="paper_text",
+                        source_snapshot_id=(
+                            persisted_snapshot.persisted_source_snapshot_id
+                        ),
+                        paper_id=reference.paper_id,
+                        locator=locator,
+                        quote_or_value="Frozen benchmark evidence",
+                        extraction_method="literature_admission",
+                        confidence=1.0,
+                        created_at=NOW,
+                    ),
+                    is_restricted=False,
+                )
+            )
     source_values = tuple(snapshot_bindings)
     evidence_values = tuple(evidence_bindings)
     if reverse_bindings:

@@ -100,6 +100,16 @@ export type EvidenceLocator =
   | ModelExtractionLocator
   | ReasoningTraceLocator;
 
+export interface EvidenceSourceSnapshot {
+  readonly id: DomainEntityId;
+  readonly sourceId: string;
+  readonly sourceType: string;
+  readonly retrievedAt: UtcIsoTimestamp;
+  readonly licenseNote: string;
+  readonly sourceVersionOrEtag: string | null;
+  readonly requestMetadata: Readonly<Record<string, unknown>>;
+}
+
 export interface Evidence {
   readonly id: DomainEntityId;
   readonly artifactVersionId: DomainEntityId;
@@ -113,4 +123,5 @@ export interface Evidence {
   readonly extractionMethod: string;
   readonly confidence: number;
   readonly createdAt: UtcIsoTimestamp;
+  readonly source: EvidenceSourceSnapshot | null;
 }

@@ -17,7 +17,7 @@ async def health() -> dict[str, object]:
         "research_assistant": {
             "status": "ready" if settings.research_assistant_ready else "unconfigured",
             "provider": "qwen",
-            "model": settings.DASHSCOPE_MODEL,
-            "model_revision": settings.DASHSCOPE_MODEL_REVISION,
+            "requested_model": settings.DASHSCOPE_MODEL,
+            "explicit_revision": settings.DASHSCOPE_EXPLICIT_MODEL_REVISION,
         },
     }

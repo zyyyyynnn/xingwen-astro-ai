@@ -1,0 +1,106 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "declination": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Declination"
+    },
+    "gaia_dr3_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Gaia Dr3 Id"
+    },
+    "hostname": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Hostname"
+    },
+    "planet_name": {
+      "minLength": 1,
+      "title": "Planet Name",
+      "type": "string"
+    },
+    "record_type": {
+      "const": "ps",
+      "default": "ps",
+      "title": "Record Type",
+      "type": "string"
+    },
+    "reference": {
+      "minLength": 1,
+      "title": "Reference",
+      "type": "string"
+    },
+    "right_ascension": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Right Ascension"
+    },
+    "tic_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tic Id"
+    }
+  },
+  "required": [
+    "planet_name",
+    "reference"
+  ],
+  "title": "BenchmarkPsRecord",
+  "type": "object"
+}

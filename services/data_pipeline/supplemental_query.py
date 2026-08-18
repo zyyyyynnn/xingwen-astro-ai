@@ -36,6 +36,8 @@ def normalize_ps_supplemental_query(
     page_size: int,
     max_pages: int,
     record_limit: int,
+    default_only: bool = False,
+    max_distance_parsecs: int | None = None,
 ) -> NormalizedSupplementalSourceQuery:
     source = next(
         (
@@ -75,6 +77,14 @@ def normalize_ps_supplemental_query(
     normalized_values = tuple(sorted(normalized_identifiers))
     if not normalized_values:
         raise ValueError("at least one TIC identifier is required")
+    if max_distance_parsecs is not None and not 1 <= max_distance_parsecs <= 1000:
+        raise ValueError("max_distance_parsecs must be between 1 and 1000")
+
+    constraints = [f"{field} is not null" for field in source.row_key_fields]
+    if default_only:
+        constraints.append("default_flag = 1")
+    if max_distance_parsecs is not None:
+        constraints.append(f"sy_dist <= {max_distance_parsecs}")
 
     pagination = DataQueryPagination(
         page_size=page_size,
@@ -113,9 +123,7 @@ def normalize_ps_supplemental_query(
             if column not in column_contract.live_unavailable_columns
         ),
         "row_key_fields": source.row_key_fields,
-        "constraints": tuple(
-            f"{field} is not null" for field in source.row_key_fields
-        ),
+        "constraints": tuple(constraints),
         "order_by": source.row_key_fields,
         "pagination": pagination.model_dump(mode="json"),
     }

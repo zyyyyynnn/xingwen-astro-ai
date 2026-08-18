@@ -1,0 +1,22 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "draft_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Draft Id",
+      "type": "string"
+    },
+    "expected_draft_version": {
+      "minimum": 1,
+      "title": "Expected Draft Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "draft_id",
+    "expected_draft_version"
+  ],
+  "title": "ConfirmResearchContractRequest",
+  "type": "object"
+}

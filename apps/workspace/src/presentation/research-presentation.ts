@@ -16,6 +16,7 @@ import type { RunStatus } from "@xingwen/domain";
 export type ResearchPresentationState =
   | "empty"
   | "assistant_processing"
+  | "assistant_unavailable"
   | "awaiting_clarification"
   | "draft_ready"
   | "contract_confirmed"
@@ -118,6 +119,14 @@ function deriveState({
     return "contract_confirmed";
   }
   if (draft !== null || project.activeDraftId !== null) return "draft_ready";
+  const latestEntry = entries?.at(-1);
+  if (
+    latestEntry?.actor === "assistant" &&
+    latestEntry.kind !== "assistant_reasoning" &&
+    latestEntry.structuredPayload.outcome === "unavailable"
+  ) {
+    return "assistant_unavailable";
+  }
   const latestThreadActor =
     entries === undefined
       ? project.threadSummary.latestThreadActor
@@ -133,6 +142,8 @@ function statusLabel(state: ResearchPresentationState): string {
   switch (state) {
     case "assistant_processing":
       return "研究助手处理中";
+    case "assistant_unavailable":
+      return "研究助手暂不可用";
     case "awaiting_clarification":
       return "等待你的回答";
     case "draft_ready":
@@ -158,11 +169,13 @@ function preparationItems(
       label: "完善研究边界",
       status: hasDraft
         ? "completed"
-        : state === "assistant_processing"
-          ? "running"
-          : state === "awaiting_clarification"
-            ? "waiting"
-            : "current",
+        : state === "assistant_unavailable"
+          ? "failed"
+          : state === "assistant_processing"
+            ? "running"
+            : state === "awaiting_clarification"
+              ? "waiting"
+              : "current",
     },
     {
       id: "confirm-contract",

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 from pydantic_core import PydanticSerializationError
 
 from app.schemas._hashing import compute_canonical_payload_hash
@@ -39,6 +39,32 @@ from .projection import (
 def _candidate(model_type, payload: dict[str, Any]):
     payload.setdefault("schema_version", "1.0.0")
     payload.setdefault("quality_evaluation_status", "not_evaluated")
+    normalized: dict[str, Any] = {}
+    deferred = {
+        "candidate_id",
+        "output_hash",
+        "canonical_content_hash",
+        "lineage_hash",
+    }
+    for name, model_field in model_type.model_fields.items():
+        if name in deferred or name not in payload:
+            continue
+        normalized[name] = TypeAdapter(model_field.annotation).validate_python(
+            payload[name]
+        )
+    payload = model_type.model_construct(
+        **normalized,
+        candidate_id="candidate.pending",
+        output_hash="sha256:" + "0" * 64,
+        **(
+            {
+                "canonical_content_hash": "sha256:" + "0" * 64,
+                "lineage_hash": "sha256:" + "0" * 64,
+            }
+            if model_type is DatasetArtifactCandidate
+            else {}
+        ),
+    ).model_dump(mode="json", exclude_none=True)
     if model_type is DatasetArtifactCandidate:
         payload["canonical_content_hash"] = compute_data_artifact_canonical_content_hash(
             payload

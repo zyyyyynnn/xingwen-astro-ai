@@ -2,7 +2,10 @@ import { PanelLeftClose, PanelLeftOpen } from "@xingwen/ui/icons";
 
 import { SidebarRailBody } from "./sidebar-rail-body";
 import { useSidebarStore } from "../../../stores/sidebar-store";
-import { SIDEBAR_ICON_BUTTON_CLASS } from "./sidebar-layout";
+import {
+  SIDEBAR_ICON_BUTTON_CLASS,
+  SIDEBAR_RAIL_TRANSITION_CLASS,
+} from "./sidebar-layout";
 import type { ResearchNavigationItem } from "../../../root";
 
 interface SidebarProps {
@@ -30,7 +33,7 @@ export function Sidebar({
 
   return (
     <aside
-      className="relative z-[var(--oh-layer-sidebar)] h-full shrink-0 overflow-hidden border-r border-[var(--oh-border)] bg-[var(--oh-surface-muted)] transition-[width] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none"
+      className={`relative z-[var(--oh-layer-sidebar)] h-full shrink-0 overflow-hidden border-r border-[var(--oh-border)] bg-[var(--oh-surface-muted)] ${SIDEBAR_RAIL_TRANSITION_CLASS}`}
       style={{
         width: collapsed
           ? "var(--oh-sidebar-collapsed-inline-size)"

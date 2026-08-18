@@ -42,6 +42,7 @@ from app.schemas.paper_summary import (
     PaperSummarySourceSnapshotReference,
     PaperSummarySupportStatus,
 )
+from app.schemas.reasoning_traces import build_reasoning_traces_artifact
 from app.workflow.publisher import (
     ArtifactEvidenceBinding,
     ArtifactSourceSnapshotBinding,
@@ -74,7 +75,13 @@ SAFE_PARAMETERS = {
     "max_output_tokens": 2048,
     "response_format": "json_schema",
 }
-PROJECT_ID = "project.relation.fixture"
+
+
+def _persisted_uuid(value: str) -> str:
+    return str(uuid5(NAMESPACE_URL, f"xingwen.literature-relation-test:{value}"))
+
+
+PROJECT_ID = _persisted_uuid("project.fixture")
 
 
 def _claim_version(
@@ -89,8 +96,8 @@ def _claim_version(
     snapshot_id = f"snapshot.{tag}"
     paper_id = f"paper.{tag}"
     summary_id = f"summary.{tag}"
-    summary_version_id = f"artifact_version.paper_summary.{tag}"
-    version_id = f"artifact_version.literature_claims.{tag}"
+    summary_version_id = _persisted_uuid(f"paper-summary.{tag}")
+    version_id = _persisted_uuid(f"literature-claims.{tag}")
     snapshot_hash = compute_canonical_payload_hash({"snapshot": tag})
     snapshot = PaperSummarySourceSnapshotReference(
         source_snapshot_id=snapshot_id,
@@ -251,11 +258,11 @@ def _confidence(
         assessment_id=assessment_id,
         subject=build_literature_relation_confidence_subject(
             source_claim_artifact_version_id=(
-                f"artifact_version.literature_claims.{source}"
+                _persisted_uuid(f"literature-claims.{source}")
             ),
             source_claim_id=f"claim.{source}",
             target_claim_artifact_version_id=(
-                f"artifact_version.literature_claims.{target}"
+                _persisted_uuid(f"literature-claims.{target}")
             ),
             target_claim_id=f"claim.{target}",
             relation_type=relation_type,
@@ -423,21 +430,30 @@ def _publication_bindings(candidate):
         item.pipeline_source_snapshot_id: item.persisted_source_snapshot_id
         for item in snapshot_bindings
     }
+    evidence_bindings_by_key = {}
+    for item in getattr(candidate, "evidence_references", ()):
+        for target_type, target_id in (
+            ("claim", item.claim_id),
+            ("relation", item.relation_id),
+        ):
+            key = (target_type, target_id, item.evidence_id, item.source_snapshot_id)
+            evidence_bindings_by_key.setdefault(
+                key,
+                ArtifactEvidenceBinding(
+                    target_type=target_type,
+                    target_id=target_id,
+                    pipeline_evidence_id=item.evidence_id,
+                    pipeline_source_snapshot_id=item.source_snapshot_id,
+                    persisted_evidence_id=str(
+                        uuid5(NAMESPACE_URL, f"relation-evidence:{':'.join(key)}")
+                    ),
+                    persisted_source_snapshot_id=(
+                        persisted_snapshots[item.source_snapshot_id]
+                    ),
+                ),
+            )
     evidence_bindings = tuple(
-        ArtifactEvidenceBinding(
-            target_type="relation",
-            target_id=item.relation_id,
-            pipeline_evidence_id=item.evidence_id,
-            pipeline_source_snapshot_id=item.source_snapshot_id,
-            persisted_evidence_id=str(
-                uuid5(
-                    NAMESPACE_URL,
-                    f"relation-evidence:{item.relation_id}:{item.evidence_id}",
-                )
-            ),
-            persisted_source_snapshot_id=persisted_snapshots[item.source_snapshot_id],
-        )
-        for item in getattr(candidate, "evidence_references", ())
+        evidence_bindings_by_key[key] for key in sorted(evidence_bindings_by_key)
     )
     return snapshot_bindings, evidence_bindings
 
@@ -855,6 +871,7 @@ def test_invalid_json_and_schema_are_fatal_and_stable() -> None:
         LiteratureRelationRejectionReason.schema_invalid,
     )
     assert invalid_json.records == invalid_schema.records == ()
+    assert invalid_json.publisher_candidate is invalid_schema.publisher_candidate is None
 
 
 @pytest.mark.parametrize(
@@ -1022,7 +1039,7 @@ def test_record_level_gates_use_stable_stage_and_reason(
         requested_ids = (
             source.artifact_version_id,
             target.artifact_version_id,
-            "artifact_version.literature_claims.unknown",
+            _persisted_uuid("literature-claims.unknown"),
         )
     elif case == "input_schema":
         source = replace(source, schema_version="2.0.0")
@@ -1034,7 +1051,7 @@ def test_record_level_gates_use_stable_stage_and_reason(
         relation["source_claim_id"] = "claim.unknown"
     elif case == "summary_missing":
         kwargs["available_paper_summary_artifact_version_ids"] = frozenset(
-            {"artifact_version.paper_summary.source"}
+            {_persisted_uuid("paper-summary.source")}
         )
     elif case == "evidence_missing":
         relation["evidence_ids"] = []
@@ -1045,7 +1062,7 @@ def test_record_level_gates_use_stable_stage_and_reason(
     elif case == "evidence_inconsistent":
         relation["evidence_ids"] = ["evidence.source"]
     elif case == "ownership":
-        source = replace(source, project_id="project.other")
+        source = replace(source, project_id=_persisted_uuid("project.other"))
         versions = (source, target)
     elif case == "self_pair":
         relation = _relation(source="claim.source", target="claim.source")
@@ -1123,6 +1140,28 @@ def test_record_level_gates_use_stable_stage_and_reason(
         expected_stage,
         expected_reason,
     )
+    assert result.publisher_candidate is not None
+    assert result.publisher_candidate.relations == result.records
+
+
+def test_all_rejected_relations_publish_a_truthful_empty_trace_projection() -> None:
+    relation = _relation()
+    relation["trace"] = None
+
+    result = _admit(_response(relation))
+
+    assert result.admission_status is LiteratureRelationStatus.rejected
+    assert result.publisher_candidate is not None
+    assert result.publisher_candidate.reasoning_traces == ()
+    published = _publish(result.publisher_candidate)
+    assert published.content["status_counts"] == {
+        "accepted": 0,
+        "candidate": 0,
+        "rejected": 1,
+    }
+    traces = build_reasoning_traces_artifact(result.publisher_candidate)
+    assert traces.reasoning_traces == ()
+    assert traces.__artifact_publication_is_admitted__()
 
 
 def test_multiple_failures_obey_global_gate_priority() -> None:
@@ -1148,7 +1187,7 @@ def test_multiple_failures_obey_global_gate_priority() -> None:
         requested_ids=(
             source.artifact_version_id,
             target.artifact_version_id,
-            "artifact_version.literature_claims.unknown",
+            _persisted_uuid("literature-claims.unknown"),
         ),
     )
     assert result.records[0].failure_stage is LiteratureRelationFailureStage.input
@@ -1225,11 +1264,11 @@ def test_confidence_subject_and_decision_are_relation_specific() -> None:
         update={
             "subject": build_literature_relation_confidence_subject(
                 source_claim_artifact_version_id=(
-                    "artifact_version.literature_claims.source"
+                    _persisted_uuid("literature-claims.source")
                 ),
                 source_claim_id="claim.source",
                 target_claim_artifact_version_id=(
-                    "artifact_version.literature_claims.target"
+                    _persisted_uuid("literature-claims.target")
                 ),
                 target_claim_id="claim.target",
                 relation_type="contradicts",
@@ -1465,8 +1504,8 @@ def test_prompt_model_parameters_and_input_versions_are_hash_pinned() -> None:
         clock=lambda: FIXED_TIME,
     ).admit(
         literature_claim_artifact_version_ids=(
-            "artifact_version.literature_claims.source",
-            "artifact_version.literature_claims.target",
+            _persisted_uuid("literature-claims.source"),
+            _persisted_uuid("literature-claims.target"),
         ),
         literature_claim_versions={
             item.artifact_version_id: item
@@ -1588,8 +1627,8 @@ def test_external_admission_context_is_hash_pinned() -> None:
         _admit(
             available_paper_summary_artifact_version_ids=frozenset(
                 {
-                    "artifact_version.paper_summary.source",
-                    "artifact_version.paper_summary.target",
+                    _persisted_uuid("paper-summary.source"),
+                    _persisted_uuid("paper-summary.target"),
                 }
             )
         ),
@@ -1772,6 +1811,34 @@ def test_truthful_incomparable_metric_or_unit_is_still_rejected(
         result.records[0].failure_stage is LiteratureRelationFailureStage.comparability
     )
     assert result.records[0].rejection_reason is reason
+
+
+@pytest.mark.parametrize(
+    "relation_type",
+    (
+        LiteratureRelationType.derived_from,
+        LiteratureRelationType.uses_same_dataset,
+        LiteratureRelationType.compares_method,
+    ),
+)
+def test_structural_relations_mark_metric_and_unit_not_applicable(
+    relation_type: LiteratureRelationType,
+) -> None:
+    source = _claim_version("source", metric="companion count")
+    target = _claim_version("target")
+    relation = _relation(relation_type=relation_type)
+    relation["comparability"]["metric_status"] = "not_applicable"
+    relation["comparability"]["unit_status"] = "not_applicable"
+    confidence = _confidence(relation_type=relation_type)
+
+    result = _admit(
+        _response(relation),
+        versions=(source, target),
+        confidence_assessments={confidence.assessment_id: confidence},
+    )
+
+    assert result.records[0].status is LiteratureRelationStatus.accepted
+    assert result.records[0].failure_stage is None
 
 
 def test_literature_relation_is_the_only_relation_prompt_identity() -> None:

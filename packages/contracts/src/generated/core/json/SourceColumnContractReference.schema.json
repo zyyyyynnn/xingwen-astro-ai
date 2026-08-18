@@ -1,0 +1,34 @@
+{
+  "additionalProperties": false,
+  "description": "Immutable reference to the evidence-backed source-column adjudication.",
+  "properties": {
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "path": {
+      "minLength": 1,
+      "title": "Path",
+      "type": "string"
+    },
+    "snapshot_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Snapshot Id",
+      "type": "string"
+    },
+    "snapshot_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Snapshot Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "snapshot_id",
+    "snapshot_version",
+    "path",
+    "content_hash"
+  ],
+  "title": "SourceColumnContractReference",
+  "type": "object"
+}

@@ -137,45 +137,47 @@ class ArtifactReadService:
             self._require_project_owner(
                 session, run.project_id, session_id, "RUN_NOT_FOUND"
             )
+            published_at = func.max(ArtifactVersionModel.created_at).label("published_at")
             statement = (
-                select(ResearchArtifactModel)
+                select(ResearchArtifactModel, published_at)
                 .join(
                     ArtifactVersionModel,
                     ArtifactVersionModel.artifact_id == ResearchArtifactModel.id,
                 )
                 .where(ArtifactVersionModel.created_by_run_id == run.id)
-                .distinct()
-                .order_by(
-                    ResearchArtifactModel.created_at.desc(),
-                    ResearchArtifactModel.id.desc(),
-                )
+                .group_by(ResearchArtifactModel.id)
+                .order_by(published_at.desc(), ResearchArtifactModel.id.desc())
             )
             if kind is not None:
                 statement = statement.where(ResearchArtifactModel.kind == kind)
             if cursor_value is not None:
                 created_at, artifact_id = cursor_value
-                statement = statement.where(
+                statement = statement.having(
                     or_(
-                        ResearchArtifactModel.created_at < created_at,
+                        published_at < created_at,
                         and_(
-                            ResearchArtifactModel.created_at == created_at,
+                            published_at == created_at,
                             ResearchArtifactModel.id < artifact_id,
                         ),
                     )
                 )
-            rows = tuple(session.scalars(statement.limit(limit + 1)))
+            rows = tuple(session.execute(statement.limit(limit + 1)))
             selected = rows[:limit]
             has_more = len(rows) > limit
-            next_cursor = (
-                _encode_cursor(
+            if selected and has_more:
+                last_artifact, last_published_at = selected[-1]
+                next_cursor = _encode_cursor(
                     scope=cursor_scope,
-                    created_at=selected[-1].created_at,
-                    entity_id=selected[-1].id,
+                    created_at=last_published_at,
+                    entity_id=last_artifact.id,
                 )
-                if selected and has_more
-                else None
+            else:
+                next_cursor = None
+            return (
+                tuple(_artifact(artifact) for artifact, _published_at in selected),
+                next_cursor,
+                has_more,
             )
-            return tuple(_artifact(row) for row in selected), next_cursor, has_more
 
     def get_artifact(
         self, *, artifact_id: str, session_id: str
@@ -201,6 +203,64 @@ class ArtifactReadService:
             return ResearchArtifactDetail(
                 **_artifact(row).model_dump(),
                 versions=tuple(_version_summary(version) for version in versions),
+            )
+
+    def list_artifact_versions(
+        self,
+        *,
+        artifact_id: str,
+        session_id: str,
+        cursor: str | None,
+        limit: int,
+    ) -> tuple[tuple[ArtifactVersionSummary, ...], str | None, bool]:
+        """List one owned Artifact's versions, newest first."""
+
+        _require_limit(limit)
+        artifact_uuid = _uuid_or_not_found(artifact_id, "ARTIFACT_NOT_FOUND")
+        cursor_scope = _artifact_versions_cursor_scope(artifact_id=artifact_id)
+        cursor_value = _decode_cursor(cursor, scope=cursor_scope) if cursor else None
+        with self._factory() as session:
+            row = session.get(ResearchArtifactModel, artifact_uuid)
+            if row is None:
+                raise _not_found("ARTIFACT_NOT_FOUND")
+            self._require_project_owner(
+                session, row.project_id, session_id, "ARTIFACT_NOT_FOUND"
+            )
+            statement = (
+                select(ArtifactVersionModel)
+                .where(ArtifactVersionModel.artifact_id == row.id)
+                .order_by(
+                    ArtifactVersionModel.created_at.desc(),
+                    ArtifactVersionModel.id.desc(),
+                )
+            )
+            if cursor_value is not None:
+                created_at, version_id = cursor_value
+                statement = statement.where(
+                    or_(
+                        ArtifactVersionModel.created_at < created_at,
+                        and_(
+                            ArtifactVersionModel.created_at == created_at,
+                            ArtifactVersionModel.id < version_id,
+                        ),
+                    )
+                )
+            rows = tuple(session.scalars(statement.limit(limit + 1)))
+            selected = rows[:limit]
+            has_more = len(rows) > limit
+            next_cursor = (
+                _encode_cursor(
+                    scope=cursor_scope,
+                    created_at=selected[-1].created_at,
+                    entity_id=selected[-1].id,
+                )
+                if selected and has_more
+                else None
+            )
+            return (
+                tuple(_version_summary(version) for version in selected),
+                next_cursor,
+                has_more,
             )
 
     def get_version(
@@ -505,7 +565,9 @@ def _producer_execution(row: ProducerExecutionModel) -> ProducerExecutionDetail:
             name=row.producer_name,
             version=row.producer_version,
             model_provider=row.model_provider,
-            model_name=row.model_name,
+            requested_model=row.requested_model,
+            provider_returned_model=row.provider_returned_model,
+            explicit_revision=row.explicit_revision,
             prompt_name=row.prompt_name,
             prompt_version=row.prompt_version,
             prompt_hash=row.prompt_hash,
@@ -520,6 +582,11 @@ def _producer_execution(row: ProducerExecutionModel) -> ProducerExecutionDetail:
         finished_at=_utc(row.finished_at) if row.finished_at else None,
         token_usage=row.token_usage,
         latency_ms=row.latency_ms,
+        provider_request_id=(
+            _sanitize_string(row.provider_request_id, 256)
+            if row.provider_request_id is not None
+            else None
+        ),
         error_code=(
             _sanitize_string(row.error_code, 128)
             if row.error_code is not None
@@ -694,6 +761,14 @@ def _require_limit(limit: int) -> None:
 def _artifact_cursor_scope(*, run_id: str, kind: str | None) -> str:
     return json.dumps(
         {"run_id": run_id, "kind": kind},
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+
+
+def _artifact_versions_cursor_scope(*, artifact_id: str) -> str:
+    return json.dumps(
+        {"artifact_id": artifact_id},
         separators=(",", ":"),
         sort_keys=True,
     )

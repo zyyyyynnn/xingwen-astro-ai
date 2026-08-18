@@ -1,0 +1,324 @@
+{
+  "$defs": {
+    "BenchmarkCrossrefDocumentedPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "applicability_note": {
+          "minLength": 1,
+          "title": "Applicability Note",
+          "type": "string"
+        },
+        "known_conflict_note": {
+          "minLength": 1,
+          "title": "Known Conflict Note",
+          "type": "string"
+        },
+        "limits": {
+          "items": {
+            "$ref": "#/$defs/BenchmarkCrossrefRateLimit"
+          },
+          "minItems": 1,
+          "title": "Limits",
+          "type": "array"
+        },
+        "official_source_url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Official Source Url",
+          "type": "string"
+        },
+        "policy_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Policy Id",
+          "type": "string"
+        },
+        "verified_at": {
+          "format": "date",
+          "title": "Verified At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "policy_id",
+        "official_source_url",
+        "verified_at",
+        "applicability_note",
+        "known_conflict_note",
+        "limits"
+      ],
+      "title": "BenchmarkCrossrefDocumentedPolicy",
+      "type": "object"
+    },
+    "BenchmarkCrossrefObservedRuntimeLimit": {
+      "additionalProperties": false,
+      "properties": {
+        "endpoint": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Endpoint",
+          "type": "string"
+        },
+        "observation_note": {
+          "minLength": 1,
+          "title": "Observation Note",
+          "type": "string"
+        },
+        "rate_limit_ceiling": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "const": "unavailable",
+              "type": "string"
+            }
+          ],
+          "title": "Rate Limit Ceiling"
+        },
+        "request_class": {
+          "enum": [
+            "single_record",
+            "list_or_search"
+          ],
+          "title": "Request Class",
+          "type": "string"
+        },
+        "response_status": {
+          "maximum": 599,
+          "minimum": 100,
+          "title": "Response Status",
+          "type": "integer"
+        },
+        "retrieved_at": {
+          "format": "date-time",
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "x_api_pool": {
+          "enum": [
+            "public",
+            "polite",
+            "plus",
+            "unavailable"
+          ],
+          "title": "X Api Pool",
+          "type": "string"
+        },
+        "x_concurrency_limit": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "const": "unavailable",
+              "type": "string"
+            }
+          ],
+          "title": "X Concurrency Limit"
+        },
+        "x_rate_limit_interval": {
+          "minLength": 1,
+          "title": "X Rate Limit Interval",
+          "type": "string"
+        }
+      },
+      "required": [
+        "endpoint",
+        "request_class",
+        "retrieved_at",
+        "x_api_pool",
+        "rate_limit_ceiling",
+        "x_rate_limit_interval",
+        "x_concurrency_limit",
+        "response_status",
+        "observation_note"
+      ],
+      "title": "BenchmarkCrossrefObservedRuntimeLimit",
+      "type": "object"
+    },
+    "BenchmarkCrossrefRateLimit": {
+      "additionalProperties": false,
+      "properties": {
+        "concurrency_limit": {
+          "exclusiveMinimum": 0,
+          "title": "Concurrency Limit",
+          "type": "integer"
+        },
+        "interval_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Interval Seconds",
+          "type": "integer"
+        },
+        "pool": {
+          "enum": [
+            "public",
+            "polite"
+          ],
+          "title": "Pool",
+          "type": "string"
+        },
+        "request_class": {
+          "enum": [
+            "all_requests",
+            "single_record",
+            "list_or_search"
+          ],
+          "title": "Request Class",
+          "type": "string"
+        },
+        "requests_per_interval": {
+          "exclusiveMinimum": 0,
+          "title": "Requests Per Interval",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "pool",
+        "request_class",
+        "requests_per_interval",
+        "interval_seconds",
+        "concurrency_limit"
+      ],
+      "title": "BenchmarkCrossrefRateLimit",
+      "type": "object"
+    },
+    "BenchmarkCrossrefRateLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "documented_policy": {
+          "items": {
+            "$ref": "#/$defs/BenchmarkCrossrefDocumentedPolicy"
+          },
+          "minItems": 2,
+          "title": "Documented Policy",
+          "type": "array"
+        },
+        "handles_429_with_backoff": {
+          "const": true,
+          "title": "Handles 429 With Backoff",
+          "type": "boolean"
+        },
+        "missing_headers_strategy": {
+          "const": "conservative",
+          "title": "Missing Headers Strategy",
+          "type": "string"
+        },
+        "observation_boundary": {
+          "minLength": 1,
+          "title": "Observation Boundary",
+          "type": "string"
+        },
+        "observed_runtime_limits": {
+          "items": {
+            "$ref": "#/$defs/BenchmarkCrossrefObservedRuntimeLimit"
+          },
+          "minItems": 1,
+          "title": "Observed Runtime Limits",
+          "type": "array"
+        },
+        "runtime_uses_response_headers": {
+          "const": true,
+          "title": "Runtime Uses Response Headers",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "documented_policy",
+        "observed_runtime_limits",
+        "runtime_uses_response_headers",
+        "handles_429_with_backoff",
+        "missing_headers_strategy",
+        "observation_boundary"
+      ],
+      "title": "BenchmarkCrossrefRateLimits",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "abstracts_public": {
+      "title": "Abstracts Public",
+      "type": "boolean"
+    },
+    "access_method": {
+      "minLength": 1,
+      "title": "Access Method",
+      "type": "string"
+    },
+    "access_url": {
+      "format": "uri",
+      "maxLength": 2083,
+      "minLength": 1,
+      "title": "Access Url",
+      "type": "string"
+    },
+    "authentication_required": {
+      "title": "Authentication Required",
+      "type": "boolean"
+    },
+    "crossref_rate_limits": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BenchmarkCrossrefRateLimits"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "full_text_boundary": {
+      "minLength": 1,
+      "title": "Full Text Boundary",
+      "type": "string"
+    },
+    "license_boundary": {
+      "minLength": 1,
+      "title": "License Boundary",
+      "type": "string"
+    },
+    "metadata_public": {
+      "title": "Metadata Public",
+      "type": "boolean"
+    },
+    "name": {
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "public_runtime_risk": {
+      "minLength": 1,
+      "title": "Public Runtime Risk",
+      "type": "string"
+    },
+    "rate_limit_policy": {
+      "minLength": 1,
+      "title": "Rate Limit Policy",
+      "type": "string"
+    },
+    "source_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Source Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_id",
+    "name",
+    "access_method",
+    "access_url",
+    "authentication_required",
+    "metadata_public",
+    "abstracts_public",
+    "full_text_boundary",
+    "license_boundary",
+    "rate_limit_policy",
+    "public_runtime_risk"
+  ],
+  "title": "BenchmarkSourcePolicy",
+  "type": "object"
+}

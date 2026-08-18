@@ -14,3 +14,7 @@ samples
 services/*
 !services/data_pipeline/
 !services/data_pipeline/**
+!services/graph_pipeline/
+!services/graph_pipeline/**
+!services/paper_pipeline/
+!services/paper_pipeline/**

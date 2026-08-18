@@ -30,6 +30,9 @@ class FailureDecision:
     public_message: str
     retryable: bool
     upstream_request_id: str | None = None
+    activity_id: str | None = None
+    activity_kind: str | None = None
+    activity_name: str | None = None
 
 
 class PersistentWorkflowExecutionError(RuntimeError):
@@ -120,6 +123,9 @@ class PersistentWorkflowExecutor(Generic[StepResultT, CommitResultT]):
                         error_code=decision.error_code,
                         public_message=decision.public_message,
                         upstream_request_id=decision.upstream_request_id,
+                        failure_activity_id=decision.activity_id,
+                        failure_activity_kind=decision.activity_kind,
+                        failure_activity_name=decision.activity_name,
                     )
                     return
                 except RetryBudgetExhaustedError:
@@ -137,6 +143,9 @@ class PersistentWorkflowExecutor(Generic[StepResultT, CommitResultT]):
                 public_message=decision.public_message,
                 retryable=decision.retryable,
                 upstream_request_id=decision.upstream_request_id,
+                failure_activity_id=decision.activity_id,
+                failure_activity_kind=decision.activity_kind,
+                failure_activity_name=decision.activity_name,
             )
         except Exception as bookkeeping_error:
             cause.add_note(

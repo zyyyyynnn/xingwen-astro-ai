@@ -1,0 +1,78 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "candidate_count": {
+      "minimum": 0,
+      "title": "Candidate Count",
+      "type": "integer"
+    },
+    "candidate_recall": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Candidate Recall"
+    },
+    "duplicate_candidate_count": {
+      "minimum": 0,
+      "title": "Duplicate Candidate Count",
+      "type": "integer"
+    },
+    "duplicate_rate": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Duplicate Rate",
+      "type": "number"
+    },
+    "expected_candidate_count": {
+      "minimum": 0,
+      "title": "Expected Candidate Count",
+      "type": "integer"
+    },
+    "recalled_expected_candidate_count": {
+      "minimum": 0,
+      "title": "Recalled Expected Candidate Count",
+      "type": "integer"
+    },
+    "selected_count": {
+      "minimum": 0,
+      "title": "Selected Count",
+      "type": "integer"
+    },
+    "source_empty_result_count": {
+      "minimum": 0,
+      "title": "Source Empty Result Count",
+      "type": "integer"
+    },
+    "source_execution_count": {
+      "minimum": 0,
+      "title": "Source Execution Count",
+      "type": "integer"
+    },
+    "source_failure_count": {
+      "minimum": 0,
+      "title": "Source Failure Count",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "source_execution_count",
+    "source_failure_count",
+    "source_empty_result_count",
+    "candidate_count",
+    "duplicate_candidate_count",
+    "duplicate_rate",
+    "selected_count",
+    "expected_candidate_count",
+    "recalled_expected_candidate_count"
+  ],
+  "title": "PaperCollectionMetrics",
+  "type": "object"
+}

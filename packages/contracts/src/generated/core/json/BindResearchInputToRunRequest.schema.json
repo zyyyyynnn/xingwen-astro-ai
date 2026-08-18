@@ -1,0 +1,29 @@
+{
+  "additionalProperties": false,
+  "description": "Attach an ingested input reference to a Run inside the same project.",
+  "properties": {
+    "contract_draft_id": {
+      "default": null,
+      "title": "Contract Draft Id",
+      "type": "null"
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "run_id"
+  ],
+  "title": "BindResearchInputToRunRequest",
+  "type": "object"
+}

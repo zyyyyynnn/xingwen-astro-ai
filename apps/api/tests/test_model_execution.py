@@ -20,6 +20,7 @@ from app.services.model_execution import (
     qwen_execution_lease_duration,
 )
 from app.services.research_planner import ResearchContractPlanner
+from app.test_support.integration_model import DeterministicIntegrationModelExecutionPort
 from packages.prompts.registry import PromptRegistry
 
 
@@ -76,20 +77,24 @@ def research_project() -> ResearchProject:
 def request() -> ModelExecutionRequest:
     return ModelExecutionRequest(
         provider="qwen",
-        model="qwen3.7-plus",
-        model_revision="qwen3.7-plus-2026-05-26",
+        requested_model="qwen3.8-max",
+        explicit_revision=None,
         prompt_name="research_contract_planner",
         prompt_version="1.0.0",
         prompt_hash="sha256:" + "a" * 64,
         prompt="Return one JSON planner outcome.",
         input_payload={"message": "Compare two host stars"},
-        parameters={"temperature": 0, "top_p": 0.8},
+        parameters={"temperature": 0.6, "top_p": 0.8},
     )
 
 
 def successful_response() -> Any:  # noqa: ANN401
     usage = SimpleNamespace(
-        model_dump=lambda **_kwargs: {"prompt_tokens": 10, "completion_tokens": 12}
+        model_dump=lambda **_kwargs: {
+            "prompt_tokens": 10,
+            "completion_tokens": 12,
+            "completion_tokens_details": {"reasoning_tokens": 0},
+        }
     )
     return SimpleNamespace(
         id="req_123",
@@ -97,7 +102,8 @@ def successful_response() -> Any:  # noqa: ANN401
         choices=[
             SimpleNamespace(
                 message=SimpleNamespace(
-                    content='{"outcome":"partial","public_analysis":"需要补充字段。","assistant_message":"请补充字段。","missing_information":["requested_fields"]}'
+                    content='{"outcome":"partial","assistant_message":"请补充字段。","missing_information":["requested_fields"]}',
+                    tool_calls=[],
                 )
             )
         ],
@@ -145,9 +151,12 @@ def test_qwen_adapter_uses_the_sdk_route_and_exact_snapshot(
     assert constructor["base_url"] == "https://dashscope.example/compatible-mode/v1"
     assert constructor["timeout"] == 7.5
     assert constructor["max_retries"] == 4
-    assert call["model"] == "qwen3.7-plus-2026-05-26"
+    assert call["model"] == "qwen3.8-max"
     assert call["response_format"] == {"type": "json_object"}
-    assert call["extra_body"] == {"enable_thinking": False}
+    assert call["extra_body"] == {
+        "enable_thinking": True,
+        "preserve_thinking": True,
+    }
     assert "max_tokens" not in call
     assert response.payload["outcome"] == "partial"
     assert response.output_hash.startswith("sha256:")
@@ -201,6 +210,38 @@ def test_qwen_adapter_maps_provider_failures_without_leaking_body(
     assert captured.value.latency_ms is not None
 
 
+@pytest.mark.parametrize("provider_code", ["access_denied", "AllocationQuota.FreeTierOnly"])
+def test_qwen_adapter_explains_model_access_failures_without_leaking_body(
+    provider_code: str,
+) -> None:
+    provider_request = httpx2.Request(
+        "POST", "https://dashscope.example/compatible-mode/v1/chat/completions"
+    )
+    provider_response = httpx2.Response(403, request=provider_request)
+    client = FakeClient(
+        error=APIStatusError(
+            "provider rejected request",
+            response=provider_response,
+            body={"code": provider_code, "message": "do-not-return"},
+        )
+    )
+    adapter = QwenModelExecutionAdapter(
+        api_key="test-secret",
+        base_url="https://dashscope.example/v1",
+        timeout_seconds=3,
+        client=cast(OpenAI, client),
+    )
+
+    with pytest.raises(ModelExecutionError) as captured:
+        adapter.execute(request())
+
+    assert captured.value.code == "MODEL_ACCESS_UNAVAILABLE"
+    assert captured.value.public_message == (
+        "当前研究模型尚未开通或额度不足，请检查模型套餐后重试。"
+    )
+    assert "do-not-return" not in captured.value.public_message
+
+
 def test_qwen_adapter_keeps_safe_execution_metadata_for_invalid_content() -> None:
     response = successful_response()
     response.choices[0].message.content = "not-json"
@@ -244,8 +285,8 @@ def test_planner_rejects_untyped_model_payload() -> None:
     planner = ResearchContractPlanner(
         model_port=Port(),
         provider="qwen",
-        model="qwen3.7-plus",
-        model_revision="qwen3.7-plus-2026-05-26",
+        requested_model="qwen3.8-max",
+        explicit_revision=None,
         manifests=_load_case_manifests(),
     )
     with pytest.raises(ModelExecutionError) as captured:
@@ -267,7 +308,7 @@ def test_planner_rejects_typed_draft_outside_manifest_catalog() -> None:
             return ModelExecutionResponse(
                 payload={
                     "outcome": "draft_ready",
-                    "public_analysis": "已整理研究范围。",
+                    "public_analysis": "已核对研究对象、目标字段与允许的数据来源。",
                     "assistant_message": "请确认协议。",
                     "contract": {
                         "research_goal": "Compare host stars",
@@ -290,8 +331,8 @@ def test_planner_rejects_typed_draft_outside_manifest_catalog() -> None:
     planner = ResearchContractPlanner(
         model_port=Port(),
         provider="qwen",
-        model="qwen3.7-plus",
-        model_revision="qwen3.7-plus-2026-05-26",
+        requested_model="qwen3.8-max",
+        explicit_revision=None,
         manifests=_load_case_manifests(),
     )
     with pytest.raises(ModelExecutionError) as captured:
@@ -313,8 +354,8 @@ def test_planner_uses_the_registered_prompt_and_identified_output_contract() -> 
     planner = ResearchContractPlanner(
         model_port=UnusedPort(),
         provider="qwen",
-        model="qwen3.7-plus",
-        model_revision="qwen3.7-plus-2026-05-26",
+        requested_model="qwen3.8-max",
+        explicit_revision=None,
         manifests=_load_case_manifests(),
     )
     request_value = planner.prepare_request(
@@ -351,3 +392,29 @@ def test_planner_uses_the_registered_prompt_and_identified_output_contract() -> 
         request_value.prompt_hash
         == PromptRegistry().get("research_contract_planner").content_hash
     )
+
+
+def test_integration_model_exercises_the_real_planner_contract_without_claiming_qwen() -> None:
+    port = DeterministicIntegrationModelExecutionPort()
+    planner = ResearchContractPlanner(
+        model_port=port,
+        provider="integration_fixture",
+        requested_model=port.model_name,
+        explicit_revision=port.model_revision,
+        manifests=_load_case_manifests(),
+    )
+    request_value = planner.prepare_request(
+        project=research_project(),
+        entries=(),
+        message="比较公开系外行星候选体的宿主星参数",
+        answer_to_question_id=None,
+    )
+
+    result = planner.execute(request_value)
+
+    assert result.output.outcome == "draft_ready"
+    assert result.output.contract.research_goal == "比较公开系外行星候选体的宿主星参数"
+    assert result.response.provider_returned_model == "deterministic-integration-planner"
+    assert result.response.provider_request_id == "integration-deterministic-planner"
+    assert "qwen" not in result.response.provider_returned_model.lower()
+    assert result.response.output_hash.startswith("sha256:")

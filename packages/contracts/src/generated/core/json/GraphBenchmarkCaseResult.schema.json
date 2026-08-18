@@ -1,0 +1,345 @@
+{
+  "$defs": {
+    "GraphBenchmarkCaseKind": {
+      "enum": [
+        "scientific_graph",
+        "data_mapping_fixture",
+        "rejection_case",
+        "size_boundary"
+      ],
+      "title": "GraphBenchmarkCaseKind",
+      "type": "string"
+    },
+    "GraphIntegrityStage": {
+      "enum": [
+        "input_schema",
+        "artifact_version",
+        "ownership",
+        "taxonomy",
+        "identity",
+        "endpoint",
+        "evidence_snapshot",
+        "relation_trace",
+        "direction_type",
+        "capacity_progressive",
+        "hash_commitment"
+      ],
+      "title": "GraphIntegrityStage",
+      "type": "string"
+    },
+    "GraphIntegrityStatus": {
+      "enum": [
+        "passed",
+        "failed"
+      ],
+      "title": "GraphIntegrityStatus",
+      "type": "string"
+    },
+    "GraphRejectionReason": {
+      "enum": [
+        "invalid_json",
+        "schema_invalid",
+        "input_version_unknown",
+        "input_version_unpublished",
+        "wrong_artifact_kind",
+        "unsupported_schema_version",
+        "content_hash_mismatch",
+        "input_hash_mismatch",
+        "producer_execution_mismatch",
+        "cross_project_ownership",
+        "cross_version_reference",
+        "taxonomy_violation",
+        "duplicate_node_identity",
+        "duplicate_edge_identity",
+        "identity_collision",
+        "dangling_endpoint",
+        "evidence_missing",
+        "evidence_unknown",
+        "evidence_inconsistent",
+        "source_snapshot_missing",
+        "source_snapshot_unknown",
+        "source_snapshot_inconsistent",
+        "relation_not_accepted",
+        "reasoning_trace_missing",
+        "reasoning_trace_mismatch",
+        "reasoning_trace_incomplete",
+        "wrong_direction",
+        "relation_type_mismatch",
+        "provenance_version_mismatch",
+        "evidence_hidden_by_filter",
+        "aggregation_incomplete",
+        "size_limit_exceeded",
+        "silent_truncation",
+        "progressive_input_incomplete",
+        "candidate_hash_mismatch",
+        "report_hash_mismatch",
+        "admission_commitment_mismatch"
+      ],
+      "title": "GraphRejectionReason",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "actual_edge_count": {
+      "minimum": 0,
+      "title": "Actual Edge Count",
+      "type": "integer"
+    },
+    "actual_evidence_use_count": {
+      "minimum": 0,
+      "title": "Actual Evidence Use Count",
+      "type": "integer"
+    },
+    "actual_node_count": {
+      "minimum": 0,
+      "title": "Actual Node Count",
+      "type": "integer"
+    },
+    "case_content_hash": {
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Case Content Hash",
+      "type": "string"
+    },
+    "case_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Case Id",
+      "type": "string"
+    },
+    "data_level": {
+      "enum": [
+        "benchmark",
+        "fixture"
+      ],
+      "title": "Data Level",
+      "type": "string"
+    },
+    "edge_exact_match": {
+      "title": "Edge Exact Match",
+      "type": "boolean"
+    },
+    "excluded_nonaccepted_relation_count": {
+      "minimum": 0,
+      "title": "Excluded Nonaccepted Relation Count",
+      "type": "integer"
+    },
+    "expected_accepted_relation_count": {
+      "minimum": 0,
+      "title": "Expected Accepted Relation Count",
+      "type": "integer"
+    },
+    "expected_edge_count": {
+      "minimum": 0,
+      "title": "Expected Edge Count",
+      "type": "integer"
+    },
+    "expected_evidence_use_count": {
+      "minimum": 0,
+      "title": "Expected Evidence Use Count",
+      "type": "integer"
+    },
+    "expected_failure_stage": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GraphIntegrityStage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "expected_node_count": {
+      "minimum": 0,
+      "title": "Expected Node Count",
+      "type": "integer"
+    },
+    "expected_nonaccepted_relation_count": {
+      "minimum": 0,
+      "title": "Expected Nonaccepted Relation Count",
+      "type": "integer"
+    },
+    "expected_reasoning_trace_count": {
+      "minimum": 0,
+      "title": "Expected Reasoning Trace Count",
+      "type": "integer"
+    },
+    "expected_rejection_reason": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GraphRejectionReason"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "expected_result_pass": {
+      "title": "Expected Result Pass",
+      "type": "boolean"
+    },
+    "expected_status": {
+      "$ref": "#/$defs/GraphIntegrityStatus"
+    },
+    "failure_stage": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GraphIntegrityStage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "input_hash": {
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Input Hash",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/GraphBenchmarkCaseKind"
+    },
+    "layout_hash": {
+      "anyOf": [
+        {
+          "maxLength": 71,
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Layout Hash"
+    },
+    "matched_accepted_relation_count": {
+      "minimum": 0,
+      "title": "Matched Accepted Relation Count",
+      "type": "integer"
+    },
+    "matched_edge_count": {
+      "minimum": 0,
+      "title": "Matched Edge Count",
+      "type": "integer"
+    },
+    "matched_evidence_use_count": {
+      "minimum": 0,
+      "title": "Matched Evidence Use Count",
+      "type": "integer"
+    },
+    "matched_node_count": {
+      "minimum": 0,
+      "title": "Matched Node Count",
+      "type": "integer"
+    },
+    "matched_reasoning_trace_count": {
+      "minimum": 0,
+      "title": "Matched Reasoning Trace Count",
+      "type": "integer"
+    },
+    "node_exact_match": {
+      "title": "Node Exact Match",
+      "type": "boolean"
+    },
+    "output_hash": {
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Output Hash",
+      "type": "string"
+    },
+    "rejection_reason": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GraphRejectionReason"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "report_hash": {
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Report Hash",
+      "type": "string"
+    },
+    "schema_valid": {
+      "title": "Schema Valid",
+      "type": "boolean"
+    },
+    "scientific_hash": {
+      "anyOf": [
+        {
+          "maxLength": 71,
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scientific Hash"
+    },
+    "stable_order_pass": {
+      "title": "Stable Order Pass",
+      "type": "boolean"
+    },
+    "status": {
+      "$ref": "#/$defs/GraphIntegrityStatus"
+    },
+    "unexpected_edge_count": {
+      "minimum": 0,
+      "title": "Unexpected Edge Count",
+      "type": "integer"
+    },
+    "unexpected_node_count": {
+      "minimum": 0,
+      "title": "Unexpected Node Count",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "case_id",
+    "kind",
+    "data_level",
+    "case_content_hash",
+    "schema_valid",
+    "expected_status",
+    "status",
+    "expected_node_count",
+    "actual_node_count",
+    "matched_node_count",
+    "unexpected_node_count",
+    "expected_edge_count",
+    "actual_edge_count",
+    "matched_edge_count",
+    "unexpected_edge_count",
+    "expected_evidence_use_count",
+    "actual_evidence_use_count",
+    "matched_evidence_use_count",
+    "expected_accepted_relation_count",
+    "matched_accepted_relation_count",
+    "expected_reasoning_trace_count",
+    "matched_reasoning_trace_count",
+    "expected_nonaccepted_relation_count",
+    "excluded_nonaccepted_relation_count",
+    "node_exact_match",
+    "edge_exact_match",
+    "stable_order_pass",
+    "expected_result_pass",
+    "input_hash",
+    "report_hash",
+    "output_hash"
+  ],
+  "title": "GraphBenchmarkCaseResult",
+  "type": "object"
+}

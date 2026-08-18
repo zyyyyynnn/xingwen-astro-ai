@@ -1,0 +1,28 @@
+{
+  "additionalProperties": false,
+  "description": "Immutable reference from a Case Manifest to a Field Manifest.",
+  "properties": {
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "manifest_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Manifest Id",
+      "type": "string"
+    },
+    "manifest_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Manifest Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "manifest_id",
+    "manifest_version",
+    "content_hash"
+  ],
+  "title": "ManifestReference",
+  "type": "object"
+}

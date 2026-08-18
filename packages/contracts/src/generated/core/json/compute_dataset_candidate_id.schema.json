@@ -1,0 +1,23 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "canonical_content_hash": {
+      "title": "Canonical Content Hash",
+      "type": "string"
+    },
+    "kind": {
+      "title": "Kind",
+      "type": "string"
+    },
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "schema_version",
+    "canonical_content_hash"
+  ],
+  "type": "object"
+}

@@ -15,9 +15,9 @@ from pathlib import Path
 from threading import Barrier
 from uuid import uuid4
 
-from alembic import command
-from alembic.config import Config
 import pytest
+
+from db_bootstrap import reset_current_schema
 from sqlalchemy import Engine, func, select, update
 from sqlalchemy.exc import IntegrityError
 
@@ -56,27 +56,17 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def _alembic_config(url: str) -> Config:
-    root = Path(__file__).resolve().parents[1]
-    config = Config(root / "alembic.ini")
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    return config
-
-
 @pytest.fixture(scope="module")
 def postgres_engine() -> Engine:
     assert TEST_DATABASE_URL is not None
     assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower(), (
         "refusing non-test database"
     )
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
     engine = create_engine_from_url(TEST_DATABASE_URL)
     yield engine
     engine.dispose()
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 def _step_definitions(*, max_attempts: int = 2) -> tuple[RunStepDefinition, ...]:
@@ -140,6 +130,90 @@ def _create_run(
         steps=_step_definitions(max_attempts=max_attempts),
     )
     return store, snapshot
+
+
+def test_append_activity_event_advances_cursor_without_revision(
+    postgres_engine: Engine,
+) -> None:
+    store, snapshot = _create_run(postgres_engine)
+    lease = store.acquire_lease(
+        snapshot.id,
+        owner="executor",
+        lease_duration=timedelta(seconds=30),
+        expected_status="queued",
+        expected_revision=snapshot.revision,
+    )
+    attempt = store.begin_step(
+        snapshot.id,
+        step_key="planning",
+        attempt_idempotency_key="attempt-1",
+        token=lease.token,
+        generation=lease.generation,
+        expected_status="queued",
+        expected_revision=lease.revision,
+        public_message="Planning",
+    )
+    before = store.load_snapshot(snapshot.id)
+
+    result = store.append_activity_event(
+        snapshot.id,
+        token=lease.token,
+        generation=lease.generation,
+        expected_status=attempt.run_status,
+        expected_revision=attempt.run_revision,
+        activity_id=f"{attempt.attempt_id}:analysis",
+        activity_kind="reasoning",
+        activity_phase="running",
+        activity_name="分析",
+        content="正在分析执行条件。",
+        step_key="planning",
+        progress=None,
+        details={"analysis_type": "public"},
+    )
+
+    after = store.load_snapshot(snapshot.id)
+    assert result.latest_event_sequence == before.latest_event_sequence + 1
+    assert result.revision == attempt.run_revision
+    assert after.revision == attempt.run_revision
+    assert after.latest_event_sequence == result.latest_event_sequence
+    latest = after.events[-1]
+    assert latest.activity_id == f"{attempt.attempt_id}:analysis"
+    assert latest.activity_kind == "reasoning"
+    assert latest.activity_phase == "running"
+    assert latest.activity_name == "分析"
+    assert latest.content == "正在分析执行条件。"
+    assert latest.details == {"analysis_type": "public"}
+    assert latest.step_key == "planning"
+
+
+def test_queued_and_step_events_carry_activity_protocol_fields(
+    postgres_engine: Engine,
+) -> None:
+    store, snapshot = _create_run(postgres_engine)
+    lease = store.acquire_lease(
+        snapshot.id,
+        owner="executor",
+        lease_duration=timedelta(seconds=30),
+        expected_status="queued",
+        expected_revision=snapshot.revision,
+    )
+    store.begin_step(
+        snapshot.id,
+        step_key="planning",
+        attempt_idempotency_key="attempt-1",
+        token=lease.token,
+        generation=lease.generation,
+        expected_status="queued",
+        expected_revision=lease.revision,
+        public_message="Planning",
+    )
+    events = store.load_snapshot(snapshot.id).events
+    assert events[0].activity_kind == "status"
+    assert events[0].activity_phase == "queued"
+    assert events[0].activity_name == "研究任务"
+    assert events[1].activity_kind == "status"
+    assert events[1].activity_phase == "running"
+    assert events[1].step_key == "planning"
 
 
 def test_concurrent_lease_acquisition_has_one_winner(postgres_engine: Engine) -> None:

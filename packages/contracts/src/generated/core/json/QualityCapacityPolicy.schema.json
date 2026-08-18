@@ -1,0 +1,72 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "max_cells": {
+      "exclusiveMinimum": 0,
+      "maximum": 10000000,
+      "title": "Max Cells",
+      "type": "integer"
+    },
+    "max_conflict_references": {
+      "exclusiveMinimum": 0,
+      "maximum": 10000000,
+      "title": "Max Conflict References",
+      "type": "integer"
+    },
+    "max_crossmatch_edges": {
+      "exclusiveMinimum": 0,
+      "maximum": 10000000,
+      "title": "Max Crossmatch Edges",
+      "type": "integer"
+    },
+    "max_diagnostic_references": {
+      "exclusiveMinimum": 0,
+      "maximum": 100000,
+      "title": "Max Diagnostic References",
+      "type": "integer"
+    },
+    "max_evidence": {
+      "exclusiveMinimum": 0,
+      "maximum": 10000000,
+      "title": "Max Evidence",
+      "type": "integer"
+    },
+    "max_fields": {
+      "exclusiveMinimum": 0,
+      "maximum": 100000,
+      "title": "Max Fields",
+      "type": "integer"
+    },
+    "max_metric_records": {
+      "exclusiveMinimum": 0,
+      "maximum": 1000000,
+      "title": "Max Metric Records",
+      "type": "integer"
+    },
+    "max_rows": {
+      "exclusiveMinimum": 0,
+      "maximum": 100000,
+      "title": "Max Rows",
+      "type": "integer"
+    },
+    "max_source_values": {
+      "exclusiveMinimum": 0,
+      "maximum": 10000000,
+      "title": "Max Source Values",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "max_rows",
+    "max_fields",
+    "max_cells",
+    "max_source_values",
+    "max_evidence",
+    "max_conflict_references",
+    "max_crossmatch_edges",
+    "max_metric_records",
+    "max_diagnostic_references"
+  ],
+  "title": "QualityCapacityPolicy",
+  "type": "object"
+}

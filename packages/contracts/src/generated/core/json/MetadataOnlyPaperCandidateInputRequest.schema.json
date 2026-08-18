@@ -1,0 +1,33 @@
+{
+  "$defs": {
+    "PaperCandidateMetadataReason": {
+      "enum": [
+        "access_not_proven",
+        "metadata_url_only",
+        "paywalled",
+        "restricted_full_text",
+        "partial_metadata",
+        "unsupported_access"
+      ],
+      "title": "PaperCandidateMetadataReason",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "mode": {
+      "const": "metadata_only",
+      "title": "Mode",
+      "type": "string"
+    },
+    "reason": {
+      "$ref": "#/$defs/PaperCandidateMetadataReason"
+    }
+  },
+  "required": [
+    "mode",
+    "reason"
+  ],
+  "title": "MetadataOnlyPaperCandidateInputRequest",
+  "type": "object"
+}

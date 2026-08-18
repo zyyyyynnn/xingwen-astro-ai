@@ -1,0 +1,109 @@
+{
+  "$defs": {
+    "PaperSummaryStatementCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "statement_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Statement Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "statement_id",
+        "text",
+        "evidence_ids"
+      ],
+      "title": "PaperSummaryStatementCandidate",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The complete JSON shape accepted before Evidence validation.",
+  "properties": {
+    "dataset": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PaperSummaryStatementCandidate"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "evidence_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/PaperSummaryStatementCandidate"
+      },
+      "title": "Findings",
+      "type": "array"
+    },
+    "future_work": {
+      "items": {
+        "$ref": "#/$defs/PaperSummaryStatementCandidate"
+      },
+      "title": "Future Work",
+      "type": "array"
+    },
+    "limitations": {
+      "items": {
+        "$ref": "#/$defs/PaperSummaryStatementCandidate"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "method": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PaperSummaryStatementCandidate"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "research_goal": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PaperSummaryStatementCandidate"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "research_goal",
+    "method",
+    "dataset",
+    "findings",
+    "limitations",
+    "future_work",
+    "evidence_ids"
+  ],
+  "title": "PaperSummaryModelOutput",
+  "type": "object"
+}

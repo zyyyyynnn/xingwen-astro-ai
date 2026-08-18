@@ -24,17 +24,10 @@ from .paper_summary import (
     PaperSummarySourceSnapshotReference,
     ShortString,
 )
+from .persistence import PersistedUuid
 
 
 _ARTIFACT_PUBLICATION_SEAL = object()
-PERSISTENT_RESOURCE_IDENTIFIER_PATTERN = (
-    r"^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|"
-    r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$"
-)
-PersistentResourceIdentifier = Annotated[
-    str,
-    Field(pattern=PERSISTENT_RESOURCE_IDENTIFIER_PATTERN),
-]
 
 
 class LiteratureClaimStatus(StrEnum):
@@ -87,7 +80,7 @@ class LiteratureClaimInputVersions(BaseModel):
 
     model_config = MODEL_CONFIG
 
-    paper_summary_artifact_version_id: PersistentResourceIdentifier
+    paper_summary_artifact_version_id: PersistedUuid
     paper_summary_schema_version: SemanticVersion | None = None
     paper_summary_output_hash: ContentHash | None = None
     summary_id: Identifier | None = None
@@ -185,7 +178,7 @@ class LiteratureClaimCandidate(BaseModel):
     claim_id: Identifier
     source_statement_id: Identifier
     paper_id: Identifier
-    source_paper_summary_artifact_version_id: PersistentResourceIdentifier
+    source_paper_summary_artifact_version_id: PersistedUuid
     source_summary_id: Identifier | None = None
     text: NonEmptyString
     normalized_text: NonEmptyString
@@ -251,7 +244,7 @@ class LiteratureClaimProducerExecution(BaseModel):
     model_config = MODEL_CONFIG
 
     execution_id: Identifier
-    run_id: PersistentResourceIdentifier | None = None
+    run_id: PersistedUuid | None = None
     step_key: Literal["reasoning_literature"] = "reasoning_literature"
     producer_type: Literal["model"] = "model"
     producer_name: NonEmptyString
@@ -462,12 +455,9 @@ class LiteratureClaimAdmissionResult(BaseModel):
         expected_status = _aggregate_status(self.records)
         if self.records and self.admission_status is not expected_status:
             raise ValueError("admission_status does not match Claim records")
-        has_publishable = any(
-            item.status is not LiteratureClaimStatus.rejected for item in self.records
-        )
-        if has_publishable != (self.publisher_candidate is not None):
+        if bool(self.records) != (self.publisher_candidate is not None):
             raise ValueError(
-                "publisher candidate is required exactly when a Claim is publishable"
+                "publisher candidate is required for every record-level admission result"
             )
         if self.publisher_candidate is not None:
             if (

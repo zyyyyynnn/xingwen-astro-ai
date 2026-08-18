@@ -1,0 +1,20 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "alignment_status": {
+      "title": "Alignment Status"
+    },
+    "members": {
+      "title": "Members"
+    },
+    "record": {
+      "title": "Record"
+    }
+  },
+  "required": [
+    "record",
+    "members",
+    "alignment_status"
+  ],
+  "type": "object"
+}

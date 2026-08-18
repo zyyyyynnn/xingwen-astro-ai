@@ -1,223 +1,173 @@
 import type { DomainEntityId, RunEvent } from "@xingwen/domain";
 
-export type ActivityEventKind =
-  | "message"
-  | "action"
-  | "tool"
-  | "progress"
-  | "result"
-  | "error"
-  | "completion";
-
+export type ActivityEventKind = RunEvent["activityKind"];
 export type ActivityEventStatus = "pending" | "running" | "success" | "error";
+export type ActivityOutcome = "pending" | "running" | "success" | "failed";
+export type ActivityOperation =
+  | "analysis"
+  | "search"
+  | "data_query"
+  | "document_read"
+  | "evidence_validation"
+  | "artifact_generation"
+  | "retry"
+  | "status"
+  | "completion"
+  | "error"
+  | "tool";
+export type ActivityUpdatePhase = RunEvent["activityPhase"];
 
-export type ActivityOutcome =
-  "pending" | "running" | "success" | "failed" | "cancelled" | "unsupported";
+export interface ActivityPresentationUpdate {
+  readonly sequence: number;
+  readonly phase: ActivityUpdatePhase;
+  readonly message: string;
+  readonly timestamp: string;
+  readonly details: Readonly<Record<string, unknown>>;
+}
 
-/** Public, domain-neutral activity data with immutable run traceability. */
+/** Project-private Agent activity projected from the persisted Run event stream. */
 export interface ActivityPresentationEvent {
+  /** Stable identity across reasoning deltas and tool Action → Observation updates. */
   readonly id: string;
   readonly kind: ActivityEventKind;
+  readonly operation: ActivityOperation;
   readonly title: string;
-  readonly detail?: string;
+  readonly summary: string;
   readonly status: ActivityEventStatus;
   readonly groupId?: string;
-  readonly timestamp?: string;
+  readonly timestamp: string;
   readonly runId: DomainEntityId;
   readonly sequence: number;
   readonly stepKey: DomainEntityId | null;
   readonly progress: number | null;
   readonly artifactVersionIds: readonly DomainEntityId[];
   readonly outcome: ActivityOutcome;
+  readonly details: Readonly<Record<string, unknown>>;
+  readonly updates: readonly ActivityPresentationUpdate[];
 }
 
-type ActivityGroupScope = "none" | "run" | "step";
+const OPERATIONS = new Set<ActivityOperation>([
+  "analysis",
+  "search",
+  "data_query",
+  "document_read",
+  "evidence_validation",
+  "artifact_generation",
+  "retry",
+  "status",
+  "completion",
+  "error",
+  "tool",
+]);
 
-interface ActivityDefinition {
-  readonly kind: ActivityEventKind;
-  readonly title: string;
-  readonly status: ActivityEventStatus;
-  readonly outcome: ActivityOutcome;
-  readonly groupScope: ActivityGroupScope;
-}
-
-function groupIdFor(
-  event: RunEvent,
-  scope: ActivityGroupScope,
-): string | undefined {
-  switch (scope) {
-    case "none":
-      return undefined;
-    case "run":
-      return `${event.runId}:run`;
-    case "step":
-      return `${event.runId}:${event.stepKey ?? "run"}`;
+function operationOf(event: RunEvent): ActivityOperation {
+  const value = event.details.tool_kind;
+  if (typeof value === "string" && OPERATIONS.has(value as ActivityOperation)) {
+    return value as ActivityOperation;
   }
+  if (event.activityKind === "reasoning") return "analysis";
+  if (event.activityKind === "retry") return "retry";
+  if (event.activityKind === "completion") return "completion";
+  if (event.activityKind === "error") return "error";
+  if (event.activityKind === "status") return "status";
+  if (event.activityKind === "artifact") return "artifact_generation";
+  return "tool";
 }
 
-function buildActivityEvent(
+function statusOf(phase: RunEvent["activityPhase"]): ActivityEventStatus {
+  if (phase === "failed") return "error";
+  if (phase === "completed") return "success";
+  if (phase === "queued") return "pending";
+  return "running";
+}
+
+function outcomeOf(phase: RunEvent["activityPhase"]): ActivityOutcome {
+  if (phase === "failed") return "failed";
+  if (phase === "completed") return "success";
+  if (phase === "queued") return "pending";
+  return "running";
+}
+
+export function toActivityPresentationEvent(
   event: RunEvent,
-  definition: ActivityDefinition,
 ): ActivityPresentationEvent {
-  const groupId = groupIdFor(event, definition.groupScope);
-  const base = {
-    id: `${event.runId}:${event.sequence}`,
-    kind: definition.kind,
-    title: definition.title,
-    detail: localizePublicMessage(event.publicMessage),
-    status: definition.status,
+  const update: ActivityPresentationUpdate = {
+    sequence: event.sequence,
+    phase: event.activityPhase,
+    message: event.content,
+    timestamp: event.occurredAt,
+    details: event.details,
+  };
+  return Object.freeze({
+    id: event.activityId,
+    kind: event.activityKind,
+    operation: operationOf(event),
+    title: event.activityName,
+    summary: event.content,
+    status: statusOf(event.activityPhase),
+    groupId: event.stepKey ?? undefined,
     timestamp: event.occurredAt,
     runId: event.runId,
     sequence: event.sequence,
     stepKey: event.stepKey,
     progress: event.progress,
     artifactVersionIds: [...event.artifactVersionIds],
-    outcome: definition.outcome,
-  };
-
-  return groupId === undefined ? base : { ...base, groupId };
+    outcome: outcomeOf(event.activityPhase),
+    details: event.details,
+    updates: [update],
+  });
 }
 
-const PUBLIC_MESSAGE_TRANSLATIONS: Readonly<Record<string, string>> = {
-  "Run queued": "研究运行已进入队列。",
-  Planning: "正在规划研究路径。",
-  "Planning data and paper acquisition": "正在规划数据与文献采集路径。",
-  "Fetching data": "正在采集研究数据。",
-  "Cleaning data": "正在整理研究数据。",
-  "Searching papers": "正在检索相关文献。",
-  "Summarizing papers": "正在归纳文献证据。",
-  "Reasoning over literature": "正在综合文献证据。",
-  "Building evidence graph": "正在构建证据关系。",
-};
-
-function localizePublicMessage(message: string): string {
-  return PUBLIC_MESSAGE_TRANSLATIONS[message] ?? message;
-}
-
-/** Map the current exact RunEvent taxonomy; unknown types fail visibly. */
-export function toActivityPresentationEvent(
-  event: RunEvent,
+function mergeOne(
+  previous: ActivityPresentationEvent,
+  next: ActivityPresentationEvent,
 ): ActivityPresentationEvent {
-  switch (event.eventType) {
-    case "run.queued":
-      return buildActivityEvent(event, {
-        kind: "message",
-        title: "研究已排队",
-        status: "pending",
-        outcome: "pending",
-        groupScope: "none",
-      });
-    case "run.planning":
-      return buildActivityEvent(event, {
-        kind: "progress",
-        title: "规划研究路径",
-        status: "running",
-        outcome: "running",
-        groupScope: "run",
-      });
-    case "run.fetching_data":
-      return buildActivityEvent(event, {
-        kind: "progress",
-        title: "采集研究数据",
-        status: "running",
-        outcome: "running",
-        groupScope: "run",
-      });
-    case "run.cleaning_data":
-      return buildActivityEvent(event, {
-        kind: "progress",
-        title: "整理研究数据",
-        status: "running",
-        outcome: "running",
-        groupScope: "run",
-      });
-    case "run.searching_papers":
-      return buildActivityEvent(event, {
-        kind: "progress",
-        title: "检索相关文献",
-        status: "running",
-        outcome: "running",
-        groupScope: "run",
-      });
-    case "run.summarizing_papers":
-      return buildActivityEvent(event, {
-        kind: "progress",
-        title: "归纳文献证据",
-        status: "running",
-        outcome: "running",
-        groupScope: "run",
-      });
-    case "run.reasoning_literature":
-      return buildActivityEvent(event, {
-        kind: "progress",
-        title: "综合研究证据",
-        status: "running",
-        outcome: "running",
-        groupScope: "run",
-      });
-    case "run.building_graph":
-      return buildActivityEvent(event, {
-        kind: "progress",
-        title: "构建证据关系",
-        status: "running",
-        outcome: "running",
-        groupScope: "run",
-      });
-    case "step.started":
-      return buildActivityEvent(event, {
-        kind: "action",
-        title: "开始执行步骤",
-        status: "running",
-        outcome: "running",
-        groupScope: "step",
-      });
-    case "step.retry_scheduled":
-      return buildActivityEvent(event, {
-        kind: "action",
-        title: "步骤等待重试",
-        status: "pending",
-        outcome: "pending",
-        groupScope: "step",
-      });
-    case "step.completed":
-      return buildActivityEvent(event, {
-        kind: "result",
-        title: "步骤已完成",
-        status: "success",
-        outcome: "success",
-        groupScope: "step",
-      });
-    case "run.completed":
-      return buildActivityEvent(event, {
-        kind: "completion",
-        title: "研究已完成",
-        status: "success",
-        outcome: "success",
-        groupScope: "none",
-      });
-    case "run.failed":
-      return buildActivityEvent(event, {
-        kind: "error",
-        title: "研究运行失败",
-        status: "error",
-        outcome: "failed",
-        groupScope: "none",
-      });
-    case "run.cancelled":
-      return buildActivityEvent(event, {
-        kind: "error",
-        title: "研究已取消",
-        status: "error",
-        outcome: "cancelled",
-        groupScope: "none",
-      });
-    default:
-      return buildActivityEvent(event, {
-        kind: "error",
-        title: "暂无法显示此运行事件",
-        status: "error",
-        outcome: "unsupported",
-        groupScope: "none",
-      });
+  const updates = new Map<number, ActivityPresentationUpdate>();
+  for (const update of [...previous.updates, ...next.updates]) {
+    updates.set(update.sequence, update);
   }
+  const latest = previous.sequence > next.sequence ? previous : next;
+  const first = previous.sequence <= next.sequence ? previous : next;
+  const artifactVersionIds = new Set([
+    ...previous.artifactVersionIds,
+    ...next.artifactVersionIds,
+  ]);
+  return Object.freeze({
+    ...latest,
+    kind:
+      first.kind === "tool" &&
+      (latest.kind === "observation" || latest.kind === "artifact")
+        ? "tool"
+        : latest.kind,
+    operation:
+      first.kind === "tool" &&
+      (latest.kind === "observation" || latest.kind === "artifact")
+        ? first.operation
+        : latest.operation === "tool"
+          ? first.operation
+          : latest.operation,
+    timestamp: first.timestamp,
+    details: Object.freeze({ ...previous.details, ...next.details }),
+    artifactVersionIds: [...artifactVersionIds],
+    updates: [...updates.values()].sort(
+      (left, right) => left.sequence - right.sequence,
+    ),
+  });
+}
+
+/** Fold streaming deltas and Action → Observation updates in place by identity. */
+export function mergeActivityPresentationEvents(
+  previous: readonly ActivityPresentationEvent[],
+  incoming: readonly ActivityPresentationEvent[],
+): readonly ActivityPresentationEvent[] {
+  const byId = new Map(previous.map((event) => [event.id, event]));
+  for (const event of incoming) {
+    const existing = byId.get(event.id);
+    byId.set(event.id, existing ? mergeOne(existing, event) : event);
+  }
+  return [...byId.values()].sort(
+    (left, right) =>
+      left.updates[0]!.sequence - right.updates[0]!.sequence ||
+      left.id.localeCompare(right.id),
+  );
 }

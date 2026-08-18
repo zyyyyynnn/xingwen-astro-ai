@@ -21,10 +21,15 @@ export interface ResearchRun {
   readonly executionMode: ExecutionMode;
   readonly status: RunStatus;
   readonly progress: number;
+  readonly revision: number;
   readonly parentRunId: DomainEntityId | null;
   readonly derivationKind: DerivationKind;
   readonly retryFromStep: DomainEntityId | null;
   readonly cachePolicy: CachePolicy;
+  readonly revisionPlanId?: DomainEntityId | null;
+  readonly feedbackIds?: readonly DomainEntityId[];
+  readonly recomputeSteps?: readonly DomainEntityId[];
+  readonly reusedArtifactVersionIds?: readonly DomainEntityId[];
   readonly startedAt: UtcIsoTimestamp | null;
   readonly finishedAt: UtcIsoTimestamp | null;
   readonly createdAt: UtcIsoTimestamp;
@@ -37,12 +42,42 @@ export interface ResearchRun {
 export interface RunEvent {
   readonly runId: DomainEntityId;
   readonly sequence: number;
-  readonly eventType: DomainEntityId;
+  readonly activityId: string;
+  readonly activityKind:
+    | "reasoning"
+    | "tool"
+    | "observation"
+    | "status"
+    | "artifact"
+    | "retry"
+    | "error"
+    | "completion";
+  readonly activityPhase:
+    "queued" | "streaming" | "running" | "completed" | "failed" | "retrying";
+  readonly activityName: string;
   readonly stepKey: DomainEntityId | null;
   readonly progress: number | null;
-  readonly publicMessage: string;
+  readonly content: string;
+  readonly details: Readonly<Record<string, unknown>>;
   readonly artifactVersionIds: readonly DomainEntityId[];
   readonly occurredAt: UtcIsoTimestamp;
+}
+
+export interface RunCheckpoint {
+  readonly id: DomainEntityId;
+  readonly runId: DomainEntityId;
+  readonly stepKey: DomainEntityId;
+  readonly question: string;
+  readonly options: readonly string[];
+  readonly createdAt: UtcIsoTimestamp;
+  readonly selectedOption: string | null;
+  readonly freeText: string | null;
+  readonly decidedAt: UtcIsoTimestamp | null;
+}
+
+export interface RunCheckpointDecisionRequest {
+  readonly selectedOption: string;
+  readonly freeText?: string | null;
 }
 
 /**

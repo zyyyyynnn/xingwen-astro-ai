@@ -6,6 +6,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { parseEntityId, type DomainEntityId } from "@xingwen/domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -25,12 +26,20 @@ afterEach(() => {
 });
 
 describe("Workspace product UI", () => {
-  it("teaches the empty Project state and creates through the real mutation", async () => {
+  it("teaches the empty workspace entry: one send creates the Project and first turn", async () => {
     const runtime = createTestRuntime();
     vi.spyOn(runtime.repositories.projects, "list").mockResolvedValue({
       items: [],
       nextCursor: null,
     });
+    const submitTurn = vi
+      .spyOn(runtime.repositories.researchThread, "submit")
+      .mockResolvedValue({
+        outcome: "draft_ready",
+        entries: [],
+        activeDraftId: null,
+        modelExecutionId: parseEntityId("mexec_entry_test") as DomainEntityId,
+      });
     const onOpenProject = vi.fn();
     render(
       <QueryClientProvider client={runtime.queryClient}>
@@ -38,22 +47,51 @@ describe("Workspace product UI", () => {
       </QueryClientProvider>,
     );
 
-    expect(await screen.findByText("建立第一个研究项目")).toBeInTheDocument();
+    expect(await screen.findByText("开始你的研究")).toBeInTheDocument();
     expect(screen.getByTestId("root-layout")).toBeInTheDocument();
     expect(screen.getByLabelText("工作台侧栏")).toBeInTheDocument();
-    expect(screen.queryByLabelText("悬浮研究概览")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "展示悬浮概览" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "展开右侧栏" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "新建研究项目" }));
-    fireEvent.change(screen.getByLabelText("项目名称"), {
-      target: { value: "近邻宿主星比较" },
-    });
-    fireEvent.change(screen.getByLabelText("研究说明"), {
-      target: { value: "比较关键恒星参数" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "创建并进入项目" }));
+
+    const composer = screen.getByRole("textbox", { name: "输入研究消息" });
+    composer.textContent = "比较近邻宿主恒星的行星统计特征";
+    fireEvent.input(composer);
+    fireEvent.keyDown(composer, { key: "Enter" });
 
     await waitFor(() => expect(onOpenProject).toHaveBeenCalledOnce());
+    expect(submitTurn).toHaveBeenCalledOnce();
+    expect(submitTurn.mock.calls[0]?.[1]?.message).toBe(
+      "比较近邻宿主恒星的行星统计特征",
+    );
+  });
+
+  it("creates a real Project before uploading the first Composer attachment", async () => {
+    const runtime = createTestRuntime();
+    vi.spyOn(runtime.repositories.projects, "list").mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    const upload = vi.spyOn(runtime.repositories.researchInputs, "create");
+    const onOpenProject = vi.fn();
+    render(
+      <QueryClientProvider client={runtime.queryClient}>
+        <WorkspaceEntry runtime={runtime} onOpenProject={onOpenProject} />
+      </QueryClientProvider>,
+    );
+
+    const input = await screen.findByLabelText("选择研究资料");
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(["%PDF-1.7"], "observations.pdf", {
+            type: "application/pdf",
+          }),
+        ],
+      },
+    });
+
+    await waitFor(() => expect(upload).toHaveBeenCalledOnce());
+    await waitFor(() => expect(onOpenProject).toHaveBeenCalledOnce());
+    expect(upload.mock.calls[0]?.[0].type).toBe("pdf");
+    expect(upload.mock.calls[0]?.[0].filename).toBe("observations.pdf");
   });
 
   it("renders the Research Thread and Inspector while keeping OpenHands mechanics", async () => {
@@ -78,7 +116,7 @@ describe("Workspace product UI", () => {
         onValueChange: vi.fn(),
         onSubmit: vi.fn(async () => undefined),
       },
-      activation: null,
+      threadItemCount: 0,
       threadPanel: <p>研究 Thread 内容</p>,
       inspectorPanel: <p>Research Inspector 内容</p>,
     };
@@ -86,39 +124,31 @@ describe("Workspace product UI", () => {
 
     expect(screen.getByText("研究 Thread 内容")).toBeInTheDocument();
     expect(screen.getByText("Research Inspector 内容")).toBeInTheDocument();
-    expect(screen.getByLabelText("悬浮研究概览")).toBeInTheDocument();
-    const floatingControl = screen.getByRole("button", {
-      name: "收起悬浮概览",
+    const inspectorControl = screen.getByRole("button", {
+      name: "关闭右侧研究栏",
     });
-    const dockedControl = screen.getByRole("button", {
-      name: "展开右侧栏",
-    });
-    expect(floatingControl).toHaveAttribute("aria-pressed", "true");
-    expect(dockedControl).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByTestId("floating-inspector-safe-track")).toHaveStyle({
-      width: "min(var(--oh-inspector-floating-track-inline-size), 40cqw)",
-    });
-
-    fireEvent.click(floatingControl);
-    expect(screen.getByLabelText("悬浮研究概览")).toHaveAttribute(
-      "aria-hidden",
-      "true",
+    expect(inspectorControl).toHaveAttribute("aria-expanded", "true");
+    const inspector = screen.getByLabelText("右侧研究栏");
+    expect(inspector).toBeInTheDocument();
+    expect(inspector.parentElement).toBe(
+      screen.getByTestId("conversation-main"),
     );
-    expect(screen.getByTestId("floating-inspector-safe-track")).toHaveStyle({
-      width: "0px",
-    });
-    expect(screen.getByRole("button", { name: "展示悬浮概览" })).toBeEnabled();
-
-    fireEvent.click(screen.getByRole("button", { name: "展开右侧栏" }));
-    expect(screen.getByLabelText("右侧研究栏")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "展示悬浮概览" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "收起右侧栏" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
+    expect(screen.getByTestId("workspace-main-column")).toContainElement(
+      screen.getByTestId("workspace-topbar"),
     );
-    expect(screen.getByTestId("workspace-topbar")).toContainElement(
-      screen.getByRole("button", { name: "收起右侧栏" }),
+    fireEvent.click(inspectorControl);
+    expect(inspector).toHaveAttribute("data-collapsed", "true");
+    expect(inspector).toHaveStyle({ width: "0px" });
+    expect(
+      screen.getByRole("button", { name: "打开右侧研究栏" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(screen.getByRole("button", { name: "打开右侧研究栏" }));
+    expect(inspector).toHaveAttribute("data-collapsed", "false");
+    const openControl = screen.getByRole("button", { name: "关闭右侧研究栏" });
+    expect(screen.getByTestId("conversation-main")).toContainElement(
+      openControl,
     );
+    expect(inspector).not.toContainElement(openControl);
     expect(screen.queryByRole("tab", { name: "活动" })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("tab", { name: "上下文" }),

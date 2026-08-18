@@ -70,7 +70,10 @@ test("start-dev.bat starts local services in standard CMD windows", () => {
     startDev,
     /docker\s+compose\s+-p\s+%COMPOSE_PROJECT_NAME%\s+up\s+-d\s+--wait\s+postgres\s+>nul\s+2>&1/iu,
   );
-  assert.match(startDev, /uv\s+run\s+alembic\s+upgrade\s+head\s+>nul\s+2>&1/iu);
+  assert.match(
+    startDev,
+    /uv\s+run\s+python\s+-m\s+app\.db\.schema\s+>nul\s+2>&1/iu,
+  );
   assert.doesNotMatch(startDev, /start\s+"Xingwen Backend"[^\r\n]*>nul\b/iu);
   assert.doesNotMatch(startDev, /start\s+"Xingwen Frontend"[^\r\n]*>nul\b/iu);
   assert.doesNotMatch(startDev, /start\s+"[^"]+"\s+pwsh\b/iu);

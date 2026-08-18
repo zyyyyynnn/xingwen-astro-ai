@@ -7,13 +7,12 @@ import os
 from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from uuid import UUID, uuid4
 
-from alembic import command
-from alembic.config import Config
 from fastapi.testclient import TestClient
 import pytest
+
+from db_bootstrap import reset_current_schema
 from pydantic import SecretStr
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
@@ -52,7 +51,6 @@ from authoring_test_support import (
 )
 
 
-API_ROOT = Path(__file__).parents[1]
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 NOW = datetime(2026, 8, 14, 12, 0, tzinfo=UTC)
 HASH_A = "sha256:" + "a" * 64
@@ -66,19 +64,14 @@ def database() -> Iterator[tuple[Engine, Callable[[], Session]]]:
         pytest.skip("TEST_DATABASE_URL is not configured")
     if "test" not in TEST_DATABASE_URL.lower():
         pytest.fail("TEST_DATABASE_URL must identify an isolated test database")
-    config = Config(str(API_ROOT / "alembic.ini"))
-    config.set_main_option("script_location", str(API_ROOT / "migrations"))
-    config.set_main_option("sqlalchemy.url", TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
     engine = create_engine_from_url(TEST_DATABASE_URL)
     factory = session_factory(engine)
     try:
         yield engine, factory
     finally:
         engine.dispose()
-        command.downgrade(config, "base")
-        command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 def _project(factory: Callable[[], Session], *, session_id: str) -> str:

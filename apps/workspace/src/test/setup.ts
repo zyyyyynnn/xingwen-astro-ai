@@ -48,3 +48,22 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: vi.fn(() => false),
   })),
 });
+
+class ObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+vi.stubGlobal("IntersectionObserver", ObserverStub);
+vi.stubGlobal("ResizeObserver", ObserverStub);
+
+// pdfjs-dist (via react-pdf) requires browser canvas APIs such as DOMMatrix
+// that jsdom does not provide. Unit tests never render real PDF pages, so the
+// module is stubbed globally and components that exercise PDF behavior mock
+// `paper-pdf-viewer` directly.
+vi.mock("react-pdf", () => ({
+  Document: ({ children }: { readonly children?: unknown }) => children ?? null,
+  Page: () => null,
+  pdfjs: { GlobalWorkerOptions: {} },
+}));

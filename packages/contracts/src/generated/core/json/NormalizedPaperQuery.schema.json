@@ -1,0 +1,136 @@
+{
+  "$defs": {
+    "PaperQueryPagination": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_limit": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Candidate Limit",
+          "type": "integer"
+        },
+        "max_pages": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Max Pages",
+          "type": "integer"
+        },
+        "page_size": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Page Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "page_size",
+        "max_pages",
+        "candidate_limit"
+      ],
+      "title": "PaperQueryPagination",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "normalization_rule_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Normalization Rule Version",
+      "type": "string"
+    },
+    "normalized_keywords": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Normalized Keywords",
+      "type": "array"
+    },
+    "normalized_query_string": {
+      "minLength": 1,
+      "title": "Normalized Query String",
+      "type": "string"
+    },
+    "original_keywords": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Original Keywords",
+      "type": "array"
+    },
+    "original_query_string": {
+      "minLength": 1,
+      "title": "Original Query String",
+      "type": "string"
+    },
+    "pagination": {
+      "$ref": "#/$defs/PaperQueryPagination"
+    },
+    "query_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Query Hash",
+      "type": "string"
+    },
+    "query_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Query Id",
+      "type": "string"
+    },
+    "sort_strategy": {
+      "minLength": 1,
+      "title": "Sort Strategy",
+      "type": "string"
+    },
+    "source_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Source Ids",
+      "type": "array"
+    },
+    "source_parameters": {
+      "patternProperties": {
+        "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$": {
+          "additionalProperties": true,
+          "type": "object"
+        }
+      },
+      "title": "Source Parameters",
+      "type": "object"
+    },
+    "year_from": {
+      "maximum": 2100,
+      "minimum": 1900,
+      "title": "Year From",
+      "type": "integer"
+    },
+    "year_to": {
+      "maximum": 2100,
+      "minimum": 1900,
+      "title": "Year To",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "query_id",
+    "normalization_rule_version",
+    "original_keywords",
+    "normalized_keywords",
+    "original_query_string",
+    "normalized_query_string",
+    "year_from",
+    "year_to",
+    "source_ids",
+    "source_parameters",
+    "pagination",
+    "sort_strategy",
+    "query_hash"
+  ],
+  "title": "NormalizedPaperQuery",
+  "type": "object"
+}

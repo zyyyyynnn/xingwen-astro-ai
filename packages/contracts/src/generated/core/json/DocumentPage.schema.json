@@ -1,0 +1,38 @@
+{
+  "additionalProperties": false,
+  "description": "One parsed page identity and geometry.",
+  "properties": {
+    "block_ids": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Block Ids",
+      "type": "array"
+    },
+    "height_points": {
+      "exclusiveMinimum": 0.0,
+      "title": "Height Points",
+      "type": "number"
+    },
+    "page_index": {
+      "minimum": 0,
+      "title": "Page Index",
+      "type": "integer"
+    },
+    "width_points": {
+      "exclusiveMinimum": 0.0,
+      "title": "Width Points",
+      "type": "number"
+    }
+  },
+  "required": [
+    "page_index",
+    "width_points",
+    "height_points"
+  ],
+  "title": "DocumentPage",
+  "type": "object"
+}

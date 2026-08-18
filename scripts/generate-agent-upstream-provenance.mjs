@@ -35,6 +35,7 @@ const STRUCTURE_REPLACEMENT = new Set([
   "src/components/conversation-events/chat/group-events.ts",
   "src/components/conversation-events/chat/messages.tsx",
   "src/components/features/chat/chat-message.tsx",
+  "src/components/features/chat/generic-event-message.tsx",
   "src/components/features/chat/user-message-body.tsx",
   "src/components/features/chat/chat-send-button.tsx",
   "src/components/features/chat/components/chat-input-actions.tsx",
@@ -72,23 +73,23 @@ function adoptionClass(upstreamPath) {
 const MODIFICATION_REASONS = new Map([
   [
     "src/components/conversation-events/chat/event-message-components/event-group.tsx",
-    "Kept the OpenHands collapsible action-run group while accepting only public research presentation events.",
+    "Kept the OpenHands collapsible action-run group over persisted project-private research Activities.",
   ],
   [
     "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
-    "Kept the public disclosure interaction while restricting content to an auditable caller-provided value.",
+    "Kept the OpenHands collapsed disclosure interaction for server-validated public step analysis while excluding provider-private reasoning.",
   ],
   [
     "src/components/features/chat/chat-interface.tsx",
-    "Kept the OpenHands scroll stream, empty and started composition, tail following, Composer placement, and error slot while injecting the research runtime seam.",
+    "Kept the OpenHands scroll stream, tail following, and Composer placement while reserving one shared Inspector inset so the native scrollbar stays at the main surface edge and the Composer remains centered in the available workspace.",
   ],
   [
     "src/components/conversation-events/chat/event-message.tsx",
-    "Kept the OpenHands generic event disclosure and status hierarchy over public research events.",
+    "Kept the OpenHands Action to Observation event disclosure while projecting one stable research Activity row in place.",
   ],
   [
     "src/components/conversation-events/chat/group-events.ts",
-    "Kept the OpenHands consecutive action grouping algorithm over the public research event contract.",
+    "Kept the OpenHands consecutive action grouping algorithm over the project-private Activity presentation contract.",
   ],
   [
     "src/components/conversation-events/chat/messages.tsx",
@@ -97,6 +98,10 @@ const MODIFICATION_REASONS = new Map([
   [
     "src/components/features/chat/chat-message.tsx",
     "Kept OpenHands user and agent message geometry while removing runtime-only markdown, media, copy, and branch dependencies.",
+  ],
+  [
+    "src/components/features/chat/generic-event-message.tsx",
+    "Kept the OpenHands expandable tool-event row, title hierarchy, collapsed details, and result-status placement over research Activities.",
   ],
   [
     "src/components/features/chat/user-message-body.tsx",
@@ -152,11 +157,11 @@ const MODIFICATION_REASONS = new Map([
   ],
   [
     "src/components/features/conversation/conversation-main/chat-interface-wrapper.tsx",
-    "Kept the centered conversation frame and public Thread panel ownership while injecting the thin runtime seam.",
+    "Kept the centered conversation frame and project Thread panel ownership while injecting the thin runtime seam.",
   ],
   [
     "src/components/features/conversation/conversation-main/conversation-main.tsx",
-    "Kept ConversationMain split-panel, resize, visibility, header, and panel-frame mechanics while composing public surfaces through the shared shadcn ScrollArea.",
+    "Kept ConversationMain split-panel, resize, visibility, header, and panel-frame mechanics while adding the Docked to Floating to Hidden transition, a non-overlay safe track, stable animated geometry, versioned presentation requests, and the shared shadcn ScrollArea.",
   ],
   [
     "src/components/features/conversation/conversation-name-with-status.tsx",
@@ -192,7 +197,7 @@ const MODIFICATION_REASONS = new Map([
   ],
   [
     "src/root.tsx",
-    "Kept the OpenHands root composition while exposing only the thin runtime and public Research Thread/Inspector seams.",
+    "Kept the OpenHands root composition while exposing only the thin runtime, project Research Thread and Inspector seams, and a one-shot Inspector presentation request.",
   ],
   [
     "src/routes/conversation.tsx",

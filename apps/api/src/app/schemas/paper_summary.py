@@ -21,6 +21,7 @@ from pydantic import (
 from ._hashing import compute_canonical_payload_hash
 from .manifest import ContentHash, Identifier, SemanticVersion
 from .paper_collection import PaperBenchmarkReference
+from .persistence import PersistedUuid
 
 
 MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
@@ -128,6 +129,10 @@ class PaperSummaryEvidenceLocator(BaseModel):
     paragraph: int | None = Field(default=None, ge=1)
     text_range: ShortString | None = None
     metadata_field: PaperMetadataField | None = None
+    # Preserves the canonical DocumentLocator.page_index (0-based) when a
+    # reliable DocumentParse relationship exists. It is never inferred here and
+    # stays null when only a source-level location is known.
+    page_index: int | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def validate_locator_shape(self) -> Self:
@@ -135,7 +140,8 @@ class PaperSummaryEvidenceLocator(BaseModel):
             if not self.section or not self.text_range or self.metadata_field:
                 raise ValueError("paper_text locator requires section and text_range")
         elif not self.metadata_field or any(
-            value is not None for value in (self.section, self.paragraph, self.text_range)
+            value is not None
+            for value in (self.section, self.paragraph, self.text_range, self.page_index)
         ):
             raise ValueError("paper_metadata locator requires only metadata_field")
         return self
@@ -172,7 +178,7 @@ class PaperSummarySourceSnapshotReference(BaseModel):
 class PaperSummaryInputVersions(BaseModel):
     model_config = MODEL_CONFIG
 
-    paper_collection_version_id: Identifier
+    paper_collection_version_id: PersistedUuid
     paper_collection_schema_version: SemanticVersion
     paper_collection_output_hash: ContentHash
     source_snapshots: tuple[PaperSummarySourceSnapshotReference, ...]
@@ -237,7 +243,7 @@ class PaperSummaryProducerExecution(BaseModel):
     model_config = MODEL_CONFIG
 
     execution_id: Identifier
-    run_id: Identifier | None = None
+    run_id: PersistedUuid | None = None
     step_key: Literal["summarizing_papers"] = "summarizing_papers"
     producer_type: Literal["model"] = "model"
     producer_name: NonEmptyString

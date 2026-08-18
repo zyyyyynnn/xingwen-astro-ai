@@ -9,7 +9,10 @@
 
 import { http, HttpResponse } from "msw";
 
-import { exoplanetHostStarFixture } from "../src/fixture/exoplanet-host-star";
+import {
+  datasetEvidenceRead,
+  exoplanetHostStarFixture,
+} from "../src/fixture/exoplanet-host-star";
 import {
   paperCandidateReadsFixture,
   paperCollectionReadFixture,
@@ -97,39 +100,12 @@ function versionDetail(version: VersionDto): Record<string, unknown> {
   };
 }
 
-/** A schema-valid EvidenceRead for evd_01 (which has a source snapshot). */
-const EVIDENCE_READ = {
-  id: "evd_01",
-  artifact_version_id: "artv_dataset_01",
-  target_type: "field",
-  target_id: "planet.toi_id",
-  evidence_type: "database_query",
-  source_snapshot_id: "snap_01",
-  paper_id: null,
-  locator: {
-    kind: "database_cell",
-    query_hash: "qhash_01",
-    row_key: "TOI-1234",
-    field: "planet.toi_id",
-  },
-  quote_or_value: "TOI-1234",
-  extraction_method: "nasa_exoplanet_archive.api_lookup",
-  confidence: 1,
-  created_at: "2026-07-21T08:21:00Z",
-  source_snapshot: {
-    id: "snap_01",
-    source_id: "nasa_exoplanet_archive",
-    source_type: "database",
-    retrieved_at: "2026-07-21T08:16:00Z",
-    query: { table: "toi" },
-    query_hash: hash("a"),
-    source_version_or_etag: null,
-    content_hash: hash("b"),
-    license_note: "NASA Exoplanet Archive terms",
-    cache_version: null,
-    request_metadata: {},
-  },
-};
+/**
+ * A schema-valid EvidenceRead for evd_01 (which has a source snapshot).
+ * Served verbatim from the fixture bundle so the HTTP and fixture adapters
+ * project the same domain entity through the shared mapping layer.
+ */
+const EVIDENCE_READ = datasetEvidenceRead;
 
 const WORKSPACE_ARTIFACT_VERSION = {
   id: "artv_dataset_01",
@@ -490,6 +466,25 @@ export const defaultHandlers = [
         );
       }
       return HttpResponse.json(envelope(paperSummaryReadFixture));
+    },
+  ),
+  // PaperSummary API authorized full-text read boundary. The fixture data
+  // carries no authorized PaperCandidate → ResearchInput binding, so the
+  // authorized relation is always absent.
+  http.get(
+    `${BASE_URL}/api/artifact-versions/:versionId/paper-summary/pdf-source`,
+    ({ params }) => {
+      if (params.versionId !== paperSummaryReadFixture.artifact_version_id) {
+        return HttpResponse.json(
+          problem(
+            404,
+            "ARTIFACT_VERSION_NOT_FOUND",
+            "Artifact version not found",
+          ),
+          { status: 404 },
+        );
+      }
+      return HttpResponse.json(envelope({ research_input: null }));
     },
   ),
   http.get(`${BASE_URL}/api/evidence/:evidenceId`, ({ params }) => {

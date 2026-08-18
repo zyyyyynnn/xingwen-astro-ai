@@ -14,13 +14,22 @@
  */
 
 import type {
+  ArtifactExport,
+  ArtifactExportDownload,
+  ArtifactExportFormat,
   ArtifactVersionMetadata,
+  ArtifactVersionSummary,
   CaseKey,
   CreateShareSnapshotRequest,
+  DatasetArtifactReview,
   DomainEntityId,
   Evidence,
   ExecutionMode,
+  FieldDictionaryArtifactReview,
+  GraphArtifactReview,
+  LiteratureArtifactReview,
   PaperAcquisitionReview,
+  PaperSummaryPdfSourceReview,
   PaperSummaryReview,
   PublicShareSnapshot,
   ResearchArtifact,
@@ -30,12 +39,18 @@ import type {
   ResearchProject,
   ResearchPlanningCatalog,
   ResearchRun,
+  RevisionPlan,
+  UserFeedback,
+  RunCheckpoint,
+  RunCheckpointDecisionRequest,
   ResearchThreadEntry,
   ResearchTurn,
   RunStepSnapshot,
   RunEvent,
   ShareSnapshot,
   ShareSnapshotCreated,
+  SourceCollectionArtifactReview,
+  UtcIsoTimestamp,
   WorkspaceSnapshot,
   WorkspaceSnapshotInput,
 } from "@xingwen/domain";
@@ -154,6 +169,13 @@ export interface ContractRepository {
 export interface RunRepository {
   getById(id: DomainEntityId): Promise<ResearchRun | null>;
   create(input: CreateResearchRunInput): Promise<ResearchRun>;
+  cancel(runId: DomainEntityId): Promise<ResearchRun>;
+  retry(runId: DomainEntityId, idempotencyKey: string): Promise<ResearchRun>;
+  getCheckpoint(runId: DomainEntityId): Promise<RunCheckpoint | null>;
+  submitCheckpointDecision(
+    runId: DomainEntityId,
+    input: RunCheckpointDecisionRequest,
+  ): Promise<ResearchRun>;
   /** All events for a run in ascending sequence order (aggregates pages). */
   listEvents(runId: DomainEntityId): Promise<readonly RunEvent[]>;
   /**
@@ -171,6 +193,9 @@ export interface RunRepository {
 export interface ArtifactReadRepository {
   listByRun(runId: DomainEntityId): Promise<readonly ResearchArtifact[]>;
   getArtifact(id: DomainEntityId): Promise<ResearchArtifact | null>;
+  listVersions(
+    artifactId: DomainEntityId,
+  ): Promise<readonly ArtifactVersionSummary[]>;
   /**
    * Generic version read narrowed to identity + provenance metadata. Rich
    * kind-specific content (e.g. PaperCollection) is only readable through its
@@ -178,6 +203,52 @@ export interface ArtifactReadRepository {
    */
   getVersion(id: DomainEntityId): Promise<ArtifactVersionMetadata | null>;
   getEvidence(id: DomainEntityId): Promise<Evidence | null>;
+}
+
+export interface ResearchInputRepository {
+  create(input: CreateResearchInputInput): Promise<ResearchInputRef>;
+  list(projectId: DomainEntityId): Promise<readonly ResearchInputRef[]>;
+  delete(inputId: DomainEntityId): Promise<void>;
+  bindToDraft(
+    inputId: DomainEntityId,
+    projectId: DomainEntityId,
+    draftId: DomainEntityId,
+  ): Promise<ResearchInputRef>;
+  getContentUrl(inputId: DomainEntityId): string;
+  getContent(
+    inputId: DomainEntityId,
+  ): Promise<ArrayBuffer | Uint8Array | unknown>;
+}
+
+/** Domain input types accepted by the controlled ResearchInput endpoint. */
+export type ResearchInputType =
+  "pdf" | "csv" | "fits" | "json" | "image" | "url" | "text";
+
+export type ResearchInputStatus =
+  "accepted" | "unsupported_processing" | "failed_ingestion";
+
+/** Metadata returned after one file/text/url is accepted by the server. */
+export interface ResearchInputRef {
+  readonly id: DomainEntityId;
+  readonly type: ResearchInputType;
+  readonly sourceType: string;
+  readonly contentHash: string;
+  readonly filename: string | null;
+  readonly mimeType: string | null;
+  readonly sizeBytes: number;
+  readonly createdAt: UtcIsoTimestamp;
+  readonly sourceSnapshotId: DomainEntityId | null;
+  readonly status: ResearchInputStatus;
+}
+
+/** Browser upload input kept at the data-access boundary, never in transport DTOs. */
+export interface CreateResearchInputInput {
+  readonly projectId: DomainEntityId;
+  readonly type: Exclude<ResearchInputType, "url" | "text">;
+  readonly file: Blob;
+  readonly filename: string;
+  readonly mimeType: string;
+  readonly idempotencyKey: string;
 }
 
 /**
@@ -203,11 +274,86 @@ export interface PaperAcquisitionRepository {
  * returns one complete domain object with server-validated support statuses.
  * Callers never see URLs, DTOs or envelopes. Failures surface as typed
  * errors (NotFound/RateLimited/Upstream/Validation/Network), never as `null`.
+ *
+ * `getPdfSource` resolves the authorized full-text ResearchInput through the
+ * server-recorded PaperCandidate → ResearchInput provenance bridge. A
+ * `null` research input id means no authorized full-text relation exists;
+ * callers must never infer a PDF URL from paper metadata.
  */
 export interface PaperSummaryRepository {
   getSummary(artifactVersionId: DomainEntityId): Promise<PaperSummaryReview>;
+  getPdfSource(
+    artifactVersionId: DomainEntityId,
+  ): Promise<PaperSummaryPdfSourceReview>;
 }
 
+/** Deep, version-pinned reads for the three typed data Artifact kinds. */
+export interface DataArtifactRepository {
+  getDataset(artifactVersionId: DomainEntityId): Promise<DatasetArtifactReview>;
+  getFieldDictionary(
+    artifactVersionId: DomainEntityId,
+  ): Promise<FieldDictionaryArtifactReview>;
+  getSourceCollection(
+    artifactVersionId: DomainEntityId,
+  ): Promise<SourceCollectionArtifactReview>;
+}
+
+/** Version-pinned, expiring export creation and authenticated download. */
+export interface ArtifactExportRepository {
+  create(
+    artifactVersionId: DomainEntityId,
+    format: ArtifactExportFormat,
+  ): Promise<ArtifactExport>;
+  get(exportId: DomainEntityId): Promise<ArtifactExport>;
+  download(exportRecord: ArtifactExport): Promise<ArtifactExportDownload>;
+}
+
+/** Deep reads for the public LiteratureClaim/Relation/Trace projections. */
+export interface LiteratureArtifactRepository {
+  getClaims(
+    artifactVersionId: DomainEntityId,
+  ): Promise<
+    Extract<LiteratureArtifactReview, { readonly kind: "literature_claims" }>
+  >;
+  getRelations(
+    artifactVersionId: DomainEntityId,
+  ): Promise<
+    Extract<LiteratureArtifactReview, { readonly kind: "literature_relations" }>
+  >;
+  getReasoningTraces(
+    artifactVersionId: DomainEntityId,
+  ): Promise<
+    Extract<LiteratureArtifactReview, { readonly kind: "reasoning_traces" }>
+  >;
+}
+
+/** Deep, version-pinned reads for the governed Evidence Graph. */
+export interface GraphArtifactRepository {
+  getReview(artifactVersionId: DomainEntityId): Promise<GraphArtifactReview>;
+}
+
+export interface CreateRevisionInput {
+  readonly artifactVersionId: DomainEntityId;
+  readonly expectedVersionNumber: number;
+  readonly summary: string;
+  readonly requestedChange: string;
+  readonly idempotencyKey: string;
+}
+
+export interface RevisionRepository {
+  createFeedback(input: CreateRevisionInput): Promise<UserFeedback>;
+  createPlan(input: {
+    readonly projectId: DomainEntityId;
+    readonly feedbackId: DomainEntityId;
+    readonly expectedParentRunRevision: number;
+    readonly idempotencyKey: string;
+  }): Promise<RevisionPlan>;
+  confirmPlan(
+    planId: DomainEntityId,
+    expectedPlanVersion: number,
+    idempotencyKey: string,
+  ): Promise<ResearchRun>;
+}
 export interface WorkspaceSnapshotRepository {
   getByProjectId(projectId: DomainEntityId): Promise<WorkspaceSnapshot | null>;
   save(
@@ -239,8 +385,14 @@ export interface RepositorySet {
   readonly contracts: ContractRepository;
   readonly runs: RunRepository;
   readonly artifacts: ArtifactReadRepository;
+  readonly researchInputs: ResearchInputRepository;
   readonly paperAcquisition: PaperAcquisitionRepository;
   readonly paperSummary: PaperSummaryRepository;
+  readonly dataArtifacts: DataArtifactRepository;
+  readonly literatureArtifacts: LiteratureArtifactRepository;
+  readonly graphArtifacts: GraphArtifactRepository;
+  readonly artifactExports: ArtifactExportRepository;
+  readonly revisions: RevisionRepository;
   readonly workspaces: WorkspaceSnapshotRepository;
   readonly shares: ShareRepository;
 }

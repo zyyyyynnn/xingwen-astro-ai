@@ -1,140 +1,56 @@
 #!/usr/bin/env node
-/**
- * Semantic policy gate for the frozen OpenHands source baseline.
- *
- * Complements check-agent-upstream-adoption.mjs:
- * - source-scope.json records reachability and source classification;
- * - source-policy.json records semantic/privacy constraints;
- * - provenance.json records files actually vendored.
- *
- * This gate prevents model-private reasoning semantics from crossing the
- * Xingwen product boundary while preserving approved OpenHands mechanics.
- */
+/** Policy gate for the frozen OpenHands mechanics and local Agent event seam. */
 
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { relative, resolve, sep } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const UPSTREAM_ROOT = "apps/workspace/upstream/openhands";
-const SRC_DIR = `${UPSTREAM_ROOT}/src`;
 const POLICY_FILE = "source-policy.json";
-const EXACT_REPOSITORY = "https://github.com/OpenHands/OpenHands.git";
-const EXACT_TAG = "v1.10.0";
-const EXACT_COMMIT = "56638693908b8ac83a2fa3bde6eb6c33aae37f4b";
-const EXACT_LICENSE = "MIT";
-const SAFE_VENDORED_CLASSES = [
-  "KEEP_AS_IS",
-  "KEEP_WITH_MINIMAL_PATCH",
-  "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+const EXACT_IDENTITY = Object.freeze({
+  product: "OpenHands",
+  repository: "https://github.com/OpenHands/OpenHands.git",
+  tag: "v1.10.0",
+  commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
+  license: "MIT",
+});
+const DISCLOSURE_PATH =
+  "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx";
+const EXPECTED_REASONING_CONSTRAINTS = [
+  "source content only from the server-validated public_analysis tool argument",
+  "provider reasoning_content never crosses the runtime boundary",
+  "collapsed by default and expanded only by user intent",
+  "same project and session authorization as Research Thread",
+  "exclude from share snapshots, export and formal Artifact renderers",
+  "never synthesize reasoning in the browser",
+  "never expose credentials, transport bodies or unfiltered internal errors",
 ];
-const PATCHED_CLASSES = [
-  "KEEP_WITH_MINIMAL_PATCH",
-  "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
-];
-const FORBIDDEN_CLASSES = ["REWRITE", "RECREATE", "REIMPLEMENT", "INSPIRED_BY"];
-const REQUIRED_PROVENANCE_FIELDS = [
-  "upstream_path",
-  "local_path",
-  "adoption_class",
-  "modified",
-];
-
-const EXPECTED_PRIVATE_EXCLUDED = [
-  "src/components/conversation-events/chat/event-content-helpers/get-action-content.ts",
-  "src/components/conversation-events/chat/event-content-helpers/get-action-event-title.ts",
-  "src/components/conversation-events/chat/event-content-helpers/get-event-content.tsx",
-  "src/components/conversation-events/chat/event-content-helpers/get-observation-content.ts",
-  "src/components/conversation-events/chat/event-content-helpers/should-render-event.ts",
-  "src/components/conversation-events/chat/event-thought-helpers.ts",
-  "src/components/conversation-events/chat/event-message-components/index.ts",
-  "src/components/conversation-events/chat/event-message-components/observation-pair-event-message.tsx",
-  "src/components/conversation-events/chat/event-message-components/thought-event-message.tsx",
-  "src/components/conversation-events/chat/event-message-components/user-assistant-event-message.tsx",
-  "src/components/features/chat/typing-indicator.tsx",
-  "src/hooks/chat/record-model-switch-message.ts",
-  "src/types/agent-server/core/base/action.ts",
-  "src/types/agent-server/core/base/event.ts",
-  "src/types/agent-server/core/base/observation.ts",
-  "src/types/agent-server/core/events/action-event.ts",
-  "src/types/agent-server/core/events/streaming-delta-event.ts",
-  "src/utils/handle-event-for-ui.ts",
-  "src/utils/transcript-export/index.ts",
-];
-
-const EXPECTED_DISCLOSURE = [
-  "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
-];
-
-const EXPECTED_DISCLOSURE_CONSTRAINTS = [
-  "preserve-disclosure-mechanics",
-  "forbid-private-reasoning-input",
-  "public-auditable-reasoning-only",
-];
-
-const FORBIDDEN_SOURCE_TOKENS = [
-  "reasoning_content",
-  "thinking_blocks",
-  "ThinkAction",
-  "ThinkObservation",
-  "<think>",
-  "event.thought",
-  "action.thought",
-];
-
-const FORBIDDEN_IMPORT_FRAGMENTS = [
+const FORBIDDEN_FOREIGN_RUNTIME_REFERENCES = [
+  "#/types/agent-server",
+  "#/stores/conversation-store",
+  "#/hooks/use-agent-state",
   "event-thought-helpers",
   "thought-event-message",
 ];
 
-function readJson(root, rel) {
-  const path = resolve(root, rel);
+function readJson(root, relativePath) {
+  const path = resolve(root, relativePath);
   if (!existsSync(path)) return null;
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
 function sameStringSet(actual, expected) {
   if (!Array.isArray(actual)) return false;
-  const a = [...new Set(actual)].sort();
-  const e = [...new Set(expected)].sort();
-  return a.length === e.length && a.every((v, i) => v === e[i]);
+  const left = [...new Set(actual)].sort();
+  const right = [...new Set(expected)].sort();
+  return (
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
 }
 
-function overlaps(a, b) {
-  const bs = new Set(b);
-  return a.filter((v) => bs.has(v));
-}
-
-function toPosix(path) {
-  return path.split(sep).join("/");
-}
-
-function walkFiles(dir) {
-  const out = [];
-  if (!existsSync(dir)) return out;
-  for (const entry of readdirSync(dir)) {
-    const path = resolve(dir, entry);
-    const stat = statSync(path);
-    if (stat.isDirectory()) out.push(...walkFiles(path));
-    else if (stat.isFile()) out.push(path);
-  }
-  return out;
-}
-
-function readTextIfTextLike(path) {
-  const bytes = readFileSync(path);
-  if (bytes.includes(0)) return null;
-  return bytes.toString("utf8");
-}
-
-function validateExactIdentity(value, failures, label) {
-  const checks = [
-    ["product", "OpenHands"],
-    ["repository", EXACT_REPOSITORY],
-    ["tag", EXACT_TAG],
-    ["commit", EXACT_COMMIT],
-    ["license", EXACT_LICENSE],
-  ];
-  for (const [key, expected] of checks) {
+function validateIdentity(value, label, failures) {
+  for (const [key, expected] of Object.entries(EXACT_IDENTITY)) {
     if (value?.[key] !== expected) {
       failures.push(
         `${label}.${key} must be ${JSON.stringify(expected)}, found ${JSON.stringify(value?.[key])}.`,
@@ -143,331 +59,131 @@ function validateExactIdentity(value, failures, label) {
   }
 }
 
-function validateSourceScope(scope, failures) {
-  const files = scope?.files;
-  if (!Array.isArray(files)) {
-    failures.push("source-scope.files must be an array.");
-    return new Map();
+function validatePolicy(policy, failures) {
+  validateIdentity(policy, "source-policy", failures);
+  const reasoning = policy?.public_step_analysis;
+  if (
+    reasoning?.policy !==
+    "validate-persist-and-render-inside-authorized-project-thread"
+  ) {
+    failures.push("public step analysis policy is missing or drifted.");
   }
-
-  const byPath = new Map();
-  for (const entry of files) {
-    if (typeof entry?.upstream_path !== "string" || !entry.upstream_path) {
-      failures.push("source-scope entry missing upstream_path.");
-      continue;
-    }
-    if (byPath.has(entry.upstream_path)) {
-      failures.push(
-        `source-scope duplicate upstream_path: ${entry.upstream_path}.`,
-      );
-    }
-    byPath.set(entry.upstream_path, entry);
+  if (!sameStringSet(reasoning?.constraints, EXPECTED_REASONING_CONSTRAINTS)) {
+    failures.push("public step analysis constraints drifted.");
   }
-  return byPath;
+  if (!reasoning?.adopted_mechanics?.includes(DISCLOSURE_PATH)) {
+    failures.push(
+      "CollapsibleThinking is not registered as adopted reasoning mechanics.",
+    );
+  }
+  if (
+    reasoning?.local_contract !==
+    "RunEvent reasoning Activity with a stable activity_id and running/completed phases"
+  ) {
+    failures.push("public step analysis local contract drifted.");
+  }
+  if (
+    policy?.agent_activity?.lifecycle !==
+    "one logical operation evolves in place by activity_id; started/completed duplicates are forbidden"
+  ) {
+    failures.push(
+      "Agent Activity lifecycle no longer requires stable in-place updates.",
+    );
+  }
 }
 
-function validatePolicy(policy, scope, scopeByPath, failures) {
-  validateExactIdentity(policy, failures, "source-policy");
-
-  if (
-    policy?.precedence !==
-    "source-policy constraints override any KEEP_AS_IS interpretation from source reachability."
-  ) {
-    failures.push("source-policy precedence statement is missing or drifted.");
+function validateScope(scope, policy, failures) {
+  validateIdentity(scope, "source-scope", failures);
+  const files = Array.isArray(scope?.files) ? scope.files : [];
+  const disclosure = files.find(
+    (entry) => entry?.upstream_path === DISCLOSURE_PATH,
+  );
+  if (disclosure?.classification !== "PARTIAL_SURGICAL") {
+    failures.push("CollapsibleThinking must remain PARTIAL_SURGICAL.");
   }
-
-  const privateReasoning = policy?.private_reasoning ?? {};
-  if (!sameStringSet(privateReasoning.excluded, EXPECTED_PRIVATE_EXCLUDED)) {
-    failures.push(
-      "source-policy private_reasoning.excluded does not match the frozen private-reasoning inventory.",
-    );
-  }
-  if (
-    !sameStringSet(privateReasoning.disclosure_mechanics, EXPECTED_DISCLOSURE)
-  ) {
-    failures.push(
-      "source-policy private_reasoning.disclosure_mechanics does not match the approved disclosure inventory.",
-    );
-  }
-  if (
-    !sameStringSet(
-      privateReasoning.disclosure_adoption_classes,
-      PATCHED_CLASSES,
-    )
-  ) {
-    failures.push(
-      "source-policy disclosure adoption classes must be the patched classes only.",
-    );
-  }
-  if (
-    !sameStringSet(
-      privateReasoning.disclosure_constraints,
-      EXPECTED_DISCLOSURE_CONSTRAINTS,
-    )
-  ) {
-    failures.push("source-policy disclosure constraints drifted.");
-  }
-  if (
-    !sameStringSet(
-      privateReasoning.forbidden_source_tokens,
-      FORBIDDEN_SOURCE_TOKENS,
-    )
-  ) {
-    failures.push("source-policy forbidden source tokens drifted.");
-  }
-  if (
-    !sameStringSet(
-      privateReasoning.forbidden_import_fragments,
-      FORBIDDEN_IMPORT_FRAGMENTS,
-    )
-  ) {
-    failures.push("source-policy forbidden import fragments drifted.");
-  }
-
-  const overlapPairs = [
-    [
-      "excluded",
-      privateReasoning.excluded ?? [],
-      "disclosure_mechanics",
-      privateReasoning.disclosure_mechanics ?? [],
-    ],
-  ];
-  for (const [aName, a, bName, b] of overlapPairs) {
-    const dupes = overlaps(a, b);
-    if (dupes.length) {
-      failures.push(
-        `source-policy groups ${aName}/${bName} overlap: ${dupes.join(", ")}.`,
-      );
-    }
-  }
-
-  // source-policy owns the complete private inventory; source-scope may omit
-  // those paths from its compact boundary list.
-  for (const path of privateReasoning.excluded ?? []) {
-    const entry = scopeByPath.get(path);
-    if (entry && entry.classification !== "EXCLUDED") {
-      failures.push(
-        `private reasoning excluded path must be EXCLUDED in source-scope: ${path}.`,
-      );
-    }
-  }
-
-  for (const path of privateReasoning.disclosure_mechanics ?? []) {
-    const entry = scopeByPath.get(path);
-    if (!entry || entry.classification !== "PARTIAL_SURGICAL") {
-      failures.push(
-        `reasoning disclosure path must be PARTIAL_SURGICAL: ${path}.`,
-      );
-      continue;
-    }
-    const constraints = entry.constraints ?? [];
-    for (const required of EXPECTED_DISCLOSURE_CONSTRAINTS) {
-      if (!constraints.includes(required)) {
-        failures.push(
-          `reasoning disclosure path missing ${required}: ${path}.`,
-        );
-      }
-    }
-  }
-
   const embedded = scope?.policy_sets ?? {};
   if (
-    !sameStringSet(
-      embedded.private_reasoning_excluded,
-      privateReasoning.excluded ?? [],
-    )
+    !sameStringSet(embedded.public_step_analysis_disclosure, [DISCLOSURE_PATH])
   ) {
+    failures.push("source-scope public step analysis disclosure set drifted.");
+  }
+  const foreignExcluded = embedded.foreign_runtime_excluded;
+  if (!Array.isArray(foreignExcluded) || foreignExcluded.length === 0) {
     failures.push(
-      "source-scope private_reasoning_excluded policy set must match source-policy.",
+      "source-scope foreign runtime exclusion inventory is missing.",
     );
   }
-  if (
-    !sameStringSet(
-      embedded.public_reasoning_disclosure,
-      privateReasoning.disclosure_mechanics ?? [],
-    )
-  ) {
-    failures.push(
-      "source-scope public_reasoning_disclosure policy set must match source-policy.",
-    );
-  }
-}
-
-function validateLockAndSchema(lock, provenanceSchema, failures) {
-  validateExactIdentity(lock, failures, "upstream-lock");
-
-  if (lock?.source_policy_file !== POLICY_FILE) {
-    failures.push(`upstream-lock.source_policy_file must be ${POLICY_FILE}.`);
-  }
-  if (
-    !Array.isArray(lock?.manifest_files) ||
-    !lock.manifest_files.includes(POLICY_FILE)
-  ) {
-    failures.push(`upstream-lock.manifest_files must include ${POLICY_FILE}.`);
-  }
-
-  const sourceVerification = lock?.source_verification ?? {};
-  const sourceVerificationChecks = [
-    ["repository", EXACT_REPOSITORY],
-    ["tag", EXACT_TAG],
-    ["commit", EXACT_COMMIT],
-    ["on_mismatch", "reject"],
-  ];
-  for (const [key, expected] of sourceVerificationChecks) {
-    if (sourceVerification[key] !== expected) {
+  const adopted = policy.public_step_analysis.adopted_mechanics;
+  for (const path of adopted) {
+    if (!files.some((entry) => entry?.upstream_path === path)) {
       failures.push(
-        `upstream-lock.source_verification.${key} must be ${JSON.stringify(expected)}.`,
+        `adopted reasoning mechanic is absent from source-scope: ${path}.`,
       );
     }
   }
-
-  if (
-    !sameStringSet(lock?.vendored_file_adoption_classes, SAFE_VENDORED_CLASSES)
-  ) {
-    failures.push(
-      "upstream-lock vendored_file_adoption_classes must match the safe vendored classes exactly.",
-    );
-  }
-  if (!sameStringSet(lock?.adoption_class_forbidden, FORBIDDEN_CLASSES)) {
-    failures.push(
-      "upstream-lock adoption_class_forbidden must match the forbidden classes exactly.",
-    );
-  }
-
-  if (provenanceSchema?.policy_file !== POLICY_FILE) {
-    failures.push(`provenance-schema.policy_file must be ${POLICY_FILE}.`);
-  }
-  if (
-    !sameStringSet(
-      provenanceSchema?.required_fields,
-      REQUIRED_PROVENANCE_FIELDS,
-    )
-  ) {
-    failures.push(
-      "provenance-schema required_fields must match the fail-closed provenance contract.",
-    );
-  }
-  if (
-    !sameStringSet(
-      provenanceSchema?.vendored_file_adoption_classes,
-      SAFE_VENDORED_CLASSES,
-    )
-  ) {
-    failures.push("provenance-schema vendored_file_adoption_classes drifted.");
-  }
-  if (
-    !sameStringSet(
-      provenanceSchema?.forbidden_adoption_classes,
-      FORBIDDEN_CLASSES,
-    )
-  ) {
-    failures.push("provenance-schema forbidden adoption classes drifted.");
-  }
 }
 
-function validateVendoredSource(
-  root,
-  lock,
-  policy,
-  scopeByPath,
-  failures,
-  notes,
-) {
-  const srcDir = resolve(root, SRC_DIR);
-  if (!existsSync(srcDir)) {
-    notes.push("semantic source policy armed; no vendored source present");
-    return;
-  }
-
+function validateProvenance(root, scope, failures) {
   const provenance = readJson(root, `${UPSTREAM_ROOT}/provenance.json`);
-  if (!provenance) {
+  if (!provenance || !Array.isArray(provenance.entries)) {
+    failures.push("provenance.json is missing or malformed.");
+    return;
+  }
+  const byPath = new Map(
+    provenance.entries.map((entry) => [entry.upstream_path, entry]),
+  );
+  const disclosure = byPath.get(DISCLOSURE_PATH);
+  if (!disclosure || disclosure.modified !== true) {
     failures.push(
-      "semantic source policy requires provenance.json when vendored src/ exists.",
+      "CollapsibleThinking provenance must record a modified adoption.",
     );
-    return;
   }
-  const entries = provenance.entries;
-  if (!Array.isArray(entries)) {
-    failures.push("provenance.json must use the manifest object contract.");
-    return;
-  }
-
-  const byUpstreamPath = new Map();
-  for (const entry of entries) {
-    if (typeof entry?.upstream_path === "string") {
-      if (byUpstreamPath.has(entry.upstream_path)) {
-        failures.push(
-          `semantic policy found duplicate provenance upstream_path: ${entry.upstream_path}.`,
-        );
-      }
-      byUpstreamPath.set(entry.upstream_path, entry);
-    }
-  }
-
-  const privateReasoning = policy.private_reasoning;
-  for (const path of privateReasoning.excluded) {
-    if (byUpstreamPath.has(path)) {
+  for (const path of scope.policy_sets.foreign_runtime_excluded) {
+    if (byPath.has(path)) {
       failures.push(
-        `private model reasoning path must never be vendored: ${path}.`,
+        `foreign OpenHands runtime path must not be vendored: ${path}.`,
       );
     }
   }
+}
 
-  const disclosurePaths = new Set(privateReasoning.disclosure_mechanics);
-  for (const path of disclosurePaths) {
-    const entry = byUpstreamPath.get(path);
-    if (!entry) continue;
-    if (entry.modified !== true) {
+function validateLocalSeam(root, failures) {
+  const files = [
+    `${UPSTREAM_ROOT}/src/components/conversation-events/chat/event-message.tsx`,
+    `${UPSTREAM_ROOT}/src/components/conversation-events/chat/group-events.ts`,
+    `${UPSTREAM_ROOT}/src/components/conversation-events/chat/messages.tsx`,
+    `${UPSTREAM_ROOT}/${DISCLOSURE_PATH}`,
+  ];
+  for (const relativePath of files) {
+    const path = resolve(root, relativePath);
+    if (!existsSync(path)) {
       failures.push(
-        `private-reasoning/disclosure surgery path must be modified=true when vendored: ${path}.`,
+        `adopted Agent message mechanic is missing: ${relativePath}.`,
       );
+      continue;
     }
-    if (!PATCHED_CLASSES.includes(entry.adoption_class)) {
-      failures.push(
-        `private-reasoning/disclosure surgery path requires a patched adoption class: ${path}.`,
-      );
-    }
-    if (
-      typeof entry.modification_reason !== "string" ||
-      !entry.modification_reason.trim()
-    ) {
-      failures.push(
-        `private-reasoning/disclosure surgery path requires a modification reason: ${path}.`,
-      );
-    }
-  }
-
-  for (const file of walkFiles(srcDir)) {
-    const content = readTextIfTextLike(file);
-    if (content === null) continue;
-    const rel = toPosix(relative(root, file));
-    for (const token of privateReasoning.forbidden_source_tokens) {
-      if (content.includes(token)) {
-        failures.push(
-          `vendored source retains forbidden private-reasoning token ${JSON.stringify(token)}: ${rel}.`,
-        );
-      }
-    }
-    for (const fragment of privateReasoning.forbidden_import_fragments) {
+    const content = readFileSync(path, "utf8");
+    for (const fragment of FORBIDDEN_FOREIGN_RUNTIME_REFERENCES) {
       if (content.includes(fragment)) {
         failures.push(
-          `vendored source retains forbidden private-reasoning import/reference ${JSON.stringify(fragment)}: ${rel}.`,
+          `local Agent message seam imports foreign runtime ${JSON.stringify(fragment)}: ${relativePath}.`,
         );
       }
     }
   }
-
-  for (const entry of entries) {
-    if (entry?.upstream_repository !== lock.repository) continue;
-    const scopeEntry = scopeByPath.get(entry.upstream_path);
-    if (!scopeEntry) continue;
-    if (
-      disclosurePaths.has(entry.upstream_path) &&
-      entry.adoption_class === "KEEP_AS_IS"
-    ) {
-      failures.push(
-        `source policy forbids KEEP_AS_IS for required semantic surgery: ${entry.upstream_path}.`,
-      );
+  const thinkingPath = resolve(root, UPSTREAM_ROOT, DISCLOSURE_PATH);
+  if (existsSync(thinkingPath)) {
+    const content = readFileSync(thinkingPath, "utf8");
+    for (const required of [
+      "CollapsibleThinking",
+      "CollapsibleContent",
+      "{content}",
+    ]) {
+      if (!content.includes(required)) {
+        failures.push(
+          `CollapsibleThinking public analysis composition is missing ${required}.`,
+        );
+      }
     }
   }
 }
@@ -476,27 +192,18 @@ function validateVendoredSource(
 export function checkAgentUpstreamPolicy(root) {
   const failures = [];
   const notes = [];
-
   const lock = readJson(root, `${UPSTREAM_ROOT}/upstream-lock.json`);
   const scope = readJson(root, `${UPSTREAM_ROOT}/source-scope.json`);
   const policy = readJson(root, `${UPSTREAM_ROOT}/${POLICY_FILE}`);
-  const provenanceSchema = readJson(
-    root,
-    `${UPSTREAM_ROOT}/provenance-schema.json`,
-  );
-
   if (!lock) failures.push("Missing upstream-lock.json.");
   if (!scope) failures.push("Missing source-scope.json.");
   if (!policy) failures.push(`Missing ${POLICY_FILE}.`);
-  if (!provenanceSchema) failures.push("Missing provenance-schema.json.");
   if (failures.length) return { failures, notes };
-
-  validateExactIdentity(scope, failures, "source-scope");
-  const scopeByPath = validateSourceScope(scope, failures);
-  validateLockAndSchema(lock, provenanceSchema, failures);
-  validatePolicy(policy, scope, scopeByPath, failures);
-  validateVendoredSource(root, lock, policy, scopeByPath, failures, notes);
-
+  validateIdentity(lock, "upstream-lock", failures);
+  validatePolicy(policy, failures);
+  validateScope(scope, policy, failures);
+  validateProvenance(root, scope, failures);
+  validateLocalSeam(root, failures);
   return { failures, notes };
 }
 
@@ -505,10 +212,6 @@ function runCli() {
   if (failures.length) {
     console.error("Agent upstream semantic policy check FAILED:\n");
     for (const failure of failures) console.error(`- ${failure}`);
-    if (notes.length) {
-      console.error("\nNotes:");
-      for (const note of notes) console.error(`  (note) ${note}`);
-    }
     return 1;
   }
   console.log("Agent upstream semantic policy check passed.");
