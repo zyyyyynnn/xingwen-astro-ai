@@ -13,13 +13,13 @@ import threading
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from alembic import command
-from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from pydantic import ValidationError
 import pytest
+
+from db_bootstrap import reset_current_schema
 from sqlalchemy.orm import Session
 from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError, ProgrammingError
@@ -86,11 +86,11 @@ from services.paper_pipeline.sources.base import (
 
 NOW = datetime(2026, 7, 22, 9, 0, tzinfo=UTC)
 HASH = "sha256:" + "a" * 64
-VERSION_ID = "00000000-0000-0000-0000-000000000101"
-ARTIFACT_ID = "00000000-0000-0000-0000-000000000102"
-PROJECT_ID = "00000000-0000-0000-0000-000000000103"
-RUN_ID = "a0000000-0000-0000-0000-000000000104"
-SNAPSHOT_ID = "a0000000-0000-0000-0000-000000000105"
+VERSION_ID = "00000000-0000-4000-8000-000000000101"
+ARTIFACT_ID = "00000000-0000-4000-8000-000000000102"
+PROJECT_ID = "00000000-0000-4000-8000-000000000103"
+RUN_ID = "a0000000-0000-4000-8000-000000000104"
+SNAPSHOT_ID = "a0000000-0000-4000-8000-000000000105"
 SNAPSHOT_RECORD_ID = "snapshot.crossref.paper_collection_api"
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 
@@ -120,9 +120,7 @@ def _bridge_lease_context(
     assert TEST_DATABASE_URL is not None
     monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(TEST_DATABASE_URL))
     monkeypatch.setattr(settings, "RESEARCH_INPUT_UPLOAD_DIR", tmp_path / "inputs")
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
     engine = create_engine_from_url(TEST_DATABASE_URL)
     factory = session_factory(engine)
     collection = _collection(
@@ -165,8 +163,7 @@ def _bridge_lease_context(
         )
     finally:
         engine.dispose()
-        command.downgrade(config, "base")
-        command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 def _bridge_request(
@@ -342,13 +339,6 @@ def _synthetic_live_collection() -> PaperCollection:
     return PaperCollection.model_validate(payload)
 
 
-def _alembic_config(url: str) -> Config:
-    root = Path(__file__).resolve().parents[1]
-    config = Config(root / "alembic.ini")
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    return config
-
-
 class _Artifacts:
     def __init__(self, collection: PaperCollection) -> None:
         self.collection = collection
@@ -403,7 +393,7 @@ class _Artifacts:
             project_id=PROJECT_ID,
             created_by_run_id=RUN_ID,
             version_number=1,
-            schema_version="2.0.0",
+            schema_version=self.collection.schema_version,
             content=content,
             content_hash=compute_canonical_payload_hash(content),
             input_hash=self.collection.input_hash,
@@ -663,14 +653,15 @@ def test_http_failures_are_rfc9457_problem_details(
 
 
 @pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured")
-def test_postgres_published_collection_reads_with_ownership_and_redaction() -> None:
+def test_postgres_published_collection_reads_with_ownership_and_redaction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     assert TEST_DATABASE_URL is not None
     assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower(), (
         "refusing non-test database"
     )
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
+    monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(TEST_DATABASE_URL))
     engine = create_engine_from_url(TEST_DATABASE_URL)
     factory = session_factory(engine)
     collection = _collection()
@@ -739,8 +730,7 @@ def test_postgres_published_collection_reads_with_ownership_and_redaction() -> N
             assert hidden.json()["code"] == "ARTIFACT_VERSION_NOT_FOUND"
     finally:
         engine.dispose()
-        command.downgrade(config, "base")
-        command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 @pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured")
@@ -755,9 +745,7 @@ def test_postgres_paper_candidate_bridge_accepts_replays_and_shares_rate_limit(
     )
     monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(TEST_DATABASE_URL))
     monkeypatch.setattr(settings, "RESEARCH_INPUT_UPLOAD_DIR", tmp_path / "inputs")
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
     engine = create_engine_from_url(TEST_DATABASE_URL)
     factory = session_factory(engine)
     collection = _collection(
@@ -976,8 +964,7 @@ def test_postgres_paper_candidate_bridge_accepts_replays_and_shares_rate_limit(
                 session.flush()
     finally:
         engine.dispose()
-        command.downgrade(config, "base")
-        command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 @pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured")
@@ -989,9 +976,7 @@ def test_paper_candidate_bridge_metadata_only_has_no_input_or_fetch(
     assert TEST_DATABASE_URL is not None
     monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(TEST_DATABASE_URL))
     monkeypatch.setattr(settings, "RESEARCH_INPUT_UPLOAD_DIR", tmp_path / "inputs")
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
     engine = create_engine_from_url(TEST_DATABASE_URL)
     factory = session_factory(engine)
     collection = _collection(source_mode=SourceMode.fixture, data_level=PaperDataLevel.fixture)
@@ -1046,8 +1031,7 @@ def test_paper_candidate_bridge_metadata_only_has_no_input_or_fetch(
             assert session.query(ResearchInputModel).count() == 0
     finally:
         engine.dispose()
-        command.downgrade(config, "base")
-        command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 @pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured")
@@ -1082,9 +1066,7 @@ def test_paper_candidate_bridge_fetch_failures_leave_no_persistence(
     assert TEST_DATABASE_URL is not None
     monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(TEST_DATABASE_URL))
     monkeypatch.setattr(settings, "RESEARCH_INPUT_UPLOAD_DIR", tmp_path / "inputs")
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
     engine = create_engine_from_url(TEST_DATABASE_URL)
     factory = session_factory(engine)
     collection = _collection(
@@ -1182,8 +1164,7 @@ def test_paper_candidate_bridge_fetch_failures_leave_no_persistence(
             assert session.query(PaperCandidateInputIdempotencyModel).count() == 0
     finally:
         engine.dispose()
-        command.downgrade(config, "base")
-        command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 @pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured")
@@ -1303,9 +1284,7 @@ def test_paper_candidate_bridge_concurrent_idempotency_precedes_fetch(
     assert TEST_DATABASE_URL is not None
     monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(TEST_DATABASE_URL))
     monkeypatch.setattr(settings, "RESEARCH_INPUT_UPLOAD_DIR", tmp_path / "inputs")
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
     engine = create_engine_from_url(TEST_DATABASE_URL)
     factory = session_factory(engine)
     collection = _collection(
@@ -1440,8 +1419,7 @@ def test_paper_candidate_bridge_concurrent_idempotency_precedes_fetch(
     finally:
         allow_fetch.set()
         engine.dispose()
-        command.downgrade(config, "base")
-        command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 @pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured")
@@ -1464,9 +1442,7 @@ def test_paper_candidate_bridge_rejects_before_outbound_io(
     assert TEST_DATABASE_URL is not None
     monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(TEST_DATABASE_URL))
     monkeypatch.setattr(settings, "RESEARCH_INPUT_UPLOAD_DIR", tmp_path / "inputs")
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
     engine = create_engine_from_url(TEST_DATABASE_URL)
     factory = session_factory(engine)
     collection = (
@@ -1564,8 +1540,7 @@ def test_paper_candidate_bridge_rejects_before_outbound_io(
             assert session.query(PaperCandidateInputIdempotencyModel).count() == 0
     finally:
         engine.dispose()
-        command.downgrade(config, "base")
-        command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 def _seed_published_collection(

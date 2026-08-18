@@ -1,0 +1,36 @@
+{
+  "$defs": {
+    "UncertaintyMode": {
+      "description": "How source uncertainty columns are declared, not evaluated.",
+      "enum": [
+        "not_applicable",
+        "asymmetric_source_errors"
+      ],
+      "title": "UncertaintyMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Hashed declaration for preserving source uncertainties.",
+  "properties": {
+    "mode": {
+      "$ref": "#/$defs/UncertaintyMode"
+    },
+    "preserve_asymmetric_errors": {
+      "title": "Preserve Asymmetric Errors",
+      "type": "boolean"
+    },
+    "rule_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Rule Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "rule_version",
+    "mode",
+    "preserve_asymmetric_errors"
+  ],
+  "title": "UncertaintyPolicy",
+  "type": "object"
+}

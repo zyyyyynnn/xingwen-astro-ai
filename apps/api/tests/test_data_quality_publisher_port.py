@@ -94,7 +94,10 @@ def test_real_publisher_port_accepts_persistence_ready_dataset_with_data_quality
         build_result.field_dictionary,
         build_result.source_collection,
     ):
-        with pytest.raises(PublicationAdmissionError, match="provenance bridge"):
+        with pytest.raises(
+            PublicationAdmissionError,
+            match="requires its exact paired Dataset provenance",
+        ):
             admit_artifact_candidate(
                 blocked,
                 schema_version=blocked.schema_version,
@@ -126,7 +129,9 @@ def test_real_publisher_port_accepts_persistence_ready_dataset_with_data_quality
         producer_version="1.0.0",
         parameters_hash="sha256:" + "b" * 64,
         model_provider=None,
-        model_name=None,
+        requested_model=None,
+        provider_returned_model=None,
+        explicit_revision=None,
         prompt_name=None,
         prompt_version=None,
         prompt_hash=None,

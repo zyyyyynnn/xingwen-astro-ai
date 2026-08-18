@@ -1,0 +1,34 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "source_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Source Id",
+      "type": "string"
+    },
+    "source_snapshot_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Source Snapshot Id",
+      "type": "string"
+    },
+    "source_version": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Source Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_snapshot_id",
+    "source_id",
+    "source_version",
+    "content_hash"
+  ],
+  "title": "PaperSummarySourceSnapshotReference",
+  "type": "object"
+}

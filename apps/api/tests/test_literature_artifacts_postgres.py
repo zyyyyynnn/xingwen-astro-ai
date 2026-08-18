@@ -9,8 +9,8 @@ from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 import pytest
-from alembic import command
-from alembic.config import Config
+
+from db_bootstrap import reset_current_schema
 from app.config import settings
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.db.models import (
@@ -84,36 +84,26 @@ HASH_A = "sha256:" + "a" * 64
 HASH_B = "sha256:" + "b" * 64
 
 
-def _alembic_config(url: str) -> Config:
-    root = Path(__file__).resolve().parents[1]
-    config = Config(root / "alembic.ini")
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    return config
-
-
 @pytest.fixture(scope="module")
 def postgres_engine() -> Engine:
     assert TEST_DATABASE_URL is not None
     assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower(), (
         "refusing non-test database"
     )
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
     engine = create_engine_from_url(TEST_DATABASE_URL)
     yield engine
     engine.dispose()
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 @pytest.fixture(scope="module")
 def literature_context(postgres_engine: Engine) -> dict[str, Any]:
-    project_id = UUID(int=1001)
-    contract_id = UUID(int=1002)
-    run_id = UUID(int=1003)
-    step_id = UUID(int=1004)
-    attempt_id = UUID(int=1005)
+    project_id = uuid4()
+    contract_id = uuid4()
+    run_id = uuid4()
+    step_id = uuid4()
+    attempt_id = uuid4()
     benchmark = load_frozen_benchmark()
     accepted_relation = next(
         item
@@ -127,7 +117,6 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
     )
     benchmark_claims = {item.claim_id: item for item in benchmark.claims}
 
-    version_counter = 1100
     summaries = []
     claims = []
     claim_candidates = []
@@ -138,9 +127,8 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
     ):
         benchmark_claim = benchmark_claims[benchmark_claim_id]
         fixture = _build_claim_fixture(benchmark, benchmark_claim)
-        summary_id = UUID(int=version_counter)
-        claim_id = UUID(int=version_counter + 1)
-        version_counter += 2
+        summary_id = uuid4()
+        claim_id = uuid4()
         original_summary = next(iter(fixture["versions"].values())).content
         summary_input = PaperSummaryArtifactVersionInput(
             artifact_version_id=str(summary_id),
@@ -197,7 +185,7 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
     )
     relation_candidate = relation_admission.publisher_candidate
     assert relation_candidate is not None
-    relation_version = _relation_version(str(UUID(int=1200)), relation_candidate)
+    relation_version = _relation_version(str(uuid4()), relation_candidate)
     versions = (*summaries, *claims, relation_version)
 
     factory = session_factory(postgres_engine)
@@ -218,7 +206,7 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
     )
 
     artifact_ids = {
-        version.artifact_id: UUID(int=1300 + index)
+        version.artifact_id: uuid5(NAMESPACE_URL, f"artifact:{index}")
         for index, version in enumerate(versions)
     }
     snapshot_details = {
@@ -227,14 +215,14 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
         for snapshot in version.source_snapshots
     }
     snapshot_ids = {
-        key: UUID(int=1400 + index)
+        key: uuid5(NAMESPACE_URL, f"snapshot:{index}")
         for index, key in enumerate(sorted(snapshot_details))
     }
     evidence_details = {
         evidence.id: evidence for version in versions for evidence in version.evidence
     }
     evidence_ids = {
-        key: UUID(int=1500 + index)
+        key: uuid5(NAMESPACE_URL, f"evidence:{index}")
         for index, key in enumerate(sorted(evidence_details))
     }
 
@@ -332,7 +320,7 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
                 logical_key=f"{kind}.{index}",
                 created_at=NOW,
             )
-            execution_id = UUID(int=1600 + index)
+            execution_id = uuid4()
             runtime = version.producer_execution
             producer = runtime.producer
             session.add(artifact)
@@ -350,7 +338,7 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
                     producer_name=producer.name,
                     producer_version=producer.version,
                     model_provider=producer.model_provider,
-                    model_name=producer.model_name,
+                    requested_model=producer.requested_model,
                     prompt_name=producer.prompt_name,
                     prompt_version=producer.prompt_version,
                     prompt_hash=producer.prompt_hash,
@@ -520,14 +508,19 @@ def test_postgres_literature_reads_reject_swapped_persisted_evidence_snapshot(
     evidence_ids = tuple(
         UUID(item) for item in literature_context["relation_evidence_ids"]
     )
-    assert len(evidence_ids) >= 2
+    assert len(evidence_ids) >= 1
     with factory() as session, session.begin():
         first = session.get(EvidenceModel, evidence_ids[0])
-        second = session.get(EvidenceModel, evidence_ids[1])
-        assert first is not None and second is not None
+        assert first is not None
+        other_snapshot_id = session.scalar(
+            select(SourceSnapshotModel.id).where(
+                SourceSnapshotModel.project_id == first.project_id,
+                SourceSnapshotModel.id != first.source_snapshot_id,
+            ).limit(1)
+        )
+        assert other_snapshot_id is not None
         original_snapshot_id = first.source_snapshot_id
-        assert original_snapshot_id != second.source_snapshot_id
-        first.source_snapshot_id = second.source_snapshot_id
+        first.source_snapshot_id = other_snapshot_id
     try:
         response = literature_context["owner"].get(
             f"/api/artifact-versions/{literature_context['relation_version_id']}"
@@ -664,7 +657,7 @@ def test_postgres_publisher_materializes_literature_evidence_atomically(
                 producer_type=producer.producer_type,
                 producer_name=producer.producer_name,
                 producer_version=producer.producer_version,
-                model_name=producer.model_name,
+                requested_model=producer.model_name,
                 prompt_name=producer.prompt_name,
                 prompt_version=producer.prompt_version,
                 prompt_hash=producer.prompt_hash,

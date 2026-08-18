@@ -1,25 +1,16 @@
-/** Public presentation boundary used by the OpenHands event grouping mechanic. */
-export interface ActivityPresentationEvent {
-  readonly id: string;
-  readonly kind:
-    | "message"
-    | "action"
-    | "tool"
-    | "progress"
-    | "result"
-    | "error"
-    | "completion";
-  readonly title: string;
-  readonly detail?: string;
-  readonly status: "pending" | "running" | "success" | "error";
-  readonly groupId?: string;
-  readonly timestamp?: string;
-}
+export type {
+  ActivityOperation,
+  ActivityPresentationEvent,
+  ActivityPresentationUpdate,
+  ActivityUpdatePhase,
+} from "@xingwen/research-adapter";
+
+import type { ActivityPresentationEvent } from "@xingwen/research-adapter";
 
 export const EVENT_GROUP_MIN_SIZE = 2;
 
 export const isGroupableEvent = (event: ActivityPresentationEvent): boolean =>
-  event.kind === "tool" || event.kind === "progress";
+  event.kind === "tool";
 
 export type RenderedItem =
   | {
@@ -33,7 +24,7 @@ export type RenderedItem =
       readonly startIndex: number;
     };
 
-/** OpenHands consecutive action grouping over public research events. */
+/** OpenHands consecutive Action/Observation grouping over research Activities. */
 export function groupEvents(
   events: readonly ActivityPresentationEvent[],
   minSize: number = EVENT_GROUP_MIN_SIZE,
@@ -69,15 +60,6 @@ export function groupEvents(
       flushRun();
       items.push({ kind: "single", event, index });
       return;
-    }
-    const previousGroupId = run?.events[0]?.groupId;
-    if (
-      run &&
-      previousGroupId &&
-      event.groupId &&
-      previousGroupId !== event.groupId
-    ) {
-      flushRun();
     }
     if (!run) run = { events: [], startIndex: index };
     run.events.push(event);

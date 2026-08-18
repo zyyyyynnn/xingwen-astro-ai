@@ -1,0 +1,65 @@
+{
+  "$defs": {
+    "GraphBenchmarkDenominatorScope": {
+      "enum": [
+        "paper_benchmark_scientific_graph_cases",
+        "paper_benchmark_expected_nodes",
+        "paper_benchmark_expected_edges",
+        "paper_benchmark_edge_evidence_uses",
+        "paper_benchmark_accepted_relations",
+        "paper_benchmark_reasoning_traces",
+        "paper_benchmark_nonaccepted_relations",
+        "schema_valid_expected_pass_cases",
+        "data_mapping_fixture_cases",
+        "rejection_fixture_cases",
+        "size_boundary_fixture_cases",
+        "all_cases"
+      ],
+      "title": "GraphBenchmarkDenominatorScope",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "denominator": {
+      "minimum": 0,
+      "title": "Denominator",
+      "type": "integer"
+    },
+    "denominator_scope": {
+      "$ref": "#/$defs/GraphBenchmarkDenominatorScope"
+    },
+    "empty_set_semantics": {
+      "const": "null",
+      "default": "null",
+      "title": "Empty Set Semantics",
+      "type": "string"
+    },
+    "numerator": {
+      "minimum": 0,
+      "title": "Numerator",
+      "type": "integer"
+    },
+    "rate": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rate"
+    }
+  },
+  "required": [
+    "numerator",
+    "denominator",
+    "denominator_scope"
+  ],
+  "title": "GraphBenchmarkMetric",
+  "type": "object"
+}

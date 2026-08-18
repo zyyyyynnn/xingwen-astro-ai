@@ -14,6 +14,7 @@ from app.db.models import (
     ResearchArtifactModel,
     ResearchContractModel,
     ResearchProjectModel,
+    ResearchRunModel,
 )
 from app.schemas.core import (
     ResearchContract,
@@ -107,6 +108,10 @@ def publish_reference_dataset(
         research_service=service,
         workflow_store=workflow,
     )
+    with factory() as session, session.begin():
+        session_run = session.get(ResearchRunModel, run.id)
+        if session_run is not None:
+            session_run.status = "completed"
     return UUID(published.artifact_version_id)
 
 

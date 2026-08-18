@@ -44,6 +44,7 @@
       "enum": [
         "pdf",
         "csv",
+        "fits",
         "json",
         "image"
       ],

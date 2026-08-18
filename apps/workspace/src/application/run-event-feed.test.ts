@@ -26,6 +26,7 @@ function runSnapshot(
     executionMode: "live",
     status,
     progress: status === "completed" ? 100 : 10,
+    revision: 1,
     parentRunId: null,
     derivationKind: "original",
     retryFromStep: null,
@@ -40,16 +41,21 @@ function runSnapshot(
   };
 }
 
-function event(sequence: number): RunEvent {
+function event(sequence: number, overrides: Partial<RunEvent> = {}): RunEvent {
   return {
     runId,
     sequence,
-    eventType: asEntityId(sequence === 3 ? "run.completed" : "step.progress"),
-    stepKey: asEntityId("collect"),
+    activityId: sequence === 3 ? `run:${runId}` : "tool:paper-search",
+    activityKind: sequence === 3 ? "completion" : "tool",
+    activityPhase: sequence === 1 ? "running" : "completed",
+    activityName: sequence === 3 ? "研究任务" : "检索研究论文",
+    stepKey: sequence === 3 ? null : asEntityId("searching_papers"),
     progress: sequence * 10,
-    publicMessage: `Public event ${String(sequence)}`,
+    content: `研究事件 ${String(sequence)}`,
+    details: sequence === 3 ? {} : { tool_kind: "search" },
     artifactVersionIds: [],
     occurredAt: `2026-08-11T00:00:0${String(sequence)}Z`,
+    ...overrides,
   };
 }
 
@@ -57,6 +63,10 @@ function runRepository(): RunRepository {
   return {
     getById: vi.fn(async () => runSnapshot()),
     create: vi.fn(),
+    cancel: vi.fn(),
+    retry: vi.fn(),
+    getCheckpoint: vi.fn(async () => null),
+    submitCheckpointDecision: vi.fn(),
     listEvents: vi.fn(),
     recoverEvents: vi.fn(async () => ({
       events: [event(1), event(2), event(2), event(3)],
@@ -116,7 +126,12 @@ describe("RunEventFeed", () => {
           workspaceQueryKeys.runEvents(projectId, runId),
         )
         ?.events.map((item) => item.id),
-    ).toEqual([`${runId}:1`, `${runId}:2`, `${runId}:3`]);
+    ).toEqual(["tool:paper-search", `run:${runId}`]);
+    expect(
+      queryClient.getQueryData<{
+        events: readonly { updates: readonly unknown[] }[];
+      }>(workspaceQueryKeys.runEvents(projectId, runId))?.events[0]?.updates,
+    ).toHaveLength(2);
     feed.stop();
   });
 
@@ -127,9 +142,12 @@ describe("RunEventFeed", () => {
     await feed.syncNow();
     await feed.syncNow();
 
-    expect(invalidate).toHaveBeenCalledTimes(1);
+    expect(invalidate).toHaveBeenCalledTimes(2);
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: workspaceQueryKeys.runSteps(projectId, runId),
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: workspaceQueryKeys.thread(projectId),
     });
     feed.stop();
   });
@@ -161,17 +179,52 @@ describe("RunEventFeed", () => {
     feed.stop();
   });
 
+  it("refreshes Thread and published results as soon as a live batch arrives", async () => {
+    const repository = runRepository();
+    vi.mocked(repository.getById).mockResolvedValue(runSnapshot("planning", 2));
+    vi.mocked(repository.recoverEvents).mockResolvedValue({
+      events: [
+        event(1),
+        event(2, { artifactVersionIds: [asEntityId("artifact-version-1")] }),
+      ],
+      nextCursor: "2",
+      latestSequence: 2,
+    });
+    const { feed, queryClient } = makeFeed(repository);
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+
+    await feed.syncNow();
+
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: workspaceQueryKeys.thread(projectId),
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: workspaceQueryKeys.artifactsByRun(projectId, runId),
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: workspaceQueryKeys.artifactVersion(
+        projectId,
+        asEntityId("artifact-version-1"),
+      ),
+    });
+    feed.stop();
+  });
+
   it("stops at a terminal snapshot only after its event tail is complete", async () => {
     const repository = runRepository();
     vi.mocked(repository.getById).mockResolvedValue(
       runSnapshot("completed", 3),
     );
-    const { feed } = makeFeed(repository);
+    const { feed, queryClient } = makeFeed(repository);
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
 
     await feed.syncNow();
 
     expect(feed.getSnapshot().status).toBe("stopped");
     expect(feed.getSnapshot().lastSequence).toBe(3);
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: workspaceQueryKeys.artifactsByRun(projectId, runId),
+    });
   });
 
   it("backs off within bounds and supports pause/resume without losing cursor", async () => {

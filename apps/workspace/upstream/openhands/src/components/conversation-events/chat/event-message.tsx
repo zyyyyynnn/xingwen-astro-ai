@@ -1,3 +1,4 @@
+import type { DomainEntityId } from "@xingwen/domain";
 import {
   Collapsible,
   CollapsibleContent,
@@ -12,13 +13,15 @@ import {
 
 import type { ActivityPresentationEvent } from "./group-events";
 
-/** OpenHands GenericEventMessage interaction over a public research event. */
+/** OpenHands event row with a public research-event projection. */
 export function EventMessage({
   event,
 }: {
   readonly event: ActivityPresentationEvent;
+  readonly onOpenArtifactVersion?: (artifactVersionId: DomainEntityId) => void;
 }) {
-  const hasDetails = Boolean(event.detail?.trim());
+  const hasDetails =
+    Boolean(event.summary.trim()) || event.updates.length > 1 || event.details;
   const isRunning = event.status === "pending" || event.status === "running";
   const StatusIcon =
     event.status === "error"
@@ -29,7 +32,10 @@ export function EventMessage({
   const content = (
     <>
       {hasDetails ? (
-        <ChevronDown className="oh-narrative-chevron" aria-hidden="true" />
+        <ChevronDown
+          className="oh-narrative-chevron xw-disclosure-chevron"
+          aria-hidden="true"
+        />
       ) : (
         <span className="oh-narrative-disclosure-slot" aria-hidden="true" />
       )}
@@ -53,6 +59,16 @@ export function EventMessage({
       </div>
     );
   }
+  const distinctUpdates = event.updates.reduce<
+    (typeof event.updates)[number][]
+  >((acc, update) => {
+    const last = acc.at(-1);
+    if (!last || last.message.trim() !== update.message.trim()) {
+      acc.push(update);
+    }
+    return acc;
+  }, []);
+
   return (
     <Collapsible
       className="oh-narrative-node"
@@ -67,7 +83,29 @@ export function EventMessage({
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent className="oh-narrative-content">
-        <div role="region">{event.detail}</div>
+        <div role="region">
+          {distinctUpdates.length <= 1 ? (
+            <p>{distinctUpdates[0]?.message || event.summary}</p>
+          ) : (
+            <ol className="space-y-1.5 text-xs text-[var(--oh-muted)]">
+              {distinctUpdates.map((update, idx) => {
+                const isLatest = idx === distinctUpdates.length - 1;
+                return (
+                  <li
+                    key={update.sequence}
+                    className={
+                      isLatest
+                        ? "font-medium leading-relaxed text-[var(--oh-text)]"
+                        : "leading-relaxed"
+                    }
+                  >
+                    {update.message}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </div>
       </CollapsibleContent>
     </Collapsible>
   );

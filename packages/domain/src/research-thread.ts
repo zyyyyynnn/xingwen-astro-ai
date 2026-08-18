@@ -4,7 +4,7 @@ import type { UtcIsoTimestamp } from "./value-types";
 export type ResearchThreadEntryKind =
   | "user_message"
   | "assistant_message"
-  | "assistant_analysis"
+  | "assistant_reasoning"
   | "clarification_question"
   | "clarification_answer";
 
@@ -61,7 +61,7 @@ export type ResearchThreadEntry =
       ResearchThreadUserPayload
     >
   | ResearchThreadEntryBase<
-      "assistant_analysis",
+      "assistant_reasoning",
       "assistant",
       ResearchThreadAssistantPayload
     >

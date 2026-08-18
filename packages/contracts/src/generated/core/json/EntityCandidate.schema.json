@@ -1,0 +1,280 @@
+{
+  "$defs": {
+    "CanonicalIdentityValue": {
+      "additionalProperties": false,
+      "properties": {
+        "field_id": {
+          "pattern": "^(planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Field Id",
+          "type": "string"
+        },
+        "locator": {
+          "$ref": "#/$defs/EvidenceLocator"
+        },
+        "normalization_rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Normalization Rule Version",
+          "type": "string"
+        },
+        "normalized_value": {
+          "minLength": 1,
+          "title": "Normalized Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field_id",
+        "normalized_value",
+        "normalization_rule_version",
+        "locator"
+      ],
+      "title": "CanonicalIdentityValue",
+      "type": "object"
+    },
+    "CrossmatchSide": {
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "CrossmatchSide",
+      "type": "string"
+    },
+    "EntityLevel": {
+      "enum": [
+        "host_star",
+        "planet_candidate",
+        "planet_assertion"
+      ],
+      "title": "EntityLevel",
+      "type": "string"
+    },
+    "EvidenceLocator": {
+      "additionalProperties": false,
+      "properties": {
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "raw_field": {
+          "minLength": 1,
+          "title": "Raw Field",
+          "type": "string"
+        },
+        "row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Row Key",
+          "type": "array"
+        },
+        "side": {
+          "$ref": "#/$defs/CrossmatchSide"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Snapshot Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "side",
+        "source_snapshot_id",
+        "source_id",
+        "query_hash",
+        "row_key",
+        "raw_field"
+      ],
+      "title": "EvidenceLocator",
+      "type": "object"
+    },
+    "ObjectType": {
+      "description": "Objects represented by the exoplanet/host-star case.",
+      "enum": [
+        "planet",
+        "star",
+        "system"
+      ],
+      "title": "ObjectType",
+      "type": "string"
+    },
+    "SkyCoordinate": {
+      "additionalProperties": false,
+      "properties": {
+        "declination": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Declination",
+          "type": "number"
+        },
+        "frame": {
+          "const": "ICRS",
+          "default": "ICRS",
+          "title": "Frame",
+          "type": "string"
+        },
+        "right_ascension": {
+          "exclusiveMaximum": 360,
+          "minimum": 0,
+          "title": "Right Ascension",
+          "type": "number"
+        },
+        "unit": {
+          "const": "degree",
+          "default": "degree",
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "right_ascension",
+        "declination"
+      ],
+      "title": "SkyCoordinate",
+      "type": "object"
+    },
+    "SourceRecordReference": {
+      "additionalProperties": false,
+      "properties": {
+        "object_type": {
+          "$ref": "#/$defs/ObjectType"
+        },
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "record_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Record Content Hash",
+          "type": "string"
+        },
+        "row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Row Key",
+          "type": "array"
+        },
+        "side": {
+          "$ref": "#/$defs/CrossmatchSide"
+        },
+        "source_entity_key": {
+          "minLength": 1,
+          "title": "Source Entity Key",
+          "type": "string"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_snapshot_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Snapshot Content Hash",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Snapshot Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "side",
+        "source_snapshot_id",
+        "source_snapshot_content_hash",
+        "source_id",
+        "query_hash",
+        "row_key",
+        "record_content_hash",
+        "object_type",
+        "source_entity_key"
+      ],
+      "title": "SourceRecordReference",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "candidate_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Candidate Id",
+      "type": "string"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "coordinate": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SkyCoordinate"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "entity_level": {
+      "$ref": "#/$defs/EntityLevel"
+    },
+    "identity_values": {
+      "items": {
+        "$ref": "#/$defs/CanonicalIdentityValue"
+      },
+      "minItems": 1,
+      "title": "Identity Values",
+      "type": "array"
+    },
+    "side": {
+      "$ref": "#/$defs/CrossmatchSide"
+    },
+    "source_record": {
+      "$ref": "#/$defs/SourceRecordReference"
+    }
+  },
+  "required": [
+    "candidate_id",
+    "side",
+    "entity_level",
+    "source_record",
+    "identity_values",
+    "content_hash"
+  ],
+  "title": "EntityCandidate",
+  "type": "object"
+}

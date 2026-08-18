@@ -17,11 +17,6 @@
       "path": "json/ArtifactVersionDetail.schema.json"
     },
     {
-      "module": "app.schemas.research_input",
-      "name": "BindResearchInputRequest",
-      "path": "json/BindResearchInputRequest.schema.json"
-    },
-    {
       "module": "app.schemas.revision",
       "name": "ConfirmRevisionPlanRequest",
       "path": "json/ConfirmRevisionPlanRequest.schema.json"
@@ -135,6 +130,11 @@
       "module": "app.schemas.paper_summary",
       "name": "PaperSummaryArtifactContent",
       "path": "json/PaperSummaryArtifactContent.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary_api",
+      "name": "PaperSummaryPdfSourceRead",
+      "path": "json/PaperSummaryPdfSourceRead.schema.json"
     },
     {
       "module": "app.schemas.paper_summary_api",

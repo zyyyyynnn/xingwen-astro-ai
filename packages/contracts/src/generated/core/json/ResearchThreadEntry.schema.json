@@ -5,7 +5,7 @@
       "enum": [
         "user_message",
         "assistant_message",
-        "assistant_analysis",
+        "assistant_reasoning",
         "clarification_question",
         "clarification_answer"
       ],

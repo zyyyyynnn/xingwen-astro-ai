@@ -15,6 +15,7 @@
         "url",
         "pdf",
         "csv",
+        "fits",
         "json",
         "image",
         "text"

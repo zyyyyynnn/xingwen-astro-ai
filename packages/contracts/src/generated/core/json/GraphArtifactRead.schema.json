@@ -1050,6 +1050,19 @@
         "producer": {
           "$ref": "#/$defs/ProducerReference"
         },
+        "provider_request_id": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Request Id"
+        },
         "run_id": {
           "maxLength": 128,
           "minLength": 1,
@@ -1118,7 +1131,7 @@
     "ProducerReference": {
       "additionalProperties": false,
       "properties": {
-        "model_name": {
+        "explicit_revision": {
           "anyOf": [
             {
               "type": "string"
@@ -1128,7 +1141,7 @@
             }
           ],
           "default": null,
-          "title": "Model Name"
+          "title": "Explicit Revision"
         },
         "model_provider": {
           "anyOf": [
@@ -1196,6 +1209,30 @@
           ],
           "default": null,
           "title": "Prompt Version"
+        },
+        "provider_returned_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Returned Model"
+        },
+        "requested_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requested Model"
         },
         "type": {
           "enum": [

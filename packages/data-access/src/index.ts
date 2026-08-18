@@ -15,15 +15,26 @@
  */
 
 export type {
+  ArtifactExportRepository,
   ArtifactReadRepository,
   ContractRepository,
+  CreateResearchInputInput,
   CreateResearchContractDraftInput,
   CreateResearchProjectInput,
   CreateResearchRunInput,
+  CreateRevisionInput,
+  DataArtifactRepository,
+  GraphArtifactRepository,
+  LiteratureArtifactRepository,
   PaperAcquisitionRepository,
   PaperSummaryRepository,
   ProjectRepository,
   ResearchCatalogRepository,
+  ResearchInputRepository,
+  RevisionRepository,
+  ResearchInputRef,
+  ResearchInputStatus,
+  ResearchInputType,
   ResearchThreadRepository,
   ResearchThreadPage,
   RepositoryProvenance,
@@ -74,6 +85,22 @@ export {
   createPaperSummaryRepository,
 } from "./paper-summary-repository";
 export {
+  createArtifactExportRepository,
+  createFixtureArtifactExportRepository,
+} from "./artifact-export-repository";
+export {
+  createDataArtifactRepository,
+  createFixtureDataArtifactRepository,
+} from "./data-artifact-repository";
+export {
+  createGraphArtifactRepository,
+  createFixtureGraphArtifactRepository,
+} from "./graph-artifact-repository";
+export {
+  createLiteratureArtifactRepository,
+  createFixtureLiteratureArtifactRepository,
+} from "./literature-artifact-repository";
+export {
   createFixtureRepositories,
   type FixtureAdapterOptions,
   type FixtureRepositorySet,
@@ -84,6 +111,7 @@ export {
   type HttpAdapterConfig,
   type HttpRepositorySet,
 } from "./http-adapter";
+export { createResearchInputRepository } from "./research-input-repository";
 export {
   createSessionManager,
   type SessionInfo,
@@ -96,3 +124,8 @@ export {
   type ProblemDetails,
   type ProblemDetailsFieldError,
 } from "./http-errors";
+
+export {
+  createRevisionRepository,
+  createFixtureRevisionRepository,
+} from "./revision-repository";

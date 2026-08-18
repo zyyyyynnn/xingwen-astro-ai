@@ -1,0 +1,73 @@
+{
+  "$defs": {
+    "EntityLevel": {
+      "enum": [
+        "host_star",
+        "planet_candidate",
+        "planet_assertion"
+      ],
+      "title": "EntityLevel",
+      "type": "string"
+    },
+    "EntityProjectionRule": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_object_types": {
+          "items": {
+            "$ref": "#/$defs/ObjectType"
+          },
+          "minItems": 1,
+          "title": "Allowed Object Types",
+          "type": "array"
+        },
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel"
+        }
+      },
+      "required": [
+        "entity_level",
+        "allowed_object_types"
+      ],
+      "title": "EntityProjectionRule",
+      "type": "object"
+    },
+    "ObjectType": {
+      "description": "Objects represented by the exoplanet/host-star case.",
+      "enum": [
+        "planet",
+        "star",
+        "system"
+      ],
+      "title": "ObjectType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "rules": {
+      "items": {
+        "$ref": "#/$defs/EntityProjectionRule"
+      },
+      "minItems": 1,
+      "title": "Rules",
+      "type": "array"
+    },
+    "system_context_policy": {
+      "const": "host_and_source_assertion_only_no_implicit_join",
+      "title": "System Context Policy",
+      "type": "string"
+    },
+    "version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "version",
+    "system_context_policy",
+    "rules"
+  ],
+  "title": "EntityProjectionPolicy",
+  "type": "object"
+}

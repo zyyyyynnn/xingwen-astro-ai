@@ -12,8 +12,8 @@ catalog including adaptation details and production consumers.
 - **Revisions**: `shadcn-ui@0.9.4` (`729b9ec8cacfae0bc31958c1a8e425d0a21be54e`)
   and `shadcn-cli@4.16.2` (`efac5987074af84ece57c367c6dd83387b967022`)
 - **Adopted components**: Alert, Alert Dialog, Button, Checkbox, Collapsible,
-  Command, Dialog, Dropdown Menu, Field, Input, Popover, Scroll Area, Skeleton,
-  Sonner, Tabs, Textarea
+  Command, Dialog, Dropdown Menu, Field, Input, Popover, Radio Group, Scroll
+  Area, Sheet, Skeleton, Sonner, Tabs, Textarea
 
 ### MIT License
 
@@ -36,3 +36,16 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+## react-resizable-panels
+
+- **Repository**: https://github.com/bvaughn/react-resizable-panels
+- **Revision**: `4.12.2` (`a1eeb7aefdb024bb5879a323218e0ac05f77f28e`)
+- **Adopted runtime**: Group, Panel, Separator
+- **License**: MIT
+
+The package owns panel sizing, pointer and keyboard resizing, constraints, and
+separator accessibility. Xingwen exposes only thin governed aliases from
+`@xingwen/ui` and does not maintain a parallel resize engine.

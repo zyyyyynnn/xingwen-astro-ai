@@ -315,6 +315,8 @@ def test_producer_parameters_do_not_reject_normal_token_count_settings() -> None
         producer_version="1.0.0",
         input_hash="sha256:" + "a" * 64,
         parameters={"max_tokens": 4096},
+        model_provider="qwen",
+        requested_model="qwen3.8-max",
     )
 
     with pytest.raises(AssertionError, match="database boundary"):

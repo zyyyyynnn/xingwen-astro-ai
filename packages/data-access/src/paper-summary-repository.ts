@@ -19,6 +19,7 @@ import type {
   PaperSummaryEvidence as PaperSummaryEvidenceDto,
   PaperSummaryEvidenceLocator as PaperSummaryEvidenceLocatorDto,
   PaperSummaryInputVersions as PaperSummaryInputVersionsDto,
+  PaperSummaryPdfSourceRead as PaperSummaryPdfSourceReadDto,
   PaperSummaryProducerExecution as PaperSummaryProducerExecutionDto,
   PaperSummaryRead as PaperSummaryReadDto,
   PaperSummarySourceConflict as PaperSummarySourceConflictDto,
@@ -30,6 +31,7 @@ import type {
   PaperSummaryEvidenceLocator,
   PaperSummaryEvidenceReview,
   PaperSummaryInputVersionsReview,
+  PaperSummaryPdfSourceReview,
   PaperSummaryProducerReview,
   PaperSummaryReview,
   PaperSummarySourceConflictReview,
@@ -83,6 +85,7 @@ function mapLocator(
       section: dto.section ?? "",
       paragraph: dto.paragraph ?? null,
       textRange: dto.text_range ?? "",
+      pageIndex: dto.page_index ?? null,
     };
   }
   return {
@@ -179,6 +182,29 @@ function mapCacheAudit(
 
 function summaryContractViolation(detail: string): ValidationError {
   return new ValidationError(detail, "PAPER_SUMMARY_PROVENANCE_INVALID", []);
+}
+
+/**
+ * Assemble the pdf-source review from a validated transport payload.
+ *
+ * Shared by the HTTP and fixture adapters. The authorized full-text input is
+ * exactly what the server recorded through the PaperCandidate → ResearchInput
+ * bridge; `null` means no authorized relation exists and must never be
+ * replaced by a client-inferred PDF URL.
+ */
+export function assemblePaperSummaryPdfSource(
+  read: PaperSummaryPdfSourceReadDto,
+): PaperSummaryPdfSourceReview {
+  const input = read.research_input ?? null;
+  if (input === null) {
+    return { researchInputId: null };
+  }
+  if (input.type !== "pdf" && input.mime_type !== "application/pdf") {
+    throw summaryContractViolation(
+      "pdf source must reference a PDF research input",
+    );
+  }
+  return { researchInputId: mapId(input.id) };
 }
 
 /**
@@ -294,6 +320,16 @@ export function createPaperSummaryRepository(
         payload,
       );
       return assemblePaperSummaryReview(read);
+    },
+    async getPdfSource(artifactVersionId) {
+      const payload = await http.getRequired<unknown>(
+        `/api/artifact-versions/${seg(artifactVersionId)}/paper-summary/pdf-source`,
+      );
+      const read = parseContract<PaperSummaryPdfSourceReadDto>(
+        "PaperSummaryPdfSourceRead",
+        payload,
+      );
+      return assemblePaperSummaryPdfSource(read);
     },
   };
 }

@@ -43,14 +43,24 @@
 - Navigation 选择、Pin、Collapse；
 - Agent Activity 流式事件、Tool、Deliverable、Error 与 Checkpoint；
 - Agent Activity 连续事件分组、公开详情披露、进行中/完成状态与滚动跟随；
-- Artifact Workspace 视图、Focus、Compare；
-- Context Inspector 恢复；
-- Keyboard、Screen Reader、Reduced Motion 与 200% 字体缩放。
+- Artifact Fullscreen 结果工作区、Focus、Compare；
+- 右侧研究栏概览/结果索引与恢复；
+- Keyboard、Screen Reader 与 Reduced Motion。
+
+不写无产品价值的测试：只断言 CSS class、只断言 Badge 数量、只断言一条静态
+文案、同一规则多层复制、只为 Review finding 留一个永久测试、给每个配置做
+SHA mutation test、UI 文件 hash 或组件列表 hash。
+
+Hash 测试只保留真正身份/完整性边界：Artifact content、SourceSnapshot、
+Prompt/input/output identity、Scientific Document Parsing model assets、
+Golden Set、上游正式 adoption lock、安全/idempotency、真实固定分母（如
+MAVIS source set）。SHA-256 不是通用“测试覆盖率工具”。
 
 ### Integration
 
 - FastAPI Router -> Application Service -> Repository 链路；
 - Workflow -> Pipeline Adapter -> ArtifactVersion 发布；
+- 真实服务级执行链路（Project -> Draft -> Confirmed Contract -> Run -> 冻结 RunSteps -> Worker -> Step 分发 -> ProducerExecution 生命周期 -> Publisher -> ArtifactVersion -> RunEvent -> Thread -> 完成），只注入确定性 provider/source 边界，不 mock 掉 `_load_context`、ProducerExecution、Publisher 或 RunStep 转换；
 - PostgreSQL 事务、锁租约与 Event 登记；
 - Session、CSRF、Ownership 与 Share 校验；
 - Repository Port -> Domain -> Research Adapter 一致性。
@@ -73,9 +83,9 @@ Research Intent → Contract → Real ResearchRun → Artifact/Evidence → revi
 
 ### Visual & Accessibility
 
-- 固定桌面视口 (1440×900, 1280×800) 与 200% 字体视觉校验；
+- 固定桌面视口 1440×900、1280×800、1024×768；
 - 覆盖 Empty, Running, Needs Review, Completed, Error 等核心界面状态；
-- 无障能力（键盘、焦点、屏读）符合标准。
+- 保留 keyboard、focus、screen reader 与 reduced motion 覆盖。
 
 ## 3. 测试数据等级
 
@@ -104,7 +114,7 @@ proof 的测试只证明契约或适配器行为，不证明竞赛资格。
 ResearchInput 的桥接、snapshot-first RunEventFeed 的分页/polling/backoff、穷举
 Renderer Registry、共享 Evidence Inspector、partial/unsupported parsing，以及
 ArtifactVersion immutable revision。NFR 证据至少包含初始 JS/lazy chunk、长 Activity、
-大表/图预算、200% 字体与长会话内存观察。
+大表/图预算与长会话内存观察。
 
 ## 5. 测试证据格式
 

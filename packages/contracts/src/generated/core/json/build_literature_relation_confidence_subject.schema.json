@@ -1,0 +1,55 @@
+{
+  "$defs": {
+    "LiteratureRelationType": {
+      "enum": [
+        "supports",
+        "extends",
+        "derived_from",
+        "limits",
+        "contradicts",
+        "uses_same_dataset",
+        "compares_method"
+      ],
+      "title": "LiteratureRelationType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "relation_type": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LiteratureRelationType"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "title": "Relation Type"
+    },
+    "source_claim_artifact_version_id": {
+      "title": "Source Claim Artifact Version Id",
+      "type": "string"
+    },
+    "source_claim_id": {
+      "title": "Source Claim Id",
+      "type": "string"
+    },
+    "target_claim_artifact_version_id": {
+      "title": "Target Claim Artifact Version Id",
+      "type": "string"
+    },
+    "target_claim_id": {
+      "title": "Target Claim Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_claim_artifact_version_id",
+    "source_claim_id",
+    "target_claim_artifact_version_id",
+    "target_claim_id",
+    "relation_type"
+  ],
+  "type": "object"
+}

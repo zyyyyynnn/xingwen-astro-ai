@@ -1,0 +1,66 @@
+{
+  "$defs": {
+    "ResponseLinks": {
+      "additionalProperties": false,
+      "properties": {
+        "self": {
+          "minLength": 1,
+          "title": "Self",
+          "type": "string"
+        }
+      },
+      "required": [
+        "self"
+      ],
+      "title": "ResponseLinks",
+      "type": "object"
+    },
+    "ResponseMeta": {
+      "additionalProperties": false,
+      "properties": {
+        "generated_at": {
+          "format": "date-time",
+          "title": "Generated At",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Request Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "generated_at"
+      ],
+      "title": "ResponseMeta",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "data": {
+      "title": "Data"
+    },
+    "links": {
+      "$ref": "#/$defs/ResponseLinks"
+    },
+    "meta": {
+      "$ref": "#/$defs/ResponseMeta"
+    }
+  },
+  "required": [
+    "data",
+    "meta",
+    "links"
+  ],
+  "title": "Envelope",
+  "type": "object"
+}

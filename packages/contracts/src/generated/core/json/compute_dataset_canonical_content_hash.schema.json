@@ -1,0 +1,12 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "value": {
+      "title": "Value"
+    }
+  },
+  "required": [
+    "value"
+  ],
+  "type": "object"
+}

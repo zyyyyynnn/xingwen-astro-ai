@@ -32,6 +32,7 @@ def canonical_artifact_content_model(kind: object) -> type[BaseModel] | None:
     from app.schemas.literature_relation import LiteratureRelationsCandidate
     from app.schemas.paper_collection import PaperCollection
     from app.schemas.paper_summary import PaperSummaryArtifactContent
+    from app.schemas.reasoning_traces import ReasoningTracesArtifactContent
 
     canonical_types: dict[str, type[BaseModel]] = {
         "dataset": DatasetArtifactCandidate,
@@ -41,6 +42,7 @@ def canonical_artifact_content_model(kind: object) -> type[BaseModel] | None:
         "paper_summary": PaperSummaryArtifactContent,
         "literature_claims": LiteratureClaimsCandidate,
         "literature_relations": LiteratureRelationsCandidate,
+        "reasoning_traces": ReasoningTracesArtifactContent,
         "graph": GraphArtifactCandidate,
         "export": ExportArtifactContent,
     }

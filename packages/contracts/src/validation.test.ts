@@ -130,24 +130,38 @@ describe("contract validation — isDto type guard", () => {
 
 describe("contract — schema metadata", () => {
   it("exposes core and generic provenance read model names", () => {
-    expect(CORE_MODEL_NAMES).toHaveLength(24);
+    expect(CORE_MODEL_NAMES).toHaveLength(38);
     expect(CORE_MODEL_NAMES).toContain("ResearchProject");
+    expect(CORE_MODEL_NAMES).toContain("ResearchInputRef");
     expect(CORE_MODEL_NAMES).toContain("ResearchThreadEntry");
     expect(CORE_MODEL_NAMES).toContain("ResearchTurnResult");
     expect(CORE_MODEL_NAMES).toContain("RunStepRead");
+    expect(CORE_MODEL_NAMES).toContain("RunCheckpoint");
     expect(CORE_MODEL_NAMES).toContain("ModelExecutionRecord");
     expect(CORE_MODEL_NAMES).toContain("ResearchPlanningCatalog");
     expect(CORE_MODEL_NAMES).toContain("ArtifactVersion");
+    expect(CORE_MODEL_NAMES).toContain("ArtifactVersionSummary");
     expect(CORE_MODEL_NAMES).toContain("EvidenceRead");
     expect(CORE_MODEL_NAMES).toContain("SourceSnapshotDetail");
+    expect(CORE_MODEL_NAMES).toContain("ArtifactExportRead");
+    expect(CORE_MODEL_NAMES).toContain("DatasetArtifactRead");
+    expect(CORE_MODEL_NAMES).toContain("FieldDictionaryArtifactRead");
+    expect(CORE_MODEL_NAMES).toContain("SourceCollectionArtifactRead");
+    expect(CORE_MODEL_NAMES).toContain("LiteratureClaimRead");
+    expect(CORE_MODEL_NAMES).toContain("LiteratureRelationRead");
+    expect(CORE_MODEL_NAMES).toContain("LiteratureReasoningTraceRead");
+    expect(CORE_MODEL_NAMES).toContain("GraphArtifactRead");
     expect(CORE_MODEL_NAMES).toContain("PaperCollectionRead");
     expect(CORE_MODEL_NAMES).toContain("PaperCollectionCandidateRead");
     expect(CORE_MODEL_NAMES).toContain("PaperSummaryRead");
+    expect(CORE_MODEL_NAMES).toContain("PaperSummaryPdfSourceRead");
     expect(CORE_MODEL_NAMES).toContain("SessionCreated");
     expect(CORE_MODEL_NAMES).toContain("WorkspaceSnapshot");
     expect(CORE_MODEL_NAMES).toContain("ShareSnapshot");
     expect(CORE_MODEL_NAMES).toContain("ShareSnapshotCreated");
     expect(CORE_MODEL_NAMES).toContain("PublicShareSnapshot");
+    expect(CORE_MODEL_NAMES).toContain("UserFeedback");
+    expect(CORE_MODEL_NAMES).toContain("RevisionPlan");
   });
 
   it("exposes the manifest schema version", () => {

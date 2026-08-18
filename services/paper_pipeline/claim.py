@@ -211,31 +211,6 @@ class LiteratureClaimPipeline:
             existing_claim_fingerprints=existing_claim_fingerprints,
         )
         status = _aggregate_status(records)
-        publishable = any(
-            item.status is not LiteratureClaimStatus.rejected for item in records
-        )
-        if not publishable:
-            producer_payload = {
-                **producer_fields,
-                "output_hash": "sha256:" + "0" * 64,
-                "status": "completed",
-            }
-            result_payload = {
-                "admission_status": status,
-                "records": [
-                    item.model_dump(mode="json", exclude_none=True) for item in records
-                ],
-                "publisher_candidate": None,
-                "producer": producer_payload,
-                "output_hash": "sha256:" + "0" * 64,
-            }
-            output_hash = compute_literature_claim_admission_output_hash(
-                result_payload
-            )
-            producer_payload["output_hash"] = output_hash
-            result_payload["output_hash"] = output_hash
-            return LiteratureClaimAdmissionResult.model_validate(result_payload)
-
         producer_payload = {
             **producer_fields,
             "output_hash": "sha256:" + "0" * 64,
@@ -492,7 +467,11 @@ def _admit_claims(
             if item.evidence_id not in evidence_exists:
                 continue
             snapshot = summary_snapshots.get(item.source_snapshot_id)
-            if snapshot is None or item.source_snapshot_id not in snapshot_exists:
+            if (
+                snapshot is None
+                or item.source_snapshot_id not in snapshot_exists
+                or item.paper_id != record.paper_id
+            ):
                 continue
             retained_evidence[item.evidence_id] = item
             retained_references[(claim_id, item.evidence_id)] = (

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from pydantic import ValidationError
@@ -14,18 +14,28 @@ from app.schemas.paper_collection import PaperCollection
 from app.schemas.paper_summary_api import (
     PaperSummaryCacheAudit,
     PaperSummaryPaperMetadata,
+    PaperSummaryPdfSourceRead,
     PaperSummaryRead,
 )
 from app.schemas.core import ArtifactVersionDetail, SourceMode, SourceSnapshotDetail
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
 
+#: Resolves the authorized full-text ResearchInput for one summarized paper.
+PdfSourceResolver = Callable[..., Any]
+
 
 class PaperSummaryReadService:
     """Validate and project PaperSummary Pipeline content without repeating pipeline logic."""
 
-    def __init__(self, artifacts: ArtifactReadService) -> None:
+    def __init__(
+        self,
+        artifacts: ArtifactReadService,
+        *,
+        pdf_source_resolver: PdfSourceResolver | None = None,
+    ) -> None:
         self._artifacts = artifacts
+        self._pdf_source_resolver = pdf_source_resolver
 
     def get_summary(self, *, version_id: str, session_id: str) -> PaperSummaryRead:
         version = self._artifacts.get_version(
@@ -73,6 +83,46 @@ class PaperSummaryReadService:
             evidence=version.evidence,
         )
 
+    def get_pdf_source(
+        self, *, version_id: str, session_id: str
+    ) -> PaperSummaryPdfSourceRead:
+        """Resolve the authorized full-text ResearchInput for the summarized paper.
+
+        Reuses the full summary provenance validation to pin the exact
+        ``(paper_collection_version_id, paper_id)`` pair, then delegates to the
+        authorized PaperCandidateInput bridge. Never infers a PDF from title,
+        DOI or candidate order: a missing or non-PDF binding yields ``None``.
+        """
+
+        version = self._artifacts.get_version(
+            version_id=version_id, session_id=session_id
+        )
+        artifact = self._artifacts.get_artifact(
+            artifact_id=version.artifact_id, session_id=session_id
+        )
+        if artifact.kind.value != "paper_summary":
+            raise _problem(
+                409,
+                "ARTIFACT_KIND_MISMATCH",
+                "Artifact kind mismatch",
+                "The ArtifactVersion is not a paper_summary",
+            )
+        summary = self._validated_summary(version)
+        self._validate_input_collection(version, summary, session_id)
+        if self._pdf_source_resolver is None:
+            return PaperSummaryPdfSourceRead(research_input=None)
+        record = self._pdf_source_resolver(
+            session_id=session_id,
+            project_id=str(version.project_id),
+            paper_collection_version_id=str(
+                summary.input_versions.paper_collection_version_id
+            ),
+            canonical_paper_id=summary.paper_id,
+        )
+        if record is None:
+            return PaperSummaryPdfSourceRead(research_input=None)
+        return PaperSummaryPdfSourceRead(research_input=record.to_ref())
+
     def _validated_summary(
         self, version: ArtifactVersionDetail
     ) -> PaperSummaryArtifactContent:
@@ -96,7 +146,7 @@ class PaperSummaryReadService:
             or runtime_producer.status != "completed"
             or runtime_producer.producer.name != producer.producer_name
             or runtime_producer.producer.version != producer.producer_version
-            or runtime_producer.producer.model_name != producer.model_name
+            or runtime_producer.producer.requested_model != producer.model_name
             or runtime_producer.producer.prompt_name != producer.prompt_name
             or runtime_producer.producer.prompt_version != producer.prompt_version
             or runtime_producer.producer.prompt_hash != producer.prompt_hash

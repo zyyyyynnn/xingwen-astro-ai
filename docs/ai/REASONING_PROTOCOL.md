@@ -12,6 +12,17 @@
 - **LiteratureRelation**：两条 Claim 之间的有向科学关系，表达格式为 `source_claim_id relation_type target_claim_id`。
 - **ReasoningTrace**：支持特定 Relation 的分步可审查推导轨迹。
 
+### 1.1 公开消息边界
+
+四类边界严格区分，不得互相替代或混写：
+
+| 边界                        | 语义                                             |
+| --------------------------- | ------------------------------------------------ |
+| `assistant_message`         | 用户可见的自然研究交流，写入 Research Thread     |
+| Run public reasoning activity | 步骤级公开摘要（`public_analysis`），次级信息  |
+| `ReasoningTrace`            | Evidence-bound 正式领域产物                      |
+| Provider private reasoning  | 不保存、不显示、不导出                           |
+
 ## 2. Relation 类型与方向
 
 所有 Relation 的方向固定为 `source`（关系主语）到 `target`（关系宾语），方向严格不可逆：
@@ -27,11 +38,11 @@
 1. **实体与版本存在**：两端 Claim 存在且均属于有效的不可变版本。
 2. **方向与类型合法**：`source` 与 `target` 的方向与 Relation 语义完全一致。
 3. **Evidence 完整**：两端 Claim 的 Evidence 真实存在且归属正确。
-4. **条件与可比性 (Comparability)**：两端 Claim 的对象 (Object)、指标 (Metric) 与单位 (Unit) 必须满足可比性校验。不满足可比性的关系必须硬拒绝 (`rejected`)。
+4. **条件与可比性 (Comparability)**：两端 Claim 的对象 (Object) 必须可比；`supports | extends | limits | contradicts` 还必须按双方实际指标 (Metric) 与单位 (Unit) 通过可比性校验。`derived_from | uses_same_dataset | compares_method` 属于依赖或结构关系，不以科学指标和单位作比较，其 Metric/Unit 状态必须为 `not_applicable`。不满足对应关系语义的候选必须硬拒绝 (`rejected`)。
 5. **ReasoningTrace 支撑**：存在完整的 `ReasoningTrace` 且推导步骤覆盖双方 Evidence。
 6. **校准置信度 (Confidence Assessment)**：外部校准的置信评估达到对应阈值。
 
-硬门校验未通过的关系仅能保留为 `candidate` 或 `rejected`，绝对禁止发布进入图谱。
+硬门校验未通过的关系仅能保留为 `candidate` 或 `rejected`，绝对禁止发布进入图谱。`LiteratureRelations` ArtifactVersion 是一次准入结果的可审计聚合：只要模型输出通过 JSON/Schema 解析并形成记录，即使全部记录均为 `rejected`，聚合产物与空的 `ReasoningTrace` 投影仍应如实发布；发布聚合不改变记录状态，也不授予图谱准入资格。
 
 ## 4. ReasoningTrace 规范
 

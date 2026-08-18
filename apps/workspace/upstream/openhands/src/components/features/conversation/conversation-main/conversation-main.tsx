@@ -1,9 +1,20 @@
 import React from "react";
-import { ScrollArea, buttonClassName } from "@xingwen/ui";
-import { Layers3, PanelRightClose, PanelRightOpen } from "@xingwen/ui/icons";
+import {
+  ScrollArea,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@xingwen/ui";
+import { PanelRightClose, PanelRightOpen } from "@xingwen/ui/icons";
 
 import { ChatInterfaceWrapper } from "./chat-interface-wrapper";
 import { ConversationNameWithStatus } from "../conversation-name-with-status";
+import {
+  SIDEBAR_ICON_BUTTON_CLASS,
+  SIDEBAR_RAIL_TRANSITION_CLASS,
+} from "../../sidebar/sidebar-layout";
 import { ResizeHandle } from "../../../ui/resize-handle";
 import { useResizablePanels } from "../../../../hooks/use-resizable-panels";
 import type { ResearchWorkspaceRuntime } from "../../../../root";
@@ -14,6 +25,10 @@ interface WorkspacePanelLayout {
   readonly minLeftWidth: number;
   readonly maxLeftWidth: number;
   readonly keyboardStep: number;
+}
+
+interface WorkspaceMainColumnStyle extends React.CSSProperties {
+  readonly paddingInlineEnd: string;
 }
 
 function readWorkspacePanelLayout(): WorkspacePanelLayout {
@@ -57,38 +72,39 @@ interface ConversationMainProps {
 }
 
 /**
- * OpenHands ConversationMain with the coding/mobile content removed.
- * The split-panel, resize, panel visibility and header composition remain in
- * the upstream component boundary; Xingwen only supplies neutral surfaces and
- * the thin runtime seam.
+ * OpenHands ConversationMain with one product-owned adaptation: the research
+ * detail rail is always docked and participates in layout. The thread and its
+ * native scrollbar always occupy the remaining main-column width.
  */
 export function ConversationMain({ runtime }: ConversationMainProps) {
-  return <ConversationMainSurface runtime={runtime} />;
-}
-
-function ConversationMainSurface({ runtime }: ConversationMainProps) {
   const hasInspector = runtime.inspectorPanel !== null;
-  const [storedInspector, setStoredInspector] = React.useState<{
-    readonly available: boolean;
-    readonly mode: "floating" | "docked";
-    readonly visible: boolean;
-  }>({
+  const requestedInspector = runtime.inspectorRequest;
+  const [storedInspector, setStoredInspector] = React.useState({
     available: hasInspector,
-    mode: "floating",
     visible: hasInspector,
   });
+  const consumedRequestKey = React.useRef(requestedInspector?.key ?? null);
+  const isNarrow = React.useSyncExternalStore(
+    (callback) => {
+      if (typeof window === "undefined" || !window.matchMedia) {
+        return () => {};
+      }
+      const media = window.matchMedia("(max-width: 1024px)");
+      media.addEventListener("change", callback);
+      return () => media.removeEventListener("change", callback);
+    },
+    () => {
+      if (typeof window === "undefined" || !window.matchMedia) return false;
+      return window.matchMedia("(max-width: 1024px)").matches;
+    },
+    () => false,
+  );
+
   const inspector =
     storedInspector.available === hasInspector
       ? storedInspector
-      : {
-          available: hasInspector,
-          mode: "floating" as const,
-          visible: hasInspector,
-        };
-  const inspectorMode = inspector.mode;
-  const inspectorVisible = inspector.visible;
-  const isFloating = inspectorVisible && inspectorMode === "floating";
-  const isDocked = inspectorVisible && inspectorMode === "docked";
+      : { available: hasInspector, visible: hasInspector };
+  const inspectorVisible = inspector.visible && hasInspector;
   const panelLayout = readWorkspacePanelLayout();
   const {
     leftWidth,
@@ -103,115 +119,81 @@ function ConversationMainSurface({ runtime }: ConversationMainProps) {
     ...panelLayout,
     storageKey: "xingwen-agent-panel-width",
   });
-
-  const toggleInspector = (nextMode: "floating" | "docked") => {
-    if (!hasInspector) return;
-    if (inspectorMode === nextMode) {
-      setStoredInspector({
-        available: hasInspector,
-        mode: nextMode,
-        visible: !inspectorVisible,
-      });
-      return;
-    }
-    setStoredInspector({
-      available: hasInspector,
-      mode: nextMode,
-      visible: true,
-    });
+  const mainColumnStyle: WorkspaceMainColumnStyle = {
+    paddingInlineEnd:
+      !hasInspector || isNarrow
+        ? "0px"
+        : inspectorVisible
+          ? `${rightWidth}%`
+          : "0px",
   };
 
-  const inspectorBody = (
-    <ScrollArea className="min-h-0 flex-1">
-      <div className="px-[var(--oh-space-5)] pb-[var(--oh-space-5)]">
-        {runtime.inspectorPanel}
-      </div>
-    </ScrollArea>
-  );
+  React.useEffect(() => {
+    if (
+      !hasInspector ||
+      requestedInspector === undefined ||
+      consumedRequestKey.current === requestedInspector.key
+    ) {
+      return;
+    }
+    consumedRequestKey.current = requestedInspector.key;
+    setStoredInspector({ available: true, visible: true });
+  }, [hasInspector, requestedInspector]);
+
+  const toggleInspector = () => {
+    if (!hasInspector) return;
+    setStoredInspector({ available: hasInspector, visible: !inspectorVisible });
+  };
+
+  const inspectorContent =
+    runtime.inspectorDockedPanel ?? runtime.inspectorPanel;
+  const inspectorHeading = runtime.inspectorDockedLabel ?? "研究概览";
+  const inspectorToolbar = runtime.inspectorDockedToolbar;
 
   return (
     <section
-      className="relative flex h-full min-h-0 flex-col"
+      ref={containerRef}
+      className="relative h-full min-h-0 overflow-hidden [container-type:inline-size]"
       aria-label="研究工作区"
       data-testid="conversation-main"
     >
-      <header
-        className="flex h-[var(--oh-header-block-size)] shrink-0 items-center gap-[var(--oh-space-3)] border-b border-[var(--oh-border)] px-[var(--oh-header-inline-padding)] py-0"
-        data-testid="workspace-topbar"
-      >
-        <div className="flex min-w-0 flex-1 items-center">
-          <ConversationNameWithStatus runtime={runtime} />
-        </div>
-        <div className="flex shrink-0 items-center gap-[var(--oh-space-1)]">
-          <button
-            type="button"
-            className={buttonClassName({
-              variant: "ghost",
-              size: "icon",
-              className: isFloating
-                ? "bg-[var(--oh-surface-raised)] text-[var(--oh-text)]"
-                : undefined,
-            })}
-            aria-label={isFloating ? "收起悬浮概览" : "展示悬浮概览"}
-            aria-controls={
-              hasInspector ? "research-inspector-panel" : undefined
-            }
-            aria-pressed={isFloating}
-            disabled={!hasInspector}
-            onClick={() => toggleInspector("floating")}
-          >
-            <Layers3
-              className="size-[var(--oh-icon-size-md)]"
-              aria-hidden="true"
-            />
-          </button>
-          <button
-            type="button"
-            className={buttonClassName({
-              variant: "ghost",
-              size: "icon",
-              className: isDocked
-                ? "bg-[var(--oh-surface-raised)] text-[var(--oh-text)]"
-                : undefined,
-            })}
-            aria-label={isDocked ? "收起右侧栏" : "展开右侧栏"}
-            aria-controls={
-              hasInspector ? "research-inspector-panel" : undefined
-            }
-            aria-pressed={isDocked}
-            disabled={!hasInspector}
-            onClick={() => toggleInspector("docked")}
-          >
-            {isDocked ? (
-              <PanelRightClose
-                className="size-[var(--oh-icon-size-md)]"
-                aria-hidden="true"
-              />
-            ) : (
-              <PanelRightOpen
-                className="size-[var(--oh-icon-size-md)]"
-                aria-hidden="true"
-              />
-            )}
-          </button>
-        </div>
-      </header>
-
       <div
-        ref={containerRef}
-        className="relative flex min-h-0 flex-1 overflow-hidden [container-type:inline-size]"
+        className={cn(
+          "flex h-full min-h-0 min-w-0 flex-col bg-[var(--oh-surface)] transition-[padding-inline-end] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none",
+          isDragging && "transition-none",
+        )}
+        style={mainColumnStyle}
+        data-workspace-main-column=""
+        data-testid="workspace-main-column"
       >
+        <header
+          className="flex h-[var(--oh-header-block-size)] shrink-0 items-center gap-[var(--oh-space-3)] border-b border-[var(--oh-border)] px-[var(--oh-header-inline-padding)] py-0"
+          data-testid="workspace-topbar"
+        >
+          <div className="flex min-w-0 flex-1 items-center">
+            <ConversationNameWithStatus runtime={runtime} />
+          </div>
+        </header>
         <div
-          className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[var(--oh-surface)]"
+          className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
           aria-labelledby="research-project-heading"
-          data-workspace-main-column=""
           data-testid="workspace-main-track"
         >
           <ChatInterfaceWrapper runtime={runtime} />
         </div>
+      </div>
 
-        {isDocked ? (
+      {hasInspector && !isNarrow ? (
+        <div
+          className={cn(
+            "absolute inset-y-0 z-[var(--oh-layer-resize-handle)] transition-[right,opacity] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none",
+            !inspectorVisible && "pointer-events-none opacity-0",
+            isDragging && "transition-none",
+          )}
+          style={{ right: inspectorVisible ? `${rightWidth}%` : "0px" }}
+        >
           <ResizeHandle
+            className="h-full"
             value={leftWidth}
             min={minLeftWidth}
             max={maxLeftWidth}
@@ -219,61 +201,102 @@ function ConversationMainSurface({ runtime }: ConversationMainProps) {
             onKeyboardResize={handleKeyboardResize}
             isDragging={isDragging}
           />
-        ) : null}
+        </div>
+      ) : null}
 
-        <div
+      {hasInspector && !isNarrow ? (
+        <aside
+          id="research-inspector-panel"
           className={cn(
-            "relative h-full shrink-0 transition-[width] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none",
-            isFloating ? "overflow-visible" : "overflow-hidden",
+            "absolute inset-y-0 right-0 z-[var(--oh-layer-header-toggle)] flex min-h-0 min-w-0 flex-col overflow-hidden border-l bg-[var(--oh-surface-muted)]",
+            SIDEBAR_RAIL_TRANSITION_CLASS,
             isDragging && "transition-none",
           )}
-          data-testid="floating-inspector-safe-track"
           style={{
-            width: isFloating
-              ? "min(var(--oh-inspector-floating-track-inline-size), 40cqw)"
-              : isDocked
-                ? `${rightWidth}%`
-                : "0px",
+            width: inspectorVisible ? `${rightWidth}%` : "0px",
+            borderInlineStartColor: inspectorVisible
+              ? "var(--oh-border)"
+              : "transparent",
           }}
+          aria-label="右侧研究栏"
+          data-testid="research-inspector-panel"
+          data-collapsed={!inspectorVisible}
         >
-          {hasInspector ? (
-            <aside
-              id="research-inspector-panel"
-              className={cn(
-                "absolute z-[var(--oh-layer-header-toggle)] flex min-h-0 min-w-0 flex-col overflow-hidden motion-reduce:transition-none",
-                inspectorMode === "floating"
-                  ? "bottom-[var(--oh-space-4)] right-[var(--oh-space-4)] top-[var(--oh-space-3)] origin-top-right rounded-[var(--oh-radius-lg)] bg-[var(--oh-surface)] shadow-[var(--oh-shadow-float)] transition-[width,opacity,transform,visibility] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)]"
-                  : "bottom-0 right-0 top-0 border-l border-[var(--oh-border)] bg-[var(--oh-surface-muted)]",
-                inspectorMode === "floating" &&
-                  (inspectorVisible
-                    ? "visible translate-x-0 scale-100 opacity-100"
-                    : "invisible translate-x-[var(--oh-space-2)] scale-[0.98] opacity-0"),
-                inspectorMode === "docked" && "visible",
-                isDragging && "transition-none",
-              )}
-              style={{
-                width:
-                  inspectorMode === "floating"
-                    ? inspectorVisible
-                      ? "min(var(--oh-inspector-floating-inline-size), calc(100% - var(--oh-space-8)))"
-                      : "0px"
-                    : `${rightWidth}cqw`,
-              }}
-              aria-label={isDocked ? "右侧研究栏" : "悬浮研究概览"}
-              aria-hidden={!inspectorVisible}
-              inert={!inspectorVisible}
-              data-inspector-mode={inspectorMode}
-            >
-              <div className="flex shrink-0 items-center px-[var(--oh-space-5)] pb-[var(--oh-space-2)] pt-[var(--oh-space-4)]">
-                <h2 className="text-[length:var(--oh-font-size-body)] font-medium text-[var(--oh-text)]">
-                  研究概览
+          <div
+            className="flex h-full min-h-0 flex-col"
+            style={{ width: `${rightWidth}cqi` }}
+          >
+            <div className="flex h-[var(--oh-header-block-size)] shrink-0 items-center gap-[var(--oh-space-2)] border-b-0 px-[var(--oh-space-5)] pe-[var(--oh-header-control-reserve-inline)]">
+              {inspectorToolbar ?? (
+                <h2 className="min-w-0 truncate px-[var(--oh-space-1)] text-[length:var(--oh-font-size-body)] font-medium text-[var(--oh-text)]">
+                  {inspectorHeading}
                 </h2>
+              )}
+            </div>
+            <ScrollArea className="min-h-0 flex-1">
+              <div className="px-[var(--oh-space-5)] pb-[var(--oh-space-5)]">
+                {inspectorContent}
               </div>
-              {inspectorBody}
-            </aside>
-          ) : null}
-        </div>
-      </div>
+            </ScrollArea>
+          </div>
+        </aside>
+      ) : null}
+
+      {hasInspector && isNarrow ? (
+        <Sheet
+          open={inspectorVisible}
+          onOpenChange={(open) =>
+            setStoredInspector({ available: hasInspector, visible: open })
+          }
+        >
+          <SheetContent
+            side="right"
+            className="flex w-[380px] max-w-full flex-col p-0"
+          >
+            <SheetHeader className="flex h-[var(--oh-header-block-size)] shrink-0 items-center justify-between border-b border-[var(--oh-border)] px-[var(--oh-space-5)]">
+              {inspectorToolbar ?? (
+                <SheetTitle className="min-w-0 truncate text-[length:var(--oh-font-size-body)] font-medium text-[var(--oh-text)]">
+                  {inspectorHeading}
+                </SheetTitle>
+              )}
+              <SheetDescription className="sr-only">
+                研究概览与结果索引
+              </SheetDescription>
+            </SheetHeader>
+            <ScrollArea className="min-h-0 flex-1">
+              <div className="px-[var(--oh-space-5)] pb-[var(--oh-space-5)] pt-[var(--oh-space-4)]">
+                {inspectorContent}
+              </div>
+            </ScrollArea>
+          </SheetContent>
+        </Sheet>
+      ) : null}
+
+      {hasInspector ? (
+        <button
+          type="button"
+          className={cn(
+            SIDEBAR_ICON_BUTTON_CLASS,
+            "absolute right-[var(--oh-header-control-inset-inline)] top-[var(--oh-header-control-inset-block)] z-[var(--oh-layer-header-toggle)]",
+          )}
+          aria-label={inspectorVisible ? "关闭右侧研究栏" : "打开右侧研究栏"}
+          aria-controls="research-inspector-panel"
+          aria-expanded={inspectorVisible}
+          onClick={toggleInspector}
+        >
+          {inspectorVisible ? (
+            <PanelRightClose
+              className="size-[var(--oh-icon-size-md)]"
+              aria-hidden="true"
+            />
+          ) : (
+            <PanelRightOpen
+              className="size-[var(--oh-icon-size-md)]"
+              aria-hidden="true"
+            />
+          )}
+        </button>
+      ) : null}
     </section>
   );
 }

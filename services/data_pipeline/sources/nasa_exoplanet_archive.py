@@ -360,11 +360,18 @@ def _validate_origin(source_mode: SourceMode, data_level: DataSourceDataLevel) -
 
 
 def _validate_query_contract(query: NormalizedDataSourceQuery) -> None:
+    confirmed_only = "tfopwg_disp = 'CP'" in query.constraints
+    tic_ids: tuple[str, ...] = ()
+    for constraint in query.constraints:
+        if constraint.startswith("tid in (") and constraint.endswith(")"):
+            tic_ids = tuple(constraint.removeprefix("tid in (").removesuffix(")").split(","))
     expected = normalize_toi_query(
         load_frozen_manifest_bundle(),
         page_size=query.pagination.page_size,
         max_pages=query.pagination.max_pages,
         record_limit=query.pagination.record_limit,
+        tic_ids=tic_ids,
+        confirmed_only=confirmed_only,
     )
     if query != expected:
         raise SourceFailure(

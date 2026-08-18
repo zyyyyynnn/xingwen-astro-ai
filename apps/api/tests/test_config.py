@@ -28,8 +28,8 @@ def test_dashscope_credentials_use_the_platform_environment_name() -> None:
 
     assert settings.DASHSCOPE_API_KEY is not None
     assert settings.DASHSCOPE_API_KEY.get_secret_value() == "test-key"
-    assert settings.DASHSCOPE_MODEL == "qwen3.7-plus"
-    assert settings.DASHSCOPE_MODEL_REVISION == "qwen3.7-plus-2026-05-26"
+    assert settings.DASHSCOPE_MODEL == "qwen3.8-max"
+    assert settings.DASHSCOPE_EXPLICIT_MODEL_REVISION is None
     assert settings.DASHSCOPE_MAX_RETRIES == 2
     assert settings.MODEL_EXECUTION_LEASE_GRACE_SECONDS == 30.0
 

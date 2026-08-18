@@ -1,0 +1,68 @@
+{
+  "$defs": {
+    "LiteratureRelationRejectionReason": {
+      "enum": [
+        "literature_relation.json_invalid",
+        "literature_relation.schema_invalid",
+        "literature_relation.input_artifact_version_unknown",
+        "literature_relation.input_schema_version_unsupported",
+        "literature_relation.input_content_hash_mismatch",
+        "literature_relation.claim_not_found",
+        "literature_relation.paper_summary_artifact_version_unknown",
+        "literature_relation.claim_status_invalid",
+        "literature_relation.evidence_missing",
+        "literature_relation.evidence_not_found",
+        "literature_relation.source_snapshot_not_found",
+        "literature_relation.evidence_inconsistent",
+        "literature_relation.ownership_mismatch",
+        "literature_relation.self_pair",
+        "literature_relation.direction_mismatch",
+        "literature_relation.duplicate",
+        "literature_relation.conditions_missing",
+        "literature_relation.conditions_conflict",
+        "literature_relation.object_incomparable",
+        "literature_relation.metric_incomparable",
+        "literature_relation.unit_incomparable",
+        "literature_relation.trace_missing",
+        "literature_relation.trace_incomplete",
+        "literature_relation.trace_unsafe",
+        "literature_relation.trace_direction_mismatch",
+        "literature_relation.trace_evidence_incomplete",
+        "literature_relation.confidence_undefined",
+        "literature_relation.confidence_definition_unsupported",
+        "literature_relation.confidence_subject_mismatch",
+        "literature_relation.confidence_decision_mismatch",
+        "literature_relation.confidence_calibration_missing"
+      ],
+      "title": "LiteratureRelationRejectionReason",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "count": {
+      "minimum": 1,
+      "title": "Count",
+      "type": "integer"
+    },
+    "rejection_reason": {
+      "$ref": "#/$defs/LiteratureRelationRejectionReason"
+    },
+    "sample_case_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Sample Case Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "rejection_reason",
+    "count",
+    "sample_case_ids"
+  ],
+  "title": "LiteratureRelationRejectionCount",
+  "type": "object"
+}

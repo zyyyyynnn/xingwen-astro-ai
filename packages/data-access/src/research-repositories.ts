@@ -11,6 +11,7 @@ import type {
   CreateResearchProjectRequest,
   CreateRunRequest,
   ResearchTurnRequest,
+  RunCheckpointDecisionRequest as RunCheckpointDecisionRequestDto,
   UpdateResearchProjectRequest,
   UpdateResearchContractDraftRequest,
 } from "@xingwen/contracts";
@@ -18,6 +19,8 @@ import type {
   ResearchContract,
   ResearchContractDraft,
   ResearchRun,
+  RunCheckpoint,
+  RunCheckpointDecisionRequest,
   ResearchTurn,
   RunStepSnapshot,
   RunEvent,
@@ -37,6 +40,7 @@ import {
   mapResearchProject,
   mapResearchPlanningCatalog,
   mapResearchRun,
+  mapRunCheckpoint,
   mapResearchThreadEntry,
   mapResearchTurn,
   mapRunStep,
@@ -277,6 +281,43 @@ export function createResearchRepositories(
         `/api/projects/${seg(input.projectId)}/runs`,
         body,
         { "Idempotency-Key": input.idempotencyKey },
+      );
+      return validateAndMap("ResearchRun", payload, mapResearchRun);
+    },
+    async cancel(runId): Promise<ResearchRun> {
+      const payload = await http.post<unknown>(
+        `/api/runs/${seg(runId)}/cancel`,
+        {},
+      );
+      return validateAndMap("ResearchRun", payload, mapResearchRun);
+    },
+    async retry(runId, idempotencyKey): Promise<ResearchRun> {
+      const payload = await http.post<unknown>(
+        `/api/runs/${seg(runId)}/retry`,
+        {},
+        { "Idempotency-Key": idempotencyKey },
+      );
+      return validateAndMap("ResearchRun", payload, mapResearchRun);
+    },
+    async getCheckpoint(runId): Promise<RunCheckpoint | null> {
+      const payload = await http.get<unknown>(
+        `/api/runs/${seg(runId)}/checkpoint`,
+      );
+      return payload
+        ? validateAndMap("RunCheckpoint", payload, mapRunCheckpoint)
+        : null;
+    },
+    async submitCheckpointDecision(
+      runId,
+      input: RunCheckpointDecisionRequest,
+    ): Promise<ResearchRun> {
+      const body: RunCheckpointDecisionRequestDto = {
+        selected_option: input.selectedOption,
+        free_text: input.freeText ?? null,
+      };
+      const payload = await http.post<unknown>(
+        `/api/runs/${seg(runId)}/checkpoint-decision`,
+        body,
       );
       return validateAndMap("ResearchRun", payload, mapResearchRun);
     },

@@ -14,10 +14,10 @@ from .literature_claim import (
     LiteratureClaimCandidate,
     LiteratureClaimStatus,
     LiteratureClaimsCandidate,
-    PersistentResourceIdentifier,
 )
 from .manifest import ContentHash, Identifier, SemanticVersion
 from .paper_summary import MODEL_CONFIG, NonEmptyString, PaperSummaryEvidence, ShortString
+from .persistence import PersistedUuid
 
 
 class LiteratureRelationStatus(StrEnum):
@@ -204,9 +204,9 @@ class LiteratureRelationExtractionOutput(BaseModel):
 class LiteratureRelationConfidenceSubject(BaseModel):
     model_config = MODEL_CONFIG
 
-    source_claim_artifact_version_id: PersistentResourceIdentifier
+    source_claim_artifact_version_id: PersistedUuid
     source_claim_id: Identifier
-    target_claim_artifact_version_id: PersistentResourceIdentifier
+    target_claim_artifact_version_id: PersistedUuid
     target_claim_id: Identifier
     relation_type: LiteratureRelationType
     fingerprint: ContentHash
@@ -258,13 +258,13 @@ class LiteratureRelationConfidenceAssessment(BaseModel):
 class LiteratureClaimArtifactVersionReference(BaseModel):
     model_config = MODEL_CONFIG
 
-    artifact_version_id: PersistentResourceIdentifier
+    artifact_version_id: PersistedUuid
     schema_version: SemanticVersion | None = None
     content_hash: ContentHash | None = None
     output_hash: ContentHash | None = None
-    project_id: PersistentResourceIdentifier | None = None
+    project_id: PersistedUuid | None = None
     claim_ids: tuple[Identifier, ...] = ()
-    paper_summary_artifact_version_ids: tuple[PersistentResourceIdentifier, ...] = ()
+    paper_summary_artifact_version_ids: tuple[PersistedUuid, ...] = ()
     source_snapshot_ids: tuple[Identifier, ...] = ()
 
     @model_validator(mode="after")
@@ -308,7 +308,7 @@ class LiteratureClaimArtifactVersionReference(BaseModel):
 class LiteratureRelationInputVersions(BaseModel):
     model_config = MODEL_CONFIG
 
-    project_id: PersistentResourceIdentifier
+    project_id: PersistedUuid
     claim_artifact_versions: tuple[LiteratureClaimArtifactVersionReference, ...] = (
         Field(min_length=1)
     )
@@ -326,8 +326,8 @@ class LiteratureRelationEvidenceReference(BaseModel):
     relation_id: Identifier
     side: Literal["source", "target"]
     claim_id: Identifier
-    claim_artifact_version_id: PersistentResourceIdentifier
-    paper_summary_artifact_version_id: PersistentResourceIdentifier
+    claim_artifact_version_id: PersistedUuid
+    paper_summary_artifact_version_id: PersistedUuid
     evidence_id: Identifier
     paper_id: Identifier
     source_snapshot_id: Identifier
@@ -381,10 +381,10 @@ class LiteratureRelationCandidate(BaseModel):
     pair_id: Identifier
     source_claim_id: Identifier
     target_claim_id: Identifier
-    source_claim_artifact_version_id: PersistentResourceIdentifier | None = None
-    target_claim_artifact_version_id: PersistentResourceIdentifier | None = None
-    source_paper_summary_artifact_version_id: PersistentResourceIdentifier | None = None
-    target_paper_summary_artifact_version_id: PersistentResourceIdentifier | None = None
+    source_claim_artifact_version_id: PersistedUuid | None = None
+    target_claim_artifact_version_id: PersistedUuid | None = None
+    source_paper_summary_artifact_version_id: PersistedUuid | None = None
+    target_paper_summary_artifact_version_id: PersistedUuid | None = None
     relation_type: LiteratureRelationType
     direction: LiteratureRelationDirectionCandidate
     conditions: tuple[NonEmptyString, ...]
@@ -479,7 +479,7 @@ class LiteratureRelationProducerExecution(BaseModel):
     model_config = MODEL_CONFIG
 
     execution_id: Identifier
-    run_id: PersistentResourceIdentifier | None = None
+    run_id: PersistedUuid | None = None
     step_key: Literal["reasoning_literature"] = "reasoning_literature"
     producer_type: Literal["model"] = "model"
     producer_name: NonEmptyString
@@ -545,17 +545,13 @@ class LiteratureRelationsCandidate(BaseModel):
     kind: Literal["literature_relations"] = "literature_relations"
     schema_version: Literal["1.0.0"] = "1.0.0"
     input_versions: LiteratureRelationInputVersions
-    claims: tuple[LiteratureClaimCandidate, ...] = Field(min_length=2)
+    claims: tuple[LiteratureClaimCandidate, ...]
     relations: tuple[LiteratureRelationCandidate, ...] = Field(min_length=1)
-    reasoning_traces: tuple[LiteratureReasoningTraceCandidate, ...] = Field(
-        min_length=1
-    )
-    evidence: tuple[PaperSummaryEvidence, ...] = Field(min_length=1)
-    evidence_references: tuple[LiteratureRelationEvidenceReference, ...] = Field(
-        min_length=1
-    )
-    evidence_ids: tuple[Identifier, ...] = Field(min_length=1)
-    source_snapshot_ids: tuple[Identifier, ...] = Field(min_length=1)
+    reasoning_traces: tuple[LiteratureReasoningTraceCandidate, ...]
+    evidence: tuple[PaperSummaryEvidence, ...]
+    evidence_references: tuple[LiteratureRelationEvidenceReference, ...]
+    evidence_ids: tuple[Identifier, ...]
+    source_snapshot_ids: tuple[Identifier, ...]
     status_counts: LiteratureRelationStatusCounts
     producer: LiteratureRelationProducerExecution
     input_hash: ContentHash
@@ -577,11 +573,6 @@ class LiteratureRelationsCandidate(BaseModel):
         _require_sorted_unique(
             self.source_snapshot_ids, "candidate SourceSnapshot"
         )
-        if not any(
-            item.status is not LiteratureRelationStatus.rejected
-            for item in self.relations
-        ):
-            raise ValueError("publisher candidate requires a publishable Relation")
         claims = {item.claim_id: item for item in self.claims}
         traces = {item.trace_id: item for item in self.reasoning_traces}
         evidence = {item.evidence_id: item for item in self.evidence}
@@ -771,10 +762,7 @@ class LiteratureRelationAdmissionResult(BaseModel):
             raise ValueError("record-level result cannot declare top-level failure")
         if self.records and self.admission_status is not _aggregate_status(self.records):
             raise ValueError("admission_status does not match Relation records")
-        publishable = any(
-            item.status is not LiteratureRelationStatus.rejected for item in self.records
-        )
-        if publishable != (self.publisher_candidate is not None):
+        if bool(self.records) != (self.publisher_candidate is not None):
             raise ValueError("publisher candidate presence does not match records")
         if self.publisher_candidate is not None:
             if (

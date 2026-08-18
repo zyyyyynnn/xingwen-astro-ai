@@ -52,7 +52,13 @@ RELATION_CONFIDENCE_CALIBRATION_ID = (
 )
 RELATION_CONFIDENCE_CALIBRATION_VERSION = FROZEN_BENCHMARK_VERSION
 RELATION_CONFIDENCE_CALIBRATION_METHOD = "frozen_approved_label_reference"
+RELATION_CONFIDENCE_CALIBRATION_SAMPLE_SIZE = 4
 RELATION_CONFIDENCE_APPLICABILITY_SCOPE = (
     "benchmark.exoplanet_host_star.relation_admission_regression"
 )
 RELATION_CONFIDENCE_ACCEPTANCE_THRESHOLD = 0.9
+
+# Open year bounds applied when a contract leaves the publication window
+# unrestricted; NormalizedPaperQuery requires explicit year boundaries.
+OPEN_YEAR_FROM = 1900
+OPEN_YEAR_TO = 2100

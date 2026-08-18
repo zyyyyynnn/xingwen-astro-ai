@@ -57,6 +57,7 @@ from app.services.revisions import RevisionApplicationService
 from app.services.snapshots import PersistentSnapshotStore, SnapshotService
 from app.workflow.cache import CacheRecordStore, CacheSelector
 from app.workflow.persistent_executor import PersistentWorkflowExecutor
+from app.workflow.research_run_worker import ResearchRunWorker
 from app.workflow.store import PersistentWorkflowStore
 
 SessionFactory = Callable[[], Session]
@@ -93,27 +94,45 @@ def _configure_database_runtime(
 
     resource_authority: ResourceAuthority = PersistentResourceAuthority(factory)
     workflow_store = PersistentWorkflowStore(factory)
+    workflow_executor = PersistentWorkflowExecutor(workflow_store)
     app.state.workflow_store = workflow_store
-    app.state.workflow_executor = PersistentWorkflowExecutor(workflow_store)
+    app.state.workflow_executor = workflow_executor
     app.state.cache_record_store = CacheRecordStore(factory)
     app.state.cache_selector = CacheSelector(factory)
-    model_port = QwenModelExecutionAdapter(
-        api_key=(
-            settings.DASHSCOPE_API_KEY.get_secret_value()
-            if settings.DASHSCOPE_API_KEY is not None
-            else None
-        ),
-        base_url=settings.DASHSCOPE_BASE_URL,
-        timeout_seconds=settings.DASHSCOPE_TIMEOUT_SECONDS,
-        max_retries=settings.DASHSCOPE_MAX_RETRIES,
+    integration_without_provider = (
+        settings.APP_ENV.lower() == "integration"
+        and settings.DASHSCOPE_API_KEY is None
     )
+    if integration_without_provider:
+        from app.test_support.integration_model import (
+            DeterministicIntegrationModelExecutionPort,
+        )
+
+        model_port = DeterministicIntegrationModelExecutionPort()
+        planner_provider = "integration_fixture"
+        planner_model = model_port.model_name
+        planner_revision = model_port.model_revision
+    else:
+        model_port = QwenModelExecutionAdapter(
+            api_key=(
+                settings.DASHSCOPE_API_KEY.get_secret_value()
+                if settings.DASHSCOPE_API_KEY is not None
+                else None
+            ),
+            base_url=settings.DASHSCOPE_BASE_URL,
+            timeout_seconds=settings.DASHSCOPE_TIMEOUT_SECONDS,
+            max_retries=settings.DASHSCOPE_MAX_RETRIES,
+        )
+        planner_provider = "qwen"
+        planner_model = settings.DASHSCOPE_MODEL
+        planner_revision = settings.DASHSCOPE_EXPLICIT_MODEL_REVISION
     app.state.model_execution_port = model_port
     manifests = _load_case_manifests()
     app.state.research_planner = ResearchContractPlanner(
         model_port=model_port,
-        provider="qwen",
-        model=settings.DASHSCOPE_MODEL,
-        model_revision=settings.DASHSCOPE_MODEL_REVISION,
+        provider=planner_provider,
+        requested_model=planner_model,
+        explicit_revision=planner_revision,
         manifests=manifests,
     )
     app.state.research_service = ResearchApplicationService(
@@ -132,6 +151,26 @@ def _configure_database_runtime(
         workflow_store=workflow_store,
         target_authority=FeedbackTargetAuthority(artifact_read_service),
     )
+    app.state.research_run_worker = None
+    if settings.APP_ENV.lower() not in {"test", "integration"}:
+        app.state.research_run_worker = ResearchRunWorker(
+            factory=factory,
+            store=workflow_store,
+            executor=workflow_executor,
+            manifests=manifests,
+            model_port=model_port,
+            requested_model=settings.DASHSCOPE_MODEL,
+            explicit_revision=settings.DASHSCOPE_EXPLICIT_MODEL_REVISION,
+        )
+
+        async def _start_research_run_worker() -> None:
+            app.state.research_run_worker.start()
+
+        async def _stop_research_run_worker() -> None:
+            await app.state.research_run_worker.stop()
+
+        app.router.add_event_handler("startup", _start_research_run_worker)
+        app.router.add_event_handler("shutdown", _stop_research_run_worker)
     app.router.add_event_handler("shutdown", engine.dispose)
     return engine, factory, resource_authority
 
@@ -153,6 +192,7 @@ def create_app() -> FastAPI:
     app.state.revision_service = None
     app.state.model_execution_port = None
     app.state.research_planner = None
+    app.state.research_run_worker = None
     app.state.db_session_factory = None
     _, database_session_factory, resource_authority = _configure_database_runtime(app)
 

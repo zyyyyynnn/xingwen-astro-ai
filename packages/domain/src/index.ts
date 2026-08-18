@@ -91,7 +91,12 @@ export type {
   ModelExecutionStatus,
 } from "./model-execution";
 
-export type { RunEvent, ResearchRun } from "./run";
+export type {
+  RunEvent,
+  ResearchRun,
+  RunCheckpoint,
+  RunCheckpointDecisionRequest,
+} from "./run";
 export { validateRunInvariants } from "./run";
 export type { RunStepSnapshot, RunStepStatus } from "./run-step";
 
@@ -99,6 +104,7 @@ export type {
   ArtifactVersion,
   ArtifactVersionContent,
   ArtifactVersionMetadata,
+  ArtifactVersionSummary,
   ProducerReference,
   ProducerType,
   ResearchArtifact,
@@ -158,6 +164,7 @@ export type {
   PaperSummaryCacheAuditReview,
   PaperSummaryInputVersionsReview,
   PaperSummaryMetadataLocator,
+  PaperSummaryPdfSourceReview,
   PaperSummaryProducerReview,
   PaperSummaryPaperReview,
   PaperSummaryReview,
@@ -179,6 +186,55 @@ export type {
 } from "./share-snapshot";
 
 export type {
+  ArtifactExport,
+  ArtifactExportDownload,
+  ArtifactExportFormat,
+} from "./artifact-export";
+
+export type {
+  DataArtifactCellStatus,
+  DataArtifactFieldDefinition,
+  DataArtifactFieldSourceAlias,
+  DataArtifactKind,
+  DataArtifactQualityProjection,
+  DataArtifactReview,
+  DataArtifactReviewBase,
+  DataArtifactSourceSnapshot,
+  DatasetArtifactReview,
+  DatasetCellReview,
+  DatasetRowReview,
+  FieldDictionaryArtifactReview,
+  SourceCollectionArtifactReview,
+  SourceCollectionMemberReview,
+} from "./data-artifact";
+
+export type {
+  LiteratureArtifactReview,
+  LiteratureArtifactVersionReview,
+  LiteratureClaimReferenceReview,
+  LiteratureClaimReview,
+  LiteratureClaimsArtifactReview,
+  LiteratureReasoningTraceReview,
+  LiteratureReasoningTraceStepReview,
+  LiteratureRelationComparabilityReview,
+  LiteratureRelationConfidenceReview,
+  LiteratureRelationDirectionReview,
+  LiteratureRelationReview,
+  LiteratureRelationsArtifactReview,
+  ReasoningTracesArtifactReview,
+} from "./literature-artifact";
+
+export type {
+  GraphArtifactReview,
+  GraphDataAggregationReview,
+  GraphEdgeReview,
+  GraphIntegrityReview,
+  GraphNodeReview,
+  GraphRelationTraceBindingReview,
+  GraphVersionReferenceReview,
+} from "./graph-artifact";
+
+export type {
   WorkspaceObjectRef,
   AtlasWorkspaceState,
   ObservatoryWorkspaceState,
@@ -186,3 +242,12 @@ export type {
   WorkspaceSnapshot,
   WorkspaceSnapshotInput,
 } from "./workspace-snapshot";
+
+export type {
+  FeedbackCategory,
+  FeedbackTargetType,
+  RevisionConflict,
+  RevisionPlan,
+  RevisionVersionDecision,
+  UserFeedback,
+} from "./revision";

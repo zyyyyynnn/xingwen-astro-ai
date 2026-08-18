@@ -21,10 +21,10 @@ from pathlib import Path
 from threading import Event, Lock
 from uuid import UUID, uuid4
 
-from alembic import command
-from alembic.config import Config
 from fastapi.testclient import TestClient
 import pytest
+
+from db_bootstrap import reset_current_schema
 from sqlalchemy import Engine, func, select
 
 from app.config import settings
@@ -74,8 +74,8 @@ class StubResearchPlanner:
     def prepare_request(self, **values: object) -> ModelExecutionRequest:
         return ModelExecutionRequest(
             provider="test",
-            model="planner-fixture",
-            model_revision="planner-fixture-1",
+            requested_model="planner-fixture",
+            explicit_revision="planner-fixture-1",
             prompt_name="research_contract_planner",
             prompt_version="1.0.0",
             prompt_hash="sha256:" + "a" * 64,
@@ -104,7 +104,7 @@ class StubResearchPlanner:
         ):
             output = PlannerClarificationRequired(
                 outcome="clarification_required",
-                public_analysis="需要确认研究时间范围。",
+                public_analysis="当前研究时间范围会改变数据选择，需要先向用户澄清。",
                 assistant_message="请补充时间范围后继续。",
                 question_id="time_range",
                 question="是否只研究 2020 年之后的数据？",
@@ -112,7 +112,7 @@ class StubResearchPlanner:
         else:
             output = PlannerDraftReady(
                 outcome="draft_ready",
-                public_analysis="已将研究消息整理为可核验的协议边界。",
+                public_analysis="已核对研究对象、目标字段与允许的数据来源。",
                 assistant_message="研究协议草案已准备好，请检查后确认。",
                 contract=ResearchContractInput.model_validate(_contract_input()),
             )
@@ -209,22 +209,13 @@ def _contract_input() -> dict[str, object]:
     }
 
 
-def _alembic_config(url: str) -> Config:
-    root = Path(__file__).resolve().parents[1]
-    config = Config(root / "alembic.ini")
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    return config
-
-
 @pytest.fixture()
 def runtime() -> Iterator[dict[str, object]]:
     assert TEST_DATABASE_URL is not None
     assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower(), (
         "refusing non-test database"
     )
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
     engine: Engine = create_engine_from_url(TEST_DATABASE_URL)
     factory = session_factory(engine)
 
@@ -289,8 +280,7 @@ def runtime() -> Iterator[dict[str, object]]:
         }
     finally:
         engine.dispose()
-        command.downgrade(config, "base")
-        command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> None:
@@ -443,7 +433,8 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
     assert events.status_code == 200
     sequences = [event["sequence"] for event in events.json()["data"]]
     assert sequences == sorted(sequences)
-    assert events.json()["data"][0]["event_type"] == "run.queued"
+    assert events.json()["data"][0]["activity_kind"] == "status"
+    assert events.json()["data"][0]["activity_phase"] == "queued"
 
     saved = client.put(
         f"/api/projects/{project_id}/workspace-snapshot",
@@ -489,16 +480,23 @@ def test_research_turn_persists_public_thread_and_idempotent_model_execution(
     assert result["outcome"] == "draft_ready"
     assert [entry["kind"] for entry in result["entries"]] == [
         "user_message",
-        "assistant_analysis",
+        "assistant_reasoning",
         "assistant_message",
     ]
+    assert result["entries"][1]["public_content"] == (
+        "已核对研究对象、目标字段与允许的数据来源。"
+    )
+    assert all(
+        "Private reasoning" not in entry["public_content"]
+        for entry in result["entries"]
+    )
     assert result["active_draft_id"]
 
     listed = client.get(f"/api/projects/{project_id}/research-turns")
     assert listed.status_code == 200
     assert [entry["kind"] for entry in listed.json()["data"]] == [
         "user_message",
-        "assistant_analysis",
+        "assistant_reasoning",
         "assistant_message",
     ]
     first_page = client.get(
@@ -612,8 +610,8 @@ def test_research_turn_reclaims_an_expired_execution_lease(
                 id=stale_id,
                 project_id=project_id,
                 provider="test",
-                model="abandoned-planner",
-                model_revision="abandoned-planner-1",
+                requested_model="abandoned-planner",
+                explicit_revision="abandoned-planner-1",
                 prompt_name="research_contract_planner",
                 prompt_version="1.0.0",
                 prompt_hash="sha256:" + "a" * 64,

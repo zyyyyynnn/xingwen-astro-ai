@@ -5,12 +5,12 @@
   "tag": "v1.10.0",
   "commit": "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
   "license": "MIT",
-  "purpose": "Semantic and privacy policy for the single reachable OpenHands Workspace source closure.",
+  "purpose": "Semantic, source-adoption and public Agent analysis policy for the single reachable OpenHands Workspace source closure.",
   "precedence": "source-policy constraints override any KEEP_AS_IS interpretation from source reachability.",
   "excluded_product_surfaces": {
     "policy": "never-vendored",
     "categories": [
-      "frontend API and Agent Runtime integration",
+      "frontend API and foreign Agent Runtime integration",
       "authentication and WebSocket integration",
       "Git, repository, terminal, editor, and coding tools",
       "mobile-only navigation and interaction",
@@ -19,67 +19,36 @@
       "Cloud, Enterprise, Sandbox, and desktop-shell integration"
     ]
   },
-  "private_reasoning": {
-    "policy": "never-cross-product-boundary",
-    "excluded": [
-      "src/components/conversation-events/chat/event-content-helpers/get-action-content.ts",
-      "src/components/conversation-events/chat/event-content-helpers/get-action-event-title.ts",
-      "src/components/conversation-events/chat/event-content-helpers/get-event-content.tsx",
-      "src/components/conversation-events/chat/event-content-helpers/get-observation-content.ts",
-      "src/components/conversation-events/chat/event-content-helpers/should-render-event.ts",
-      "src/components/conversation-events/chat/event-message-components/index.ts",
-      "src/components/conversation-events/chat/event-message-components/observation-pair-event-message.tsx",
-      "src/components/conversation-events/chat/event-message-components/thought-event-message.tsx",
-      "src/components/conversation-events/chat/event-message-components/user-assistant-event-message.tsx",
-      "src/components/conversation-events/chat/event-thought-helpers.ts",
-      "src/components/features/chat/typing-indicator.tsx",
-      "src/hooks/chat/record-model-switch-message.ts",
-      "src/types/agent-server/core/base/action.ts",
-      "src/types/agent-server/core/base/event.ts",
-      "src/types/agent-server/core/base/observation.ts",
-      "src/types/agent-server/core/events/action-event.ts",
-      "src/types/agent-server/core/events/streaming-delta-event.ts",
-      "src/utils/handle-event-for-ui.ts",
-      "src/utils/transcript-export/index.ts"
+  "public_step_analysis": {
+    "policy": "validate-persist-and-render-inside-authorized-project-thread",
+    "adopted_mechanics": [
+      "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
+      "src/components/conversation-events/chat/event-message.tsx",
+      "src/components/conversation-events/chat/group-events.ts",
+      "src/components/conversation-events/chat/messages.tsx"
     ],
-    "disclosure_mechanics": [
-      "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx"
+    "constraints": [
+      "source content only from the server-validated public_analysis tool argument",
+      "provider reasoning_content never crosses the runtime boundary",
+      "collapsed by default and expanded only by user intent",
+      "same project and session authorization as Research Thread",
+      "exclude from share snapshots, export and formal Artifact renderers",
+      "never synthesize reasoning in the browser",
+      "never expose credentials, transport bodies or unfiltered internal errors"
     ],
-    "disclosure_constraints": [
-      "preserve-disclosure-mechanics",
-      "forbid-private-reasoning-input",
-      "public-auditable-reasoning-only"
-    ],
-    "forbidden_source_tokens": [
-      "reasoning_content",
-      "thinking_blocks",
-      "ThinkAction",
-      "ThinkObservation",
-      "<think>",
-      "event.thought",
-      "action.thought"
-    ],
-    "forbidden_import_fragments": [
-      "event-thought-helpers",
-      "thought-event-message"
-    ],
-    "disclosure_adoption_classes": [
-      "KEEP_WITH_MINIMAL_PATCH",
-      "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT"
-    ]
+    "local_contract": "RunEvent reasoning Activity with a stable activity_id and running/completed phases"
   },
-  "public_reasoning": {
-    "policy": "explicit-auditable-evidence-linked",
+  "agent_activity": {
+    "policy": "server-registered-tools-and-stable-lifecycle",
     "allowed_semantics": [
-      "Agent plan",
-      "Agent action",
-      "tool/progress event",
-      "public rationale",
-      "Evidence-linked ReasoningTrace",
-      "limitation",
-      "uncertainty",
-      "error/recovery"
+      "model-produced public_analysis",
+      "registered tool action",
+      "tool observation",
+      "retry and recovery",
+      "artifact publication",
+      "terminal completion or safe error"
     ],
-    "reasoning_trace": "ReasoningTrace is a public derivation record and must never contain or reproduce model-private chain-of-thought."
+    "lifecycle": "one logical operation evolves in place by activity_id; started/completed duplicates are forbidden",
+    "reasoning_trace": "ReasoningTrace remains a formal evidence-linked Artifact and is distinct from step-level public_analysis."
   }
 }

@@ -1,0 +1,15 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "self": {
+      "minLength": 1,
+      "title": "Self",
+      "type": "string"
+    }
+  },
+  "required": [
+    "self"
+  ],
+  "title": "ResponseLinks",
+  "type": "object"
+}

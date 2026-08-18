@@ -1,0 +1,50 @@
+{
+  "additionalProperties": false,
+  "description": "Pinned PaperSummary identity used by an admitted LiteratureClaim.",
+  "properties": {
+    "artifact_version_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Artifact Version Id",
+      "type": "string"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "output_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Output Hash",
+      "type": "string"
+    },
+    "paper_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Paper Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "summary_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Summary Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "artifact_version_id",
+    "summary_id",
+    "paper_id",
+    "schema_version",
+    "content_hash",
+    "output_hash"
+  ],
+  "title": "LiteraturePaperSummaryReference",
+  "type": "object"
+}

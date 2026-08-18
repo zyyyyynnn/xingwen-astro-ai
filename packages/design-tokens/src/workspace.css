@@ -16,7 +16,7 @@
   --workspace-sidebar-icon-slot-inline-size: 1.125rem;
   --workspace-sidebar-row-block-size: var(--control-size-md);
 
-  --workspace-content-max-inline-size: 50rem;
+  --workspace-content-max-inline-size: 44rem;
   --workspace-min-inline-size: 1024px;
 
   --workspace-composer-max-block-size: 15rem;
@@ -44,22 +44,18 @@
   --workspace-composer-grip-indicator-block-size: 0.25rem;
 
   /* Panel ratios are unitless percentages for JS resize mechanics. */
-  --workspace-panel-default-ratio: 68;
+  --workspace-panel-default-ratio: 64;
   --workspace-panel-min-ratio: 62;
   --workspace-panel-max-ratio: 78;
   --workspace-panel-keyboard-step: 2;
-  --workspace-inspector-floating-inline-size: 18rem;
-  --workspace-inspector-floating-track-inline-size: calc(
-    var(--workspace-inspector-floating-inline-size) + var(--space-8)
-  );
 
   /* Workspace overlays and motion. */
   --workspace-command-menu-max-inline-size: 36rem;
   --workspace-command-menu-max-block-size: 70vh;
   --workspace-command-menu-viewport-offset: 12vh;
   --workspace-tab-overflow-min-inline-size: 8rem;
-  --workspace-motion-panel: 200ms;
-  --workspace-ease-panel: cubic-bezier(0, 0, 0.58, 1);
+  --workspace-motion-panel: var(--motion-panel);
+  --workspace-ease-panel: var(--ease-panel);
   --workspace-motion-navigation: var(--motion-fast);
   --workspace-layer-resize-handle: 10;
   --workspace-layer-sidebar: 20;

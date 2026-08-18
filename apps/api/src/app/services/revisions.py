@@ -21,7 +21,7 @@ from app.db.models import (
     RevisionPlanVersionModel,
     UserFeedbackModel,
 )
-from app.schemas.core import ArtifactKind, ResearchContractInput
+from app.schemas.core import ArtifactKind, ResearchContractInput, ResearchThreadEntryKind
 from app.schemas.revision import (
     ConfirmRevisionPlanRequest,
     CreateRevisionPlanRequest,
@@ -36,6 +36,7 @@ from app.schemas.revision import (
 from app.security import SecurityProblem, canonical_request_hash
 from app.services.artifacts import ArtifactReadService
 from app.services.feedback_targets import FeedbackTargetAuthority
+from app.services.research_thread import append_thread_entry
 from app.workflow.run_plan import compile_revision_run_plan, compile_run_plan
 from app.workflow.store import RUN_STEP_STATUS_ORDER, PersistentWorkflowStore
 
@@ -203,6 +204,15 @@ class RevisionApplicationService:
             )
             session.add(row)
             session.flush()
+            append_thread_entry(
+                session,
+                project_id=project.id,
+                kind=ResearchThreadEntryKind.assistant_message,
+                actor="assistant",
+                public_content="已记录这项正式修改要求。接下来会基于当前结果生成可确认的修订计划。",
+                structured_payload={"revision_stage": "feedback_recorded"},
+                idempotency_key=f"revision-feedback:{row.id}",
+            )
             return _feedback_read(row)
 
     def get_feedback(self, *, feedback_id: str, session_id: str) -> UserFeedback:
@@ -467,6 +477,18 @@ class RevisionApplicationService:
             )
             session.add_all(decisions)
             session.flush()
+            append_thread_entry(
+                session,
+                project_id=project.id,
+                kind=ResearchThreadEntryKind.assistant_message,
+                actor="assistant",
+                public_content=(
+                    f"修订计划已生成：将重新执行 {len(recompute_steps)} 个研究步骤。"
+                    "确认后会创建派生研究，当前结果保持不变。"
+                ),
+                structured_payload={"revision_stage": "plan_proposed"},
+                idempotency_key=f"revision-plan:{plan.id}:proposed",
+            )
             return self._plan_read(session, plan)
 
     def get_plan(self, *, plan_id: str, session_id: str) -> RevisionPlan:
@@ -607,6 +629,15 @@ class RevisionApplicationService:
                 )
             )
             session.flush()
+            append_thread_entry(
+                session,
+                project_id=plan.project_id,
+                kind=ResearchThreadEntryKind.assistant_message,
+                actor="assistant",
+                public_content="修订计划已确认，派生研究已创建。原研究与已发布结果会继续保留。",
+                structured_payload={"revision_stage": "derived_run_created"},
+                idempotency_key=f"revision-plan:{plan.id}:confirmed",
+            )
             return run_id
 
     def _plan_read(self, session: Session, plan: RevisionPlanModel) -> RevisionPlan:

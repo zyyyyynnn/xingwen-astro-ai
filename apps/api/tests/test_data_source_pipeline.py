@@ -124,6 +124,27 @@ def test_toi_query_is_manifest_driven_and_hash_stable() -> None:
     assert changed.query_hash != first.query_hash
 
 
+def test_toi_query_can_close_a_confirmed_tic_selection() -> None:
+    query = normalize_toi_query(
+        load_frozen_manifest_bundle(),
+        page_size=100,
+        max_pages=1,
+        record_limit=100,
+        tic_ids=("TIC 307210830", "261136679", "307210830"),
+        confirmed_only=True,
+    )
+
+    assert query.constraints == (
+        "tid is not null",
+        "toi is not null",
+        "tfopwg_disp = 'CP'",
+        "tid in (261136679,307210830)",
+    )
+    rendered = render_toi_page_query(query, cursor=None, requested_rows=100)
+    assert "tfopwg_disp = 'CP'" in rendered
+    assert "tid in (261136679,307210830)" in rendered
+
+
 def test_toi_page_query_uses_bounded_keyset_pagination() -> None:
     query = normalize_toi_query(
         load_frozen_manifest_bundle(),

@@ -1,0 +1,127 @@
+{
+  "$defs": {
+    "GraphStructuralEdgeRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "edge_type": {
+          "const": "supports_finding",
+          "title": "Edge Type",
+          "type": "string"
+        },
+        "source_paper_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Source Paper Id",
+          "type": "string"
+        },
+        "target_claim_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Target Claim Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "edge_type",
+        "source_paper_id",
+        "target_claim_id"
+      ],
+      "title": "GraphStructuralEdgeRequest",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "accepted_relation_ids": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+        "type": "string"
+      },
+      "title": "Accepted Relation Ids",
+      "type": "array"
+    },
+    "excluded_item_count": {
+      "default": 0,
+      "maximum": 50000,
+      "minimum": 0,
+      "title": "Excluded Item Count",
+      "type": "integer"
+    },
+    "exclusion_reasons": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+        "type": "string"
+      },
+      "maxItems": 256,
+      "title": "Exclusion Reasons",
+      "type": "array"
+    },
+    "filtered_item_count": {
+      "default": 0,
+      "maximum": 50000,
+      "minimum": 0,
+      "title": "Filtered Item Count",
+      "type": "integer"
+    },
+    "include_data": {
+      "default": false,
+      "title": "Include Data",
+      "type": "boolean"
+    },
+    "literature_claim_ids": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+        "type": "string"
+      },
+      "title": "Literature Claim Ids",
+      "type": "array"
+    },
+    "literature_paper_ids": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+        "type": "string"
+      },
+      "title": "Literature Paper Ids",
+      "type": "array"
+    },
+    "research_goal_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Research Goal Id"
+    },
+    "structural_edges": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/GraphStructuralEdgeRequest"
+      },
+      "title": "Structural Edges",
+      "type": "array"
+    }
+  },
+  "title": "GraphBuildScope",
+  "type": "object"
+}

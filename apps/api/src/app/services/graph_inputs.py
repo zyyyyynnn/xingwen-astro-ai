@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 from typing import TypeVar
+from uuid import UUID
+
+from sqlalchemy import select
 
 from pydantic import ValidationError
 
+from app.db.models import EvidenceModel
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import (
     ArtifactVersionDetail,
@@ -40,6 +44,41 @@ from services.graph_pipeline.ports import (
     StoredPipelineEvidenceBinding,
     graph_input_security_error,
 )
+
+
+class PostgresEvidenceRestrictionReadAdapter(EvidenceRestrictionReadPort):
+    """Read the exact persisted restriction fact for each Evidence row."""
+
+    def __init__(self, factory) -> None:
+        self._factory = factory
+
+    def read_restrictions(
+        self,
+        *,
+        project_id: str,
+        evidence_ids: tuple[str, ...],
+    ) -> tuple[EvidenceRestrictionFact, ...]:
+        project_uuid = UUID(project_id)
+        requested = tuple(UUID(item) for item in evidence_ids)
+        with self._factory() as session:
+            rows = tuple(
+                session.scalars(
+                    select(EvidenceModel).where(
+                        EvidenceModel.project_id == project_uuid,
+                        EvidenceModel.id.in_(requested),
+                    )
+                )
+            )
+        by_id = {row.id: row for row in rows}
+        return tuple(
+            EvidenceRestrictionFact(
+                evidence_id=str(evidence_id),
+                project_id=project_id,
+                is_restricted=by_id[evidence_id].is_restricted,
+            )
+            for evidence_id in requested
+            if evidence_id in by_id
+        )
 
 
 _Candidate = TypeVar(
@@ -323,7 +362,7 @@ class ArtifactVersionGraphInputReadAdapter:
                     pipeline_source_snapshot_id=(
                         candidate_evidence[pipeline_id].source_snapshot_id
                     ),
-                    pipeline_target_type="relation",
+                    pipeline_target_type=evidence.target_type,
                     pipeline_target_id=evidence.target_id,
                     pipeline_locator={
                         "summary_evidence_id": pipeline_id,

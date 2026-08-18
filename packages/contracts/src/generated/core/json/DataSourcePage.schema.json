@@ -1,0 +1,156 @@
+{
+  "$defs": {
+    "DataQueryCursor": {
+      "additionalProperties": false,
+      "properties": {
+        "tid": {
+          "minimum": 0,
+          "title": "Tid",
+          "type": "integer"
+        },
+        "toi": {
+          "pattern": "^[0-9]+(?:\\.[0-9]+)?$",
+          "title": "Toi",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tid",
+        "toi"
+      ],
+      "title": "DataQueryCursor",
+      "type": "object"
+    },
+    "SupplementalDataQueryCursor": {
+      "additionalProperties": false,
+      "properties": {
+        "pl_name": {
+          "minLength": 1,
+          "title": "Pl Name",
+          "type": "string"
+        },
+        "pl_refname": {
+          "minLength": 1,
+          "title": "Pl Refname",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pl_name",
+        "pl_refname"
+      ],
+      "title": "SupplementalDataQueryCursor",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "attempt_count": {
+      "exclusiveMinimum": 0,
+      "title": "Attempt Count",
+      "type": "integer"
+    },
+    "cursor_after": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DataQueryCursor"
+        },
+        {
+          "$ref": "#/$defs/SupplementalDataQueryCursor"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cursor After"
+    },
+    "cursor_before": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DataQueryCursor"
+        },
+        {
+          "$ref": "#/$defs/SupplementalDataQueryCursor"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cursor Before"
+    },
+    "latency_ms": {
+      "minimum": 0,
+      "title": "Latency Ms",
+      "type": "integer"
+    },
+    "page_number": {
+      "exclusiveMinimum": 0,
+      "title": "Page Number",
+      "type": "integer"
+    },
+    "request_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Request Hash",
+      "type": "string"
+    },
+    "requested_rows": {
+      "exclusiveMinimum": 0,
+      "maximum": 1000,
+      "title": "Requested Rows",
+      "type": "integer"
+    },
+    "response_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Response Hash",
+      "type": "string"
+    },
+    "response_metadata": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Response Metadata",
+      "type": "object"
+    },
+    "retrieved_at": {
+      "format": "date-time",
+      "title": "Retrieved At",
+      "type": "string"
+    },
+    "returned_rows": {
+      "minimum": 0,
+      "title": "Returned Rows",
+      "type": "integer"
+    },
+    "status_code": {
+      "maximum": 599,
+      "minimum": 100,
+      "title": "Status Code",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "page_number",
+    "requested_rows",
+    "returned_rows",
+    "attempt_count",
+    "status_code",
+    "retrieved_at",
+    "latency_ms",
+    "request_hash",
+    "response_hash"
+  ],
+  "title": "DataSourcePage",
+  "type": "object"
+}

@@ -98,7 +98,7 @@ interface ResearchContractFormProps {
     intent: string,
     contract: ResearchContractInput,
   ) => Promise<void>;
-  readonly onConfirmContract: () => Promise<void>;
+  readonly onConfirmAndRun: () => Promise<void>;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }
 
@@ -577,7 +577,7 @@ function ResearchContractFormSurface({
   pendingAction,
   errorMessage,
   onSaveDraft,
-  onConfirmContract,
+  onConfirmAndRun,
   onDirtyChange,
 }: ResearchContractFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -1030,11 +1030,11 @@ function ResearchContractFormSurface({
           <Button
             type="button"
             disabled={pending || dirty}
-            onClick={() => void onConfirmContract()}
+            onClick={() => void onConfirmAndRun()}
           >
             {pendingAction === "confirm-contract"
-              ? "正在确认…"
-              : "确认研究协议"}
+              ? "正在确认并启动…"
+              : "确认并开始研究"}
           </Button>
         </div>
       </div>

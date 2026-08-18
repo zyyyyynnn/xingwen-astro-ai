@@ -1,0 +1,122 @@
+{
+  "$defs": {
+    "QualityMetricId": {
+      "enum": [
+        "field_completeness",
+        "field_missingness",
+        "field_unresolved_rate",
+        "field_provenance_coverage",
+        "field_evidence_coverage",
+        "field_unit_consistency",
+        "field_same_source_conflict_rate",
+        "field_cross_source_conflict_rate",
+        "row_completeness",
+        "row_missingness",
+        "row_unresolved_rate",
+        "row_provenance_coverage",
+        "row_evidence_coverage",
+        "row_unit_consistency",
+        "row_conflict_rate",
+        "row_low_confidence_flag",
+        "row_review_required_flag",
+        "row_inconclusive_flag",
+        "dataset_completeness",
+        "dataset_missingness",
+        "dataset_unresolved_rate",
+        "dataset_provenance_coverage",
+        "dataset_evidence_coverage",
+        "dataset_unit_consistency",
+        "dataset_cross_source_conflict_rate",
+        "dataset_same_source_conflict_rate",
+        "object_match_coverage",
+        "low_confidence_edge_rate",
+        "review_required_record_rate",
+        "inconclusive_record_rate",
+        "source_scope_completeness",
+        "validation_integrity"
+      ],
+      "title": "QualityMetricId",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "constraint_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Constraint Id",
+      "type": "string"
+    },
+    "contract_path": {
+      "minLength": 1,
+      "title": "Contract Path",
+      "type": "string"
+    },
+    "input_locator": {
+      "minLength": 1,
+      "title": "Input Locator",
+      "type": "string"
+    },
+    "metric_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/QualityMetricId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "not_applicable_result": {
+      "default": "insufficient",
+      "enum": [
+        "insufficient",
+        "pass"
+      ],
+      "title": "Not Applicable Result",
+      "type": "string"
+    },
+    "observation_key": {
+      "minLength": 1,
+      "title": "Observation Key",
+      "type": "string"
+    },
+    "operator": {
+      "enum": [
+        "gte",
+        "equals"
+      ],
+      "title": "Operator",
+      "type": "string"
+    },
+    "result_field": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Result Field"
+    },
+    "rule_binding_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Rule Binding Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "constraint_id",
+    "contract_path",
+    "observation_key",
+    "operator",
+    "rule_binding_version",
+    "input_locator"
+  ],
+  "title": "QualityGateBinding",
+  "type": "object"
+}

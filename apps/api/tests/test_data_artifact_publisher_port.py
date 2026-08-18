@@ -38,7 +38,10 @@ def test_data_artifact_prerequisites_cannot_bypass_final_data_quality_publicatio
     ):
         _admit(result.dataset)
     for candidate in (result.field_dictionary, result.source_collection):
-        with pytest.raises(PublicationAdmissionError, match="provenance bridge"):
+        with pytest.raises(
+            PublicationAdmissionError,
+            match="requires its exact paired Dataset provenance",
+        ):
             admit_artifact_candidate(
                 candidate,
                 schema_version=candidate.schema_version,

@@ -44,6 +44,18 @@
       "default": null,
       "title": "Error Summary"
     },
+    "explicit_revision": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Explicit Revision"
+    },
     "finished_at": {
       "anyOf": [
         {
@@ -95,16 +107,6 @@
       ],
       "default": null,
       "title": "Latency Ms"
-    },
-    "model": {
-      "minLength": 1,
-      "title": "Model",
-      "type": "string"
-    },
-    "model_revision": {
-      "minLength": 1,
-      "title": "Model Revision",
-      "type": "string"
     },
     "output_hash": {
       "anyOf": [
@@ -189,6 +191,23 @@
       "default": null,
       "title": "Provider Request Id"
     },
+    "provider_returned_model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Provider Returned Model"
+    },
+    "requested_model": {
+      "minLength": 1,
+      "title": "Requested Model",
+      "type": "string"
+    },
     "status": {
       "$ref": "#/$defs/ModelExecutionStatus"
     },
@@ -212,8 +231,7 @@
     "id",
     "project_id",
     "provider",
-    "model",
-    "model_revision",
+    "requested_model",
     "prompt_name",
     "prompt_version",
     "prompt_hash",

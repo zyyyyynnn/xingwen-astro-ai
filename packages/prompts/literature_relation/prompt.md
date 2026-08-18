@@ -1,6 +1,6 @@
 ---
 name: literature_relation
-version: 2.0.1
+version: 2.0.2
 output_model: LiteratureRelationExtractionOutput
 input_schema_version: 1.0.0
 output_schema_version: 1.0.0
@@ -17,6 +17,9 @@ evidence_required: true
 - 关系方向固定为 `source_claim_id relation_type target_claim_id`。不得因输入顺序、时间先后、标题相似或主题重合交换方向。
 - `relation_type` 只允许 `supports`、`extends`、`derived_from`、`limits`、`contradicts`、`uses_same_dataset`、`compares_method`。
 - `supports` 只表示提供支持证据，不表示绝对证明；`uses_same_dataset` 和 `compares_method` 是结构关系，不自动推出科学支持、限制或矛盾。
+- `derived_from`、`uses_same_dataset`、`compares_method` 不比较科学指标或单位，
+  其 `metric_status` 与 `unit_status` 必须为 `not_applicable`；其他关系仍须按双方
+  Claim 的实际 metric/unit 严格声明可比性。
 - `contradicts` 必须明确比较对象、指标、单位、条件、统计口径和比较目标；不可比时不得强行分类为矛盾。
 - 每个候选必须引用输入中 source/target Claim 的现有 Evidence 和 SourceSnapshot，不得发明、补写或改写引用。
 - 显式保留双方 conditions、scope、limitations、qualifiers、uncertainty 和 comparison basis；冲突或不可比信息不得省略。

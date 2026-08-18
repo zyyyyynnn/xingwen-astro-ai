@@ -6,6 +6,7 @@ from copy import deepcopy
 from datetime import datetime, time, timezone
 import json
 from typing import Any
+from uuid import NAMESPACE_URL, uuid5
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.enums import ClaimType
@@ -189,9 +190,12 @@ def _build_claim_fixture(
     evidence = tuple(evidence_by_id[item] for item in claim.evidence_ids)
     statement_id = f"summary_statement.literature_claim.{claim.claim_id.removeprefix('claim.')}"
     summary = _build_summary(benchmark, claim, statement_id, evidence)
-    version_id = (
-        "artifact_version.literature_claim_benchmark."
-        f"{claim.claim_id.removeprefix('claim.')}"
+    version_id = str(
+        uuid5(
+            NAMESPACE_URL,
+            "xingwen.literature-claim-benchmark:"
+            f"{claim.claim_id.removeprefix('claim.')}",
+        )
     )
     claim_payload = {
         "source_statement_id": statement_id,
@@ -273,11 +277,14 @@ def _build_summary(
     ordered_snapshots = tuple(sorted(snapshots, key=lambda item: item.source_snapshot_id))
     ordered_evidence = tuple(sorted(evidence, key=lambda item: item.evidence_id))
     input_versions = PaperSummaryInputVersions(
-        paper_collection_version_id=(
-            "artifact_version.paper_benchmark.paper_collection."
-            f"{claim.paper_id.removeprefix('paper.')}"
+        paper_collection_version_id=str(
+            uuid5(
+                NAMESPACE_URL,
+                "https://xingwen.example/paper-benchmark/"
+                f"{claim.paper_id}/paper-collection",
+            )
         ),
-        paper_collection_schema_version="2.0.0",
+        paper_collection_schema_version="2.1.0",
         paper_collection_output_hash=compute_canonical_payload_hash(
             {
                 "benchmark_id": benchmark.benchmark_id,

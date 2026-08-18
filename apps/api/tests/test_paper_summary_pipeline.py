@@ -192,7 +192,7 @@ def _admit(
 ):
     return PaperSummaryPipeline(clock=lambda: FIXED_TIME).admit(
         paper_collection=collection,
-        paper_collection_version_id="artifact_version.paper_collection.fixture",
+        paper_collection_version_id="11111111-1111-4111-8111-111111111111",
         paper_id=collection.selected_paper_ids[0],
         model_response=model_response,
         model_name="qwen.fixture.1",
@@ -206,10 +206,10 @@ def test_prompt_registry_resolves_one_hash_pinned_current_definition() -> None:
 
     current = registry.get("paper_summary")
 
-    assert current.version == "2.0.0"
+    assert current.version == "2.0.2"
     assert current.output_models == ("PaperSummaryModelOutput",)
     assert current.content_hash == (
-        "sha256:b7b1024ef42bdeadb2fa2f48b401f882321f7c1ca25b92b07446258e8bb4f4d4"
+        "sha256:dde151d161caec0e5c737adbed4ad65b9c2f9412591797c773d52782f8bc4f95"
     )
 
 
@@ -369,17 +369,17 @@ def test_hashes_are_key_order_stable_but_change_with_versioned_inputs() -> None:
     }
     first = pipeline.admit(
         **common,
-        paper_collection_version_id="artifact_version.paper_collection.fixture",
+        paper_collection_version_id="11111111-1111-4111-8111-111111111111",
         parameters={"temperature": 0, "max_output_tokens": 2048},
     )
     reordered = pipeline.admit(
         **common,
-        paper_collection_version_id="artifact_version.paper_collection.fixture",
+        paper_collection_version_id="11111111-1111-4111-8111-111111111111",
         parameters={"max_output_tokens": 2048, "temperature": 0},
     )
     changed_version = pipeline.admit(
         **common,
-        paper_collection_version_id="artifact_version.paper_collection.revision_2",
+        paper_collection_version_id="22222222-2222-4222-8222-222222222222",
         parameters={"temperature": 0, "max_output_tokens": 2048},
     )
 
@@ -586,7 +586,7 @@ def test_sensitive_model_parameter_is_rejected_before_execution_record() -> None
     with pytest.raises(ValueError, match="forbidden"):
         PaperSummaryPipeline(clock=lambda: FIXED_TIME).admit(
             paper_collection=collection,
-            paper_collection_version_id="artifact_version.paper_collection.fixture",
+            paper_collection_version_id="11111111-1111-4111-8111-111111111111",
             paper_id=collection.selected_paper_ids[0],
             model_response=_model_output(),
             model_name="qwen.fixture.1",
@@ -729,7 +729,10 @@ def test_summary_canonical_persisted_payload_preserves_required_nulls() -> None:
     assert "dataset" in payload and payload["dataset"] is None
     assert PaperSummaryArtifactContent.model_validate(payload) == result.summary
 
-    with pytest.raises(PublicationAdmissionError, match="persisted provenance bridge"):
+    with pytest.raises(
+        PublicationAdmissionError,
+        match="SourceSnapshot bindings must exactly cover the candidate",
+    ):
         admit_artifact_candidate(
             result.summary,
             schema_version=result.summary.schema_version,
@@ -801,7 +804,7 @@ def test_paper_summary_artifact_version_round_trips_through_json() -> None:
             "type": "model",
             "name": result.summary.producer.producer_name,
             "version": result.summary.producer.producer_version,
-            "model_name": result.summary.producer.model_name,
+            "requested_model": result.summary.producer.model_name,
             "prompt_name": result.summary.producer.prompt_name,
             "prompt_version": result.summary.producer.prompt_version,
             "prompt_hash": result.summary.producer.prompt_hash,

@@ -5,6 +5,7 @@ import json
 import os
 from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
+from uuid import NAMESPACE_URL, uuid5
 
 import pytest
 from pydantic import ValidationError
@@ -49,6 +50,10 @@ from services.paper_pipeline.sources.base import (
     SourceFailure,
     SourceSearchResult,
 )
+
+
+def _persisted_uuid(value: str) -> str:
+    return str(uuid5(NAMESPACE_URL, value))
 from services.paper_pipeline.sources.crossref import CrossrefAdapter
 
 
@@ -190,8 +195,9 @@ def _item(
     *,
     authors: tuple[tuple[str, str], ...] = (("George", "Ricker"),),
     url: str | None = None,
+    abstract: str | None = None,
 ) -> dict[str, object]:
-    return {
+    item: dict[str, object] = {
         "DOI": doi,
         "title": [title],
         "author": [
@@ -200,6 +206,9 @@ def _item(
         "published": {"date-parts": [[year]]},
         "URL": url or f"https://doi.org/{doi}",
     }
+    if abstract is not None:
+        item["abstract"] = abstract
+    return item
 
 
 def _record(
@@ -269,6 +278,7 @@ def test_query_normalization_and_hash_ignore_case_and_whitespace() -> None:
     assert left.query_hash == right.query_hash
     assert left.query_id == right.query_id
     assert left.source_parameters["crossref"]["sort"] == "relevance"
+    assert "abstract" in str(left.source_parameters["crossref"]["select"]).split(",")
 
 
 def test_crossref_pagination_merges_pages_and_records_metadata() -> None:
@@ -395,7 +405,17 @@ def test_crossref_sanitizes_html_and_drops_sensitive_headers() -> None:
     transport = FakeTransport(
         [
             _response(
-                [_item("10.1/x", "<b>TESS</b>\x00 catalog", 2020)],
+                [
+                    _item(
+                        "10.1/x",
+                        "<b>TESS</b>\x00 catalog",
+                        2020,
+                        abstract=(
+                            "<jats:p>Nearby &amp; confirmed planets at &lt;10 pc; "
+                            "the following finding must remain visible.</jats:p>"
+                        ),
+                    )
+                ],
                 headers={
                     "Authorization": "Bearer secret",
                     "Set-Cookie": "session=secret",
@@ -410,6 +430,9 @@ def test_crossref_sanitizes_html_and_drops_sensitive_headers() -> None:
         data_level=PaperDataLevel.recorded_response,
     )
     assert result.records[0].title == "TESS catalog"
+    assert result.records[0].abstract == (
+        "Nearby & confirmed planets at <10 pc; the following finding must remain visible."
+    )
     serialized = result.snapshot.model_dump_json().casefold()
     assert "bearer secret" not in serialized
     assert "session=secret" not in serialized
@@ -550,6 +573,8 @@ def test_ranking_has_final_tie_breaker_and_complete_reasons() -> None:
 
 
 def test_pipeline_schema_provenance_metrics_and_hashes_are_stable() -> None:
+    first_run_id = "722862b3-69f3-4b23-b3c4-248a1989396d"
+    second_run_id = _persisted_uuid("paper-collection.second-run")
     records = (
         _record(
             "ricker",
@@ -576,7 +601,7 @@ def test_pipeline_schema_provenance_metrics_and_hashes_are_stable() -> None:
         selection_limit=2,
         source_mode=SourceMode.fixture,
         data_level=PaperDataLevel.fixture,
-        run_id="run.example",
+        run_id=first_run_id,
     )
     later = FIXED_TIME + timedelta(days=1)
     second = PaperCollectionBenchmarkRunner(
@@ -588,13 +613,13 @@ def test_pipeline_schema_provenance_metrics_and_hashes_are_stable() -> None:
         selection_limit=2,
         source_mode=SourceMode.fixture,
         data_level=PaperDataLevel.fixture,
-        run_id="run.other",
+        run_id=second_run_id,
     )
     assert PaperCollection.model_validate_json(first.model_dump_json()) == first
     assert first.input_hash == second.input_hash
     assert first.output_hash == second.output_hash
     assert first.producer.output_hash == first.output_hash
-    assert first.producer.run_id == "run.example"
+    assert first.producer.run_id == first_run_id
     assert first.metrics.candidate_count == 3
     assert first.metrics.duplicate_candidate_count == 1
     assert first.metrics.duplicate_rate == pytest.approx(1 / 3, abs=1e-6)

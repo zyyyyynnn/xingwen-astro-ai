@@ -1,0 +1,151 @@
+{
+  "$defs": {
+    "DocumentBBox": {
+      "additionalProperties": false,
+      "description": "Axis-aligned bounding box in absolute PDF points.\n\nCoordinate system (authoritative):\n- origin: top-left corner of the page, ``(0, 0)``.\n- x axis: increases left → right.\n- y axis: increases top → bottom.\n- units: PDF points (1 point = 1/72 inch).\n- page-relative: coordinates are expressed in the page's own width/height\n  space; a locator is only meaningful together with its ``page_index``.\n- normalized: **false** — these are absolute points, not 0..1 ratios.\n- valid range (enforced at the aggregate level, where page geometry is\n  known): ``0 <= x1 <= x2 <= page_width`` and\n  ``0 <= y1 <= y2 <= page_height``.\n- empty/unknown semantics: ``None`` (the enclosing ``DocumentLocator.bbox``\n  is ``None``). A zero-rect MUST NOT be used to mean \"unknown\".",
+      "properties": {
+        "x1": {
+          "minimum": 0.0,
+          "title": "X1",
+          "type": "number"
+        },
+        "x2": {
+          "minimum": 0.0,
+          "title": "X2",
+          "type": "number"
+        },
+        "y1": {
+          "minimum": 0.0,
+          "title": "Y1",
+          "type": "number"
+        },
+        "y2": {
+          "minimum": 0.0,
+          "title": "Y2",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x1",
+        "y1",
+        "x2",
+        "y2"
+      ],
+      "title": "DocumentBBox",
+      "type": "object"
+    },
+    "TextSpan": {
+      "additionalProperties": false,
+      "description": "Character-offset span within a block's raw text (0-based, inclusive start).",
+      "properties": {
+        "end": {
+          "minimum": 0,
+          "title": "End",
+          "type": "integer"
+        },
+        "start": {
+          "minimum": 0,
+          "title": "Start",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "TextSpan",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Canonical SINGLE SOURCE OF TRUTH locator back to a parsed element.\n\nA locator is only complete together with the owning ``DocumentParseCandidate``\n(which carries ``research_input_id`` / input ``content_hash``). It must be\npersistable and verifiable by DocumentParse Persistence without re-parsing the source.\n\nThis is the ONLY locator representation in the contract. ``page_index``,\n``block_id``, ``bbox``, ``table_id`` and ``cell_id`` live here and nowhere\nelse; the ``ScientificDataExtractionCandidate`` references a parse solely\nthrough this locator, so contradictory parallel locator fields are\nimpossible by construction.",
+  "properties": {
+    "bbox": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DocumentBBox"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "block_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Block Id"
+    },
+    "cell_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cell Id"
+    },
+    "page_index": {
+      "minimum": 0,
+      "title": "Page Index",
+      "type": "integer"
+    },
+    "reading_order": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reading Order"
+    },
+    "table_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Table Id"
+    },
+    "text_span": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TextSpan"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "page_index"
+  ],
+  "title": "DocumentLocator",
+  "type": "object"
+}

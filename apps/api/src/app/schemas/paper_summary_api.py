@@ -8,6 +8,7 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 from .enums import UpstreamFailureClass
 from .paper_summary import PaperSummaryArtifactContent
+from .research_input import ResearchInputRef
 from .core import (
     ContentHash,
     EvidenceDetail,
@@ -83,8 +84,17 @@ class PaperSummaryRead(BaseModel):
     evidence: tuple[EvidenceDetail, ...]
 
 
+class PaperSummaryPdfSourceRead(BaseModel):
+    """Authorized full-text ResearchInput bound to the summarized paper."""
+
+    model_config = MODEL_CONFIG
+
+    research_input: ResearchInputRef | None = None
+
+
 __all__ = [
     "PaperSummaryCacheAudit",
     "PaperSummaryPaperMetadata",
+    "PaperSummaryPdfSourceRead",
     "PaperSummaryRead",
 ]

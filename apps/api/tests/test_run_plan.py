@@ -79,6 +79,15 @@ def test_compile_run_plan_includes_data_closure_only_when_requested() -> None:
         "reasoning_literature",
         "building_graph",
     )
+    assert {step.key: step.max_attempts for step in plan} == {
+        "planning": 1,
+        "fetching_data": 1,
+        "cleaning_data": 1,
+        "searching_papers": 1,
+        "summarizing_papers": 1,
+        "reasoning_literature": 2,
+        "building_graph": 1,
+    }
 
 
 def test_compile_run_plan_fails_closed_for_an_unmapped_output() -> None:

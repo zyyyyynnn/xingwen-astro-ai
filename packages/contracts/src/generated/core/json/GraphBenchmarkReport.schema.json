@@ -1,0 +1,679 @@
+{
+  "$defs": {
+    "GraphBenchmarkCaseKind": {
+      "enum": [
+        "scientific_graph",
+        "data_mapping_fixture",
+        "rejection_case",
+        "size_boundary"
+      ],
+      "title": "GraphBenchmarkCaseKind",
+      "type": "string"
+    },
+    "GraphBenchmarkCaseResult": {
+      "additionalProperties": false,
+      "properties": {
+        "actual_edge_count": {
+          "minimum": 0,
+          "title": "Actual Edge Count",
+          "type": "integer"
+        },
+        "actual_evidence_use_count": {
+          "minimum": 0,
+          "title": "Actual Evidence Use Count",
+          "type": "integer"
+        },
+        "actual_node_count": {
+          "minimum": 0,
+          "title": "Actual Node Count",
+          "type": "integer"
+        },
+        "case_content_hash": {
+          "maxLength": 71,
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Case Content Hash",
+          "type": "string"
+        },
+        "case_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Case Id",
+          "type": "string"
+        },
+        "data_level": {
+          "enum": [
+            "benchmark",
+            "fixture"
+          ],
+          "title": "Data Level",
+          "type": "string"
+        },
+        "edge_exact_match": {
+          "title": "Edge Exact Match",
+          "type": "boolean"
+        },
+        "excluded_nonaccepted_relation_count": {
+          "minimum": 0,
+          "title": "Excluded Nonaccepted Relation Count",
+          "type": "integer"
+        },
+        "expected_accepted_relation_count": {
+          "minimum": 0,
+          "title": "Expected Accepted Relation Count",
+          "type": "integer"
+        },
+        "expected_edge_count": {
+          "minimum": 0,
+          "title": "Expected Edge Count",
+          "type": "integer"
+        },
+        "expected_evidence_use_count": {
+          "minimum": 0,
+          "title": "Expected Evidence Use Count",
+          "type": "integer"
+        },
+        "expected_failure_stage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphIntegrityStage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "expected_node_count": {
+          "minimum": 0,
+          "title": "Expected Node Count",
+          "type": "integer"
+        },
+        "expected_nonaccepted_relation_count": {
+          "minimum": 0,
+          "title": "Expected Nonaccepted Relation Count",
+          "type": "integer"
+        },
+        "expected_reasoning_trace_count": {
+          "minimum": 0,
+          "title": "Expected Reasoning Trace Count",
+          "type": "integer"
+        },
+        "expected_rejection_reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphRejectionReason"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "expected_result_pass": {
+          "title": "Expected Result Pass",
+          "type": "boolean"
+        },
+        "expected_status": {
+          "$ref": "#/$defs/GraphIntegrityStatus"
+        },
+        "failure_stage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphIntegrityStage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "input_hash": {
+          "maxLength": 71,
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/GraphBenchmarkCaseKind"
+        },
+        "layout_hash": {
+          "anyOf": [
+            {
+              "maxLength": 71,
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Layout Hash"
+        },
+        "matched_accepted_relation_count": {
+          "minimum": 0,
+          "title": "Matched Accepted Relation Count",
+          "type": "integer"
+        },
+        "matched_edge_count": {
+          "minimum": 0,
+          "title": "Matched Edge Count",
+          "type": "integer"
+        },
+        "matched_evidence_use_count": {
+          "minimum": 0,
+          "title": "Matched Evidence Use Count",
+          "type": "integer"
+        },
+        "matched_node_count": {
+          "minimum": 0,
+          "title": "Matched Node Count",
+          "type": "integer"
+        },
+        "matched_reasoning_trace_count": {
+          "minimum": 0,
+          "title": "Matched Reasoning Trace Count",
+          "type": "integer"
+        },
+        "node_exact_match": {
+          "title": "Node Exact Match",
+          "type": "boolean"
+        },
+        "output_hash": {
+          "maxLength": 71,
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Hash",
+          "type": "string"
+        },
+        "rejection_reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphRejectionReason"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "report_hash": {
+          "maxLength": 71,
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Report Hash",
+          "type": "string"
+        },
+        "schema_valid": {
+          "title": "Schema Valid",
+          "type": "boolean"
+        },
+        "scientific_hash": {
+          "anyOf": [
+            {
+              "maxLength": 71,
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scientific Hash"
+        },
+        "stable_order_pass": {
+          "title": "Stable Order Pass",
+          "type": "boolean"
+        },
+        "status": {
+          "$ref": "#/$defs/GraphIntegrityStatus"
+        },
+        "unexpected_edge_count": {
+          "minimum": 0,
+          "title": "Unexpected Edge Count",
+          "type": "integer"
+        },
+        "unexpected_node_count": {
+          "minimum": 0,
+          "title": "Unexpected Node Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "case_id",
+        "kind",
+        "data_level",
+        "case_content_hash",
+        "schema_valid",
+        "expected_status",
+        "status",
+        "expected_node_count",
+        "actual_node_count",
+        "matched_node_count",
+        "unexpected_node_count",
+        "expected_edge_count",
+        "actual_edge_count",
+        "matched_edge_count",
+        "unexpected_edge_count",
+        "expected_evidence_use_count",
+        "actual_evidence_use_count",
+        "matched_evidence_use_count",
+        "expected_accepted_relation_count",
+        "matched_accepted_relation_count",
+        "expected_reasoning_trace_count",
+        "matched_reasoning_trace_count",
+        "expected_nonaccepted_relation_count",
+        "excluded_nonaccepted_relation_count",
+        "node_exact_match",
+        "edge_exact_match",
+        "stable_order_pass",
+        "expected_result_pass",
+        "input_hash",
+        "report_hash",
+        "output_hash"
+      ],
+      "title": "GraphBenchmarkCaseResult",
+      "type": "object"
+    },
+    "GraphBenchmarkDenominatorScope": {
+      "enum": [
+        "paper_benchmark_scientific_graph_cases",
+        "paper_benchmark_expected_nodes",
+        "paper_benchmark_expected_edges",
+        "paper_benchmark_edge_evidence_uses",
+        "paper_benchmark_accepted_relations",
+        "paper_benchmark_reasoning_traces",
+        "paper_benchmark_nonaccepted_relations",
+        "schema_valid_expected_pass_cases",
+        "data_mapping_fixture_cases",
+        "rejection_fixture_cases",
+        "size_boundary_fixture_cases",
+        "all_cases"
+      ],
+      "title": "GraphBenchmarkDenominatorScope",
+      "type": "string"
+    },
+    "GraphBenchmarkMetric": {
+      "additionalProperties": false,
+      "properties": {
+        "denominator": {
+          "minimum": 0,
+          "title": "Denominator",
+          "type": "integer"
+        },
+        "denominator_scope": {
+          "$ref": "#/$defs/GraphBenchmarkDenominatorScope"
+        },
+        "empty_set_semantics": {
+          "const": "null",
+          "default": "null",
+          "title": "Empty Set Semantics",
+          "type": "string"
+        },
+        "numerator": {
+          "minimum": 0,
+          "title": "Numerator",
+          "type": "integer"
+        },
+        "rate": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rate"
+        }
+      },
+      "required": [
+        "numerator",
+        "denominator",
+        "denominator_scope"
+      ],
+      "title": "GraphBenchmarkMetric",
+      "type": "object"
+    },
+    "GraphBenchmarkVersionSet": {
+      "additionalProperties": false,
+      "properties": {
+        "aggregation_policy_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Aggregation Policy Version",
+          "type": "string"
+        },
+        "capacity_policy_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Capacity Policy Version",
+          "type": "string"
+        },
+        "filter_policy_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Filter Policy Version",
+          "type": "string"
+        },
+        "graph_schema_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Graph Schema Version",
+          "type": "string"
+        },
+        "identity_policy_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Identity Policy Version",
+          "type": "string"
+        },
+        "integrity_policy_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Integrity Policy Version",
+          "type": "string"
+        },
+        "producer_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Producer Version",
+          "type": "string"
+        },
+        "progressive_policy_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Progressive Policy Version",
+          "type": "string"
+        },
+        "taxonomy_policy_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Taxonomy Policy Version",
+          "type": "string"
+        }
+      },
+      "title": "GraphBenchmarkVersionSet",
+      "type": "object"
+    },
+    "GraphEdgeType": {
+      "enum": [
+        "uses_dataset",
+        "provides_field",
+        "supports_finding",
+        "cites",
+        "derived_from",
+        "supports",
+        "extends",
+        "limits",
+        "contradicts",
+        "uses_same_dataset",
+        "compares_method",
+        "corrected_by_feedback"
+      ],
+      "title": "GraphEdgeType",
+      "type": "string"
+    },
+    "GraphIntegrityStage": {
+      "enum": [
+        "input_schema",
+        "artifact_version",
+        "ownership",
+        "taxonomy",
+        "identity",
+        "endpoint",
+        "evidence_snapshot",
+        "relation_trace",
+        "direction_type",
+        "capacity_progressive",
+        "hash_commitment"
+      ],
+      "title": "GraphIntegrityStage",
+      "type": "string"
+    },
+    "GraphIntegrityStatus": {
+      "enum": [
+        "passed",
+        "failed"
+      ],
+      "title": "GraphIntegrityStatus",
+      "type": "string"
+    },
+    "GraphNodeType": {
+      "enum": [
+        "research_goal",
+        "dataset",
+        "field",
+        "source",
+        "paper",
+        "finding",
+        "claim",
+        "relation",
+        "reasoning_trace",
+        "evidence"
+      ],
+      "title": "GraphNodeType",
+      "type": "string"
+    },
+    "GraphRejectionReason": {
+      "enum": [
+        "invalid_json",
+        "schema_invalid",
+        "input_version_unknown",
+        "input_version_unpublished",
+        "wrong_artifact_kind",
+        "unsupported_schema_version",
+        "content_hash_mismatch",
+        "input_hash_mismatch",
+        "producer_execution_mismatch",
+        "cross_project_ownership",
+        "cross_version_reference",
+        "taxonomy_violation",
+        "duplicate_node_identity",
+        "duplicate_edge_identity",
+        "identity_collision",
+        "dangling_endpoint",
+        "evidence_missing",
+        "evidence_unknown",
+        "evidence_inconsistent",
+        "source_snapshot_missing",
+        "source_snapshot_unknown",
+        "source_snapshot_inconsistent",
+        "relation_not_accepted",
+        "reasoning_trace_missing",
+        "reasoning_trace_mismatch",
+        "reasoning_trace_incomplete",
+        "wrong_direction",
+        "relation_type_mismatch",
+        "provenance_version_mismatch",
+        "evidence_hidden_by_filter",
+        "aggregation_incomplete",
+        "size_limit_exceeded",
+        "silent_truncation",
+        "progressive_input_incomplete",
+        "candidate_hash_mismatch",
+        "report_hash_mismatch",
+        "admission_commitment_mismatch"
+      ],
+      "title": "GraphRejectionReason",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "accepted_relation_coverage_rate": {
+      "$ref": "#/$defs/GraphBenchmarkMetric"
+    },
+    "cases": {
+      "items": {
+        "$ref": "#/$defs/GraphBenchmarkCaseResult"
+      },
+      "minItems": 1,
+      "title": "Cases",
+      "type": "array"
+    },
+    "data_mapping_fixture_pass_rate": {
+      "$ref": "#/$defs/GraphBenchmarkMetric"
+    },
+    "disclaimer": {
+      "const": "This Benchmark only demonstrates frozen human labels, Graph integrity admission, and deterministic regression; it does not represent online scientific quality, generalization, real-time data capability, or new scientific discovery.",
+      "default": "This Benchmark only demonstrates frozen human labels, Graph integrity admission, and deterministic regression; it does not represent online scientific quality, generalization, real-time data capability, or new scientific discovery.",
+      "title": "Disclaimer",
+      "type": "string"
+    },
+    "edge_exact_match_rate": {
+      "$ref": "#/$defs/GraphBenchmarkMetric"
+    },
+    "evidence_coverage_rate": {
+      "$ref": "#/$defs/GraphBenchmarkMetric"
+    },
+    "expected_scientific_edge_count": {
+      "minimum": 0,
+      "title": "Expected Scientific Edge Count",
+      "type": "integer"
+    },
+    "expected_scientific_node_count": {
+      "minimum": 0,
+      "title": "Expected Scientific Node Count",
+      "type": "integer"
+    },
+    "full_graph_exact_match_rate": {
+      "$ref": "#/$defs/GraphBenchmarkMetric"
+    },
+    "graph_versions": {
+      "$ref": "#/$defs/GraphBenchmarkVersionSet"
+    },
+    "input_hash": {
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Input Hash",
+      "type": "string"
+    },
+    "integrity_fail_count": {
+      "minimum": 0,
+      "title": "Integrity Fail Count",
+      "type": "integer"
+    },
+    "integrity_pass_count": {
+      "minimum": 0,
+      "title": "Integrity Pass Count",
+      "type": "integer"
+    },
+    "node_exact_match_rate": {
+      "$ref": "#/$defs/GraphBenchmarkMetric"
+    },
+    "nonaccepted_relation_exclusion_rate": {
+      "$ref": "#/$defs/GraphBenchmarkMetric"
+    },
+    "output_hash": {
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Output Hash",
+      "type": "string"
+    },
+    "paper_benchmark_content_hash": {
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Paper Benchmark Content Hash",
+      "type": "string"
+    },
+    "paper_benchmark_schema_version": {
+      "maxLength": 32,
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Paper Benchmark Schema Version",
+      "type": "string"
+    },
+    "paper_benchmark_scientific_payload_hash": {
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Paper Benchmark Scientific Payload Hash",
+      "type": "string"
+    },
+    "paper_benchmark_version": {
+      "maxLength": 32,
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Paper Benchmark Version",
+      "type": "string"
+    },
+    "reasoning_trace_coverage_rate": {
+      "$ref": "#/$defs/GraphBenchmarkMetric"
+    },
+    "rejection_case_pass_rate": {
+      "$ref": "#/$defs/GraphBenchmarkMetric"
+    },
+    "report_schema_version": {
+      "const": "2.0.0",
+      "default": "2.0.0",
+      "title": "Report Schema Version",
+      "type": "string"
+    },
+    "schema_pass_rate": {
+      "$ref": "#/$defs/GraphBenchmarkMetric"
+    },
+    "size_boundary_pass_rate": {
+      "$ref": "#/$defs/GraphBenchmarkMetric"
+    },
+    "stable_identity_order_rate": {
+      "$ref": "#/$defs/GraphBenchmarkMetric"
+    },
+    "taxonomy_edge_types": {
+      "items": {
+        "$ref": "#/$defs/GraphEdgeType"
+      },
+      "title": "Taxonomy Edge Types",
+      "type": "array"
+    },
+    "taxonomy_node_types": {
+      "items": {
+        "$ref": "#/$defs/GraphNodeType"
+      },
+      "title": "Taxonomy Node Types",
+      "type": "array"
+    },
+    "unexpected_edge_count": {
+      "minimum": 0,
+      "title": "Unexpected Edge Count",
+      "type": "integer"
+    },
+    "unexpected_node_count": {
+      "minimum": 0,
+      "title": "Unexpected Node Count",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "paper_benchmark_schema_version",
+    "paper_benchmark_version",
+    "paper_benchmark_scientific_payload_hash",
+    "paper_benchmark_content_hash",
+    "graph_versions",
+    "taxonomy_node_types",
+    "taxonomy_edge_types",
+    "expected_scientific_node_count",
+    "expected_scientific_edge_count",
+    "cases",
+    "full_graph_exact_match_rate",
+    "node_exact_match_rate",
+    "edge_exact_match_rate",
+    "evidence_coverage_rate",
+    "accepted_relation_coverage_rate",
+    "reasoning_trace_coverage_rate",
+    "nonaccepted_relation_exclusion_rate",
+    "stable_identity_order_rate",
+    "data_mapping_fixture_pass_rate",
+    "rejection_case_pass_rate",
+    "size_boundary_pass_rate",
+    "schema_pass_rate",
+    "unexpected_node_count",
+    "unexpected_edge_count",
+    "integrity_pass_count",
+    "integrity_fail_count",
+    "input_hash",
+    "output_hash"
+  ],
+  "title": "GraphBenchmarkReport",
+  "type": "object"
+}

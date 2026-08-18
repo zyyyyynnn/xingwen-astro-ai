@@ -35,17 +35,17 @@ FastAPI Backend -> Model Provider / Data Sources / Paper Sources
 - Session、WorkspaceSnapshot 与 ShareSnapshot 使用同一 PostgreSQL schema；所有 API 实例必须连接同一数据库。`SESSION_RETENTION_SECONDS` 与 `SHARE_RETENTION_SECONDS` 控制写入时的有界清理，不得通过清理级联删除科研历史。
 - 生产环境严禁使用 DEBUG 模式、默认数据库密码、占位密钥或通配 CORS。
 
-## 4. 数据库迁移
+## 4. 数据库 Schema
 
-- 数据库迁移（Alembic）在应用实例启动前独立执行 (`migrate` one-shot 成功退出后启动 API)。
-- 运行应用进程不得隐式执行结构破坏性 migration。
-- 破坏性迁移必须具备先备份、可回滚或双读过渡方案。
+- 当前 SQLAlchemy 模型与 PostgreSQL 不变量在应用实例启动前由 `schema` one-shot 建立，成功退出后启动 API。
+- 运行应用进程不得隐式改写数据库结构。
+- 结构变化以当前 schema 重建交付；生产环境必须先完成备份与恢复演练。
 
 ## 5. 健康检查与可观测性
 
 - **Health**：
   - API liveness (`/api/health`) 检查进程响应，不依赖外部模型；
-  - API readiness 校验数据库连接与 migration 状态；
+  - API readiness 校验数据库连接与 schema 可用性；
   - 数据库使用 `pg_isready` 或健康检查命令。
 - **Observability**：
   - 日志必须包含 request id、Run id、step key、error code 与延迟；
@@ -53,9 +53,9 @@ FastAPI Backend -> Model Provider / Data Sources / Paper Sources
 
 ## 6. 发布与验证
 
-- 发布流程：锁定 Commit/Contract -> 自动化 CI 通过 -> Preview smoke -> 数据库 migration -> 部署前端/后端 -> 生产 smoke。
+- 发布流程：锁定 Commit/Contract -> 自动化 CI 通过 -> Preview smoke -> 建立当前 schema -> 部署前端/后端 -> 生产 smoke。
 - 验证要点：
   - 静态首屏、`/workspace` SPA 路由与刷新；
   - `/api/health` 与 Core APIs 契约完整性；
   - Session、CSRF、401/403/404 与 Share 撤销/过期逻辑；
-  - PostgreSQL migration 与数据完整性。
+  - PostgreSQL schema 与数据完整性。

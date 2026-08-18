@@ -9,8 +9,8 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
-from alembic import command
-from alembic.config import Config
+
+from db_bootstrap import reset_current_schema
 from app.config import settings
 from app.db.models import (
     ArtifactVersionModel,
@@ -77,20 +77,11 @@ CONTRACT_CONTENT = CONTRACT_INPUT.model_dump(mode="json")
 CONTRACT_HASH = compute_research_contract_content_hash(CONTRACT_INPUT)
 
 
-def _alembic_config(url: str) -> Config:
-    root = Path(__file__).resolve().parents[1]
-    config = Config(root / "alembic.ini")
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    return config
-
-
 @pytest.fixture()
 def runtime(monkeypatch: pytest.MonkeyPatch):
     assert TEST_DATABASE_URL is not None
     assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower()
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
     monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(TEST_DATABASE_URL))
     app = create_app()
     owner, owner_credential, owner_csrf = app.state.session_service.create(
@@ -258,8 +249,7 @@ def runtime(monkeypatch: pytest.MonkeyPatch):
         }
     finally:
         client.__exit__(None, None, None)
-        command.downgrade(config, "base")
-        command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 def _feedback_body(runtime: dict[str, object], kind: str) -> dict[str, object]:
@@ -712,6 +702,27 @@ def test_confirm_is_idempotent_restart_safe_and_preserves_parent(
     assert set(run["reused_artifact_version_ids"]) == set(
         plan_data["reusable_artifact_version_ids"]
     )
+
+    thread = client.get(
+        f"/api/projects/{runtime['project_id']}/research-turns",
+        params={"limit": 100},
+    )
+    assert thread.status_code == 200, thread.text
+    revision_messages = [
+        item["public_content"]
+        for item in thread.json()["data"]
+        if item["kind"] == "assistant_message"
+        and item.get("structured_payload", {}).get("revision_stage")
+    ]
+    assert revision_messages.count(
+        "已记录这项正式修改要求。接下来会基于当前结果生成可确认的修订计划。"
+    ) == 1
+    assert revision_messages.count(
+        f"修订计划已生成：将重新执行 {len(plan_data['recompute_steps'])} 个研究步骤。确认后会创建派生研究，当前结果保持不变。"
+    ) == 1
+    assert revision_messages.count(
+        "修订计划已确认，派生研究已创建。原研究与已发布结果会继续保留。"
+    ) == 1
 
     factory = runtime["factory"]
     with factory() as session:

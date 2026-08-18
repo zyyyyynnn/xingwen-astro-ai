@@ -86,7 +86,13 @@ SAFE_PARAMETERS = {
     "max_output_tokens": 2048,
     "response_format": "json_schema",
 }
-SUMMARY_VERSION_ID = "artifact_version.paper_summary.fixture"
+
+
+def _persisted_uuid(value: str) -> str:
+    return str(uuid5(NAMESPACE_URL, f"xingwen.literature-claim-test:{value}"))
+
+
+SUMMARY_VERSION_ID = _persisted_uuid("paper-summary.fixture")
 PAPER_ID = "paper.ricker_2015_tess"
 SUMMARY_ID = "summary.ricker_2015_tess"
 STATEMENT_ID = "summary_statement.ricker_method"
@@ -94,8 +100,8 @@ EVIDENCE_ID = "evidence.claim_ricker_method"
 SNAPSHOT_ID = "snapshot.arxiv.ricker_2015_tess"
 
 
-def test_literature_claim_input_accepts_digit_leading_persistent_uuid() -> None:
-    artifact_version_id = "00000000-0000-0000-0000-00000000044c"
+def test_literature_claim_input_accepts_digit_leading_persisted_uuid() -> None:
+    artifact_version_id = "00000000-0000-4000-8000-00000000044c"
 
     input_versions = LiteratureClaimInputVersions(
         paper_summary_artifact_version_id=artifact_version_id,
@@ -124,7 +130,7 @@ def _summary(
         ),
     )
     input_versions = PaperSummaryInputVersions(
-        paper_collection_version_id="artifact_version.paper_collection.fixture",
+        paper_collection_version_id="11111111-1111-4111-8111-111111111111",
         paper_collection_schema_version="2.0.0",
         paper_collection_output_hash=compute_canonical_payload_hash(
             {"paper_collection": "fixture"}
@@ -321,10 +327,10 @@ def test_claim_prompt_is_hash_pinned_and_schema_aligned() -> None:
     record = PromptRegistry().get("literature_claim")
     prompt_bytes = (ROOT / "packages" / "prompts" / record.path).read_bytes()
 
-    assert record.version == "1.0.0"
+    assert record.version == "1.0.1"
     assert record.output_models == ("LiteratureClaimExtractionOutput",)
     assert record.content_hash == (
-        "sha256:246c9b390d553122b5cf1d5286a64e40f16b56fb56b24417cec1c336b95a48db"
+        "sha256:e102677308262248d92a40699321b21d3c7a8c35d9b9b2082cab5ecdac7fa486"
     )
     assert b"\r" not in prompt_bytes
     assert f"sha256:{sha256(prompt_bytes).hexdigest()}" == record.content_hash
@@ -429,7 +435,7 @@ def test_valid_claim_is_fully_traceable_and_publisher_ready() -> None:
     assert claim.model_response_hash == result.producer.model_response_hash
     assert candidate.input_versions.paper_summary_output_hash == _summary().output_hash
     assert candidate.producer.prompt_name == "literature_claim"
-    assert candidate.producer.prompt_version == "1.0.0"
+    assert candidate.producer.prompt_version == "1.0.1"
     assert candidate.producer.model_name == "qwen.fixture.1"
     assert candidate.producer.parameters_version == CLAIM_PARAMETERS_VERSION
     assert candidate.producer.output_hash == candidate.output_hash
@@ -466,7 +472,7 @@ def test_schema_invalid_is_rejected_before_input_version_check() -> None:
     result = _admit(
         json.dumps({"schema_version": "1.0.0", "claims": [{}]}),
         versions={},
-        version_id="artifact_version.unknown",
+        version_id=_persisted_uuid("paper-summary.unknown"),
     )
 
     assert result.failure_stage is LiteratureClaimFailureStage.schema
@@ -477,7 +483,7 @@ def test_invalid_json_has_priority_over_unknown_input_version() -> None:
     result = _admit(
         "{invalid",
         versions={},
-        version_id="artifact_version.unknown",
+        version_id=_persisted_uuid("paper-summary.unknown"),
     )
 
     assert result.failure_stage is LiteratureClaimFailureStage.json
@@ -488,7 +494,7 @@ def test_unknown_input_artifact_version_is_stably_rejected() -> None:
     result = _admit(
         _response(),
         versions={},
-        version_id="artifact_version.unknown",
+        version_id=_persisted_uuid("paper-summary.unknown"),
     )
 
     record = result.records[0]
@@ -498,7 +504,8 @@ def test_unknown_input_artifact_version_is_stably_rejected() -> None:
         LiteratureClaimRejectionReason.input_artifact_version_unknown
     )
     assert record.source_summary_id is None
-    assert result.publisher_candidate is None
+    assert result.publisher_candidate is not None
+    assert result.publisher_candidate.claims == result.records
 
 
 def test_unsupported_input_schema_version_is_stably_rejected() -> None:
@@ -573,7 +580,7 @@ def test_summary_version_repository_ownership_mismatch_is_rejected() -> None:
     summary = _summary()
     versions = {
         SUMMARY_VERSION_ID: PaperSummaryArtifactVersionInput(
-            artifact_version_id="artifact_version.paper_summary.other",
+            artifact_version_id=_persisted_uuid("paper-summary.other"),
             schema_version="1.0.0",
             content=summary,
         )
@@ -726,13 +733,13 @@ def test_execution_runtime_does_not_change_stable_hashes(
     first = _admit(
         model_response,
         execution_id="execution.explicit.a",
-        run_id="run.explicit.a",
+        run_id=_persisted_uuid("run.explicit.a"),
         now=FIXED_TIME,
     )
     second = _admit(
         model_response,
         execution_id="execution.explicit.b",
-        run_id="run.explicit.b",
+        run_id=_persisted_uuid("run.explicit.b"),
         now=FIXED_TIME + timedelta(minutes=5),
     )
 
@@ -759,15 +766,17 @@ def test_parameter_and_input_version_changes_change_hashes() -> None:
     changed_version = _admit(
         _response(),
         versions={
-            "artifact_version.paper_summary.revision_2": (
+            _persisted_uuid("paper-summary.revision-2"): (
                 PaperSummaryArtifactVersionInput(
-                    artifact_version_id="artifact_version.paper_summary.revision_2",
+                    artifact_version_id=_persisted_uuid(
+                        "paper-summary.revision-2"
+                    ),
                     schema_version="1.0.0",
                     content=_summary(),
                 )
             )
         },
-        version_id="artifact_version.paper_summary.revision_2",
+        version_id=_persisted_uuid("paper-summary.revision-2"),
     )
 
     assert first.producer.input_hash != changed_parameters.producer.input_hash
@@ -783,7 +792,7 @@ def test_prompt_definition_change_changes_input_and_output_hashes(
     shutil.copytree(ROOT / "packages" / "prompts", prompt_root)
     prompt_path = prompt_root / "literature_claim" / "prompt.md"
     changed_content = prompt_path.read_text(encoding="utf-8").replace(
-        "version: 1.0.0",
+        "version: 1.0.1",
         "version: 2.0.0",
         1,
     )
@@ -806,7 +815,7 @@ def test_prompt_definition_change_changes_input_and_output_hashes(
         prompt_registry=PromptRegistry(prompt_root),
     )
 
-    assert first.producer.prompt_version == "1.0.0"
+    assert first.producer.prompt_version == "1.0.1"
     assert second.producer.prompt_version == "2.0.0"
     assert first.producer.input_hash != second.producer.input_hash
     assert first.output_hash != second.output_hash
@@ -1095,13 +1104,13 @@ def test_claim_benchmark_ignores_execution_runtime_in_content_hash() -> None:
     first_admission = _admit(
         _response(),
         execution_id="execution.benchmark.a",
-        run_id="run.benchmark.a",
+        run_id=_persisted_uuid("run.benchmark.a"),
         now=FIXED_TIME,
     )
     second_admission = _admit(
         _response(),
         execution_id="execution.benchmark.b",
-        run_id="run.benchmark.b",
+        run_id=_persisted_uuid("run.benchmark.b"),
         now=FIXED_TIME + timedelta(minutes=5),
     )
 

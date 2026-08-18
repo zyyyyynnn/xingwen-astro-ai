@@ -1,0 +1,831 @@
+{
+  "$defs": {
+    "ConflictResolutionStrategy": {
+      "description": "The only Case and Field Manifest selection declaration approved for this case.",
+      "enum": [
+        "prefer_source_priority_preserve_all"
+      ],
+      "title": "ConflictResolutionStrategy",
+      "type": "string"
+    },
+    "DataType": {
+      "description": "Canonical scalar types supported by the frozen case.",
+      "enum": [
+        "string",
+        "integer",
+        "number"
+      ],
+      "title": "DataType",
+      "type": "string"
+    },
+    "EvidenceLocatorRule": {
+      "additionalProperties": false,
+      "description": "Required provenance coordinates for a source value.",
+      "properties": {
+        "locator_type": {
+          "const": "database_cell",
+          "title": "Locator Type",
+          "type": "string"
+        },
+        "required_components": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Required Components",
+          "type": "array"
+        },
+        "rule_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Rule Version",
+          "type": "string"
+        },
+        "source_reference_when_available": {
+          "default": true,
+          "title": "Source Reference When Available",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "rule_id",
+        "rule_version",
+        "locator_type",
+        "required_components"
+      ],
+      "title": "EvidenceLocatorRule",
+      "type": "object"
+    },
+    "FieldDefinition": {
+      "additionalProperties": false,
+      "description": "The complete Case and Field Manifest contract for one canonical field.",
+      "properties": {
+        "canonical_unit": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Canonical Unit",
+          "type": "string"
+        },
+        "conflict_resolution_rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Conflict Resolution Rule Version",
+          "type": "string"
+        },
+        "conflict_resolution_strategy": {
+          "$ref": "#/$defs/ConflictResolutionStrategy"
+        },
+        "crossmatch_key": {
+          "title": "Crossmatch Key",
+          "type": "boolean"
+        },
+        "crossmatch_rule_version": {
+          "anyOf": [
+            {
+              "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Crossmatch Rule Version"
+        },
+        "data_type": {
+          "$ref": "#/$defs/DataType"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "evidence_locator_rule_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Evidence Locator Rule Id",
+          "type": "string"
+        },
+        "field_id": {
+          "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Field Id",
+          "type": "string"
+        },
+        "label_en": {
+          "minLength": 1,
+          "title": "Label En",
+          "type": "string"
+        },
+        "limit_policy": {
+          "$ref": "#/$defs/LimitPolicy"
+        },
+        "meaning_zh": {
+          "minLength": 1,
+          "title": "Meaning Zh",
+          "type": "string"
+        },
+        "null_policy": {
+          "$ref": "#/$defs/NullPolicy"
+        },
+        "nullable": {
+          "title": "Nullable",
+          "type": "boolean"
+        },
+        "object_identity_key": {
+          "title": "Object Identity Key",
+          "type": "boolean"
+        },
+        "object_type": {
+          "$ref": "#/$defs/ObjectType"
+        },
+        "quality_metric_inputs": {
+          "items": {
+            "$ref": "#/$defs/QualityMetricInput"
+          },
+          "minItems": 1,
+          "title": "Quality Metric Inputs",
+          "type": "array"
+        },
+        "required": {
+          "title": "Required",
+          "type": "boolean"
+        },
+        "source_aliases": {
+          "items": {
+            "$ref": "#/$defs/SourceAlias"
+          },
+          "minItems": 1,
+          "title": "Source Aliases",
+          "type": "array"
+        },
+        "source_priority": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Priority",
+          "type": "array"
+        },
+        "transformation_rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Transformation Rule Version",
+          "type": "string"
+        },
+        "uncertainty_policy": {
+          "$ref": "#/$defs/UncertaintyPolicy"
+        }
+      },
+      "required": [
+        "field_id",
+        "meaning_zh",
+        "label_en",
+        "description",
+        "object_type",
+        "data_type",
+        "canonical_unit",
+        "source_aliases",
+        "source_priority",
+        "conflict_resolution_strategy",
+        "conflict_resolution_rule_version",
+        "required",
+        "nullable",
+        "null_policy",
+        "limit_policy",
+        "uncertainty_policy",
+        "object_identity_key",
+        "crossmatch_key",
+        "evidence_locator_rule_id",
+        "transformation_rule_version",
+        "quality_metric_inputs"
+      ],
+      "title": "FieldDefinition",
+      "type": "object"
+    },
+    "LimitFlagMapping": {
+      "additionalProperties": false,
+      "description": "Source flag meanings for a bounded value.",
+      "properties": {
+        "lower_limit": {
+          "default": 1,
+          "title": "Lower Limit",
+          "type": "integer"
+        },
+        "measured": {
+          "default": 0,
+          "title": "Measured",
+          "type": "integer"
+        },
+        "upper_limit": {
+          "default": -1,
+          "title": "Upper Limit",
+          "type": "integer"
+        }
+      },
+      "title": "LimitFlagMapping",
+      "type": "object"
+    },
+    "LimitPolicy": {
+      "additionalProperties": false,
+      "description": "Whether the field can carry upper or lower limit semantics.",
+      "properties": {
+        "lower_limit_supported": {
+          "title": "Lower Limit Supported",
+          "type": "boolean"
+        },
+        "rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Rule Version",
+          "type": "string"
+        },
+        "upper_limit_supported": {
+          "title": "Upper Limit Supported",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "rule_version",
+        "lower_limit_supported",
+        "upper_limit_supported"
+      ],
+      "title": "LimitPolicy",
+      "type": "object"
+    },
+    "MaintainerDefinition": {
+      "additionalProperties": false,
+      "description": "Ownership metadata for a manifest release.",
+      "properties": {
+        "module": {
+          "const": "data_pipeline",
+          "title": "Module",
+          "type": "string"
+        },
+        "role": {
+          "const": "data_pipeline",
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "module",
+        "role"
+      ],
+      "title": "MaintainerDefinition",
+      "type": "object"
+    },
+    "NullPolicy": {
+      "additionalProperties": false,
+      "description": "Nullability semantics for one canonical field.",
+      "properties": {
+        "allowed_reasons": {
+          "items": {
+            "$ref": "#/$defs/NullReason"
+          },
+          "title": "Allowed Reasons",
+          "type": "array"
+        },
+        "reason_required_when_null": {
+          "title": "Reason Required When Null",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reason_required_when_null",
+        "allowed_reasons"
+      ],
+      "title": "NullPolicy",
+      "type": "object"
+    },
+    "NullReason": {
+      "description": "Controlled reasons for a nullable scientific value.",
+      "enum": [
+        "not_in_source",
+        "not_measured",
+        "not_applicable",
+        "unresolved_conflict",
+        "below_detection_limit"
+      ],
+      "title": "NullReason",
+      "type": "string"
+    },
+    "ObjectType": {
+      "description": "Objects represented by the exoplanet/host-star case.",
+      "enum": [
+        "planet",
+        "star",
+        "system"
+      ],
+      "title": "ObjectType",
+      "type": "string"
+    },
+    "QualityMetricInput": {
+      "description": "Quality dimensions to which a field contributes.",
+      "enum": [
+        "completeness",
+        "missingness",
+        "conflict",
+        "unit_consistency",
+        "evidence_coverage",
+        "crossmatch_coverage"
+      ],
+      "title": "QualityMetricInput",
+      "type": "string"
+    },
+    "QuantityKind": {
+      "description": "Physical dimensions used for static compatibility checks only.",
+      "enum": [
+        "none",
+        "angle",
+        "time",
+        "length",
+        "mass",
+        "temperature",
+        "logarithmic_abundance"
+      ],
+      "title": "QuantityKind",
+      "type": "string"
+    },
+    "SourceAlias": {
+      "additionalProperties": false,
+      "description": "A source column mapped to one canonical field.",
+      "properties": {
+        "conversion_rule_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Conversion Rule Id",
+          "type": "string"
+        },
+        "limit_field": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Limit Field"
+        },
+        "limit_flags": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LimitFlagMapping"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "negative_error_field": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Negative Error Field"
+        },
+        "positive_error_field": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Positive Error Field"
+        },
+        "priority": {
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "provenance_field": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provenance Field"
+        },
+        "raw_field": {
+          "minLength": 1,
+          "title": "Raw Field",
+          "type": "string"
+        },
+        "reference_field": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference Field"
+        },
+        "row_key_fields": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Row Key Fields",
+          "type": "array"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_table": {
+          "minLength": 1,
+          "title": "Source Table",
+          "type": "string"
+        },
+        "source_unit": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_table",
+        "raw_field",
+        "source_unit",
+        "conversion_rule_id",
+        "priority",
+        "row_key_fields"
+      ],
+      "title": "SourceAlias",
+      "type": "object"
+    },
+    "SourceColumnContractReference": {
+      "additionalProperties": false,
+      "description": "Immutable reference to the evidence-backed source-column adjudication.",
+      "properties": {
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Snapshot Id",
+          "type": "string"
+        },
+        "snapshot_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Snapshot Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "snapshot_version",
+        "path",
+        "content_hash"
+      ],
+      "title": "SourceColumnContractReference",
+      "type": "object"
+    },
+    "SourceDefinition": {
+      "additionalProperties": false,
+      "description": "An approved source table declaration; it performs no I/O.",
+      "properties": {
+        "approved_columns": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Approved Columns",
+          "type": "array"
+        },
+        "column_contract": {
+          "$ref": "#/$defs/SourceColumnContractReference"
+        },
+        "declaration_mode": {
+          "const": "metadata_only",
+          "default": "metadata_only",
+          "title": "Declaration Mode",
+          "type": "string"
+        },
+        "documentation_url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Documentation Url",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "provenance_columns": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Provenance Columns",
+          "type": "array"
+        },
+        "provider": {
+          "minLength": 1,
+          "title": "Provider",
+          "type": "string"
+        },
+        "provider_source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Provider Source Id",
+          "type": "string"
+        },
+        "reference_columns": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Reference Columns",
+          "type": "array"
+        },
+        "row_key_fields": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Row Key Fields",
+          "type": "array"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_table": {
+          "minLength": 1,
+          "title": "Source Table",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "provider_source_id",
+        "provider",
+        "name",
+        "source_table",
+        "documentation_url",
+        "approved_columns",
+        "row_key_fields",
+        "reference_columns",
+        "provenance_columns",
+        "column_contract"
+      ],
+      "title": "SourceDefinition",
+      "type": "object"
+    },
+    "UncertaintyMode": {
+      "description": "How source uncertainty columns are declared, not evaluated.",
+      "enum": [
+        "not_applicable",
+        "asymmetric_source_errors"
+      ],
+      "title": "UncertaintyMode",
+      "type": "string"
+    },
+    "UncertaintyPolicy": {
+      "additionalProperties": false,
+      "description": "Hashed declaration for preserving source uncertainties.",
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/UncertaintyMode"
+        },
+        "preserve_asymmetric_errors": {
+          "title": "Preserve Asymmetric Errors",
+          "type": "boolean"
+        },
+        "rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Rule Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_version",
+        "mode",
+        "preserve_asymmetric_errors"
+      ],
+      "title": "UncertaintyPolicy",
+      "type": "object"
+    },
+    "UnitConversionRule": {
+      "additionalProperties": false,
+      "description": "A conversion declaration with explicit rule identity and no executable code.",
+      "properties": {
+        "declaration_mode": {
+          "const": "declaration_only",
+          "default": "declaration_only",
+          "title": "Declaration Mode",
+          "type": "string"
+        },
+        "rule_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Rule Version",
+          "type": "string"
+        },
+        "source_unit": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Unit"
+        },
+        "target_unit": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Unit"
+        }
+      },
+      "required": [
+        "rule_id",
+        "rule_version"
+      ],
+      "title": "UnitConversionRule",
+      "type": "object"
+    },
+    "UnitDefinition": {
+      "additionalProperties": false,
+      "description": "A canonical or source unit registered by identifier.",
+      "properties": {
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "quantity_kind": {
+          "$ref": "#/$defs/QuantityKind"
+        },
+        "symbol": {
+          "title": "Symbol",
+          "type": "string"
+        },
+        "unit_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Unit Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "unit_id",
+        "label",
+        "symbol",
+        "quantity_kind"
+      ],
+      "title": "UnitDefinition",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Canonical payload for a versioned field fact source.",
+  "properties": {
+    "case_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Case Id",
+      "type": "string"
+    },
+    "conversion_rules": {
+      "items": {
+        "$ref": "#/$defs/UnitConversionRule"
+      },
+      "minItems": 1,
+      "title": "Conversion Rules",
+      "type": "array"
+    },
+    "created_at": {
+      "format": "date",
+      "title": "Created At",
+      "type": "string"
+    },
+    "description": {
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "evidence_locator_rules": {
+      "items": {
+        "$ref": "#/$defs/EvidenceLocatorRule"
+      },
+      "minItems": 1,
+      "title": "Evidence Locator Rules",
+      "type": "array"
+    },
+    "fields": {
+      "items": {
+        "$ref": "#/$defs/FieldDefinition"
+      },
+      "minItems": 1,
+      "title": "Fields",
+      "type": "array"
+    },
+    "maintained_by": {
+      "$ref": "#/$defs/MaintainerDefinition"
+    },
+    "manifest_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Manifest Id",
+      "type": "string"
+    },
+    "manifest_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Manifest Version",
+      "type": "string"
+    },
+    "name": {
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/SourceDefinition"
+      },
+      "minItems": 1,
+      "title": "Sources",
+      "type": "array"
+    },
+    "units": {
+      "items": {
+        "$ref": "#/$defs/UnitDefinition"
+      },
+      "minItems": 1,
+      "title": "Units",
+      "type": "array"
+    }
+  },
+  "required": [
+    "manifest_id",
+    "case_id",
+    "name",
+    "description",
+    "schema_version",
+    "manifest_version",
+    "created_at",
+    "maintained_by",
+    "sources",
+    "units",
+    "conversion_rules",
+    "evidence_locator_rules",
+    "fields"
+  ],
+  "title": "FieldManifestPayload",
+  "type": "object"
+}

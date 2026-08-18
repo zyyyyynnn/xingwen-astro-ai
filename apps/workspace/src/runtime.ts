@@ -1,6 +1,10 @@
 import {
+  createFixtureRepositories,
   createHttpRepositories,
   createSessionManager,
+  exoplanetHostStarFixture,
+  type SessionInfo,
+  type SessionManager,
 } from "@xingwen/data-access";
 import { researchAdapter } from "@xingwen/research-adapter";
 import { createWorkspaceController } from "@xingwen/workspace-core";
@@ -15,6 +19,8 @@ export interface WorkspaceRuntimeOptions {
   /** Public Brand Site origin used by the explicit system-exit action. */
   readonly siteUrl?: string;
   readonly fetchImpl?: typeof fetch;
+  /** Explicitly toggle between in-memory Demo Replay fixture and live HTTP API. */
+  readonly useFixture?: boolean;
 }
 
 function parseSiteOrigin(value: string | undefined): string {
@@ -78,11 +84,59 @@ function parseApiOrigin(value: string | undefined): string {
 export function createWorkspaceRuntime(
   options: WorkspaceRuntimeOptions = {},
 ): WorkspaceRuntimeBoundaries {
-  const baseUrl = parseApiOrigin(
-    options.apiBaseUrl ?? import.meta.env.VITE_API_BASE_URL,
-  );
   const siteUrl = parseSiteOrigin(
     options.siteUrl ?? import.meta.env.VITE_SITE_URL,
+  );
+
+  const useFixture =
+    options.useFixture ??
+    (import.meta.env.VITE_FIXTURE_MODE === "true" ||
+      import.meta.env.VITE_USE_FIXTURE === "true" ||
+      import.meta.env.VITE_DEMO_REPLAY === "true");
+
+  if (useFixture) {
+    const repositories = createFixtureRepositories(exoplanetHostStarFixture);
+    const queryClient = createWorkspaceQueryClient();
+    const sessionInfo: SessionInfo = {
+      status: "active",
+      createdAt: "2026-08-14T00:00:00Z",
+      expiresAt: "2026-08-15T00:00:00Z",
+      quota: {},
+      csrfToken: "csrf-fixture-demo",
+    };
+    let expiredListener: (() => void) | undefined;
+    const session: SessionManager = {
+      ensureSession: async () => sessionInfo,
+      getCurrent: () => sessionInfo,
+      revokeSession: async () => undefined,
+      attachCsrf: () => {},
+      onSessionExpired: (listener) => {
+        expiredListener = listener;
+        return () => {
+          expiredListener = undefined;
+        };
+      },
+      notifyExpired: () => expiredListener?.(),
+    };
+    return {
+      siteUrl,
+      repositories,
+      researchAdapter,
+      session,
+      queryClient,
+      application: createWorkspaceApplication({
+        repositories,
+        researchAdapter,
+        session,
+        queryClient,
+        createIdempotencyKey: () => `fixture-${crypto.randomUUID()}`,
+      }),
+      workspaceController: createWorkspaceController(repositories.workspaces),
+    };
+  }
+
+  const baseUrl = parseApiOrigin(
+    options.apiBaseUrl ?? import.meta.env.VITE_API_BASE_URL,
   );
   const fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
   const session = createSessionManager({ baseUrl, fetchImpl });

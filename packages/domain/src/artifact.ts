@@ -72,4 +72,22 @@ export interface ArtifactVersion {
  * this projection. Rich kind-specific content must be read through its
  * dedicated repository instead of being reconstructed from generic metadata.
  */
-export type ArtifactVersionMetadata = Omit<ArtifactVersion, "content">;
+export interface ArtifactVersionSummary {
+  readonly id: DomainEntityId;
+  readonly artifactId: DomainEntityId;
+  readonly versionNumber: number;
+  readonly schemaVersion: SemanticVersion;
+  readonly contentHash: ContentHash;
+  readonly sourceMode: SourceMode;
+  readonly supersedesVersionId: DomainEntityId | null;
+  readonly createdAt: UtcIsoTimestamp;
+}
+
+export interface ArtifactVersionMetadata extends ArtifactVersionSummary {
+  readonly projectId: DomainEntityId;
+  readonly createdByRunId: DomainEntityId;
+  readonly inputHash: ContentHash;
+  readonly producer: ProducerReference;
+  readonly sourceSnapshotIds: readonly DomainEntityId[];
+  readonly evidenceIds: readonly DomainEntityId[];
+}

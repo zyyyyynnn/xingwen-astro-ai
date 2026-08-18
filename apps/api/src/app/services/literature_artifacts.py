@@ -448,16 +448,38 @@ class LiteratureArtifactReadService:
         )
         evidence_by_relation: dict[str, list[EvidenceDetail]] = {}
         used_evidence: set[str] = set()
+        seen_claim_evidence: set[tuple[str, str]] = set()
         seen_relation_evidence: set[tuple[str, str]] = set()
         for item in candidate.evidence_references:
-            pair = (item.relation_id, item.evidence_id)
-            if pair in seen_relation_evidence:
-                continue
-            seen_relation_evidence.add(pair)
             pipeline_evidence = evidence_by_pipeline_id.get(item.evidence_id)
             persisted_snapshot = snapshot_map.get(item.source_snapshot_id)
             if pipeline_evidence is None or persisted_snapshot is None:
                 raise _provenance_problem()
+
+            claim_pair = (item.claim_id, item.evidence_id)
+            if claim_pair not in seen_claim_evidence:
+                seen_claim_evidence.add(claim_pair)
+                claim_matches = tuple(
+                    evidence
+                    for evidence in version.evidence
+                    if evidence.target_type == "claim"
+                    and evidence.target_id == item.claim_id
+                    and evidence.paper_id == item.paper_id
+                    and evidence.artifact_version_id == version.id
+                    and evidence.source_snapshot_id == persisted_snapshot.id
+                    and _locator_value(evidence.locator, "summary_evidence_id")
+                    == item.evidence_id
+                    and _locator_value(evidence.locator, "source_record_id")
+                    == pipeline_evidence.source_record_id
+                )
+                if len(claim_matches) != 1 or claim_matches[0].id in used_evidence:
+                    raise _provenance_problem()
+                used_evidence.add(claim_matches[0].id)
+
+            pair = (item.relation_id, item.evidence_id)
+            if pair in seen_relation_evidence:
+                continue
+            seen_relation_evidence.add(pair)
             matches = tuple(
                 evidence
                 for evidence in version.evidence
@@ -643,7 +665,7 @@ def _validate_runtime_producer(
         or runtime.producer.type != producer.producer_type
         or runtime.producer.name != producer.producer_name
         or runtime.producer.version != producer.producer_version
-        or runtime.producer.model_name != producer.model_name
+        or runtime.producer.requested_model != producer.model_name
         or runtime.producer.prompt_name != producer.prompt_name
         or runtime.producer.prompt_version != producer.prompt_version
         or runtime.producer.prompt_hash != producer.prompt_hash

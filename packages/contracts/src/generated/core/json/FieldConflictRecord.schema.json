@@ -1,0 +1,113 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "absolute_difference": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Absolute Difference"
+    },
+    "canonical_field_id": {
+      "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+      "title": "Canonical Field Id",
+      "type": "string"
+    },
+    "comparison_policy_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Comparison Policy Version",
+      "type": "string"
+    },
+    "conflict_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Conflict Id",
+      "type": "string"
+    },
+    "conflict_scope": {
+      "enum": [
+        "same_source",
+        "cross_source",
+        "identity_unresolved"
+      ],
+      "title": "Conflict Scope",
+      "type": "string"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "dataset_row_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Dataset Row Id",
+      "type": "string"
+    },
+    "reason": {
+      "const": "distinct canonical values are retained; source priority selects display only",
+      "title": "Reason",
+      "type": "string"
+    },
+    "relative_denominator": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Relative Denominator"
+    },
+    "relative_difference": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Relative Difference"
+    },
+    "source_value_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "minItems": 2,
+      "title": "Source Value Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "conflict_id",
+    "dataset_row_id",
+    "canonical_field_id",
+    "source_value_ids",
+    "conflict_scope",
+    "reason",
+    "comparison_policy_version",
+    "content_hash"
+  ],
+  "title": "FieldConflictRecord",
+  "type": "object"
+}

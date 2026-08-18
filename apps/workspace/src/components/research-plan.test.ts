@@ -123,6 +123,24 @@ describe("deriveResearchPresentation", () => {
     expect(presentation.planItems[0]?.status).toBe("running");
   });
 
+  it("projects a provider failure as a failed preparation step", () => {
+    const unavailable = {
+      id: "assistant-unavailable",
+      actor: "assistant",
+      kind: "assistant_message",
+      structuredPayload: { outcome: "unavailable" },
+    } as unknown as ResearchThreadEntryViewModel;
+
+    const presentation = deriveResearchPresentation({
+      project,
+      entries: [unavailable],
+    });
+
+    expect(presentation.state).toBe("assistant_unavailable");
+    expect(presentation.statusLabel).toBe("研究助手暂不可用");
+    expect(presentation.planItems[0]?.status).toBe("failed");
+  });
+
   it("preserves a non-current Project clarification state from its server summary", () => {
     const projectA = {
       ...project,

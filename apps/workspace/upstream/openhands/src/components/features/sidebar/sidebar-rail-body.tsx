@@ -1,3 +1,5 @@
+import { useMemo, useState } from "react";
+
 import {
   BrandMark,
   DropdownMenu,
@@ -14,10 +16,14 @@ import {
   Pencil,
   Pin,
   Plus,
+  Search,
   Trash2,
 } from "@xingwen/ui/icons";
 
-import type { ResearchNavigationItem } from "../../../root";
+import type {
+  ResearchNavigationItem,
+  ResearchNavigationStatus,
+} from "../../../root";
 import { cn } from "../../../utils/utils";
 
 import { CommandMenuTrigger } from "../command-menu/command-menu-trigger";
@@ -28,6 +34,28 @@ import {
   sidebarNavListClassName,
   sidebarNavRowClassName,
 } from "./sidebar-layout";
+
+const STATUS_DOT_CLASS: Record<ResearchNavigationStatus, string> = {
+  idle: "bg-muted-foreground/40",
+  running: "bg-blue-500 animate-pulse",
+  waiting: "bg-amber-500",
+  error: "bg-red-500",
+};
+
+const STATUS_LABEL: Record<ResearchNavigationStatus, string> = {
+  idle: "空闲",
+  running: "运行中",
+  waiting: "等待输入",
+  error: "出错",
+};
+
+function statusDot(status: ResearchNavigationStatus): string {
+  return STATUS_DOT_CLASS[status] ?? STATUS_DOT_CLASS.idle;
+}
+
+function statusText(status: ResearchNavigationStatus): string {
+  return STATUS_LABEL[status] ?? STATUS_LABEL.idle;
+}
 
 interface SidebarRailBodyProps {
   readonly collapsed: boolean;
@@ -50,11 +78,29 @@ export function SidebarRailBody({
   onRequestProjectRename,
   onRequestProjectDelete,
 }: SidebarRailBodyProps) {
-  const pinnedProjects = projects.filter((project) => project.pinned);
-  const recentProjects = projects.filter((project) => !project.pinned);
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleProjects = useMemo(
+    () =>
+      normalizedQuery === ""
+        ? projects
+        : projects.filter((project) =>
+            project.title.toLowerCase().includes(normalizedQuery),
+          ),
+    [projects, normalizedQuery],
+  );
+  const pinnedProjects = visibleProjects
+    .filter((project) => project.pinned)
+    .sort((left, right) => left.title.localeCompare(right.title));
+  // Recent means recent access, never updatedAt display ordering.
+  const recentProjects = visibleProjects
+    .filter((project) => !project.pinned)
+    .sort((left, right) =>
+      right.lastAccessedAt.localeCompare(left.lastAccessedAt),
+    );
   const projectGroups = [
-    { label: "已置顶", projects: pinnedProjects },
-    { label: "最近", projects: recentProjects },
+    { label: "置顶研究", projects: pinnedProjects },
+    { label: "最近研究", projects: recentProjects },
   ].filter((group) => group.projects.length > 0);
   return (
     <div className="flex h-full min-h-0 flex-col pb-[var(--oh-space-3)]">
@@ -94,18 +140,34 @@ export function SidebarRailBody({
         )}
         aria-label="研究项目列表"
       >
-        <h2 className="px-[var(--oh-space-2)] text-[length:var(--oh-font-size-label)] font-semibold text-[var(--oh-muted)]">
-          研究项目
-        </h2>
-        <div className="mt-[var(--oh-space-2)] flex flex-col gap-[var(--oh-space-3)]">
+        <div className="flex flex-col gap-[var(--oh-space-4)]">
+          <div className="flex items-center gap-2 px-[var(--oh-space-2)]">
+            <Search
+              className="size-[var(--oh-icon-size-sm)] shrink-0 text-[var(--oh-muted)]"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="搜索研究"
+              aria-label="搜索研究项目"
+              data-testid="sidebar-project-search"
+              className="min-w-0 flex-1 bg-transparent text-[length:var(--oh-font-size-label)] leading-[var(--oh-line-height-label)] text-[var(--oh-text)] outline-none placeholder:text-[var(--oh-text-dim)]"
+            />
+          </div>
           {projects.length === 0 ? (
             <p className="px-[var(--oh-space-2)] py-[var(--oh-space-3)] text-[length:var(--oh-font-size-label)] leading-[var(--oh-line-height-label)] text-[var(--oh-text-dim)]">
               暂无研究项目
             </p>
+          ) : visibleProjects.length === 0 ? (
+            <p className="px-[var(--oh-space-2)] py-[var(--oh-space-3)] text-[length:var(--oh-font-size-label)] leading-[var(--oh-line-height-label)] text-[var(--oh-text-dim)]">
+              没有匹配的研究
+            </p>
           ) : null}
           {projectGroups.map((group) => (
             <section key={group.label} aria-label={group.label}>
-              <h3 className="px-[var(--oh-space-2)] pb-[var(--oh-space-1)] text-[length:var(--oh-font-size-label)] font-medium text-[var(--oh-text-dim)]">
+              <h3 className="px-[var(--oh-space-2)] pb-[var(--oh-space-1)] text-[length:var(--oh-font-size-label)] font-semibold text-[var(--oh-muted)]">
                 {group.label}
               </h3>
               <div className="flex flex-col gap-[var(--oh-space-1)]">
@@ -115,34 +177,26 @@ export function SidebarRailBody({
                     className={cn(
                       "group/project flex w-full items-center rounded-[var(--oh-radius-sm)] transition-colors motion-reduce:transition-none",
                       project.current
-                        ? "bg-[var(--oh-accent-muted)] text-[var(--oh-text)]"
+                        ? "bg-[var(--oh-accent-muted)] text-[var(--oh-text)] font-medium"
                         : "text-[var(--oh-muted)] hover:bg-[var(--oh-surface-raised)] hover:text-[var(--oh-text)]",
                     )}
                   >
                     <button
                       type="button"
-                      className="min-w-0 flex-1 px-[var(--oh-space-2)] py-[var(--oh-space-2)] text-left"
+                      className="flex min-w-0 flex-1 items-center gap-2 px-[var(--oh-space-2)] py-[var(--oh-space-2)] text-left"
                       aria-current={project.current ? "page" : undefined}
                       onClick={() => onOpenProject(project.id)}
                     >
-                      <span className="flex min-w-0 items-center gap-[var(--oh-space-2)]">
-                        <span className="truncate text-[length:var(--oh-font-size-body)] font-medium leading-[var(--oh-line-height-body)]">
-                          {project.title}
-                        </span>
-                        {project.pinned ? (
-                          <Pin
-                            className="size-[var(--oh-icon-size-xs)] shrink-0"
-                            aria-label="已置顶"
-                          />
-                        ) : null}
-                      </span>
-                      <span className="mt-[var(--oh-space-1)] flex min-w-0 items-center gap-[var(--oh-space-2)] text-[length:var(--oh-font-size-label)] leading-[var(--oh-line-height-label)] text-[var(--oh-text-dim)]">
-                        <span className="min-w-0 flex-1 truncate">
-                          {project.status}
-                        </span>
-                        <time className="shrink-0" dateTime={project.updatedAt}>
-                          {formatProjectUpdatedAt(project.updatedAt)}
-                        </time>
+                      <span
+                        className={cn(
+                          "size-2 shrink-0 rounded-full",
+                          statusDot(project.status),
+                        )}
+                        aria-hidden="true"
+                      />
+                      <span className="sr-only">{`研究状态：${statusText(project.status)}`}</span>
+                      <span className="min-w-0 flex-1 truncate text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)]">
+                        {project.title}
                       </span>
                     </button>
                     <DropdownMenu>
@@ -206,13 +260,4 @@ export function SidebarRailBody({
       </footer>
     </div>
   );
-}
-
-function formatProjectUpdatedAt(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "numeric",
-    day: "numeric",
-  }).format(date);
 }

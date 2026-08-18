@@ -31,6 +31,7 @@
   - ShareSnapshot 锁定不可变 ArtifactVersion 与可公开 Evidence 范围。
   - Share token 服务端仅存 hash；公开读取不授予写权限或敏感调试信息。
 - **未授权保护**：会话缺失/过期返回 `401`；无权访问或不存在的私有资源统一返回 `404`（不泄露资源存在性）；CSRF 校验失败返回 `403`。
+- **会话恢复**：配置 PostgreSQL 时，匿名会话凭据、有限 CSRF 令牌集合、状态与有效期由数据库持久化；浏览器刷新、多标签和 API 进程重启必须恢复同一 Session 所有权，不得创建无法读取既有项目的平行会话。
 
 ## 4. 通用响应结构
 
@@ -80,9 +81,9 @@ Project -> ResearchInput -> ContractDraft / Run (仅引用绑定)
 ArtifactVersion -> UserFeedback -> RevisionPlan -> revision Run
 ```
 
-- **Project**：表示持续研究上下文，并通过 `active_draft_id` 指向当前待审 Draft；不得用 latest Draft 推断当前状态。
-- **ResearchThreadEntry**：Project-owned、按 Project 严格递增 `sequence` 的公开研究记录。它承载用户消息、助手公开分析、澄清问题/回答、Contract、Plan 与 Run Record 的投影，不复制 Contract、Run 或 Artifact 事实。
-- **ModelExecutionRecord**：Research assistant 的 pre-run 执行 provenance。保存 provider/model/prompt identity、安全规范化 Prompt/input/validated output/parameters snapshot 及 hash、status/token/latency/request identity/error；内部持有执行租约以回收进程中断遗留的活跃记录，但不公开完整数据库 snapshot；不保存 raw provider body、凭据或私有推理。
+- **Project**：表示持续研究上下文，并通过 `active_draft_id` 指向当前待审 Draft；不得用 latest Draft 推断当前状态。新项目初始名称统一为“新建研究”；用户第一条有效研究意图成功形成 Planner outcome 后，若名称仍严格等于“新建研究”，由同一次 Planner 输出生成的 `project_title` 经服务端校验长度后写入，不额外发起模型调用，不覆盖用户已手动改名的标题。
+- **ResearchThreadEntry**：Project-owned、按 Project 严格递增 `sequence` 的公开研究记录，是唯一用户研究叙事持久化边界。它承载用户消息、助手正常回复（assistant_message）、助手公开分析（assistant_reasoning）、澄清问题/回答、Contract、Plan 与 Run Record 的投影，不复制 Contract、Run 或 Artifact 事实。Thread 写入由唯一 Thread writer 边界负责；Worker 与 Research Turn 复用同一 writer，不得私下复制 append/sequence 逻辑。
+- **ModelExecutionRecord**：Research assistant 的 pre-run 执行 provenance。保存 provider、requested model、provider 返回 model（可得时）、真实显式 revision（可为空，浮动别名不得伪造）与 prompt identity、安全规范化 Prompt/input/validated output/parameters snapshot 及 hash、status/token/latency/request identity/error；内部持有执行租约以回收进程中断遗留的活跃记录，但不公开完整数据库 snapshot；不保存 raw provider body、凭据或私有推理。
 - **Contract**：固定研究目标、字段与质量约束（确认后不可变）。
 - **Run**：表示一次具体执行，管理进度与事件。
 - **ArtifactVersion**：不可变的科研产物快照，绑定 Evidence 与 SourceSnapshot。
@@ -90,7 +91,7 @@ ArtifactVersion -> UserFeedback -> RevisionPlan -> revision Run
 - **RevisionPlan**：冻结同一 completed parent Run 的 Feedback、parent revision、全部 latest ArtifactVersion 指针、受影响闭包与可复用版本；确认关系一对一绑定 revision Run。
 - **WorkspaceSnapshot**：持久化工作台私有恢复布局状态，使用 Project ownership 与 revision 乐观锁。
 - **ShareSnapshot**：持久化创建时冻结的公开只读投影；公开读取只依赖冻结内容与 token hash，不跟随动态 latest。
-- **ResearchInput**：受控输入边界（URL / PDF / CSV / JSON / 图片 / 文本）的不可变引用与溯源；二进制内容与全文永不进入公开 DTO。
+- **ResearchInput**：受控输入边界（URL / PDF / CSV / FITS / JSON / 图片 / 文本）的不可变引用与溯源；二进制内容与全文永不进入公开 DTO。Composer 文件附件统一走现有 ResearchInput 摄取边界；不得新增 chat upload blob、temporary attachment 或第二文件存储。
 
 - **PaperCandidate 到 ResearchInput**：选中的 PaperCollection candidate 通过
   `POST /api/artifact-versions/{version_id}/paper-candidates/{candidate_id}/research-input`
@@ -107,14 +108,20 @@ ArtifactVersion -> UserFeedback -> RevisionPlan -> revision Run
   不使用第三种持久化 outcome。服务端必须在 URL fetch、CAS 或 ResearchInput 创建前原子
   预留 Project-scoped bridge `Idempotency-Key`；不同请求复用同一 key 必须在副作用前冲突，
   相同并发请求最多只有一个 lease owner 执行摄取，完成 binding 时原子关闭 reservation。
-  任何未证明访问、paywall、受限/部分元数据、非法 URL、
-  SSRF、redirect、MIME、大小、超时或上游失败均 fail closed，且不执行 parser。
+   任何未证明访问、paywall、受限/部分元数据、非法 URL、
+   SSRF、redirect、MIME、大小、超时或上游失败均 fail closed，且不执行 parser。
+   全文读取只通过 `GET /api/artifact-versions/{version_id}/paper-summary/pdf-source`：
+   服务端先完成该 PaperSummary 的完整 provenance 校验，再按
+   `(paper_collection_version_id, canonical_paper_id)` 解析最新 `accepted` 桥接绑定，
+   并重新校验其 ResearchInput 的 ownership、未过期、content hash 与 PDF 类型；
+   任一环节缺失返回 `research_input: null`，禁止从标题、DOI、candidate 顺序或数组首项
+   推断 PDF URL。无绑定与未配置桥接运行时均返回 `research_input: null`，不返回 5xx。
 
 ## 6. Research Turn
 
 - `GET /api/projects/{project_id}/research-turns?cursor=...&limit=...` 按 Thread `sequence` 稳定分页，返回 Project-owned entries；cursor 使用 HMAC 签名并绑定 Project、集合与排序锚点。
 - `GET /api/projects/{project_id}/research-catalog` 返回由当前 Case/Field Manifest 与 ArtifactKind Authority 生成的 Contract authoring 目录；前端不得复制目录。
-- `POST /api/projects/{project_id}/research-turns` 接受 `message` 与可选 `answer_to_question_id`，必须带 `Idempotency-Key`；一次请求只能创建一个用户消息和一个真实助手 outcome。
+- `POST /api/projects/{project_id}/research-turns` 接受 `message` 与可选 `answer_to_question_id`，必须带 `Idempotency-Key`；一次请求只能创建一个用户消息和一个真实助手 outcome。助手 outcome 包含 pre-run `assistant_message`（面向用户的正常研究交流）与可选的公开分析；二者分别持久化为 Thread entry，reasoning Activity 与 Thread Assistant Message 是分离边界。
 - 同一 Project 同时只允许一个 active Research assistant execution；并发显式发送返回 `409 RESEARCH_ASSISTANT_BUSY`，不创建第二个 Thread entry。相同文本的两次显式发送使用不同 action identity，形成两个独立 Turn。
 - response 返回新增 entries、`clarification_required | draft_ready | partial | unsupported | refused` outcome 与 active draft reference；不得返回 raw provider response、private reasoning 或假运行事件。
 - 缺少 provider credentials、超时、限流、5xx 或无法解析/验证模型输出时，持久化失败 provenance 并返回稳定的 `MODEL_RUNTIME_UNAVAILABLE` 或对应公开错误；禁止模板或 fixture 冒充成功。
@@ -122,6 +129,13 @@ ArtifactVersion -> UserFeedback -> RevisionPlan -> revision Run
 - `GET /api/runs/{run_id}/steps` 只读取 RunStep 权威状态；前端不得根据事件数量或百分比合成进度。
 - Project list/read 携带由服务端批量计算的最小 `thread_summary`（是否有消息、最新 actor、是否存在未回答澄清）；它只用于非当前 Project 导航状态，不能持久化或复制 workflow/presentation state。当前 Project 仍以完整 Research Thread 为事实源，并由唯一 presentation mapper 得出同一状态。
 - `POST /api/projects/{project_id}/runs` 从 confirmed Contract 的 requested outputs 确定性冻结最小依赖闭包；未映射产物返回 `409 RUN_PLAN_UNSUPPORTED_OUTPUT`，不得生成虚假 Step。
+- Run 生命周期命令只暴露有真实执行闭环的窄端点，Route 只调用现有 Workflow command/store，不实现 workflow algorithm：
+  - `POST /api/runs/{run_id}/cancel`：条件状态写入，未完成 Step 与运行中 Attempt 一致 `cancelled`，追加单调 Event，拒绝 late publish，重复取消幂等。
+  - `POST /api/runs/{run_id}/retry`：Application Service 验证 Run failed、存在 retryable failed step 与合法 `retry_from_step` 后创建 `derivation_kind=retry` 派生 Run（`parent_run_id`、`retry_from_step`），不复活/覆盖 failed Attempt，不静默从头全跑。
+  - `GET /api/runs/{run_id}/checkpoint` 读取当前等待中的 Checkpoint；`POST /api/runs/{run_id}/checkpoint-decision` 原子写入不可变 Decision 并将同一 Run 从 `waiting_for_input` 恢复到合法可执行状态，不创建新 Run、新 Contract 或 review session。重复相同 Decision 按既有 idempotency convention 幂等或明确 conflict。
+  未实现的能力不得先声明成功。
+- 同一 Project 同时最多一个 non-terminal ResearchRun：Application Service 对并发创建返回用户友好 `409`，PostgreSQL partial unique index 是权威并发围栏；不得仅靠前端按钮限制。
+- `GET /api/artifacts/{artifact_id}/versions` 按稳定 newest-first 顺序分页读取一个逻辑 Artifact 的全部不可变 ArtifactVersion；要求 Project/Session ownership，不创建第二版本存储。
 
 ## 7. Feedback 与 RevisionPlan
 
@@ -141,6 +155,8 @@ ArtifactVersion -> UserFeedback -> RevisionPlan -> revision Run
 - **错误码**：`RESEARCH_INPUT_INVALID`（400，载荷组合非法）、`RESEARCH_INPUT_TOO_LARGE`（413）、`RESEARCH_INPUT_MIME_REJECTED`（415）、`RESEARCH_INPUT_FILENAME_INVALID`（400）、`RESEARCH_INPUT_NOT_FOUND`（404）、`URL_FETCH_BLOCKED`（422，策略拒绝）、`URL_FETCH_TOO_LARGE` / `URL_FETCH_FAILED`（502，上游失败）。
 - **绑定语义**：`POST /api/research-inputs/{input_id}/bind` 只绑定引用，不产生所有权转移；输入删除后既有绑定不受影响。
 - **状态语义**：稳定生命周期为 `accepted | unsupported_processing | failed_ingestion`。摄取端点只在成功时创建 `accepted` 资源；失败使用 Problem Details 且不创建失败输入。其他状态只能由实际观察到对应结果的 writer 持久化。`accepted` 只证明内容已安全摄取并冻结，不表示内容已被理解。
+- **FITS**：FITS 是正式 ResearchInput 类型。接受正式 MIME `application/fits` 与 `image/fits`，并结合受治理扩展名 `.fits` / `.fit` / `.fts`；扩展名不单独作为判断依据，仍须通过 magic bytes 三方一致校验。不得为 FITS 建立第二摄取 store 或专用 upload service。
+- **内容读取**：`GET /api/research-inputs/{input_id}/content` 是唯一 browser-safe 内容读取端点。要求 Session ownership、输入 `accepted` 且 file-backed；返回正确 Content-Type 与 no-store；不暴露 storage_ref，不接受 filesystem path 或 remote URL，不成为通用 proxy。内容仍来自唯一 ResearchInput content store。
 
 ## 9. 文献 Claim、Relation 与 Trace 读取
 

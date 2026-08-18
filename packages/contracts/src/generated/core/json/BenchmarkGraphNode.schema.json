@@ -1,0 +1,49 @@
+{
+  "$defs": {
+    "GraphNodeType": {
+      "enum": [
+        "research_goal",
+        "dataset",
+        "field",
+        "source",
+        "paper",
+        "finding",
+        "claim",
+        "relation",
+        "reasoning_trace",
+        "evidence"
+      ],
+      "title": "GraphNodeType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "label": {
+      "minLength": 1,
+      "title": "Label",
+      "type": "string"
+    },
+    "node_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Node Id",
+      "type": "string"
+    },
+    "node_type": {
+      "$ref": "#/$defs/GraphNodeType"
+    },
+    "ref_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Ref Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "node_id",
+    "node_type",
+    "label",
+    "ref_id"
+  ],
+  "title": "BenchmarkGraphNode",
+  "type": "object"
+}

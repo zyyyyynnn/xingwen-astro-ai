@@ -30,6 +30,8 @@ from app.schemas.core import (
     ResearchTurnResult,
     ResponseLinks,
     ResponseMeta,
+    RunCheckpoint,
+    RunCheckpointDecisionRequest,
     RunEvent,
     RunStepRead,
     UpdateResearchProjectRequest,
@@ -418,6 +420,84 @@ def create_research_run(
     _no_store(response)
     response.headers["Location"] = f"/api/runs/{data.id}"
     path = f"/api/runs/{data.id}"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.post(
+    "/runs/{run_id}/cancel",
+    operation_id="cancelResearchRun",
+    response_model=Envelope[ResearchRun],
+)
+def cancel_research_run(
+    run_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+) -> Envelope[ResearchRun]:
+    data = _service(request).cancel_run(run_id=run_id, session_id=_session_id(request))
+    _no_store(response)
+    path = f"/api/runs/{run_id}"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.post(
+    "/runs/{run_id}/retry",
+    operation_id="retryResearchRun",
+    status_code=status.HTTP_201_CREATED,
+    response_model=Envelope[ResearchRun],
+)
+def retry_research_run(
+    run_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1)],
+) -> Envelope[ResearchRun]:
+    data = _service(request).retry_run(
+        run_id=run_id,
+        session_id=_session_id(request),
+        idempotency_key=idempotency_key,
+    )
+    _no_store(response)
+    response.headers["Location"] = f"/api/runs/{data.id}"
+    path = f"/api/runs/{data.id}"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/runs/{run_id}/checkpoint",
+    operation_id="getRunCheckpoint",
+    response_model=Envelope[RunCheckpoint | None],
+)
+def get_run_checkpoint(
+    run_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+) -> Envelope[RunCheckpoint | None]:
+    data = _service(request).get_run_checkpoint(
+        run_id=run_id, session_id=_session_id(request)
+    )
+    _no_store(response)
+    path = f"/api/runs/{run_id}/checkpoint"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.post(
+    "/runs/{run_id}/checkpoint-decision",
+    operation_id="submitRunCheckpointDecision",
+    response_model=Envelope[ResearchRun],
+)
+def submit_run_checkpoint_decision(
+    run_id: Annotated[str, Path(min_length=1)],
+    payload: RunCheckpointDecisionRequest,
+    request: Request,
+    response: Response,
+) -> Envelope[ResearchRun]:
+    data = _service(request).submit_run_checkpoint_decision(
+        run_id=run_id,
+        session_id=_session_id(request),
+        request=payload,
+    )
+    _no_store(response)
+    path = f"/api/runs/{run_id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 

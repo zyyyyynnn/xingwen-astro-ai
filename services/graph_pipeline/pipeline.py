@@ -363,9 +363,10 @@ def _literature_evidence_bindings(
     inputs: PublishedGraphInputs,
     evidence_id: str,
     *,
-    target_relation_ids: Iterable[str],
+    target_type: str,
+    target_ids: Iterable[str],
 ) -> tuple[PersistedEvidenceBinding, ...]:
-    targets = frozenset(target_relation_ids)
+    targets = frozenset(target_ids)
     pipeline_evidence = next(
         (
             item
@@ -386,10 +387,10 @@ def _literature_evidence_bindings(
         for item in inputs.literature_relations.evidence_bindings
         if item.pipeline_evidence_id == evidence_id
         and item.pipeline_evidence_content_hash == pipeline_content_hash
-        and item.pipeline_target_type == "relation"
+        and item.pipeline_target_type == target_type
         and item.pipeline_target_id in targets
         and item.pipeline_locator.get("summary_evidence_id") == evidence_id
-        and item.evidence.target_type == "relation"
+        and item.evidence.target_type == target_type
         and item.evidence.target_id == item.pipeline_target_id
         and item.evidence.locator == item.pipeline_locator
     )
@@ -402,7 +403,7 @@ def _literature_evidence_bindings(
             GraphIntegrityStage.evidence_snapshot,
             GraphRejectionReason.evidence_missing,
             f"evidence.{evidence_id}",
-            "Literature Evidence does not exactly close the selected Relation targets",
+            "Literature Evidence does not exactly close the selected domain targets",
         )
     return tuple(
         sorted(
@@ -665,22 +666,11 @@ def _add_literature(assembly: _Assembly, scope: GraphBuildScope) -> None:
         )
         uses: list[GraphEvidenceUse] = []
         for evidence_id in sorted(claim.evidence_ids):
-            target_relations = tuple(
-                sorted(
-                    {
-                        reference.relation_id
-                        for reference in candidate.evidence_references
-                        if reference.claim_id == claim.claim_id
-                        and reference.evidence_id == evidence_id
-                        and relations[reference.relation_id].status
-                        is LiteratureRelationStatus.accepted
-                    }
-                )
-            )
             for binding in _literature_evidence_bindings(
                 assembly.inputs,
                 evidence_id,
-                target_relation_ids=target_relations,
+                target_type="claim",
+                target_ids=(claim.claim_id,),
             ):
                 snapshot = snapshots_by_pipeline.get(
                     binding.pipeline_source_snapshot_id
@@ -788,7 +778,8 @@ def _add_literature_relations(
             for binding in _literature_evidence_bindings(
                 assembly.inputs,
                 evidence_id,
-                target_relation_ids=(relation_id,),
+                target_type="relation",
+                target_ids=(relation_id,),
             ):
                 snapshot = snapshots_by_pipeline.get(
                     binding.pipeline_source_snapshot_id
@@ -1336,12 +1327,10 @@ def _collect_literature_gate_failures(
         if failure is not None:
             failures.append(failure)
 
-    relation_prerequisite_failed = False
     for relation_id in sorted(set(scope.accepted_relation_ids)):
         relation = relations.get(relation_id)
         failure = _selected_relation_failure(relation_id, relations)
         if failure is not None:
-            relation_prerequisite_failed = True
             failures.append(failure)
             continue
         assert relation is not None
@@ -1378,13 +1367,15 @@ def _collect_literature_gate_failures(
     def close_evidence(
         evidence_id: str,
         *,
-        target_relation_ids: Iterable[str],
+        target_type: str,
+        target_ids: Iterable[str],
     ) -> None:
         try:
             matches = _literature_evidence_bindings(
                 inputs,
                 evidence_id,
-                target_relation_ids=target_relation_ids,
+                target_type=target_type,
+                target_ids=target_ids,
             )
         except GraphAdmissionFailure as exc:
             failures.append(exc)
@@ -1405,33 +1396,22 @@ def _collect_literature_gate_failures(
         if relation is None or relation.status is not LiteratureRelationStatus.accepted:
             continue
         for evidence_id in sorted(relation.evidence_ids):
-            close_evidence(evidence_id, target_relation_ids=(relation_id,))
+            close_evidence(
+                evidence_id,
+                target_type="relation",
+                target_ids=(relation_id,),
+            )
 
     for request in scope.structural_edges:
         claim = claims.get(request.target_claim_id)
         if claim is None or claim.status is not LiteratureClaimStatus.accepted:
             continue
         for evidence_id in sorted(claim.evidence_ids):
-            target_relations = tuple(
-                sorted(
-                    {
-                        reference.relation_id
-                        for reference in candidate.evidence_references
-                        if reference.claim_id == claim.claim_id
-                        and reference.evidence_id == evidence_id
-                        and (
-                            relation := relations.get(reference.relation_id)
-                        )
-                        is not None
-                        and relation.status is LiteratureRelationStatus.accepted
-                    }
-                )
+            close_evidence(
+                evidence_id,
+                target_type="claim",
+                target_ids=(claim.claim_id,),
             )
-            if target_relations or not relation_prerequisite_failed:
-                close_evidence(
-                    evidence_id,
-                    target_relation_ids=target_relations,
-                )
     return tuple(failures)
 
 

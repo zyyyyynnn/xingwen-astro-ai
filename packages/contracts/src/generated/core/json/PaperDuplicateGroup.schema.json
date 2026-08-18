@@ -1,0 +1,93 @@
+{
+  "$defs": {
+    "PaperCandidateConflict": {
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "enum": [
+            "conflict",
+            "uncertain_match"
+          ],
+          "title": "Classification",
+          "type": "string"
+        },
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        },
+        "field": {
+          "enum": [
+            "doi",
+            "arxiv_id",
+            "title",
+            "year",
+            "authors"
+          ],
+          "title": "Field",
+          "type": "string"
+        },
+        "related_candidate_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Related Candidate Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field",
+        "related_candidate_id",
+        "classification",
+        "detail"
+      ],
+      "title": "PaperCandidateConflict",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "candidate_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Candidate Ids",
+      "type": "array"
+    },
+    "canonical_paper_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Canonical Paper Id",
+      "type": "string"
+    },
+    "conflicts": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PaperCandidateConflict"
+      },
+      "title": "Conflicts",
+      "type": "array"
+    },
+    "duplicate_group_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Duplicate Group Id",
+      "type": "string"
+    },
+    "match_basis": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Match Basis",
+      "type": "array"
+    }
+  },
+  "required": [
+    "duplicate_group_id",
+    "canonical_paper_id",
+    "candidate_ids",
+    "match_basis"
+  ],
+  "title": "PaperDuplicateGroup",
+  "type": "object"
+}

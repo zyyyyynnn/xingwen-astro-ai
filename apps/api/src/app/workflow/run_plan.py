@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from app.schemas.core import ArtifactKind, ResearchContractInput
 from app.workflow.store import RUN_STEP_STATUS_ORDER, RunStepDefinition
 
@@ -25,6 +27,9 @@ _STEP_LABELS = {
     "summarizing_papers": "Summarizing papers",
     "reasoning_literature": "Reasoning over literature",
     "building_graph": "Building graph",
+}
+_STEP_MAX_ATTEMPTS = {
+    "reasoning_literature": 2,
 }
 
 _DATA_OUTPUTS = frozenset(
@@ -54,6 +59,52 @@ SUPPORTED_RUN_OUTPUTS = frozenset(
         ArtifactKind.graph,
     }
 )
+
+#: Canonical Artifact kind order shared by plan compilation and the runtime.
+ARTIFACT_KIND_ORDER = (
+    ArtifactKind.dataset,
+    ArtifactKind.field_dictionary,
+    ArtifactKind.source_collection,
+    ArtifactKind.paper_collection,
+    ArtifactKind.paper_summary,
+    ArtifactKind.literature_claims,
+    ArtifactKind.literature_relations,
+    ArtifactKind.reasoning_traces,
+    ArtifactKind.graph,
+)
+
+#: The Artifact kinds each frozen RunStep publishes. The frozen RunStep chain
+#: is the sole owner of the Artifact dependency closure: the runtime derives
+#: required kinds from the persisted steps and never recomputes them from the
+#: contract.
+STEP_ARTIFACT_KINDS = {
+    "planning": (),
+    "fetching_data": (),
+    "cleaning_data": (
+        ArtifactKind.dataset,
+        ArtifactKind.field_dictionary,
+        ArtifactKind.source_collection,
+    ),
+    "searching_papers": (ArtifactKind.paper_collection,),
+    "summarizing_papers": (ArtifactKind.paper_summary,),
+    "reasoning_literature": (
+        ArtifactKind.literature_claims,
+        ArtifactKind.literature_relations,
+        ArtifactKind.reasoning_traces,
+    ),
+    "building_graph": (ArtifactKind.graph,),
+}
+
+
+def artifact_kinds_for_steps(
+    step_keys: Sequence[str],
+) -> tuple[ArtifactKind, ...]:
+    """Return the Artifact kinds published by one frozen RunStep chain."""
+
+    required: set[ArtifactKind] = set()
+    for key in step_keys:
+        required.update(STEP_ARTIFACT_KINDS[key])
+    return tuple(kind for kind in ARTIFACT_KIND_ORDER if kind in required)
 
 
 def compile_run_plan(
@@ -93,6 +144,7 @@ def compile_run_plan(
                 if position + 1 < len(ordered)
                 else "completed"
             ),
+            max_attempts=_STEP_MAX_ATTEMPTS.get(step, 1),
         )
         for position, step in enumerate(ordered)
     )

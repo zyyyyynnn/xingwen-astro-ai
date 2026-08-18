@@ -1,0 +1,70 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "adapter_name": {
+      "minLength": 1,
+      "title": "Adapter Name",
+      "type": "string"
+    },
+    "adapter_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Adapter Version",
+      "type": "string"
+    },
+    "canonicalization_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Canonicalization Version",
+      "type": "string"
+    },
+    "dedupe_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Dedupe Version",
+      "type": "string"
+    },
+    "query_normalization_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Query Normalization Version",
+      "type": "string"
+    },
+    "ranking_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Ranking Version",
+      "type": "string"
+    },
+    "retry_policy_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Retry Policy Version",
+      "type": "string"
+    },
+    "selection_limit": {
+      "exclusiveMinimum": 0,
+      "maximum": 100,
+      "title": "Selection Limit",
+      "type": "integer"
+    },
+    "selection_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Selection Version",
+      "type": "string"
+    },
+    "source_policy_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Source Policy Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "adapter_name",
+    "adapter_version",
+    "query_normalization_version",
+    "canonicalization_version",
+    "dedupe_version",
+    "ranking_version",
+    "selection_version",
+    "retry_policy_version",
+    "source_policy_version",
+    "selection_limit"
+  ],
+  "title": "PaperCollectionRules",
+  "type": "object"
+}

@@ -45,6 +45,11 @@ from services.data_pipeline.data_artifacts.admission import (
 from services.data_pipeline.data_artifacts.errors import DataArtifactError
 
 from data_artifact_test_support import build_data_publication_bindings, build_input
+from types import SimpleNamespace
+from app.schemas.data_artifacts import (
+    DataArtifactBuildResult,
+    FieldDictionaryArtifactCandidate,
+)
 
 
 def _admit(candidate):
@@ -646,3 +651,275 @@ def test_negative_zero_preserves_raw_provenance_but_not_canonical_dataset_identi
     assert positive.dataset.output_hash != negative.dataset.output_hash
     assert positive.source_collection.output_hash != negative.source_collection.output_hash
     assert positive.input_hash != negative.input_hash
+
+
+
+# --- durable data-artifact semantics moved from the removed review-history suite ---
+def _rehash_candidate_payload(payload: dict) -> dict:
+    if payload["kind"] == "dataset":
+        payload["canonical_content_hash"] = (
+            compute_data_artifact_canonical_content_hash(payload)
+        )
+        payload["lineage_hash"] = compute_data_artifact_lineage_hash(payload)
+    payload["output_hash"] = compute_data_artifact_output_hash(payload)
+    identity_hash = payload.get("canonical_content_hash", payload["output_hash"])
+    payload["candidate_id"] = compute_data_artifact_candidate_id(
+        payload["kind"], identity_hash
+    )
+    return payload
+
+
+def _refresh_raw_record_registry(member: dict) -> None:
+    references = tuple(
+        RawSourceRecordReference.model_validate(item)
+        for item in member["raw_record_references"]
+    )
+    member["raw_record_count"] = len(references)
+    member["raw_record_reference_registry_hash"] = (
+        compute_raw_record_reference_registry_hash(references)
+    )
+
+
+def _rehash_dataset_tree(payload: dict) -> dict:
+    for collection in (
+        "source_values",
+        "transformation_evidence",
+        "selections",
+        "conflicts",
+        "rows",
+    ):
+        for item in payload[collection]:
+            item["content_hash"] = compute_data_artifact_content_hash(item)
+    return _rehash_candidate_payload(payload)
+
+
+def test_dataset_rejects_orphan_source_value_after_synchronized_rehash() -> None:
+    candidate = build_data_artifact_candidates(build_input("star.tic_id")).dataset
+    payload = candidate.model_dump(mode="json")
+    orphan = deepcopy(payload["source_values"][0])
+    orphan["source_value_id"] = "source_value.orphan"
+    orphan["content_hash"] = compute_data_artifact_content_hash(orphan)
+    payload["source_values"].append(orphan)
+    _rehash_candidate_payload(payload)
+
+    with pytest.raises(ValidationError, match="source value registry|orphan"):
+        DatasetArtifactCandidate.model_validate(payload)
+
+
+def test_dataset_rejects_evidence_value_drift_after_synchronized_rehash() -> None:
+    candidate = build_data_artifact_candidates(build_input("star.tic_id")).dataset
+    payload = candidate.model_dump(mode="json")
+    payload["transformation_evidence"][0]["raw_value"] = "forged"
+    payload["transformation_evidence"][0]["content_hash"] = (
+        compute_data_artifact_content_hash(payload["transformation_evidence"][0])
+    )
+    _rehash_candidate_payload(payload)
+
+    with pytest.raises(ValidationError, match="Evidence.*source value|raw value"):
+        DatasetArtifactCandidate.model_validate(payload)
+
+
+def test_build_result_rejects_cross_candidate_producer_drift() -> None:
+    result = build_data_artifact_candidates(build_input("star.tic_id"))
+    dictionary_payload = result.field_dictionary.model_dump(mode="json")
+    dictionary_payload["producer"]["producer_version"] = "9.9.9"
+    _rehash_candidate_payload(dictionary_payload)
+    dictionary = FieldDictionaryArtifactCandidate.model_validate(dictionary_payload)
+    payload = result.model_dump(mode="json")
+    payload["field_dictionary"] = dictionary.model_dump(mode="json")
+    payload["output_hash"] = compute_data_artifact_output_hash(payload)
+
+    with pytest.raises(ValidationError, match="producer|candidate.*common"):
+        DataArtifactBuildResult.model_validate(payload)
+
+
+def test_source_collection_json_reparse_preserves_member_bindings() -> None:
+    candidate = build_data_artifact_candidates(
+        build_input("star.tic_id", scenario_id="truncated_inconclusive")
+    ).source_collection
+
+    reparsed = SourceCollectionArtifactCandidate.model_validate_json(
+        candidate.model_dump_json()
+    )
+
+    assert reparsed.members == candidate.members
+    assert reparsed.members[0].completion != reparsed.members[1].completion
+
+
+def test_source_collection_rejects_license_source_mismatch() -> None:
+    candidate = build_data_artifact_candidates(build_input("star.tic_id")).source_collection
+    payload = candidate.model_dump(mode="json")
+    payload["members"][0]["license_note"] = "forged license binding"
+    _rehash_candidate_payload(payload)
+
+    with pytest.raises(ValidationError, match="SourceSnapshot"):
+        SourceCollectionArtifactCandidate.model_validate(payload)
+
+
+def test_dataset_rejects_orphan_evidence_after_synchronized_rehash() -> None:
+    candidate = build_data_artifact_candidates(build_input("star.tic_id")).dataset
+    payload = candidate.model_dump(mode="json")
+    orphan = deepcopy(payload["transformation_evidence"][0])
+    orphan["evidence_id"] = "evidence.transformation.orphan"
+    payload["transformation_evidence"].append(orphan)
+    _rehash_dataset_tree(payload)
+
+    with pytest.raises(ValidationError, match="Evidence references|Evidence registry"):
+        DatasetArtifactCandidate.model_validate(payload)
+
+
+def test_dataset_rejects_conflict_field_and_candidate_set_drift() -> None:
+    candidate = build_data_artifact_candidates(
+        build_input("system.right_ascension", scenario_id="manual_decision_valid")
+    ).dataset
+    for mutation in ("field", "candidate_set"):
+        payload = candidate.model_dump(mode="json")
+        conflict = payload["conflicts"][0]
+        if mutation == "field":
+            conflict["canonical_field_id"] = "star.tic_id"
+        else:
+            conflict["source_value_ids"] = conflict["source_value_ids"][:-1]
+        _rehash_dataset_tree(payload)
+
+        with pytest.raises(ValidationError, match="conflict"):
+            DatasetArtifactCandidate.model_validate(payload)
+
+
+def test_build_result_rejects_dataset_dictionary_projection_drift() -> None:
+    result = build_data_artifact_candidates(build_input("star.tic_id"))
+    payload = result.dataset.model_dump(mode="json")
+    payload["columns"][0]["field"]["label_en"] = "Forged label"
+    dataset = DatasetArtifactCandidate.model_validate(_rehash_dataset_tree(payload))
+    build_payload = result.model_dump(mode="json")
+    build_payload["dataset"] = dataset.model_dump(mode="json")
+    build_payload["output_hash"] = compute_data_artifact_output_hash(build_payload)
+
+    with pytest.raises(ValidationError, match="FieldDictionary definitions"):
+        DataArtifactBuildResult.model_validate(build_payload)
+
+
+def test_dataset_rejects_synchronized_missing_snapshot() -> None:
+    result = build_data_artifact_candidates(build_input("star.tic_id"))
+    payload = result.dataset.model_dump(mode="json")
+    payload["source_snapshot_ids"] = payload["source_snapshot_ids"][:1]
+    payload["crossmatch_source_snapshot_ids"] = payload[
+        "crossmatch_source_snapshot_ids"
+    ][:1]
+
+    with pytest.raises(ValidationError, match="two crossmatch SourceSnapshots"):
+        DatasetArtifactCandidate.model_validate(_rehash_dataset_tree(payload))
+
+
+def test_source_collection_rejects_missing_or_duplicate_member() -> None:
+    candidate = build_data_artifact_candidates(build_input("star.tic_id")).source_collection
+    for members in (
+        candidate.members[:1],
+        (candidate.members[0], candidate.members[0]),
+    ):
+        payload = candidate.model_dump(mode="json")
+        payload["members"] = [item.model_dump(mode="json") for item in members]
+        payload["source_snapshot_ids"] = sorted(
+            {item.source_snapshot_id for item in members}
+        )
+        _rehash_candidate_payload(payload)
+        with pytest.raises(ValidationError, match="left/right|independent"):
+            SourceCollectionArtifactCandidate.model_validate(payload)
+
+
+def test_build_result_rejects_candidate_from_another_build() -> None:
+    first = build_data_artifact_candidates(build_input("star.tic_id"))
+    second = build_data_artifact_candidates(build_input("planet.name"))
+    payload = first.model_dump(mode="json")
+    payload["field_dictionary"] = second.field_dictionary.model_dump(mode="json")
+    payload["output_hash"] = compute_data_artifact_output_hash(payload)
+
+    with pytest.raises(ValidationError, match="common bindings|requested fields"):
+        DataArtifactBuildResult.model_validate(payload)
+
+
+def test_build_result_json_reparse_cannot_recreate_bundle_seals() -> None:
+    result = build_data_artifact_candidates(build_input("star.tic_id"))
+
+    reparsed = DataArtifactBuildResult.model_validate(result.model_dump(mode="json"))
+    assert reparsed.dataset.__artifact_publication_is_admitted__() is False
+    assert reparsed.field_dictionary.__artifact_publication_is_admitted__() is False
+    assert reparsed.source_collection.__artifact_publication_is_admitted__() is False
+
+
+def test_build_result_rejects_source_collection_missing_used_raw_record() -> None:
+    result = build_data_artifact_candidates(build_input("star.tic_id"))
+    collection_payload = result.source_collection.model_dump(mode="json")
+    collection_payload["members"][0]["raw_record_references"] = []
+    _refresh_raw_record_registry(collection_payload["members"][0])
+    collection = SourceCollectionArtifactCandidate.model_validate(
+        _rehash_candidate_payload(collection_payload)
+    )
+    payload = result.model_dump(mode="json")
+    payload["source_collection"] = collection.model_dump(mode="json")
+    payload["output_hash"] = compute_data_artifact_output_hash(payload)
+
+    with pytest.raises(ValidationError, match="raw records"):
+        DataArtifactBuildResult.model_validate(payload)
+
+
+def test_dataset_rejects_orphan_and_missing_conflict_references() -> None:
+    candidate = build_data_artifact_candidates(
+        build_input("system.right_ascension", scenario_id="manual_decision_valid")
+    ).dataset
+
+    orphan_payload = candidate.model_dump(mode="json")
+    orphan = deepcopy(orphan_payload["conflicts"][0])
+    orphan["conflict_id"] = "conflict.field.orphan"
+    orphan_payload["conflicts"].append(orphan)
+    _rehash_dataset_tree(orphan_payload)
+    with pytest.raises(ValidationError, match="conflict registry.*orphan"):
+        DatasetArtifactCandidate.model_validate(orphan_payload)
+
+    missing_payload = candidate.model_dump(mode="json")
+    row = next(item for item in missing_payload["rows"] if item["conflict_ids"])
+    row["conflict_ids"] = []
+    conflicted_outcome = next(item for item in row["fields"] if item.get("conflict_ids"))
+    conflicted_outcome["conflict_ids"] = []
+    _rehash_dataset_tree(missing_payload)
+    with pytest.raises(ValidationError, match="selection status|conflict registry"):
+        DatasetArtifactCandidate.model_validate(missing_payload)
+
+
+def test_publisher_validators_independently_revalidate_damaged_candidate() -> None:
+    candidate = build_data_artifact_candidates(build_input("star.tic_id")).dataset
+    payload = candidate.model_dump(mode="json")
+    payload["transformation_evidence"][0]["raw_value"] = "forged"
+    payload["transformation_evidence"][0]["content_hash"] = (
+        compute_data_artifact_content_hash(payload["transformation_evidence"][0])
+    )
+    _rehash_candidate_payload(payload)
+    damaged_evidence = candidate.transformation_evidence[0].model_copy(
+        update={
+            "raw_value": "forged",
+            "content_hash": payload["transformation_evidence"][0]["content_hash"],
+        }
+    )
+    damaged = candidate.model_copy(
+        update={
+            "transformation_evidence": (
+                damaged_evidence,
+                *candidate.transformation_evidence[1:],
+            ),
+            "output_hash": payload["output_hash"],
+            "candidate_id": payload["candidate_id"],
+        }
+    )
+    context = SimpleNamespace(
+        candidate=damaged,
+        source_snapshot_ids=tuple(payload["source_snapshot_ids"]),
+        evidence_ids=tuple(payload["evidence_ids"]),
+    )
+
+    with pytest.raises(
+        ValueError, match="Dataset Evidence set.*complete domain projection"
+    ):
+        validate_data_artifact_evidence(context)
+    with pytest.raises(
+        ValueError, match="Dataset Evidence set.*complete domain projection"
+    ):
+        validate_data_artifact_domain(context)

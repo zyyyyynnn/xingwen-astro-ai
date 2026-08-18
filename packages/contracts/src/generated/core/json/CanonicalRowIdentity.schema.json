@@ -1,0 +1,140 @@
+{
+  "$defs": {
+    "AlignmentStatus": {
+      "enum": [
+        "accepted",
+        "review_required",
+        "rejected",
+        "conflict",
+        "unmatched",
+        "inconclusive"
+      ],
+      "title": "AlignmentStatus",
+      "type": "string"
+    },
+    "CanonicalEntityIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel"
+        },
+        "identity_values": {
+          "items": {
+            "$ref": "#/$defs/CanonicalEntityIdentityValue"
+          },
+          "minItems": 1,
+          "title": "Identity Values",
+          "type": "array"
+        },
+        "logical_assertion_key": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logical Assertion Key"
+        }
+      },
+      "required": [
+        "entity_level",
+        "identity_values"
+      ],
+      "title": "CanonicalEntityIdentity",
+      "type": "object"
+    },
+    "CanonicalEntityIdentityValue": {
+      "additionalProperties": false,
+      "properties": {
+        "field_id": {
+          "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Field Id",
+          "type": "string"
+        },
+        "normalization_rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Normalization Rule Version",
+          "type": "string"
+        },
+        "normalized_value": {
+          "minLength": 1,
+          "title": "Normalized Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field_id",
+        "normalized_value",
+        "normalization_rule_version"
+      ],
+      "title": "CanonicalEntityIdentityValue",
+      "type": "object"
+    },
+    "EntityLevel": {
+      "enum": [
+        "host_star",
+        "planet_candidate",
+        "planet_assertion"
+      ],
+      "title": "EntityLevel",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "alignment_status": {
+      "$ref": "#/$defs/AlignmentStatus"
+    },
+    "conflict_code": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Conflict Code"
+    },
+    "entity_level": {
+      "$ref": "#/$defs/EntityLevel"
+    },
+    "identity_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Identity Version",
+      "type": "string"
+    },
+    "member_entities": {
+      "items": {
+        "$ref": "#/$defs/CanonicalEntityIdentity"
+      },
+      "minItems": 1,
+      "title": "Member Entities",
+      "type": "array"
+    },
+    "record_type": {
+      "enum": [
+        "paired",
+        "unpaired",
+        "conflict_group"
+      ],
+      "title": "Record Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "record_type",
+    "entity_level",
+    "alignment_status",
+    "member_entities"
+  ],
+  "title": "CanonicalRowIdentity",
+  "type": "object"
+}

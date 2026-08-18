@@ -13,7 +13,9 @@ Router -> Application Service -> Persistent Workflow Executor
        -> Step Adapter -> Pipeline -> Publisher
 ```
 
-Application Service 从已确认 Contract 的 `output_requirements` 确定性编译最小前置依赖闭包，并创建冻结该有序 RunStep 集合的 `queued` Run。Executor 只消费已冻结的 RunStep，不重新推导、扩展或由模型生成第二份 Plan。Pipeline 只返回 typed candidate，Publisher 在准入通过后原子发布 ArtifactVersion 并推进 Step。创建 Run 或初始 Event 不代表执行已经发生。
+Application Service 从已确认 Contract 的 `output_requirements` 确定性编译最小前置依赖闭包，并创建冻结该有序 RunStep 集合的 `queued` Run。Executor 只消费已冻结的 RunStep，不重新推导、扩展或由模型生成第二份 Plan。每个 Step 内部由 Qwen Agent 对该 Step 唯一注册的服务端工具给出一次公开分析并触发执行；服务端校验工具身份与公开分析文本后执行工具并把 Observation 写入公开 Activity。模型不能选择未注册工具、改变冻结 Step 顺序、授予新来源、扩大预算或绕过 Artifact 准入。Pipeline 只返回 typed candidate，Publisher 在准入通过后原子发布 ArtifactVersion 并推进 Step。创建 Run 或初始 Event 不代表执行已经发生。
+
+执行协调分两层：ResearchRunWorker 只负责 poll、lease、step loop、Attempt、bounded retry orchestration、Publisher 提交与终态转换；StepRuntime 是薄分发层，只把每个冻结 RunStep 派发给对应的专职 Step Service（数据、论文检索/总结、文献推理、图谱），科学语义唯一保存在 `services/` 各 Pipeline（含契约门控的实时数据获取与文献检索），共享的 ProducerExecution 发布生命周期由 step publication 层唯一关闭。Run 依赖闭包唯一 Owner 是冻结的 RunStep chain（RunPlan）；Worker 不持有第二份 Artifact dependency closure，Artifact 名称映射只服务用户可读标题，不决定依赖。
 
 ## 2. 状态机
 
@@ -44,7 +46,7 @@ Planner 只有在持久化明确的输入请求后才能从 `planning` 进入 `w
 - RunStep 数据库约束只守住 status domain、唯一性与 position 等局部不变量；Contract-driven 子集链的冻结顺序与 next-step transition 由 Workflow Store 按唯一 `RUN_STEP_STATUS_ORDER` 验证，不在数据库枚举所有 transition pair。前序 Step 未完成时不得启动后序 Step。
 - StepAttempt 使用递增 `attempt_number`、稳定 idempotency key、错误分类与 retryable 标记记录实际尝试。
 - 外部超时、限流或临时网络故障可在该 Step 的 `max_attempts` 内重试；Schema、权限与状态冲突等确定性失败不得重试。
-- Candidate 未通过 Schema、Evidence、质量或领域准入时不得发布 ArtifactVersion。
+- Artifact 级 Candidate 未通过 Schema、Evidence、质量或领域准入时不得发布 ArtifactVersion。Claim/Relation 的记录级 `candidate | rejected` 是已完成准入计算的事实，可保存在通过聚合完整性校验的 ArtifactVersion 中；这不等于将记录提升为 `accepted`，下游仍必须按记录状态执行自己的准入门禁。
 
 ## 4. 快照、事件与并发
 
@@ -52,11 +54,45 @@ Planner 只有在持久化明确的输入请求后才能从 `planning` 进入 `w
 - `GET /api/runs/{id}` 返回权威快照；RunEvent 仅用于按 `sequence` 恢复增量通知，且不得超过 `latest_event_sequence`。
 - 状态写入使用 `expected_status + expected_revision` 条件更新。
 - 同一 Run 只允许一个有效 lease；lease 绑定 token、owner、expiry 与递增 generation。
-- Event 只包含公开进度、错误摘要与产物引用，不包含模型私有思维过程。
+- RunEvent 是项目私有消息流的唯一增量事实：`activity_id` 标识一个逻辑操作，`activity_kind / activity_phase / activity_name / step_key / progress / content / details / artifact_version_ids / occurred_at` 表达分析、工具调用、Observation、重试、产物与终态。同一工具的运行、Observation 与产物提交必须使用同一个 `activity_id` 原位演化，不得写成开始/完成两条重复流水账。
+- 每个服务端冻结 Step 只进行一次模型决策：模型通过唯一注册主工具的结构化参数生成简体中文公开分析（`public_analysis`），并选择该工具；主工具成功返回 Observation 后由服务端完成 Step，不再通过额外模型调用请求 `finish_step`。研究协议与前序产物作为任务上下文直接提供，不重复播报无独立决策价值的读取动作。
+- `public_analysis` 以 `reasoning` Activity 持久化；模型响应前先写同一 `activity_id` 的运行态，结构化参数验证通过后原位更新为完成态。Provider 私有 `reasoning_content` 不进入 RunEvent、Research Thread、ShareSnapshot、Export 或正式 Artifact Renderer。ReasoningTrace 仍是证据绑定的正式产物，与步骤级公开分析是两个边界。
+- 工具 Activity 只记录注册工具的稳定名称、经过领域过滤的参数、来源与结果摘要；凭据、原始传输响应和内部错误堆栈不得写入 RunEvent。
+
+## 4.1 消息边界
+
+四类公开消息边界严格分离：
+
+| 边界                | 语义                                   |
+| ------------------- | -------------------------------------- |
+| Assistant Message   | 面向用户的正常研究叙事，写入 Thread    |
+| Reasoning Activity  | 公开的简短步骤分析（`public_analysis`）|
+| Tool Activity       | 执行事实                               |
+| ReasoningTrace      | Evidence-bound 正式科学推导 Artifact   |
+
+Provider private chain-of-thought 永不进入上述任一路径。
+
+Run 的关键语义节点可以写 Assistant Message：run started、major step
+started、meaningful validated result、recoverable issue、result published、
+completed / cancelled / failed。不按每一个内部函数调用写 Assistant Message。
+
+模型决策只产生执行前的 `public_analysis`：为什么现在执行、将检查什么、如何
+判断该步骤完成。主工具 schema 不包含任何执行后结果文案；Step 执行成功后的
+Assistant Message 由服务端基于真实已验证完成结果（`result.public_message`
+或 validated result）构造并写入 Thread，不为结果文案额外调用模型，也不得在
+执行前预测科研结果。
+
+## 4.2 waiting_for_input、取消、重试与修订闭环
+
+- `waiting_for_input` 使用同一 Run 等待人工输入。Checkpoint 由 `RunCheckpoint`（run、step_key、question、options、created_at）与 `RunCheckpointDecision`（selected_option、可空 free_text、decided_at）持久化；Decision 不可变，提交后原子恢复同一 Run 到合法可执行状态，不创建新 Run、新 Contract 或第二套 review runtime。Checkpoint 的通用生命周期属于 Workspace 基础：等待表现、持久化读取、不可变决策、同 Run 恢复与共享 Choice 交互原语由通用运行时唯一提供；具体科学触发时机、科学问题与选项内容以及决策对科学执行的影响由科学能力集成通过同一机制接入，不得另建第二套 checkpoint 运行时。
+- 同一 Project 同时最多一个 non-terminal ResearchRun（服务端规则，不由前端按钮保证）：Application Service 返回用户友好 `409`，PostgreSQL partial unique index 是权威并发围栏。Retry / Revision 派生创建时，父 Run 必须已处于允许派生的稳定状态。
+- 取消必须以条件写入将 Run、未完成 Step 与运行中的 Attempt 一致推进为 `cancelled`，追加单调 Event，并拒绝取消后的晚到产物。重复取消终态 Run 保持幂等。已发布 ArtifactVersion、Thread、Event 与 Evidence 保留。
+- 自动 retry 只处理受治理的瞬时失败（bounded retry），耗尽后才对用户可见；人工 retry 沿用 retry derivation（`parent_run_id`、`derivation_kind=retry`、`retry_from_step`），只从真实 retryable failed step 建立，保留历史 Attempt，不原地覆盖失败尝试，不修改原 Run history。
+- Revision 由 UserFeedback 与已确认 RevisionPlan 驱动，确认后才产生 revision Run；运行中修改请求不静默修改当前 Run。
 
 ## 5. 派生 Run 与修订
 
-派生关系是稳定运行时契约；当前 HTTP authoring 支持 original Run 与由已确认 RevisionPlan 创建的 revision Run，CacheSelector 是内部失败回退能力。尚未接入的 retry、fork、自动 cache fallback 与 cached publication writer 不得伪造对应记录。
+派生关系是稳定运行时契约；当前 HTTP authoring 支持 original Run、由已确认 RevisionPlan 创建的 revision Run 与由失败边界派生的 retry Run，CacheSelector 是内部失败回退能力。尚未接入的 fork、自动 cache fallback 与 cached publication writer 不得伪造对应记录。
 
 - `parent_run_id` 固定派生来源；`derivation_kind` 只允许 `original | retry | revision | fork`。
 - `retry_from_step` 只对 retry Run 有效；Executor 不能从该 Step 恢复时必须拒绝创建，不得从首 Step 静默重跑。
@@ -74,8 +110,6 @@ Selector 在 failed Run 行锁事务中逐项匹配 artifact kind、Contract/inp
 
 CacheSelector 是当前 PostgreSQL Application/Workflow 内部能力，但当前 HTTP authoring 与 Executor 自动 fallback 尚未暴露；将选择结果发布为 `source_mode=cached` 仍必须经过未来显式接入的 Publisher 路径，不能由 Selector 建立第二发布边界。
 
-取消必须以条件写入将 Run、未完成 Step 与运行中的 Attempt 一致推进为 `cancelled`，追加单调 Event，并拒绝取消后的晚到产物。重复取消终态 Run 保持幂等。
-
 ## 7. Research assistant 与 Run 读取边界
 
 Research assistant 在 Run 创建前通过 `ModelExecutionPort` 生成公开 Planner outcome。它可以创建或更新 Draft、追加 Thread entry，不能创建 Run 或 Artifact；只有人类确认 Contract 后才能进入既有 Run 状态机。`clarification_required`、`partial`、`unsupported` 与 `refused` 不能静默提升为可执行 Draft。
@@ -86,4 +120,12 @@ Planner 的 capability catalog 必须同时声明全部可选成果与当前可�
 
 ## 8. HTTP authoring 边界
 
-`POST /api/projects/{project_id}/runs` 只接受 `contract_id` 与 `execution_mode`，从该 confirmed Contract 冻结确定性 RunStep Plan，并创建 `derivation_kind=original`、`cache_policy=disabled` 的 Run。Feedback、RevisionPlan 与确认分别使用独立资源端点，不能把修订字段塞入 original Run 请求。选择性 retry、缓存选择与取消没有对应公开命令；额外字段由请求 Schema 拒绝。
+`POST /api/projects/{project_id}/runs` 只接受 `contract_id` 与 `execution_mode`，从该 confirmed Contract 冻结确定性 RunStep Plan，并创建 `derivation_kind=original`、`cache_policy=disabled` 的 Run。Feedback、RevisionPlan 与确认分别使用独立资源端点，不能把修订字段塞入 original Run 请求。
+
+Run 生命周期命令只暴露有真实执行闭环的窄端点，Route 不实现 workflow algorithm：
+
+- `POST /api/runs/{run_id}/cancel`：条件状态写入，未完成 Step 与运行中 Attempt 一致 cancelled，追加单调 Event，拒绝 late publish，重复取消幂等。
+- `POST /api/runs/{run_id}/retry`：Application Service 验证 Run failed、存在 retryable failed step 与合法 `retry_from_step` 后创建明确 derived Run，不复活/覆盖 failed Attempt，不静默从头全跑。
+- `GET /api/runs/{run_id}/checkpoint` 与 `POST /api/runs/{run_id}/checkpoint-decision`：读取当前等待中的 Checkpoint；提交 Decision 原子写入不可变记录并将同一 Run 从 `waiting_for_input` 恢复到合法可执行状态。重复相同 Decision 按既有 idempotency convention 幂等或明确 conflict。
+
+缓存选择没有公开 authoring 命令；额外字段由请求 Schema 拒绝。

@@ -1,0 +1,22 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "query": {
+      "title": "Query"
+    },
+    "query_hash": {
+      "title": "Query Hash",
+      "type": "string"
+    },
+    "source_id": {
+      "title": "Source Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_id",
+    "query",
+    "query_hash"
+  ],
+  "type": "object"
+}

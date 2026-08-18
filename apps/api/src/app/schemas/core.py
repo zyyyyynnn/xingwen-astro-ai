@@ -34,6 +34,19 @@ SemanticVersion = Annotated[str, Field(pattern=r"^[1-9]\d*\.\d+\.\d+$")]
 ContentHash = Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
 
 
+def _require_chinese(value: str) -> str:
+    if not any("\u4e00" <= character <= "\u9fff" for character in value):
+        raise ValueError("public analysis must use Simplified Chinese")
+    return value
+
+
+PublicAnalysis = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=12, max_length=500),
+    AfterValidator(_require_chinese),
+]
+
+
 def _require_utc(value: datetime) -> datetime:
     if value.utcoffset() != timedelta(0):
         raise ValueError("datetime must use UTC")
@@ -105,7 +118,7 @@ class ModelExecutionStatus(StrEnum):
 class ResearchThreadEntryKind(StrEnum):
     user_message = "user_message"
     assistant_message = "assistant_message"
-    assistant_analysis = "assistant_analysis"
+    assistant_reasoning = "assistant_reasoning"
     clarification_question = "clarification_question"
     clarification_answer = "clarification_answer"
 
@@ -355,8 +368,9 @@ class ModelExecutionRecord(BaseModel):
     id: Identifier
     project_id: Identifier
     provider: NonEmptyString
-    model: NonEmptyString
-    model_revision: NonEmptyString
+    requested_model: NonEmptyString
+    provider_returned_model: str | None = None
+    explicit_revision: str | None = None
     prompt_name: NonEmptyString
     prompt_version: SemanticVersion
     prompt_hash: ContentHash
@@ -405,7 +419,7 @@ class PlannerClarificationRequired(BaseModel):
     model_config = CORE_MODEL_CONFIG
 
     outcome: Literal["clarification_required"]
-    public_analysis: NonEmptyString
+    public_analysis: PublicAnalysis
     assistant_message: NonEmptyString
     warnings: tuple[NonEmptyString, ...] = ()
     question_id: Identifier
@@ -416,17 +430,18 @@ class PlannerDraftReady(BaseModel):
     model_config = CORE_MODEL_CONFIG
 
     outcome: Literal["draft_ready"]
-    public_analysis: NonEmptyString
+    public_analysis: PublicAnalysis
     assistant_message: NonEmptyString
     warnings: tuple[NonEmptyString, ...] = ()
     contract: ResearchContractInput
+    project_title: str | None = Field(default=None, min_length=1, max_length=60)
 
 
 class PlannerPartial(BaseModel):
     model_config = CORE_MODEL_CONFIG
 
     outcome: Literal["partial"]
-    public_analysis: NonEmptyString
+    public_analysis: PublicAnalysis
     assistant_message: NonEmptyString
     warnings: tuple[NonEmptyString, ...] = ()
     missing_information: tuple[NonEmptyString, ...] = Field(min_length=1)
@@ -436,7 +451,7 @@ class PlannerUnsupported(BaseModel):
     model_config = CORE_MODEL_CONFIG
 
     outcome: Literal["unsupported"]
-    public_analysis: NonEmptyString
+    public_analysis: PublicAnalysis
     assistant_message: NonEmptyString
     warnings: tuple[NonEmptyString, ...] = ()
     reason: NonEmptyString
@@ -446,7 +461,7 @@ class PlannerRefused(BaseModel):
     model_config = CORE_MODEL_CONFIG
 
     outcome: Literal["refused"]
-    public_analysis: NonEmptyString
+    public_analysis: PublicAnalysis
     assistant_message: NonEmptyString
     warnings: tuple[NonEmptyString, ...] = ()
     reason: NonEmptyString
@@ -555,6 +570,7 @@ class ResearchRun(BaseModel):
                     "execution_mode": "live",
                     "status": "queued",
                     "progress": 0,
+                    "revision": 1,
                     "parent_run_id": None,
                     "derivation_kind": "original",
                     "retry_from_step": None,
@@ -577,6 +593,7 @@ class ResearchRun(BaseModel):
     execution_mode: ExecutionMode
     status: RunStatus
     progress: int = Field(ge=0, le=100)
+    revision: int = Field(default=1, ge=1)
     parent_run_id: Identifier | None = None
     derivation_kind: DerivationKind
     retry_from_step: Identifier | None = None
@@ -635,10 +652,14 @@ class RunEvent(BaseModel):
                 {
                     "run_id": "run_01JEXAMPLE",
                     "sequence": 1,
-                    "event_type": "run.queued",
+                    "activity_id": "run:run_01JEXAMPLE",
+                    "activity_kind": "status",
+                    "activity_phase": "queued",
+                    "activity_name": "研究任务",
                     "step_key": None,
                     "progress": 0,
-                    "public_message": "Run queued",
+                    "content": "研究任务已进入执行队列。",
+                    "details": {},
                     "artifact_version_ids": [],
                     "occurred_at": "2026-07-21T08:00:00Z",
                 }
@@ -648,12 +669,52 @@ class RunEvent(BaseModel):
 
     run_id: Identifier
     sequence: int = Field(ge=1)
-    event_type: Identifier
+    activity_id: str = Field(min_length=1, max_length=256)
+    activity_kind: Literal[
+        "reasoning",
+        "tool",
+        "observation",
+        "status",
+        "artifact",
+        "retry",
+        "error",
+        "completion",
+    ]
+    activity_phase: Literal[
+        "queued", "streaming", "running", "completed", "failed", "retrying"
+    ]
+    activity_name: str = Field(min_length=1, max_length=160)
     step_key: Identifier | None = None
     progress: int | None = Field(default=None, ge=0, le=100)
-    public_message: str
+    content: str
+    details: dict[str, JsonValue] = Field(default_factory=dict)
     artifact_version_ids: tuple[Identifier, ...] = ()
     occurred_at: UtcDateTime
+
+
+class RunCheckpoint(BaseModel):
+    """One human-input request on a Run's ``waiting_for_input`` boundary."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    id: Identifier
+    run_id: Identifier
+    step_key: Identifier
+    question: NonEmptyString
+    options: tuple[NonEmptyString, ...] = Field(min_length=1)
+    created_at: UtcDateTime
+    selected_option: str | None = None
+    free_text: str | None = None
+    decided_at: UtcDateTime | None = None
+
+
+class RunCheckpointDecisionRequest(BaseModel):
+    """Immutable decision payload for one pending Run checkpoint."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    selected_option: NonEmptyString
+    free_text: str | None = Field(default=None, max_length=10000)
 
 
 class ResearchArtifact(BaseModel):
@@ -690,7 +751,9 @@ class ProducerReference(BaseModel):
     name: NonEmptyString
     version: NonEmptyString
     model_provider: str | None = None
-    model_name: str | None = None
+    requested_model: str | None = None
+    provider_returned_model: str | None = None
+    explicit_revision: str | None = None
     prompt_name: str | None = None
     prompt_version: str | None = None
     prompt_hash: ContentHash | None = None
@@ -830,6 +893,7 @@ class ProducerExecutionDetail(BaseModel):
     finished_at: UtcDateTime | None = None
     token_usage: dict[str, int] | None = None
     latency_ms: int | None = Field(default=None, ge=0)
+    provider_request_id: str | None = Field(default=None, max_length=256)
     error_code: Identifier | None = None
 
 

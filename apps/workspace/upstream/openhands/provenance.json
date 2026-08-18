@@ -14,28 +14,28 @@
       "local_path": "apps/workspace/upstream/openhands/src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
-      "modification_reason": "Kept the public disclosure interaction while restricting content to an auditable caller-provided value."
+      "modification_reason": "Kept the OpenHands collapsed disclosure interaction for server-validated public step analysis while excluding provider-private reasoning."
     },
     {
       "upstream_path": "src/components/conversation-events/chat/event-message-components/event-group.tsx",
       "local_path": "apps/workspace/upstream/openhands/src/components/conversation-events/chat/event-message-components/event-group.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
-      "modification_reason": "Kept the OpenHands collapsible action-run group while accepting only public research presentation events."
+      "modification_reason": "Kept the OpenHands collapsible action-run group over persisted project-private research Activities."
     },
     {
       "upstream_path": "src/components/conversation-events/chat/event-message.tsx",
       "local_path": "apps/workspace/upstream/openhands/src/components/conversation-events/chat/event-message.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
-      "modification_reason": "Kept the OpenHands generic event disclosure and status hierarchy over public research events."
+      "modification_reason": "Kept the OpenHands Action to Observation event disclosure while projecting one stable research Activity row in place."
     },
     {
       "upstream_path": "src/components/conversation-events/chat/group-events.ts",
       "local_path": "apps/workspace/upstream/openhands/src/components/conversation-events/chat/group-events.ts",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
-      "modification_reason": "Kept the OpenHands consecutive action grouping algorithm over the public research event contract."
+      "modification_reason": "Kept the OpenHands consecutive action grouping algorithm over the project-private Activity presentation contract."
     },
     {
       "upstream_path": "src/components/conversation-events/chat/messages.tsx",
@@ -49,7 +49,7 @@
       "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/chat-interface.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
-      "modification_reason": "Kept the OpenHands scroll stream, empty and started composition, tail following, Composer placement, and error slot while injecting the research runtime seam."
+      "modification_reason": "Kept the OpenHands scroll stream, tail following, and Composer placement while reserving one shared Inspector inset so the native scrollbar stays at the main surface edge and the Composer remains centered in the available workspace."
     },
     {
       "upstream_path": "src/components/features/chat/chat-message.tsx",
@@ -147,14 +147,14 @@
       "local_path": "apps/workspace/upstream/openhands/src/components/features/conversation/conversation-main/chat-interface-wrapper.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
-      "modification_reason": "Kept the centered conversation frame and public Thread panel ownership while injecting the thin runtime seam."
+      "modification_reason": "Kept the centered conversation frame and project Thread panel ownership while injecting the thin runtime seam."
     },
     {
       "upstream_path": "src/components/features/conversation/conversation-main/conversation-main.tsx",
       "local_path": "apps/workspace/upstream/openhands/src/components/features/conversation/conversation-main/conversation-main.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
-      "modification_reason": "Kept ConversationMain split-panel, resize, visibility, header, and panel-frame mechanics while composing public surfaces through the shared shadcn ScrollArea."
+      "modification_reason": "Kept ConversationMain split-panel, resize, visibility, header, and panel-frame mechanics while adapting the panel to a single docked right rail with stable geometry and the shared shadcn ScrollArea."
     },
     {
       "upstream_path": "src/components/features/conversation/conversation-name-with-status.tsx",
@@ -224,7 +224,7 @@
       "local_path": "apps/workspace/upstream/openhands/src/root.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
-      "modification_reason": "Kept the OpenHands root composition while exposing only the thin runtime and public Research Thread/Inspector seams."
+      "modification_reason": "Kept the OpenHands root composition while exposing only the thin runtime, project Research Thread and Inspector seams, and a one-shot Inspector presentation request."
     },
     {
       "upstream_path": "src/routes/conversation.tsx",

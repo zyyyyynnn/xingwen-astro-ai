@@ -1,0 +1,27 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "chunk_index": {
+      "minimum": 0,
+      "title": "Chunk Index",
+      "type": "integer"
+    },
+    "item_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Item Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "chunk_index",
+    "item_ids"
+  ],
+  "title": "GraphProgressiveChunk",
+  "type": "object"
+}

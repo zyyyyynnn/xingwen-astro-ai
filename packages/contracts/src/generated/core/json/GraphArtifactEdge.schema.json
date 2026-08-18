@@ -1,0 +1,252 @@
+{
+  "$defs": {
+    "GraphDataEdgeAggregation": {
+      "additionalProperties": false,
+      "description": "Stable Dataset/Field provenance counts for one ``provides_field`` edge.",
+      "properties": {
+        "conflict_count": {
+          "minimum": 0,
+          "title": "Conflict Count",
+          "type": "integer"
+        },
+        "declared_null_outcome_count": {
+          "minimum": 0,
+          "title": "Declared Null Outcome Count",
+          "type": "integer"
+        },
+        "mapped_outcome_count": {
+          "minimum": 0,
+          "title": "Mapped Outcome Count",
+          "type": "integer"
+        },
+        "projected_row_count": {
+          "minimum": 1,
+          "title": "Projected Row Count",
+          "type": "integer"
+        },
+        "retained_candidate_count": {
+          "minimum": 0,
+          "title": "Retained Candidate Count",
+          "type": "integer"
+        },
+        "selected_candidate_count": {
+          "minimum": 0,
+          "title": "Selected Candidate Count",
+          "type": "integer"
+        },
+        "unresolved_outcome_count": {
+          "minimum": 0,
+          "title": "Unresolved Outcome Count",
+          "type": "integer"
+        },
+        "unselected_candidate_count": {
+          "minimum": 0,
+          "title": "Unselected Candidate Count",
+          "type": "integer"
+        },
+        "upstream_evidence_count": {
+          "minimum": 1,
+          "title": "Upstream Evidence Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "projected_row_count",
+        "mapped_outcome_count",
+        "declared_null_outcome_count",
+        "unresolved_outcome_count",
+        "retained_candidate_count",
+        "selected_candidate_count",
+        "unselected_candidate_count",
+        "conflict_count",
+        "upstream_evidence_count"
+      ],
+      "title": "GraphDataEdgeAggregation",
+      "type": "object"
+    },
+    "GraphRelationTraceBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "premise_claim_ids": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "type": "string"
+            },
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "type": "string"
+            }
+          ],
+          "title": "Premise Claim Ids",
+          "type": "array"
+        },
+        "reasoning_trace_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Reasoning Trace Id",
+          "type": "string"
+        },
+        "relation_artifact_version_id": {
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "title": "Relation Artifact Version Id",
+          "type": "string"
+        },
+        "relation_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Relation Id",
+          "type": "string"
+        },
+        "relation_status": {
+          "const": "accepted",
+          "default": "accepted",
+          "title": "Relation Status",
+          "type": "string"
+        },
+        "relation_type": {
+          "enum": [
+            "supports",
+            "extends",
+            "derived_from",
+            "limits",
+            "contradicts",
+            "uses_same_dataset",
+            "compares_method"
+          ],
+          "title": "Relation Type",
+          "type": "string"
+        },
+        "source_claim_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Source Claim Id",
+          "type": "string"
+        },
+        "target_claim_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Target Claim Id",
+          "type": "string"
+        },
+        "trace_evidence_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Trace Evidence Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "relation_id",
+        "relation_artifact_version_id",
+        "relation_type",
+        "source_claim_id",
+        "target_claim_id",
+        "reasoning_trace_id",
+        "premise_claim_ids",
+        "trace_evidence_ids"
+      ],
+      "title": "GraphRelationTraceBinding",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "data_aggregation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GraphDataEdgeAggregation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "edge_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Edge Id",
+      "type": "string"
+    },
+    "edge_type": {
+      "enum": [
+        "uses_dataset",
+        "provides_field",
+        "supports_finding",
+        "supports",
+        "extends",
+        "derived_from",
+        "limits",
+        "contradicts",
+        "uses_same_dataset",
+        "compares_method"
+      ],
+      "title": "Edge Type",
+      "type": "string"
+    },
+    "evidence_use_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+        "type": "string"
+      },
+      "maxItems": 5000,
+      "minItems": 1,
+      "title": "Evidence Use Ids",
+      "type": "array"
+    },
+    "relation_trace": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GraphRelationTraceBinding"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "source_node_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Source Node Id",
+      "type": "string"
+    },
+    "target_node_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Target Node Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "edge_id",
+    "edge_type",
+    "source_node_id",
+    "target_node_id",
+    "evidence_use_ids"
+  ],
+  "title": "GraphArtifactEdge",
+  "type": "object"
+}

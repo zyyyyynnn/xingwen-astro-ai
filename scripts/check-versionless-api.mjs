@@ -35,7 +35,7 @@ const SCANNED_EXTENSIONS = new Set([
 const SKIP_DIR_NAMES = new Set(["node_modules", "dist", ".turbo"]);
 
 /** Path prefixes (relative, forward-slash) skipped wholesale. */
-const SKIP_PATH_PREFIXES = ["apps/api/migrations"];
+const SKIP_PATH_PREFIXES = [];
 
 /**
  * Files intentionally allowed to contain `/api/vN` literals:

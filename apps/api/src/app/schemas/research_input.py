@@ -52,6 +52,7 @@ class ResearchInputType(StrEnum):
     url = "url"
     pdf = "pdf"
     csv = "csv"
+    fits = "fits"
     json = "json"
     image = "image"
     text = "text"
@@ -79,11 +80,18 @@ URL_FETCH_BLOCKED = "URL_FETCH_BLOCKED"
 URL_FETCH_FAILED = "URL_FETCH_FAILED"
 URL_FETCH_TOO_LARGE = "URL_FETCH_TOO_LARGE"
 RESEARCH_INPUT_NOT_FOUND = "RESEARCH_INPUT_NOT_FOUND"
+RESEARCH_INPUT_CONTENT_NOT_READABLE = "RESEARCH_INPUT_CONTENT_NOT_READABLE"
 RESEARCH_INPUT_RATE_LIMITED = "RESEARCH_INPUT_RATE_LIMITED"
 
 #: Input types that must arrive as a multipart file upload (never JSON body).
 FILE_INPUT_TYPES = frozenset(
-    {ResearchInputType.pdf, ResearchInputType.csv, ResearchInputType.json, ResearchInputType.image}
+    {
+        ResearchInputType.pdf,
+        ResearchInputType.csv,
+        ResearchInputType.fits,
+        ResearchInputType.json,
+        ResearchInputType.image,
+    }
 )
 
 #: ``source_type`` values produced by ingestion (upload / url_fetch / text).
@@ -181,6 +189,7 @@ class CreateResearchInputMultipartRequest(BaseModel):
     type: Literal[
         ResearchInputType.pdf,
         ResearchInputType.csv,
+        ResearchInputType.fits,
         ResearchInputType.json,
         ResearchInputType.image,
     ]

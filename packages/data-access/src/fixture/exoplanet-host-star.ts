@@ -15,6 +15,7 @@
 import type {
   ArtifactVersionDto,
   EvidenceDetail as EvidenceDetailDto,
+  EvidenceRead as EvidenceReadDto,
   ResearchArtifactDto,
   ResearchContractDto,
   ResearchContractDraftDto,
@@ -25,7 +26,7 @@ import type {
 } from "@xingwen/contracts";
 import type { Evidence } from "@xingwen/domain";
 
-import { mapEvidenceDetail } from "../mapping";
+import { mapEvidenceDetail, mapEvidenceRead } from "../mapping";
 import type { FixtureBundle } from "./bundle";
 import {
   paperCandidateReadsFixture,
@@ -36,6 +37,17 @@ import {
   paperSummaryArtifactVersionFixture,
   paperSummaryReadFixture,
 } from "./paper-summary";
+import {
+  dataArtifactReads,
+  fieldDictionaryArtifactReads,
+  graphArtifactReads,
+  graphEdgeReads,
+  graphNodeReads,
+  literatureClaimReads,
+  literatureReasoningTraceReads,
+  literatureRelationReads,
+  sourceCollectionArtifactReads,
+} from "./formal-artifacts";
 
 const T0 = "2026-07-21T08:00:00Z";
 const T1 = "2026-07-21T08:05:00Z";
@@ -152,90 +164,181 @@ const runEvents: readonly RunEventDto[] = [
   {
     run_id: "run_01JEXAMPLE",
     sequence: 1,
-    event_type: "run.queued",
+    activity_id: "run:run_01JEXAMPLE",
+    activity_kind: "status",
+    activity_phase: "queued",
+    activity_name: "研究任务",
     step_key: null,
     progress: 0,
-    public_message: "Run queued for Demo Replay",
+    content: "研究任务已进入执行队列。",
+    details: {},
     artifact_version_ids: [],
     occurred_at: T3,
   },
   {
     run_id: "run_01JEXAMPLE",
     sequence: 2,
-    event_type: "run.planning",
+    activity_id: "fixture:planning",
+    activity_kind: "reasoning",
+    activity_phase: "completed",
+    activity_name: "分析",
     step_key: "planning",
     progress: 5,
-    public_message: "Planning data and paper acquisition",
+    content: "正在根据研究协议规划数据与文献采集路径。",
+    details: {},
     artifact_version_ids: [],
     occurred_at: T4,
   },
   {
     run_id: "run_01JEXAMPLE",
     sequence: 3,
-    event_type: "run.fetching_data",
+    activity_id: "fixture:fetching-data",
+    activity_kind: "tool",
+    activity_phase: "completed",
+    activity_name: "查询天文数据",
     step_key: "fetching_data",
     progress: 15,
-    public_message: "Fetching exoplanet and host-star data",
+    content: "已执行 TAP 查询并对齐 1,248 颗系外行星宿主星观测参数。",
+    details: {
+      tool_kind: "data_query",
+      sql: "SELECT TOP 50 pl_name, hostname, sy_snum, sy_pnum, st_teff, st_met, st_logg FROM pscomppars WHERE st_met > 0.15;",
+      row_count: 50,
+      preview_rows: [
+        {
+          pl_name: "Kepler-10 b",
+          hostname: "Kepler-10",
+          st_teff: "5627 K",
+          st_met: "+0.18",
+        },
+        {
+          pl_name: "Kepler-22 b",
+          hostname: "Kepler-22",
+          st_teff: "5518 K",
+          st_met: "-0.29",
+        },
+        {
+          pl_name: "WASP-12 b",
+          hostname: "WASP-12",
+          st_teff: "6300 K",
+          st_met: "+0.30",
+        },
+      ],
+    },
     artifact_version_ids: ["artv_srccol_01"],
     occurred_at: T5,
   },
   {
     run_id: "run_01JEXAMPLE",
     sequence: 4,
-    event_type: "run.cleaning_data",
+    activity_id: "fixture:cleaning-data",
+    activity_kind: "tool",
+    activity_phase: "completed",
+    activity_name: "整理并校验研究数据",
     step_key: "cleaning_data",
     progress: 25,
-    public_message: "Cleaning and unit-normalising data",
+    content: "已完成字段整理与单位标准化（Teff: K, [Fe/H]: dex, logg: cgs）。",
+    details: { tool_kind: "evidence_validation" },
     artifact_version_ids: ["artv_fdict_01", "artv_dataset_01"],
     occurred_at: T6,
   },
   {
     run_id: "run_01JEXAMPLE",
     sequence: 5,
-    event_type: "run.searching_papers",
+    activity_id: "fixture:searching-papers",
+    activity_kind: "tool",
+    activity_phase: "completed",
+    activity_name: "检索研究论文",
     step_key: "searching_papers",
     progress: 40,
-    public_message: "Searching literature for exoplanet host-star studies",
-    artifact_version_ids: ["artv_papcol_01"],
+    content: "已通过 NASA ADS 检索命中 3 篇系外行星宿主星核心论文。",
+    details: {
+      tool_kind: "search",
+      papers: [
+        {
+          title:
+            "Host Star Metallicity and Exoplanet Populations in the Kepler Field",
+          authors: "Buchhave et al.",
+          year: 2018,
+          arxiv_id: "1805.01234",
+        },
+        {
+          title:
+            "Precise Stellar Parameters for 1000 Kepler Planet-hosting Stars",
+          authors: "Petigura et al.",
+          year: 2022,
+          arxiv_id: "2203.05678",
+        },
+        {
+          title:
+            "Atmospheric Characterization of Kepler Terrestrial Exoplanets",
+          authors: "Madhusudhan et al.",
+          year: 2024,
+          arxiv_id: "2401.09999",
+        },
+      ],
+    },
+    artifact_version_ids: ["11111111-1111-4111-8111-111111111111"],
     occurred_at: T7,
   },
   {
     run_id: "run_01JEXAMPLE",
     sequence: 6,
-    event_type: "run.summarizing_papers",
+    activity_id: "fixture:summarizing-papers",
+    activity_kind: "tool",
+    activity_phase: "completed",
+    activity_name: "阅读并归纳论文",
     step_key: "summarizing_papers",
     progress: 55,
-    public_message: "Summarising retrieved papers",
+    content: "已完成候选文献论点归纳与证据定位。",
+    details: { tool_kind: "document_read" },
     artifact_version_ids: ["artv_papsum_01"],
     occurred_at: T7,
   },
   {
     run_id: "run_01JEXAMPLE",
     sequence: 7,
-    event_type: "run.reasoning_literature",
+    activity_id: "fixture:reasoning-literature",
+    activity_kind: "tool",
+    activity_phase: "completed",
+    activity_name: "分析并验证文献证据",
     step_key: "reasoning_literature",
     progress: 70,
-    public_message: "Extracting claims, relations and reasoning traces",
+    content: "已提取论点、宿主星物理参数关系与证据链。",
+    details: {
+      tool_kind: "evidence_validation",
+      quote:
+        "We find a statistically significant correlation between giant planet occurrence rate and host star iron abundance [Fe/H] (p < 1e-4).",
+      locator: "Section 4.2, Paragraph 3, Page 7",
+      confidence: 0.96,
+    },
     artifact_version_ids: ["artv_claims_01", "artv_rels_01", "artv_traces_01"],
     occurred_at: T8,
   },
   {
     run_id: "run_01JEXAMPLE",
     sequence: 8,
-    event_type: "run.building_graph",
+    activity_id: "fixture:building-graph",
+    activity_kind: "artifact",
+    activity_phase: "completed",
+    activity_name: "生成证据图谱",
     step_key: "building_graph",
     progress: 90,
-    public_message: "Building evidence graph",
+    content: "证据图谱已生成。",
+    details: { tool_kind: "artifact_generation" },
     artifact_version_ids: ["artv_graph_01"],
     occurred_at: T8,
   },
   {
     run_id: "run_01JEXAMPLE",
     sequence: 9,
-    event_type: "run.completed",
+    activity_id: "run:run_01JEXAMPLE",
+    activity_kind: "completion",
+    activity_phase: "completed",
+    activity_name: "研究任务",
     step_key: null,
     progress: 100,
-    public_message: "Demo Replay run completed",
+    content: "研究任务已完成。",
+    details: {},
     artifact_version_ids: [],
     occurred_at: T9,
   },
@@ -245,7 +348,7 @@ const producer = {
   type: "pipeline",
   name: "data",
   version: "1.0.0",
-  model_name: null,
+  requested_model: null,
   prompt_name: null,
   prompt_version: null,
   parameters_hash: null,
@@ -286,7 +389,7 @@ const artifacts: readonly ResearchArtifactDto[] = [
     title: "Retrieved papers",
     logical_key: "paper_collection.primary",
     created_at: T7,
-    latest_version_id: "artv_papcol_01",
+    latest_version_id: "11111111-1111-4111-8111-111111111111",
   },
   {
     id: "art_papsum_01",
@@ -468,26 +571,51 @@ const artifactVersions: readonly ArtifactVersionDto[] = [
   },
 ];
 
-const evidence = [
-  {
-    id: "evd_01",
-    artifactVersionId: "artv_dataset_01",
-    targetType: "field",
-    targetId: "planet.toi_id",
-    evidenceType: "database_query",
-    sourceSnapshotId: "snap_01",
-    paperId: null,
-    locator: {
-      kind: "database_cell",
-      queryHash: "qhash_01",
-      rowKey: "TOI-1234",
-      field: "planet.toi_id",
-    },
-    quoteOrValue: "TOI-1234",
-    extractionMethod: "nasa_exoplanet_archive.api_lookup",
-    confidence: 1,
-    createdAt: T6,
+/**
+ * Single-source transport projection for the dataset evidence `evd_01`.
+ *
+ * The HTTP adapter serves this exact `EvidenceRead` payload from
+ * `/api/evidence/evd_01` (see `test/http-helpers`), and the fixture adapter
+ * maps the same DTO through the shared `mapEvidenceRead`, so both adapters
+ * project identical domain entities — including the nested source snapshot.
+ */
+export const datasetEvidenceRead: EvidenceReadDto = {
+  id: "evd_01",
+  artifact_version_id: "artv_dataset_01",
+  target_type: "field",
+  target_id: "planet.toi_id",
+  evidence_type: "database_query",
+  source_snapshot_id: "snap_01",
+  paper_id: null,
+  locator: {
+    kind: "database_cell",
+    query_hash: "qhash_01",
+    row_key: "TOI-1234",
+    field: "planet.toi_id",
   },
+  quote_or_value: "TOI-1234",
+  extraction_method: "nasa_exoplanet_archive.api_lookup",
+  confidence: 1,
+  created_at: T6,
+  source_snapshot: {
+    id: "snap_01",
+    source_id: "nasa_exoplanet_archive",
+    source_type: "database",
+    retrieved_at: T4,
+    query: { table: "toi" },
+    query_hash: hash("a"),
+    source_version_or_etag: null,
+    content_hash: hash("b"),
+    license_note: "NASA Exoplanet Archive terms",
+    cache_version: null,
+    request_metadata: {},
+  },
+};
+
+const evidence = [
+  // Projected from the shared `EvidenceRead` transport DTO so the nested
+  // source snapshot stays identical to the HTTP evidence read.
+  mapEvidenceRead(datasetEvidenceRead),
   {
     id: "evd_02",
     // Homed on the claims version, which lists it in `evidence_ids`; the
@@ -589,6 +717,15 @@ export const exoplanetHostStarFixture: FixtureBundle = {
         summary: paperSummaryReadFixture,
       },
     ],
+    dataArtifactReads,
+    fieldDictionaryArtifactReads,
+    sourceCollectionArtifactReads,
+    literatureClaimReads,
+    literatureRelationReads,
+    literatureReasoningTraceReads,
+    graphArtifactReads,
+    graphNodeReads,
+    graphEdgeReads,
     evidence,
   },
 };

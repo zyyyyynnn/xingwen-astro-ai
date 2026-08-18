@@ -14,9 +14,9 @@ from pathlib import Path
 from threading import Barrier
 from uuid import UUID, uuid4
 
-from alembic import command
-from alembic.config import Config
 import pytest
+
+from db_bootstrap import reset_current_schema
 from sqlalchemy import Engine, func, select, text, update
 from sqlalchemy.orm import Session
 
@@ -70,27 +70,17 @@ def _accept(_: object) -> None:
     return None
 
 
-def _alembic_config(url: str) -> Config:
-    root = Path(__file__).resolve().parents[1]
-    config = Config(root / "alembic.ini")
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    return config
-
-
 @pytest.fixture(scope="module")
 def postgres_engine() -> Engine:
     assert TEST_DATABASE_URL is not None
     assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower(), (
         "refusing non-test database"
     )
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
     engine = create_engine_from_url(TEST_DATABASE_URL)
     yield engine
     engine.dispose()
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 def _steps() -> tuple[RunStepDefinition, ...]:
@@ -217,6 +207,10 @@ def _active_publication(
     factory = session_factory(engine)
     if project is None or contract is None:
         project, contract = _seed_project(factory)
+    reference_version_id = _seed_reference_version(
+        factory=factory,
+        project=project,
+    )
     workflow = PersistentWorkflowStore(factory)
     snapshot = workflow.create_run(
         project_id=project.id,
@@ -250,10 +244,6 @@ def _active_publication(
             logical_key=f"artifact-{uuid4()}",
         )
     ledger = ProducerExecutionStore(factory)
-    reference_version_id = _seed_reference_version(
-        factory=factory,
-        project=project,
-    )
     candidate = _admit(reference_version_id=reference_version_id)
     request = ProducerExecutionRequest(
         run_id=snapshot.id,
@@ -399,7 +389,9 @@ def _assert_publication_not_started(active: ActivePublication) -> None:
                 .select_from(RunEventModel)
                 .where(
                     RunEventModel.run_id == active.run_id,
-                    RunEventModel.event_type == "step.completed",
+                    RunEventModel.step_key == "planning",
+                    RunEventModel.activity_phase == "completed",
+                    RunEventModel.activity_kind.in_(("artifact", "tool")),
                 )
             )
             == 0
@@ -454,7 +446,9 @@ def test_publication_is_atomic_and_idempotent_with_a_stable_conflict(
         event = session.scalar(
             select(RunEventModel).where(
                 RunEventModel.run_id == active.run_id,
-                RunEventModel.event_type == "step.completed",
+                RunEventModel.step_key == "planning",
+                RunEventModel.activity_phase == "completed",
+                RunEventModel.activity_kind.in_(("artifact", "tool")),
             )
         )
         assert version is not None and version.version_number == 1
@@ -692,7 +686,9 @@ def test_any_publication_write_failure_rolls_back_the_entire_snapshot(
                 .select_from(RunEventModel)
                 .where(
                     RunEventModel.run_id == active.run_id,
-                    RunEventModel.event_type == "step.completed",
+                    RunEventModel.step_key == "planning",
+                    RunEventModel.activity_phase == "completed",
+                    RunEventModel.activity_kind.in_(("artifact", "tool")),
                 )
             )
             == 0
@@ -853,6 +849,10 @@ def test_new_version_must_supersede_the_locked_latest_version(
         publication_key="original",
     )
     version_one = _publish(original).versions[0]
+    with factory() as session, session.begin():
+        orig_run = session.get(ResearchRunModel, original.run_id)
+        if orig_run is not None:
+            orig_run.status = "completed"
     revision = _active_publication(
         postgres_engine,
         project=project,
@@ -940,13 +940,41 @@ def test_concurrent_publishers_never_allocate_duplicate_version_numbers(
         revision=1,
         publication_key="concurrent-a",
     )
-    second = _active_publication(
-        postgres_engine,
-        project=project,
-        contract=contract,
-        artifact=artifact,
-        revision=2,
-        publication_key="concurrent-b",
+    candidate_2 = _admit(reference_version_id=first.reference_version_id)
+    execution_2 = first.ledger.start_producer_execution(
+        ProducerExecutionRequest(
+            run_id=first.run_id,
+            step_key="planning",
+            attempt_id=first.attempt_id,
+            idempotency_key=f"producer-2-{uuid4()}",
+            producer_type="pipeline",
+            producer_name="fixture-data-port",
+            producer_version="1.0.0",
+            input_hash="sha256:" + "c" * 64,
+            parameters={"page_size": 20, "strict": True},
+        ),
+        token=first.token,
+        generation=first.generation,
+        expected_status=first.run_status,
+        expected_revision=first.run_revision,
+    )
+    first.ledger.finish_producer_execution(
+        execution_2.id,
+        status="completed",
+        output_hash=candidate_2.content_hash,
+        token_usage={"records": 1},
+        latency_ms=12,
+    )
+    second = replace(
+        first,
+        execution_id=execution_2.id,
+        publication=ArtifactPublication(
+            artifact_id=artifact.id,
+            publication_key="concurrent-b",
+            producer_execution_id=execution_2.id,
+            candidate=candidate_2,
+            source_mode="fixture",
+        ),
     )
     barrier = Barrier(2)
 
@@ -977,6 +1005,10 @@ def test_last_step_atomically_completes_run_and_releases_lease(
 ) -> None:
     factory = session_factory(postgres_engine)
     project, contract = _seed_project(factory)
+    reference_version_id = _seed_reference_version(
+        factory=factory,
+        project=project,
+    )
     workflow = PersistentWorkflowStore(factory)
     ledger = ProducerExecutionStore(factory)
     publisher = ArtifactPublisher(factory)
@@ -1013,10 +1045,6 @@ def test_last_step_atomically_completes_run_and_releases_lease(
             factory,
             project_id=project.id,
             logical_key=f"step-{position}-{uuid4()}",
-        )
-        reference_version_id = _seed_reference_version(
-            factory=factory,
-            project=project,
         )
         candidate = _admit(reference_version_id=reference_version_id)
         execution = ledger.start_producer_execution(
@@ -1082,7 +1110,8 @@ def test_last_step_atomically_completes_run_and_releases_lease(
         completed = session.scalar(
             select(RunEventModel).where(
                 RunEventModel.run_id == snapshot.id,
-                RunEventModel.event_type == "run.completed",
+                RunEventModel.activity_kind == "completion",
+                RunEventModel.activity_phase == "completed",
             )
         )
         assert completed is not None and completed.progress == 100

@@ -1,0 +1,274 @@
+{
+  "$defs": {
+    "DataQueryCursor": {
+      "additionalProperties": false,
+      "properties": {
+        "tid": {
+          "minimum": 0,
+          "title": "Tid",
+          "type": "integer"
+        },
+        "toi": {
+          "pattern": "^[0-9]+(?:\\.[0-9]+)?$",
+          "title": "Toi",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tid",
+        "toi"
+      ],
+      "title": "DataQueryCursor",
+      "type": "object"
+    },
+    "DataSourceCompletion": {
+      "additionalProperties": false,
+      "description": "Typed source-completion semantics consumed by downstream data stages.",
+      "properties": {
+        "continuation_cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DataQueryCursor"
+            },
+            {
+              "$ref": "#/$defs/SupplementalDataQueryCursor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Continuation Cursor"
+        },
+        "status": {
+          "$ref": "#/$defs/DataSourceCompletionStatus"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "DataSourceCompletion",
+      "type": "object"
+    },
+    "DataSourceCompletionStatus": {
+      "description": "Whether the bounded acquisition proved that its source scope is complete.",
+      "enum": [
+        "complete",
+        "truncated",
+        "unknown"
+      ],
+      "title": "DataSourceCompletionStatus",
+      "type": "string"
+    },
+    "DataSourceDataLevel": {
+      "description": "Acquisition evidence level, kept separate from the source origin.",
+      "enum": [
+        "live_result",
+        "recorded_response",
+        "fixture",
+        "seed"
+      ],
+      "title": "DataSourceDataLevel",
+      "type": "string"
+    },
+    "RawDataSourceRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        },
+        "row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Row Key",
+          "type": "array"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "row_key",
+        "payload",
+        "content_hash"
+      ],
+      "title": "RawDataSourceRecord",
+      "type": "object"
+    },
+    "SourceMode": {
+      "description": "Actual origin of an ArtifactVersion-compatible pipeline payload.",
+      "enum": [
+        "fixture",
+        "live",
+        "cached"
+      ],
+      "title": "SourceMode",
+      "type": "string"
+    },
+    "SourceSnapshotRecord": {
+      "additionalProperties": false,
+      "description": "Immutable source provenance consumed by scientific pipelines.\n\nThis is a pipeline/runtime record, not an HTTP read projection. It preserves\nthe exact source, query and content identity required for reproducibility\nwhile rejecting credential-bearing request metadata before publication.",
+      "properties": {
+        "cache_version": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cache Version"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "license_note": {
+          "minLength": 1,
+          "title": "License Note",
+          "type": "string"
+        },
+        "query": {
+          "minLength": 1,
+          "title": "Query",
+          "type": "string"
+        },
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "request_metadata": {
+          "additionalProperties": true,
+          "title": "Request Metadata",
+          "type": "object"
+        },
+        "retrieved_at": {
+          "format": "date-time",
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Snapshot Id",
+          "type": "string"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_type": {
+          "minLength": 1,
+          "title": "Source Type",
+          "type": "string"
+        },
+        "source_version_or_etag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Version Or Etag"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "source_id",
+        "source_type",
+        "retrieved_at",
+        "query",
+        "query_hash",
+        "content_hash",
+        "license_note"
+      ],
+      "title": "SourceSnapshotRecord",
+      "type": "object"
+    },
+    "SupplementalDataQueryCursor": {
+      "additionalProperties": false,
+      "properties": {
+        "pl_name": {
+          "minLength": 1,
+          "title": "Pl Name",
+          "type": "string"
+        },
+        "pl_refname": {
+          "minLength": 1,
+          "title": "Pl Refname",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pl_name",
+        "pl_refname"
+      ],
+      "title": "SupplementalDataQueryCursor",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Typed projection of one primary/supplemental source acquisition result.",
+  "properties": {
+    "completion": {
+      "$ref": "#/$defs/DataSourceCompletion"
+    },
+    "data_level": {
+      "$ref": "#/$defs/DataSourceDataLevel"
+    },
+    "records": {
+      "items": {
+        "$ref": "#/$defs/RawDataSourceRecord"
+      },
+      "title": "Records",
+      "type": "array"
+    },
+    "snapshot": {
+      "$ref": "#/$defs/SourceSnapshotRecord"
+    },
+    "source_mode": {
+      "$ref": "#/$defs/SourceMode"
+    }
+  },
+  "required": [
+    "source_mode",
+    "data_level",
+    "records",
+    "snapshot",
+    "completion"
+  ],
+  "title": "CrossmatchSourceInput",
+  "type": "object"
+}

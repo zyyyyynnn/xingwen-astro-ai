@@ -7,10 +7,10 @@ import os
 from pathlib import Path
 from uuid import UUID
 
-from alembic import command
-from alembic.config import Config
 from fastapi.testclient import TestClient
 import pytest
+
+from db_bootstrap import reset_current_schema
 from sqlalchemy import Engine
 
 from app.config import settings
@@ -45,27 +45,17 @@ HASH_C = "sha256:" + "c" * 64
 NOW = datetime(2026, 7, 22, 8, 0, tzinfo=UTC)
 
 
-def _alembic_config(url: str) -> Config:
-    root = Path(__file__).resolve().parents[1]
-    config = Config(root / "alembic.ini")
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    return config
-
-
 @pytest.fixture(scope="module")
 def postgres_engine() -> Engine:
     assert TEST_DATABASE_URL is not None
     assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower(), (
         "refusing non-test database"
     )
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
     engine = create_engine_from_url(TEST_DATABASE_URL)
     yield engine
     engine.dispose()
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 @pytest.fixture(scope="module")
@@ -163,7 +153,7 @@ def read_context(postgres_engine: Engine) -> dict[str, object]:
             producer_name="fixture-producer",
             producer_version="1.0.0",
             model_provider="fixture",
-            model_name="fixture-model",
+            requested_model="fixture-model",
             prompt_name="summary",
             prompt_version="1.0.0",
             prompt_hash=HASH_A,
@@ -255,7 +245,7 @@ def read_context(postgres_engine: Engine) -> dict[str, object]:
                     "name": "fixture-producer",
                     "version": "1.0.0",
                     "model_provider": "fixture",
-                    "model_name": "fixture-model",
+                    "requested_model": "fixture-model",
                     "prompt_name": "summary",
                     "prompt_version": "1.0.0",
                     "prompt_hash": HASH_A,

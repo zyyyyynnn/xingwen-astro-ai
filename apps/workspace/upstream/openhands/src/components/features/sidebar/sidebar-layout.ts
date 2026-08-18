@@ -5,6 +5,9 @@ import { cn } from "../../../utils/utils";
 export const navInteractiveTransitionClassName =
   "transition-colors duration-[var(--oh-motion-navigation)] motion-reduce:transition-none";
 
+export const SIDEBAR_RAIL_TRANSITION_CLASS =
+  "transition-[width,border-color] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none";
+
 export const SIDEBAR_ICON_SLOT_CLASS =
   "flex h-[var(--oh-sidebar-row-block-size)] w-[var(--oh-sidebar-icon-slot-inline-size)] shrink-0 items-center justify-center";
 

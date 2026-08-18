@@ -1,6 +1,6 @@
 ---
 name: literature_claim
-version: 1.0.0
+version: 1.0.1
 output_model: LiteratureClaimExtractionOutput
 input_schema_version: 1.0.0
 output_schema_version: 1.0.0
@@ -25,6 +25,8 @@ evidence_required: true
   Summary statement 的科研角色。
 - 每条 Claim 只引用一个明确的 Summary statement，并且每个 `evidence_id` 必须
   来自该 statement 自己的 Evidence。
+- 对每个包含 Evidence 的独立 Summary statement 分别判断并抽取其中可验证的科学
+  断言；不得只挑选其中一条代表性陈述，也不得为增加数量拆分或改写不存在的断言。
 - 不得把对象、指标、数据集、样本或实验条件不可比较的多个结果合并成一条
   Claim。多对象比较必须提供明确 `comparison_basis`，否则拆分为多条 Claim。
 - `normalized_text` 只能做保守、可复核的规范表达；必须保留结论方向、否定关系、

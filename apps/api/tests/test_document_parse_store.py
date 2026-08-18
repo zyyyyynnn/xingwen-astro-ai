@@ -13,9 +13,9 @@ from pathlib import Path
 import threading
 from uuid import UUID, uuid4
 
-from alembic import command
-from alembic.config import Config
 import pytest
+
+from db_bootstrap import reset_current_schema
 from sqlalchemy import Engine, func, select, update
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
@@ -167,13 +167,6 @@ def test_document_parse_identity_excludes_process_local_parse_id() -> None:
     )
 
 
-def _alembic_config(url: str) -> Config:
-    root = Path(__file__).resolve().parents[1]
-    config = Config(root / "alembic.ini")
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    return config
-
-
 @pytest.fixture(scope="module")
 def postgres_engine() -> Engine:
     if not TEST_DATABASE_URL:
@@ -181,14 +174,11 @@ def postgres_engine() -> Engine:
     assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower(), (
         "refusing non-test database"
     )
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
     engine = create_engine_from_url(TEST_DATABASE_URL)
     yield engine
     engine.dispose()
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 @pytest.fixture

@@ -1,0 +1,30 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "high_minimum": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "High Minimum",
+      "type": "number"
+    },
+    "low_minimum": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Low Minimum",
+      "type": "number"
+    },
+    "medium_minimum": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Medium Minimum",
+      "type": "number"
+    }
+  },
+  "required": [
+    "high_minimum",
+    "medium_minimum",
+    "low_minimum"
+  ],
+  "title": "ConfidencePolicy",
+  "type": "object"
+}

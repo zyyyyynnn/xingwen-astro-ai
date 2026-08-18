@@ -16,7 +16,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, select
+from sqlalchemy import Engine, select, update
 
 from app.config import settings
 from app.db.models import (
@@ -33,6 +33,7 @@ from app.db.session import session_factory
 from app.main import create_app
 from app.schemas.core import ArtifactVersionDetail
 from app.services.artifacts import ArtifactReadService
+from app.services.graph_inputs import PostgresEvidenceRestrictionReadAdapter
 
 from authoring_test_support import (
     build_contract_draft,
@@ -234,7 +235,7 @@ def graph_context(postgres_engine: Engine) -> dict[str, Any]:  # noqa: F811
                     producer_name=producer.name,
                     producer_version=producer.version,
                     model_provider=producer.model_provider,
-                    model_name=producer.model_name,
+                    requested_model=producer.requested_model,
                     prompt_name=producer.prompt_name,
                     prompt_version=producer.prompt_version,
                     prompt_hash=producer.prompt_hash,
@@ -317,6 +318,42 @@ def graph_context(postgres_engine: Engine) -> dict[str, Any]:  # noqa: F811
         ),
     }
 
+
+
+def test_postgres_evidence_restriction_adapter_reads_exact_storage_truth(
+    graph_context: dict[str, Any],
+) -> None:
+    factory = graph_context["factory"]
+    evidence_id = str(graph_context["graph_evidence_ids"][0])
+    adapter = PostgresEvidenceRestrictionReadAdapter(factory)
+
+    initial = adapter.read_restrictions(
+        project_id=str(GRAPH_PROJECT_ID), evidence_ids=(evidence_id,)
+    )
+    assert len(initial) == 1
+    assert initial[0].evidence_id == evidence_id
+    assert initial[0].project_id == str(GRAPH_PROJECT_ID)
+    assert initial[0].is_restricted is False
+
+    with factory() as session, session.begin():
+        session.execute(
+            update(EvidenceModel)
+            .where(EvidenceModel.id == UUID(evidence_id))
+            .values(is_restricted=True)
+        )
+
+    restricted = adapter.read_restrictions(
+        project_id=str(GRAPH_PROJECT_ID), evidence_ids=(evidence_id,)
+    )
+    assert len(restricted) == 1
+    assert restricted[0].is_restricted is True
+
+    with factory() as session, session.begin():
+        session.execute(
+            update(EvidenceModel)
+            .where(EvidenceModel.id == UUID(evidence_id))
+            .values(is_restricted=False)
+        )
 
 def _graph_path(graph_context: dict[str, Any], suffix: str = "") -> str:
     version_id = graph_context["fixture"].graph_version_id

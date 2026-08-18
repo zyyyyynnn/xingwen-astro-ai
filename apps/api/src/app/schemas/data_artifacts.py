@@ -1713,11 +1713,15 @@ def compute_data_artifact_candidate_id(
 
 
 def _model_or_dict(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
-    return (
+    payload = (
         deepcopy(value.model_dump(mode="json", exclude_none=True))
         if isinstance(value, BaseModel)
-        else _drop_none(deepcopy(value))
+        else deepcopy(value)
     )
+    # ``exclude_none`` does not recurse into free-form dictionaries such as a
+    # source record payload.  Apply the canonical null-elision rule to both
+    # model and dict inputs so hashing is representation-independent.
+    return _drop_none(payload)
 
 
 def _drop_none(value: Any) -> Any:

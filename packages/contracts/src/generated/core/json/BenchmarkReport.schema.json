@@ -1,0 +1,437 @@
+{
+  "$defs": {
+    "BenchmarkCaseResult": {
+      "additionalProperties": false,
+      "description": "One document's parse evaluation against its expected annotation.\n\nCounts (``accepted_count``/``partial_count``/``unsupported_count``) describe\nTHIS case only — they are derived from the case's own blocks/regions, never\nfrom a running global accumulator (Scientific Document Parsing Contract E4).",
+      "properties": {
+        "accepted_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Accepted Count",
+          "type": "integer"
+        },
+        "block_recovery": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Block Recovery"
+        },
+        "cpu_result": {
+          "default": true,
+          "title": "Cpu Result",
+          "type": "boolean"
+        },
+        "document_parse_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Document Parse Id",
+          "type": "string"
+        },
+        "entry_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Entry Id",
+          "type": "string"
+        },
+        "evidence_locator_validity": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evidence Locator Validity"
+        },
+        "failure_category": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failure Category"
+        },
+        "figure_caption_linkage": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Figure Caption Linkage"
+        },
+        "formula_recovery": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Formula Recovery"
+        },
+        "gpu_result": {
+          "default": false,
+          "title": "Gpu Result",
+          "type": "boolean"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "latency_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latency Seconds"
+        },
+        "native_routing_coverage": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Native Routing Coverage"
+        },
+        "output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Hash",
+          "type": "string"
+        },
+        "overall_quality": {
+          "title": "Overall Quality",
+          "type": "string"
+        },
+        "parser_mode": {
+          "$ref": "#/$defs/BenchmarkParserMode"
+        },
+        "partial_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Partial Count",
+          "type": "integer"
+        },
+        "peak_memory_bytes": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Peak Memory Bytes"
+        },
+        "reading_order_error": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reading Order Error"
+        },
+        "table_structure_recovery": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Table Structure Recovery"
+        },
+        "unsupported_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Unsupported Count",
+          "type": "integer"
+        },
+        "visual_routing_coverage": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Visual Routing Coverage"
+        }
+      },
+      "required": [
+        "entry_id",
+        "parser_mode",
+        "document_parse_id",
+        "overall_quality",
+        "input_hash",
+        "output_hash"
+      ],
+      "title": "BenchmarkCaseResult",
+      "type": "object"
+    },
+    "BenchmarkMetricStatus": {
+      "description": "How a metric value should be interpreted (Scientific Document Parsing Contract E5/E6).",
+      "enum": [
+        "measured",
+        "not_applicable",
+        "unsupported",
+        "not_run"
+      ],
+      "title": "BenchmarkMetricStatus",
+      "type": "string"
+    },
+    "BenchmarkMetricValue": {
+      "additionalProperties": false,
+      "description": "One metric with explicit denominator and empty-sample behavior.\n\n``status`` disambiguates a true zero (``measured`` with rate 0.0) from\n\"we never measured this capability\" (``not_applicable`` / ``unsupported`` /\n``not_run``). A ``measured`` metric MUST carry a non-``None`` denominator.\n\n``rate`` is a derived (computed) field: it is always ``numerator /\ndenominator`` when a positive denominator is present, regardless of how the\nobject was constructed or loaded. This keeps the serialized payload and the\nbenchmark ``output_hash`` deterministic across construction and reload (Scientific Document Parsing Contract\nE7/E8).",
+      "properties": {
+        "denominator": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Denominator"
+        },
+        "empty_behavior": {
+          "default": "report_zero_rate",
+          "title": "Empty Behavior",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "numerator": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Numerator",
+          "type": "number"
+        },
+        "rate": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rate"
+        },
+        "status": {
+          "$ref": "#/$defs/BenchmarkMetricStatus",
+          "default": "measured"
+        },
+        "version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "BenchmarkMetricValue",
+      "type": "object"
+    },
+    "BenchmarkParserMode": {
+      "enum": [
+        "native_only",
+        "hybrid"
+      ],
+      "title": "BenchmarkParserMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Aggregate reproducible benchmark report (versioned + hashed).",
+  "properties": {
+    "cases": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/BenchmarkCaseResult"
+      },
+      "title": "Cases",
+      "type": "array"
+    },
+    "config_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Config Hash",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "expected_annotation_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Expected Annotation Hash",
+      "type": "string"
+    },
+    "golden_set_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Golden Set Content Hash",
+      "type": "string"
+    },
+    "golden_set_manifest_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Golden Set Manifest Id",
+      "type": "string"
+    },
+    "golden_set_version": {
+      "title": "Golden Set Version",
+      "type": "string"
+    },
+    "input_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Input Hash",
+      "type": "string"
+    },
+    "metrics": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/BenchmarkMetricValue"
+      },
+      "title": "Metrics",
+      "type": "array"
+    },
+    "native_engine": {
+      "title": "Native Engine",
+      "type": "string"
+    },
+    "native_engine_version": {
+      "title": "Native Engine Version",
+      "type": "string"
+    },
+    "output_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Output Hash",
+      "type": "string"
+    },
+    "parser_mode": {
+      "$ref": "#/$defs/BenchmarkParserMode"
+    },
+    "report_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Report Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "visual_engine": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Visual Engine"
+    },
+    "visual_engine_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Visual Engine Version"
+    },
+    "visual_model_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Visual Model Id"
+    },
+    "visual_model_revision": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Visual Model Revision"
+    }
+  },
+  "required": [
+    "report_id",
+    "schema_version",
+    "parser_mode",
+    "golden_set_manifest_id",
+    "golden_set_version",
+    "golden_set_content_hash",
+    "expected_annotation_hash",
+    "native_engine",
+    "native_engine_version",
+    "config_hash",
+    "input_hash",
+    "output_hash",
+    "created_at"
+  ],
+  "title": "BenchmarkReport",
+  "type": "object"
+}

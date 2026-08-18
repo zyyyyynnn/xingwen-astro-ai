@@ -392,6 +392,20 @@
     "RawPaperCandidate": {
       "additionalProperties": false,
       "properties": {
+        "abstract": {
+          "anyOf": [
+            {
+              "maxLength": 16000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Abstract"
+        },
         "arxiv_id": {
           "anyOf": [
             {

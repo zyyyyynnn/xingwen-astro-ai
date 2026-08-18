@@ -1,0 +1,19 @@
+{
+  "$defs": {
+    "BaseModel": {
+      "properties": {},
+      "title": "BaseModel",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "candidate": {
+      "$ref": "#/$defs/BaseModel"
+    }
+  },
+  "required": [
+    "candidate"
+  ],
+  "type": "object"
+}

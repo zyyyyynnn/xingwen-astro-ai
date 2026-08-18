@@ -29,8 +29,8 @@
 | 可对照   | Workspace 基于成熟 Agent 骨架，可高效对照产物与证据                                                 |
 | 可降级   | 外部服务或选件失败时不阻断核心流程                                                                  |
 | 可分享   | 只读分享受最小范围保护，可撤销、可过期、不泄露编辑会话                                              |
-| 可部署   | 环境拓扑、配置、Migration 与健康检查完整通过                                                        |
-| 可访问   | 键盘导航、焦点控制、屏幕阅读与字体缩放可用                                                          |
+| 可部署   | 环境拓扑、配置、当前 schema 与健康检查完整通过                                                        |
+| 可访问   | 键盘导航、焦点控制、屏幕阅读、Reduced Motion 与 1024×768 Web 视口可用                              |
 
 Workspace 验收必须以已合并、可复现、可运行的实现证据为准。OpenHands 采用记录、
 目标架构或 Draft/Open PR 只能证明源码治理范围，不能证明 Live Run、模型资格或完整
@@ -48,6 +48,16 @@ ProducerExecution、input/output hash 以及真实 ArtifactVersion/Evidence 必�
 - 业务页面通过 Repository Port 消费 Domain Model，不直接读取 Transport DTO 或原始 fetch。
 - Completed 状态下允许继续研究、修订、派生、导出与分享。
 - 默认视图严禁暴露内部 ID、Hash、Adapter、Fixture 或模型私有推理。
+
+Workspace 产品行为验收：
+
+- AI 正常消息贯穿研究全程（理解目标、协议形成/确认、阶段进入、中间发现、结果发布、完成）；
+- 右侧研究栏只承担研究概览与结果索引；
+- 右栏结果点击直接进入 Fullscreen，不存在 Docked result preview；
+- 论文 Fullscreen 宽屏默认研究报告 + PDF 同屏（存在授权来源时）；
+- Evidence locator 在支持时驱动 PDF 页码/位置定位；
+- 默认 UI 不显示内部 ID、hash 或技术 provenance；
+- 正式视觉验收视口为 1440×900、1280×800、1024×768，正式主题为 Light。
 
 ## 4. 一票否决项
 

@@ -16,6 +16,7 @@ from pydantic import TypeAdapter
 from app.schemas.core import (
     ArtifactKind,
     ArtifactVersionDetail,
+    ArtifactVersionSummary,
     CollectionEnvelope,
     ConfirmResearchContractRequest,
     CreateResearchContractDraftRequest,
@@ -37,6 +38,8 @@ from app.schemas.core import (
     ResearchThreadEntry,
     ResearchTurnRequest,
     ResearchTurnResult,
+    RunCheckpoint,
+    RunCheckpointDecisionRequest,
     RunStepRead,
     RunEvent,
     SessionCreated,
@@ -67,7 +70,7 @@ from app.schemas.paper_collection_api import (
     PaperCollectionCandidateRead,
     PaperCollectionRead,
 )
-from app.schemas.paper_summary_api import PaperSummaryRead
+from app.schemas.paper_summary_api import PaperSummaryPdfSourceRead, PaperSummaryRead
 from app.schemas.research_input import (
     BindResearchInputRequest,
     CreateResearchInputMultipartRequest,
@@ -365,6 +368,53 @@ def create_contract_app() -> FastAPI:
         _ = (project_id, request, idempotency_key)
         return _contract_only()
 
+    @app.post(
+        "/api/runs/{run_id}/cancel",
+        operation_id="cancelResearchRun",
+        response_model=Envelope[ResearchRun],
+        responses=PROBLEM_RESPONSES,
+    )
+    def cancel_research_run(run_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
+        _ = run_id
+        return _contract_only()
+
+    @app.post(
+        "/api/runs/{run_id}/retry",
+        operation_id="retryResearchRun",
+        response_model=Envelope[ResearchRun],
+        status_code=201,
+        responses=PROBLEM_RESPONSES,
+    )
+    def retry_research_run(
+        run_id: Annotated[str, Path(min_length=1)],
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1)],
+    ) -> NoReturn:
+        _ = (run_id, idempotency_key)
+        return _contract_only()
+
+    @app.get(
+        "/api/runs/{run_id}/checkpoint",
+        operation_id="getRunCheckpoint",
+        response_model=Envelope[RunCheckpoint | None],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_run_checkpoint(run_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
+        _ = run_id
+        return _contract_only()
+
+    @app.post(
+        "/api/runs/{run_id}/checkpoint-decision",
+        operation_id="submitRunCheckpointDecision",
+        response_model=Envelope[ResearchRun],
+        responses=PROBLEM_RESPONSES,
+    )
+    def submit_run_checkpoint_decision(
+        run_id: Annotated[str, Path(min_length=1)],
+        request: RunCheckpointDecisionRequest,
+    ) -> NoReturn:
+        _ = (run_id, request)
+        return _contract_only()
+
     @app.get(
         "/api/runs/{run_id}/events",
         operation_id="listRunEvents",
@@ -407,6 +457,24 @@ def create_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
+        "/api/artifacts/{artifact_id}/versions",
+        operation_id="listArtifactVersions",
+        response_model=CollectionEnvelope[ArtifactVersionSummary],
+        responses=PROBLEM_RESPONSES,
+        description=(
+            "Lists the immutable versions of one Artifact owned by the current "
+            "session, newest first, with standard cursor pagination."
+        ),
+    )
+    def list_artifact_versions(
+        artifact_id: Annotated[str, Path(min_length=1)],
+        cursor: Annotated[str | None, Query()] = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    ) -> NoReturn:
+        _ = (artifact_id, cursor, limit)
+        return _contract_only()
+
+    @app.get(
         "/api/artifact-versions/{version_id}",
         operation_id="getArtifactVersion",
         response_model=Envelope[ArtifactVersionDetail],
@@ -437,6 +505,18 @@ def create_contract_app() -> FastAPI:
         responses=PROBLEM_RESPONSES,
     )
     def get_paper_summary(version_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
+        _ = version_id
+        return _contract_only()
+
+    @app.get(
+        "/api/artifact-versions/{version_id}/paper-summary/pdf-source",
+        operation_id="getPaperSummaryPdfSource",
+        response_model=Envelope[PaperSummaryPdfSourceRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_paper_summary_pdf_source(
+        version_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
         _ = version_id
         return _contract_only()
 
@@ -781,6 +861,31 @@ def create_contract_app() -> FastAPI:
         ),
     )
     def get_research_input(input_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
+        _ = input_id
+        return _contract_only()
+
+    @app.get(
+        "/api/research-inputs/{input_id}/content",
+        operation_id="getResearchInputContent",
+        response_class=Response,
+        responses={
+            200: {
+                "content": {"application/octet-stream": {}},
+                "description": "Stored content bytes of one accepted file input.",
+            },
+            **PROBLEM_RESPONSES,
+        },
+        description=(
+            "Browser-safe read of the stored content of one accepted, file-backed "
+            "input owned by the current session. Returns the exact stored bytes "
+            "with the input's MIME type, ``Cache-Control: no-store`` and an inline "
+            "disposition. Never exposes storage references, paths or URLs, and "
+            "never proxies to another location."
+        ),
+    )
+    def get_research_input_content(
+        input_id: Annotated[str, Path(min_length=1)],
+    ) -> Response:
         _ = input_id
         return _contract_only()
 

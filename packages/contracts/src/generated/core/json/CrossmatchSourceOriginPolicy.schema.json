@@ -1,0 +1,45 @@
+{
+  "$defs": {
+    "DataSourceDataLevel": {
+      "description": "Acquisition evidence level, kept separate from the source origin.",
+      "enum": [
+        "live_result",
+        "recorded_response",
+        "fixture",
+        "seed"
+      ],
+      "title": "DataSourceDataLevel",
+      "type": "string"
+    },
+    "SourceMode": {
+      "description": "Actual origin of an ArtifactVersion-compatible pipeline payload.",
+      "enum": [
+        "fixture",
+        "live",
+        "cached"
+      ],
+      "title": "SourceMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "data_levels": {
+      "items": {
+        "$ref": "#/$defs/DataSourceDataLevel"
+      },
+      "minItems": 1,
+      "title": "Data Levels",
+      "type": "array"
+    },
+    "source_mode": {
+      "$ref": "#/$defs/SourceMode"
+    }
+  },
+  "required": [
+    "source_mode",
+    "data_levels"
+  ],
+  "title": "CrossmatchSourceOriginPolicy",
+  "type": "object"
+}

@@ -134,6 +134,10 @@ describe("@xingwen/ui foundation config integrity", () => {
     const supportedUpstreamRevisions = new Map([
       ["shadcn-ui@0.9.4", "729b9ec8cacfae0bc31958c1a8e425d0a21be54e"],
       ["shadcn-cli@4.16.2", "efac5987074af84ece57c367c6dd83387b967022"],
+      [
+        "react-resizable-panels@4.12.2",
+        "a1eeb7aefdb024bb5879a323218e0ac05f77f28e",
+      ],
     ]);
 
     const names = new Set<string>();
@@ -149,8 +153,19 @@ describe("@xingwen/ui foundation config integrity", () => {
       paths.add(item.local_path);
       expect(existsSync(resolve(root, item.local_path))).toBe(true);
 
-      expect(item.source).toMatch(/^@shadcn\//);
-      expect(item.upstream_repository).toBe("https://github.com/shadcn-ui/ui");
+      expect(
+        item.source.startsWith("@shadcn/") ||
+          item.source === "react-resizable-panels",
+      ).toBe(true);
+      if (item.source === "react-resizable-panels") {
+        expect(item.upstream_repository).toBe(
+          "https://github.com/bvaughn/react-resizable-panels",
+        );
+      } else {
+        expect(item.upstream_repository).toBe(
+          "https://github.com/shadcn-ui/ui",
+        );
+      }
       expect(supportedUpstreamRevisions.has(item.upstream_revision)).toBe(true);
       expect(item.upstream_commit).toMatch(/^[0-9a-f]{40}$/);
       expect(item.upstream_commit).toBe(
@@ -160,7 +175,9 @@ describe("@xingwen/ui foundation config integrity", () => {
       expect(item.license).toBe("MIT");
       expect(item.notice).toBeTruthy();
       expect(existsSync(resolve(root, item.notice))).toBe(true);
-      expect(item.adaptation).toContain("clsx");
+      if (item.source.startsWith("@shadcn/")) {
+        expect(item.adaptation).toContain("clsx");
+      }
       expect(item.adaptation).not.toContain("dependency-free");
       expect(item.production_consumers.length).toBeGreaterThan(0);
     }

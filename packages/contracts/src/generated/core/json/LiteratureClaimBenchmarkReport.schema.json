@@ -1,0 +1,529 @@
+{
+  "$defs": {
+    "ClaimType": {
+      "enum": [
+        "goal",
+        "method",
+        "dataset",
+        "finding",
+        "limitation",
+        "future_work"
+      ],
+      "title": "ClaimType",
+      "type": "string"
+    },
+    "LiteratureClaimBenchmarkCaseKind": {
+      "enum": [
+        "scientific_label",
+        "rejection_case"
+      ],
+      "title": "LiteratureClaimBenchmarkCaseKind",
+      "type": "string"
+    },
+    "LiteratureClaimBenchmarkCaseResult": {
+      "additionalProperties": false,
+      "properties": {
+        "benchmark_claim_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Benchmark Claim Id"
+        },
+        "case_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Case Id",
+          "type": "string"
+        },
+        "case_kind": {
+          "$ref": "#/$defs/LiteratureClaimBenchmarkCaseKind"
+        },
+        "claim_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClaimType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "evidence_items_supported": {
+          "minimum": 0,
+          "title": "Evidence Items Supported",
+          "type": "integer"
+        },
+        "evidence_items_total": {
+          "minimum": 0,
+          "title": "Evidence Items Total",
+          "type": "integer"
+        },
+        "expected_failure_stage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiteratureClaimFailureStage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "expected_rejection_reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiteratureClaimRejectionReason"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "failure_stage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiteratureClaimFailureStage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Hash",
+          "type": "string"
+        },
+        "rejection_case_pass": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rejection Case Pass"
+        },
+        "rejection_reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiteratureClaimRejectionReason"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "schema_valid": {
+          "title": "Schema Valid",
+          "type": "boolean"
+        },
+        "scientific_label_compared": {
+          "title": "Scientific Label Compared",
+          "type": "boolean"
+        },
+        "scientific_label_exact_match": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scientific Label Exact Match"
+        },
+        "status": {
+          "$ref": "#/$defs/LiteratureClaimStatus"
+        }
+      },
+      "required": [
+        "case_id",
+        "case_kind",
+        "schema_valid",
+        "evidence_items_supported",
+        "evidence_items_total",
+        "scientific_label_compared",
+        "status",
+        "input_hash",
+        "output_hash"
+      ],
+      "title": "LiteratureClaimBenchmarkCaseResult",
+      "type": "object"
+    },
+    "LiteratureClaimFailureStage": {
+      "enum": [
+        "json",
+        "schema",
+        "input",
+        "evidence",
+        "ownership",
+        "normalization",
+        "duplicate"
+      ],
+      "title": "LiteratureClaimFailureStage",
+      "type": "string"
+    },
+    "LiteratureClaimRejectionCount": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "rejection_reason": {
+          "$ref": "#/$defs/LiteratureClaimRejectionReason"
+        },
+        "sample_case_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Sample Case Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "rejection_reason",
+        "count",
+        "sample_case_ids"
+      ],
+      "title": "LiteratureClaimRejectionCount",
+      "type": "object"
+    },
+    "LiteratureClaimRejectionReason": {
+      "enum": [
+        "literature_claim.json_invalid",
+        "literature_claim.schema_invalid",
+        "literature_claim.input_artifact_version_unknown",
+        "literature_claim.input_schema_version_unsupported",
+        "literature_claim.evidence_missing",
+        "literature_claim.evidence_not_found",
+        "literature_claim.source_snapshot_not_found",
+        "literature_claim.ownership_mismatch",
+        "literature_claim.normalization_unsafe",
+        "literature_claim.duplicate"
+      ],
+      "title": "LiteratureClaimRejectionReason",
+      "type": "string"
+    },
+    "LiteratureClaimStatus": {
+      "enum": [
+        "candidate",
+        "accepted",
+        "rejected"
+      ],
+      "title": "LiteratureClaimStatus",
+      "type": "string"
+    },
+    "LiteratureClaimStatusCounts": {
+      "additionalProperties": false,
+      "properties": {
+        "accepted": {
+          "minimum": 0,
+          "title": "Accepted",
+          "type": "integer"
+        },
+        "candidate": {
+          "minimum": 0,
+          "title": "Candidate",
+          "type": "integer"
+        },
+        "rejected": {
+          "minimum": 0,
+          "title": "Rejected",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "accepted",
+        "candidate",
+        "rejected"
+      ],
+      "title": "LiteratureClaimStatusCounts",
+      "type": "object"
+    },
+    "LiteratureClaimTypeCount": {
+      "additionalProperties": false,
+      "properties": {
+        "claim_type": {
+          "$ref": "#/$defs/ClaimType"
+        },
+        "count": {
+          "minimum": 0,
+          "title": "Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "claim_type",
+        "count"
+      ],
+      "title": "LiteratureClaimTypeCount",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "benchmark_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Benchmark Content Hash",
+      "type": "string"
+    },
+    "benchmark_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Benchmark Id",
+      "type": "string"
+    },
+    "benchmark_schema_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Benchmark Schema Version",
+      "type": "string"
+    },
+    "benchmark_scientific_payload_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Benchmark Scientific Payload Hash",
+      "type": "string"
+    },
+    "benchmark_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Benchmark Version",
+      "type": "string"
+    },
+    "cases": {
+      "items": {
+        "$ref": "#/$defs/LiteratureClaimBenchmarkCaseResult"
+      },
+      "title": "Cases",
+      "type": "array"
+    },
+    "claim_schema_version": {
+      "const": "1.0.0",
+      "title": "Claim Schema Version",
+      "type": "string"
+    },
+    "claim_type_counts": {
+      "items": {
+        "$ref": "#/$defs/LiteratureClaimTypeCount"
+      },
+      "title": "Claim Type Counts",
+      "type": "array"
+    },
+    "evidence_coverage_rate": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Evidence Coverage Rate"
+    },
+    "evidence_items_supported": {
+      "minimum": 0,
+      "title": "Evidence Items Supported",
+      "type": "integer"
+    },
+    "evidence_items_total": {
+      "minimum": 0,
+      "title": "Evidence Items Total",
+      "type": "integer"
+    },
+    "input_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Input Hash",
+      "type": "string"
+    },
+    "model_name": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Model Name",
+      "type": "string"
+    },
+    "output_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Output Hash",
+      "type": "string"
+    },
+    "parameters_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Parameters Hash",
+      "type": "string"
+    },
+    "parameters_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Parameters Version",
+      "type": "string"
+    },
+    "producer_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Producer Version",
+      "type": "string"
+    },
+    "prompt_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Prompt Hash",
+      "type": "string"
+    },
+    "prompt_name": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Prompt Name",
+      "type": "string"
+    },
+    "prompt_version": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Prompt Version",
+      "type": "string"
+    },
+    "rejection_case_pass_rate": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rejection Case Pass Rate"
+    },
+    "rejection_cases_passed": {
+      "minimum": 0,
+      "title": "Rejection Cases Passed",
+      "type": "integer"
+    },
+    "rejection_cases_total": {
+      "minimum": 0,
+      "title": "Rejection Cases Total",
+      "type": "integer"
+    },
+    "rejection_counts": {
+      "items": {
+        "$ref": "#/$defs/LiteratureClaimRejectionCount"
+      },
+      "title": "Rejection Counts",
+      "type": "array"
+    },
+    "report_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Report Version",
+      "type": "string"
+    },
+    "sample_count": {
+      "minimum": 0,
+      "title": "Sample Count",
+      "type": "integer"
+    },
+    "schema_items_total": {
+      "minimum": 0,
+      "title": "Schema Items Total",
+      "type": "integer"
+    },
+    "schema_items_valid": {
+      "minimum": 0,
+      "title": "Schema Items Valid",
+      "type": "integer"
+    },
+    "schema_pass_rate": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Schema Pass Rate"
+    },
+    "scientific_label_exact_match_rate": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scientific Label Exact Match Rate"
+    },
+    "scientific_label_items_exact": {
+      "minimum": 0,
+      "title": "Scientific Label Items Exact",
+      "type": "integer"
+    },
+    "scientific_label_items_total": {
+      "minimum": 0,
+      "title": "Scientific Label Items Total",
+      "type": "integer"
+    },
+    "status_counts": {
+      "$ref": "#/$defs/LiteratureClaimStatusCounts"
+    }
+  },
+  "required": [
+    "benchmark_id",
+    "benchmark_schema_version",
+    "benchmark_version",
+    "benchmark_scientific_payload_hash",
+    "benchmark_content_hash",
+    "prompt_name",
+    "prompt_version",
+    "prompt_hash",
+    "claim_schema_version",
+    "model_name",
+    "parameters_version",
+    "parameters_hash",
+    "producer_version",
+    "sample_count",
+    "claim_type_counts",
+    "schema_items_valid",
+    "schema_items_total",
+    "rejection_cases_passed",
+    "rejection_cases_total",
+    "evidence_items_supported",
+    "evidence_items_total",
+    "scientific_label_items_exact",
+    "scientific_label_items_total",
+    "status_counts",
+    "rejection_counts",
+    "cases",
+    "input_hash",
+    "output_hash"
+  ],
+  "title": "LiteratureClaimBenchmarkReport",
+  "type": "object"
+}

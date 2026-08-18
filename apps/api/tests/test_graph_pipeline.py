@@ -431,7 +431,11 @@ def test_multi_gate_failures_are_complete_prioritized_and_order_invariant() -> N
         object.__setattr__(published.candidate, "reasoning_traces", ())
         bindings = tuple(
             sorted(
-                published.evidence_bindings,
+                (
+                    item
+                    for item in published.evidence_bindings
+                    if item.pipeline_target_type == "relation"
+                ),
                 key=lambda item: item.pipeline_evidence_id,
             )
         )

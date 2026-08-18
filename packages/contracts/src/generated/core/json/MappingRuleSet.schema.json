@@ -1,0 +1,345 @@
+{
+  "$defs": {
+    "DataArtifactCapacity": {
+      "additionalProperties": false,
+      "properties": {
+        "max_conflict_candidates": {
+          "exclusiveMinimum": 0,
+          "title": "Max Conflict Candidates",
+          "type": "integer"
+        },
+        "max_requested_fields": {
+          "exclusiveMinimum": 0,
+          "title": "Max Requested Fields",
+          "type": "integer"
+        },
+        "max_rows": {
+          "exclusiveMinimum": 0,
+          "title": "Max Rows",
+          "type": "integer"
+        },
+        "max_source_values_per_field": {
+          "exclusiveMinimum": 0,
+          "title": "Max Source Values Per Field",
+          "type": "integer"
+        },
+        "max_total_cell_outcomes": {
+          "exclusiveMinimum": 0,
+          "title": "Max Total Cell Outcomes",
+          "type": "integer"
+        },
+        "max_transformation_evidence": {
+          "exclusiveMinimum": 0,
+          "title": "Max Transformation Evidence",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_rows",
+        "max_requested_fields",
+        "max_source_values_per_field",
+        "max_transformation_evidence",
+        "max_conflict_candidates",
+        "max_total_cell_outcomes"
+      ],
+      "title": "DataArtifactCapacity",
+      "type": "object"
+    },
+    "EntityLevel": {
+      "enum": [
+        "host_star",
+        "planet_candidate",
+        "planet_assertion"
+      ],
+      "title": "EntityLevel",
+      "type": "string"
+    },
+    "EntityProjectionPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "rules": {
+          "items": {
+            "$ref": "#/$defs/EntityProjectionRule"
+          },
+          "minItems": 1,
+          "title": "Rules",
+          "type": "array"
+        },
+        "system_context_policy": {
+          "const": "host_and_source_assertion_only_no_implicit_join",
+          "title": "System Context Policy",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "system_context_policy",
+        "rules"
+      ],
+      "title": "EntityProjectionPolicy",
+      "type": "object"
+    },
+    "EntityProjectionRule": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_object_types": {
+          "items": {
+            "$ref": "#/$defs/ObjectType"
+          },
+          "minItems": 1,
+          "title": "Allowed Object Types",
+          "type": "array"
+        },
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel"
+        }
+      },
+      "required": [
+        "entity_level",
+        "allowed_object_types"
+      ],
+      "title": "EntityProjectionRule",
+      "type": "object"
+    },
+    "NumericComparisonPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "absolute_tolerance": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Absolute Tolerance"
+        },
+        "collection_semantics": {
+          "const": "span_absolute_or_relative_max_magnitude",
+          "title": "Collection Semantics",
+          "type": "string"
+        },
+        "relative_denominator_floor": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Relative Denominator Floor"
+        },
+        "relative_tolerance": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Relative Tolerance"
+        },
+        "threshold_inclusive": {
+          "default": true,
+          "title": "Threshold Inclusive",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "absolute_tolerance",
+        "relative_tolerance",
+        "collection_semantics",
+        "relative_denominator_floor"
+      ],
+      "title": "NumericComparisonPolicy",
+      "type": "object"
+    },
+    "ObjectType": {
+      "description": "Objects represented by the exoplanet/host-star case.",
+      "enum": [
+        "planet",
+        "star",
+        "system"
+      ],
+      "title": "ObjectType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "canonical_ordering_policy": {
+      "const": "field_manifest_then_stable_identity",
+      "title": "Canonical Ordering Policy",
+      "type": "string"
+    },
+    "capacity": {
+      "$ref": "#/$defs/DataArtifactCapacity"
+    },
+    "case_manifest_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Case Manifest Content Hash",
+      "type": "string"
+    },
+    "case_manifest_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Case Manifest Id",
+      "type": "string"
+    },
+    "case_manifest_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Case Manifest Version",
+      "type": "string"
+    },
+    "conflict_comparison_policy_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Conflict Comparison Policy Version",
+      "type": "string"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date",
+      "title": "Created At",
+      "type": "string"
+    },
+    "entity_projection_policy": {
+      "$ref": "#/$defs/EntityProjectionPolicy"
+    },
+    "field_manifest_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Field Manifest Content Hash",
+      "type": "string"
+    },
+    "field_manifest_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Field Manifest Id",
+      "type": "string"
+    },
+    "field_manifest_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Field Manifest Version",
+      "type": "string"
+    },
+    "limit_policy_implementation_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Limit Policy Implementation Version",
+      "type": "string"
+    },
+    "maintained_by": {
+      "minLength": 1,
+      "title": "Maintained By",
+      "type": "string"
+    },
+    "non_nullable_missing_policy": {
+      "const": "fail_admission",
+      "title": "Non Nullable Missing Policy",
+      "type": "string"
+    },
+    "null_derivation_policy_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Null Derivation Policy Version",
+      "type": "string"
+    },
+    "numeric_comparison": {
+      "$ref": "#/$defs/NumericComparisonPolicy"
+    },
+    "numeric_normalization_serialization_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Numeric Normalization Serialization Version",
+      "type": "string"
+    },
+    "producer_name": {
+      "minLength": 1,
+      "title": "Producer Name",
+      "type": "string"
+    },
+    "producer_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Producer Version",
+      "type": "string"
+    },
+    "rule_set_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Rule Set Id",
+      "type": "string"
+    },
+    "same_source_conflict_policy": {
+      "const": "preserve_conflict_no_scientific_winner",
+      "title": "Same Source Conflict Policy",
+      "type": "string"
+    },
+    "schema_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_selection_policy_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Source Selection Policy Version",
+      "type": "string"
+    },
+    "uncertainty_policy_implementation_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Uncertainty Policy Implementation Version",
+      "type": "string"
+    },
+    "unresolved_identity_policy": {
+      "const": "preserve_unresolved_rows",
+      "title": "Unresolved Identity Policy",
+      "type": "string"
+    },
+    "version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "rule_set_id",
+    "schema_version",
+    "version",
+    "content_hash",
+    "case_manifest_id",
+    "case_manifest_version",
+    "case_manifest_content_hash",
+    "field_manifest_id",
+    "field_manifest_version",
+    "field_manifest_content_hash",
+    "producer_name",
+    "producer_version",
+    "source_selection_policy_version",
+    "conflict_comparison_policy_version",
+    "null_derivation_policy_version",
+    "uncertainty_policy_implementation_version",
+    "limit_policy_implementation_version",
+    "numeric_normalization_serialization_version",
+    "canonical_ordering_policy",
+    "same_source_conflict_policy",
+    "unresolved_identity_policy",
+    "non_nullable_missing_policy",
+    "entity_projection_policy",
+    "numeric_comparison",
+    "capacity",
+    "created_at",
+    "maintained_by"
+  ],
+  "title": "MappingRuleSet",
+  "type": "object"
+}

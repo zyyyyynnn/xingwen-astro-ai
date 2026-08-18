@@ -11,24 +11,25 @@
  */
 
 import { validateDto, type CoreModelName } from "@xingwen/contracts";
-import type {
-  CreateShareSnapshotRequest,
-  ArtifactVersionMetadata,
-  DomainEntityId,
-  PublicArtifactVersion,
-  PublicEvidence,
-  PublicShareSnapshot,
-  ResearchContract,
-  ResearchContractDraft,
-  ResearchProject,
-  ResearchRun,
-  ResearchThreadEntry,
-  RunEvent,
-  RunStepSnapshot,
-  ShareSnapshot,
-  WorkspaceSnapshot,
-  ContentHash,
-  UtcIsoTimestamp,
+import {
+  asEntityId,
+  type CreateShareSnapshotRequest,
+  type ArtifactVersionMetadata,
+  type DomainEntityId,
+  type PublicArtifactVersion,
+  type PublicEvidence,
+  type PublicShareSnapshot,
+  type ResearchContract,
+  type ResearchContractDraft,
+  type ResearchProject,
+  type ResearchRun,
+  type ResearchThreadEntry,
+  type RunEvent,
+  type RunStepSnapshot,
+  type ShareSnapshot,
+  type WorkspaceSnapshot,
+  type ContentHash,
+  type UtcIsoTimestamp,
 } from "@xingwen/domain";
 
 import { FixtureSemanticError, FixtureValidationError } from "./errors";
@@ -46,24 +47,21 @@ import {
   mapRunEvent,
 } from "./mapping";
 import { computeContractContentHash } from "./contract-hash";
+import { createFixtureArtifactExportRepository } from "./artifact-export-repository";
+import { createFixtureDataArtifactRepository } from "./data-artifact-repository";
+import { createFixtureGraphArtifactRepository } from "./graph-artifact-repository";
+import { createFixtureLiteratureArtifactRepository } from "./literature-artifact-repository";
+import { createFixtureRevisionRepository } from "./revision-repository";
 import { assemblePaperAcquisitionReview } from "./paper-acquisition-repository";
 import { assemblePaperSummaryReview } from "./paper-summary-repository";
 import type {
-  ArtifactReadRepository,
-  ContractRepository,
   CreateResearchRunInput,
-  PaperAcquisitionRepository,
-  PaperSummaryRepository,
-  ProjectRepository,
-  ResearchCatalogRepository,
-  ResearchThreadRepository,
+  ResearchInputRef,
   RepositoryProvenance,
+  RepositorySet,
   RunEventRecovery,
-  RunRepository,
   UpdateResearchProjectInput,
-  ShareRepository,
   UpdateResearchContractDraftInput,
-  WorkspaceSnapshotRepository,
 } from "./ports";
 import type { FixtureBundle } from "./fixture/bundle";
 
@@ -272,17 +270,7 @@ interface ShareRecord {
   readonly evidence: readonly PublicEvidence[];
 }
 
-export interface FixtureRepositorySet {
-  readonly projects: ProjectRepository;
-  readonly researchCatalog: ResearchCatalogRepository;
-  readonly contracts: ContractRepository;
-  readonly runs: RunRepository;
-  readonly researchThread: ResearchThreadRepository;
-  readonly artifacts: ArtifactReadRepository;
-  readonly paperAcquisition: PaperAcquisitionRepository;
-  readonly paperSummary: PaperSummaryRepository;
-  readonly workspaces: WorkspaceSnapshotRepository;
-  readonly shares: ShareRepository;
+export interface FixtureRepositorySet extends RepositorySet {
   readonly provenance: RepositoryProvenance;
 }
 
@@ -372,6 +360,9 @@ export function createFixtureRepositories(
     bundle.data.evidence.map((entity) => mapEvidence(entity)),
   );
   const workspaces = new MemoryStore<WorkspaceSnapshot>([]);
+  const researchInputs = new MemoryStore<ResearchInputRef>([]);
+  const researchInputContent = new Map<DomainEntityId, Blob>();
+  const researchInputProjects = new Map<DomainEntityId, DomainEntityId>();
 
   const runEvents = new Map<DomainEntityId, RunEvent[]>();
   for (const dto of bundle.data.runEvents) {
@@ -850,6 +841,7 @@ export function createFixtureRepositories(
           executionMode: input.executionMode,
           status: "queued",
           progress: 0,
+          revision: 1,
           parentRunId: null,
           derivationKind: "original",
           retryFromStep: null,
@@ -871,15 +863,70 @@ export function createFixtureRepositories(
           {
             runId: id,
             sequence: 1,
-            eventType: "run.queued" as DomainEntityId,
+            activityId: `run:${id}`,
+            activityKind: "status",
+            activityPhase: "queued",
+            activityName: "研究任务",
             stepKey: null,
             progress: 0,
-            publicMessage: "Run queued",
+            content: "研究任务已进入执行队列。",
+            details: {},
             artifactVersionIds: [],
             occurredAt: now,
           },
         ]);
         runsByIdempotencyKey.set(input.idempotencyKey, { request, run });
+        return run;
+      },
+      cancel: async (runId) => {
+        const run = runs.get(runId);
+        if (run === null) {
+          throw new NotFoundError(`Run ${runId} not found`, "RUN_NOT_FOUND");
+        }
+        const updated: ResearchRun = {
+          ...run,
+          status: "cancelled",
+          updatedAt: clock(),
+        };
+        runs.upsert(updated);
+        return updated;
+      },
+      retry: async (runId) => {
+        const run = runs.get(runId);
+        if (run === null) {
+          throw new NotFoundError(`Run ${runId} not found`, "RUN_NOT_FOUND");
+        }
+        const newId = nextId("run");
+        const now = clock();
+        const derived: ResearchRun = {
+          id: newId,
+          projectId: run.projectId,
+          contractId: run.contractId,
+          executionMode: run.executionMode,
+          status: "queued",
+          progress: 0,
+          revision: run.revision,
+          parentRunId: run.id,
+          derivationKind: "retry",
+          retryFromStep: run.retryFromStep,
+          cachePolicy: run.cachePolicy,
+          startedAt: null,
+          finishedAt: null,
+          createdAt: now,
+          updatedAt: now,
+          latestEventSequence: 0,
+          failureCode: null,
+          failureSummary: null,
+        };
+        runs.upsert(derived);
+        return derived;
+      },
+      getCheckpoint: async () => null,
+      submitCheckpointDecision: async (runId) => {
+        const run = runs.get(runId);
+        if (run === null) {
+          throw new NotFoundError(`Run ${runId} not found`, "RUN_NOT_FOUND");
+        }
         return run;
       },
       listEvents: async (runId) => {
@@ -920,10 +967,75 @@ export function createFixtureRepositories(
         return artifacts.filter((a) => versionArtifactIds.has(a.id));
       },
       getArtifact: async (id) => artifacts.get(id),
+      listVersions: async (artifactId) =>
+        versions.filter((v) => v.artifactId === artifactId),
       // Same narrowing as the HTTP adapter: generic reads expose identity and
       // provenance metadata only; rich content stays behind its dedicated port.
       getVersion: async (id) => versions.get(id),
       getEvidence: async (id) => evidenceStore.get(id),
+    },
+    researchInputs: {
+      create: async (input) => {
+        if (projects.get(input.projectId) === null) {
+          throw new NotFoundError(
+            `Project ${input.projectId} not found`,
+            "PROJECT_NOT_FOUND",
+          );
+        }
+        const now = clock();
+        const ref: ResearchInputRef = {
+          id: nextId("ri"),
+          type: input.type,
+          sourceType: "upload",
+          contentHash: `fixture:${String(nextId("hash"))}`,
+          filename: input.filename,
+          mimeType: input.mimeType,
+          sizeBytes: input.file.size,
+          createdAt: now,
+          sourceSnapshotId: null,
+          status: "accepted",
+        };
+        researchInputs.upsert(ref);
+        researchInputContent.set(ref.id, input.file);
+        researchInputProjects.set(ref.id, input.projectId);
+        return ref;
+      },
+      list: async (projectId) => {
+        if (projects.get(projectId) === null) {
+          throw new NotFoundError(
+            `Project ${projectId} not found`,
+            "PROJECT_NOT_FOUND",
+          );
+        }
+        return researchInputs.filter(
+          (ref) => researchInputProjects.get(ref.id) === projectId,
+        );
+      },
+      delete: async (inputId) => {
+        researchInputs.remove(inputId);
+        researchInputContent.delete(inputId);
+        researchInputProjects.delete(inputId);
+      },
+      bindToDraft: async (inputId, projectId) => {
+        if (projects.get(projectId) === null) {
+          throw new NotFoundError(
+            `Project ${projectId} not found`,
+            "PROJECT_NOT_FOUND",
+          );
+        }
+        const ref = researchInputs.get(inputId);
+        if (ref === null) {
+          throw new NotFoundError(
+            `Research input ${inputId} not found`,
+            "RESEARCH_INPUT_NOT_FOUND",
+          );
+        }
+        return ref;
+      },
+      getContentUrl: (inputId: DomainEntityId) =>
+        `/api/research-inputs/${inputId}/content`,
+      getContent: async (inputId: DomainEntityId) =>
+        researchInputContent.get(inputId) ?? new Blob([""]),
     },
     paperAcquisition: {
       getReview: async (artifactVersionId) => {
@@ -960,7 +1072,44 @@ export function createFixtureRepositories(
         // exact same domain shape for the same contract payloads.
         return assemblePaperSummaryReview(entry.summary);
       },
+      getPdfSource: async (artifactVersionId) => {
+        const entry = bundle.data.paperSummaries.find(
+          (item) => item.summary.artifact_version_id === artifactVersionId,
+        );
+        if (!entry) {
+          // Mirrors the PaperSummary API backend: an unknown version id is a
+          // generic ARTIFACT_VERSION_NOT_FOUND, never an "empty source" state.
+          throw new NotFoundError(
+            `Paper summary ${artifactVersionId} not found`,
+            "ARTIFACT_VERSION_NOT_FOUND",
+          );
+        }
+        // Fixture bundles carry no authorized PaperCandidate → ResearchInput
+        // full-text binding, so the authorized relation is always absent and
+        // the UI must show the plain unavailable state.
+        return { researchInputId: null };
+      },
     },
+    dataArtifacts: createFixtureDataArtifactRepository([
+      ...(bundle.data.dataArtifactReads ?? []),
+      ...(bundle.data.fieldDictionaryArtifactReads ?? []),
+      ...(bundle.data.sourceCollectionArtifactReads ?? []),
+    ]),
+    literatureArtifacts: createFixtureLiteratureArtifactRepository(
+      bundle.data.literatureClaimReads ?? [],
+      bundle.data.literatureRelationReads ?? [],
+      bundle.data.literatureReasoningTraceReads ?? [],
+    ),
+    graphArtifacts: createFixtureGraphArtifactRepository(
+      bundle.data.graphArtifactReads ?? [],
+      bundle.data.graphNodeReads ?? [],
+      bundle.data.graphEdgeReads ?? [],
+    ),
+    artifactExports: createFixtureArtifactExportRepository(
+      bundle.data.projects[0]?.id
+        ? asEntityId(bundle.data.projects[0].id)
+        : asEntityId("proj_fixture"),
+    ),
     workspaces: {
       getByProjectId: async (projectId) =>
         workspaces.filter((w) => w.projectId === projectId)[0] ?? null,
@@ -1079,6 +1228,7 @@ export function createFixtureRepositories(
         ) {
           return null;
         }
+
         return {
           id: record.snapshot.id,
           title: record.snapshot.title,
@@ -1090,6 +1240,7 @@ export function createFixtureRepositories(
         };
       },
     },
+    revisions: createFixtureRevisionRepository(),
     provenance: {
       state: buildFixtureProvenance(
         bundle.schemaVersion,

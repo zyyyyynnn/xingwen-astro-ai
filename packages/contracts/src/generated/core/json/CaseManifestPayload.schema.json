@@ -1,0 +1,201 @@
+{
+  "$defs": {
+    "MaintainerDefinition": {
+      "additionalProperties": false,
+      "description": "Ownership metadata for a manifest release.",
+      "properties": {
+        "module": {
+          "const": "data_pipeline",
+          "title": "Module",
+          "type": "string"
+        },
+        "role": {
+          "const": "data_pipeline",
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "module",
+        "role"
+      ],
+      "title": "MaintainerDefinition",
+      "type": "object"
+    },
+    "ManifestReference": {
+      "additionalProperties": false,
+      "description": "Immutable reference from a Case Manifest to a Field Manifest.",
+      "properties": {
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "manifest_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Manifest Id",
+          "type": "string"
+        },
+        "manifest_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Manifest Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "manifest_id",
+        "manifest_version",
+        "content_hash"
+      ],
+      "title": "ManifestReference",
+      "type": "object"
+    },
+    "ObjectType": {
+      "description": "Objects represented by the exoplanet/host-star case.",
+      "enum": [
+        "planet",
+        "star",
+        "system"
+      ],
+      "title": "ObjectType",
+      "type": "string"
+    },
+    "TargetObjectDefinition": {
+      "additionalProperties": false,
+      "description": "Identity and declared crossmatch inputs for a case object.",
+      "properties": {
+        "crossmatch_fields": {
+          "items": {
+            "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Crossmatch Fields",
+          "type": "array"
+        },
+        "evidence_locator_rule_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Evidence Locator Rule Id",
+          "type": "string"
+        },
+        "identity_fields": {
+          "items": {
+            "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Identity Fields",
+          "type": "array"
+        },
+        "object_type": {
+          "$ref": "#/$defs/ObjectType"
+        },
+        "role": {
+          "minLength": 1,
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "object_type",
+        "role",
+        "identity_fields",
+        "crossmatch_fields",
+        "evidence_locator_rule_id"
+      ],
+      "title": "TargetObjectDefinition",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Canonical payload for the fixed exoplanet/host-star research case.",
+  "properties": {
+    "allowed_source_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Allowed Source Ids",
+      "type": "array"
+    },
+    "case_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Case Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date",
+      "title": "Created At",
+      "type": "string"
+    },
+    "default_requested_fields": {
+      "items": {
+        "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Default Requested Fields",
+      "type": "array"
+    },
+    "description": {
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "field_manifest": {
+      "$ref": "#/$defs/ManifestReference"
+    },
+    "maintained_by": {
+      "$ref": "#/$defs/MaintainerDefinition"
+    },
+    "manifest_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Manifest Version",
+      "type": "string"
+    },
+    "minimum_evidence_locator_components": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Minimum Evidence Locator Components",
+      "type": "array"
+    },
+    "name": {
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "target_objects": {
+      "items": {
+        "$ref": "#/$defs/TargetObjectDefinition"
+      },
+      "minItems": 1,
+      "title": "Target Objects",
+      "type": "array"
+    }
+  },
+  "required": [
+    "case_id",
+    "name",
+    "description",
+    "schema_version",
+    "manifest_version",
+    "created_at",
+    "maintained_by",
+    "target_objects",
+    "default_requested_fields",
+    "allowed_source_ids",
+    "field_manifest",
+    "minimum_evidence_locator_components"
+  ],
+  "title": "CaseManifestPayload",
+  "type": "object"
+}

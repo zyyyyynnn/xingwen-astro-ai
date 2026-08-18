@@ -8,9 +8,9 @@
     "rule": "Approved OpenHands product-mechanics scope is defined in source-scope.json; this blueprint records only high-level surfaces, while the actual local import closure is verified for completeness, resolvability, and orphan-free reachability.",
     "adopted_surfaces": [
       "Workspace shell and desktop layout",
-      "ConversationMain split-panel composition and panel visibility",
+      "ConversationMain split-panel composition and docked panel visibility",
       "Sidebar navigation and command menu",
-      "Research Thread and Research Inspector split-panel mechanics",
+      "Research Thread and Research Inspector docked split-panel mechanics",
       "Public reasoning disclosure interaction"
     ],
     "excluded_surfaces": [
@@ -19,7 +19,7 @@
       "Mobile-only navigation and interaction",
       "Telemetry and compatibility modules",
       "Cloud, Enterprise, and desktop-shell integration",
-      "Model-private reasoning renderers and extractors",
+      "Foreign reasoning renderers, extractors and unfiltered runtime payloads",
       "Any source outside the single entrypoint dependency closure"
     ]
   },
@@ -31,10 +31,11 @@
   "component_mapping": {
     "preserve_mechanics": [
       "Single Shell and desktop rails",
-      "Research Thread/Inspector split-panel resize and visibility",
+      "Research Thread/Inspector docked split-panel resize and visibility",
       "Command overlay focus and keyboard behavior",
       "Research Thread/Inspector split-panel sizing, keyboard control, and persistence",
       "Loading, empty, running, error, cancel, retry, and recovery states",
+      "Expandable tool-event rows and grouped action-result presentation",
       "Disclosure interaction without model-private reasoning semantics"
     ],
     "replace_domain_only": [
@@ -53,9 +54,10 @@
     ]
   },
   "reasoning_boundary": {
-    "private_model_reasoning": "forbidden",
-    "public_reasoning": "explicit, auditable, and evidence-linked only",
-    "ui_mechanics": "preserve the upstream-derived disclosure interaction"
+    "public_step_analysis": "server-validated public_analysis inside the authorized project Thread only",
+    "provider_private_reasoning": "never enters the Workspace event or presentation boundary",
+    "formal_reasoning": "explicit, auditable, evidence-linked ReasoningTrace only",
+    "ui_mechanics": "preserve the upstream CollapsibleThinking disclosure interaction"
   },
   "hard_rules": [
     "One Workspace shell and one entrypoint.",
@@ -64,7 +66,7 @@
     "Every local import in the vendored closure resolves on disk.",
     "No compatibility layer or dormant upstream facade.",
     "Every adapted file records its frozen upstream path and modification reason.",
-    "No model-private reasoning crosses the product boundary."
+    "Provider-private reasoning never enters RunEvents, shares, exports or formal Artifacts."
   ],
   "source_vendor_completion_contract": {
     "requirement": "Every adopted source-scope entry has a real vendored file in the single entrypoint closure.",

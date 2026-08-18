@@ -44,7 +44,7 @@ HASH_A = "sha256:" + "a" * 64
 HASH_B = "sha256:" + "b" * 64
 HASH_C = "sha256:" + "c" * 64
 SUMMARY_VERSION_ID = "summary-version"
-COLLECTION_VERSION_ID = "collection-version"
+COLLECTION_VERSION_ID = "11111111-1111-4111-8111-111111111111"
 SUMMARY_ARTIFACT_ID = "summary-artifact"
 PROJECT_ID = "project-1"
 BASE_COLLECTION = build_demo_collection()
@@ -255,7 +255,7 @@ def _version(
         version=(
             "1.0.0" if kind == "paper_summary" else collection.producer.producer_version
         ),
-        model_name="fixture-model" if kind == "paper_summary" else None,
+        requested_model="fixture-model" if kind == "paper_summary" else None,
         prompt_name="paper_summary" if kind == "paper_summary" else None,
         prompt_version="2.0.0" if kind == "paper_summary" else None,
         prompt_hash=HASH_A if kind == "paper_summary" else None,
@@ -700,3 +700,104 @@ def test_paper_summary_rejects_cached_execution_attributed_to_another_source() -
 
     assert response.status_code == 403
     assert response.json()["code"] == "PROVENANCE_SCOPE_VIOLATION"
+
+
+class _FakePaperInputService:
+    """Stands in for the authorized PaperCandidate input bridge read seam."""
+
+    def __init__(self, record: object | None) -> None:
+        self.record = record
+        self.calls: list[dict[str, str]] = []
+
+    def accepted_research_input(self, **kwargs: str) -> object | None:
+        self.calls.append(kwargs)
+        return self.record
+
+
+def _pdf_input_record():
+    from app.schemas.research_input import ResearchInputStatus, ResearchInputType
+    from app.services.research_input_store import ResearchInputRecord
+
+    return ResearchInputRecord(
+        id="input-pdf-1",
+        session_id="owner",
+        project_id=PROJECT_ID,
+        type=ResearchInputType.pdf,
+        source_type="url_fetch",
+        content_hash=HASH_A,
+        storage_ref="local:input-pdf-1",
+        filename="paper.pdf",
+        mime_type="application/pdf",
+        size_bytes=1024,
+        status=ResearchInputStatus.accepted,
+        source_snapshot_id=None,
+        url=None,
+        created_at=NOW,
+        expires_at=None,
+    )
+
+
+def test_paper_summary_pdf_source_returns_authorized_research_input() -> None:
+    client = _client(_Artifacts(_version(summary=_summary())))
+    service = _FakePaperInputService(_pdf_input_record())
+    client.app.state.paper_candidate_input_service = service
+
+    response = client.get(
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/pdf-source"
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["research_input"]["id"] == "input-pdf-1"
+    assert data["research_input"]["type"] == "pdf"
+    assert data["research_input"]["content_hash"] == HASH_A
+    assert response.headers["cache-control"] == "no-store"
+    assert service.calls == [
+        {
+            "session_id": "owner",
+            "project_id": PROJECT_ID,
+            "paper_collection_version_id": COLLECTION_VERSION_ID,
+            "canonical_paper_id": TEST_CANDIDATE.canonical_paper_id,
+        }
+    ]
+
+
+def test_paper_summary_pdf_source_is_null_without_authorized_binding() -> None:
+    client = _client(_Artifacts(_version(summary=_summary())))
+    client.app.state.paper_candidate_input_service = _FakePaperInputService(None)
+
+    response = client.get(
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/pdf-source"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"] == {"research_input": None}
+
+
+def test_paper_summary_pdf_source_is_null_when_bridge_is_unconfigured() -> None:
+    client = _client(_Artifacts(_version(summary=_summary())))
+    assert client.app.state.paper_candidate_input_service is None
+
+    response = client.get(
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/pdf-source"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"] == {"research_input": None}
+
+
+def test_paper_summary_pdf_source_rejects_kind_mismatch_and_foreign_session() -> None:
+    response = _client(_Artifacts(_version(summary=_summary(), kind="dataset"))).get(
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/pdf-source"
+    )
+    assert response.status_code == 409
+    assert response.json()["code"] == "ARTIFACT_KIND_MISMATCH"
+
+    app = create_app()
+    app.state.artifact_read_service = _Artifacts(_version(summary=_summary()))  # type: ignore[assignment]
+    assert (
+        TestClient(app)
+        .get(f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/pdf-source")
+        .status_code
+        == 401
+    )

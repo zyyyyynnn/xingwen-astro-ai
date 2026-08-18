@@ -410,7 +410,6 @@ class CacheSelector:
             if selected is None:
                 outcome = "rejected"
                 reason = _best_rejection(rejection_reasons)
-                event_type = "cache.rejected"
                 message = (
                     "Recoverable live failure retained; no eligible cache record selected"
                 )
@@ -418,7 +417,6 @@ class CacheSelector:
             else:
                 outcome = "selected"
                 reason = CacheRejectionReason.selected
-                event_type = "cache.selected"
                 message = (
                     "Recoverable live failure retained; matching historical "
                     "ArtifactVersion selected"
@@ -449,10 +447,17 @@ class CacheSelector:
                 RunEventModel(
                     run_id=run.id,
                     sequence=sequence,
-                    event_type=event_type,
+                    activity_id=f"cache:{audit.id}",
+                    activity_kind="status",
+                    activity_phase="completed",
+                    activity_name="缓存选择",
                     step_key=step.key,
                     progress=run.progress,
-                    public_message=message,
+                    content=message,
+                    details={
+                        "cache_outcome": outcome,
+                        "cache_reason": reason.value,
+                    },
                     artifact_version_ids=artifact_version_ids,
                 )
             )
@@ -516,7 +521,7 @@ def _producer_identity(producer: ProducerExecutionModel) -> dict[str, Any]:
         "producer_name": producer.producer_name,
         "producer_version": producer.producer_version,
         "model_provider": producer.model_provider,
-        "model_name": producer.model_name,
+        "requested_model": producer.requested_model,
         "prompt_name": producer.prompt_name,
         "prompt_version": producer.prompt_version,
         "prompt_hash": producer.prompt_hash,
@@ -692,7 +697,7 @@ def _validate_origin(
             key: value
             for key, value in (
                 ("model_provider", producer.model_provider),
-                ("model_name", producer.model_name),
+                ("requested_model", producer.requested_model),
                 ("prompt_name", producer.prompt_name),
                 ("prompt_version", producer.prompt_version),
                 ("prompt_hash", producer.prompt_hash),

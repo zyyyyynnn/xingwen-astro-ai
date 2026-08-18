@@ -10,8 +10,8 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
-from alembic import command
-from alembic.config import Config
+
+from db_bootstrap import reset_current_schema
 from sqlalchemy import Engine, func, select
 
 from app.db.models import (
@@ -47,23 +47,13 @@ class MutableClock:
         return self.now
 
 
-def _alembic_config(url: str) -> Config:
-    root = Path(__file__).resolve().parents[1]
-    config = Config(root / "alembic.ini")
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    return config
-
-
 @pytest.fixture(scope="module")
 def database() -> tuple[Engine, object, UUID, str]:
     assert TEST_DATABASE_URL is not None
     assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower(), (
         "refusing non-test database"
     )
-
-    config = _alembic_config(TEST_DATABASE_URL)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
     engine = create_engine_from_url(TEST_DATABASE_URL)
     factory = session_factory(engine)
@@ -87,8 +77,7 @@ def database() -> tuple[Engine, object, UUID, str]:
 
     engine.dispose()
     # Leave the shared CI test database at head for whichever module runs next.
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    reset_current_schema(TEST_DATABASE_URL)
 
 
 def _prepared(content: bytes) -> PreparedInput:

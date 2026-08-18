@@ -225,7 +225,7 @@ describe("Fixture adapter — run create (deterministic clock/id)", () => {
     expect(run.executionMode).toBe("demo_replay");
     const events = await fresh.runs.listEvents(run.id);
     expect(events).toHaveLength(1);
-    expect(events[0]!.eventType).toBe("run.queued");
+    expect(events[0]!.activityPhase).toBe("queued");
   });
 
   it("replays one action key but allows a new identical action", async () => {

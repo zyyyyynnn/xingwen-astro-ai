@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import {
   cpSync,
   mkdtempSync,
@@ -13,6 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import { checkAgentUpstreamPolicy } from "./check-agent-upstream-policy.mjs";
 
 const REPO_ROOT = resolve(fileURLToPath(import.meta.url), "../..");
@@ -22,11 +23,15 @@ const METADATA_FILES = [
   "upstream-lock.json",
   "source-scope.json",
   "source-policy.json",
-  "vendor-blueprint.json",
-  "provenance-schema.json",
-  "LICENSE.upstream",
-  "NOTICE.md",
+  "provenance.json",
 ];
+const MESSAGE_FILES = [
+  "src/components/conversation-events/chat/event-message.tsx",
+  "src/components/conversation-events/chat/group-events.ts",
+  "src/components/conversation-events/chat/messages.tsx",
+  "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
+];
+const DISCLOSURE_PATH = MESSAGE_FILES.at(-1);
 
 function freshRepo() {
   const root = mkdtempSync(join(tmpdir(), "agent-upstream-policy-"));
@@ -34,6 +39,11 @@ function freshRepo() {
   mkdirSync(target, { recursive: true });
   for (const file of METADATA_FILES) {
     cpSync(join(UPSTREAM_ABS, file), join(target, file));
+  }
+  for (const file of MESSAGE_FILES) {
+    const destination = join(target, file);
+    mkdirSync(dirname(destination), { recursive: true });
+    cpSync(join(UPSTREAM_ABS, file), destination);
   }
   return root;
 }
@@ -50,6 +60,7 @@ function save(root, file, value) {
   writeFileSync(
     join(root, UPSTREAM, file),
     `${JSON.stringify(value, null, 2)}\n`,
+    "utf8",
   );
 }
 
@@ -61,247 +72,99 @@ function assertPass(root, message) {
 function assertFail(root, pattern, message) {
   const { failures } = checkAgentUpstreamPolicy(root);
   assert.ok(failures.length > 0, `${message}: expected failure`);
-  if (pattern) {
-    assert.ok(
-      failures.some((failure) => pattern.test(failure)),
-      `${message}: expected ${pattern}, got\n${failures.join("\n")}`,
-    );
-  }
+  assert.ok(
+    failures.some((failure) => pattern.test(failure)),
+    `${message}: expected ${pattern}, got\n${failures.join("\n")}`,
+  );
 }
 
-function writeVendoredFile(root, upstreamPath, content) {
-  const localPath = `${UPSTREAM}/${upstreamPath}`;
-  const absolute = join(root, localPath);
-  mkdirSync(dirname(absolute), { recursive: true });
-  writeFileSync(absolute, content);
-  return localPath;
-}
-
-function provenanceEntry({
-  upstreamPath,
-  localPath,
-  adoptionClass = "KEEP_WITH_MINIMAL_PATCH",
-  modified = true,
-  modificationReason = "remove private reasoning semantics",
-}) {
-  return {
-    upstream_path: upstreamPath,
-    local_path: localPath,
-    adoption_class: adoptionClass,
-    modified,
-    modification_reason: modificationReason,
-  };
-}
-
-function saveProvenance(root, entries) {
-  save(root, "provenance.json", {
-    schema: "xingwen.agent-upstream.provenance/v2",
-    generated_by: "test",
-    source: {
-      repository: "https://github.com/OpenHands/OpenHands.git",
-      tag: "v1.10.0",
-      commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-      license: "MIT",
-    },
-    keep_as_is_tree_sha256: "0".repeat(64),
-    entries,
-  });
-}
-
-test("metadata-only semantic policy passes", () => {
-  const root = freshRepo();
-  try {
-    assertPass(root, "metadata-only policy should pass");
-  } finally {
-    cleanup(root);
-  }
+test("current public Agent analysis policy passes", () => {
+  assertPass(REPO_ROOT, "current repository");
 });
 
 test("missing source-policy fails", () => {
   const root = freshRepo();
   try {
     rmSync(join(root, UPSTREAM, "source-policy.json"));
-    assertFail(root, /Missing source-policy\.json/, "missing policy");
+    assertFail(root, /Missing source-policy\.json/u, "missing policy");
   } finally {
     cleanup(root);
   }
 });
 
-test("source verification drift fails", () => {
-  const root = freshRepo();
-  try {
-    const lock = load(root, "upstream-lock.json");
-    lock.source_verification.commit = "0".repeat(40);
-    save(root, "upstream-lock.json", lock);
-    assertFail(root, /source_verification\.commit/, "verification drift");
-  } finally {
-    cleanup(root);
-  }
-});
-
-test("unsafe vendored class contract drift fails", () => {
-  const root = freshRepo();
-  try {
-    const lock = load(root, "upstream-lock.json");
-    lock.vendored_file_adoption_classes.push("REMOVE_CODING_SURFACE");
-    save(root, "upstream-lock.json", lock);
-    assertFail(
-      root,
-      /vendored_file_adoption_classes/,
-      "unsafe vendored class drift",
-    );
-  } finally {
-    cleanup(root);
-  }
-});
-
-test("private reasoning inventory shrink fails", () => {
+test("frozen OpenHands identity drift fails", () => {
   const root = freshRepo();
   try {
     const policy = load(root, "source-policy.json");
-    policy.private_reasoning.excluded.pop();
+    policy.commit = "0".repeat(40);
     save(root, "source-policy.json", policy);
-    assertFail(
-      root,
-      /private_reasoning\.excluded/,
-      "private reasoning inventory shrink",
-    );
+    assertFail(root, /source-policy\.commit/u, "identity drift");
   } finally {
     cleanup(root);
   }
 });
 
-test("embedded source-scope policy drift fails", () => {
+test("public step analysis constraint drift fails", () => {
+  const root = freshRepo();
+  try {
+    const policy = load(root, "source-policy.json");
+    policy.public_step_analysis.constraints.pop();
+    save(root, "source-policy.json", policy);
+    assertFail(root, /public step analysis constraints/u, "constraint drift");
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("public step analysis disclosure inventory drift fails", () => {
   const root = freshRepo();
   try {
     const scope = load(root, "source-scope.json");
-    scope.policy_sets.private_reasoning_excluded = [];
+    scope.policy_sets.public_step_analysis_disclosure = [];
     save(root, "source-scope.json", scope);
     assertFail(
       root,
-      /private_reasoning_excluded policy set/,
-      "embedded policy drift",
+      /public step analysis disclosure set/u,
+      "disclosure drift",
     );
   } finally {
     cleanup(root);
   }
 });
 
-test("clean disclosure file passes when explicitly modified", () => {
-  const root = freshRepo();
-  try {
-    const policy = load(root, "source-policy.json");
-    const upstreamPath = policy.private_reasoning.disclosure_mechanics[0];
-    const content = 'export const publicActivity = "safe";\n';
-    const localPath = writeVendoredFile(root, upstreamPath, content);
-    saveProvenance(root, [
-      provenanceEntry({
-        upstreamPath,
-        localPath,
-      }),
-    ]);
-    assertPass(root, "clean disclosure source should pass");
-  } finally {
-    cleanup(root);
-  }
-});
-
-test("disclosure file cannot use KEEP_AS_IS", () => {
-  const root = freshRepo();
-  try {
-    const policy = load(root, "source-policy.json");
-    const upstreamPath = policy.private_reasoning.disclosure_mechanics[0];
-    const content = 'export const publicActivity = "safe";\n';
-    const localPath = writeVendoredFile(root, upstreamPath, content);
-    saveProvenance(root, [
-      provenanceEntry({
-        upstreamPath,
-        localPath,
-        adoptionClass: "KEEP_AS_IS",
-        modified: false,
-        modificationReason: null,
-      }),
-    ]);
-    assertFail(
-      root,
-      /must be modified=true|patched adoption class|KEEP_AS_IS/,
-      "KEEP_AS_IS disclosure",
-    );
-  } finally {
-    cleanup(root);
-  }
-});
-
-test("vendored raw reasoning token fails", () => {
-  const root = freshRepo();
-  try {
-    const policy = load(root, "source-policy.json");
-    const upstreamPath = policy.private_reasoning.disclosure_mechanics[0];
-    const content = "export const leaked = event.reasoning_content;\n";
-    const localPath = writeVendoredFile(root, upstreamPath, content);
-    saveProvenance(root, [
-      provenanceEntry({
-        upstreamPath,
-        localPath,
-      }),
-    ]);
-    assertFail(
-      root,
-      /forbidden private-reasoning token/,
-      "raw reasoning token",
-    );
-  } finally {
-    cleanup(root);
-  }
-});
-
-test("excluded private reasoning source cannot appear in provenance", () => {
-  const root = freshRepo();
-  try {
-    const policy = load(root, "source-policy.json");
-    const upstreamPath = policy.private_reasoning.excluded[0];
-    const content = 'export const leaked = "private";\n';
-    const localPath = writeVendoredFile(root, upstreamPath, content);
-    saveProvenance(root, [
-      provenanceEntry({
-        upstreamPath,
-        localPath,
-      }),
-    ]);
-    assertFail(
-      root,
-      /must never be vendored/,
-      "excluded private reasoning provenance",
-    );
-  } finally {
-    cleanup(root);
-  }
-});
-
-test("private reasoning import fragment fails in any vendored source", () => {
+test("foreign OpenHands runtime path cannot enter provenance", () => {
   const root = freshRepo();
   try {
     const scope = load(root, "source-scope.json");
-    const target = scope.files.find(
-      (entry) => entry.classification === "REQUIRED_VENDOR",
-    );
-    const upstreamPath = target.upstream_path;
-    const content =
-      'import { helper } from "./event-thought-helpers";\nexport { helper };\n';
-    const localPath = writeVendoredFile(root, upstreamPath, content);
-    saveProvenance(root, [
-      provenanceEntry({
-        upstreamPath,
-        localPath,
-        adoptionClass: "KEEP_AS_IS",
-        modified: false,
-        modificationReason: null,
-      }),
-    ]);
+    const provenance = load(root, "provenance.json");
+    provenance.entries.push({
+      upstream_path: scope.policy_sets.foreign_runtime_excluded[0],
+      local_path: `${UPSTREAM}/${scope.policy_sets.foreign_runtime_excluded[0]}`,
+      adoption_class: "KEEP_AS_IS",
+      modified: false,
+      modification_reason: null,
+    });
+    save(root, "provenance.json", provenance);
     assertFail(
       root,
-      /forbidden private-reasoning import\/reference/,
-      "private reasoning import fragment",
+      /foreign OpenHands runtime path must not be vendored/u,
+      "foreign runtime",
+    );
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("CollapsibleThinking must preserve the public analysis preview", () => {
+  const root = freshRepo();
+  try {
+    const file = join(root, UPSTREAM, DISCLOSURE_PATH);
+    const source = readFileSync(file, "utf8").replace("{content}", "{label}");
+    writeFileSync(file, source, "utf8");
+    assertFail(
+      root,
+      /public analysis composition is missing \{content\}/u,
+      "public analysis preview",
     );
   } finally {
     cleanup(root);

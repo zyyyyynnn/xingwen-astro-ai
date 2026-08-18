@@ -4,77 +4,80 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@xingwen/ui";
-import { ChevronDown, FileSearch, type LucideIcon } from "@xingwen/ui/icons";
+import { BrainCircuit, ChevronDown } from "@xingwen/ui/icons";
 
-interface NarrativeDisclosureProps {
-  readonly summary: string;
-  readonly meta?: string;
-  readonly icon: LucideIcon;
-  readonly defaultOpen?: boolean;
-  readonly open?: boolean;
-  readonly onOpenChange?: (open: boolean) => void;
-  readonly triggerRef?: React.Ref<HTMLButtonElement>;
-  readonly children: React.ReactNode;
+interface CollapsibleThinkingProps {
+  /** Server-validated public analysis, never provider-private chain of thought. */
+  readonly content: string;
+  readonly isStreaming?: boolean;
+  readonly label?: string;
 }
 
-/** OpenHands disclosure mechanics shared by public Agent narrative nodes. */
-export function NarrativeDisclosure({
-  summary,
-  meta,
-  icon: Icon,
-  defaultOpen = false,
-  open,
-  onOpenChange,
-  triggerRef,
-  children,
-}: NarrativeDisclosureProps) {
+/** OpenHands disclosure mechanics with an explicit public-analysis boundary. */
+export function CollapsibleThinking({
+  content,
+  isStreaming = false,
+  label = "分析",
+}: CollapsibleThinkingProps) {
+  if (!content.trim()) return null;
   return (
     <Collapsible
-      asChild
-      defaultOpen={defaultOpen}
-      open={open}
-      onOpenChange={onOpenChange}
+      className="oh-narrative-node"
+      data-testid="collapsible-thinking"
     >
-      <section className="oh-narrative-node">
-        <CollapsibleTrigger asChild>
-          <button
-            ref={triggerRef}
-            type="button"
-            className="oh-narrative-row oh-narrative-trigger"
-          >
-            <ChevronDown className="oh-narrative-chevron" aria-hidden="true" />
-            <Icon className="oh-narrative-icon" aria-hidden="true" />
-            <span className="oh-narrative-title flex items-center gap-[var(--oh-space-2)]">
-              <span className="truncate">{summary}</span>
-              {meta ? (
-                <span className="shrink-0 text-xs text-[var(--oh-muted)]">
-                  {meta}
-                </span>
-              ) : null}
-            </span>
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="oh-narrative-content">
-          {children}
-        </CollapsibleContent>
-      </section>
+      <CollapsibleTrigger asChild>
+        <button type="button" className="oh-narrative-row oh-narrative-trigger">
+          <ChevronDown
+            className="oh-narrative-chevron xw-disclosure-chevron"
+            aria-hidden="true"
+          />
+          <BrainCircuit className="oh-narrative-icon" aria-hidden="true" />
+          <span className="oh-narrative-title flex items-center gap-[var(--oh-space-2)]">
+            <span className="truncate">{label}</span>
+            {isStreaming ? (
+              <span className="shrink-0 text-xs text-[var(--oh-muted)]">
+                进行中
+              </span>
+            ) : null}
+          </span>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="oh-narrative-content">
+        <div
+          role="region"
+          data-testid="collapsible-thinking-content"
+          className="whitespace-pre-wrap"
+        >
+          {content}
+        </div>
+      </CollapsibleContent>
     </Collapsible>
   );
 }
 
-interface CollapsibleRationaleProps {
-  readonly summary: string;
-  readonly children: React.ReactNode;
-}
-
-/** Disclosure for public, auditable rationale only. */
-export function CollapsibleRationale({
+/** Retained as the upstream disclosure seam for public rationale consumers. */
+export function NarrativeDisclosure({
   summary,
   children,
-}: CollapsibleRationaleProps) {
+}: {
+  readonly summary: string;
+  readonly children: React.ReactNode;
+}) {
   return (
-    <NarrativeDisclosure summary={summary} icon={FileSearch}>
-      {children}
-    </NarrativeDisclosure>
+    <Collapsible className="oh-narrative-node">
+      <CollapsibleTrigger asChild>
+        <button type="button" className="oh-narrative-row oh-narrative-trigger">
+          <ChevronDown
+            className="oh-narrative-chevron xw-disclosure-chevron"
+            aria-hidden="true"
+          />
+          <BrainCircuit className="oh-narrative-icon" aria-hidden="true" />
+          <span className="oh-narrative-title truncate">{summary}</span>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="oh-narrative-content">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

@@ -1,0 +1,64 @@
+{
+  "additionalProperties": false,
+  "description": "Stable Dataset/Field provenance counts for one ``provides_field`` edge.",
+  "properties": {
+    "conflict_count": {
+      "minimum": 0,
+      "title": "Conflict Count",
+      "type": "integer"
+    },
+    "declared_null_outcome_count": {
+      "minimum": 0,
+      "title": "Declared Null Outcome Count",
+      "type": "integer"
+    },
+    "mapped_outcome_count": {
+      "minimum": 0,
+      "title": "Mapped Outcome Count",
+      "type": "integer"
+    },
+    "projected_row_count": {
+      "minimum": 1,
+      "title": "Projected Row Count",
+      "type": "integer"
+    },
+    "retained_candidate_count": {
+      "minimum": 0,
+      "title": "Retained Candidate Count",
+      "type": "integer"
+    },
+    "selected_candidate_count": {
+      "minimum": 0,
+      "title": "Selected Candidate Count",
+      "type": "integer"
+    },
+    "unresolved_outcome_count": {
+      "minimum": 0,
+      "title": "Unresolved Outcome Count",
+      "type": "integer"
+    },
+    "unselected_candidate_count": {
+      "minimum": 0,
+      "title": "Unselected Candidate Count",
+      "type": "integer"
+    },
+    "upstream_evidence_count": {
+      "minimum": 1,
+      "title": "Upstream Evidence Count",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "projected_row_count",
+    "mapped_outcome_count",
+    "declared_null_outcome_count",
+    "unresolved_outcome_count",
+    "retained_candidate_count",
+    "selected_candidate_count",
+    "unselected_candidate_count",
+    "conflict_count",
+    "upstream_evidence_count"
+  ],
+  "title": "GraphDataEdgeAggregation",
+  "type": "object"
+}

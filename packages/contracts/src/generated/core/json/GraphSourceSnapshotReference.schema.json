@@ -1,0 +1,53 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "content_hash": {
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "persisted_source_snapshot_id": {
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "title": "Persisted Source Snapshot Id",
+      "type": "string"
+    },
+    "project_id": {
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "source_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Source Id",
+      "type": "string"
+    },
+    "source_snapshot_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Source Snapshot Id",
+      "type": "string"
+    },
+    "source_version": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Source Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_snapshot_id",
+    "persisted_source_snapshot_id",
+    "source_id",
+    "source_version",
+    "content_hash",
+    "project_id"
+  ],
+  "title": "GraphSourceSnapshotReference",
+  "type": "object"
+}

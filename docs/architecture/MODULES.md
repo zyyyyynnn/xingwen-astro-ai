@@ -6,6 +6,19 @@
 
 本文定义系统各架构分层的职责分工、依赖方向与交接边界。前端包依赖见 [Frontend Architecture](FRONTEND_ARCHITECTURE.md)。
 
+用户明确授权的全栈 refactor 不改变模块职责：“一个 PR 跨层”不等于“一个模块跨层”。依赖方向固定为：
+
+```text
+UI -> Adapter -> Repository -> API -> Workflow -> Pipeline -> Publisher
+```
+
+- 前端不写 Workflow truth；
+- Worker 不直接渲染 UI；
+- Pipeline 不发布 ArtifactVersion；
+- Publisher 是唯一发布事务；
+- Research Thread writer 是唯一 Thread 写入边界；
+- Artifact Renderer Registry 是唯一结果呈现路由。
+
 ## 1. 依赖方向
 
 ```text
@@ -38,7 +51,7 @@ Experience (Site / Workspace)
 
 ### 2.1 前端与产品体验
 
-- **职责**：提供 Brand Site 静态站与 Research Workspace 宿主界面，负责 Session Gate、路由、Query/Mutation 组合、Research Thread 展示、Artifact Renderer Registry、浮动 Research Inspector、交互响应与分享体验。
+- **职责**：提供 Brand Site 静态站与 Research Workspace 宿主界面，负责 Session Gate、路由、Query/Mutation 组合、Research Thread 展示、Artifact Renderer Registry、右侧停靠 Research Inspector、交互响应与分享体验。
 - **不负责**：直连外部模型/数据源、决定 Run 状态、伪造后端未返回的科研事实。
 
 `/workspace` 的项目首次创建、项目恢复与研究交互共享同一 Workspace Shell。
@@ -55,6 +68,7 @@ transport、session、query/cache、polling、server state 或 renderer 生命�
 
 - **职责**：提供统一无版本 `/api/*` 接口，管理 Session、Project、Contract、Feedback、RevisionPlan、Run 状态机与 Event 读取；Workflow 拥有并发锁、幂等、StepAttempt 重试、取消与发布事务，RevisionPlan 确认复用唯一 Run writer，并提供内部 CacheRecord/CacheSelector 失败回退审计；通过 Persistent Workflow Executor 连接 Step Adapter。HTTP 只暴露有真实执行闭环的命令。
 - **不负责**：具体清洗算法、文献检索策略、图谱布局算法。
+- **内部分层**：StepRuntime 是薄分发层，按冻结 RunStep 派发给专职 Step Service（数据、论文检索/总结、文献推理、图谱）；共享的 ProducerExecution 发布生命周期由 step publication 层唯一关闭，不得出现第二套 producer 记录或合成 id。Checkpoint/取消/重试/修订等通用生命周期由本层唯一提供；科学触发时机与科学问题内容由科学能力经同一机制接入。
 
 ### 2.3 数据 Pipeline
 

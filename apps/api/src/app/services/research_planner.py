@@ -44,15 +44,15 @@ class ResearchContractPlanner:
         *,
         model_port: ModelExecutionPort,
         provider: str,
-        model: str,
-        model_revision: str,
+        requested_model: str,
+        explicit_revision: str | None,
         manifests: ManifestBundle,
         prompt_registry: PromptRegistry | None = None,
     ) -> None:
         self._model_port = model_port
         self._provider = provider
-        self._model = model
-        self._model_revision = model_revision
+        self._requested_model = requested_model
+        self._explicit_revision = explicit_revision
         self._manifests = manifests
         self._prompts = prompt_registry or PromptRegistry()
 
@@ -114,17 +114,18 @@ class ResearchContractPlanner:
         }
         request = ModelExecutionRequest(
             provider=self._provider,
-            model=self._model,
-            model_revision=self._model_revision,
+            requested_model=self._requested_model,
+            explicit_revision=self._explicit_revision,
             prompt_name=prompt.name,
             prompt_version=prompt.version,
             prompt_hash=prompt.content_hash,
             prompt=prompt.content,
             input_payload=input_payload,
             parameters={
-                "temperature": 0,
+                "temperature": 0.6,
                 "top_p": 0.8,
             },
+            enable_thinking=False,
         )
         return request
 

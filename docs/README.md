@@ -41,7 +41,7 @@
 | 退出验收标准 | [Acceptance](product/ACCEPTANCE.md) | 产品交付与发布退出标准、一票否决项 |
 | PR 审查清单 | [Review Checklist](quality/REVIEW_CHECKLIST.md) | 单个 PR 的审查清单与合并条件 |
 | 安全要求 | [Security](../SECURITY.md) | 密钥、信任边界、输入、会话、分享与日志要求 |
-| 部署与运维 | [Deployment](../DEPLOYMENT.md) | 环境拓扑、配置边界、migration 与健康检查 |
+| 部署与运维 | [Deployment](../DEPLOYMENT.md) | 环境拓扑、配置边界、schema 与健康检查 |
 | 本地启动 | [Setup](setup.md) | 本地与 Docker 启动方式、环境变量与调试命令 |
 | Agent 执行协议 | [AGENTS](../AGENTS.md) | Agent 执行协议与工作区安全约束 |
 | 协作与 PR 流程 | [Contributing](../CONTRIBUTING.md) | GitHub 分支、提交、PR、Review 与 Squash Merge |

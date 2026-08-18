@@ -1,0 +1,181 @@
+{
+  "$defs": {
+    "BenchmarkFullTextAccess": {
+      "enum": [
+        "open_preprint",
+        "publisher_dependent",
+        "not_verified"
+      ],
+      "title": "BenchmarkFullTextAccess",
+      "type": "string"
+    },
+    "BenchmarkVerificationSource": {
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        },
+        "verified_at": {
+          "format": "date",
+          "title": "Verified At",
+          "type": "string"
+        },
+        "verified_fields": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Verified Fields",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source_id",
+        "url",
+        "verified_at",
+        "verified_fields"
+      ],
+      "title": "BenchmarkVerificationSource",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "abstract_public": {
+      "title": "Abstract Public",
+      "type": "boolean"
+    },
+    "arxiv_id": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Arxiv Id"
+    },
+    "authentication_required": {
+      "title": "Authentication Required",
+      "type": "boolean"
+    },
+    "authors": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Authors",
+      "type": "array"
+    },
+    "authors_complete": {
+      "title": "Authors Complete",
+      "type": "boolean"
+    },
+    "doi": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Doi"
+    },
+    "full_text_access": {
+      "$ref": "#/$defs/BenchmarkFullTextAccess"
+    },
+    "intended_uses": {
+      "items": {
+        "enum": [
+          "benchmark",
+          "scientific_review",
+          "fixture"
+        ],
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Intended Uses",
+      "type": "array"
+    },
+    "license_or_usage_boundary": {
+      "minLength": 1,
+      "title": "License Or Usage Boundary",
+      "type": "string"
+    },
+    "metadata_public": {
+      "title": "Metadata Public",
+      "type": "boolean"
+    },
+    "official_url": {
+      "format": "uri",
+      "maxLength": 2083,
+      "minLength": 1,
+      "title": "Official Url",
+      "type": "string"
+    },
+    "paper_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Paper Id",
+      "type": "string"
+    },
+    "rate_limit_or_runtime_risk": {
+      "minLength": 1,
+      "title": "Rate Limit Or Runtime Risk",
+      "type": "string"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "verification_sources": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkVerificationSource"
+      },
+      "minItems": 1,
+      "title": "Verification Sources",
+      "type": "array"
+    },
+    "year": {
+      "maximum": 2100,
+      "minimum": 1900,
+      "title": "Year",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "paper_id",
+    "title",
+    "authors",
+    "authors_complete",
+    "year",
+    "official_url",
+    "verification_sources",
+    "intended_uses",
+    "metadata_public",
+    "abstract_public",
+    "full_text_access",
+    "authentication_required",
+    "license_or_usage_boundary",
+    "rate_limit_or_runtime_risk"
+  ],
+  "title": "BenchmarkSeedPaper",
+  "type": "object"
+}

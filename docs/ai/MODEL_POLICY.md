@@ -14,11 +14,12 @@
 
 ## 2. Pre-run ModelExecutionRecord 与 ProducerExecution
 
-Research assistant 的分析发生在 Run 之前，必须使用独立的 `ModelExecutionRecord`。它记录 provider、固定 model 与 revision、Prompt name/version/hash、安全规范化后的 Prompt/input/output/parameters snapshot 及其 hash、状态、token usage、latency、provider request id、error code 与时间边界。它不等同于 Run 内 Pipeline 的 ProducerExecution，也不能替代后者。
+Research assistant 的分析发生在 Run 之前，必须使用独立的 `ModelExecutionRecord`。它记录 provider、requested model、provider 返回 model（可得时）与真实存在的显式 revision（可为空）、Prompt name/version/hash、安全规范化后的 Prompt/input/output/parameters snapshot 及其 hash、状态、token usage、latency、provider request id、error code 与时间边界。它不等同于 Run 内 Pipeline 的 ProducerExecution，也不能替代后者。浮动模型别名不得伪造不可变 revision；未显式固定 revision 时该字段必须为空。
 
-Run 内模型 Pipeline 使用 ProducerExecution 保存：
+Run 内模型 Pipeline 使用 ProducerExecution 保存与 ModelExecutionRecord 相同的模型 provenance 语义：
 
-- `producer_type=model`、producer/model identity；
+- `producer_type=model`、producer identity 与 requested model；
+- provider 返回 model（可得时）与真实显式 revision（可为空）；
 - `prompt_name`、`prompt_version`、`prompt_hash`；
 - `parameters_hash`、`input_hash`、`output_hash`；
 - 状态、错误码、token usage 与 latency。

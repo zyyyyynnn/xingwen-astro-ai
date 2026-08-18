@@ -10,6 +10,7 @@ import type {
   ArtifactKind,
   ArtifactVersion,
   ArtifactVersionMetadata,
+  ArtifactVersionSummary,
   CaseKey,
   ContentHash,
   DomainEntityId,
@@ -27,6 +28,7 @@ import type {
   ResearchProject,
   ResearchPlanningCatalog,
   ResearchRun,
+  RunCheckpoint,
   ResearchThreadEntry,
   ResearchThreadAssistantPayload,
   ResearchThreadPublicOutcome,
@@ -53,6 +55,7 @@ import {
 import type {
   ArtifactVersion as ArtifactVersionDto,
   ArtifactVersionDetail as ArtifactVersionDetailDto,
+  ArtifactVersionSummary as ArtifactVersionSummaryDto,
   DataRequirements as DataRequirementsDto,
   EvidenceDetail as EvidenceDetailDto,
   EvidenceRead as EvidenceReadDto,
@@ -66,6 +69,7 @@ import type {
   ResearchProject as ResearchProjectDto,
   ResearchPlanningCatalog as ResearchPlanningCatalogDto,
   ResearchRun as ResearchRunDto,
+  RunCheckpoint as RunCheckpointDto,
   ResearchThreadEntry as ResearchThreadEntryDto,
   ResearchTurnResult as ResearchTurnResultDto,
   RunStepRead as RunStepReadDto,
@@ -142,7 +146,7 @@ function mapProducer(dto: ProducerReferenceDto): ProducerReference {
     type: dto.type,
     name: dto.name,
     version: dto.version,
-    modelName: dto.model_name ?? null,
+    modelName: dto.requested_model ?? null,
     promptName: dto.prompt_name ?? null,
     promptVersion: dto.prompt_version ?? null,
     parametersHash: (dto.parameters_hash ?? null) as ContentHash | null,
@@ -239,7 +243,7 @@ export function mapResearchThreadEntry(
       },
     };
   }
-  if (dto.kind === "assistant_analysis" || dto.kind === "assistant_message") {
+  if (dto.kind === "assistant_reasoning" || dto.kind === "assistant_message") {
     return {
       ...base,
       kind: dto.kind,
@@ -386,10 +390,19 @@ export function mapResearchRun(dto: ResearchRunDto): ResearchRun {
     executionMode: dto.execution_mode as ExecutionMode,
     status: dto.status as RunStatus,
     progress: dto.progress,
+    revision: dto.revision ?? 1,
     parentRunId: (dto.parent_run_id ?? null) as DomainEntityId | null,
     derivationKind: dto.derivation_kind,
     retryFromStep: (dto.retry_from_step ?? null) as DomainEntityId | null,
     cachePolicy: dto.cache_policy,
+    revisionPlanId: (dto.revision_plan_id ?? null) as DomainEntityId | null,
+    feedbackIds: dto.feedback_ids ? dto.feedback_ids.map(mapId) : undefined,
+    recomputeSteps: dto.recompute_steps
+      ? dto.recompute_steps.map(mapId)
+      : undefined,
+    reusedArtifactVersionIds: dto.reused_artifact_version_ids
+      ? dto.reused_artifact_version_ids.map(mapId)
+      : undefined,
     startedAt: (dto.started_at ?? null) as UtcIsoTimestamp | null,
     finishedAt: (dto.finished_at ?? null) as UtcIsoTimestamp | null,
     createdAt: dto.created_at as UtcIsoTimestamp,
@@ -404,12 +417,30 @@ export function mapRunEvent(dto: RunEventDto): RunEvent {
   return {
     runId: mapId(dto.run_id),
     sequence: dto.sequence,
-    eventType: mapId(dto.event_type),
+    activityId: dto.activity_id,
+    activityKind: dto.activity_kind,
+    activityPhase: dto.activity_phase,
+    activityName: dto.activity_name,
     stepKey: (dto.step_key ?? null) as DomainEntityId | null,
     progress: dto.progress ?? null,
-    publicMessage: dto.public_message,
+    content: dto.content,
+    details: dto.details ?? {},
     artifactVersionIds: mapIds(dto.artifact_version_ids),
     occurredAt: dto.occurred_at as UtcIsoTimestamp,
+  };
+}
+
+export function mapRunCheckpoint(dto: RunCheckpointDto): RunCheckpoint {
+  return {
+    id: mapId(dto.id),
+    runId: mapId(dto.run_id),
+    stepKey: mapId(dto.step_key),
+    question: dto.question,
+    options: [...dto.options],
+    createdAt: dto.created_at as UtcIsoTimestamp,
+    selectedOption: dto.selected_option ?? null,
+    freeText: dto.free_text ?? null,
+    decidedAt: (dto.decided_at ?? null) as UtcIsoTimestamp | null,
   };
 }
 
@@ -459,6 +490,22 @@ export function mapResearchArtifactDetail(
   dto: ResearchArtifactDetailDto,
 ): ResearchArtifact {
   return mapResearchArtifact(dto);
+}
+
+export function mapArtifactVersionSummary(
+  dto: ArtifactVersionSummaryDto,
+): ArtifactVersionSummary {
+  return {
+    id: mapId(dto.id),
+    artifactId: mapId(dto.artifact_id),
+    versionNumber: dto.version_number,
+    schemaVersion: dto.schema_version,
+    contentHash: dto.content_hash as ContentHash,
+    sourceMode: dto.source_mode as SourceMode,
+    supersedesVersionId: (dto.supersedes_version_id ??
+      null) as DomainEntityId | null,
+    createdAt: dto.created_at as UtcIsoTimestamp,
+  };
 }
 
 /**
@@ -690,10 +737,12 @@ export function buildFixtureProvenance(
 
 /**
  * Fixture evidence is already provided in domain form (camelCase), so no
- * transport mapping is needed for the fixture adapter.
+ * transport mapping is needed for the fixture adapter. The `source`
+ * projection is normalized to an explicit `null` so the store shape matches
+ * the HTTP `mapEvidenceRead` / `mapEvidenceDetail` projections.
  */
 export function mapEvidence(entity: Evidence): Evidence {
-  return entity;
+  return { ...entity, source: entity.source ?? null };
 }
 
 function readString(raw: Record<string, unknown>, key: string): string {
@@ -756,7 +805,10 @@ function mapEvidenceLocator(raw: unknown): EvidenceLocator | null {
  * Target/evidence types are validated against the closed domain enums
  * instead of being asserted, so contract drift fails loudly here.
  */
-function mapEvidenceCore(dto: EvidenceDetailDto): Evidence {
+function mapEvidenceCore(
+  dto: EvidenceDetailDto,
+  source: Evidence["source"],
+): Evidence {
   if (!isEvidenceTargetType(dto.target_type)) {
     throw new Error(
       `Evidence ${dto.id} carries an unknown target_type: ${dto.target_type}`,
@@ -781,17 +833,26 @@ function mapEvidenceCore(dto: EvidenceDetailDto): Evidence {
     extractionMethod: dto.extraction_method,
     confidence: dto.confidence,
     createdAt: dto.created_at as UtcIsoTimestamp,
+    source,
   };
 }
 
 /** Map the `EvidenceRead` transport projection to the domain `Evidence`. */
 export function mapEvidenceRead(dto: EvidenceReadDto): Evidence {
-  return mapEvidenceCore(dto);
+  return mapEvidenceCore(dto, {
+    id: mapId(dto.source_snapshot.id),
+    sourceId: dto.source_snapshot.source_id,
+    sourceType: dto.source_snapshot.source_type,
+    retrievedAt: dto.source_snapshot.retrieved_at as UtcIsoTimestamp,
+    licenseNote: dto.source_snapshot.license_note,
+    sourceVersionOrEtag: dto.source_snapshot.source_version_or_etag ?? null,
+    requestMetadata: { ...dto.source_snapshot.request_metadata },
+  });
 }
 
-/** Map the embedded `EvidenceDetail` projection to the same domain shape. */
+/** Embedded evidence omits the source projection; callers that need source detail use EvidenceRead. */
 export function mapEvidenceDetail(dto: EvidenceDetailDto): Evidence {
-  return mapEvidenceCore(dto);
+  return mapEvidenceCore(dto, null);
 }
 
 export function mapDomainContractInputToDto(

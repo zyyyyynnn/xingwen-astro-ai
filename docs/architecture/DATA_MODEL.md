@@ -20,6 +20,7 @@ ResearchContract (1) -- (*) ResearchRun
 ResearchRun (0..1) -- (*) derived ResearchRun
 ResearchRun (1) -- (*) RunStep -- (*) StepAttempt
 ResearchRun (1) -- (*) RunEvent
+ResearchRun (1) -- (*) RunCheckpoint -- (0..1) RunCheckpointDecision
 ResearchProject (1) -- (*) ResearchArtifact -- (*) ArtifactVersion
 ResearchRun (1) -- (*) ArtifactVersion
 ArtifactVersion (1) -- (*) Evidence
@@ -53,8 +54,9 @@ UserFeedback (*) -- (*) RevisionPlan -- (0..1) RevisionPlanConfirmation -- (1) R
 
 ## 3. Run 与执行记录
 
-- ResearchRun 绑定同一 Project 下的 Contract；派生 Run 通过同 Project 的 `parent_run_id` 与 `derivation_kind` 表达 retry、revision 或 fork。
+- ResearchRun 绑定同一 Project 下的 Contract；派生 Run 通过同 Project 的 `parent_run_id` 与 `derivation_kind` 表达 retry、revision 或 fork。同一 Project 同时最多一个 non-terminal ResearchRun，由 partial unique index 作为权威并发围栏。
 - RunStep 保存从 confirmed Contract 确定性投影并在 Run 创建时冻结的 canonical step、顺序、状态与进度；StepAttempt 保存真实尝试、错误与上游请求 identity。Executor 不维护第二份 Plan。
+- RunCheckpoint 保存同一 Run 在 `waiting_for_input` 边界的人工输入请求（run、step_key、question、options、created_at）；RunCheckpointDecision 保存不可变的 `selected_option`、可空 `free_text` 与 `decided_at`。Decision 创建后不可更新；提交后同一 Run 恢复到合法可执行状态，不创建新 Run 或第二套 review 资源。
 - RunEvent 是单调序列的通知记录，Run 快照才是状态事实源。
 - HTTP original Run authoring 只创建 original、cache-disabled Run；revision Run 只能由已确认 RevisionPlan 创建，其他未暴露派生字段不得被静默消费。
 

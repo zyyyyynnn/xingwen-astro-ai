@@ -9,7 +9,8 @@
 ## 1. 范围
 
 - [ ] PR 对应单一 Task / Bug 或明确的用户授权，无非相关变更。
-- [ ] 当前 PR 是唯一有效 Open PR，无冲突或重复拉取。
+- [ ] 同一 Authority/实现责任不存在相互冲突的两个有效 PR；不同 Authority 的独立 PR 可以同时存在。
+- [ ] 用户明确授权的全栈收口 PR 不因体量大而机械 Block；Review 关注单一 ownership、correctness、current contract、no legacy、no duplicate runtime、no stale generated contracts、real CI 与 exact HEAD。
 - [ ] 变动仅包含达成单一目标必需的修改，未夹带无关重构或格式化。
 - [ ] PR title 与分支 Commit subject 符合 [Contributing §1](../../CONTRIBUTING.md#1-分支与提交) 的唯一 Title Grammar。
 
@@ -55,3 +56,8 @@
 - [ ] 相关自动化 CI 检查全部成功通过。
 - [ ] 代码与目标分支元数据无漂移，无阻塞审查意见。
 - [ ] PR 描述真实反映变动内容与验证结果，满足 Squash merge 条件。
+
+Review 纪律：
+
+- 不对同一 HEAD 在无新条件下重复 Review；
+- 不为 Review 制造 process tests。

@@ -1,18 +1,63 @@
 {
+  "$defs": {
+    "JsonValue": {}
+  },
   "additionalProperties": false,
   "examples": [
     {
+      "activity_id": "run:run_01JEXAMPLE",
+      "activity_kind": "status",
+      "activity_name": "研究任务",
+      "activity_phase": "queued",
       "artifact_version_ids": [],
-      "event_type": "run.queued",
+      "content": "研究任务已进入执行队列。",
+      "details": {},
       "occurred_at": "2026-07-21T08:00:00Z",
       "progress": 0,
-      "public_message": "Run queued",
       "run_id": "run_01JEXAMPLE",
       "sequence": 1,
       "step_key": null
     }
   ],
   "properties": {
+    "activity_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Activity Id",
+      "type": "string"
+    },
+    "activity_kind": {
+      "enum": [
+        "reasoning",
+        "tool",
+        "observation",
+        "status",
+        "artifact",
+        "retry",
+        "error",
+        "completion"
+      ],
+      "title": "Activity Kind",
+      "type": "string"
+    },
+    "activity_name": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Activity Name",
+      "type": "string"
+    },
+    "activity_phase": {
+      "enum": [
+        "queued",
+        "streaming",
+        "running",
+        "completed",
+        "failed",
+        "retrying"
+      ],
+      "title": "Activity Phase",
+      "type": "string"
+    },
     "artifact_version_ids": {
       "default": [],
       "items": {
@@ -23,11 +68,16 @@
       "title": "Artifact Version Ids",
       "type": "array"
     },
-    "event_type": {
-      "maxLength": 128,
-      "minLength": 1,
-      "title": "Event Type",
+    "content": {
+      "title": "Content",
       "type": "string"
+    },
+    "details": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Details",
+      "type": "object"
     },
     "occurred_at": {
       "format": "date-time",
@@ -47,10 +97,6 @@
       ],
       "default": null,
       "title": "Progress"
-    },
-    "public_message": {
-      "title": "Public Message",
-      "type": "string"
     },
     "run_id": {
       "maxLength": 128,
@@ -81,8 +127,11 @@
   "required": [
     "run_id",
     "sequence",
-    "event_type",
-    "public_message",
+    "activity_id",
+    "activity_kind",
+    "activity_phase",
+    "activity_name",
+    "content",
     "occurred_at"
   ],
   "title": "RunEvent",

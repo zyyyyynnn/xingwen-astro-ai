@@ -26,7 +26,7 @@ export default function MainApp({ runtime }: MainAppProps) {
       <main id="main-content" tabIndex={-1} className="min-w-0 flex-1">
         <ConversationView runtime={runtime} />
       </main>
-      <CommandMenu onNewResearch={runtime.navigation.onNewResearch} />
+      <CommandMenu />
     </div>
   );
 }

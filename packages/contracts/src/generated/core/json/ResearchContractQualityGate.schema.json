@@ -1,0 +1,206 @@
+{
+  "$defs": {
+    "QualityConstraintResult": {
+      "additionalProperties": false,
+      "properties": {
+        "constraint_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Constraint Id",
+          "type": "string"
+        },
+        "input_locator": {
+          "minLength": 1,
+          "title": "Input Locator",
+          "type": "string"
+        },
+        "metric_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QualityMetricId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observation_key": {
+          "minLength": 1,
+          "title": "Observation Key",
+          "type": "string"
+        },
+        "observed_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QualityMetricStatus"
+            },
+            {
+              "const": "not_checked",
+              "type": "string"
+            }
+          ],
+          "title": "Observed Status"
+        },
+        "observed_value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Observed Value"
+        },
+        "operator": {
+          "enum": [
+            "gte",
+            "equals"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "result": {
+          "$ref": "#/$defs/QualityGateStatus"
+        },
+        "rule_binding_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Rule Binding Version",
+          "type": "string"
+        },
+        "source_field": {
+          "minLength": 1,
+          "title": "Source Field",
+          "type": "string"
+        },
+        "threshold": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Threshold"
+        }
+      },
+      "required": [
+        "constraint_id",
+        "source_field",
+        "metric_id",
+        "observation_key",
+        "observed_status",
+        "observed_value",
+        "threshold",
+        "operator",
+        "result",
+        "rule_binding_version",
+        "input_locator"
+      ],
+      "title": "QualityConstraintResult",
+      "type": "object"
+    },
+    "QualityGateStatus": {
+      "enum": [
+        "pass",
+        "fail",
+        "insufficient"
+      ],
+      "title": "QualityGateStatus",
+      "type": "string"
+    },
+    "QualityMetricId": {
+      "enum": [
+        "field_completeness",
+        "field_missingness",
+        "field_unresolved_rate",
+        "field_provenance_coverage",
+        "field_evidence_coverage",
+        "field_unit_consistency",
+        "field_same_source_conflict_rate",
+        "field_cross_source_conflict_rate",
+        "row_completeness",
+        "row_missingness",
+        "row_unresolved_rate",
+        "row_provenance_coverage",
+        "row_evidence_coverage",
+        "row_unit_consistency",
+        "row_conflict_rate",
+        "row_low_confidence_flag",
+        "row_review_required_flag",
+        "row_inconclusive_flag",
+        "dataset_completeness",
+        "dataset_missingness",
+        "dataset_unresolved_rate",
+        "dataset_provenance_coverage",
+        "dataset_evidence_coverage",
+        "dataset_unit_consistency",
+        "dataset_cross_source_conflict_rate",
+        "dataset_same_source_conflict_rate",
+        "object_match_coverage",
+        "low_confidence_edge_rate",
+        "review_required_record_rate",
+        "inconclusive_record_rate",
+        "source_scope_completeness",
+        "validation_integrity"
+      ],
+      "title": "QualityMetricId",
+      "type": "string"
+    },
+    "QualityMetricStatus": {
+      "enum": [
+        "determinate",
+        "insufficient",
+        "not_applicable"
+      ],
+      "title": "QualityMetricStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/QualityConstraintResult"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "input_locator": {
+      "minLength": 1,
+      "title": "Input Locator",
+      "type": "string"
+    },
+    "overall_status": {
+      "$ref": "#/$defs/QualityGateStatus"
+    },
+    "rule_binding_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Rule Binding Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "overall_status",
+    "checks",
+    "rule_binding_version",
+    "input_locator",
+    "content_hash"
+  ],
+  "title": "ResearchContractQualityGate",
+  "type": "object"
+}

@@ -29,6 +29,7 @@ from .enums import (
 )
 from .evidence import SourceSnapshotRecord
 from .manifest import ContentHash, Identifier, SemanticVersion
+from .persistence import PersistedUuid
 
 
 MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
@@ -226,6 +227,7 @@ class RawPaperCandidate(BaseModel):
     doi: str | None = None
     arxiv_id: str | None = None
     url: str | None = None
+    abstract: Annotated[str, Field(min_length=1, max_length=16000)] | None = None
     record_hash: ContentHash
     # Record-level provenance label for synthetic demo/test records; a live
     # acquisition never sets it. Reviewers must be able to tell synthetic
@@ -308,8 +310,11 @@ class PaperCollectionMetrics(BaseModel):
     duplicate_candidate_count: int = Field(ge=0)
     duplicate_rate: Score
     selected_count: int = Field(ge=0)
-    expected_candidate_count: int = Field(ge=0)
-    recalled_expected_candidate_count: int = Field(ge=0)
+    # Benchmark recall is only defined when the collection was produced by a
+    # frozen benchmark scenario; a contract-driven live collection has no
+    # expected-paper set and must leave all three fields null.
+    expected_candidate_count: int | None = Field(default=None, ge=0)
+    recalled_expected_candidate_count: int | None = Field(default=None, ge=0)
     candidate_recall: Score | None = None
 
     @model_validator(mode="after")
@@ -322,13 +327,30 @@ class PaperCollectionMetrics(BaseModel):
             raise ValueError("duplicate candidates cannot exceed candidates")
         if self.selected_count > self.candidate_count:
             raise ValueError("selected candidates cannot exceed candidates")
-        if self.recalled_expected_candidate_count > self.expected_candidate_count:
-            raise ValueError("recalled candidates cannot exceed expected candidates")
-        if self.expected_candidate_count == 0 and self.candidate_recall is not None:
+        if (self.expected_candidate_count is None) != (
+            self.recalled_expected_candidate_count is None
+        ):
             raise ValueError(
-                "candidate recall must be unavailable for an empty benchmark"
+                "benchmark recall fields must be present or absent together"
             )
-        if self.expected_candidate_count and self.candidate_recall is None:
+        if (
+            self.recalled_expected_candidate_count is not None
+            and self.expected_candidate_count is not None
+            and self.recalled_expected_candidate_count > self.expected_candidate_count
+        ):
+            raise ValueError("recalled candidates cannot exceed expected candidates")
+        if (
+            self.expected_candidate_count is None
+            and self.candidate_recall is not None
+        ):
+            raise ValueError(
+                "candidate recall must be unavailable without a benchmark"
+            )
+        if (
+            self.expected_candidate_count is not None
+            and self.recalled_expected_candidate_count is not None
+            and self.candidate_recall is None
+        ):
             raise ValueError("candidate recall is required for a non-empty benchmark")
         return self
 
@@ -352,7 +374,7 @@ class ProducerExecution(BaseModel):
     model_config = MODEL_CONFIG
 
     execution_id: Identifier
-    run_id: Identifier | None = None
+    run_id: PersistedUuid | None = None
     step_key: Literal["searching_papers"] = "searching_papers"
     producer_type: Literal["algorithm"] = "algorithm"
     producer_name: NonEmptyString
@@ -382,8 +404,8 @@ class PaperCollectionPayload(BaseModel):
     model_config = MODEL_CONFIG
 
     kind: Literal["paper_collection"] = "paper_collection"
-    schema_version: Literal["2.0.0"] = "2.0.0"
-    benchmark: PaperBenchmarkReference
+    schema_version: Literal["2.1.0"] = "2.1.0"
+    benchmark: PaperBenchmarkReference | None = None
     query: NormalizedPaperQuery
     acquisition_run: PaperCollectionAcquisitionRun
     source_executions: tuple[PaperSourceExecution, ...] = Field(min_length=1)
@@ -475,6 +497,10 @@ class PaperCollectionPayload(BaseModel):
                 if not snapshot.cache_version or not snapshot.cache_version.strip():
                     raise ValueError("cached source snapshot requires cache_version")
 
+        if self.benchmark is None and self.metrics.expected_candidate_count is not None:
+            raise ValueError(
+                "benchmark recall metrics require the frozen benchmark reference"
+            )
         expected_input_hash = compute_paper_collection_input_hash(
             self.benchmark, self.query, self.rules
         )
@@ -543,13 +569,17 @@ def compute_normalized_query_hash(value: NormalizedPaperQuery | dict[str, Any]) 
 
 
 def compute_paper_collection_input_hash(
-    benchmark: PaperBenchmarkReference,
+    benchmark: PaperBenchmarkReference | None,
     query: NormalizedPaperQuery,
     rules: PaperCollectionRules,
 ) -> str:
     return compute_canonical_payload_hash(
         {
-            "benchmark": benchmark.model_dump(mode="json", exclude_none=True),
+            "benchmark": (
+                benchmark.model_dump(mode="json", exclude_none=True)
+                if benchmark is not None
+                else None
+            ),
             "query_hash": query.query_hash,
             "rules": rules.model_dump(mode="json", exclude_none=True),
         }
