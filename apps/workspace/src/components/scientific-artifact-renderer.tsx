@@ -102,6 +102,8 @@ function ScientificArtifactContent({
           title={title}
           sourceMode={sourceMode}
           surface={surface}
+          versionNumber={review.versionNumber}
+          loadContent={loadContent}
         />
       );
     }
