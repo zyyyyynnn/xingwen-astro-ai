@@ -371,6 +371,21 @@
       "production_consumers": [
         "apps/workspace/src/components/paper-result-workspace.tsx"
       ]
+    },
+    {
+      "name": "Select",
+      "local_path": "packages/ui/src/select.tsx",
+      "source": "@shadcn/select",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "select",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains Radix listbox keyboard, focus and portal mechanics with clsx composition; registry icon imports rebind to the governed icon barrel for scene controls.",
+      "production_consumers": [
+        "apps/workspace/src/components/wwt-scene-controls.tsx"
+      ]
     }
   ]
 }

@@ -1,6 +1,7 @@
 import type { ContentHash, VisualizationReviewContent } from "@xingwen/domain";
 
 import { ScientificChart } from "../scientific-chart";
+import { WwtSceneControls } from "../wwt-scene-controls";
 import { WwtViewport } from "../wwt-viewport";
 import {
   ScientificContentHeader,
@@ -116,7 +117,8 @@ function WwtSceneSummary({
         <span>表格图层 {spec.tableLayers.length} 个</span>
         <span>注释 {spec.annotations.length} 个</span>
       </div>
-      <WwtViewport
+      <WwtSceneControls
+        key={content.visualizationId}
         spec={spec}
         versionNumber={versionNumber}
         loadContent={loadContent}

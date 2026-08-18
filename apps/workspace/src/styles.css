@@ -1959,3 +1959,24 @@ button:disabled {
   align-items: center;
   gap: 0.375rem;
 }
+
+.wwt-scene-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.wwt-scene-controls__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wwt-scene-controls__group input {
+  max-width: 8rem;
+}
+
+.wwt-scene-controls__select {
+  max-width: 12rem;
+}

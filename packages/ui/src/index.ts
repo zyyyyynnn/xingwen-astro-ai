@@ -82,6 +82,13 @@ export {
   SheetTitle,
 } from "./sheet";
 export type { SheetSide } from "./sheet";
+export {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./select";
 export { ResizablePanelGroup } from "./resizable-panel-group";
 export type { ResizablePanelGroupProps } from "./resizable-panel-group";
 export { ResizablePanel } from "./resizable-panel";
