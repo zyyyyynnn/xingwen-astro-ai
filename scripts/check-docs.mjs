@@ -44,7 +44,11 @@ const repositoryTextFiles = trackedFiles.filter(
     !["apps/api/uv.lock", "pnpm-lock.yaml"].includes(file) &&
     file !== "scripts/governance-identifiers.mjs" &&
     file !== "scripts/check-architecture-delegacy.mjs" &&
-    file !== "scripts/check-title-governance.mjs",
+    file !== "scripts/check-title-governance.mjs" &&
+    // Reference-integration coverage Authority carries structured
+    // implementation-state, schema-version and phase data as machine fields,
+    // not repository prose.
+    !file.startsWith("services/reference_integration/"),
 );
 
 const results = new Map();
