@@ -86,15 +86,31 @@ DROP_INVALID` 之一，并记录保留的能力、目标 owner 与验证方式�
 | pickle / joblib / raw Python model object | ONNX 唯一安全模型格式 |
 | 旧 coverage 数字（如 160 cases） | 分母必须重新扫描 Reference 决定 |
 
+## 5.1 Reference Integration Authority（本轮移植）
+
+| Old source | Classification | Preserved capability | Target owner | Target file | Verification |
+| --- | --- | --- | --- | --- | --- |
+| services/reference_integration/reference_capability_manifest.py | PORT_NEAR_AS_IS | manifest 语义校验、coverage 计数、disposition/eligibility 规则 | services/reference_integration | services/reference_integration/reference_capability_manifest.py | PASS（test_reference_integration_coverage.py） |
+| services/reference_integration/build_reference_capability_manifest.py | PORT_NEAR_AS_IS | manifest --check（语义 + owner 存在性 + reference source digest） | services/reference_integration | services/reference_integration/build_reference_capability_manifest.py | PASS（--check 于 Reference root） |
+| services/reference_integration/build_mavis_adoption_ledger.py | PORT_NEAR_AS_IS | MAVIS benchmark case index 构建器（分母重扫 Reference root，无硬编码数字、无机器路径） | services/reference_integration | services/reference_integration/build_mavis_adoption_ledger.py | PASS（--check：160 cases） |
+| services/reference_integration/mavis_benchmark.py | PORT_NEAR_AS_IS | MAVIS benchmark 报告 | services/reference_integration | services/reference_integration/mavis_benchmark.py | PASS |
+| services/paper_pipeline/summary_chunks.py | PORT_NEAR_AS_IS | section-aware chunking、reading order、chunk Evidence allowlist | services/paper_pipeline | services/paper_pipeline/summary_chunks.py | PASS（stdlib-only，manifest owner） |
+
+## 5.2 科学成果读路径（本轮移植，§50）
+
+| Old source | Classification | Preserved capability | Target owner | Target file | Verification |
+| --- | --- | --- | --- | --- | --- |
+| content_storage range read | PORT_REHOMED | ContentRead / open_read / HTTP Range（200/206/416）流式读取，保留当前 corruption-repair store | current services | apps/api/src/app/services/content_storage.py | PASS |
+| services/scientific_artifacts.py | PORT_NEAR_AS_IS | 科学成果读取服务（kind 分发 + binary reference closure + range content） | current services | apps/api/src/app/services/scientific_artifacts.py | PASS |
+| GET /api/artifact-versions/{id}/scientific + /scientific/content/{hash} | PORT_REHOMED | 精确 ArtifactVersion 读取 + 二进制 Range 读取（ownership/hash 闭合） | current artifacts router + contracts | apps/api/src/app/routers/artifacts.py + contracts/core.py | PASS（openapi/contract parity） |
+
 ## 6. 尚未移植（integration_pending）
 
-以下 REQUIRED 项已完成分类但本轮未移植，保持 Draft 状态直至闭合：
+以下 REQUIRED 项已完成分类但尚未移植，保持 Draft 状态直至闭合：
 
 | Item | Classification（既定归宿） |
 | --- | --- |
-| services/reference_integration/**（manifest/ledger/benchmark 构建器） | PORT_NEAR_AS_IS（需重新扫描 Reference root 生成分母） |
-| services/paper_pipeline/summary_chunks.py + document_summary + exports（Inosum 长论文链） | PORT_NEAR_AS_IS |
-| schemas/scientific_artifact_api 读端点（GET .../scientific + Range 二进制读取） | PORT_REHOMED（依赖 content-storage range read 扩展） |
-| 科学成果专用 Renderer（analysis_report/visualization/spectrum/light_curve/model_evaluation/model_artifact 真实内容） | PORT_REHOMED（当前为 user-safe fallback，需接 scientific read API） |
+| Inosum 七段式 PaperSummary 运行时（document_summary + paper_summary_exports + summary/prompt/fixture 七段式迁移） | PORT_NEAR_AS_IS（需迁移 PaperSummary schema 七段式结构，涉及已合并 paper summary 流，单独收口） |
+| 科学成果专用 Renderer（analysis_report/visualization/spectrum/light_curve/model_evaluation/model_artifact 真实内容，接入科学读路径） | PORT_REHOMED（当前为 user-safe fallback） |
 | WWT viewport/session 前端交互 + Vega 图表 + Select primitive | PORT_REHOMED（唯一 Registry 与 Fullscreen seam） |
 | agent_runtime function-calling producer 审计写路径 | PORT_REHOMED（DB 审计列已就绪） |
