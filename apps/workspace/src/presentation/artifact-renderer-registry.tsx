@@ -6,6 +6,7 @@ import {
   type DataArtifactKind,
   type DomainEntityId,
   type PaperSummaryReview,
+  type ScientificArtifactReview,
 } from "@xingwen/domain";
 import type {
   ArtifactVersionMetadataViewModel,
@@ -24,9 +25,15 @@ import { DataArtifactRenderer } from "../components/data-artifact-renderer";
 import { PaperResultWorkspace } from "../components/paper-result-workspace";
 import { ScientificArtifactRenderer } from "../components/scientific-artifact-renderer";
 import { artifactKindLabel } from "./artifact-presentation-labels";
+import { workspaceQueryKeys } from "../application/query-keys";
 
 export type ArtifactContentFamily =
-  "data" | "paper_summary" | "paper_collection" | "literature" | "graph";
+  | "data"
+  | "paper_summary"
+  | "paper_collection"
+  | "literature"
+  | "graph"
+  | "scientific";
 export type ArtifactLayoutMode = "reading" | "wide" | "immersive";
 
 export interface ArtifactRendererCapabilities {
@@ -438,35 +445,72 @@ type ScientificKind =
   | "model_evaluation"
   | "model_artifact";
 
-function scientificUnsupported(
+function scientificTextFallback(viewModel: ScientificArtifactReview): string {
+  const content = viewModel.content;
+  switch (content.kind) {
+    case "analysis_report":
+      return `${content.title}，证据 ${content.evidenceIds.length} 条。`;
+    case "visualization":
+      return `${content.title}，可视化说明：${content.description || "未提供"}。`;
+    case "spectrum":
+      return `${content.title}，采样 ${content.sampleCount} 点，检测谱线 ${content.detectedLines.length} 条。`;
+    case "light_curve":
+      return `${content.title}，采样 ${content.sampleCount} 点，最佳周期 ${content.bestPeriod} ${content.timeUnit}。`;
+    case "model_evaluation":
+      return `${content.title}，算法 ${content.algorithm}。`;
+    case "model_artifact":
+      return `${content.title}，ONNX 模型，算法 ${content.algorithm}。`;
+  }
+}
+
+function scientific(
   kind: ScientificKind,
   displayPriority: number,
-): ArtifactRendererDescriptor {
-  return {
+  layoutMode: ArtifactLayoutMode,
+) {
+  return defineRenderer<
+    ScientificKind,
+    ScientificArtifactReview,
+    ReturnType<typeof workspaceQueryKeys.scientificArtifact>
+  >({
     kind,
-    label: artifactKindLabel(kind),
-    capability: "unsupported",
     contentFamily: "scientific",
     displayPriority,
-    layoutMode: "reading",
+    layoutMode,
     capabilities: {
-      evidence: false,
-      download: false,
-      history: true,
-      revision: true,
-      pdf: false,
+      ...commonCapabilities,
+      download: kind === "model_artifact",
     },
-    ThreadRenderer: ThreadResultBlock,
-    FullscreenRenderer: () => (
-      <Alert className="m-5">
-        <AlertDescription>
-          {artifactKindLabel(kind)}
-          已发布为不可变研究结果；当前暂无专用可视化，证据与下载能力开放后可查看。
-        </AlertDescription>
-      </Alert>
+    load: ({ runtime, projectId, version }) =>
+      runtime.application.queries.scientificArtifact(
+        projectId,
+        version.id,
+        kind,
+      ),
+    fullscreen: ({
+      viewModel,
+      artifact,
+      runtime,
+      version,
+      onSelectEvidence,
+    }) => (
+      <div className="p-5">
+        <ScientificArtifactRenderer
+          review={viewModel}
+          title={artifact.title}
+          surface="fullscreen"
+          onSelectEvidence={onSelectEvidence}
+          loadContent={(contentHash) =>
+            runtime.repositories.scientificArtifacts.getContent(
+              version.id,
+              contentHash,
+            )
+          }
+        />
+      </div>
     ),
-    TextFallback: () => <p>{artifactKindLabel(kind)}当前暂无专用可视化。</p>,
-  };
+    textFallback: scientificTextFallback,
+  });
 }
 
 const ARTIFACT_RENDERER_DESCRIPTORS = [
@@ -475,12 +519,12 @@ const ARTIFACT_RENDERER_DESCRIPTORS = [
   data("dataset", 30),
   data("field_dictionary", 40),
   data("source_collection", 50),
-  scientificUnsupported("analysis_report", 52),
-  scientificUnsupported("visualization", 54),
-  scientificUnsupported("spectrum", 56),
-  scientificUnsupported("light_curve", 58),
-  scientificUnsupported("model_evaluation", 62),
-  scientificUnsupported("model_artifact", 64),
+  scientific("analysis_report", 52, "reading"),
+  scientific("visualization", 54, "wide"),
+  scientific("spectrum", 56, "wide"),
+  scientific("light_curve", 58, "wide"),
+  scientific("model_evaluation", 62, "wide"),
+  scientific("model_artifact", 64, "reading"),
   literature("literature_claims", 70),
   literature("literature_relations", 80),
   literature("reasoning_traces", 90),

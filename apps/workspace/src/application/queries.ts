@@ -11,6 +11,7 @@ import type {
   PaperAcquisitionReview,
   PaperSummaryPdfSourceReview,
   PaperSummaryReview,
+  ScientificArtifactReview,
 } from "@xingwen/domain";
 import type {
   ActivityPresentationEvent,
@@ -49,6 +50,7 @@ interface WorkspaceQueriesDependencies {
     | "dataArtifacts"
     | "literatureArtifacts"
     | "graphArtifacts"
+    | "scientificArtifacts"
   >;
   readonly researchAdapter: ResearchAdapter;
 }
@@ -450,6 +452,43 @@ export function createWorkspaceQueries({
             throw new EntityNotFoundError("GraphArtifact", artifactVersionId);
           }
           return researchAdapter.toGraphArtifactViewModel(review);
+        },
+      }),
+    scientificArtifact: (
+      projectId: DomainEntityId,
+      artifactVersionId: DomainEntityId,
+      kind:
+        | "analysis_report"
+        | "visualization"
+        | "spectrum"
+        | "light_curve"
+        | "model_evaluation"
+        | "model_artifact",
+    ) =>
+      queryOptions({
+        queryKey: workspaceQueryKeys.scientificArtifact(
+          projectId,
+          artifactVersionId,
+          kind,
+        ),
+        queryFn: async (): Promise<ScientificArtifactReview> => {
+          const review: ScientificArtifactReview =
+            await repositories.scientificArtifacts.getReview(artifactVersionId);
+          requireProjectOwnership(
+            "ScientificArtifact",
+            projectId,
+            review.projectId,
+          );
+          if (
+            review.artifactVersionId !== artifactVersionId ||
+            review.content.kind !== kind
+          ) {
+            throw new EntityNotFoundError(
+              "ScientificArtifact",
+              artifactVersionId,
+            );
+          }
+          return review;
         },
       }),
   });

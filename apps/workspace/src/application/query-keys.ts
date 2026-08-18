@@ -117,6 +117,17 @@ export const workspaceQueryKeys = Object.freeze({
       "graph-artifact",
       artifactVersionId,
     ] as const,
+  scientificArtifact: (
+    projectId: DomainEntityId,
+    artifactVersionId: DomainEntityId,
+    kind: string,
+  ) =>
+    [
+      ...workspaceQueryKeys.projectScope(projectId),
+      "scientific-artifact",
+      kind,
+      artifactVersionId,
+    ] as const,
 });
 
 export function isPrivateWorkspaceQuery(queryKey: readonly unknown[]): boolean {
