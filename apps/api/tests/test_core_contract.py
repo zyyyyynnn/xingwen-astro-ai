@@ -235,7 +235,7 @@ def test_fixture_contract_hash_matches_pydantic_canonical_payload() -> None:
 
     assert normalized["evidence_requirements"]["minimum_coverage"] == 1.0
     assert canonical_request_hash(normalized) == (
-        "sha256:d43c90e165cbe6b068f2c95247703ff5bfed6e371a4826831afa17ee733b9986"
+        "sha256:7b810e492de26672a8f2cc4c70179a754e4a82ed3bd72461bcc9e9c2abbd983f"
     )
     assert compute_research_contract_content_hash(
         ResearchContractInput.model_validate(payload)
@@ -286,6 +286,10 @@ def test_execution_source_and_run_status_enums_preserve_domain_vocabulary() -> N
         "planning",
         "fetching_data",
         "cleaning_data",
+        "acquiring_observations",
+        "analyzing_data",
+        "training_models",
+        "building_visualizations",
         "searching_papers",
         "summarizing_papers",
         "reasoning_literature",

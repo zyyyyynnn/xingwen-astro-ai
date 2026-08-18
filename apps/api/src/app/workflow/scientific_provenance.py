@@ -1,0 +1,300 @@
+"""Persist provenance for scientific service and bundled-data observations."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from uuid import NAMESPACE_URL, UUID, uuid5
+
+from sqlalchemy.orm import Session
+
+from app.db.models import SourceSnapshotModel
+from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.core import ScientificSkillId, ScientificTaskInput
+from services.scientific_skills.types import (
+    ScientificSkillRequest,
+    ScientificSkillResult,
+    ScientificSourceReference,
+)
+
+
+_SOURCE_METADATA: dict[ScientificSkillId, tuple[str, str, str]] = {
+    ScientificSkillId.simbad_lookup: (
+        "simbad",
+        "remote_service",
+        "CDS SIMBAD service; use and attribution remain subject to the service terms.",
+    ),
+    ScientificSkillId.skyview_fits: (
+        "skyview",
+        "remote_service",
+        "NASA SkyView service; survey-specific rights remain attached to the selected survey.",
+    ),
+    ScientificSkillId.ephemeris: (
+        "jpl_de421",
+        "bundled_ephemeris",
+        "JPL DE421 ephemeris distributed by skyfield-data and evaluated with Skyfield.",
+    ),
+    ScientificSkillId.celestial_events: (
+        "jpl_de421",
+        "bundled_ephemeris",
+        "JPL DE421 ephemeris distributed by skyfield-data and evaluated with Skyfield.",
+    ),
+    ScientificSkillId.gaia_cone_search: (
+        "esa_gaia_dr3",
+        "remote_catalog_service",
+        "ESA Gaia Archive DR3 TAP service; Gaia data use and attribution rules apply.",
+    ),
+    ScientificSkillId.vizier_tap: (
+        "vizier_tap",
+        "remote_catalog_service",
+        "CDS VizieR catalogue service over TAP; VizieR acknowledgement and catalogue-specific terms apply.",
+    ),
+    ScientificSkillId.spectrum_acquisition: (
+        "sdss_dr17",
+        "remote_spectrum_archive",
+        "SDSS DR17 optical spectrum from the official Science Archive Server; SDSS data-use terms apply.",
+    ),
+    ScientificSkillId.light_curve_acquisition: (
+        "mast_tess",
+        "remote_light_curve_archive",
+        "Mission-produced TESS light curve from MAST; NASA/STScI and TESS acknowledgement rules apply.",
+    ),
+}
+
+
+@dataclass(frozen=True, slots=True)
+class _ProducedSource:
+    source_id: str
+    source_type: str
+    license_note: str
+    query: dict[str, object]
+    content_hash: str
+    source_version_or_etag: str | None
+    request_metadata: dict[str, object]
+
+
+class DatabaseScientificSourceRecorder:
+    """Idempotently persist one SourceSnapshot per exact query/result identity."""
+
+    def __init__(self, session_factory: Callable[[], Session]) -> None:
+        self._session_factory = session_factory
+
+    async def record(
+        self,
+        *,
+        project_id: str,
+        run_id: str,
+        task: ScientificTaskInput,
+        request: ScientificSkillRequest,
+        result: ScientificSkillResult,
+    ) -> tuple[ScientificSourceReference, ...]:
+        sources = _produced_sources(task=task, request=request, result=result)
+        project_uuid = UUID(project_id)
+        references: list[ScientificSourceReference] = []
+        with self._session_factory() as session, session.begin():
+            for source in sources:
+                query_hash = compute_canonical_payload_hash(source.query)
+                snapshot_id = uuid5(
+                    NAMESPACE_URL,
+                    f"xingwen:{project_id}:{source.source_id}:{query_hash}:{source.content_hash}",
+                )
+                row = session.get(SourceSnapshotModel, snapshot_id)
+                if row is None:
+                    row = SourceSnapshotModel(
+                        id=snapshot_id,
+                        project_id=project_uuid,
+                        source_id=source.source_id,
+                        source_type=source.source_type,
+                        retrieved_at=datetime.now(UTC),
+                        query=source.query,
+                        query_hash=query_hash,
+                        source_version_or_etag=source.source_version_or_etag,
+                        content_hash=source.content_hash,
+                        license_note=source.license_note,
+                        cache_version=None,
+                        request_metadata={
+                            "run_id": run_id,
+                            "request_id": request.request_id,
+                            "skill_revision": result.skill_revision,
+                            **source.request_metadata,
+                        },
+                    )
+                    session.add(row)
+                    session.flush()
+                _require_same_snapshot(
+                    row,
+                    project_id=project_uuid,
+                    source_id=source.source_id,
+                    source_type=source.source_type,
+                    query_hash=query_hash,
+                    content_hash=source.content_hash,
+                )
+                references.append(
+                    ScientificSourceReference(
+                        source_snapshot_id=str(snapshot_id),
+                        content_hash=source.content_hash,
+                    )
+                )
+        return tuple(references)
+
+
+def _require_same_snapshot(
+    row: SourceSnapshotModel,
+    *,
+    project_id: UUID,
+    source_id: str,
+    source_type: str,
+    query_hash: str,
+    content_hash: str,
+) -> None:
+    if (
+        row.project_id != project_id
+        or row.source_id != source_id
+        or row.source_type != source_type
+        or row.query_hash != query_hash
+        or row.content_hash != content_hash
+    ):
+        raise RuntimeError(
+            "scientific SourceSnapshot identity was reused with different content"
+        )
+
+
+def _source_metadata(
+    skill_id: ScientificSkillId,
+    parameters: dict[str, object],
+) -> tuple[tuple[str, str, str], ...]:
+    """Return one metadata entry per physical source, never a composite source."""
+
+    source_id, source_type, license_note = _SOURCE_METADATA[skill_id]
+    if skill_id not in {
+        ScientificSkillId.ephemeris,
+        ScientificSkillId.celestial_events,
+    }:
+        return ((source_id, source_type, license_note),)
+    location_name = parameters.get("location_name")
+    if not isinstance(location_name, str) or not location_name.strip():
+        return ((source_id, source_type, license_note),)
+    return (
+        (source_id, source_type, license_note),
+        (
+            "nominatim_openstreetmap",
+            "remote_geocoding_service",
+            "Observer coordinates resolved through HTTPS Nominatim from OpenStreetMap data; OpenStreetMap attribution and Nominatim usage terms apply.",
+        ),
+    )
+
+
+def _produced_sources(
+    *,
+    task: ScientificTaskInput,
+    request: ScientificSkillRequest,
+    result: ScientificSkillResult,
+) -> tuple[_ProducedSource, ...]:
+    try:
+        metadata = _source_metadata(task.skill_id, task.parameters)
+    except KeyError as exc:
+        raise ValueError(
+            f"scientific skill does not produce a SourceSnapshot: {task.skill_id}"
+        ) from exc
+    base_query = {
+        "skill_id": task.skill_id.value,
+        "task_id": task.task_id,
+        "parameters": task.parameters,
+    }
+    acquisition = result.output.get("acquisition")
+    acquisition_metadata = acquisition if isinstance(acquisition, dict) else {}
+    response_hash = acquisition_metadata.get("response_content_hash")
+    if not isinstance(response_hash, str):
+        response_hash = acquisition_metadata.get("raw_content_hash")
+    source_version = acquisition_metadata.get("source_version_or_etag")
+    if not isinstance(source_version, str):
+        source_version = acquisition_metadata.get("etag")
+    if not isinstance(response_hash, str):
+        response_hash = None
+    if not isinstance(source_version, str):
+        source_version = None
+
+    sources: list[_ProducedSource] = []
+    for source_id, source_type, license_note in metadata:
+        query = dict(base_query)
+        content_hash = result.output_hash
+        request_metadata: dict[str, object] = {}
+        if source_id == "nominatim_openstreetmap":
+            location_name = task.parameters.get("location_name")
+            resolved_location = result.output.get("resolved_location")
+            if not isinstance(location_name, str) or not isinstance(
+                resolved_location, dict
+            ):
+                raise ValueError(
+                    "Nominatim SourceSnapshot requires a resolved location fact"
+                )
+            query = {"location_name": location_name}
+            raw_response_hash = resolved_location.get("response_content_hash")
+            if not isinstance(raw_response_hash, str):
+                raw_response_hash = compute_canonical_payload_hash(resolved_location)
+            content_hash = raw_response_hash
+            response_uri = resolved_location.get("response_uri")
+            upstream_revision = resolved_location.get("source_version_or_etag")
+            source_version = (
+                upstream_revision if isinstance(upstream_revision, str) else None
+            )
+            request_metadata = {
+                "adapter": "nominatim",
+                "endpoint_host": "nominatim.openstreetmap.org",
+                **(
+                    {"response_uri": response_uri}
+                    if isinstance(response_uri, str)
+                    else {}
+                ),
+            }
+        elif source_id == "jpl_de421":
+            jpl_output = {
+                key: value
+                for key, value in result.output.items()
+                if key != "resolved_location"
+            }
+            content_hash = compute_canonical_payload_hash(jpl_output)
+            source_version = "DE421"
+        elif response_hash is not None:
+            content_hash = response_hash
+            request_metadata = {
+                key: value
+                for key, value in acquisition_metadata.items()
+                if key
+                in {
+                    "source_mode",
+                    "adapter",
+                    "adapter_version",
+                    "endpoint",
+                    "response_uri",
+                    "provider_uri",
+                    "provider_revision",
+                    "etag",
+                    "raw_content_hash",
+                    "status_code",
+                    "content_length",
+                    "product_filename",
+                    "product_uri",
+                    "plate",
+                    "mjd",
+                    "fiber",
+                    "tic_id",
+                    "sector",
+                }
+            }
+        sources.append(
+            _ProducedSource(
+                source_id=source_id,
+                source_type=source_type,
+                license_note=license_note,
+                query=query,
+                content_hash=content_hash,
+                source_version_or_etag=source_version,
+                request_metadata=request_metadata,
+            )
+        )
+    return tuple(sources)
+
+
+__all__ = ["DatabaseScientificSourceRecorder"]

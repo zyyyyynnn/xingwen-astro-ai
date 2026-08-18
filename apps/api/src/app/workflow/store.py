@@ -31,6 +31,10 @@ RUN_STEP_STATUS_ORDER = (
     "planning",
     "fetching_data",
     "cleaning_data",
+    "acquiring_observations",
+    "analyzing_data",
+    "training_models",
+    "building_visualizations",
     "searching_papers",
     "summarizing_papers",
     "reasoning_literature",
@@ -83,6 +87,9 @@ class RunStepDefinition:
     enter_status: str
     success_status: str
     max_attempts: int = 1
+    task_id: str | None = None
+    skill_id: str | None = None
+    depends_on_step_keys: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -301,6 +308,9 @@ class PersistentWorkflowStore:
                     status="pending",
                     progress=0,
                     public_message="",
+                    task_id=definition.task_id,
+                    skill_id=definition.skill_id,
+                    depends_on_step_keys=list(definition.depends_on_step_keys),
                 )
                 for position, definition in enumerate(steps)
             ]

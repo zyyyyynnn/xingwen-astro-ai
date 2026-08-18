@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from app.schemas.research_input import (
     RESEARCH_INPUT_CONTENT_NOT_READABLE,
     RESEARCH_INPUT_FILENAME_INVALID,
+    RESEARCH_INPUT_INVALID,
     RESEARCH_INPUT_MIME_REJECTED,
     RESEARCH_INPUT_NOT_FOUND,
     UPLOAD_SOURCE_TYPE,
@@ -38,6 +39,7 @@ from app.schemas.research_input import (
 )
 from app.security import SecurityProblem
 from app.services.content_storage import ContentStorage, sha256_content_hash
+from app.services.image_dataset import validate_image_dataset_archive
 from app.services.research_input_policy import (
     ResearchInputPolicy,
     canonical_research_input_request_hash,
@@ -296,6 +298,19 @@ class ResearchInputIngestionService:
         sniffed = sniff_mime_type(content)
         mime_type = self._resolve_mime(payload, sniffed, mime_hint)
         filename = self._clean_filename(filename_hint, mime_type)
+        if payload.type is ResearchInputType.image_dataset:
+            try:
+                validate_image_dataset_archive(
+                    content,
+                    policy=self._policy.image_dataset,
+                )
+            except ValueError as exc:
+                raise SecurityProblem(
+                    status=400,
+                    code=RESEARCH_INPUT_INVALID,
+                    title="Invalid image dataset",
+                    detail=str(exc),
+                ) from exc
         return PreparedInput(
             content_hash=content_hash,
             storage_ref=storage_ref,

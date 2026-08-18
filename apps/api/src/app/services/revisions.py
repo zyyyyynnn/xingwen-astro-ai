@@ -56,6 +56,12 @@ _LITERATURE_KINDS = frozenset(
 )
 _AFFECTED_KIND_CLOSURE: dict[ArtifactKind, frozenset[ArtifactKind]] = {
     **{kind: frozenset({*_DATA_KINDS, ArtifactKind.graph}) for kind in _DATA_KINDS},
+    ArtifactKind.analysis_report: frozenset({ArtifactKind.analysis_report}),
+    ArtifactKind.visualization: frozenset({ArtifactKind.visualization}),
+    ArtifactKind.spectrum: frozenset({ArtifactKind.spectrum}),
+    ArtifactKind.light_curve: frozenset({ArtifactKind.light_curve}),
+    ArtifactKind.model_evaluation: frozenset({ArtifactKind.model_evaluation}),
+    ArtifactKind.model_artifact: frozenset({ArtifactKind.model_artifact}),
     ArtifactKind.paper_collection: frozenset(
         {
             ArtifactKind.paper_collection,
@@ -91,6 +97,12 @@ _KIND_STEP = {
     ArtifactKind.dataset: "cleaning_data",
     ArtifactKind.field_dictionary: "cleaning_data",
     ArtifactKind.source_collection: "fetching_data",
+    ArtifactKind.analysis_report: "analyzing_data",
+    ArtifactKind.visualization: "building_visualizations",
+    ArtifactKind.spectrum: "analyzing_data",
+    ArtifactKind.light_curve: "analyzing_data",
+    ArtifactKind.model_evaluation: "training_models",
+    ArtifactKind.model_artifact: "training_models",
     ArtifactKind.paper_collection: "searching_papers",
     ArtifactKind.paper_summary: "summarizing_papers",
     ArtifactKind.literature_claims: "reasoning_literature",

@@ -128,6 +128,10 @@ def _configure_database_runtime(
         planner_revision = settings.DASHSCOPE_EXPLICIT_MODEL_REVISION
     app.state.model_execution_port = model_port
     manifests = _load_case_manifests()
+    from app.services.content_storage import LocalContentStorage
+
+    content_storage = LocalContentStorage(settings.RESEARCH_INPUT_UPLOAD_DIR)
+    app.state.content_storage = content_storage
     app.state.research_planner = ResearchContractPlanner(
         model_port=model_port,
         provider=planner_provider,
@@ -161,6 +165,7 @@ def _configure_database_runtime(
             model_port=model_port,
             requested_model=settings.DASHSCOPE_MODEL,
             explicit_revision=settings.DASHSCOPE_EXPLICIT_MODEL_REVISION,
+            content_storage=content_storage,
         )
 
         async def _start_research_run_worker() -> None:
@@ -194,6 +199,7 @@ def create_app() -> FastAPI:
     app.state.research_planner = None
     app.state.research_run_worker = None
     app.state.db_session_factory = None
+    app.state.content_storage = None
     _, database_session_factory, resource_authority = _configure_database_runtime(app)
 
     if database_session_factory is not None:
@@ -230,7 +236,6 @@ def create_app() -> FastAPI:
         app.state.snapshot_service = SnapshotService(snapshot_store)
 
     app.state.research_input_store = None
-    app.state.content_storage = None
     app.state.research_input_idempotency = None
     app.state.research_input_ingestion = None
     app.state.paper_candidate_input_service = None
@@ -248,7 +253,10 @@ def create_app() -> FastAPI:
     )
     from app.services.url_fetcher import UrlFetchConfig
 
-    app.state.content_storage = LocalContentStorage(settings.RESEARCH_INPUT_UPLOAD_DIR)
+    if app.state.content_storage is None:
+        app.state.content_storage = LocalContentStorage(
+            settings.RESEARCH_INPUT_UPLOAD_DIR
+        )
     lease_ttl = timedelta(seconds=settings.RESEARCH_INPUT_IDEMPOTENCY_LEASE_SECONDS)
     if database_session_factory is not None:
         app.state.research_input_store = PersistentResearchInputStore(

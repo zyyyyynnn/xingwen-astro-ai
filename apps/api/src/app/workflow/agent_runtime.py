@@ -175,8 +175,9 @@ class ResearchStepAgent:
         available_artifacts: dict[str, str],
         execute_primary: Callable[[], T],
         describe_primary_result: Callable[[T], str],
+        tool: StepTool | None = None,
     ) -> AgentStepResult[T]:
-        primary = STEP_TOOLS[step_key]
+        primary = tool or STEP_TOOLS[step_key]
         task = {
             "step_key": step_key,
             "step_goal": primary.label,

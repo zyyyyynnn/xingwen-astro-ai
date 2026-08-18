@@ -68,6 +68,7 @@ from app.schemas.core import (
     RunEvent,
     PlannerOutcome,
     PlannerOutcomeKind,
+    ScientificSkillId,
     UpdateResearchContractDraftRequest,
     UpdateResearchProjectRequest,
     compute_research_contract_content_hash,
@@ -1819,6 +1820,10 @@ def _run_step(row: RunStepModel, *, run_id: str) -> RunStepRead:
         position=row.position,
         key=row.key,
         label=row.label,
+        phase=row.enter_status,
+        task_id=row.task_id,
+        skill_id=row.skill_id,
+        depends_on_step_keys=tuple(row.depends_on_step_keys),
         status=row.status,
         progress=row.progress,
         public_message=row.public_message,
@@ -1899,6 +1904,55 @@ _OUTPUT_PRESENTATION = {
         "advanced",
     ),
     ArtifactKind.export: ("导出结果", "生成可下载的研究结果包。", "advanced"),
+    ArtifactKind.analysis_report: (
+        "分析报告",
+        "呈现科学技能产出的指标、结果与结论。",
+        "common",
+    ),
+    ArtifactKind.visualization: (
+        "科学可视化",
+        "呈现图表、天图与影像等可视化结果。",
+        "common",
+    ),
+    ArtifactKind.spectrum: ("光谱", "保存光谱数据与谱线测量。", "common"),
+    ArtifactKind.light_curve: ("光变曲线", "保存光变数据与周期分析。", "common"),
+    ArtifactKind.model_evaluation: (
+        "模型评估",
+        "记录模型训练、评估指标与诊断。",
+        "advanced",
+    ),
+    ArtifactKind.model_artifact: (
+        "模型产物",
+        "保存可复用的 ONNX 模型与训练说明。",
+        "advanced",
+    ),
+}
+
+_SKILL_PRESENTATION = {
+    "catalog_crossmatch": ("目录交叉匹配", "将研究对象与天文目录交叉对齐。"),
+    "data_profile": ("数据剖析", "生成数据质量与分布概览。"),
+    "statistical_analysis": ("统计分析", "执行假设检验与效应量估计。"),
+    "correlation_analysis": ("相关性分析", "计算变量间相关关系。"),
+    "clustering_analysis": ("聚类分析", "发现数据中的自然分组。"),
+    "anomaly_detection": ("异常检测", "识别数据中的离群点。"),
+    "chart_visualization": ("科学图表", "生成受治理的科学图表。"),
+    "simbad_lookup": ("SIMBAD 检索", "从 SIMBAD 获取天体标识与坐标。"),
+    "skyview_fits": ("SkyView FITS", "从 SkyView 获取巡天 FITS 影像。"),
+    "ephemeris": ("星历计算", "计算天体升落与位置星历。"),
+    "celestial_events": ("天象事件", "计算可见天象事件。"),
+    "gaia_cone_search": ("Gaia 锥搜索", "从 Gaia 目录检索锥形天区。"),
+    "vizier_tap": ("VizieR TAP", "通过 TAP 查询 VizieR 目录。"),
+    "fits_image_analysis": ("FITS 影像分析", "执行背景估计与源检测测光。"),
+    "spectrum_analysis": ("光谱分析", "检测谱线并测量光谱参数。"),
+    "spectrum_acquisition": ("光谱获取", "获取目标光谱数据。"),
+    "light_curve_analysis": ("光变分析", "执行周期与相位分析。"),
+    "light_curve_acquisition": ("光变获取", "获取目标光变曲线数据。"),
+    "tabular_machine_learning": ("表格机器学习", "训练分类或回归模型。"),
+    "time_series_classification": ("时序分类", "对时间序列执行分类建模。"),
+    "time_series_forecast": ("时序预测", "对时间序列执行预测建模。"),
+    "image_classification": ("图像分类", "对图像数据集执行分类建模。"),
+    "model_inference": ("模型推理", "使用已训练模型执行推理。"),
+    "wwt_scene": ("WWT 天图场景", "生成可交互的天图场景。"),
 }
 
 
@@ -1941,6 +1995,18 @@ def _research_planning_catalog(
                 description="当前研究案例批准使用的公开数据来源。",
             )
             for source_id in case.allowed_source_ids
+        ),
+        scientific_skills=tuple(
+            ResearchCatalogOption(
+                value=skill_id.value,
+                label=_SKILL_PRESENTATION.get(
+                    skill_id.value, (skill_id.value, "")
+                )[0],
+                description=_SKILL_PRESENTATION.get(
+                    skill_id.value, (skill_id.value, "")
+                )[1],
+            )
+            for skill_id in ScientificSkillId
         ),
         output_requirements=tuple(
             ResearchCatalogOption(

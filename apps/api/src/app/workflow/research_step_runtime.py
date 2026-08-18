@@ -6,9 +6,11 @@ from typing import Callable
 
 from sqlalchemy.orm import Session
 
+from app.db.models import RunStepModel
 from app.schemas.manifest import ManifestBundle
+from app.services.content_storage import ContentStorage
 from app.services.model_execution import ModelExecutionPort
-from app.workflow.agent_runtime import AgentActivity, ResearchStepAgent
+from app.workflow.agent_runtime import AgentActivity, ResearchStepAgent, StepTool
 from app.workflow.step_publication import (
     PreparedStep,
     RunStepContext,
@@ -21,6 +23,7 @@ from app.workflow.steps.data_steps import DataStepService
 from app.workflow.steps.graph_steps import GraphStepService
 from app.workflow.steps.literature_steps import LiteratureStepService
 from app.workflow.steps.paper_steps import PaperStepService
+from app.workflow.steps.scientific_steps import ScientificStepService
 from app.workflow.store import AttemptHandle, LeaseGrant, PersistentWorkflowStore
 from packages.prompts.registry import PromptRegistry
 from services.paper_pipeline.live_collection import LivePaperCollectionRunner
@@ -42,13 +45,22 @@ class ResearchStepRuntime:
         explicit_revision: str | None,
         prompts: PromptRegistry | None = None,
         paper_collection_runner: LivePaperCollectionRunner | None = None,
+        content_storage: ContentStorage | None = None,
     ) -> None:
+        self._factory = factory
         self._store = store
         self._prompts = prompts or PromptRegistry()
         self._publications = StepPublicationFactory(factory=factory)
         self._model_port = model_port
         self._requested_model = requested_model
         self._explicit_revision = explicit_revision
+        self._scientific_steps = (
+            ScientificStepService(
+                factory=factory, content_storage=content_storage
+            )
+            if content_storage is not None
+            else None
+        )
         self._data_steps = DataStepService(
             manifests=manifests, publications=self._publications
         )
@@ -70,6 +82,12 @@ class ResearchStepRuntime:
         attempt: AttemptHandle,
         lease: LeaseGrant,
     ) -> PreparedStep:
+        scientific_tool = (
+            self._scientific_step_tool(attempt.run_step_id)
+            if step_key.startswith("scientific.")
+            else None
+        )
+
         def emit(activity: AgentActivity) -> None:
             self._store.append_activity_event(
                 context.run_id,
@@ -120,6 +138,7 @@ class ResearchStepRuntime:
                 context, step_key, attempt, lease, model_caller
             ),
             describe_primary_result=lambda prepared: prepared.activity_result_summary,
+            tool=scientific_tool,
         )
         return PreparedStep(
             publications=result.value.publications,
@@ -127,6 +146,24 @@ class ResearchStepRuntime:
             assistant_narrative=result.assistant_narrative,
             activity_id=result.activity_id,
             activity_name=result.activity_name,
+        )
+
+    def _scientific_step_tool(self, run_step_id: object) -> StepTool:
+        """Bind the step's single authorized tool to its exact frozen skill."""
+
+        with self._factory() as session:
+            step = session.get(RunStepModel, run_step_id)
+        if step is None or step.skill_id is None:
+            raise ValueError(f"scientific RunStep {run_step_id} has no skill binding")
+        skill_id = step.skill_id
+        return StepTool(
+            name=f"execute_science_skill_{skill_id}",
+            label=f"执行科学技能 {skill_id.replace('_', ' ')}",
+            tool_kind="scientific_skill",
+            description=(
+                "执行当前冻结研究步骤唯一授权的科学技能，"
+                "技能、参数与输入均由已确认研究协议冻结。"
+            ),
         )
 
     def _execute_step_tool(
@@ -169,6 +206,14 @@ class ResearchStepRuntime:
             )
         if step_key == "building_graph":
             return self._graph_steps.build(
+                context, step_key=step_key, attempt=attempt, lease=lease
+            )
+        if step_key.startswith("scientific."):
+            if self._scientific_steps is None:
+                raise ValueError(
+                    "scientific steps require the content-addressed storage runtime"
+                )
+            return self._scientific_steps.execute(
                 context, step_key=step_key, attempt=attempt, lease=lease
             )
         raise ValueError(f"Unsupported RunStep: {step_key}")

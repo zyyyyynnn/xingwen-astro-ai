@@ -423,6 +423,7 @@ class ResearchRunModel(TimestampMixin, Base):
     lease_owner: Mapped[str | None] = mapped_column(String(128))
     lease_generation: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    queue_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     steps_frozen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
     request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
@@ -456,7 +457,9 @@ class ResearchRunModel(TimestampMixin, Base):
             "execution_mode IN ('demo_replay', 'live')", name="execution_mode"
         ),
         CheckConstraint(
-            "status IN ('queued','planning','fetching_data','cleaning_data','searching_papers',"
+            "status IN ('queued','planning','fetching_data','cleaning_data',"
+            "'acquiring_observations','analyzing_data','training_models',"
+            "'building_visualizations','searching_papers',"
             "'summarizing_papers','reasoning_literature','building_graph','waiting_for_input',"
             "'completed','failed','cancelled')",
             name="status",
@@ -489,6 +492,17 @@ class ResearchRunModel(TimestampMixin, Base):
             "cache_policy IN ('disabled','fallback_on_recoverable_failure')",
             name="cache_policy",
         ),
+        CheckConstraint(
+            "execution_mode = 'live' OR queue_expires_at IS NULL",
+            name="queue_deadline_live_only",
+        ),
+        Index(
+            "ix_research_runs_live_queue",
+            "execution_mode",
+            "status",
+            "queue_expires_at",
+            "created_at",
+        ),
     )
 
 
@@ -516,20 +530,32 @@ class RunStepModel(TimestampMixin, Base):
     input_hash: Mapped[str | None] = mapped_column(String(71))
     failure_code: Mapped[str | None] = mapped_column(String(128))
     public_message: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    task_id: Mapped[str | None] = mapped_column(String(128))
+    skill_id: Mapped[str | None] = mapped_column(String(128))
+    depends_on_step_keys: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, default=list
+    )
 
     __table_args__ = (
         UniqueConstraint("id", "run_id", name="uq_run_step_id_run"),
         UniqueConstraint("run_id", "position", name="uq_run_step_position"),
         UniqueConstraint("run_id", "key", name="uq_run_step_run_key"),
+        UniqueConstraint("run_id", "task_id", name="uq_run_step_run_task"),
         CheckConstraint("position >= 0", name="position_nonnegative"),
         CheckConstraint("max_attempts >= 1", name="max_attempts_positive"),
         CheckConstraint(
-            "enter_status IN ('planning','fetching_data','cleaning_data','searching_papers',"
+            "(task_id IS NULL) = (skill_id IS NULL)",
+            name="task_skill_binding",
+        ),
+        CheckConstraint(
+            "enter_status IN ('planning','fetching_data','cleaning_data','acquiring_observations',"
+            "'analyzing_data','training_models','building_visualizations','searching_papers',"
             "'summarizing_papers','reasoning_literature','building_graph','waiting_for_input')",
             name="enter_status",
         ),
         CheckConstraint(
-            "success_status IN ('planning','fetching_data','cleaning_data','searching_papers',"
+            "success_status IN ('planning','fetching_data','cleaning_data','acquiring_observations',"
+            "'analyzing_data','training_models','building_visualizations','searching_papers',"
             "'summarizing_papers','reasoning_literature','building_graph','waiting_for_input',"
             "'completed')",
             name="success_status",
@@ -743,6 +769,14 @@ class ProducerExecutionModel(TimestampMixin, Base):
     token_usage: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     latency_ms: Mapped[int | None] = mapped_column(Integer)
     error_code: Mapped[str | None] = mapped_column(String(128))
+    tool_call_id: Mapped[str | None] = mapped_column(String(256))
+    authorized_tool_name: Mapped[str | None] = mapped_column(String(128))
+    authorized_skill_id: Mapped[str | None] = mapped_column(String(128))
+    registry_revision: Mapped[str | None] = mapped_column(String(71))
+    validated_arguments_hash: Mapped[str | None] = mapped_column(String(71))
+    rejected_arguments_hash: Mapped[str | None] = mapped_column(String(71))
+    error_hash: Mapped[str | None] = mapped_column(String(71))
+    public_message: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (
         UniqueConstraint("id", "run_step_id", name="uq_producer_execution_id_step"),
@@ -772,6 +806,82 @@ class ProducerExecutionModel(TimestampMixin, Base):
         CheckConstraint("lease_generation >= 0", name="lease_generation_nonnegative"),
         CheckConstraint(
             "latency_ms IS NULL OR latency_ms >= 0", name="latency_nonnegative"
+        ),
+        CheckConstraint(
+            "(authorized_tool_name IS NULL) = (registry_revision IS NULL)",
+            name="function_call_authorization_pair",
+        ),
+        CheckConstraint(
+            "(authorized_skill_id IS NULL) = (authorized_tool_name IS NULL)",
+            name="function_call_skill_pair",
+        ),
+        CheckConstraint(
+            "validated_arguments_hash IS NULL OR "
+            "(status = 'completed' AND tool_call_id IS NOT NULL "
+            "AND public_message IS NOT NULL)",
+            name="validated_arguments_terminal",
+        ),
+        CheckConstraint(
+            "rejected_arguments_hash IS NULL OR "
+            "(status = 'rejected' AND tool_call_id IS NOT NULL)",
+            name="rejected_arguments_terminal",
+        ),
+        CheckConstraint(
+            "error_hash IS NULL OR status IN ('failed','rejected','cancelled')",
+            name="error_hash_terminal",
+        ),
+        CheckConstraint(
+            "producer_name <> 'research_step_agent' OR ("
+            "authorized_tool_name IS NOT NULL AND registry_revision IS NOT NULL AND ("
+            "(status = 'running' AND tool_call_id IS NULL "
+            "AND validated_arguments_hash IS NULL "
+            "AND rejected_arguments_hash IS NULL AND error_hash IS NULL "
+            "AND public_message IS NULL) OR "
+            "(status = 'completed' AND tool_call_id IS NOT NULL "
+            "AND validated_arguments_hash IS NOT NULL "
+            "AND rejected_arguments_hash IS NULL AND error_hash IS NULL "
+            "AND public_message IS NOT NULL) OR "
+            "(status = 'rejected' AND validated_arguments_hash IS NULL "
+            "AND error_hash IS NOT NULL AND public_message IS NULL "
+            "AND ((tool_call_id IS NULL AND rejected_arguments_hash IS NULL) OR "
+            "(tool_call_id IS NOT NULL AND rejected_arguments_hash IS NOT NULL))) OR "
+            "(status IN ('failed','cancelled') AND tool_call_id IS NULL "
+            "AND validated_arguments_hash IS NULL "
+            "AND rejected_arguments_hash IS NULL AND error_hash IS NOT NULL "
+            "AND public_message IS NULL)"
+            "))",
+            name="research_step_agent_audit_closure",
+        ),
+    )
+
+
+class WorkflowWorkerModel(Base):
+    """Restart-safe persistent worker lifecycle for the single Research worker."""
+
+    __tablename__ = "workflow_workers"
+
+    worker_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    state: Mapped[str] = mapped_column(String(16), nullable=False)
+    configured_capacity: Mapped[int] = mapped_column(Integer, nullable=False)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    heartbeat_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    drain_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    stopped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint("state IN ('accepting','draining','stopped')", name="state"),
+        CheckConstraint(
+            "configured_capacity >= 1", name="configured_capacity_positive"
+        ),
+        CheckConstraint(
+            "(state = 'accepting' AND drain_requested_at IS NULL AND stopped_at IS NULL) OR "
+            "(state = 'draining' AND drain_requested_at IS NOT NULL AND stopped_at IS NULL) OR "
+            "(state = 'stopped' AND stopped_at IS NOT NULL)",
+            name="lifecycle_timestamps",
         ),
     )
 

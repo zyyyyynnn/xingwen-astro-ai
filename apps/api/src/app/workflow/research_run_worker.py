@@ -19,11 +19,13 @@ from app.db.models import (
 )
 from app.schemas.core import ResearchContract
 from app.schemas.manifest import ManifestBundle
+from app.services.content_storage import ContentStorage
 from app.services.model_execution import (
     ModelExecutionError,
     ModelExecutionPort,
 )
 from app.workflow.agent_runtime import AgentActivityError
+from app.workflow.capacity import PersistentWorkerRegistry
 from app.workflow.persistent_executor import (
     FailureDecision,
     PersistentWorkflowExecutionError,
@@ -99,6 +101,7 @@ class ResearchRunWorker:
         explicit_revision: str | None,
         prompts: PromptRegistry | None = None,
         paper_collection_runner: LivePaperCollectionRunner | None = None,
+        content_storage: ContentStorage | None = None,
     ) -> None:
         self._factory = factory
         self._store = store
@@ -119,9 +122,12 @@ class ResearchRunWorker:
             explicit_revision=explicit_revision,
             prompts=self._prompts,
             paper_collection_runner=paper_collection_runner,
+            content_storage=content_storage,
         )
         self._task: asyncio.Task[None] | None = None
         self._stop = asyncio.Event()
+        self._workers = PersistentWorkerRegistry(factory)
+        self._worker_id = "api-research-run-worker"
 
     def start(self) -> None:
         if self._task is None:
@@ -134,20 +140,38 @@ class ResearchRunWorker:
             self._task = None
 
     async def _serve(self) -> None:
+        worker_state = await asyncio.to_thread(
+            self._workers.register,
+            self._worker_id,
+            configured_capacity=1,
+        )
+        draining = worker_state.state == "draining"
         while not self._stop.is_set():
-            run_ids = await asyncio.to_thread(self._queued_run_ids)
-            for run_id in run_ids:
-                try:
-                    await self.execute_run(run_id)
-                except Exception:
-                    LOGGER.exception(
-                        "ResearchRun execution failed",
-                        extra={"run_id": str(run_id)},
-                    )
+            if not draining:
+                run_ids = await asyncio.to_thread(self._queued_run_ids)
+                for run_id in run_ids:
+                    try:
+                        await self.execute_run(run_id)
+                    except Exception:
+                        LOGGER.exception(
+                            "ResearchRun execution failed",
+                            extra={"run_id": str(run_id)},
+                        )
+            try:
+                snapshot = await asyncio.to_thread(
+                    self._workers.heartbeat, self._worker_id
+                )
+                draining = snapshot.state == "draining"
+            except RuntimeError:
+                draining = True
             try:
                 await asyncio.wait_for(self._stop.wait(), timeout=0.5)
             except TimeoutError:
                 pass
+        try:
+            await asyncio.to_thread(self._workers.mark_stopped, self._worker_id)
+        except RuntimeError:
+            LOGGER.warning("worker lifecycle record missing on shutdown")
 
     def _queued_run_ids(self) -> tuple[UUID, ...]:
         with self._factory() as session:
@@ -165,7 +189,7 @@ class ResearchRunWorker:
         context = await asyncio.to_thread(self._load_context, run_id, snapshot)
         lease = self._store.acquire_lease(
             run_id,
-            owner="api-research-run-worker",
+            owner=self._worker_id,
             lease_duration=timedelta(minutes=30),
             expected_status=snapshot.status,
             expected_revision=snapshot.revision,
