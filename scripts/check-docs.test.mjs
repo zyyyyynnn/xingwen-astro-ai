@@ -149,6 +149,18 @@ test("rejects work phase identities but allows failure-stage semantics", () => {
     containsRepositoryPhaseIdentifier(["Parser failure Sta", "ge 2"].join("")),
     false,
   );
+  assert.equal(
+    containsRepositoryPhaseIdentifier(["phase: ", "0.45,"].join("")),
+    false,
+  );
+  assert.equal(
+    containsRepositoryPhaseIdentifier(["phase: ", "1}"].join("")),
+    false,
+  );
+  assert.equal(
+    containsRepositoryPhaseIdentifier(["Phase: ", "2 is ongoing"].join("")),
+    true,
+  );
 });
 
 test("rejects repository pseudo-version identities", () => {
