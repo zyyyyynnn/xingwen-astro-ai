@@ -263,7 +263,7 @@ jobs:
           --check
 
   frontend:
-    name: Frontend quality and entrypoint smoke
+    name: Frontend quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
