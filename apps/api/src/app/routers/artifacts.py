@@ -7,6 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Header, Path, Query, Request, Response
 from fastapi.responses import Response as RawResponse
+from fastapi.responses import StreamingResponse
 
 from app.schemas.core import (
     ArtifactKind,
@@ -16,6 +17,7 @@ from app.schemas.core import (
     CursorPage,
     Envelope,
     EvidenceRead,
+    ProblemDetails,
     ResearchArtifact,
     ResearchArtifactDetail,
     ResponseLinks,
@@ -51,8 +53,10 @@ from app.schemas.paper_collection_api import (
     PaperCollectionRead,
 )
 from app.schemas.paper_summary_api import PaperSummaryPdfSourceRead, PaperSummaryRead
+from app.schemas.scientific_artifact_api import ScientificArtifactRead
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
+from app.services.content_storage import ContentRangeNotSatisfiable
 from app.services.data_artifacts import DataArtifactReadService
 from app.services.graph_artifacts import GraphArtifactReadService
 from app.services.literature_artifacts import LiteratureArtifactReadService
@@ -62,6 +66,7 @@ from app.services.paper_candidate_inputs import (
     PaperCandidateInputService,
 )
 from app.services.paper_summaries import PaperSummaryReadService
+from app.services.scientific_artifacts import ScientificArtifactReadService
 
 router = APIRouter(prefix="/api", tags=["artifacts"])
 
@@ -105,6 +110,12 @@ def _summary_service(request: Request) -> PaperSummaryReadService:
         pdf_source_resolver = input_service.accepted_research_input
     return PaperSummaryReadService(
         _service(request), pdf_source_resolver=pdf_source_resolver
+    )
+
+
+def _scientific_service(request: Request) -> ScientificArtifactReadService:
+    return ScientificArtifactReadService(
+        _service(request), request.app.state.content_storage
     )
 
 
@@ -287,6 +298,91 @@ def get_paper_summary_pdf_source(
     _no_store(response)
     path = f"/api/artifact-versions/{version_id}/paper-summary/pdf-source"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/artifact-versions/{version_id}/scientific",
+    operation_id="getScientificArtifact",
+    response_model=Envelope[ScientificArtifactRead],
+)
+def get_scientific_artifact(
+    version_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+) -> Envelope[ScientificArtifactRead]:
+    data = _scientific_service(request).get_scientific_artifact(
+        version_id=version_id,
+        session_id=_session_id(request),
+    )
+    _no_store(response)
+    path = f"/api/artifact-versions/{version_id}/scientific"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/artifact-versions/{version_id}/scientific/content/{content_hash}",
+    operation_id="getScientificArtifactContent",
+    response_class=StreamingResponse,
+    responses={
+        200: {
+            "content": {
+                "application/octet-stream": {
+                    "schema": {"type": "string", "format": "binary"}
+                }
+            }
+        },
+        206: {
+            "content": {
+                "application/octet-stream": {
+                    "schema": {"type": "string", "format": "binary"}
+                }
+            }
+        },
+        416: {"model": ProblemDetails},
+    },
+)
+async def get_scientific_artifact_content(
+    version_id: Annotated[str, Path(min_length=1)],
+    content_hash: Annotated[str, Path(pattern=r"^sha256:[0-9a-f]{64}$")],
+    request: Request,
+    range_header: Annotated[str | None, Header(alias="Range")] = None,
+) -> StreamingResponse:
+    try:
+        content, media_type = await _scientific_service(request).get_content(
+            version_id=version_id,
+            content_hash=content_hash,
+            session_id=_session_id(request),
+            range_header=range_header,
+        )
+    except ContentRangeNotSatisfiable as exc:
+        raise SecurityProblem(
+            status=416,
+            code="SCIENTIFIC_CONTENT_RANGE_NOT_SATISFIABLE",
+            title="Content range not satisfiable",
+            detail="The requested byte range cannot be served for this content",
+            headers={
+                "Accept-Ranges": "bytes",
+                "Content-Range": f"bytes */{exc.total_size}",
+            },
+        ) from exc
+
+    headers = {
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "private, immutable, max-age=31536000",
+        "Content-Length": str(content.content_length),
+    }
+    status_code = 200
+    if range_header is not None:
+        status_code = 206
+        headers["Content-Range"] = (
+            f"bytes {content.start}-{content.end}/{content.total_size}"
+        )
+    return StreamingResponse(
+        content=content.chunks,
+        status_code=status_code,
+        media_type=media_type,
+        headers=headers,
+    )
 
 
 @router.get(

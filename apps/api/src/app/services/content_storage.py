@@ -20,12 +20,35 @@ import hashlib
 import os
 import re
 import secrets
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
 import aiofiles
 
 _HASH_REGEX = re.compile(r"^sha256:[0-9a-f]{64}$")
+_STREAM_CHUNK_BYTES = 1024 * 1024
+_MAX_RANGE_HEADER_BYTES = 200
+
+
+@dataclass(frozen=True, slots=True)
+class ContentRead:
+    """A bounded, lazy read from an immutable content blob.
+
+    ``start`` and ``end`` are inclusive byte offsets.  An empty blob uses
+    ``end == -1`` and therefore has a zero ``content_length``.  ``chunks``
+    opens the blob lazily and never materializes the selected bytes in memory.
+    """
+
+    start: int
+    end: int
+    total_size: int
+    chunks: AsyncIterator[bytes]
+
+    @property
+    def content_length(self) -> int:
+        return max(0, self.end - self.start + 1)
 
 
 class ContentStorage(Protocol):
@@ -41,12 +64,32 @@ class ContentStorage(Protocol):
     async def retrieve(self, content_hash: str) -> bytes | None:
         """Return the exact stored bytes, or ``None`` when the blob is absent."""
 
+    async def open_read(
+        self, content_hash: str, *, range_header: str | None = None
+    ) -> ContentRead | None:
+        """Open a lazy full or single-byte-range read.
+
+        ``range_header`` uses the HTTP ``Range: bytes=...`` grammar.  A
+        malformed, multi-range, or unsatisfiable request raises
+        :class:`ContentRangeNotSatisfiable`; an absent blob returns ``None``.
+        The returned iterator yields bounded chunks and must be consumed by
+        the caller to close its underlying read handle.
+        """
+
     def exists(self, content_hash: str) -> bool:
         """Return whether the blob is already stored."""
 
 
 class ContentStorageError(RuntimeError):
     """Raised for I/O failures that must not be mistaken for corruption."""
+
+
+class ContentRangeNotSatisfiable(ContentStorageError):
+    """Raised when a requested single byte range cannot be served."""
+
+    def __init__(self, *, total_size: int) -> None:
+        self.total_size = total_size
+        super().__init__("requested byte range is not satisfiable")
 
 
 def sha256_content_hash(content: bytes) -> str:
@@ -115,6 +158,34 @@ class LocalContentStorage:
                 f"stored blob for {content_hash} failed integrity check"
             )
         return content
+
+    async def open_read(
+        self, content_hash: str, *, range_header: str | None = None
+    ) -> ContentRead | None:
+        blob = self._blob_path(content_hash)
+        try:
+            if not blob.is_file():
+                return None
+            total_size = blob.stat().st_size
+        except FileNotFoundError:
+            return None
+        except (PermissionError, OSError) as exc:
+            raise ContentStorageError(
+                f"unable to inspect stored blob for {content_hash}"
+            ) from exc
+
+        start, end = _resolve_byte_range(range_header, total_size)
+        return ContentRead(
+            start=start,
+            end=end,
+            total_size=total_size,
+            chunks=_iter_blob_range(
+                blob,
+                content_hash=content_hash,
+                start=start,
+                end=end,
+            ),
+        )
 
     def exists(self, content_hash: str) -> bool:
         return self._blob_path(content_hash).is_file()
@@ -246,8 +317,85 @@ def _storage_ref(content_hash: str) -> str:
     return f"{hex_value[:2]}/{hex_value}"
 
 
+def _resolve_byte_range(range_header: str | None, total_size: int) -> tuple[int, int]:
+    if range_header is None:
+        return (0, total_size - 1) if total_size else (0, -1)
+    if len(range_header) > _MAX_RANGE_HEADER_BYTES:
+        raise ContentRangeNotSatisfiable(total_size=total_size)
+
+    value = range_header.strip()
+    if not value.startswith("bytes="):
+        raise ContentRangeNotSatisfiable(total_size=total_size)
+    spec = value.removeprefix("bytes=")
+    if not spec or "," in spec or "-" not in spec:
+        raise ContentRangeNotSatisfiable(total_size=total_size)
+    first, last = spec.split("-", maxsplit=1)
+
+    if not first:
+        if not _ascii_digits(last):
+            raise ContentRangeNotSatisfiable(total_size=total_size)
+        suffix_length = int(last)
+        if suffix_length <= 0 or total_size == 0:
+            raise ContentRangeNotSatisfiable(total_size=total_size)
+        suffix_length = min(suffix_length, total_size)
+        return total_size - suffix_length, total_size - 1
+
+    if not _ascii_digits(first):
+        raise ContentRangeNotSatisfiable(total_size=total_size)
+    start = int(first)
+    if start >= total_size:
+        raise ContentRangeNotSatisfiable(total_size=total_size)
+    if not last:
+        return start, total_size - 1
+    if not _ascii_digits(last):
+        raise ContentRangeNotSatisfiable(total_size=total_size)
+    end = min(int(last), total_size - 1)
+    if end < start:
+        raise ContentRangeNotSatisfiable(total_size=total_size)
+    return start, end
+
+
+def _ascii_digits(value: str) -> bool:
+    return bool(value) and value.isascii() and value.isdigit()
+
+
+async def _iter_blob_range(
+    blob: Path,
+    *,
+    content_hash: str,
+    start: int,
+    end: int,
+) -> AsyncIterator[bytes]:
+    remaining = max(0, end - start + 1)
+    if remaining == 0:
+        return
+    try:
+        async with aiofiles.open(blob, "rb") as handle:
+            await handle.seek(start)
+            while remaining:
+                chunk = await handle.read(min(_STREAM_CHUNK_BYTES, remaining))
+                if not chunk:
+                    raise ContentStorageError(
+                        f"stored blob for {content_hash} ended before requested range"
+                    )
+                yield chunk
+                remaining -= len(chunk)
+    except ContentStorageError:
+        raise
+    except FileNotFoundError as exc:
+        raise ContentStorageError(
+            f"stored blob for {content_hash} disappeared during read"
+        ) from exc
+    except (PermissionError, OSError) as exc:
+        raise ContentStorageError(
+            f"unable to stream stored blob for {content_hash}"
+        ) from exc
+
+
 __all__ = [
     "ContentStorage",
+    "ContentRead",
+    "ContentRangeNotSatisfiable",
     "ContentStorageError",
     "LocalContentStorage",
     "sha256_content_hash",
