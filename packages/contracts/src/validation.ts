@@ -41,6 +41,7 @@ import researchRunSchema from "./generated/core/json/ResearchRun.schema.json";
 import runCheckpointSchema from "./generated/core/json/RunCheckpoint.schema.json";
 import runEventSchema from "./generated/core/json/RunEvent.schema.json";
 import runStepReadSchema from "./generated/core/json/RunStepRead.schema.json";
+import scientificArtifactReadSchema from "./generated/core/json/ScientificArtifactRead.schema.json";
 import sessionCreatedSchema from "./generated/core/json/SessionCreated.schema.json";
 import shareSnapshotSchema from "./generated/core/json/ShareSnapshot.schema.json";
 import shareSnapshotCreatedSchema from "./generated/core/json/ShareSnapshotCreated.schema.json";
@@ -89,6 +90,7 @@ export const CORE_MODEL_NAMES = [
   "LiteratureRelationRead",
   "LiteratureReasoningTraceRead",
   "GraphArtifactRead",
+  "ScientificArtifactRead",
   "SessionCreated",
   "WorkspaceSnapshot",
   "ShareSnapshot",
@@ -152,6 +154,7 @@ const schemas: SchemaMap = {
   LiteratureRelationRead: literatureRelationReadSchema,
   LiteratureReasoningTraceRead: literatureReasoningTraceReadSchema,
   GraphArtifactRead: graphArtifactReadSchema,
+  ScientificArtifactRead: scientificArtifactReadSchema,
   SessionCreated: sessionCreatedSchema,
   WorkspaceSnapshot: workspaceSnapshotSchema,
   ShareSnapshot: shareSnapshotSchema,

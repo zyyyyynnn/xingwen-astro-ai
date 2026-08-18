@@ -1105,6 +1105,23 @@ export function createFixtureRepositories(
       bundle.data.graphNodeReads ?? [],
       bundle.data.graphEdgeReads ?? [],
     ),
+    scientificArtifacts: {
+      // Fixture bundles carry no scientific Artifact deep reads; the demo
+      // replay surface reports the honest absent state instead of inventing
+      // scientific content.
+      getReview: async (artifactVersionId) => {
+        throw new NotFoundError(
+          `Scientific artifact ${artifactVersionId} is not available in the fixture`,
+          "SCIENTIFIC_ARTIFACT_NOT_FOUND",
+        );
+      },
+      getContent: async (artifactVersionId) => {
+        throw new NotFoundError(
+          `Scientific content for ${artifactVersionId} is not available in the fixture`,
+          "SCIENTIFIC_ARTIFACT_NOT_FOUND",
+        );
+      },
+    },
     artifactExports: createFixtureArtifactExportRepository(
       bundle.data.projects[0]?.id
         ? asEntityId(bundle.data.projects[0].id)

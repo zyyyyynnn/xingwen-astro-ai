@@ -40,6 +40,7 @@ import type {
   ResearchPlanningCatalog,
   ResearchRun,
   RevisionPlan,
+  ScientificArtifactReview,
   UserFeedback,
   RunCheckpoint,
   RunCheckpointDecisionRequest,
@@ -332,6 +333,17 @@ export interface GraphArtifactRepository {
   getReview(artifactVersionId: DomainEntityId): Promise<GraphArtifactReview>;
 }
 
+/** Deep read and immutable binary boundary for scientific Artifacts. */
+export interface ScientificArtifactRepository {
+  getReview(
+    artifactVersionId: DomainEntityId,
+  ): Promise<ScientificArtifactReview>;
+  getContent(
+    artifactVersionId: DomainEntityId,
+    contentHash: string,
+  ): Promise<ArrayBuffer>;
+}
+
 export interface CreateRevisionInput {
   readonly artifactVersionId: DomainEntityId;
   readonly expectedVersionNumber: number;
@@ -391,6 +403,7 @@ export interface RepositorySet {
   readonly dataArtifacts: DataArtifactRepository;
   readonly literatureArtifacts: LiteratureArtifactRepository;
   readonly graphArtifacts: GraphArtifactRepository;
+  readonly scientificArtifacts: ScientificArtifactRepository;
   readonly artifactExports: ArtifactExportRepository;
   readonly revisions: RevisionRepository;
   readonly workspaces: WorkspaceSnapshotRepository;

@@ -73,6 +73,7 @@ CORE_MODELS: tuple[str, ...] = (
     "GraphNodeRead",
     "GraphEdgeRead",
     "GraphEvidenceUseRead",
+    "ScientificArtifactRead",
     "CreateArtifactExportRequest",
     "ArtifactExportRead",
     "EvidenceRead",

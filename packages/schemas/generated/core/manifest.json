@@ -272,6 +272,11 @@
       "path": "json/RunStepRead.schema.json"
     },
     {
+      "module": "app.schemas.scientific_artifact_api",
+      "name": "ScientificArtifactRead",
+      "path": "json/ScientificArtifactRead.schema.json"
+    },
+    {
       "module": "app.schemas.core",
       "name": "SessionCreated",
       "path": "json/SessionCreated.schema.json"
