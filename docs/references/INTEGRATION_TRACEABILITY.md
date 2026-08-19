@@ -128,6 +128,22 @@ DROP_INVALID` 之一，并记录保留的能力、目标 owner 与验证方式�
 | apps/api/src/app/services/document_summary_chunks.py（§35/§38 新增，旧 PR 无对应实现） | PORT_REHOMED | 长论文分块编排：block→分块（块携带 Evidence 身份）、逐块有界模型调用、块外 Evidence 引用拒绝（§35）、确定性归并到当前输出形状（无二次模型调用、statement id 确定性）、归并后 fail-closed 校验，走唯一 admit_document 路径；不截断 | current services | apps/api/src/app/services/document_summary_chunks.py | PASS（test_document_summary_chunks.py：委托/逐块/确定性/allowlist 拒绝） |
 | apps/api/src/app/workflow/agent_runtime.py function-calling 审计写路径（§18） | PORT_REHOMED | 唯一授权工具 + 授权身份三元组（tool/skill/registry revision，全有或全无）、validated/rejected arguments hash、tool_call_id、public_message、error_hash 写入 producer_executions（既有 DB 闭合约束），provider 身份/token/latency 随响应落库；科学步骤工具绑定 skill_id + registry revision | current workflow | apps/api/src/app/workflow/agent_runtime.py + step_publication.py + publisher.py | PASS（test_agent_runtime.py 生命周期/拒绝审计、test_artifact_publisher.py 授权与闭合校验） |
 
+## 5.5 ContentLifecycle 完整性审计（本轮移植）
+
+| Old source | Classification | Preserved capability | Target owner | Target file | Verification |
+| --- | --- | --- | --- | --- | --- |
+| apps/api/src/app/services/content_lifecycle.py | PORT_NEAR_AS_IS（接口与当前 PersistentResourceAuthority 一致，直接适配） | 只读 content-addressed blob 完整性审计：authority uncertainty、reference invalid、storage ref mismatch、size conflicts、missing blob、hash mismatch、size mismatch、unreadable blob、unexpected storage entry、orphan impact report；deletion_supported 恒为 false | current services | apps/api/src/app/services/content_lifecycle.py | PASS（test_content_storage_integrity.py） |
+| apps/api/src/app/services/content_storage.py inspect 扩展 | PORT_REHOMED（最小扩展：仅在当前 ContentStorage 缺少 inspect() 时补齐） | ContentBlobInspection 只读扫描（不跟随 symlink、unexpected 条目报告不打开、chunked hash 于 worker thread） | current services | apps/api/src/app/services/content_storage.py | PASS（test_content_storage_integrity.py） |
+| apps/api/src/app/commands/content_storage_audit.py | PORT_REHOMED | 运维 CLI：读取当前 DATABASE_URL / RESEARCH_INPUT_UPLOAD_DIR，构造 PersistentResourceAuthority + LocalContentStorage + ContentLifecycleService，执行 inspect() 并输出 JSON summary；exit 0=完整性闭合 / 1=存在 finding / 2=配置或运行时不可用 | current commands | apps/api/src/app/commands/content_storage_audit.py | PASS（模块级只读边界测试） |
+
+preserved:
+
+- read-only integrity audit（全部 finding 类别与 orphan impact report）
+
+not preserved:
+
+- destructive GC（delete_orphans / gc / cleanup / HTTP DELETE 一律不引入；Publisher writer 与 garbage collector 尚无 atomic coordination fence，本轮不实现该 fence）
+
 ## 6. 尚未移植（integration_pending）
 
 以下 REQUIRED 项已完成分类但尚未移植，保持 Draft 状态直至闭合：

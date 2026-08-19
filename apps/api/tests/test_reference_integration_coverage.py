@@ -19,6 +19,7 @@ from services.reference_integration.build_reference_capability_manifest import (
 from services.reference_integration.reference_capability_manifest import (
     ALLOWED_CATEGORIES,
     ALLOWED_REFERENCES,
+    ReferenceCapability,
     load_manifest,
     parse_capability,
 )
@@ -26,7 +27,6 @@ from services.reference_integration.reference_capability_manifest import (
 LEDGER_PATH = Path(__file__).resolve().parents[3] / (
     "services/reference_integration/mavis_adoption_ledger.json"
 )
-EXPECTED_MAVIS_CASES = 160
 
 
 def _reference_root() -> Path | None:
@@ -127,14 +127,16 @@ def test_mavis_ledger_capability_ids_exist_in_manifest(manifest):
     assert not unknown, f"ledger references unknown capabilities: {sorted(unknown)}"
 
 
-def test_mavis_ledger_covers_all_160_cases():
+def test_mavis_ledger_case_count_matches_actual_cases():
     ledger = json.loads(LEDGER_PATH.read_text(encoding="utf-8"))
-    assert ledger["case_count"] == EXPECTED_MAVIS_CASES
-    case_ids = [case["case_id"] for case in ledger["cases"]]
-    assert len(case_ids) == len(set(case_ids)) == EXPECTED_MAVIS_CASES
+    cases = ledger["cases"]
+    assert ledger["case_count"] == len(cases)
+    assert ledger["case_count"] >= 1
+    case_ids = [case["case_id"] for case in cases]
+    assert len(case_ids) == len(set(case_ids))
     assert ledger["by_tier"]["tier_a"] + ledger["by_tier"]["tier_b"] + ledger[
         "by_tier"
-    ]["tier_c"] == EXPECTED_MAVIS_CASES
+    ]["tier_c"] == ledger["case_count"]
 
 
 def test_reference_sources_exist_under_reference_root(manifest):
@@ -188,6 +190,9 @@ def test_invalid_capabilities_are_rejected():
         "eligible": True,
         "xingwen_owners": ["services/paper_pipeline/summary.py"],
         "verification": ["unit"],
+        "production_entrypoint": "services/paper_pipeline/summary.py",
+        "user_reachability": "not_applicable",
+        "live_state": "not_applicable",
     }
     parse_capability(dict(base), index=0)
 
@@ -226,6 +231,81 @@ def test_invalid_capabilities_are_rejected():
         parse_capability(
             {**base, "eligible": True, "disposition": "rejected"}, index=9
         )
+    with pytest.raises(ValueError, match="must declare a"):
+        parse_capability(
+            {**base, "production_entrypoint": None}, index=10
+        )
+    with pytest.raises(ValueError, match="unreachable"):
+        parse_capability(
+            {**base, "user_reachability": "unreachable"}, index=11
+        )
+    with pytest.raises(ValueError, match="must be user-reachable"):
+        parse_capability(
+            {
+                **base,
+                "category": "presentation",
+                "verification": ["component"],
+                "user_reachability": "not_applicable",
+            },
+            index=12,
+        )
+    with pytest.raises(ValueError, match="component or browser verification"):
+        parse_capability(
+            {**base, "category": "presentation", "verification": ["unit"]},
+            index=13,
+        )
+    with pytest.raises(ValueError, match="unknown live_state"):
+        parse_capability({**base, "live_state": "maybe"}, index=14)
+
+
+def _interaction_capability(**overrides: object) -> ReferenceCapability:
+    defaults = dict(
+        reference="inosum",
+        category="interaction",
+        capability_id="inosum.interaction.synthetic",
+        reference_sources=("inosum/Auto_doc_analysis_summarize.py",),
+        disposition="adopted",
+        implementation_state="implemented",
+        eligible=True,
+        exclusion_reason=None,
+        xingwen_owners=("apps/workspace/src/components/paper-summary-renderer.tsx",),
+        verification=("component",),
+        production_entrypoint=(
+            "apps/workspace/src/components/paper-summary-renderer.tsx"
+        ),
+        user_reachability="reachable",
+        live_state="not_verified",
+        notes="",
+    )
+    defaults.update(overrides)
+    return ReferenceCapability(**defaults)  # type: ignore[arg-type]
+
+
+def test_unreachable_interaction_never_counts_as_completed():
+    capability = _interaction_capability(user_reachability="unreachable")
+    assert capability.implementation_state == "implemented"
+    assert not capability.completed
+
+
+def test_implemented_capability_without_entrypoint_never_completes():
+    capability = _interaction_capability(production_entrypoint=None)
+    assert not capability.completed
+
+
+def test_live_state_does_not_change_implementation_coverage():
+    verified = _interaction_capability(live_state="verified")
+    not_verified = _interaction_capability(live_state="not_verified")
+    assert verified.completed == not_verified.completed
+
+
+def test_function_capability_may_be_completed_without_direct_user_operation():
+    capability = _interaction_capability(
+        category="function",
+        capability_id="inosum.function.synthetic",
+        verification=("unit",),
+        user_reachability="not_applicable",
+    )
+    assert capability.completed
 
 
 def test_builder_digests_cover_all_reference_sources(manifest):

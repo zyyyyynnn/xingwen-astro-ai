@@ -118,6 +118,13 @@ jobs:
       - name: Run backend tests
         run: uv run pytest -m "not scientific_document_native"
 
+      - name: Check reference integration coverage authority
+        working-directory: .
+        run: >
+          uv run --project apps/api python
+          services/reference_integration/build_reference_capability_manifest.py
+          --check
+
       - name: Run reproducible LiteratureClaim benchmark
         working-directory: .
         run: >

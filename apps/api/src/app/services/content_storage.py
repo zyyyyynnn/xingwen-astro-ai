@@ -15,6 +15,7 @@ can never be silently clobbered by a later writer.
 
 from __future__ import annotations
 
+import asyncio
 import errno
 import hashlib
 import os
@@ -23,7 +24,7 @@ import secrets
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Literal, Protocol
 
 import aiofiles
 
@@ -49,6 +50,22 @@ class ContentRead:
     @property
     def content_length(self) -> int:
         return max(0, self.end - self.start + 1)
+
+
+@dataclass(frozen=True, slots=True)
+class ContentBlobInspection:
+    """One filesystem entry observed by the read-only integrity scanner.
+
+    Paths are always relative storage references.  Absolute host paths never
+    cross this port, including for malformed or unreadable entries.
+    """
+
+    storage_ref: str
+    content_hash: str | None
+    actual_content_hash: str | None
+    size_bytes: int | None
+    modified_at_ns: int | None
+    status: Literal["ok", "hash_mismatch", "unreadable", "unexpected"]
 
 
 class ContentStorage(Protocol):
@@ -78,6 +95,9 @@ class ContentStorage(Protocol):
 
     def exists(self, content_hash: str) -> bool:
         """Return whether the blob is already stored."""
+
+    async def inspect(self) -> tuple[ContentBlobInspection, ...]:
+        """Return a read-only, streaming hash/size inspection of local entries."""
 
 
 class ContentStorageError(RuntimeError):
@@ -189,6 +209,58 @@ class LocalContentStorage:
 
     def exists(self, content_hash: str) -> bool:
         return self._blob_path(content_hash).is_file()
+
+    async def inspect(self) -> tuple[ContentBlobInspection, ...]:
+        """Inspect every store entry without following symbolic links.
+
+        Hashing is chunked in a worker thread, so neither a large blob nor a
+        large store is copied into the application event loop.  Unexpected
+        files (including abandoned temporaries and symlinks) are reported but
+        never opened or removed.
+        """
+
+        entries = await asyncio.to_thread(_storage_entries, self._root)
+        inspections: list[ContentBlobInspection] = []
+        for storage_ref, path, expected_hash in entries:
+            if expected_hash is None:
+                inspections.append(
+                    ContentBlobInspection(
+                        storage_ref=storage_ref,
+                        content_hash=None,
+                        actual_content_hash=None,
+                        size_bytes=None,
+                        modified_at_ns=None,
+                        status="unexpected",
+                    )
+                )
+                continue
+            try:
+                actual_hash, size_bytes, modified_at_ns = await asyncio.to_thread(
+                    _hash_file, path
+                )
+            except (FileNotFoundError, PermissionError, OSError):
+                inspections.append(
+                    ContentBlobInspection(
+                        storage_ref=storage_ref,
+                        content_hash=expected_hash,
+                        actual_content_hash=None,
+                        size_bytes=None,
+                        modified_at_ns=None,
+                        status="unreadable",
+                    )
+                )
+                continue
+            inspections.append(
+                ContentBlobInspection(
+                    storage_ref=storage_ref,
+                    content_hash=expected_hash,
+                    actual_content_hash=actual_hash,
+                    size_bytes=size_bytes,
+                    modified_at_ns=modified_at_ns,
+                    status=("ok" if actual_hash == expected_hash else "hash_mismatch"),
+                )
+            )
+        return tuple(sorted(inspections, key=lambda item: item.storage_ref))
 
     # ---- internals ---------------------------------------------------------
 
@@ -317,6 +389,65 @@ def _storage_ref(content_hash: str) -> str:
     return f"{hex_value[:2]}/{hex_value}"
 
 
+def content_storage_ref(content_hash: str) -> str:
+    """Return the canonical, backend-independent relative reference for a hash."""
+
+    return _storage_ref(content_hash)
+
+
+def _storage_entries(
+    root: Path,
+) -> tuple[tuple[str, Path, str | None], ...]:
+    if not root.exists():
+        return ()
+    entries: list[tuple[str, Path, str | None]] = []
+    for current, directory_names, file_names in os.walk(root, followlinks=False):
+        current_path = Path(current)
+        for name in tuple(directory_names):
+            candidate = current_path / name
+            if candidate.is_symlink():
+                directory_names.remove(name)
+                entries.append((_relative_ref(root, candidate), candidate, None))
+        for name in file_names:
+            candidate = current_path / name
+            storage_ref = _relative_ref(root, candidate)
+            expected_hash = _expected_hash_for_ref(storage_ref, candidate)
+            entries.append((storage_ref, candidate, expected_hash))
+    return tuple(entries)
+
+
+def _expected_hash_for_ref(storage_ref: str, path: Path) -> str | None:
+    if path.is_symlink():
+        return None
+    parts = storage_ref.split("/")
+    if len(parts) != 2:
+        return None
+    prefix, hex_value = parts
+    if (
+        len(prefix) != 2
+        or len(hex_value) != 64
+        or prefix != hex_value[:2]
+        or any(character not in "0123456789abcdef" for character in hex_value)
+    ):
+        return None
+    return "sha256:" + hex_value
+
+
+def _relative_ref(root: Path, path: Path) -> str:
+    return path.relative_to(root).as_posix()
+
+
+def _hash_file(path: Path) -> tuple[str, int, int]:
+    digest = hashlib.sha256()
+    size_bytes = 0
+    with path.open("rb") as handle:
+        while chunk := handle.read(_STREAM_CHUNK_BYTES):
+            digest.update(chunk)
+            size_bytes += len(chunk)
+    modified_at_ns = path.stat().st_mtime_ns
+    return "sha256:" + digest.hexdigest(), size_bytes, modified_at_ns
+
+
 def _resolve_byte_range(range_header: str | None, total_size: int) -> tuple[int, int]:
     if range_header is None:
         return (0, total_size - 1) if total_size else (0, -1)
@@ -396,7 +527,9 @@ __all__ = [
     "ContentStorage",
     "ContentRead",
     "ContentRangeNotSatisfiable",
+    "ContentBlobInspection",
     "ContentStorageError",
     "LocalContentStorage",
+    "content_storage_ref",
     "sha256_content_hash",
 ]

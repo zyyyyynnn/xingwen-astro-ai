@@ -10,13 +10,15 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from services.reference_integration.build_mavis_adoption_ledger import (
     ALLOWED_CAPABILITY_FAMILIES,
     ALLOWED_TIERS,
-    EXPECTED_CASE_COUNT,
     SCHEMA_VERSION,
     SOURCE_PROJECT,
     build_ledger,
+    parse_benchmark_case,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -37,9 +39,11 @@ def test_ledger_case_count_and_uniqueness() -> None:
 
     assert ledger["schema_version"] == SCHEMA_VERSION
     assert ledger["source_project"] == SOURCE_PROJECT
-    assert ledger["generated_from_count"] == EXPECTED_CASE_COUNT
-    assert ledger["case_count"] == EXPECTED_CASE_COUNT
-    assert len(cases) == EXPECTED_CASE_COUNT
+    # The corpus size is whatever the real reference scan produced; the ledger
+    # must record it consistently instead of a fixed historical baseline.
+    assert ledger["case_count"] == len(cases)
+    assert ledger["case_count"] >= 1
+    assert ledger["generated_from_count"] == ledger["case_count"]
 
     seen_ids: set[str] = set()
     seen_paths: set[str] = set()
@@ -59,6 +63,19 @@ def test_ledger_case_count_and_uniqueness() -> None:
         seen_paths.add(source_path)
 
 
+def test_malformed_case_directory_fails(tmp_path: Path) -> None:
+    case_dir = tmp_path / "BROKEN"
+    case_dir.mkdir()
+    with pytest.raises((FileNotFoundError, ValueError)):
+        parse_benchmark_case("BROKEN", case_dir, tmp_path)
+
+    case_dir.joinpath("divide_task_converted.json").write_text(
+        "{\"not\": \"a list\"}", encoding="utf-8"
+    )
+    with pytest.raises(ValueError):
+        parse_benchmark_case("BROKEN", case_dir, tmp_path)
+
+
 def test_ledger_tiers_match_real_assets() -> None:
     ledger = _load_ledger()
     by_tier = ledger["by_tier"]
@@ -68,7 +85,7 @@ def test_ledger_tiers_match_real_assets() -> None:
         assert case["tier"] in ALLOWED_TIERS, case["case_id"]
         computed[case["tier"]] += 1
     assert by_tier == computed
-    assert sum(computed.values()) == EXPECTED_CASE_COUNT
+    assert sum(computed.values()) == ledger["case_count"]
 
 
 def test_ledger_no_longer_carries_coverage_state() -> None:

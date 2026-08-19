@@ -17,14 +17,17 @@ import json
 import sys
 from pathlib import Path
 
-from services.reference_integration.reference_capability_manifest import (
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from services.reference_integration.reference_capability_manifest import (  # noqa: E402
     ALLOWED_CATEGORIES,
     ALLOWED_REFERENCES,
     ReferenceCapabilityManifest,
     load_manifest,
 )
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
 MANIFEST_PATH = Path(__file__).resolve().parent / "reference_capability_manifest.json"
 
 
@@ -71,6 +74,18 @@ def check_owners_exist(manifest: ReferenceCapabilityManifest) -> list[str]:
             candidate = REPO_ROOT / owner
             if not candidate.exists():
                 problems.append(f"{capability.capability_id}: missing owner {owner}")
+        entrypoint = capability.production_entrypoint
+        if capability.implementation_state == "implemented":
+            if not entrypoint:
+                problems.append(
+                    f"{capability.capability_id}: implemented capability without"
+                    " production_entrypoint"
+                )
+            elif not (REPO_ROOT / entrypoint).exists():
+                problems.append(
+                    f"{capability.capability_id}: missing production_entrypoint"
+                    f" {entrypoint}"
+                )
     return problems
 
 
@@ -89,6 +104,26 @@ def print_report(manifest: ReferenceCapabilityManifest) -> None:
     print(f"integration_pending count: {counts['integration_pending']}")
     print(f"missing count: {counts['missing']}")
     print(f"excluded count: {counts['excluded']}")
+    live_verified = sorted(
+        capability.capability_id
+        for capability in manifest.capabilities
+        if capability.live_state == "verified"
+    )
+    live_not_verified = sum(
+        1
+        for capability in manifest.capabilities
+        if capability.eligible
+        and capability.implementation_state == "implemented"
+        and capability.live_state == "not_verified"
+    )
+    print(
+        "live verified capabilities:"
+        f" {', '.join(live_verified) if live_verified else '(none)'}"
+    )
+    print(
+        "implemented capabilities awaiting live verification:"
+        f" {live_not_verified}"
+    )
 
 
 def run_check(reference_root: Path | None) -> int:

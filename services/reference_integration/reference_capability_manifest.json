@@ -6,17 +6,14 @@
       "disposition": "adopted",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Seven-class section semantics replace the reference whole-document classification prompt.",
+      "production_entrypoint": "services/paper_pipeline/summary_chunks.py",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/paper_pipeline/summary_chunks.py"
-      ]
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/paper_pipeline/summary_chunks.py"]
     },
     {
       "capability_id": "inosum.paper.section_extraction",
@@ -24,17 +21,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Structured DocumentParse blocks replace markdown-title splitting; section hints come from heading blocks.",
+      "production_entrypoint": "services/paper_pipeline/summary_chunks.py",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/paper_pipeline/summary_chunks.py"
-      ]
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/paper_pipeline/summary_chunks.py"]
     },
     {
       "capability_id": "inosum.paper.long_document_chunk",
@@ -42,17 +36,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Bounded ordered SummaryChunk construction with max text size and max block count; the reference had no chunking.",
+      "production_entrypoint": "services/paper_pipeline/summary_chunks.py",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/paper_pipeline/summary_chunks.py"
-      ]
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/paper_pipeline/summary_chunks.py"]
     },
     {
       "capability_id": "inosum.paper.section_reduction",
@@ -60,17 +51,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Deterministic section aggregation over chunk extractions; no model-generated structure.",
+      "production_entrypoint": "services/paper_pipeline/summary_chunks.py",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/paper_pipeline/summary_chunks.py"
-      ]
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/paper_pipeline/summary_chunks.py"]
     },
     {
       "capability_id": "inosum.paper.evidence_preservation",
@@ -78,17 +66,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Statements must carry evidence ids from supplied candidates; the reducer cannot drop or invent evidence.",
+      "production_entrypoint": "services/paper_pipeline/summary.py",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/paper_pipeline/summary.py"
-      ]
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/paper_pipeline/summary.py"]
     },
     {
       "capability_id": "inosum.summary.structured_summary",
@@ -96,18 +81,14 @@
       "disposition": "adopted",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Typed seven-section PaperSummary with admission gates.",
+      "production_entrypoint": "services/paper_pipeline/summary.py",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "unit",
-        "contract"
-      ],
-      "xingwen_owners": [
-        "services/paper_pipeline/summary.py"
-      ]
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit", "contract"],
+      "xingwen_owners": ["services/paper_pipeline/summary.py"]
     },
     {
       "capability_id": "inosum.summary.missing_unverifiable_semantics",
@@ -115,17 +96,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "unsupported/unverifiable/missing validation codes replace the reference None-placeholder fallback.",
+      "production_entrypoint": "services/paper_pipeline/summary.py",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/paper_pipeline/summary.py"
-      ]
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/paper_pipeline/summary.py"]
     },
     {
       "capability_id": "inosum.summary.export",
@@ -133,14 +111,13 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Exact-version JSON/Markdown export; Markdown keeps internal identifiers out of the reading copy, JSON carries machine provenance.",
+      "production_entrypoint": "apps/api/src/app/services/paper_summary_exports.py",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "unit"
-      ],
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
       "xingwen_owners": [
         "apps/api/src/app/services/paper_summary_exports.py",
         "apps/api/src/app/routers/artifacts.py"
@@ -152,14 +129,13 @@
       "disposition": "adopted",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Seven fixed-order sections with human titles.",
+      "production_entrypoint": "apps/workspace/src/components/paper-summary-renderer.tsx",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/paper-summary-renderer.tsx"
       ]
@@ -170,14 +146,13 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Quote-first evidence presentation instead of unaudited prose.",
+      "production_entrypoint": "apps/workspace/src/components/paper-summary-renderer.tsx",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/paper-summary-renderer.tsx"
       ]
@@ -188,14 +163,13 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Page/section/paragraph locator display derived from document blocks.",
+      "production_entrypoint": "apps/workspace/src/components/paper-summary-renderer.tsx",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/paper-summary-renderer.tsx"
       ]
@@ -206,14 +180,13 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Paper title and academic identifiers instead of internal ids.",
+      "production_entrypoint": "apps/workspace/src/components/paper-summary-renderer.tsx",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/paper-summary-renderer.tsx"
       ]
@@ -224,14 +197,13 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Support states are surfaced instead of silently filling None.",
+      "production_entrypoint": "apps/workspace/src/components/paper-summary-renderer.tsx",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/paper-summary-renderer.tsx"
       ]
@@ -242,14 +214,13 @@
       "disposition": "adopted",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Per-statement evidence disclosure.",
+      "production_entrypoint": "apps/workspace/src/components/paper-summary-renderer.tsx",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/paper-summary-renderer.tsx"
       ]
@@ -260,14 +231,13 @@
       "disposition": "adopted",
       "eligible": true,
       "implementation_state": "implemented",
-      "notes": "Evidence selection callback wiring for future shell integration.",
+      "live_state": "not_verified",
+      "notes": "Evidence selection is consumed in production by the paper result workspace: selecting a statement queues the cited locator into the mounted PDF viewers.",
+      "production_entrypoint": "apps/workspace/src/components/paper-summary-renderer.tsx",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/paper-summary-renderer.tsx"
       ]
@@ -278,17 +248,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Precise locator model (page/section/paragraph/text range) with unavailable-locator fallback.",
+      "production_entrypoint": "apps/workspace/src/components/paper-result-workspace.tsx",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "packages/domain/src/paper-summary.ts"
-      ]
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "reachable",
+      "verification": ["unit", "component"],
+      "xingwen_owners": ["packages/domain/src/paper-summary.ts"]
     },
     {
       "capability_id": "inosum.interaction.locator_data",
@@ -296,17 +263,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
-      "notes": "Machine locator payload that the future PDF shell can consume.",
+      "live_state": "not_verified",
+      "notes": "Machine locator payload (page/section/paragraph/range) is consumed in production by the paper result workspace jump flow; no second shell is required.",
+      "production_entrypoint": "apps/workspace/src/components/paper-result-workspace.tsx",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "packages/domain/src/paper-summary.ts"
-      ]
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "reachable",
+      "verification": ["unit", "component"],
+      "xingwen_owners": ["packages/domain/src/paper-summary.ts"]
     },
     {
       "capability_id": "inosum.interaction.report_pdf_split",
@@ -314,14 +278,13 @@
       "disposition": "adopted",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Resizable report/PDF split panes keep independent reading state.",
+      "production_entrypoint": "apps/workspace/src/components/paper-result-workspace.tsx",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/paper-result-workspace.tsx"
       ]
@@ -332,14 +295,13 @@
       "disposition": "adopted",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Fullscreen report workspace renders the admitted summary.",
+      "production_entrypoint": "apps/workspace/src/components/paper-result-workspace.tsx",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/paper-result-workspace.tsx",
         "apps/workspace/src/components/artifact-fullscreen-workspace.tsx"
@@ -351,14 +313,13 @@
       "disposition": "adopted",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Evidence selection queues a real locator page jump after viewer readiness; never guesses pages.",
+      "production_entrypoint": "apps/workspace/src/components/paper-result-workspace.tsx",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/paper-result-workspace.tsx"
       ]
@@ -369,14 +330,13 @@
       "disposition": "adopted",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Thread result block opens the pinned ArtifactVersion fullscreen.",
+      "production_entrypoint": "apps/workspace/src/presentation/artifact-renderer-registry.tsx",
       "reference": "inosum",
-      "reference_sources": [
-        "inosum/Auto_doc_analysis_summarize.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["inosum/Auto_doc_analysis_summarize.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/presentation/artifact-renderer-registry.tsx",
         "apps/workspace/src/router.tsx"
@@ -388,18 +348,17 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Typed dataset upload and content addressing replace local CSV paths and ModelScope clones.",
+      "production_entrypoint": "apps/api/src/app/workflow/scientific_inputs.py",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/code/load_and_analyze_data.py",
         "AutoAstro/AutoAstro/datacode/data_core.py"
       ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "apps/api/src/app/workflow/scientific_inputs.py"
-      ]
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["apps/api/src/app/workflow/scientific_inputs.py"]
     },
     {
       "capability_id": "autoastro.data.profile",
@@ -407,17 +366,16 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Row/column profile with type counts, distinct counts, and missingness.",
+      "production_entrypoint": "services/scientific_skills/data_analysis.py",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/code/load_and_analyze_data.py"
       ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/data_analysis.py"
-      ]
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/data_analysis.py"]
     },
     {
       "capability_id": "autoastro.data.missing_understanding",
@@ -425,17 +383,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Missingness counts, categorical summaries, and outlier summaries replace the reference median-fill loop.",
+      "production_entrypoint": "services/scientific_skills/data_analysis.py",
       "reference": "autoastro",
-      "reference_sources": [
-        "AutoAstro/AutoAstro/code/error_correction.py"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/data_analysis.py"
-      ]
+      "reference_sources": ["AutoAstro/AutoAstro/code/error_correction.py"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/data_analysis.py"]
     },
     {
       "capability_id": "autoastro.statistics.descriptive",
@@ -443,18 +398,17 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Bounded descriptive statistics instead of generated code.",
+      "production_entrypoint": "services/scientific_skills/data_analysis.py",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/code/error_correction.py",
         "AutoAstro/AutoAstro/code/prompt.py"
       ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/data_analysis.py"
-      ]
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/data_analysis.py"]
     },
     {
       "capability_id": "autoastro.statistics.hypothesis_testing",
@@ -462,17 +416,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Controlled test catalog (t-tests, Mann-Whitney, ANOVA, chi-square, Shapiro) with assumptions and effect sizes.",
+      "production_entrypoint": "services/scientific_skills/data_analysis.py",
       "reference": "autoastro",
-      "reference_sources": [
-        "AutoAstro/AutoAstro/code/prompt.py"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/data_analysis.py"
-      ]
+      "reference_sources": ["AutoAstro/AutoAstro/code/prompt.py"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/data_analysis.py"]
     },
     {
       "capability_id": "autoastro.statistics.correlation",
@@ -480,18 +431,17 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Pearson and Spearman correlations with pair counts.",
+      "production_entrypoint": "services/scientific_skills/data_analysis.py",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/code/prompt.py",
         "AutoAstro/AutoAstro/code/tools.py"
       ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/data_analysis.py"
-      ]
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/data_analysis.py"]
     },
     {
       "capability_id": "autoastro.visualization.chart",
@@ -499,18 +449,17 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Declarative Visualization spec (scatter/line/bar/area/histogram/heatmap) instead of generated matplotlib code.",
+      "production_entrypoint": "services/scientific_skills/data_analysis.py",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/code/prompt.py",
         "AutoAstro/AutoAstro/code/framework_executor.py"
       ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/data_analysis.py"
-      ]
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/data_analysis.py"]
     },
     {
       "capability_id": "autoastro.catalog.crossmatch",
@@ -518,18 +467,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Project-owned crossmatch engine replaces interactive astroquery XMatch selection.",
+      "production_entrypoint": "services/data_pipeline/crossmatch/__init__.py",
       "reference": "autoastro",
-      "reference_sources": [
-        "AutoAstro/AutoAstro/code/cross_match.py"
-      ],
-      "verification": [
-        "unit",
-        "benchmark"
-      ],
-      "xingwen_owners": [
-        "services/data_pipeline/crossmatch/__init__.py"
-      ]
+      "reference_sources": ["AutoAstro/AutoAstro/code/cross_match.py"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit", "benchmark"],
+      "xingwen_owners": ["services/data_pipeline/crossmatch/__init__.py"]
     },
     {
       "capability_id": "autoastro.ml.clustering",
@@ -537,18 +482,17 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "KMeans and DBSCAN with silhouette on typed numeric matrices.",
+      "production_entrypoint": "services/scientific_skills/unsupervised.py",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/code/tools.py",
         "AutoAstro/AutoAstro/code/prompt.py"
       ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/unsupervised.py"
-      ]
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/unsupervised.py"]
     },
     {
       "capability_id": "autoastro.ml.pca",
@@ -556,17 +500,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Deterministic PCA projection with explained variance.",
+      "production_entrypoint": "services/scientific_skills/unsupervised.py",
       "reference": "autoastro",
-      "reference_sources": [
-        "AutoAstro/AutoAstro/code/tools.py"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/unsupervised.py"
-      ]
+      "reference_sources": ["AutoAstro/AutoAstro/code/tools.py"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/unsupervised.py"]
     },
     {
       "capability_id": "autoastro.ml.anomaly_detection",
@@ -574,18 +515,17 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "IsolationForest and robust z-score replace generated outlier code.",
+      "production_entrypoint": "services/scientific_skills/unsupervised.py",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/code/error_correction.py",
         "AutoAstro/AutoAstro/code/tools.py"
       ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/unsupervised.py"
-      ]
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/unsupervised.py"]
     },
     {
       "capability_id": "autoastro.ml.tabular_classification",
@@ -593,17 +533,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Bounded estimators with leakage-safe split strategies and baselines.",
+      "production_entrypoint": "services/scientific_skills/modeling.py",
       "reference": "autoastro",
-      "reference_sources": [
-        "AutoAstro/AutoAstro/code/prompt.py"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/modeling.py"
-      ]
+      "reference_sources": ["AutoAstro/AutoAstro/code/prompt.py"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/modeling.py"]
     },
     {
       "capability_id": "autoastro.ml.tabular_regression",
@@ -611,17 +548,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Random forest and linear regression with MAE/RMSE/R2 and baselines.",
+      "production_entrypoint": "services/scientific_skills/modeling.py",
       "reference": "autoastro",
-      "reference_sources": [
-        "AutoAstro/AutoAstro/code/prompt.py"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/modeling.py"
-      ]
+      "reference_sources": ["AutoAstro/AutoAstro/code/prompt.py"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/modeling.py"]
     },
     {
       "capability_id": "autoastro.ml.time_series_classification",
@@ -629,17 +563,16 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Fixed-length series classification through the canonical tabular seam; no remote torch training.",
+      "production_entrypoint": "services/scientific_skills/modeling.py",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/model/self_model/class_model.py"
       ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/modeling.py"
-      ]
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/modeling.py"]
     },
     {
       "capability_id": "autoastro.ml.time_series_forecast",
@@ -647,17 +580,16 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Time-ordered split with explicit train cutoff and forecast horizon; no future leakage.",
+      "production_entrypoint": "services/scientific_skills/modeling.py",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/model/self_model/pre_model.py"
       ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/modeling.py"
-      ]
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/modeling.py"]
     },
     {
       "capability_id": "autoastro.ml.image_classification",
@@ -665,18 +597,17 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Project-owned ZIP datasets with labels.json and Pillow decoding replace mmpretrain config execution.",
+      "production_entrypoint": "services/scientific_skills/modeling.py",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/code/framework_executor.py",
         "AutoAstro/AutoAstro/model/mmpretrain/help.md"
       ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/modeling.py"
-      ]
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/modeling.py"]
     },
     {
       "capability_id": "autoastro.ml.evaluation",
@@ -684,18 +615,17 @@
       "disposition": "adopted",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Metrics, baselines, cross-validation, calibration, confusion matrix, and split disclosure.",
+      "production_entrypoint": "services/scientific_skills/modeling.py",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/code/prompt.py",
         "AutoAstro/AutoAstro/model/self_model/class_model.py"
       ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/modeling.py"
-      ]
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/modeling.py"]
     },
     {
       "capability_id": "autoastro.ml.model_export",
@@ -703,17 +633,16 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "ONNX serialization with input schema and output semantics; no pickle or torch state_dict.",
+      "production_entrypoint": "services/scientific_skills/modeling.py",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/model/self_model/class_model.py"
       ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/modeling.py"
-      ]
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/modeling.py"]
     },
     {
       "capability_id": "autoastro.ml.inference",
@@ -721,18 +650,17 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Bounded ONNX runtime inference replaces checkpoint loading.",
+      "production_entrypoint": "services/scientific_skills/inference.py",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/model/self_model/class_model.py",
         "AutoAstro/AutoAstro/model/self_model/pre_model.py"
       ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/inference.py"
-      ]
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/inference.py"]
     },
     {
       "capability_id": "autoastro.presentation.dataset",
@@ -740,14 +668,13 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Dataset table with field labels, units, and quality issues.",
+      "production_entrypoint": "apps/workspace/src/components/data-artifact-renderer.tsx",
       "reference": "autoastro",
-      "reference_sources": [
-        "AutoAstro/AutoAstro/code/error_correction.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["AutoAstro/AutoAstro/code/error_correction.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/data-artifact-renderer.tsx"
       ]
@@ -758,14 +685,13 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Metrics, findings, limitations and human-review warnings.",
+      "production_entrypoint": "apps/workspace/src/components/scientific-content/analysis-report-content.tsx",
       "reference": "autoastro",
-      "reference_sources": [
-        "AutoAstro/AutoAstro/code/analyze.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["AutoAstro/AutoAstro/code/analyze.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/scientific-content/analysis-report-content.tsx",
         "apps/workspace/src/presentation/artifact-renderer-registry.tsx"
@@ -777,14 +703,13 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Typed chart spec rendered through the internal Vega-Lite builder with table/text fallback; no raw specs or expressions.",
+      "production_entrypoint": "apps/workspace/src/components/scientific-chart.tsx",
       "reference": "autoastro",
-      "reference_sources": [
-        "AutoAstro/AutoAstro/code/prompt.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["AutoAstro/AutoAstro/code/prompt.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/scientific-chart.tsx",
         "apps/workspace/src/components/scientific-content/visualization-content.tsx"
@@ -796,14 +721,13 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Split strategy, metrics versus baseline, limitations.",
+      "production_entrypoint": "apps/workspace/src/components/scientific-content/model-evaluation-content.tsx",
       "reference": "autoastro",
-      "reference_sources": [
-        "AutoAstro/AutoAstro/code/prompt.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["AutoAstro/AutoAstro/code/prompt.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/scientific-content/model-evaluation-content.tsx",
         "apps/workspace/src/presentation/artifact-renderer-registry.tsx"
@@ -815,14 +739,15 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "ONNX-only binary download through the immutable content channel.",
+      "production_entrypoint": "apps/workspace/src/components/scientific-content/model-evaluation-content.tsx",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/model/self_model/class_model.py"
       ],
-      "verification": [
-        "component"
-      ],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/scientific-content/model-evaluation-content.tsx",
         "apps/workspace/src/presentation/artifact-renderer-registry.tsx"
@@ -834,14 +759,15 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Time-scale identity, period analysis and time-axis charts.",
+      "production_entrypoint": "apps/workspace/src/components/scientific-content/light-curve-content.tsx",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/model/self_model/pre_model.py"
       ],
-      "verification": [
-        "component"
-      ],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/scientific-content/light-curve-content.tsx",
         "apps/workspace/src/components/scientific-chart.tsx"
@@ -853,14 +779,13 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Limitations plus human-required warnings surfaced honestly.",
+      "production_entrypoint": "apps/workspace/src/components/scientific-content/analysis-report-content.tsx",
       "reference": "autoastro",
-      "reference_sources": [
-        "AutoAstro/AutoAstro/code/analyze.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["AutoAstro/AutoAstro/code/analyze.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/scientific-content/analysis-report-content.tsx",
         "apps/workspace/src/components/scientific-content/model-evaluation-content.tsx"
@@ -871,15 +796,14 @@
       "category": "interaction",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "implemented",
-      "notes": "Local presentational column sorting; no second data state source.",
+      "implementation_state": "integration_pending",
+      "live_state": "not_applicable",
+      "notes": "Production sorting lives in data-artifact-renderer.tsx and is user reachable, but component-level verification evidence is pending; not counted as completed until that evidence exists.",
+      "production_entrypoint": "apps/workspace/src/components/data-artifact-renderer.tsx",
       "reference": "autoastro",
-      "reference_sources": [
-        "AutoAstro/AutoAstro/code/cross_match.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["AutoAstro/AutoAstro/code/cross_match.py"],
+      "user_reachability": "reachable",
+      "verification": [],
       "xingwen_owners": [
         "apps/workspace/src/components/data-artifact-renderer.tsx"
       ]
@@ -889,15 +813,14 @@
       "category": "interaction",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "implemented",
-      "notes": "Column visibility control replaces the reference interactive field pruning.",
+      "implementation_state": "integration_pending",
+      "live_state": "not_applicable",
+      "notes": "Column visibility control in data-artifact-renderer.tsx is user reachable; component-level verification evidence pending.",
+      "production_entrypoint": "apps/workspace/src/components/data-artifact-renderer.tsx",
       "reference": "autoastro",
-      "reference_sources": [
-        "AutoAstro/AutoAstro/code/cross_match.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["AutoAstro/AutoAstro/code/cross_match.py"],
+      "user_reachability": "reachable",
+      "verification": [],
       "xingwen_owners": [
         "apps/workspace/src/components/data-artifact-renderer.tsx"
       ]
@@ -907,15 +830,14 @@
       "category": "interaction",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "implemented",
-      "notes": "Selected row/cell evidence callback for provenance tracing.",
+      "implementation_state": "integration_pending",
+      "live_state": "not_applicable",
+      "notes": "Row/cell evidence callback in data-artifact-renderer.tsx is user reachable; component-level verification evidence pending.",
+      "production_entrypoint": "apps/workspace/src/components/data-artifact-renderer.tsx",
       "reference": "autoastro",
-      "reference_sources": [
-        "AutoAstro/AutoAstro/code/error_correction.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["AutoAstro/AutoAstro/code/error_correction.py"],
+      "user_reachability": "reachable",
+      "verification": [],
       "xingwen_owners": [
         "apps/workspace/src/components/data-artifact-renderer.tsx"
       ]
@@ -926,17 +848,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Vega tooltips plus deterministic table fallback and finalize.",
+      "production_entrypoint": "apps/workspace/src/components/scientific-chart.tsx",
       "reference": "autoastro",
-      "reference_sources": [
-        "AutoAstro/AutoAstro/code/code_executor.py"
-      ],
-      "verification": [
-        "component"
-      ],
-      "xingwen_owners": [
-        "apps/workspace/src/components/scientific-chart.tsx"
-      ]
+      "reference_sources": ["AutoAstro/AutoAstro/code/code_executor.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
+      "xingwen_owners": ["apps/workspace/src/components/scientific-chart.tsx"]
     },
     {
       "capability_id": "autoastro.interaction.model_download",
@@ -944,14 +863,13 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Artifact export actions provide model and report downloads.",
+      "production_entrypoint": "apps/workspace/src/components/artifact-export-actions.tsx",
       "reference": "autoastro",
-      "reference_sources": [
-        "AutoAstro/AutoAstro/code/client.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["AutoAstro/AutoAstro/code/client.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/artifact-export-actions.tsx"
       ]
@@ -962,14 +880,15 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Result selection pins one ArtifactVersion into fullscreen.",
+      "production_entrypoint": "apps/workspace/src/presentation/artifact-renderer-registry.tsx",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/code/load_and_analyze_data.py"
       ],
-      "verification": [
-        "component"
-      ],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/presentation/artifact-renderer-registry.tsx",
         "apps/workspace/src/router.tsx"
@@ -982,12 +901,15 @@
       "eligible": false,
       "exclusion_reason": "arbitrary_python_execution",
       "implementation_state": "missing",
+      "live_state": "not_applicable",
       "notes": "LLM-generated Python executed by subprocess; replaced by bounded typed skills.",
+      "production_entrypoint": null,
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/code/framework_executor.py",
         "AutoAstro/AutoAstro/code/code_executor.py"
       ],
+      "user_reachability": "not_applicable",
       "verification": [],
       "xingwen_owners": []
     },
@@ -998,11 +920,12 @@
       "eligible": false,
       "exclusion_reason": "recursive_self_correction",
       "implementation_state": "missing",
+      "live_state": "not_applicable",
       "notes": "Unbounded LLM rewrite-and-retry loop; not migrated.",
+      "production_entrypoint": null,
       "reference": "autoastro",
-      "reference_sources": [
-        "AutoAstro/AutoAstro/code/error_correction.py"
-      ],
+      "reference_sources": ["AutoAstro/AutoAstro/code/error_correction.py"],
+      "user_reachability": "not_applicable",
       "verification": [],
       "xingwen_owners": []
     },
@@ -1013,12 +936,15 @@
       "eligible": false,
       "exclusion_reason": "python_config_execution",
       "implementation_state": "missing",
+      "live_state": "not_applicable",
       "notes": "Remote mmpretrain config execution and pretrained checkpoint download.",
+      "production_entrypoint": null,
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/model/mmpretrain/help.md",
         "AutoAstro/AutoAstro/code/framework_executor.py"
       ],
+      "user_reachability": "not_applicable",
       "verification": [],
       "xingwen_owners": []
     },
@@ -1029,11 +955,12 @@
       "eligible": false,
       "exclusion_reason": "unauthenticated_remote_code_endpoint",
       "implementation_state": "missing",
+      "live_state": "not_applicable",
       "notes": "Hardcoded internal-IP execution server.",
+      "production_entrypoint": null,
       "reference": "autoastro",
-      "reference_sources": [
-        "AutoAstro/AutoAstro/code/client.py"
-      ],
+      "reference_sources": ["AutoAstro/AutoAstro/code/client.py"],
+      "user_reachability": "not_applicable",
       "verification": [],
       "xingwen_owners": []
     },
@@ -1044,12 +971,15 @@
       "eligible": false,
       "exclusion_reason": "hardcoded_credentials",
       "implementation_state": "missing",
+      "live_state": "not_applicable",
       "notes": "API keys and an oauth2 token embedded in source.",
+      "production_entrypoint": null,
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/code/llm_api.py",
         "AutoAstro/AutoAstro/datacode/data_core.py"
       ],
+      "user_reachability": "not_applicable",
       "verification": [],
       "xingwen_owners": []
     },
@@ -1059,19 +989,17 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Skyfield + bundled DE421 with explicit frame, epoch, and units.",
+      "production_entrypoint": "services/scientific_skills/astronomy.py",
       "reference": "mavis",
       "reference_sources": [
         "mavis/data/api_for_prompt/skyfield.json",
         "mavis/local_tools.py"
       ],
-      "verification": [
-        "unit",
-        "benchmark"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astronomy.py"
-      ]
+      "user_reachability": "not_applicable",
+      "verification": ["unit", "benchmark"],
+      "xingwen_owners": ["services/scientific_skills/astronomy.py"]
     },
     {
       "capability_id": "mavis.astronomy.celestial_events",
@@ -1079,19 +1007,17 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Conjunction, opposition, occultation, transit, eclipse, moon phase, elongation, and seasonal events with typed geometry.",
+      "production_entrypoint": "services/scientific_skills/astronomy.py",
       "reference": "mavis",
       "reference_sources": [
         "mavis/data/api_for_prompt/skyfield.json",
         "mavis/local_tools.py"
       ],
-      "verification": [
-        "unit",
-        "benchmark"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astronomy.py"
-      ]
+      "user_reachability": "not_applicable",
+      "verification": ["unit", "benchmark"],
+      "xingwen_owners": ["services/scientific_skills/astronomy.py"]
     },
     {
       "capability_id": "mavis.astronomy.eclipse_geometry",
@@ -1099,18 +1025,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Bounded eclipse geometry replaces unbounded while-loop searches with a hardcoded city observer.",
+      "production_entrypoint": "services/scientific_skills/eclipse_geometry.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/local_tools.py"
-      ],
-      "verification": [
-        "unit",
-        "benchmark"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/eclipse_geometry.py"
-      ]
+      "reference_sources": ["mavis/local_tools.py"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit", "benchmark"],
+      "xingwen_owners": ["services/scientific_skills/eclipse_geometry.py"]
     },
     {
       "capability_id": "mavis.astronomy.rise_set_transit",
@@ -1118,18 +1040,14 @@
       "disposition": "adopted",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Rise/set/transit and twilight events via almanac with explicit observer context.",
+      "production_entrypoint": "services/scientific_skills/astronomy.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/skyfield.json"
-      ],
-      "verification": [
-        "unit",
-        "benchmark"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astronomy.py"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/skyfield.json"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit", "benchmark"],
+      "xingwen_owners": ["services/scientific_skills/astronomy.py"]
     },
     {
       "capability_id": "mavis.astronomy.body_radius",
@@ -1137,17 +1055,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Typed body radius table with documented units.",
+      "production_entrypoint": "services/scientific_skills/astronomy.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/local_tools.py"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astronomy.py"
-      ]
+      "reference_sources": ["mavis/local_tools.py"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/astronomy.py"]
     },
     {
       "capability_id": "mavis.source.simbad_object",
@@ -1155,18 +1070,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Simbad object lookup through the bounded adapter.",
+      "production_entrypoint": "services/scientific_skills/astronomy.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/getData.json"
-      ],
-      "verification": [
-        "unit",
-        "recorded"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astronomy.py"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/getData.json"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit", "recorded"],
+      "xingwen_owners": ["services/scientific_skills/astronomy.py"]
     },
     {
       "capability_id": "mavis.source.simbad_region",
@@ -1174,18 +1085,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Cone/region query with typed coordinates.",
+      "production_entrypoint": "services/scientific_skills/astronomy.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/getData.json"
-      ],
-      "verification": [
-        "unit",
-        "recorded"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astronomy.py"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/getData.json"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit", "recorded"],
+      "xingwen_owners": ["services/scientific_skills/astronomy.py"]
     },
     {
       "capability_id": "mavis.source.skyview_fits",
@@ -1193,19 +1100,17 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "SkyView FITS retrieval with bounded response bytes.",
+      "production_entrypoint": "services/scientific_skills/astronomy.py",
       "reference": "mavis",
       "reference_sources": [
         "mavis/data/api_for_prompt/getData.json",
         "mavis/local_tools.py"
       ],
-      "verification": [
-        "unit",
-        "recorded"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astronomy.py"
-      ]
+      "user_reachability": "not_applicable",
+      "verification": ["unit", "recorded"],
+      "xingwen_owners": ["services/scientific_skills/astronomy.py"]
     },
     {
       "capability_id": "mavis.source.gaia_cone",
@@ -1213,18 +1118,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Gaia DR3 cone search through the acquisition skill.",
+      "production_entrypoint": "services/scientific_skills/astro_acquisition.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/getData2.json"
-      ],
-      "verification": [
-        "unit",
-        "recorded"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astro_acquisition.py"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/getData2.json"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit", "recorded"],
+      "xingwen_owners": ["services/scientific_skills/astro_acquisition.py"]
     },
     {
       "capability_id": "mavis.source.vizier_tap",
@@ -1232,18 +1133,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "VizieR TAP queries replace the reference crossmatch plumbing.",
+      "production_entrypoint": "services/scientific_skills/astro_acquisition.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/getData2.json"
-      ],
-      "verification": [
-        "unit",
-        "recorded"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astro_acquisition.py"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/getData2.json"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit", "recorded"],
+      "xingwen_owners": ["services/scientific_skills/astro_acquisition.py"]
     },
     {
       "capability_id": "mavis.source.sdss_spectrum",
@@ -1251,18 +1148,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "SDSS spectrum acquisition and analysis.",
+      "production_entrypoint": "services/scientific_skills/astro_acquisition.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/getData2.json"
-      ],
-      "verification": [
-        "unit",
-        "recorded"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astro_acquisition.py"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/getData2.json"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit", "recorded"],
+      "xingwen_owners": ["services/scientific_skills/astro_acquisition.py"]
     },
     {
       "capability_id": "mavis.source.mast_light_curve",
@@ -1270,18 +1163,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "MAST/TESS light curve acquisition and analysis.",
+      "production_entrypoint": "services/scientific_skills/astro_acquisition.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/getData2.json"
-      ],
-      "verification": [
-        "unit",
-        "recorded"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astro_acquisition.py"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/getData2.json"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit", "recorded"],
+      "xingwen_owners": ["services/scientific_skills/astro_acquisition.py"]
     },
     {
       "capability_id": "mavis.fits.background_estimation",
@@ -1289,17 +1178,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Sigma-clipped background statistics.",
+      "production_entrypoint": "services/scientific_skills/astronomy.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/photutils.json"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astronomy.py"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/photutils.json"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/astronomy.py"]
     },
     {
       "capability_id": "mavis.fits.source_detection",
@@ -1307,17 +1193,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "StarFinder detection on background-subtracted data.",
+      "production_entrypoint": "services/scientific_skills/astronomy.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/photutils.json"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astronomy.py"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/photutils.json"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/astronomy.py"]
     },
     {
       "capability_id": "mavis.fits.centroid",
@@ -1325,17 +1208,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Center-of-mass centroid.",
+      "production_entrypoint": "services/scientific_skills/astronomy.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/photutils.json"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astronomy.py"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/photutils.json"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/astronomy.py"]
     },
     {
       "capability_id": "mavis.fits.segmentation",
@@ -1343,17 +1223,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Detect/deblend segmentation with a source catalog.",
+      "production_entrypoint": "services/scientific_skills/astronomy.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/photutils.json"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astronomy.py"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/photutils.json"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/astronomy.py"]
     },
     {
       "capability_id": "mavis.fits.aperture_photometry",
@@ -1361,17 +1238,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Circular aperture photometry with local background.",
+      "production_entrypoint": "services/scientific_skills/astronomy.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/photutils.json"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astronomy.py"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/photutils.json"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/astronomy.py"]
     },
     {
       "capability_id": "mavis.fits.psf_photometry",
@@ -1379,17 +1253,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "PSF-style photometry with a circular Gaussian PRF.",
+      "production_entrypoint": "services/scientific_skills/astronomy.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/photutils.json"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astronomy.py"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/photutils.json"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/astronomy.py"]
     },
     {
       "capability_id": "mavis.spectrum.analysis",
@@ -1397,17 +1268,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Typed spectrum analysis with wavelength/flux units.",
+      "production_entrypoint": "services/scientific_skills/astro_series.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/getData2.json"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astro_series.py"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/getData2.json"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/astro_series.py"]
     },
     {
       "capability_id": "mavis.light_curve.analysis",
@@ -1415,17 +1283,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Typed light-curve analysis with period and significance metrics.",
+      "production_entrypoint": "services/scientific_skills/astro_series.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/getData2.json"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astro_series.py"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/getData2.json"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/astro_series.py"]
     },
     {
       "capability_id": "mavis.wwt.scene",
@@ -1433,15 +1298,13 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Declarative WWT scene spec replaces WebSocket free commands.",
+      "production_entrypoint": "services/scientific_skills/astronomy.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/wwt_agent.json"
-      ],
-      "verification": [
-        "unit",
-        "contract"
-      ],
+      "reference_sources": ["mavis/data/api_for_prompt/wwt_agent.json"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit", "contract"],
       "xingwen_owners": [
         "services/scientific_skills/astronomy.py",
         "services/scientific_skills/wwt_capabilities.py"
@@ -1453,17 +1316,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Explicit typed observer coordinates replace an external geocoding API keyed by a hardcoded token.",
+      "production_entrypoint": "services/scientific_skills/astronomy.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/local_tools.py"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astronomy.py"
-      ]
+      "reference_sources": ["mavis/local_tools.py"],
+      "user_reachability": "not_applicable",
+      "verification": ["unit"],
+      "xingwen_owners": ["services/scientific_skills/astronomy.py"]
     },
     {
       "capability_id": "mavis.presentation.spectrum",
@@ -1471,14 +1331,13 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Units, sampling, S/N, detected lines with uncertainty.",
+      "production_entrypoint": "apps/workspace/src/components/scientific-content/spectrum-content.tsx",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/getData2.json"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["mavis/data/api_for_prompt/getData2.json"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/scientific-content/spectrum-content.tsx",
         "apps/workspace/src/presentation/artifact-renderer-registry.tsx"
@@ -1490,14 +1349,13 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Time-scale identity, quality filtering, period peaks.",
+      "production_entrypoint": "apps/workspace/src/components/scientific-content/light-curve-content.tsx",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/getData2.json"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["mavis/data/api_for_prompt/getData2.json"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/scientific-content/light-curve-content.tsx",
         "apps/workspace/src/presentation/artifact-renderer-registry.tsx"
@@ -1509,14 +1367,13 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "FITS visualization renders through the WWT viewport with the immutable binary read channel.",
+      "production_entrypoint": "apps/workspace/src/components/scientific-content/visualization-content.tsx",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/local_tools.py"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["mavis/local_tools.py"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/scientific-content/visualization-content.tsx",
         "apps/workspace/src/components/wwt-viewport.tsx"
@@ -1528,14 +1385,15 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Single engine session with lease/supersession, declarative scene spec, grids, observer, time, overlays and readback.",
+      "production_entrypoint": "apps/workspace/src/components/wwt-session.ts",
       "reference": "mavis",
       "reference_sources": [
         "mavis/web_django/myvue/src/components/WWTComponent.vue"
       ],
-      "verification": [
-        "component"
-      ],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/wwt-session.ts",
         "apps/workspace/src/components/wwt-viewport.tsx",
@@ -1548,33 +1406,28 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Celestial event lists with times, geometry, and observer context.",
+      "production_entrypoint": "apps/workspace/src/components/scientific-content/analysis-report-content.tsx",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/skyfield.json"
-      ],
-      "verification": [
-        "unit"
-      ],
-      "xingwen_owners": [
-        "services/scientific_skills/astronomy.py"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/skyfield.json"],
+      "user_reachability": "reachable",
+      "verification": ["unit", "component"],
+      "xingwen_owners": ["services/scientific_skills/astronomy.py"]
     },
     {
       "capability_id": "mavis.presentation.source_results",
       "category": "presentation",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "implemented",
-      "notes": "Simbad/Gaia/VizieR result tables with human column labels.",
+      "implementation_state": "integration_pending",
+      "live_state": "not_applicable",
+      "notes": "Source result tables render through data-artifact-renderer.tsx and are user reachable; component-level verification evidence pending.",
+      "production_entrypoint": "services/scientific_skills/astronomy.py",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/getData.json"
-      ],
-      "verification": [
-        "unit",
-        "component"
-      ],
+      "reference_sources": ["mavis/data/api_for_prompt/getData.json"],
+      "user_reachability": "reachable",
+      "verification": ["unit"],
       "xingwen_owners": [
         "services/scientific_skills/astronomy.py",
         "apps/workspace/src/components/data-artifact-renderer.tsx"
@@ -1586,14 +1439,15 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "RA hours / Dec degrees center presentation with real readback.",
+      "production_entrypoint": "apps/workspace/src/components/wwt-scene-controls.tsx",
       "reference": "mavis",
       "reference_sources": [
         "mavis/web_django/myvue/src/components/WWTComponent.vue"
       ],
-      "verification": [
-        "component"
-      ],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/components/wwt-scene-controls.tsx",
         "apps/workspace/src/components/wwt-viewport.tsx"
@@ -1605,17 +1459,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Coordinate/FOV inputs re-render the bounded scene on the fullscreen presentation state only.",
+      "production_entrypoint": "apps/workspace/src/components/wwt-scene-controls.tsx",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/wwt_agent.json"
-      ],
-      "verification": [
-        "component"
-      ],
-      "xingwen_owners": [
-        "apps/workspace/src/components/wwt-scene-controls.tsx"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/wwt_agent.json"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
+      "xingwen_owners": ["apps/workspace/src/components/wwt-scene-controls.tsx"]
     },
     {
       "capability_id": "mavis.interaction.wwt_time_control",
@@ -1623,17 +1474,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "System clock, paused observation time and bounded playback rate.",
+      "production_entrypoint": "apps/workspace/src/components/wwt-scene-controls.tsx",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/wwt_agent.json"
-      ],
-      "verification": [
-        "component"
-      ],
-      "xingwen_owners": [
-        "apps/workspace/src/components/wwt-scene-controls.tsx"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/wwt_agent.json"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
+      "xingwen_owners": ["apps/workspace/src/components/wwt-scene-controls.tsx"]
     },
     {
       "capability_id": "mavis.interaction.wwt_layers",
@@ -1641,17 +1489,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Layer visibility toggles re-render the bounded scene on presentation state only.",
+      "production_entrypoint": "apps/workspace/src/components/wwt-scene-controls.tsx",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/wwt_agent2.json"
-      ],
-      "verification": [
-        "component"
-      ],
-      "xingwen_owners": [
-        "apps/workspace/src/components/wwt-scene-controls.tsx"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/wwt_agent2.json"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
+      "xingwen_owners": ["apps/workspace/src/components/wwt-scene-controls.tsx"]
     },
     {
       "capability_id": "mavis.interaction.wwt_annotation",
@@ -1659,17 +1504,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Published declarative annotations render in the scene; visibility is user-controlled while interactive creation stays out of the declarative boundary.",
+      "production_entrypoint": "apps/workspace/src/components/wwt-scene-controls.tsx",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/wwt_agent.json"
-      ],
-      "verification": [
-        "component"
-      ],
-      "xingwen_owners": [
-        "apps/workspace/src/components/wwt-scene-controls.tsx"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/wwt_agent.json"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
+      "xingwen_owners": ["apps/workspace/src/components/wwt-scene-controls.tsx"]
     },
     {
       "capability_id": "mavis.interaction.wwt_tour",
@@ -1677,17 +1519,14 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Bounded tour playback start/stop over the published tour steps.",
+      "production_entrypoint": "apps/workspace/src/components/wwt-scene-controls.tsx",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/data/api_for_prompt/wwt_agent.json"
-      ],
-      "verification": [
-        "component"
-      ],
-      "xingwen_owners": [
-        "apps/workspace/src/components/wwt-scene-controls.tsx"
-      ]
+      "reference_sources": ["mavis/data/api_for_prompt/wwt_agent.json"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
+      "xingwen_owners": ["apps/workspace/src/components/wwt-scene-controls.tsx"]
     },
     {
       "capability_id": "mavis.interaction.wwt_readback",
@@ -1695,17 +1534,16 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Actual center/FOV/roll/time readback after scene render.",
+      "production_entrypoint": "apps/workspace/src/components/wwt-viewport.tsx",
       "reference": "mavis",
       "reference_sources": [
         "mavis/web_django/myvue/src/components/WWTComponent.vue"
       ],
-      "verification": [
-        "component"
-      ],
-      "xingwen_owners": [
-        "apps/workspace/src/components/wwt-viewport.tsx"
-      ]
+      "user_reachability": "reachable",
+      "verification": ["component"],
+      "xingwen_owners": ["apps/workspace/src/components/wwt-viewport.tsx"]
     },
     {
       "capability_id": "mavis.interaction.wwt_png_export",
@@ -1713,17 +1551,16 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Canvas PNG capture with honest failure reporting.",
+      "production_entrypoint": "apps/workspace/src/components/wwt-viewport.tsx",
       "reference": "mavis",
       "reference_sources": [
         "mavis/web_django/myvue/src/components/WWTComponent.vue"
       ],
-      "verification": [
-        "component"
-      ],
-      "xingwen_owners": [
-        "apps/workspace/src/components/wwt-viewport.tsx"
-      ]
+      "user_reachability": "reachable",
+      "verification": ["component"],
+      "xingwen_owners": ["apps/workspace/src/components/wwt-viewport.tsx"]
     },
     {
       "capability_id": "mavis.interaction.view_interaction",
@@ -1731,17 +1568,16 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_verified",
       "notes": "Engine canvas mount with focus, loading/error/retry and text fallback; real WebGL behavior remains browser-verification territory.",
+      "production_entrypoint": "apps/workspace/src/components/wwt-viewport.tsx",
       "reference": "mavis",
       "reference_sources": [
         "mavis/web_django/myvue/src/components/WWTComponent.vue"
       ],
-      "verification": [
-        "component"
-      ],
-      "xingwen_owners": [
-        "apps/workspace/src/components/wwt-viewport.tsx"
-      ]
+      "user_reachability": "reachable",
+      "verification": ["component"],
+      "xingwen_owners": ["apps/workspace/src/components/wwt-viewport.tsx"]
     },
     {
       "capability_id": "mavis.interaction.result_selection",
@@ -1749,14 +1585,13 @@
       "disposition": "replaced",
       "eligible": true,
       "implementation_state": "implemented",
+      "live_state": "not_applicable",
       "notes": "Result selection pins one ArtifactVersion into fullscreen.",
+      "production_entrypoint": "apps/workspace/src/presentation/artifact-renderer-registry.tsx",
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/web_django/myvue/src/views/Tt.vue"
-      ],
-      "verification": [
-        "component"
-      ],
+      "reference_sources": ["mavis/web_django/myvue/src/views/Tt.vue"],
+      "user_reachability": "reachable",
+      "verification": ["component"],
       "xingwen_owners": [
         "apps/workspace/src/presentation/artifact-renderer-registry.tsx",
         "apps/workspace/src/router.tsx"
@@ -1769,13 +1604,16 @@
       "eligible": false,
       "exclusion_reason": "browser_remote_control_websocket",
       "implementation_state": "missing",
+      "live_state": "not_applicable",
       "notes": "Unauthenticated WebSocket command channel; replaced by declarative scenes.",
+      "production_entrypoint": null,
       "reference": "mavis",
       "reference_sources": [
         "mavis/server.py",
         "mavis/local_tools.py",
         "mavis/web_django/myvue/src/components/WWTComponent.vue"
       ],
+      "user_reachability": "not_applicable",
       "verification": [],
       "xingwen_owners": []
     },
@@ -1786,12 +1624,15 @@
       "eligible": false,
       "exclusion_reason": "screenshot_polling",
       "implementation_state": "missing",
+      "live_state": "not_applicable",
       "notes": "100-500ms polling loops and screenshot auto-upload.",
+      "production_entrypoint": null,
       "reference": "mavis",
       "reference_sources": [
         "mavis/web_django/myvue/src/views/Tt.vue",
         "mavis/web_django/myvue/src/layout/Home.vue"
       ],
+      "user_reachability": "not_applicable",
       "verification": [],
       "xingwen_owners": []
     },
@@ -1802,11 +1643,12 @@
       "eligible": false,
       "exclusion_reason": "arbitrary_python_execution",
       "implementation_state": "missing",
+      "live_state": "not_applicable",
       "notes": "runpy execution of LLM-generated code.",
+      "production_entrypoint": null,
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/mutil_agent10.py"
-      ],
+      "reference_sources": ["mavis/mutil_agent10.py"],
+      "user_reachability": "not_applicable",
       "verification": [],
       "xingwen_owners": []
     },
@@ -1817,11 +1659,12 @@
       "eligible": false,
       "exclusion_reason": "jupyter_arbitrary_execution",
       "implementation_state": "missing",
+      "live_state": "not_applicable",
       "notes": "Remote Jupyter kernel execution with an embedded token.",
+      "production_entrypoint": null,
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/utils.py"
-      ],
+      "reference_sources": ["mavis/utils.py"],
+      "user_reachability": "not_applicable",
       "verification": [],
       "xingwen_owners": []
     },
@@ -1832,11 +1675,12 @@
       "eligible": false,
       "exclusion_reason": "recursive_self_correction",
       "implementation_state": "missing",
+      "live_state": "not_applicable",
       "notes": "Up to fourteen regenerate-and-execute retries with visual evaluation loops.",
+      "production_entrypoint": null,
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/mutil_agent10.py"
-      ],
+      "reference_sources": ["mavis/mutil_agent10.py"],
+      "user_reachability": "not_applicable",
       "verification": [],
       "xingwen_owners": []
     },
@@ -1847,7 +1691,9 @@
       "eligible": false,
       "exclusion_reason": "hardcoded_credentials",
       "implementation_state": "missing",
+      "live_state": "not_applicable",
       "notes": "Django secret, database passwords, and LLM API keys in source.",
+      "production_entrypoint": null,
       "reference": "mavis",
       "reference_sources": [
         "mavis/web_django/mydjango/mydjango/settings.py",
@@ -1855,6 +1701,7 @@
         "mavis/utils.py",
         "mavis/local_tools.py"
       ],
+      "user_reachability": "not_applicable",
       "verification": [],
       "xingwen_owners": []
     },
@@ -1865,13 +1712,16 @@
       "eligible": false,
       "exclusion_reason": "hardcoded_personal_paths",
       "implementation_state": "missing",
+      "live_state": "not_applicable",
       "notes": "Absolute desktop paths and internal IPs throughout.",
+      "production_entrypoint": null,
       "reference": "mavis",
       "reference_sources": [
         "mavis/local_tools.py",
         "mavis/prompt10.py",
         "mavis/mutil_agent10.py"
       ],
+      "user_reachability": "not_applicable",
       "verification": [],
       "xingwen_owners": []
     },
@@ -1882,12 +1732,12 @@
       "eligible": false,
       "exclusion_reason": "redis_second_business_state_source",
       "implementation_state": "missing",
+      "live_state": "not_applicable",
       "notes": "Redis used as cross-request business state.",
+      "production_entrypoint": null,
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/local_tools.py",
-        "mavis/mutil_agent10.py"
-      ],
+      "reference_sources": ["mavis/local_tools.py", "mavis/mutil_agent10.py"],
+      "user_reachability": "not_applicable",
       "verification": [],
       "xingwen_owners": []
     },
@@ -1898,11 +1748,12 @@
       "eligible": false,
       "exclusion_reason": "fabricated_data",
       "implementation_state": "missing",
+      "live_state": "not_applicable",
       "notes": "search_weather always returns sunny.",
+      "production_entrypoint": null,
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/local_tools.py"
-      ],
+      "reference_sources": ["mavis/local_tools.py"],
+      "user_reachability": "not_applicable",
       "verification": [],
       "xingwen_owners": []
     },
@@ -1913,12 +1764,15 @@
       "eligible": false,
       "exclusion_reason": "legacy_application_shell",
       "implementation_state": "missing",
+      "live_state": "not_applicable",
       "notes": "Historical Django/Vue application shell with CORS fully open and DEBUG on.",
+      "production_entrypoint": null,
       "reference": "mavis",
       "reference_sources": [
         "mavis/web_django/mydjango/mydjango/settings.py",
         "mavis/web_django/myvue/src/App.vue"
       ],
+      "user_reachability": "not_applicable",
       "verification": [],
       "xingwen_owners": []
     },
@@ -1929,11 +1783,12 @@
       "eligible": false,
       "exclusion_reason": "reference_vendor_bundle",
       "implementation_state": "missing",
+      "live_state": "not_applicable",
       "notes": "Vendored minified WWT engine bundle; the project uses @wwtelescope/engine packages.",
+      "production_entrypoint": null,
       "reference": "mavis",
-      "reference_sources": [
-        "mavis/wwt-tutorial/my11.js"
-      ],
+      "reference_sources": ["mavis/wwt-tutorial/my11.js"],
+      "user_reachability": "not_applicable",
       "verification": [],
       "xingwen_owners": []
     }
@@ -1943,5 +1798,5 @@
     "inosum": "91a022e9c93b67e1f948612b943c4a5257eaec6991a3de7a16920b0cb1772104",
     "mavis": "efb87f61f6d3e4274f592fb9c1cc3a07583c86a018bee69215e11219dcee0ce6"
   },
-  "schema_version": "1.0.0"
+  "schema_version": "1.1.0"
 }

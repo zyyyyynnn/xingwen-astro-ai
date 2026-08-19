@@ -1,11 +1,12 @@
 """Offline deterministic benchmark evaluator for the MAVIS case corpus.
 
-This is not a workflow: it is a read-only evaluator over the 160-case index
-that reports, per case, which verification levels the current implementation
-can honestly claim.  Verification levels follow the project's evidence
-discipline: ``passed`` means an offline deterministic check ran; capabilities
-that need a browser or live network are marked ``browser_pending`` /
-``live_pending`` and are never counted as verified here.
+This is not a workflow: it is a read-only evaluator over the current scanned
+MAVIS case index that reports, per case, which verification levels the current
+implementation can honestly claim.  The evaluated case count always equals the
+ledger case count; no fixed baseline is applied.  Verification levels follow
+the project's evidence discipline: ``passed`` means an offline deterministic
+check ran; capabilities that need a browser or live network are marked
+``browser_pending`` / ``live_pending`` and are never counted as verified here.
 """
 
 from __future__ import annotations

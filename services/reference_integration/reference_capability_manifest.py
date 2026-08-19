@@ -9,8 +9,14 @@ reference and per category (function / presentation / interaction) as
 where ``eligible_count`` counts capabilities with ``eligible=true`` in that
 category, and ``implemented_count`` requires ``eligible=true`` plus a
 disposition of ``adopted`` or ``replaced`` plus
-``implementation_state=implemented``.  ``integration_pending`` entries stay in
-the denominator and never count as completed coverage.
+``implementation_state=implemented`` plus a non-empty
+``production_entrypoint`` plus a satisfied user-reachability gate:
+capabilities exposed through the workspace must be ``reachable``; function
+capabilities that never require direct user operation may be
+``not_applicable``.  ``integration_pending`` entries stay in the denominator
+and never count as completed coverage.  ``live_state`` is reported alongside
+coverage but never participates in the percentage: live verification is a
+separate, human-gated fact and must never be inferred from unit tests.
 """
 
 from __future__ import annotations
@@ -33,6 +39,8 @@ ALLOWED_VERIFICATION = (
     "live",
     "browser",
 )
+ALLOWED_USER_REACHABILITY = ("reachable", "unreachable", "not_applicable")
+ALLOWED_LIVE_STATES = ("verified", "not_verified", "not_applicable")
 
 # Repository-internal owner paths must point at real files; the manifest
 # builder enforces this against the repository root.
@@ -49,7 +57,7 @@ FORBIDDEN_ID_FRAGMENTS = (
     "tmp",
 )
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "1.1.0"
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,7 +72,16 @@ class ReferenceCapability:
     exclusion_reason: str | None
     xingwen_owners: tuple[str, ...]
     verification: tuple[str, ...]
+    production_entrypoint: str | None
+    user_reachability: str
+    live_state: str
     notes: str
+
+    @property
+    def reachability_satisfied(self) -> bool:
+        if self.category == "function":
+            return self.user_reachability in ("reachable", "not_applicable")
+        return self.user_reachability == "reachable"
 
     @property
     def completed(self) -> bool:
@@ -72,6 +89,8 @@ class ReferenceCapability:
             self.eligible
             and self.disposition in ("adopted", "replaced")
             and self.implementation_state == "implemented"
+            and bool(self.production_entrypoint)
+            and self.reachability_satisfied
         )
 
 
@@ -260,6 +279,55 @@ def parse_capability(raw: Any, *, index: int) -> ReferenceCapability:
         raise ValueError(
             f"{capability_id} is implemented and must list verification evidence"
         )
+    if implementation_state == "implemented":
+        if category == "function" and not (
+            set(verification)
+            & {"contract", "unit", "benchmark", "recorded", "live"}
+        ):
+            raise ValueError(
+                f"{capability_id} is an implemented function capability and needs"
+                " contract/unit/benchmark/recorded/live verification"
+            )
+        if category in ("presentation", "interaction") and not (
+            set(verification) & {"component", "browser"}
+        ):
+            raise ValueError(
+                f"{capability_id} is an implemented {category} capability and"
+                " needs component or browser verification"
+            )
+    production_entrypoint = raw.get("production_entrypoint")
+    if production_entrypoint is not None:
+        if not isinstance(production_entrypoint, str) or not production_entrypoint.strip():
+            raise ValueError(
+                f"{capability_id}.production_entrypoint must be a non-empty"
+                " repo-relative path when present"
+            )
+        production_entrypoint = production_entrypoint.strip()
+    user_reachability = raw.get("user_reachability")
+    if user_reachability not in ALLOWED_USER_REACHABILITY:
+        raise ValueError(
+            f"{capability_id} has an unknown user_reachability:"
+            f" {user_reachability}"
+        )
+    live_state = raw.get("live_state")
+    if live_state not in ALLOWED_LIVE_STATES:
+        raise ValueError(f"{capability_id} has an unknown live_state: {live_state}")
+    if implementation_state == "implemented":
+        if not production_entrypoint:
+            raise ValueError(
+                f"{capability_id} is implemented and must declare a"
+                " production_entrypoint"
+            )
+        if user_reachability == "unreachable":
+            raise ValueError(
+                f"{capability_id} is implemented but unreachable; mark it"
+                " integration_pending instead of counting it as completed"
+            )
+        if category in ("presentation", "interaction") and user_reachability != "reachable":
+            raise ValueError(
+                f"{capability_id} is an implemented {category} capability and"
+                " must be user-reachable"
+            )
     notes = raw.get("notes", "")
     if not isinstance(notes, str):
         raise ValueError(f"{capability_id}.notes must be a string")
@@ -274,6 +342,9 @@ def parse_capability(raw: Any, *, index: int) -> ReferenceCapability:
         exclusion_reason=exclusion_reason if not eligible else None,
         xingwen_owners=xingwen_owners,
         verification=verification,
+        production_entrypoint=production_entrypoint,
+        user_reachability=user_reachability,
+        live_state=live_state,
         notes=notes,
     )
 
@@ -329,7 +400,9 @@ __all__ = [
     "ALLOWED_CATEGORIES",
     "ALLOWED_DISPOSITIONS",
     "ALLOWED_IMPLEMENTATION_STATES",
+    "ALLOWED_LIVE_STATES",
     "ALLOWED_REFERENCES",
+    "ALLOWED_USER_REACHABILITY",
     "ALLOWED_VERIFICATION",
     "ReferenceCapability",
     "ReferenceCapabilityManifest",

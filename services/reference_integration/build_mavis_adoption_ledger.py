@@ -1,11 +1,13 @@
-"""Build the MAVIS 160-case benchmark case index.
+"""Build the MAVIS benchmark case index.
 
-The ledger indexes the 160 reference benchmark cases under
-``mavis/data/task_benchmark`` as an offline benchmark corpus.  It is NOT a
-coverage authority: reference migration coverage is owned exclusively by
-``reference_capability_manifest.json``.  Each case records what the reference
-task wanted, its asset tier, the manifest capability ids it exercises, and the
-verification requirements; completion state lives in the manifest.
+The ledger indexes the current scanned MAVIS case corpus under
+``mavis/data/task_benchmark`` as an offline benchmark corpus.  The case count
+is decided by the real reference directory scan, never by a hard-coded
+baseline.  It is NOT a coverage authority: reference migration coverage is
+owned exclusively by ``reference_capability_manifest.json``.  Each case
+records what the reference task wanted, its asset tier, the manifest
+capability ids it exercises, and the verification requirements; completion
+state lives in the manifest.
 
 Tiers are derived from the real snapshot assets:
 - ``tier_a``: the case directory contains executed reference code (``code/``).
@@ -25,9 +27,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = "2.0.0"
+SCHEMA_VERSION = "2.1.0"
 SOURCE_PROJECT = "mavis"
-EXPECTED_CASE_COUNT = 160
 
 WWT_TOOL_CAPABILITIES = {
     "add_circle": "annotation_circle",
@@ -442,10 +443,9 @@ def build_ledger(reference_root: Path) -> dict[str, Any]:
     case_dirs = sorted(
         [d for d in bench_dir.iterdir() if d.is_dir()], key=lambda p: p.name
     )
-    if len(case_dirs) != EXPECTED_CASE_COUNT:
+    if not case_dirs:
         raise ValueError(
-            f"Expected exactly {EXPECTED_CASE_COUNT} benchmark cases in {bench_dir}, "
-            f"found {len(case_dirs)}"
+            f"Expected at least one benchmark case in {bench_dir}, found none"
         )
 
     cases: list[CaseExtraction] = []

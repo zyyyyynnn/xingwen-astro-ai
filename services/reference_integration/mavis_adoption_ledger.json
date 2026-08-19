@@ -26,11 +26,7 @@
     "wwt_solar_system",
     "wwt_time"
   ],
-  "allowed_tiers": [
-    "tier_a",
-    "tier_b",
-    "tier_c"
-  ],
+  "allowed_tiers": ["tier_a", "tier_b", "tier_c"],
   "by_tier": {
     "tier_a": 99,
     "tier_b": 0,
@@ -54,9 +50,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算近期10年内的火星冲日时火星的赤经赤纬坐标列表；获取近期10年内的火星冲日时间列表；在WWT地球视图下每1秒自动跳转到下一个火星冲日的位置",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "location_name",
@@ -94,9 +88,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算10年内所有月亮掩木星事件的时间和；计算10年内所有月亮掩木星事件对应的赤经赤纬坐标；在WWT地球视角下可视化10年内所有的月亮掩木星事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -121,18 +113,10 @@
         "mavis.source.simbad_region"
       ],
       "case_id": "ABCK",
-      "expected_outputs": [
-        "simbad_source_collection"
-      ],
+      "expected_outputs": ["simbad_source_collection"],
       "goal": "根据当前WWT中心位置的赤经赤纬，查找图中中心所指的星体的所有名称",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
-      "required_inputs": [
-        "dec_degrees",
-        "ra_degrees",
-        "radius_degrees"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
+      "required_inputs": ["dec_degrees", "ra_degrees", "radius_degrees"],
       "source_path": "mavis/data/task_benchmark/ABCK/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -156,9 +140,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算2000年到2030年间金星的上合日时间列表；在WWT地球视角下可视化2000年到2030年间金星的上合日并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -195,10 +177,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取当前视野区域内脉冲星的赤经赤纬坐标列表，中心位置赤经为18.1693，赤纬为38.6357，视野范围为2.0；用圆圈标记出图中区域内为脉冲星的星体",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyfield_de421"],
       "required_inputs": [
         "annotations",
         "dec_degrees",
@@ -237,9 +216,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算下一次月亮掩木星现象发生时木星或月亮的赤经赤纬坐标；计算下一次月亮掩木星现象发生的UTC时间；在WWT地球视图下模拟下一次将发生的月亮掩木星现象",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -270,17 +247,10 @@
         "mavis.source.skyview_fits"
       ],
       "case_id": "ACSS",
-      "expected_outputs": [
-        "fits_image_artifact",
-        "fits_photometry_report"
-      ],
+      "expected_outputs": ["fits_image_artifact", "fits_photometry_report"],
       "goal": "使用孔径图像测光技术，测量图中区域的光度总和",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data"],
       "source_path": "mavis/data/task_benchmark/ACSS/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -299,14 +269,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "ADUQ",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取东方苍龙七宿（室女座α、室女座κ、天秤座α、天蝎座π、天蝎座σ、天蝎座μ、人马座γ）的赤经赤纬坐标；在WWT地球视图下定位观测东方苍龙七宿（室女座α、室女座κ、天秤座α、天蝎座π、天蝎座σ、...",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "target_name",
@@ -325,21 +290,12 @@
       ]
     },
     {
-      "capability_ids": [
-        "mavis.interaction.wwt_navigation",
-        "mavis.wwt.scene"
-      ],
+      "capability_ids": ["mavis.interaction.wwt_navigation", "mavis.wwt.scene"],
       "case_id": "AEJO",
-      "expected_outputs": [
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["wwt_scene_spec"],
       "goal": "在WWT太阳系视图下每隔1秒跳转到下一个行星",
-      "live_dependencies": [
-        "none"
-      ],
-      "required_inputs": [
-        "view.target"
-      ],
+      "live_dependencies": ["none"],
+      "required_inputs": ["view.target"],
       "source_path": "mavis/data/task_benchmark/AEJO/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -355,18 +311,10 @@
         "mavis.source.simbad_region"
       ],
       "case_id": "AFRO",
-      "expected_outputs": [
-        "simbad_source_collection"
-      ],
+      "expected_outputs": ["simbad_source_collection"],
       "goal": "根据WWT当前中心位置的赤经赤纬信息，查找目标星体的研究文献",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
-      "required_inputs": [
-        "dec_degrees",
-        "ra_degrees",
-        "radius_degrees"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
+      "required_inputs": ["dec_degrees", "ra_degrees", "radius_degrees"],
       "source_path": "mavis/data/task_benchmark/AFRO/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -384,14 +332,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "AGEQ",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取织女星（Vega）的赤经赤纬坐标；获取牛郎星（Altair）的赤经赤纬坐标；在WWT地球视图下定位观测牛郎星（Altair）和织女星（Vega）, 在WWT地球视图下在牛郎星（Altair）...",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "target_name",
@@ -410,22 +353,12 @@
       ]
     },
     {
-      "capability_ids": [
-        "mavis.interaction.wwt_navigation",
-        "mavis.wwt.scene"
-      ],
+      "capability_ids": ["mavis.interaction.wwt_navigation", "mavis.wwt.scene"],
       "case_id": "AGQU",
-      "expected_outputs": [
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["wwt_scene_spec"],
       "goal": "在地球观测视图下定位观测赤经为11h 18m 28.76s，赤纬为+33° 05′ 39.3″的星体",
-      "live_dependencies": [
-        "none"
-      ],
-      "required_inputs": [
-        "view.center.dec_degrees",
-        "view.center.ra_hours"
-      ],
+      "live_dependencies": ["none"],
+      "required_inputs": ["view.center.dec_degrees", "view.center.ra_hours"],
       "source_path": "mavis/data/task_benchmark/AGQU/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -441,18 +374,10 @@
         "mavis.source.simbad_region"
       ],
       "case_id": "AGVR",
-      "expected_outputs": [
-        "simbad_source_collection"
-      ],
+      "expected_outputs": ["simbad_source_collection"],
       "goal": "根据当前WWT中心位置的赤经赤纬信息，查询中心所指星体的类型",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
-      "required_inputs": [
-        "dec_degrees",
-        "ra_degrees",
-        "radius_degrees"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
+      "required_inputs": ["dec_degrees", "ra_degrees", "radius_degrees"],
       "source_path": "mavis/data/task_benchmark/AGVR/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -470,14 +395,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "AHCH",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取图中区域的光谱双星的赤经赤纬坐标列表；用圆圈标记出图中区域的光谱双星，颜色为紫色",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "dec_degrees",
@@ -520,10 +440,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取北极星的赤经赤纬坐标；获取北极星附近0.2d范围内所有星星的FITS图像数据；使用PSF测光算法测量北极星附近0.2d范围内所有星星的光度，并生成最终的FITS图像；展示经过PSF测光后的北...",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyview_service"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyview_service"],
       "required_inputs": [
         "fits_data",
         "fits_layers[].content_address",
@@ -551,17 +468,10 @@
         "mavis.wwt.scene"
       ],
       "case_id": "AIEA",
-      "expected_outputs": [
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["wwt_scene_spec"],
       "goal": "在WWT太阳系视图下定位并可视化此时的月球",
-      "live_dependencies": [
-        "none"
-      ],
-      "required_inputs": [
-        "time.observed_at",
-        "view.target"
-      ],
+      "live_dependencies": ["none"],
+      "required_inputs": ["time.observed_at", "view.target"],
       "source_path": "mavis/data/task_benchmark/AIEA/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -587,9 +497,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算火星冲日时火星或者太阳的赤经赤纬坐标；计算下次火星冲日的时间；在WWT地球视图下观测火星冲日，5秒结束后，再在太阳系视图下观测",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -617,18 +525,10 @@
         "mavis.source.simbad_region"
       ],
       "case_id": "AIPI",
-      "expected_outputs": [
-        "simbad_source_collection"
-      ],
+      "expected_outputs": ["simbad_source_collection"],
       "goal": "根据当前WWT中心位置的赤经赤纬信息，查找图中中心所指的星体的名称",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
-      "required_inputs": [
-        "dec_degrees",
-        "ra_degrees",
-        "radius_degrees"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
+      "required_inputs": ["dec_degrees", "ra_degrees", "radius_degrees"],
       "source_path": "mavis/data/task_benchmark/AIPI/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -638,22 +538,12 @@
       ]
     },
     {
-      "capability_ids": [
-        "mavis.interaction.wwt_navigation",
-        "mavis.wwt.scene"
-      ],
+      "capability_ids": ["mavis.interaction.wwt_navigation", "mavis.wwt.scene"],
       "case_id": "AJFD",
-      "expected_outputs": [
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["wwt_scene_spec"],
       "goal": "在地球观测视图下定位观测银经为339.2370°，银纬为0.4954°的星体",
-      "live_dependencies": [
-        "none"
-      ],
-      "required_inputs": [
-        "view.center.dec_degrees",
-        "view.center.ra_hours"
-      ],
+      "live_dependencies": ["none"],
+      "required_inputs": ["view.center.dec_degrees", "view.center.ra_hours"],
       "source_path": "mavis/data/task_benchmark/AJFD/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -671,14 +561,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "AJHO",
-      "expected_outputs": [
-        "ephemeris_coordinates",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["ephemeris_coordinates", "wwt_scene_spec"],
       "goal": "获取当前时间；获取当前时间下火星的赤经赤纬坐标；在WWT地球视图下定位当前时间下火星的赤经赤纬并可视化",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "time.observed_at",
@@ -718,10 +603,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取北极星的赤经赤纬坐标；获取北极星附近0.2度范围内的FITS图像数据；使用图像处理技术生成北极星附近0.2度范围内只有背景噪声的FITS图像；可视化北极星附近0.2d范围内只有背景噪声的图像",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyview_service"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyview_service"],
       "required_inputs": [
         "fits_data",
         "fits_layers[].content_address",
@@ -751,14 +633,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "AKCZ",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取图中区域为变星且星等大于13的星体的赤经赤纬坐标列表；用圆圈标记出图中区域为变星且星等大于13的星体",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "dec_degrees",
@@ -793,9 +670,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算下一次月亮掩土星现象发生的具体时间；在太阳系视图下模拟下一次将发生的月亮掩土星现象",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -829,9 +704,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取近期10年内的木星冲日时间列表；在太空观测视图下并按步跳转木星冲日的位置",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -867,9 +740,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取21世纪以来第一次金星凌日现象发生时金星的赤经赤纬坐标；获取21世纪以来第一次金星凌日现象发生的UTC时间；在WWT地球视图下可视化从21世纪以来第一次的金星凌日现象",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -908,13 +779,8 @@
         "wwt_scene_spec"
       ],
       "goal": "获取赤经为11h 18m 28.76s，赤纬为+33° 05′ 39.3″附近范围为0.2d的星体的FIT图像数据；获取赤经为11h 18m 28.76s，赤纬为+33° 05′ 39.3″附近...",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "annotations",
-        "fits_data"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["annotations", "fits_data"],
       "source_path": "mavis/data/task_benchmark/AMKQ/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -942,9 +808,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算上一次月食发生的UTC时间；获取月亮在上一次月食发生时的赤经赤纬坐标；在WWT地球视角下可视化呈现上一次发生的月食",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "time.observed_at",
@@ -972,14 +836,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "ANSP",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取北斗七星每个星体的赤经赤纬坐标列表；在WWT地球视图下使用直线连线北斗七星的每个星体, 展示时每隔1秒跳转到北斗七星的下一个星体",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "target_name",
@@ -1012,9 +871,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算未来20年所有水星凌日事件的时间和；计算未来20年所有水星凌日事件对应的赤经赤纬坐标；在WWT地球视角下可视化未来20年所有的水星凌日事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -1045,17 +902,10 @@
         "mavis.source.skyview_fits"
       ],
       "case_id": "ANWH",
-      "expected_outputs": [
-        "fits_image_artifact",
-        "fits_photometry_report"
-      ],
+      "expected_outputs": ["fits_image_artifact", "fits_photometry_report"],
       "goal": "使用孔径图像测光技术，测量图中区域的光度总和",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data"],
       "source_path": "mavis/data/task_benchmark/ANWH/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -1087,10 +937,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取北极星的赤经赤纬坐标；获取北极星附近0.2d范围内的赤经赤纬坐标列表；获取北极星附近0.2d范围内的FITS图像数据；使用孔径图像测光技术测量图中区域的光度总和；在WWT上展示北极星附近0....",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyview_service"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyview_service"],
       "required_inputs": [
         "fits_data",
         "target_name",
@@ -1117,14 +964,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "AOQW",
-      "expected_outputs": [
-        "ephemeris_coordinates",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["ephemeris_coordinates", "wwt_scene_spec"],
       "goal": "计算当前时间下距离地球最近的行星的赤经赤纬坐标；在WWT地球视图下可视化当前距离地球最近的行星",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "time.observed_at",
@@ -1162,9 +1004,7 @@
         "wwt_scene_spec"
       ],
       "goal": "使用图像处理技术，检测当前中心位置的FITS图像中的星星，获取它们的赤经赤纬坐标列表；在当前中心位置用圆圈标记出检测到的星星",
-      "live_dependencies": [
-        "skyview_service"
-      ],
+      "live_dependencies": ["skyview_service"],
       "required_inputs": [
         "annotations",
         "fits_data",
@@ -1193,14 +1033,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "AQTX",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取半人马座α的赤经赤纬坐标；在地球观测视图下定位观测半人马座α",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "target_name",
         "view.center.dec_degrees",
@@ -1231,9 +1066,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算10年内所有月亮掩水星事件的时间和；计算10年内所有月亮掩水星事件对应的赤经赤纬坐标；在WWT地球视角下可视化10年内所有的月亮掩水星事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -1272,13 +1105,8 @@
         "wwt_scene_spec"
       ],
       "goal": "使用图像算法分割图像中的星星，生成分割后的FITS图像文件；展示分割后的图像",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data",
-        "fits_layers[].content_address"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data", "fits_layers[].content_address"],
       "source_path": "mavis/data/task_benchmark/ASJD/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -1298,14 +1126,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "ASXW",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取北极星的赤经赤纬坐标；在WWT地球视图下定位观测北极星",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "target_name",
         "view.center.dec_degrees",
@@ -1338,9 +1161,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算下次月亮掩金星现象发生的UTC时间；计算月亮掩金星现象发生时月亮或者金星的赤经赤纬坐标；在WWT地球视图下观测下次发生的月亮掩金星现象，5秒结束后，再在太阳系视图下观测",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -1379,9 +1200,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算2000年到2053年间木星合日的具体时间点；在WWT地球视图下可视化2000年到2053年间木星的合日并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -1409,18 +1228,10 @@
         "mavis.source.simbad_region"
       ],
       "case_id": "ATNO",
-      "expected_outputs": [
-        "simbad_source_collection"
-      ],
+      "expected_outputs": ["simbad_source_collection"],
       "goal": "根据当前WWT中心位置的赤经赤纬，查询中心所指的星体类型",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
-      "required_inputs": [
-        "dec_degrees",
-        "ra_degrees",
-        "radius_degrees"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
+      "required_inputs": ["dec_degrees", "ra_degrees", "radius_degrees"],
       "source_path": "mavis/data/task_benchmark/ATNO/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -1445,9 +1256,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算2026年之前未来将发生的第一次日食的时间；计算日食发生时月球或太阳的赤经赤纬坐标；在WWT地球视图下可视化呈现2026年之前未来将发生的第一次日食",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "time.observed_at",
@@ -1473,18 +1282,10 @@
         "mavis.wwt.scene"
       ],
       "case_id": "AUIS",
-      "expected_outputs": [
-        "fits_image_artifact",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["fits_image_artifact", "wwt_scene_spec"],
       "goal": "使用图像增强技术处理当前中心位置的星体的FITS图像数据，让其变得明亮；将增强后的FITS图像数据添加到WWT中",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data",
-        "fits_layers[].content_address"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data", "fits_layers[].content_address"],
       "source_path": "mavis/data/task_benchmark/AUIS/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -1512,9 +1313,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算下次火星冲日的UTC时间；在WWT太阳系视图下模拟下次的火星冲日",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -1556,10 +1355,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取图中区域的星星的赤经赤纬坐标列表；获取图中区域的星星的赤经赤纬坐标列表；用圆圈标记出图中区域的星星",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyview_service"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyview_service"],
       "required_inputs": [
         "annotations",
         "dec_degrees",
@@ -1597,9 +1393,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算未来20年所有月亮掩土星事件的时间和；计算未来20年所有月亮掩土星事件对应的赤经赤纬坐标；在WWT地球视角下可视化未来20年所有的月亮掩土星事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -1633,9 +1427,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算10年内所有水星凌日事件的时间和；计算10年内所有水星凌日事件对应的赤经赤纬坐标；在WWT地球视角下可视化10年内所有的水星凌日事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -1678,10 +1470,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取搜索到的图中星星的赤经赤纬坐标列表；获取用图像检测算法检测到的星星的赤经赤纬坐标列表；将搜索到的图中星星和用图像检测算法检测到的星星，分别用红色圆圈和绿色圆圈标记出来",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyview_service"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyview_service"],
       "required_inputs": [
         "annotations",
         "dec_degrees",
@@ -1713,14 +1502,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "AZUX",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取织女星的赤经赤纬坐标；获取牛郎星的赤经赤纬坐标；获取天津四的赤经赤纬坐标；在WWT上用直线连接织女星、牛郎星、天津四形成三角形形状",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "target_name",
@@ -1754,9 +1538,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算近期10年内的火星冲日时火星的赤经赤纬坐标列表；获取近期10年内的火星冲日时间列表；在WWT地球视图下每1秒自动跳转到下一个火星冲日的位置",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "location_name",
@@ -1787,14 +1569,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "BANF",
-      "expected_outputs": [
-        "ephemeris_coordinates",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["ephemeris_coordinates", "wwt_scene_spec"],
       "goal": "计算太阳在当前时间的赤经赤纬坐标；在WWT地球视图下定位并观测太阳",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "time.observed_at",
@@ -1834,10 +1611,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取赤经为11h 18m 28.76s，赤纬为+33° 05′ 39.3″附近范围为0.2d的区域内搜索到的星星的赤经赤纬坐标列表；获取赤经为11h 18m 28.76s，赤纬为+33° 05′...",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyview_service"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyview_service"],
       "required_inputs": [
         "annotations",
         "dec_degrees",
@@ -1871,17 +1645,10 @@
         "mavis.source.skyview_fits"
       ],
       "case_id": "BCSS",
-      "expected_outputs": [
-        "fits_image_artifact",
-        "fits_photometry_report"
-      ],
+      "expected_outputs": ["fits_image_artifact", "fits_photometry_report"],
       "goal": "使用孔径图像测光技术，测量图中区域的光度总和",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data"],
       "source_path": "mavis/data/task_benchmark/BCSS/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -1910,13 +1677,8 @@
         "wwt_scene_spec"
       ],
       "goal": "使用图像算法分割图像中的星星，生成分割后的FITS图像文件；展示分割后的图像",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data",
-        "fits_layers[].content_address"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data", "fits_layers[].content_address"],
       "source_path": "mavis/data/task_benchmark/BDOR/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -1929,21 +1691,12 @@
       ]
     },
     {
-      "capability_ids": [
-        "mavis.interaction.wwt_navigation",
-        "mavis.wwt.scene"
-      ],
+      "capability_ids": ["mavis.interaction.wwt_navigation", "mavis.wwt.scene"],
       "case_id": "BEJO",
-      "expected_outputs": [
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["wwt_scene_spec"],
       "goal": "在WWT太阳系视图下每隔1秒跳转到下一个行星",
-      "live_dependencies": [
-        "none"
-      ],
-      "required_inputs": [
-        "view.target"
-      ],
+      "live_dependencies": ["none"],
+      "required_inputs": ["view.target"],
       "source_path": "mavis/data/task_benchmark/BEJO/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -1954,22 +1707,12 @@
       ]
     },
     {
-      "capability_ids": [
-        "mavis.interaction.wwt_navigation",
-        "mavis.wwt.scene"
-      ],
+      "capability_ids": ["mavis.interaction.wwt_navigation", "mavis.wwt.scene"],
       "case_id": "BGQU",
-      "expected_outputs": [
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["wwt_scene_spec"],
       "goal": "在地球观测视图下定位观测赤经为11h 18m 28.76s，赤纬为+33° 05′ 39.3″的星体",
-      "live_dependencies": [
-        "none"
-      ],
-      "required_inputs": [
-        "view.center.dec_degrees",
-        "view.center.ra_hours"
-      ],
+      "live_dependencies": ["none"],
+      "required_inputs": ["view.center.dec_degrees", "view.center.ra_hours"],
       "source_path": "mavis/data/task_benchmark/BGQU/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -1998,13 +1741,8 @@
         "wwt_scene_spec"
       ],
       "goal": "使用PSF图像测光算法，测量图中附近的星星所有的光度，生成包含处理结果的FITS图像文件；展示经过PSF测光处理后的最终图像",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data",
-        "fits_layers[].content_address"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data", "fits_layers[].content_address"],
       "source_path": "mavis/data/task_benchmark/BMAJ/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -2027,17 +1765,10 @@
         "mavis.source.skyview_fits"
       ],
       "case_id": "BNWH",
-      "expected_outputs": [
-        "fits_image_artifact",
-        "fits_photometry_report"
-      ],
+      "expected_outputs": ["fits_image_artifact", "fits_photometry_report"],
       "goal": "使用孔径图像测光技术，测量图中区域的光度总和",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data"],
       "source_path": "mavis/data/task_benchmark/BNWH/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -2064,9 +1795,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算未来10年内每年夏至日正午时分的太阳的赤经赤纬坐标；在WWT地球视图下可视化未来10年内每年夏至日正午时分的太阳位置，并绘制日行迹（每年一次记录位置，持续10年）",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "annotations",
         "ephemeris_kernel",
@@ -2103,9 +1832,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算未来20年所有霜蟾掩第五行星盘面序列事件的时间和；计算未来20年所有霜蟾掩第五行星盘面序列事件对应的赤经赤纬坐标；在WWT地球视角下可视化计算未来20年所有霜蟾掩第五行星盘面序列事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -2141,9 +1868,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取上次第二行星盘面序列掩盖郁仪发生的UTC时间；获取第二行星盘面序列掩盖郁仪发生时第二行星盘面序列或者郁仪的赤经赤纬坐标；在WWT地球视图下模拟观测上次发生的第二行星盘面序列掩盖郁仪，持续5秒...",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "location_name",
@@ -2175,14 +1900,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "CDMI",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取图中区域变星的赤经赤纬坐标列表；用圆圈标记出图中区域为变星的星体",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "dec_degrees",
@@ -2225,10 +1945,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取北极星的赤经赤纬坐标；获取北极星附近0.2度范围内的FITS图像数据；使用图像处理技术生成北极星附近0.2度范围内只有背景噪声的FITS图像；可视化北极星附近0.2d范围内只有背景噪声的图像",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyview_service"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyview_service"],
       "required_inputs": [
         "fits_data",
         "fits_layers[].content_address",
@@ -2260,17 +1977,10 @@
         "mavis.source.skyview_fits"
       ],
       "case_id": "CLAF",
-      "expected_outputs": [
-        "fits_image_artifact",
-        "fits_photometry_report"
-      ],
+      "expected_outputs": ["fits_image_artifact", "fits_photometry_report"],
       "goal": "使用孔径图像测光技术，测量图中区域的光度总和",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data"],
       "source_path": "mavis/data/task_benchmark/CLAF/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -2295,9 +2005,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算未来20年所有银台掩第一行星盘面序列事件的时间和；计算未来20年所有银台掩第一行星盘面序列事件对应的赤经赤纬坐标；在WWT地球视角下可视化未来20年所有的银台掩第一行星盘面序列事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -2333,9 +2041,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算上一次月食发生的UTC时间；获取月亮在上一次月食发生时的赤经赤纬坐标；在WWT地球视角下可视化呈现上一次发生的月食",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "time.observed_at",
@@ -2377,10 +2083,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取搜索到的图中星星的赤经赤纬坐标列表；获取用图像检测算法检测到的星星的赤经赤纬坐标列表；将搜索到的图中星星和用图像检测算法检测到的星星，分别用红色圆圈和绿色圆圈标记出来",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyview_service"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyview_service"],
       "required_inputs": [
         "annotations",
         "dec_degrees",
@@ -2418,9 +2121,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算未来20年所有素舒掩第六行星盘面序列事件的时间和；计算未来20年所有素舒掩第六行星盘面序列事件对应的赤经赤纬坐标；在WWT地球视角下可视化计算未来20年所有素舒掩第六行星盘面序列事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -2456,9 +2157,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取上次太威掩盖郁仪发生的UTC时间；获取太威掩盖郁仪发生时太威或者郁仪的赤经赤纬坐标；在WWT地球视图下模拟观测上次发生的太威掩盖郁仪，持续5秒, 在太阳系视图下模拟观测上次发生的太威掩盖郁仪",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "location_name",
@@ -2487,18 +2186,10 @@
         "mavis.source.simbad_region"
       ],
       "case_id": "DGVR",
-      "expected_outputs": [
-        "simbad_source_collection"
-      ],
+      "expected_outputs": ["simbad_source_collection"],
       "goal": "根据当前WWT中心位置的赤经赤纬信息，查询中心所指星体的类型",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
-      "required_inputs": [
-        "dec_degrees",
-        "ra_degrees",
-        "radius_degrees"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
+      "required_inputs": ["dec_degrees", "ra_degrees", "radius_degrees"],
       "source_path": "mavis/data/task_benchmark/DGVR/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -2514,17 +2205,10 @@
         "mavis.wwt.scene"
       ],
       "case_id": "DIEA",
-      "expected_outputs": [
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["wwt_scene_spec"],
       "goal": "在WWT太阳系视图下定位并可视化此时的月球",
-      "live_dependencies": [
-        "none"
-      ],
-      "required_inputs": [
-        "time.observed_at",
-        "view.target"
-      ],
+      "live_dependencies": ["none"],
+      "required_inputs": ["time.observed_at", "view.target"],
       "source_path": "mavis/data/task_benchmark/DIEA/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -2552,9 +2236,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取21世纪以来第一次金星凌日现象发生时金星的赤经赤纬坐标；获取21世纪以来第一次金星凌日现象发生的UTC时间；在WWT地球视图下可视化从21世纪以来第一次的金星凌日现象",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -2590,9 +2272,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算未来20年内每次木星冲日时木星的赤经赤纬坐标；计算未来20年内木星冲日的时间点；在WWT地球视图下可视化未来20年内木星的冲日事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "location_name",
@@ -2638,10 +2318,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取图中区域的星星的赤经赤纬坐标列表；获取图中区域的星星的赤经赤纬坐标列表；用圆圈标记出图中区域的星星",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyview_service"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyview_service"],
       "required_inputs": [
         "annotations",
         "dec_degrees",
@@ -2687,10 +2364,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取搜索到的图中星星的赤经赤纬坐标列表；获取用图像检测算法检测到的星星的赤经赤纬坐标列表；将搜索到的图中星星和用图像检测算法检测到的星星，分别用红色圆圈和绿色圆圈标记出来",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyview_service"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyview_service"],
       "required_inputs": [
         "annotations",
         "dec_degrees",
@@ -2728,9 +2402,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算10年内所有月亮掩火星事件的时间和；计算10年内所有月亮掩火星事件对应的赤经赤纬坐标；在WWT地球视角下可视化10年内所有的月亮掩火星事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -2772,10 +2444,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取北极星的赤经赤纬坐标；获取北极星的FITS图像数据地址；使用图像处理技术去除北极星附近的图像背景噪声，生成去除噪声后的FITS图像文件；展示去除噪声后的北极星图像",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyview_service"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyview_service"],
       "required_inputs": [
         "fits_data",
         "fits_layers[].content_address",
@@ -2811,9 +2480,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算10年内所有水星凌日事件的时间和；计算10年内所有水星凌日事件对应的赤经赤纬坐标；在WWT地球视角下可视化10年内所有的水星凌日事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -2852,13 +2519,8 @@
         "wwt_scene_spec"
       ],
       "goal": "计算各个星体的形态参数；使用图像算法分割图像中的星星，生成包含恒星等遥远天体的FITS图像数据文件；展示分割后的图像",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data",
-        "fits_layers[].content_address"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data", "fits_layers[].content_address"],
       "source_path": "mavis/data/task_benchmark/FEYY/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -2885,9 +2547,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算下一次月亮掩木星现象发生时木星或月亮的赤经赤纬坐标；计算下一次月亮掩木星现象发生的UTC时间；在WWT地球视图下模拟下一次将发生的月亮掩木星现象",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -2914,18 +2574,10 @@
         "mavis.wwt.scene"
       ],
       "case_id": "GHPZ",
-      "expected_outputs": [
-        "fits_image_artifact",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["fits_image_artifact", "wwt_scene_spec"],
       "goal": "使用图像增强技术处理当前中心位置的星体的FITS图像数据，让其变得明亮；将增强后的FITS图像数据添加到WWT中",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data",
-        "fits_layers[].content_address"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data", "fits_layers[].content_address"],
       "source_path": "mavis/data/task_benchmark/GHPZ/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -2951,9 +2603,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算火星冲日时火星或者太阳的赤经赤纬坐标；计算下次火星冲日的时间；在WWT地球视图下观测火星冲日，5秒结束后，再在太阳系视图下观测",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -2983,14 +2633,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "GYWY",
-      "expected_outputs": [
-        "ephemeris_coordinates",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["ephemeris_coordinates", "wwt_scene_spec"],
       "goal": "计算太阳系八大行星的赤经赤纬坐标；在WWT地球视图下每隔1秒跳转到下一个行星",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "time.observed_at",
@@ -3018,17 +2663,10 @@
         "mavis.source.skyview_fits"
       ],
       "case_id": "HAVU",
-      "expected_outputs": [
-        "fits_image_artifact",
-        "fits_photometry_report"
-      ],
+      "expected_outputs": ["fits_image_artifact", "fits_photometry_report"],
       "goal": "使用孔径图像测光技术，测量图中这个星体的光度总和",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data"],
       "source_path": "mavis/data/task_benchmark/HAVU/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -3053,9 +2691,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算今年冬至日时的太阳的赤经赤纬坐标；在WWT地球视图下定位冬至日时的太阳",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "time.observed_at",
@@ -3080,18 +2716,10 @@
         "mavis.wwt.scene"
       ],
       "case_id": "HQIL",
-      "expected_outputs": [
-        "fits_image_artifact",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["fits_image_artifact", "wwt_scene_spec"],
       "goal": "使用图像增强技术处理当前中心位置的星体的FITS图像数据，让其变得明亮；将增强后的FITS图像数据添加到WWT中",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data",
-        "fits_layers[].content_address"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data", "fits_layers[].content_address"],
       "source_path": "mavis/data/task_benchmark/HQIL/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -3110,14 +2738,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "HRQP",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取七姊妹星团的赤经赤纬坐标；在地球观测视图下定位观测七姊妹星团",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "target_name",
         "view.center.dec_degrees",
@@ -3142,14 +2765,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "HUGW",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取图中区域为双星且红移大于-1的星体的赤经赤纬坐标列表；用圆圈标记出图中区域为双星且红移大于-1的星体",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "dec_degrees",
@@ -3185,9 +2803,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算下次日食发生时太阳或者月亮的赤经赤纬坐标；获取下次日食发生的UTC时间；在WWT地球视图下观测下次发生的日食，5秒结束后，再在太阳系视图下观测",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "time.observed_at",
@@ -3230,10 +2846,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取北极星的赤经赤纬坐标；获取北极星附近0.2d范围内的赤经赤纬坐标列表；获取北极星附近0.2d范围内的FITS图像数据；使用孔径图像测光技术测量图中区域的光度总和；在WWT上展示北极星附近0....",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyview_service"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyview_service"],
       "required_inputs": [
         "fits_data",
         "target_name",
@@ -3267,9 +2880,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算未来20年所有金星凌日事件的时间和；计算未来20年所有金星凌日事件对应的赤经赤纬坐标；在WWT地球视角下可视化未来20年所有的金星凌日事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -3304,9 +2915,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算10年内所有金星凌日事件的时间和；计算10年内所有金星凌日事件对应的赤经赤纬坐标；在WWT地球视角下可视化10年内所有的金星凌日事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "location_name",
@@ -3348,13 +2957,8 @@
         "wwt_scene_spec"
       ],
       "goal": "使用图像处理技术，剔除掉背景噪声，生成包含恒星等遥远天体的FITS图像；展示剔除掉背景噪声的图像",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data",
-        "fits_layers[].content_address"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data", "fits_layers[].content_address"],
       "source_path": "mavis/data/task_benchmark/KATY/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -3375,14 +2979,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "KCSZ",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取北斗七星的赤经赤纬坐标列表；在WWT上添加北斗七星的连线",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "target_name",
@@ -3415,9 +3014,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算未来20年所有水星凌日事件的时间和；计算未来20年所有水星凌日事件对应的赤经赤纬坐标；在WWT地球视角下可视化未来20年所有的水星凌日事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -3456,13 +3053,8 @@
         "wwt_scene_spec"
       ],
       "goal": "使用图像算法分割图像中的星星，生成分割后的FITS图像文件；展示分割后的图像",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data",
-        "fits_layers[].content_address"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data", "fits_layers[].content_address"],
       "source_path": "mavis/data/task_benchmark/KSJD/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -3482,14 +3074,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "KWZQ",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取M1-M20梅西耶天体的赤经赤纬坐标列表；在WWT地球视图下自动遍历M1-M20梅西耶天体，每个停留1秒",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "target_name",
         "view.center.dec_degrees",
@@ -3514,14 +3101,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "KZTI",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取西方白虎七宿（九仙女座η、白羊座β、白羊座35、金牛座η、金牛座ε、猎户座λ、猎户座ζ）的赤经赤纬坐标；获取东方苍龙七宿（室女座α、室女座κ、天秤座α、天蝎座π、天蝎座σ、天蝎座μ、人马座γ...",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "target_name",
@@ -3548,14 +3130,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "LEJU",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取图中区域内类星体的赤经赤纬坐标列表；获取图中区域内双星的赤经赤纬坐标列表；用圆圈标记出图中区域内的双星、类星体，颜色分别为蓝色、白色",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "dec_degrees",
@@ -3590,10 +3167,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取北极星附近的星体图像的FITS文件地址；使用图像增强技术，对北极星附近的星体进行亮度增强，范围为0.2d；将亮度增强后的北极星附近的星体图像添加到WWT中",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyview_service"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyview_service"],
       "required_inputs": [
         "fits_data",
         "fits_layers[].content_address",
@@ -3619,14 +3193,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "LGEQ",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取织女星（Vega）的赤经赤纬坐标；获取牛郎星（Altair）的赤经赤纬坐标；在WWT地球视图下定位观测牛郎星（Altair）和织女星（Vega）, 在WWT地球视图下在牛郎星（Altair）...",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "target_name",
@@ -3667,10 +3236,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取北极星的赤经赤纬坐标；获取北极星附近的原始FITS图像数据，范围为0.2d；使用图像算法分割北极星附近的星星，范围为0.2d，并生成FITS图像；展示分割后的北极星附近的星星图像，范围为0.2d",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyview_service"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyview_service"],
       "required_inputs": [
         "fits_data",
         "fits_layers[].content_address",
@@ -3692,22 +3258,12 @@
       ]
     },
     {
-      "capability_ids": [
-        "mavis.interaction.wwt_navigation",
-        "mavis.wwt.scene"
-      ],
+      "capability_ids": ["mavis.interaction.wwt_navigation", "mavis.wwt.scene"],
       "case_id": "LJFD",
-      "expected_outputs": [
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["wwt_scene_spec"],
       "goal": "在地球观测视图下定位观测银经为339.2370°，银纬为0.4954°的星体",
-      "live_dependencies": [
-        "none"
-      ],
-      "required_inputs": [
-        "view.center.dec_degrees",
-        "view.center.ra_hours"
-      ],
+      "live_dependencies": ["none"],
+      "required_inputs": ["view.center.dec_degrees", "view.center.ra_hours"],
       "source_path": "mavis/data/task_benchmark/LJFD/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -3732,9 +3288,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算下一次月亮掩土星现象发生的具体时间；在太阳系视图下模拟下一次将发生的月亮掩土星现象",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -3762,14 +3316,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "MPBN",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取织女星的赤经赤纬坐标；获取牛郎星的赤经赤纬坐标；在WWT地球视图下用直线连接牛郎星和织女星，然后观看的时候来回切换，只能切换3次，1秒跳转一次",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "target_name",
@@ -3795,14 +3344,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "MQTX",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取半人马座α的赤经赤纬坐标；在地球观测视图下定位观测半人马座α",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "target_name",
         "view.center.dec_degrees",
@@ -3835,9 +3379,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算2000年到2053年间木星合日的具体时间点；在WWT地球视图下可视化2000年到2053年间木星的合日并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -3876,9 +3418,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算下次火星冲日的UTC时间；在WWT太阳系视图下模拟下次的火星冲日",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -3913,9 +3453,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取上次金星凌日发生的UTC时间；获取金星凌日发生时金星或者太阳的赤经赤纬坐标；在WWT地球视图下模拟观测上次发生的金星凌日，持续5秒, 在太阳系视图下模拟观测上次发生的金星凌日",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "location_name",
@@ -3957,13 +3495,8 @@
         "wwt_scene_spec"
       ],
       "goal": "使用图像处理技术，剔除掉背景噪声，生成包含恒星等遥远天体的FITS图像；展示剔除掉背景噪声的图像",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data",
-        "fits_layers[].content_address"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data", "fits_layers[].content_address"],
       "source_path": "mavis/data/task_benchmark/NJHK/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -3992,10 +3525,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取图中区域内红矮星、白矮星、脉冲星的赤经赤纬坐标列表；用圆圈标记出图中区域内为红矮星、白矮星、脉冲星的星体，标记的颜色分别为红色、白色、绿色",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyfield_de421"],
       "required_inputs": [
         "annotations",
         "dec_degrees",
@@ -4036,10 +3566,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取当前视野区域内脉冲星的赤经赤纬坐标列表，中心位置赤经为18.1693，赤纬为38.6357，视野范围为2.0；用圆圈标记出图中区域内为脉冲星的星体",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyfield_de421"],
       "required_inputs": [
         "annotations",
         "dec_degrees",
@@ -4072,14 +3599,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "OFUK",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取北斗七星的赤经赤纬坐标列表；在WWT地球视图下使用直线连线后的北斗七星，每个星体用黄色圆圈标记并按步跳转，每当跳过一个星体后，该星体的圆圈变为红色",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "target_name",
@@ -4113,9 +3635,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算10年内所有月亮掩太阳事件的时间和；计算10年内所有月亮掩太阳事件对应的赤经赤纬坐标；在WWT地球视角下可视化10年内所有的月亮掩太阳事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -4152,9 +3672,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取上次金星凌日的UTC时间；在WWT太阳系视图下模拟上次发生的金星凌日",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -4196,10 +3714,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取北极星的赤经赤纬坐标；获取北极星的原始FITS图像数据地址；使用图像算法分割图像中的星星；给出各个星体的形态参数；展示分割后的图像",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyview_service"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyview_service"],
       "required_inputs": [
         "fits_data",
         "fits_layers[].content_address",
@@ -4228,14 +3743,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "PJHO",
-      "expected_outputs": [
-        "ephemeris_coordinates",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["ephemeris_coordinates", "wwt_scene_spec"],
       "goal": "获取当前时间；获取当前时间下火星的赤经赤纬坐标；在WWT地球视图下定位当前时间下火星的赤经赤纬并可视化",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "time.observed_at",
@@ -4267,9 +3777,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算10年内所有月亮掩金星事件的时间和；计算10年内所有月亮掩金星事件对应的赤经赤纬坐标；在WWT地球视角下可视化10年内所有的月亮掩金星事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -4307,13 +3815,8 @@
         "wwt_scene_spec"
       ],
       "goal": "使用图像处理技术，剔除掉背景噪声，生成包含恒星等遥远天体的FITS图像；展示剔除掉背景噪声的图像",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data",
-        "fits_layers[].content_address"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data", "fits_layers[].content_address"],
       "source_path": "mavis/data/task_benchmark/QFFL/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -4344,13 +3847,8 @@
         "wwt_scene_spec"
       ],
       "goal": "获取赤经为11h 18m 28.76s，赤纬为+33° 05′ 39.3″附近范围为0.2d的星体的FIT图像数据；获取赤经为11h 18m 28.76s，赤纬为+33° 05′ 39.3″附近...",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "annotations",
-        "fits_data"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["annotations", "fits_data"],
       "source_path": "mavis/data/task_benchmark/QMKQ/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -4370,14 +3868,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "QSXW",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取北极星的赤经赤纬坐标；在WWT地球视图下定位观测北极星",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "target_name",
         "view.center.dec_degrees",
@@ -4402,14 +3895,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "QZUX",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取织女星的赤经赤纬坐标；获取牛郎星的赤经赤纬坐标；获取天津四的赤经赤纬坐标；在WWT上用直线连接织女星、牛郎星、天津四形成三角形形状",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "target_name",
@@ -4436,14 +3924,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "RANS",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取图中区域具有已有文献研究的星星的赤经赤纬坐标列表；用圆圈标记出图中区域的具有已有文献研究的星星",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "dec_degrees",
@@ -4471,14 +3954,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "RBJI",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取仙女座大星系的赤经赤纬坐标；在地球观测视图下定位观测仙女座大星系",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "target_name",
         "view.center.dec_degrees",
@@ -4511,9 +3989,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算21世纪以来第一次水星凌日现象发生的具体UTC时间；计算水星凌日现象发生时太阳或者水星的赤经赤纬坐标；在WWT地球视图下可视化从21世纪以来第一次的水星凌日现象",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -4549,9 +4025,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算2026年之前未来将发生的第一次日食的时间；计算日食发生时月球或太阳的赤经赤纬坐标；在WWT地球视图下可视化呈现2026年之前未来将发生的第一次日食",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "time.observed_at",
@@ -4577,18 +4051,10 @@
         "mavis.wwt.scene"
       ],
       "case_id": "SCDK",
-      "expected_outputs": [
-        "ephemeris_coordinates",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["ephemeris_coordinates", "wwt_scene_spec"],
       "goal": "计算一年中每周一中午12点太阳的赤经赤纬坐标列表；在WWT地球视图下用圆圈标记一年中每周一中午12点太阳的位置",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
-      "required_inputs": [
-        "annotations",
-        "ephemeris_kernel"
-      ],
+      "live_dependencies": ["skyfield_de421"],
+      "required_inputs": ["annotations", "ephemeris_kernel"],
       "source_path": "mavis/data/task_benchmark/SCDK/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -4617,13 +4083,8 @@
         "wwt_scene_spec"
       ],
       "goal": "使用PSF图像测光算法，测量图中附近的星星所有的光度，生成包含处理结果的FITS图像文件；展示经过PSF测光处理后的最终图像",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data",
-        "fits_layers[].content_address"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data", "fits_layers[].content_address"],
       "source_path": "mavis/data/task_benchmark/SCMC/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -4646,17 +4107,10 @@
         "mavis.source.skyview_fits"
       ],
       "case_id": "SCSS",
-      "expected_outputs": [
-        "fits_image_artifact",
-        "fits_photometry_report"
-      ],
+      "expected_outputs": ["fits_image_artifact", "fits_photometry_report"],
       "goal": "使用孔径图像测光技术，测量图中区域的光度总和",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data"],
       "source_path": "mavis/data/task_benchmark/SCSS/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -4674,14 +4128,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "SLHO",
-      "expected_outputs": [
-        "ephemeris_coordinates",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["ephemeris_coordinates", "wwt_scene_spec"],
       "goal": "计算未来一年内每周三0点整火星的赤经赤纬坐标；在WWT地球视图下将未来一年火星的运行轨迹绘制出来（在一年中，每周三0点整用圆圈标记，然后圈圈间要有连线）",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "annotations",
         "ephemeris_kernel",
@@ -4710,17 +4159,10 @@
         "mavis.source.skyview_fits"
       ],
       "case_id": "SNWH",
-      "expected_outputs": [
-        "fits_image_artifact",
-        "fits_photometry_report"
-      ],
+      "expected_outputs": ["fits_image_artifact", "fits_photometry_report"],
       "goal": "使用孔径图像测光技术，测量图中区域的光度总和",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data"],
       "source_path": "mavis/data/task_benchmark/SNWH/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -4739,14 +4181,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "THCH",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取图中区域的光谱双星的赤经赤纬坐标列表；用圆圈标记出图中区域的光谱双星，颜色为紫色",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "dec_degrees",
@@ -4773,17 +4210,10 @@
         "mavis.wwt.scene"
       ],
       "case_id": "TLHN",
-      "expected_outputs": [
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["wwt_scene_spec"],
       "goal": "在WWT太阳系视图下实时定位并可视化当前木星及其四大伽利略卫星",
-      "live_dependencies": [
-        "none"
-      ],
-      "required_inputs": [
-        "time.observed_at",
-        "view.target"
-      ],
+      "live_dependencies": ["none"],
+      "required_inputs": ["time.observed_at", "view.target"],
       "source_path": "mavis/data/task_benchmark/TLHN/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -4803,14 +4233,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "UHLT",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取图中区域星系的赤经赤纬坐标列表；用圆圈标记出图中区域的星系",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "dec_degrees",
@@ -4849,13 +4274,8 @@
         "wwt_scene_spec"
       ],
       "goal": "使用图像算法分割图像中的星星，生成分割后的FITS图像文件；展示分割后的图像",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data",
-        "fits_layers[].content_address"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data", "fits_layers[].content_address"],
       "source_path": "mavis/data/task_benchmark/UOVD/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -4876,14 +4296,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "UPRS",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取图中区域内白矮星的赤经赤纬坐标列表；用圆圈标记出图中区域内为白矮星的星体",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "dec_degrees",
@@ -4918,9 +4333,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算10年内所有月亮掩水星事件的时间和；计算10年内所有月亮掩水星事件对应的赤经赤纬坐标；在WWT地球视角下可视化10年内所有的月亮掩水星事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -4946,18 +4359,10 @@
         "mavis.source.simbad_region"
       ],
       "case_id": "VBCK",
-      "expected_outputs": [
-        "simbad_source_collection"
-      ],
+      "expected_outputs": ["simbad_source_collection"],
       "goal": "根据当前WWT中心位置的赤经赤纬，查找图中中心所指的星体的所有名称",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
-      "required_inputs": [
-        "dec_degrees",
-        "ra_degrees",
-        "radius_degrees"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
+      "required_inputs": ["dec_degrees", "ra_degrees", "radius_degrees"],
       "source_path": "mavis/data/task_benchmark/VBCK/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -4967,21 +4372,12 @@
       ]
     },
     {
-      "capability_ids": [
-        "mavis.interaction.wwt_navigation",
-        "mavis.wwt.scene"
-      ],
+      "capability_ids": ["mavis.interaction.wwt_navigation", "mavis.wwt.scene"],
       "case_id": "VEJO",
-      "expected_outputs": [
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["wwt_scene_spec"],
       "goal": "在WWT太阳系视图下每隔1秒跳转到下一个行星",
-      "live_dependencies": [
-        "none"
-      ],
-      "required_inputs": [
-        "view.target"
-      ],
+      "live_dependencies": ["none"],
+      "required_inputs": ["view.target"],
       "source_path": "mavis/data/task_benchmark/VEJO/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -4997,18 +4393,10 @@
         "mavis.source.simbad_region"
       ],
       "case_id": "VFRO",
-      "expected_outputs": [
-        "simbad_source_collection"
-      ],
+      "expected_outputs": ["simbad_source_collection"],
       "goal": "根据WWT当前中心位置的赤经赤纬信息，查找目标星体的研究文献",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
-      "required_inputs": [
-        "dec_degrees",
-        "ra_degrees",
-        "radius_degrees"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
+      "required_inputs": ["dec_degrees", "ra_degrees", "radius_degrees"],
       "source_path": "mavis/data/task_benchmark/VFRO/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -5025,14 +4413,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "VOQW",
-      "expected_outputs": [
-        "ephemeris_coordinates",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["ephemeris_coordinates", "wwt_scene_spec"],
       "goal": "计算当前时间下距离地球最近的行星的赤经赤纬坐标；在WWT地球视图下可视化当前距离地球最近的行星",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "time.observed_at",
@@ -5058,14 +4441,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "WDUQ",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取东方苍龙七宿（室女座α、室女座κ、天秤座α、天蝎座π、天蝎座σ、天蝎座μ、人马座γ）的赤经赤纬坐标；在WWT地球视图下定位观测东方苍龙七宿（室女座α、室女座κ、天秤座α、天蝎座π、天蝎座σ、...",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "target_name",
@@ -5102,13 +4480,8 @@
         "wwt_scene_spec"
       ],
       "goal": "使用图像处理技术，生成图中只有背景噪声的FITS图像；将处理后的只有背景噪声的FITS图像添加到WWT中进行可视化",
-      "live_dependencies": [
-        "skyview_service"
-      ],
-      "required_inputs": [
-        "fits_data",
-        "fits_layers[].content_address"
-      ],
+      "live_dependencies": ["skyview_service"],
+      "required_inputs": ["fits_data", "fits_layers[].content_address"],
       "source_path": "mavis/data/task_benchmark/WJMA/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -5135,9 +4508,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取近期10年内的木星冲日时间列表；在太空观测视图下并按步跳转木星冲日的位置",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -5179,10 +4550,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取北极星的赤经赤纬坐标；获取北极星附近0.2d范围内所有星星的FITS图像数据；使用PSF测光算法测量北极星附近0.2d范围内所有星星的光度，并生成最终的FITS图像；展示经过PSF测光后的北...",
-      "live_dependencies": [
-        "simbad_tap_service",
-        "skyview_service"
-      ],
+      "live_dependencies": ["simbad_tap_service", "skyview_service"],
       "required_inputs": [
         "fits_data",
         "fits_layers[].content_address",
@@ -5209,18 +4577,10 @@
         "mavis.source.simbad_region"
       ],
       "case_id": "XIPI",
-      "expected_outputs": [
-        "simbad_source_collection"
-      ],
+      "expected_outputs": ["simbad_source_collection"],
       "goal": "根据当前WWT中心位置的赤经赤纬信息，查找图中中心所指的星体的名称",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
-      "required_inputs": [
-        "dec_degrees",
-        "ra_degrees",
-        "radius_degrees"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
+      "required_inputs": ["dec_degrees", "ra_degrees", "radius_degrees"],
       "source_path": "mavis/data/task_benchmark/XIPI/divide_task_converted.json",
       "tier": "tier_a",
       "verification_requirements": [
@@ -5243,9 +4603,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取近期10年内的火星冲日时间列表；在太空观测视图下并按步跳转火星冲日的位置",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -5270,18 +4628,10 @@
         "mavis.wwt.scene"
       ],
       "case_id": "XJSC",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取大熊座ε、大熊座ζ、大熊座η的赤经赤纬坐标；在WWT地球视角下用直线连接大熊座ε、大熊座ζ、大熊座η得到弧形",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
-      "required_inputs": [
-        "annotations",
-        "target_name"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
+      "required_inputs": ["annotations", "target_name"],
       "source_path": "mavis/data/task_benchmark/XJSC/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -5313,9 +4663,7 @@
         "wwt_scene_spec"
       ],
       "goal": "使用图像处理技术，检测当前中心位置的FITS图像中的星星，获取它们的赤经赤纬坐标列表；在当前中心位置用圆圈标记出检测到的星星",
-      "live_dependencies": [
-        "skyview_service"
-      ],
+      "live_dependencies": ["skyview_service"],
       "required_inputs": [
         "annotations",
         "fits_data",
@@ -5342,18 +4690,10 @@
         "mavis.source.simbad_region"
       ],
       "case_id": "XTNO",
-      "expected_outputs": [
-        "simbad_source_collection"
-      ],
+      "expected_outputs": ["simbad_source_collection"],
       "goal": "根据当前WWT中心位置的赤经赤纬，查询中心所指的星体类型",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
-      "required_inputs": [
-        "dec_degrees",
-        "ra_degrees",
-        "radius_degrees"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
+      "required_inputs": ["dec_degrees", "ra_degrees", "radius_degrees"],
       "source_path": "mavis/data/task_benchmark/XTNO/divide_task_converted.json",
       "tier": "tier_c",
       "verification_requirements": [
@@ -5378,9 +4718,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算今晚贵阳月亮的月相；计算今晚贵阳月亮的实时赤经赤纬坐标；在地球观测视图下定位今晚贵阳的月亮",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "location_name",
@@ -5414,9 +4752,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算10年内所有月亮掩木星事件的时间和；计算10年内所有月亮掩木星事件对应的赤经赤纬坐标；在WWT地球视角下可视化10年内所有的月亮掩木星事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -5443,14 +4779,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "YDSD",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取猎户座星云（恒星摇篮）的赤经赤纬坐标；获取M57 指环星云（行星状星云）的赤经赤纬坐标；获取蟹状星云（中子星遗迹）的赤经赤纬坐标；获取米拉（红巨星）的赤经赤纬坐标；获取天狼星（主序星）的赤经...",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "target_name",
         "view.center.dec_degrees",
@@ -5481,9 +4812,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算2000年到2030年间水星的上合日时间列表；在WWT地球视角下可视化2000年到2030年间水星的上合日并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -5517,9 +4846,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算未来20年所有月亮掩水星事件的时间和；计算未来20年所有月亮掩水星事件对应的赤经赤纬坐标；在WWT地球视角下可视化未来20年所有的月亮掩水星事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -5555,9 +4882,7 @@
         "wwt_scene_spec"
       ],
       "goal": "获取2026年之前下次日食的时间；在WWT太阳系视图下模拟下次的日食（2026年之前的）",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "time.observed_at",
@@ -5590,9 +4915,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算未来20年所有月亮掩土星事件的时间和；计算未来20年所有月亮掩土星事件对应的赤经赤纬坐标；在WWT地球视角下可视化未来20年所有的月亮掩土星事件并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -5626,9 +4949,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算2000年到2030年间金星的上合日时间列表；在WWT地球视角下可视化2000年到2030年间金星的上合日并按步跳转",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -5657,14 +4978,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "ZNSP",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取北斗七星每个星体的赤经赤纬坐标列表；在WWT地球视图下使用直线连线北斗七星的每个星体, 展示时每隔1秒跳转到北斗七星的下一个星体",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "target_name",
@@ -5691,14 +5007,9 @@
         "mavis.wwt.scene"
       ],
       "case_id": "ZQFI",
-      "expected_outputs": [
-        "simbad_source_collection",
-        "wwt_scene_spec"
-      ],
+      "expected_outputs": ["simbad_source_collection", "wwt_scene_spec"],
       "goal": "获取黄道十二宫的标志性星体的赤经赤纬坐标列表；依次用不同颜色标记黄道十二宫的标志性星体，并1秒切换一个星座",
-      "live_dependencies": [
-        "simbad_tap_service"
-      ],
+      "live_dependencies": ["simbad_tap_service"],
       "required_inputs": [
         "annotations",
         "target_name",
@@ -5733,9 +5044,7 @@
         "wwt_scene_spec"
       ],
       "goal": "计算下次月亮掩金星现象发生的UTC时间；计算月亮掩金星现象发生时月亮或者金星的赤经赤纬坐标；在WWT地球视图下观测下次发生的月亮掩金星现象，5秒结束后，再在太阳系视图下观测",
-      "live_dependencies": [
-        "skyfield_de421"
-      ],
+      "live_dependencies": ["skyfield_de421"],
       "required_inputs": [
         "ephemeris_kernel",
         "target_name",
@@ -5759,7 +5068,7 @@
     }
   ],
   "generated_from_count": 160,
-  "schema_version": "2.0.0",
+  "schema_version": "2.1.0",
   "source_project": "mavis",
   "source_set_hash": "b75d4e935b2dec88617f2ac9db05299e1706f3fd32a0acc97e60d32eb1637b32"
 }
