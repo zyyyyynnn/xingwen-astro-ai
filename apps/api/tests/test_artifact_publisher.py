@@ -327,3 +327,68 @@ def test_producer_parameters_do_not_reject_normal_token_count_settings() -> None
             expected_status="planning",
             expected_revision=3,
         )
+
+
+def test_function_call_authorization_requires_complete_identity() -> None:
+    def unused_factory() -> Callable[[], None]:
+        raise AssertionError(
+            "partial authorization must fail before opening a database session"
+        )
+
+    ledger = ProducerExecutionStore(unused_factory)  # type: ignore[arg-type]
+    request = ProducerExecutionRequest(
+        run_id=uuid4(),
+        step_key="fetching_data",
+        attempt_id=uuid4(),
+        idempotency_key="producer-partial-authorization",
+        producer_type="model",
+        producer_name="research_step_agent",
+        producer_version="qwen3.8-max",
+        input_hash="sha256:" + "a" * 64,
+        parameters={"temperature": 0.6},
+        authorized_tool_name="query_astronomy_data",
+    )
+
+    with pytest.raises(ValueError, match="authorization"):
+        ledger.start_producer_execution(
+            request,
+            token=uuid4(),
+            generation=1,
+            expected_status="running",
+            expected_revision=1,
+        )
+
+
+def test_function_call_audit_closure_requires_validated_facts_for_completion() -> None:
+    def unused_factory() -> Callable[[], None]:
+        raise AssertionError(
+            "incomplete audit facts must fail before opening a database session"
+        )
+
+    ledger = ProducerExecutionStore(unused_factory)  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="validated arguments hash"):
+        ledger.finish_producer_execution(
+            uuid4(),
+            status="completed",
+            output_hash="sha256:" + "b" * 64,
+            tool_call_id="call-1",
+            public_message="已完成分析。",
+        )
+
+
+def test_function_call_audit_closure_requires_error_hash_for_rejection() -> None:
+    def unused_factory() -> Callable[[], None]:
+        raise AssertionError(
+            "rejection without error hash must fail before opening a database session"
+        )
+
+    ledger = ProducerExecutionStore(unused_factory)  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="error_hash"):
+        ledger.finish_producer_execution(
+            uuid4(),
+            status="rejected",
+            error_code="AGENT_TOOL_CALL_REJECTED",
+            rejected_arguments_hash="sha256:" + "c" * 64,
+        )

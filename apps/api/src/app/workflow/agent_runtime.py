@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
-from typing import Any, Callable, Generic, TypeVar
+from typing import Any, Callable, Generic, Protocol, TypeVar
+from uuid import UUID
 
+from app.schemas._hashing import compute_canonical_payload_hash
 from app.services.model_execution import (
     ModelExecutionPort,
     ModelExecutionRequest,
@@ -62,6 +64,8 @@ class StepTool:
     label: str
     tool_kind: str
     description: str
+    authorized_skill_id: str | None = None
+    registry_revision: str | None = None
 
     @property
     def schema(self) -> dict[str, Any]:
@@ -91,48 +95,58 @@ class StepTool:
         }
 
 
+STEP_TOOLS_REGISTRY_REVISION = "research_step_tools.v1"
+
+
 STEP_TOOLS: dict[str, StepTool] = {
     "planning": StepTool(
         "plan_research_path",
         "规划研究路径",
         "analysis",
         "根据已确认研究协议核对当前步骤的执行边界与依赖。",
+        registry_revision=STEP_TOOLS_REGISTRY_REVISION,
     ),
     "fetching_data": StepTool(
         "query_astronomy_data",
         "查询天文数据",
         "data_query",
         "从研究协议允许的实时天文数据源查询研究对象。",
+        registry_revision=STEP_TOOLS_REGISTRY_REVISION,
     ),
     "cleaning_data": StepTool(
         "validate_research_data",
         "整理并校验研究数据",
         "evidence_validation",
         "标准化字段与单位并执行数据质量校验。",
+        registry_revision=STEP_TOOLS_REGISTRY_REVISION,
     ),
     "searching_papers": StepTool(
         "search_research_papers",
         "检索研究论文",
         "search",
         "按研究协议限定的主题与来源检索论文。",
+        registry_revision=STEP_TOOLS_REGISTRY_REVISION,
     ),
     "summarizing_papers": StepTool(
         "read_research_paper",
         "阅读并归纳论文",
         "document_read",
         "读取已选论文并生成可追溯的结构化摘要。",
+        registry_revision=STEP_TOOLS_REGISTRY_REVISION,
     ),
     "reasoning_literature": StepTool(
         "validate_literature_evidence",
         "分析并验证文献证据",
         "evidence_validation",
         "提取论点、比较关系并验证证据绑定。",
+        registry_revision=STEP_TOOLS_REGISTRY_REVISION,
     ),
     "building_graph": StepTool(
         "build_evidence_graph",
         "生成证据图谱",
         "artifact_generation",
         "将已通过校验的论点与关系生成证据图谱。",
+        registry_revision=STEP_TOOLS_REGISTRY_REVISION,
     ),
 }
 
@@ -146,13 +160,47 @@ PUBLIC_ANALYSIS_INSTRUCTION = (
 
 
 
+class AgentAuditPort(Protocol):
+    """Persist governed function-call facts around the single agent call."""
+
+    def start_agent_call(
+        self,
+        request: ModelExecutionRequest,
+        *,
+        authorized_tool_name: str,
+        authorized_skill_id: str,
+        registry_revision: str,
+    ) -> tuple[ModelExecutionResponse, UUID]: ...
+
+    def complete_agent_call(
+        self,
+        execution_id: UUID,
+        *,
+        response: ModelExecutionResponse,
+        tool_call_id: str,
+        validated_arguments_hash: str,
+        public_message: str,
+    ) -> None: ...
+
+    def reject_agent_call(
+        self,
+        execution_id: UUID,
+        *,
+        error_code: str,
+        error_hash: str,
+        response: ModelExecutionResponse | None = None,
+        tool_call_id: str | None = None,
+        rejected_arguments_hash: str | None = None,
+    ) -> None: ...
+
+
 class ResearchStepAgent:
     """Let Qwen explain and select one server-owned step capability."""
 
     def __init__(
         self,
         *,
-        model_port: ModelExecutionPort,
+        model_port: AgentAuditPort,
         provider: str,
         requested_model: str,
         explicit_revision: str | None,
@@ -207,7 +255,7 @@ class ResearchStepAgent:
             )
         )
         try:
-            response = self._model_port.execute(
+            response, execution_id = self._model_port.start_agent_call(
                 ModelExecutionRequest(
                     provider=self._provider,
                     requested_model=self._requested_model,
@@ -223,11 +271,12 @@ class ResearchStepAgent:
                     response_mode="tool",
                     enable_thinking=False,
                 ),
+                authorized_tool_name=primary.name,
+                authorized_skill_id=primary.authorized_skill_id or step_key,
+                registry_revision=(
+                    primary.registry_revision or STEP_TOOLS_REGISTRY_REVISION
+                ),
             )
-            call = _single_tool_call(response)
-            if call.name != primary.name:
-                raise ValueError(f"Agent requested an unregistered tool: {call.name}")
-            public_analysis = _public_analysis(call)
         except Exception as error:
             raise AgentActivityError(
                 activity_id=analysis_activity_id,
@@ -235,6 +284,41 @@ class ResearchStepAgent:
                 activity_name="分析",
                 cause=error,
             ) from error
+        try:
+            call = _single_tool_call(response)
+            if call.name != primary.name:
+                raise ValueError(f"Agent requested an unregistered tool: {call.name}")
+            public_analysis = _public_analysis(call)
+        except Exception as error:
+            rejected_tool_call_id: str | None = None
+            rejected_arguments_hash: str | None = None
+            if response.tool_calls:
+                rejected_call = response.tool_calls[0]
+                rejected_tool_call_id = rejected_call.id
+                rejected_arguments_hash = compute_canonical_payload_hash(
+                    rejected_call.arguments
+                )
+            self._model_port.reject_agent_call(
+                execution_id,
+                error_code="AGENT_TOOL_CALL_REJECTED",
+                error_hash=compute_canonical_payload_hash({"error": str(error)}),
+                response=response,
+                tool_call_id=rejected_tool_call_id,
+                rejected_arguments_hash=rejected_arguments_hash,
+            )
+            raise AgentActivityError(
+                activity_id=analysis_activity_id,
+                activity_kind="reasoning",
+                activity_name="分析",
+                cause=error,
+            ) from error
+        self._model_port.complete_agent_call(
+            execution_id,
+            response=response,
+            tool_call_id=call.id,
+            validated_arguments_hash=compute_canonical_payload_hash(call.arguments),
+            public_message=public_analysis,
+        )
         self._emit(
             AgentActivity(
                 activity_id=analysis_activity_id,

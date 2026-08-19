@@ -27,6 +27,7 @@ from app.workflow.steps.scientific_steps import ScientificStepService
 from app.workflow.store import AttemptHandle, LeaseGrant, PersistentWorkflowStore
 from packages.prompts.registry import PromptRegistry
 from services.paper_pipeline.live_collection import LivePaperCollectionRunner
+from services.scientific_skills.registry import build_scientific_skill_registry
 
 __all__ = ["PreparedStep", "ResearchStepRuntime", "RunStepContext", "step_uuid"]
 
@@ -58,6 +59,11 @@ class ResearchStepRuntime:
             ScientificStepService(
                 factory=factory, content_storage=content_storage
             )
+            if content_storage is not None
+            else None
+        )
+        self._scientific_skill_registry = (
+            build_scientific_skill_registry()
             if content_storage is not None
             else None
         )
@@ -156,6 +162,11 @@ class ResearchStepRuntime:
         if step is None or step.skill_id is None:
             raise ValueError(f"scientific RunStep {run_step_id} has no skill binding")
         skill_id = step.skill_id
+        if self._scientific_skill_registry is None:
+            raise ValueError(
+                "scientific steps require the content-addressed storage runtime"
+            )
+        skill_revision = self._scientific_skill_registry.revision_for(skill_id)
         return StepTool(
             name=f"execute_science_skill_{skill_id}",
             label=f"执行科学技能 {skill_id.replace('_', ' ')}",
@@ -164,6 +175,8 @@ class ResearchStepRuntime:
                 "执行当前冻结研究步骤唯一授权的科学技能，"
                 "技能、参数与输入均由已确认研究协议冻结。"
             ),
+            authorized_skill_id=skill_id,
+            registry_revision=skill_revision,
         )
 
     def _execute_step_tool(

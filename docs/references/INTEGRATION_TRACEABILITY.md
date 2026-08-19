@@ -126,6 +126,7 @@ DROP_INVALID` 之一，并记录保留的能力、目标 owner 与验证方式�
 | apps/api/src/app/services/paper_summary_exports.py | PORT_REHOMED（适配当前六段 schema + §39 文案约束） | exact-version 导出：不查 mutable latest、deterministic、stable content hash；JSON 含机器 provenance，Markdown 不铺内部标识 | current services | apps/api/src/app/services/paper_summary_exports.py | PASS（单测覆盖读取链路） |
 | apps/api/tests/test_paper_summary_chunking.py | TEST_ONLY | section-aware chunking、reading order、chunk Evidence allowlist 测试语义 | apps/api/tests | apps/api/tests/test_paper_summary_chunking.py | PASS（15 tests） |
 | apps/api/src/app/services/document_summary_chunks.py（§35/§38 新增，旧 PR 无对应实现） | PORT_REHOMED | 长论文分块编排：block→分块（块携带 Evidence 身份）、逐块有界模型调用、块外 Evidence 引用拒绝（§35）、确定性归并到当前输出形状（无二次模型调用、statement id 确定性）、归并后 fail-closed 校验，走唯一 admit_document 路径；不截断 | current services | apps/api/src/app/services/document_summary_chunks.py | PASS（test_document_summary_chunks.py：委托/逐块/确定性/allowlist 拒绝） |
+| apps/api/src/app/workflow/agent_runtime.py function-calling 审计写路径（§18） | PORT_REHOMED | 唯一授权工具 + 授权身份三元组（tool/skill/registry revision，全有或全无）、validated/rejected arguments hash、tool_call_id、public_message、error_hash 写入 producer_executions（既有 DB 闭合约束），provider 身份/token/latency 随响应落库；科学步骤工具绑定 skill_id + registry revision | current workflow | apps/api/src/app/workflow/agent_runtime.py + step_publication.py + publisher.py | PASS（test_agent_runtime.py 生命周期/拒绝审计、test_artifact_publisher.py 授权与闭合校验） |
 
 ## 6. 尚未移植（integration_pending）
 
@@ -134,4 +135,3 @@ DROP_INVALID` 之一，并记录保留的能力、目标 owner 与验证方式�
 | Item | Classification（既定归宿） |
 | --- | --- |
 | Inosum summarizing_papers 步骤对 DocumentParse 输入的 RunPlan 接线（ResearchInput PDF → DocumentParse → 分块摘要 → 发布缝合） | PORT_REHOMED（运行时与分块编排已就绪；生产链接线单独收口） |
-| agent_runtime function-calling producer 审计写路径 | PORT_REHOMED（DB 审计列已就绪） |

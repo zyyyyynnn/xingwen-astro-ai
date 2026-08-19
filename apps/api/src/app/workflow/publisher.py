@@ -145,6 +145,9 @@ class ProducerExecutionRequest:
     prompt_name: str | None = None
     prompt_version: str | None = None
     prompt_hash: str | None = None
+    authorized_tool_name: str | None = None
+    authorized_skill_id: str | None = None
+    registry_revision: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -833,6 +836,11 @@ class ProducerExecutionStore:
     ) -> ProducerExecutionSnapshot:
         parameters = _validated_parameters(request.parameters)
         _validate_execution_request(request)
+        authorization = _validated_function_call_authorization(
+            authorized_tool_name=request.authorized_tool_name,
+            authorized_skill_id=request.authorized_skill_id,
+            registry_revision=request.registry_revision,
+        )
         parameters_hash = (
             request.parameters_hash
             if request.parameters_hash is not None
@@ -907,6 +915,9 @@ class ProducerExecutionStore:
                 input_hash=request.input_hash,
                 status="running",
                 started_at=session.scalar(select(func.clock_timestamp())),
+                authorized_tool_name=authorization["authorized_tool_name"],
+                authorized_skill_id=authorization["authorized_skill_id"],
+                registry_revision=authorization["registry_revision"],
             )
             session.add(row)
             session.flush()
@@ -924,6 +935,11 @@ class ProducerExecutionStore:
         provider_returned_model: str | None = None,
         provider_request_id: str | None = None,
         error_code: str | None = None,
+        tool_call_id: str | None = None,
+        validated_arguments_hash: str | None = None,
+        rejected_arguments_hash: str | None = None,
+        error_hash: str | None = None,
+        public_message: str | None = None,
     ) -> ProducerExecutionSnapshot:
         _validate_execution_outcome(
             status=status,
@@ -931,6 +947,14 @@ class ProducerExecutionStore:
             token_usage=token_usage,
             latency_ms=latency_ms,
             error_code=error_code,
+        )
+        audit = _validated_function_call_audit(
+            status=status,
+            tool_call_id=tool_call_id,
+            validated_arguments_hash=validated_arguments_hash,
+            rejected_arguments_hash=rejected_arguments_hash,
+            error_hash=error_hash,
+            public_message=public_message,
         )
         usage = _validated_usage(token_usage)
         normalized_error = _optional_text(error_code)
@@ -958,6 +982,13 @@ class ProducerExecutionStore:
                     and row.provider_returned_model == normalized_provider_model
                     and row.provider_request_id == normalized_provider_request_id
                     and row.error_code == normalized_error
+                    and row.tool_call_id == audit["tool_call_id"]
+                    and row.validated_arguments_hash
+                    == audit["validated_arguments_hash"]
+                    and row.rejected_arguments_hash
+                    == audit["rejected_arguments_hash"]
+                    and row.error_hash == audit["error_hash"]
+                    and row.public_message == audit["public_message"]
                 ):
                     return _execution_snapshot(row)
                 raise ProducerExecutionConflictError(
@@ -972,6 +1003,11 @@ class ProducerExecutionStore:
             row.provider_returned_model = normalized_provider_model
             row.provider_request_id = normalized_provider_request_id
             row.error_code = normalized_error
+            row.tool_call_id = audit["tool_call_id"]
+            row.validated_arguments_hash = audit["validated_arguments_hash"]
+            row.rejected_arguments_hash = audit["rejected_arguments_hash"]
+            row.error_hash = audit["error_hash"]
+            row.public_message = audit["public_message"]
             row.finished_at = session.scalar(select(func.clock_timestamp()))
             session.flush()
             return _execution_snapshot(row)
@@ -1495,6 +1531,139 @@ def _validate_execution_outcome(
     _validated_usage(token_usage)
 
 
+def _validated_function_call_authorization(
+    *,
+    authorized_tool_name: str | None,
+    authorized_skill_id: str | None,
+    registry_revision: str | None,
+) -> dict[str, str | None]:
+    """Authorization identity for one governed function-calling producer.
+
+    The trio is all-or-nothing: either the complete authorization identity is
+    recorded, or none of it is. Partial authorization cannot masquerade as a
+    governed tool call.
+    """
+
+    values = (authorized_tool_name, authorized_skill_id, registry_revision)
+    if all(value is None for value in values):
+        return {
+            "authorized_tool_name": None,
+            "authorized_skill_id": None,
+            "registry_revision": None,
+        }
+    if any(value is None for value in values):
+        raise ValueError(
+            "function-call authorization requires tool, skill and registry identity"
+        )
+    tool = _optional_text(authorized_tool_name)
+    skill = _optional_text(authorized_skill_id)
+    revision = _optional_text(registry_revision)
+    if tool is None or skill is None or revision is None:
+        raise ValueError("function-call authorization fields must be non-blank")
+    if len(tool) > 128 or len(skill) > 128 or len(revision) > 71:
+        raise ValueError("function-call authorization field is too long")
+    return {
+        "authorized_tool_name": tool,
+        "authorized_skill_id": skill,
+        "registry_revision": revision,
+    }
+
+
+def _validated_function_call_audit(
+    *,
+    status: str,
+    tool_call_id: str | None,
+    validated_arguments_hash: str | None,
+    rejected_arguments_hash: str | None,
+    error_hash: str | None,
+    public_message: str | None,
+) -> dict[str, str | None]:
+    """Validate the terminal audit facts against the closure invariants.
+
+    Producers without any function-call audit facts keep the legacy outcome
+    shape; once any audit fact is supplied the full closure is enforced.
+    """
+
+    if all(
+        value is None
+        for value in (
+            tool_call_id,
+            validated_arguments_hash,
+            rejected_arguments_hash,
+            error_hash,
+            public_message,
+        )
+    ):
+        return {
+            "tool_call_id": None,
+            "validated_arguments_hash": None,
+            "rejected_arguments_hash": None,
+            "error_hash": None,
+            "public_message": None,
+        }
+    for label, value in (
+        ("validated_arguments_hash", validated_arguments_hash),
+        ("rejected_arguments_hash", rejected_arguments_hash),
+        ("error_hash", error_hash),
+    ):
+        if value is not None:
+            _require_hash(value, label)
+    normalized_call_id = _optional_text(tool_call_id)
+    if normalized_call_id is not None and len(normalized_call_id) > 256:
+        raise ValueError("tool_call_id is too long")
+    normalized_message = public_message.strip() if public_message else None
+    if status == "completed":
+        if (
+            normalized_call_id is None
+            or validated_arguments_hash is None
+            or not normalized_message
+        ):
+            raise ValueError(
+                "completed function-call producer requires tool_call_id, "
+                "validated arguments hash and public message"
+            )
+        if rejected_arguments_hash is not None or error_hash is not None:
+            raise ValueError(
+                "completed function-call producer cannot carry rejection facts"
+            )
+        return {
+            "tool_call_id": normalized_call_id,
+            "validated_arguments_hash": validated_arguments_hash,
+            "rejected_arguments_hash": None,
+            "error_hash": None,
+            "public_message": normalized_message,
+        }
+    if status == "rejected":
+        if error_hash is None:
+            raise ValueError("rejected function-call producer requires error_hash")
+        if validated_arguments_hash is not None or public_message:
+            raise ValueError(
+                "rejected function-call producer cannot carry validated facts"
+            )
+        return {
+            "tool_call_id": normalized_call_id,
+            "validated_arguments_hash": None,
+            "rejected_arguments_hash": rejected_arguments_hash,
+            "error_hash": error_hash,
+            "public_message": None,
+        }
+    if normalized_call_id is not None or validated_arguments_hash is not None:
+        raise ValueError(
+            "failed or cancelled function-call producer cannot carry tool facts"
+        )
+    if rejected_arguments_hash is not None:
+        raise ValueError(
+            "failed or cancelled function-call producer cannot carry rejection facts"
+        )
+    return {
+        "tool_call_id": None,
+        "validated_arguments_hash": None,
+        "rejected_arguments_hash": None,
+        "error_hash": error_hash,
+        "public_message": None,
+    }
+
+
 def _require_same_execution(
     row: ProducerExecutionModel,
     *,
@@ -1521,6 +1690,9 @@ def _require_same_execution(
         request.prompt_hash,
         dict(parameters),
         parameters_hash,
+        _optional_text(request.authorized_tool_name),
+        _optional_text(request.authorized_skill_id),
+        _optional_text(request.registry_revision),
     )
     actual = (
         row.run_id,
@@ -1539,6 +1711,9 @@ def _require_same_execution(
         row.prompt_hash,
         row.parameters,
         row.parameters_hash,
+        row.authorized_tool_name,
+        row.authorized_skill_id,
+        row.registry_revision,
     )
     if row.status == "running" and row.input_hash != request.input_hash:
         raise ProducerExecutionConflictError(

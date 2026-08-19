@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import SourceSnapshotModel
 from app.schemas.core import ResearchContract
+from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.crossmatch import CrossmatchSourceInput
 from app.schemas.data_artifacts import DataArtifactBuildResult, DatasetArtifactCandidate
 from app.schemas.literature_claim import LiteratureClaimsCandidate
@@ -139,6 +140,9 @@ class StepPublicationFactory:
         prompt_name: str | None = None,
         prompt_version: str | None = None,
         prompt_hash: str | None = None,
+        authorized_tool_name: str | None = None,
+        authorized_skill_id: str | None = None,
+        registry_revision: str | None = None,
     ) -> ProducerExecutionSnapshot:
         return self._executions.start_producer_execution(
             ProducerExecutionRequest(
@@ -161,6 +165,9 @@ class StepPublicationFactory:
                 prompt_name=prompt_name,
                 prompt_version=prompt_version,
                 prompt_hash=prompt_hash,
+                authorized_tool_name=authorized_tool_name,
+                authorized_skill_id=authorized_skill_id,
+                registry_revision=registry_revision,
             ),
             token=lease.token,
             generation=lease.generation,
@@ -177,6 +184,11 @@ class StepPublicationFactory:
         input_hash: str | None = None,
         response: ModelExecutionResponse | None = None,
         error_code: str | None = None,
+        tool_call_id: str | None = None,
+        validated_arguments_hash: str | None = None,
+        rejected_arguments_hash: str | None = None,
+        error_hash: str | None = None,
+        public_message: str | None = None,
     ) -> ProducerExecutionSnapshot:
         return self._executions.finish_producer_execution(
             execution_id,
@@ -192,6 +204,11 @@ class StepPublicationFactory:
                 response.provider_request_id if response is not None else None
             ),
             error_code=error_code,
+            tool_call_id=tool_call_id,
+            validated_arguments_hash=validated_arguments_hash,
+            rejected_arguments_hash=rejected_arguments_hash,
+            error_hash=error_hash,
+            public_message=public_message,
         )
 
     def publication(
@@ -500,6 +517,118 @@ class TrackedStepModelExecutionPort:
             response=response,
         )
         return response
+
+    def start_agent_call(
+        self,
+        request: ModelExecutionRequest,
+        *,
+        authorized_tool_name: str,
+        authorized_skill_id: str,
+        registry_revision: str,
+    ) -> tuple[ModelExecutionResponse, UUID]:
+        """Persist the governed function-call producer before the provider call."""
+
+        execution = self._publications.start_producer(
+            self._context,
+            step_key=self._step_key,
+            operation_key=f"agent:{request.prompt_name}:{request.input_hash[-12:]}",
+            producer_type="model",
+            producer_name="research_step_agent",
+            producer_version=request.explicit_revision or request.requested_model,
+            input_hash=request.input_hash,
+            parameters={
+                key: value
+                for key, value in request.parameters.items()
+                if isinstance(value, (str, int, float, bool))
+            },
+            parameters_hash=request.parameters_hash,
+            model_provider=request.provider,
+            requested_model=request.requested_model,
+            explicit_revision=request.explicit_revision,
+            prompt_name=request.prompt_name,
+            prompt_version=request.prompt_version,
+            prompt_hash=request.prompt_hash,
+            authorized_tool_name=authorized_tool_name,
+            authorized_skill_id=authorized_skill_id,
+            registry_revision=registry_revision,
+            attempt=self._attempt,
+            lease=self._lease,
+        )
+        try:
+            response = self._base.execute(request)
+        except ModelExecutionError as error:
+            self._publications.finish_producer(
+                execution.id,
+                status="failed",
+                output_hash=error.output_hash,
+                response=(
+                    ModelExecutionResponse(
+                        payload={},
+                        output_hash=error.output_hash or ("sha256:" + "0" * 64),
+                        token_usage=error.token_usage,
+                        latency_ms=error.latency_ms or 0,
+                        provider_request_id=error.provider_request_id,
+                    )
+                    if error.latency_ms is not None
+                    or error.token_usage is not None
+                    or error.provider_request_id is not None
+                    else None
+                ),
+                error_code=error.code,
+                error_hash=compute_canonical_payload_hash({"error": error.code}),
+            )
+            raise
+        except Exception:
+            self._publications.finish_producer(
+                execution.id,
+                status="failed",
+                error_code="AGENT_MODEL_EXECUTION_FAILED",
+                error_hash=compute_canonical_payload_hash(
+                    {"error": "AGENT_MODEL_EXECUTION_FAILED"}
+                ),
+            )
+            raise
+        return response, execution.id
+
+    def complete_agent_call(
+        self,
+        execution_id: UUID,
+        *,
+        response: ModelExecutionResponse,
+        tool_call_id: str,
+        validated_arguments_hash: str,
+        public_message: str,
+    ) -> None:
+        self._publications.finish_producer(
+            execution_id,
+            status="completed",
+            output_hash=response.output_hash,
+            response=response,
+            tool_call_id=tool_call_id,
+            validated_arguments_hash=validated_arguments_hash,
+            public_message=public_message,
+        )
+
+    def reject_agent_call(
+        self,
+        execution_id: UUID,
+        *,
+        error_code: str,
+        error_hash: str,
+        response: ModelExecutionResponse | None = None,
+        tool_call_id: str | None = None,
+        rejected_arguments_hash: str | None = None,
+    ) -> None:
+        self._publications.finish_producer(
+            execution_id,
+            status="rejected",
+            output_hash=response.output_hash if response is not None else None,
+            response=response,
+            error_code=error_code,
+            tool_call_id=tool_call_id,
+            rejected_arguments_hash=rejected_arguments_hash,
+            error_hash=error_hash,
+        )
 
     def complete(
         self,
