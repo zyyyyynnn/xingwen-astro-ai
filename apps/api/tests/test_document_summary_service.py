@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-import hashlib
-from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -14,7 +12,16 @@ from app.schemas.paper_summary import (
     PaperSummaryPaperMetadata,
     PaperSummarySourceSnapshotReference,
 )
-from app.schemas.scientific_document import DocumentParseInput
+from app.schemas.scientific_document import (
+    DocumentBBox,
+    DocumentBlock,
+    DocumentBlockKind,
+    DocumentPage,
+    DocumentParseCandidate,
+    DocumentParseProfile,
+    DocumentParseQuality,
+    ParserBackend,
+)
 from app.services.document_summary import (
     DocumentSummaryService,
     ExecuteDocumentSummaryRequest,
@@ -23,7 +30,6 @@ from app.services.model_execution import (
     ModelExecutionRequest,
     ModelExecutionResponse,
 )
-from app.services.scientific_document.native_baseline import NativeBaselineParser
 from app.workflow.publisher import (
     ArtifactEvidenceBinding,
     ArtifactSourceSnapshotBinding,
@@ -71,43 +77,77 @@ class _Model:
         )
 
 
+_CONTENT_HASH = "sha256:" + "b" * 64
+_CONFIG_HASH = "sha256:" + "c" * 64
+_CANONICAL_HASH = "sha256:" + "d" * 64
+_PARAGRAPH_TEXT = "The paper studies transit signals."
+
+
+def _parse_candidate() -> DocumentParseCandidate:
+    page = DocumentPage(
+        page_index=0, width_points=612.0, height_points=792.0, block_ids=("b1", "b2")
+    )
+    heading = DocumentBlock(
+        block_id="b1",
+        page_index=0,
+        reading_order=1,
+        kind=DocumentBlockKind.heading,
+        bbox=DocumentBBox(x1=72, y1=72, x2=300, y2=88),
+        text="Transit Study",
+        quality=DocumentParseQuality.accepted,
+        parser_backend=ParserBackend.native,
+        parser_profile_id="document-summary-profile",
+    )
+    paragraph = DocumentBlock(
+        block_id="b2",
+        page_index=0,
+        reading_order=2,
+        kind=DocumentBlockKind.paragraph,
+        bbox=DocumentBBox(x1=72, y1=100, x2=540, y2=116),
+        text=_PARAGRAPH_TEXT,
+        quality=DocumentParseQuality.accepted,
+        parser_backend=ParserBackend.native,
+        parser_profile_id="document-summary-profile",
+    )
+    return DocumentParseCandidate(
+        parse_id="parse.document-summary",
+        research_input_id="00000000-0000-4000-8000-0000000000aa",
+        content_hash=_CONTENT_HASH,
+        profile=DocumentParseProfile(
+            parser_profile_id="document-summary-profile",
+            parser_profile_version="1.0.0",
+            native_backend="native-engine==1.0.0",
+            routing_policy_id="native-only",
+            resource_policy_id="cpu-capable",
+            configuration_hash=_CONFIG_HASH,
+        ),
+        native_engine="native-engine==1.0.0",
+        native_engine_version="1.0.0",
+        config_hash=_CONFIG_HASH,
+        canonical_output_hash=_CANONICAL_HASH,
+        pages=(page,),
+        blocks=(heading, paragraph),
+        overall_quality=DocumentParseQuality.accepted,
+        created_at="2026-08-14T00:00:00Z",
+    )
+
+
 def _request() -> ExecuteDocumentSummaryRequest:
-    fixture = (
-        Path(__file__).resolve().parents[3]
-        / "services"
-        / "scientific_document"
-        / "fixtures"
-        / "golden_born_digital.pdf"
-    )
-    content = fixture.read_bytes()
-    content_hash = "sha256:" + hashlib.sha256(content).hexdigest()
-    parsed = NativeBaselineParser(
-        config_hash="sha256:" + "c" * 64
-    ).parse_document(
-        DocumentParseInput(
-            research_input_id="00000000-0000-4000-8000-0000000000aa",
-            content_hash=content_hash,
-            source_type="upload",
-            mime_type="application/pdf",
-            filename=fixture.name,
-            input_bytes=content,
-        )
-    )
     return ExecuteDocumentSummaryRequest(
-        document_parse=parsed,
+        document_parse=_parse_candidate(),
         document_parse_id="00000000-0000-4000-8000-0000000000bb",
         source_snapshot=PaperSummarySourceSnapshotReference(
             source_snapshot_id="source-snapshot.document-summary",
             source_id="research-input",
-            source_version=content_hash,
-            content_hash=content_hash,
+            source_version=_CONTENT_HASH,
+            content_hash=_CONTENT_HASH,
         ),
         paper=PaperSummaryPaperMetadata(
             paper_id="paper.document-summary",
             title="Transit Study",
         ),
         source_id="research-input",
-        source_record_id=fixture.name,
+        source_record_id="transit-study.pdf",
         research_goal="Summarize the transit method.",
         provider="qwen",
         model="qwen3.8-max",
