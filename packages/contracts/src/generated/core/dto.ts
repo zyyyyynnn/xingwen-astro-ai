@@ -2675,6 +2675,67 @@ export interface DatasetArtifactRead {
   source_snapshots: SourceSnapshotDetail[];
 }
 /**
+ * Axis-aligned bounding box in absolute PDF points.
+ *
+ * Coordinate system (authoritative):
+ * - origin: top-left corner of the page, ``(0, 0)``.
+ * - x axis: increases left → right.
+ * - y axis: increases top → bottom.
+ * - units: PDF points (1 point = 1/72 inch).
+ * - page-relative: coordinates are expressed in the page's own width/height
+ *   space; a locator is only meaningful together with its ``page_index``.
+ * - normalized: **false** — these are absolute points, not 0..1 ratios.
+ * - valid range (enforced at the aggregate level, where page geometry is
+ *   known): ``0 <= x1 <= x2 <= page_width`` and
+ *   ``0 <= y1 <= y2 <= page_height``.
+ * - empty/unknown semantics: ``None`` (the enclosing ``DocumentLocator.bbox``
+ *   is ``None``). A zero-rect MUST NOT be used to mean "unknown".
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DocumentBBox".
+ */
+export interface DocumentBBox {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
+}
+/**
+ * Canonical SINGLE SOURCE OF TRUTH locator back to a parsed element.
+ *
+ * A locator is only complete together with the owning ``DocumentParseCandidate``
+ * (which carries ``research_input_id`` / input ``content_hash``). It must be
+ * persistable and verifiable by DocumentParse Persistence without re-parsing the source.
+ *
+ * This is the ONLY locator representation in the contract. ``page_index``,
+ * ``block_id``, ``bbox``, ``table_id`` and ``cell_id`` live here and nowhere
+ * else; the ``ScientificDataExtractionCandidate`` references a parse solely
+ * through this locator, so contradictory parallel locator fields are
+ * impossible by construction.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DocumentLocator".
+ */
+export interface DocumentLocator {
+  bbox?: DocumentBBox | null;
+  block_id?: string | null;
+  cell_id?: string | null;
+  page_index: number;
+  reading_order?: number | null;
+  table_id?: string | null;
+  text_span?: TextSpan | null;
+}
+/**
+ * Character-offset span within a block's raw text (0-based, inclusive start).
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "TextSpan".
+ */
+export interface TextSpan {
+  end: number;
+  start: number;
+}
+/**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "Envelope_ArtifactExportRead_".
  */
@@ -3439,7 +3500,10 @@ export interface PaperSummaryCacheAudit {
   source_snapshot_id: string;
 }
 /**
- * Bibliographic identity projected from the pinned input PaperCollection.
+ * Bibliographic identity of the summarized paper.
+ *
+ * Collection-backed summaries project it from the pinned PaperCollection;
+ * DocumentParse-backed summaries carry it explicitly.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "PaperSummaryPaperMetadata".
@@ -3457,7 +3521,7 @@ export interface PaperSummaryPaperMetadata {
  * via the `definition` "PaperSummaryArtifactContent".
  */
 export interface PaperSummaryArtifactContent {
-  benchmark: PaperBenchmarkReference;
+  benchmark?: PaperBenchmarkReference | null;
   dataset: PaperSummaryStatement | null;
   evidence: PaperSummaryEvidence[];
   evidence_ids: string[];
@@ -3469,6 +3533,7 @@ export interface PaperSummaryArtifactContent {
   limitations: PaperSummaryStatement[];
   method: PaperSummaryStatement | null;
   output_hash: string;
+  paper?: PaperSummaryPaperMetadata | null;
   paper_id: string;
   producer: PaperSummaryProducerExecution;
   research_goal: PaperSummaryStatement | null;
@@ -3510,13 +3575,16 @@ export interface PaperSummaryEvidence {
  * via the `definition` "PaperSummaryEvidenceLocator".
  */
 export interface PaperSummaryEvidenceLocator {
+  document_locator?: DocumentLocator | null;
+  document_parse_id?: string | null;
+  document_parse_output_hash?: string | null;
   kind: "paper_text" | "paper_metadata";
   metadata_field?:
     ("source_record_id" | "title" | "authors" | "year" | "doi" | "arxiv_id" | "url") | null;
   page_index?: number | null;
   paragraph?: number | null;
   section?: string | null;
-  source_url: string;
+  source_url?: string | null;
   text_range?: string | null;
 }
 /**
@@ -3524,10 +3592,26 @@ export interface PaperSummaryEvidenceLocator {
  * via the `definition` "PaperSummaryInputVersions".
  */
 export interface PaperSummaryInputVersions {
-  paper_collection_output_hash: string;
-  paper_collection_schema_version: string;
-  paper_collection_version_id: string;
+  document_parses?: PaperSummaryDocumentParseReference[];
+  paper_collection_output_hash?: string | null;
+  paper_collection_schema_version?: string | null;
+  paper_collection_version_id?: string | null;
   source_snapshots: PaperSummarySourceSnapshotReference[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummaryDocumentParseReference".
+ */
+export interface PaperSummaryDocumentParseReference {
+  candidate_parse_id: string;
+  canonical_output_hash: string;
+  config_hash: string;
+  document_parse_id: string;
+  input_content_hash: string;
+  parser_profile_id: string;
+  parser_profile_version: string;
+  research_input_id: string;
+  source_snapshot_id: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -3552,6 +3636,7 @@ export interface PaperSummaryProducerExecution {
   latency_ms: number;
   model_name: string;
   model_response_hash: string;
+  model_revision?: string | null;
   output_hash?: string | null;
   parameters_hash: string;
   parameters_version: string;
@@ -3561,10 +3646,22 @@ export interface PaperSummaryProducerExecution {
   prompt_hash: string;
   prompt_name: string;
   prompt_version: string;
+  provider?: string | null;
+  provider_request_id?: string | null;
   run_id?: string | null;
   started_at: string;
   status: "completed" | "rejected";
   step_key?: "summarizing_papers";
+  usage?: PaperSummaryModelUsage | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummaryModelUsage".
+ */
+export interface PaperSummaryModelUsage {
+  completion_tokens: number;
+  prompt_tokens: number;
+  total_tokens: number;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema

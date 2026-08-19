@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 import re
 from typing import Any
@@ -11,16 +11,20 @@ from typing import Any
 from pydantic import ValidationError
 
 from app.schemas._hashing import compute_canonical_payload_hash
-from app.schemas.paper_collection import PaperCollection, PaperCollectionCandidate
+from app.schemas.paper_collection import PaperBenchmarkReference, PaperCollection, PaperCollectionCandidate
 from app.schemas.paper_summary import (
     PaperSummaryAdmissionResult,
     PaperSummaryAdmissionStatus,
     PaperSummaryArtifactContent,
+    PaperSummaryDocumentParseReference,
     PaperSummaryEvidence,
     PaperSummaryEvidenceCandidate,
+    PaperSummaryEvidenceLocator,
     PaperSummaryFailureStage,
     PaperSummaryInputVersions,
     PaperSummaryModelOutput,
+    PaperSummaryModelUsage,
+    PaperSummaryPaperMetadata,
     PaperSummaryProducerExecution,
     PaperSummarySourceConflict,
     PaperSummarySourceSnapshotReference,
@@ -29,6 +33,18 @@ from app.schemas.paper_summary import (
     PaperSummarySupportStatus,
     _seal_paper_summary_for_publication,
     compute_paper_summary_output_hash,
+    dump_paper_summary_input_versions,
+)
+from app.schemas.scientific_document import (
+    DocumentBlockKind,
+    DocumentLocator,
+    DocumentParseCandidate,
+    DocumentParseQuality,
+    TextSpan,
+)
+from app.services.document_parse_store import (
+    DocumentParseIntegrityError,
+    validate_document_locator,
 )
 from packages.prompts.registry import PromptRegistry
 
@@ -41,6 +57,10 @@ from .constants import (
 
 Clock = Callable[[], datetime]
 ParameterValue = str | int | float | bool | None
+EvidenceAdmitter = Callable[
+    [PaperSummaryEvidenceCandidate],
+    tuple[PaperSummaryEvidence | None, PaperSummarySourceConflict | None],
+]
 _SAFE_PARAMETER_KEY = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 _FORBIDDEN_PARAMETER_FRAGMENTS = (
     "api_key",
@@ -95,6 +115,14 @@ class PaperSummaryPipeline:
             paper_collection=paper_collection,
             paper_collection_version_id=paper_collection_version_id,
         )
+        candidates_by_id = {
+            candidate.candidate_id: candidate
+            for candidate in paper_collection.candidates
+        }
+        snapshots_by_id = {
+            snapshot.source_snapshot_id: snapshot
+            for snapshot in input_versions.source_snapshots
+        }
         evidence_input_hash = compute_canonical_payload_hash(
             [
                 candidate.model_dump(mode="json", exclude_none=True)
@@ -108,8 +136,8 @@ class PaperSummaryPipeline:
                 "paper_collection_version_id": paper_collection_version_id,
                 "paper_collection_schema_version": paper_collection.schema_version,
                 "paper_collection_output_hash": paper_collection.output_hash,
-                "source_snapshot_versions": input_versions.model_dump(
-                    mode="json", exclude_none=True
+                "source_snapshot_versions": dump_paper_summary_input_versions(
+                    input_versions
                 )["source_snapshots"],
                 "paper_id": paper_id,
                 "evidence_input_hash": evidence_input_hash,
@@ -163,10 +191,131 @@ class PaperSummaryPipeline:
 
         summary = _admit_evidence(
             model_output=model_output,
-            paper_collection=paper_collection,
             input_versions=input_versions,
             paper_id=paper_id,
+            paper=None,
+            benchmark=paper_collection.benchmark,
             evidence_candidates=evidence_candidates,
+            evidence_admitter=lambda candidate: _validate_evidence_candidate(
+                candidate=candidate,
+                paper_id=paper_id,
+                collection_candidates=candidates_by_id,
+                snapshots=snapshots_by_id,
+            ),
+            producer_fields=producer_fields,
+            input_hash=input_hash,
+            response_hash=response_hash,
+        )
+        return PaperSummaryAdmissionResult(
+            admission_status=PaperSummaryAdmissionStatus.accepted,
+            summary=summary,
+            producer=summary.producer,
+        )
+
+    def admit_document(
+        self,
+        *,
+        document_parse: DocumentParseCandidate,
+        document_parse_id: str,
+        source_snapshot: PaperSummarySourceSnapshotReference,
+        paper: PaperSummaryPaperMetadata,
+        model_response: str,
+        model_name: str,
+        parameters: Mapping[str, ParameterValue],
+        evidence_candidates: tuple[PaperSummaryEvidenceCandidate, ...],
+        model_revision: str | None = None,
+        provider: str | None = None,
+        provider_request_id: str | None = None,
+        usage: PaperSummaryModelUsage | None = None,
+        latency_ms: int = 0,
+        parameters_version: str = SUMMARY_PARAMETERS_VERSION,
+        execution_id: str | None = None,
+        run_id: str | None = None,
+    ) -> PaperSummaryAdmissionResult:
+        """Admit one DocumentParse-backed structured summary."""
+        if source_snapshot.content_hash != document_parse.content_hash:
+            raise ValueError("DocumentParse and SourceSnapshot content hashes differ")
+        if any(
+            candidate.source_snapshot_id != source_snapshot.source_snapshot_id
+            for candidate in evidence_candidates
+        ):
+            raise ValueError("document Evidence must use the pinned SourceSnapshot")
+        prompt = self.prompt_registry.get("paper_summary")
+        input_versions, input_hash, parameter_hash = (
+            build_document_summary_input_identity(
+                document_parse=document_parse,
+                document_parse_id=document_parse_id,
+                source_snapshot=source_snapshot,
+                paper=paper,
+                model_name=model_name,
+                parameters=parameters,
+                evidence_candidates=evidence_candidates,
+                prompt_name=prompt.name,
+                prompt_version=prompt.version,
+                prompt_hash=prompt.content_hash,
+                parameters_version=parameters_version,
+            )
+        )
+        raw_response_hash = compute_canonical_payload_hash(model_response)
+        if latency_ms < 0:
+            raise ValueError("latency_ms must be non-negative")
+        finished_at = self._now()
+        started_at = finished_at - timedelta(milliseconds=latency_ms)
+        producer_fields = {
+            "execution_id": execution_id or f"execution.{input_hash[7:31]}",
+            "run_id": run_id,
+            "producer_name": SUMMARY_PRODUCER_NAME,
+            "producer_version": SUMMARY_PRODUCER_VERSION,
+            "model_name": model_name,
+            "model_revision": model_revision,
+            "provider": provider,
+            "provider_request_id": provider_request_id,
+            "usage": usage,
+            "prompt_name": prompt.name,
+            "prompt_version": prompt.version,
+            "prompt_hash": prompt.content_hash,
+            "parameters_version": parameters_version,
+            "parameters_hash": parameter_hash,
+            "input_versions": input_versions,
+            "input_hash": input_hash,
+            "model_response_hash": raw_response_hash,
+            "started_at": started_at,
+            "finished_at": finished_at,
+            "latency_ms": latency_ms,
+        }
+        try:
+            decoded = json.loads(model_response)
+        except (json.JSONDecodeError, TypeError):
+            return _rejected(
+                producer_fields=producer_fields,
+                stage=PaperSummaryFailureStage.json,
+                error_code="paper_summary.json_invalid",
+            )
+        response_hash = compute_canonical_payload_hash(decoded)
+        producer_fields["model_response_hash"] = response_hash
+        try:
+            model_output = PaperSummaryModelOutput.model_validate(decoded)
+        except ValidationError:
+            return _rejected(
+                producer_fields=producer_fields,
+                stage=PaperSummaryFailureStage.schema,
+                error_code="paper_summary.schema_invalid",
+            )
+
+        summary = _admit_evidence(
+            model_output=model_output,
+            input_versions=input_versions,
+            paper_id=paper.paper_id,
+            paper=paper,
+            benchmark=None,
+            evidence_candidates=evidence_candidates,
+            evidence_admitter=lambda candidate: _validate_document_evidence_candidate(
+                candidate=candidate,
+                paper=paper,
+                document_parse=document_parse,
+                document_parse_id=document_parse_id,
+                source_snapshot=source_snapshot,
+            ),
             producer_fields=producer_fields,
             input_hash=input_hash,
             response_hash=response_hash,
@@ -205,21 +354,16 @@ def _rejected(
 def _admit_evidence(
     *,
     model_output: PaperSummaryModelOutput,
-    paper_collection: PaperCollection,
     input_versions: PaperSummaryInputVersions,
     paper_id: str,
+    paper: PaperSummaryPaperMetadata | None,
+    benchmark: PaperBenchmarkReference | None,
     evidence_candidates: tuple[PaperSummaryEvidenceCandidate, ...],
+    evidence_admitter: EvidenceAdmitter,
     producer_fields: dict[str, Any],
     input_hash: str,
     response_hash: str,
 ) -> PaperSummaryArtifactContent:
-    candidates_by_id = {
-        candidate.candidate_id: candidate for candidate in paper_collection.candidates
-    }
-    snapshots_by_id = {
-        snapshot.source_snapshot_id: snapshot
-        for snapshot in input_versions.source_snapshots
-    }
     supplied_evidence = _unique_evidence_candidates(evidence_candidates)
     retained_evidence: dict[str, PaperSummaryEvidence] = {}
     source_conflicts: dict[str, PaperSummarySourceConflict] = {}
@@ -238,12 +382,7 @@ def _admit_evidence(
                 continue
             admitted = retained_evidence.get(evidence_id)
             if admitted is None:
-                admitted, conflict = _validate_evidence_candidate(
-                    candidate=candidate,
-                    paper_id=paper_id,
-                    collection_candidates=candidates_by_id,
-                    snapshots=snapshots_by_id,
-                )
+                admitted, conflict = evidence_admitter(candidate)
                 if admitted is None:
                     missing_reference = True
                     continue
@@ -304,13 +443,18 @@ def _admit_evidence(
         status="completed",
         output_hash="sha256:" + "0" * 64,
     )
+    producer_payload = producer.model_dump(mode="json", exclude_none=True)
+    producer_payload["input_versions"] = dump_paper_summary_input_versions(
+        input_versions
+    )
     payload = {
         "kind": "paper_summary",
         "schema_version": "1.0.0",
         "summary_id": summary_id,
         "paper_id": paper_id,
-        "benchmark": paper_collection.benchmark.model_dump(mode="json"),
-        "input_versions": input_versions.model_dump(mode="json"),
+        "paper": None if paper is None else paper.model_dump(mode="json"),
+        "benchmark": None if benchmark is None else benchmark.model_dump(mode="json"),
+        "input_versions": dump_paper_summary_input_versions(input_versions),
         "research_goal": _dump_optional(research_goal),
         "method": _dump_optional(method),
         "dataset": _dump_optional(dataset),
@@ -320,7 +464,7 @@ def _admit_evidence(
         "evidence_ids": evidence_ids,
         "evidence": [item.model_dump(mode="json") for item in evidence],
         "source_conflicts": [item.model_dump(mode="json") for item in conflicts],
-        "producer": producer.model_dump(mode="json", exclude_none=True),
+        "producer": producer_payload,
         "input_hash": input_hash,
         "output_hash": "sha256:" + "0" * 64,
     }
@@ -411,6 +555,219 @@ def _validate_evidence_candidate(
         source_snapshot_version=snapshot.source_version,
         source_snapshot_content_hash=snapshot.content_hash,
         locator=candidate.locator,
+        quote_or_value=candidate.quote_or_value,
+        status=status,
+        validation_code=validation_code,
+    )
+    return admitted, conflict
+
+
+def build_document_summary_input_identity(
+    *,
+    document_parse: DocumentParseCandidate,
+    document_parse_id: str,
+    source_snapshot: PaperSummarySourceSnapshotReference,
+    paper: PaperSummaryPaperMetadata,
+    model_name: str,
+    parameters: Mapping[str, ParameterValue],
+    evidence_candidates: tuple[PaperSummaryEvidenceCandidate, ...],
+    prompt_name: str,
+    prompt_version: str,
+    prompt_hash: str,
+    parameters_version: str = SUMMARY_PARAMETERS_VERSION,
+) -> tuple[PaperSummaryInputVersions, str, str]:
+    """Build the exact immutable identity before an external model call."""
+
+    safe_parameters = _validate_parameters(parameters)
+    parameter_hash = compute_canonical_payload_hash(
+        {
+            "parameters_version": parameters_version,
+            "parameters": safe_parameters,
+        }
+    )
+    input_versions = PaperSummaryInputVersions(
+        document_parses=(
+            PaperSummaryDocumentParseReference(
+                document_parse_id=document_parse_id,
+                candidate_parse_id=document_parse.parse_id,
+                research_input_id=document_parse.research_input_id,
+                source_snapshot_id=source_snapshot.source_snapshot_id,
+                input_content_hash=document_parse.content_hash,
+                canonical_output_hash=document_parse.canonical_output_hash,
+                parser_profile_id=document_parse.profile.parser_profile_id,
+                parser_profile_version=document_parse.profile.parser_profile_version,
+                config_hash=document_parse.config_hash,
+            ),
+        ),
+        source_snapshots=(source_snapshot,),
+    )
+    evidence_input_hash = compute_canonical_payload_hash(
+        [
+            candidate.model_dump(mode="json", exclude_none=True)
+            for candidate in sorted(
+                evidence_candidates, key=lambda item: item.evidence_id
+            )
+        ]
+    )
+    input_hash = compute_canonical_payload_hash(
+        {
+            "input_versions": dump_paper_summary_input_versions(input_versions),
+            "paper": paper.model_dump(mode="json"),
+            "evidence_input_hash": evidence_input_hash,
+            "prompt_name": prompt_name,
+            "prompt_version": prompt_version,
+            "prompt_hash": prompt_hash,
+            "model_name": model_name,
+            "parameters_version": parameters_version,
+            "parameters_hash": parameter_hash,
+        }
+    )
+    return input_versions, input_hash, parameter_hash
+
+
+def build_document_evidence_candidates(
+    *,
+    document_parse: DocumentParseCandidate,
+    document_parse_id: str,
+    paper_id: str,
+    source_id: str,
+    source_record_id: str,
+    source_snapshot_id: str,
+    max_quote_characters: int = 8_000,
+) -> tuple[PaperSummaryEvidenceCandidate, ...]:
+    """Project usable canonical blocks into bounded model-selectable Evidence."""
+    if not 256 <= max_quote_characters <= 16_000:
+        raise ValueError("max_quote_characters must be between 256 and 16000")
+    candidates: list[PaperSummaryEvidenceCandidate] = []
+    section: str | None = None
+    paragraph = 0
+    for block in document_parse.blocks:
+        if block.kind is DocumentBlockKind.heading and block.text:
+            section = block.text[:512]
+        if (
+            block.kind is DocumentBlockKind.reference
+            or block.text is None
+            or block.quality is DocumentParseQuality.unsupported
+        ):
+            continue
+        paragraph += 1
+        for start in range(0, len(block.text), max_quote_characters):
+            end = min(len(block.text), start + max_quote_characters)
+            quote = block.text[start:end]
+            locator = DocumentLocator(
+                page_index=block.page_index,
+                block_id=block.block_id,
+                bbox=block.bbox,
+                reading_order=block.reading_order,
+                text_span=TextSpan(start=start, end=end),
+            )
+            identity_hash = compute_canonical_payload_hash(
+                {
+                    "document_parse_id": document_parse_id,
+                    "canonical_output_hash": document_parse.canonical_output_hash,
+                    "block_id": block.block_id,
+                    "text_span": {"start": start, "end": end},
+                    "quote": quote,
+                }
+            )
+            candidates.append(
+                PaperSummaryEvidenceCandidate(
+                    evidence_id=f"evidence.{identity_hash[7:31]}",
+                    paper_id=paper_id,
+                    candidate_id=document_parse.research_input_id,
+                    source_id=source_id,
+                    source_record_id=source_record_id,
+                    source_snapshot_id=source_snapshot_id,
+                    locator=PaperSummaryEvidenceLocator(
+                        kind="paper_text",
+                        section=section or "document",
+                        paragraph=paragraph,
+                        text_range=f"{start}:{end}",
+                        document_parse_id=document_parse_id,
+                        document_parse_output_hash=(
+                            document_parse.canonical_output_hash
+                        ),
+                        document_locator=locator,
+                        page_index=block.page_index,
+                    ),
+                    quote_or_value=quote,
+                    accessible_excerpt=quote,
+                )
+            )
+    return tuple(candidates)
+
+
+def _validate_document_evidence_candidate(
+    *,
+    candidate: PaperSummaryEvidenceCandidate,
+    paper: PaperSummaryPaperMetadata,
+    document_parse: DocumentParseCandidate,
+    document_parse_id: str,
+    source_snapshot: PaperSummarySourceSnapshotReference,
+) -> tuple[PaperSummaryEvidence | None, PaperSummarySourceConflict | None]:
+    locator = candidate.locator
+    document_locator = locator.document_locator
+    if (
+        candidate.paper_id != paper.paper_id
+        or candidate.candidate_id != document_parse.research_input_id
+        or candidate.source_snapshot_id != source_snapshot.source_snapshot_id
+        or candidate.source_id != source_snapshot.source_id
+        or locator.kind != "paper_text"
+        or locator.document_parse_id != document_parse_id
+        or locator.document_parse_output_hash != document_parse.canonical_output_hash
+        or document_locator is None
+    ):
+        return None, None
+    try:
+        validate_document_locator(document_parse, document_locator)
+    except DocumentParseIntegrityError:
+        return None, None
+    block = next(
+        (
+            item
+            for item in document_parse.blocks
+            if item.block_id == document_locator.block_id
+        ),
+        None,
+    )
+    if block is None or block.text is None or document_locator.text_span is None:
+        return None, None
+    span = document_locator.text_span
+    expected_quote = block.text[span.start : span.end]
+    if (
+        expected_quote != candidate.quote_or_value
+        or candidate.accessible_excerpt != expected_quote
+    ):
+        status = PaperSummarySupportStatus.unsupported
+        validation_code = "evidence.quote_not_found"
+    elif block.quality is DocumentParseQuality.accepted:
+        status = PaperSummarySupportStatus.supported
+        validation_code = "evidence.supported"
+    else:
+        status = PaperSummarySupportStatus.unverifiable
+        validation_code = "evidence.parse_partial"
+    conflict = None
+    if (
+        candidate.claimed_source_version is not None
+        and candidate.claimed_source_version != source_snapshot.source_version
+    ):
+        conflict = PaperSummarySourceConflict(
+            conflict_id=f"conflict.{candidate.evidence_id}",
+            evidence_id=candidate.evidence_id,
+            source_snapshot_id=source_snapshot.source_snapshot_id,
+            claimed_source_version=candidate.claimed_source_version,
+            source_snapshot_version=source_snapshot.source_version,
+        )
+    admitted = PaperSummaryEvidence(
+        evidence_id=candidate.evidence_id,
+        paper_id=candidate.paper_id,
+        candidate_id=candidate.candidate_id,
+        source_id=candidate.source_id,
+        source_record_id=candidate.source_record_id,
+        source_snapshot_id=candidate.source_snapshot_id,
+        source_snapshot_version=source_snapshot.source_version,
+        source_snapshot_content_hash=source_snapshot.content_hash,
+        locator=locator,
         quote_or_value=candidate.quote_or_value,
         status=status,
         validation_code=validation_code,

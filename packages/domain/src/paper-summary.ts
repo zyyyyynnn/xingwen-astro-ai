@@ -40,7 +40,8 @@ export type PaperSummarySupportStatus =
 /** Evidence locator for a short in-text quote inside a paper. */
 export interface PaperSummaryTextLocator {
   readonly kind: "paper_text";
-  readonly sourceUrl: string;
+  /** Null when the Evidence is DocumentParse-backed (no source URL). */
+  readonly sourceUrl: string | null;
   readonly section: string;
   readonly paragraph: number | null;
   readonly textRange: string;
@@ -106,9 +107,10 @@ export interface PaperSummarySnapshotVersionReview {
 }
 
 export interface PaperSummaryInputVersionsReview {
-  readonly paperCollectionVersionId: DomainEntityId;
-  readonly paperCollectionSchemaVersion: SemanticVersion;
-  readonly paperCollectionOutputHash: ContentHash;
+  /** Null for DocumentParse-backed summaries. */
+  readonly paperCollectionVersionId: DomainEntityId | null;
+  readonly paperCollectionSchemaVersion: SemanticVersion | null;
+  readonly paperCollectionOutputHash: ContentHash | null;
   readonly sourceSnapshots: readonly PaperSummarySnapshotVersionReview[];
 }
 
@@ -171,7 +173,8 @@ export interface PaperSummaryReview {
   readonly paperId: DomainEntityId;
   readonly paper: PaperSummaryPaperReview;
   readonly schemaVersion: SemanticVersion;
-  readonly benchmark: PaperBenchmarkReview;
+  /** Null for DocumentParse-backed summaries. */
+  readonly benchmark: PaperBenchmarkReview | null;
   readonly inputVersions: PaperSummaryInputVersionsReview;
   readonly researchGoal: PaperSummaryStatementReview | null;
   readonly method: PaperSummaryStatementReview | null;

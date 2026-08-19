@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, Path, Query, Request, Response
 from fastapi.responses import Response as RawResponse
@@ -33,6 +33,7 @@ from app.schemas.data_artifact_api import (
     SourceCollectionArtifactRead,
 )
 from app.schemas.enums import GraphEdgeType, GraphNodeType
+from app.schemas.research_input import ResearchInputType
 from app.schemas.graph_artifact_api import (
     GraphArtifactRead,
     GraphEdgeRead,
@@ -108,9 +109,41 @@ def _summary_service(request: Request) -> PaperSummaryReadService:
     input_service = request.app.state.paper_candidate_input_service
     if input_service is not None:
         pdf_source_resolver = input_service.accepted_research_input
+    research_input_resolver = None
+    input_store = request.app.state.research_input_store
+    if input_store is not None:
+        research_input_resolver = _research_input_by_identity(input_store)
     return PaperSummaryReadService(
-        _service(request), pdf_source_resolver=pdf_source_resolver
+        _service(request),
+        pdf_source_resolver=pdf_source_resolver,
+        research_input_resolver=research_input_resolver,
     )
+
+
+def _research_input_by_identity(store: Any):
+    """Authorize a DocumentParse summary PDF by immutable input identity."""
+
+    def resolve(
+        *,
+        session_id: str,
+        project_id: str,
+        research_input_id: str,
+        input_content_hash: str,
+    ):
+        record = store.get(session_id=session_id, input_id=research_input_id)
+        if (
+            record is None
+            or record.project_id != project_id
+            or record.content_hash != input_content_hash
+            or (
+                record.type is not ResearchInputType.pdf
+                and record.mime_type != "application/pdf"
+            )
+        ):
+            return None
+        return record
+
+    return resolve
 
 
 def _scientific_service(request: Request) -> ScientificArtifactReadService:

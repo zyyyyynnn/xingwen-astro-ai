@@ -144,14 +144,16 @@ function EvidenceLocator({
           跳转到对应页码
         </Button>
       ) : null}
-      <Link
-        href={locator.sourceUrl}
-        external
-        className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--oh-accent)] hover:underline"
-      >
-        <span>打开来源</span>
-        <ExternalLink className="size-3" aria-hidden="true" />
-      </Link>
+      {locator.sourceUrl !== null ? (
+        <Link
+          href={locator.sourceUrl}
+          external
+          className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--oh-accent)] hover:underline"
+        >
+          <span>打开来源</span>
+          <ExternalLink className="size-3" aria-hidden="true" />
+        </Link>
+      ) : null}
     </div>
   );
 }

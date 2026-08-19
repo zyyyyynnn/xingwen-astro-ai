@@ -116,11 +116,21 @@ DROP_INVALID` 之一，并记录保留的能力、目标 owner 与验证方式�
 | packages/ui/src/select.tsx | PORT_NEAR_AS_IS | shadcn registry（shadcn-cli@4.16.2）正式接入，图标重绑治理 barrel | packages/ui | packages/ui/src/select.tsx + component-sources.json | PASS（packages/ui/test/select.test.tsx） |
 | apps/api/tests/test_wwt_scene_contract.py | TEST_ONLY | WWT 场景声明式契约、bounded skill 输出、危险远程控制拒绝、能力矩阵真实性 | apps/api/tests | apps/api/tests/test_wwt_scene_contract.py | PASS（9 tests） |
 
+## 5.4 Inosum DocumentParse 摘要运行时（本轮移植，§34-39）
+
+| Old source | Classification | Preserved capability | Target owner | Target file | Verification |
+| --- | --- | --- | --- | --- | --- |
+| apps/api/src/app/services/document_summary.py | PORT_NEAR_AS_IS（适配当前 ModelExecutionRequest/PaperSummaryModelOutput） | 有界 DocumentParse→摘要执行：prepare 先固化不可变身份、prompt 身份、输入/参数 hash、模型输出 hash 校验、token usage、admission 后身份漂移拒绝；超限报 DocumentSummaryInputTooLargeError（不截断） | current services | apps/api/src/app/services/document_summary.py | PASS（test_document_summary_service.py） |
+| services/paper_pipeline/summary.py 文档分支 | PORT_REHOMED | build_document_evidence_candidates（block→可定位 Evidence、确定性 id）、文档输入身份、admit_document（复用唯一 statement admission，不新建发布事务） | current paper_pipeline | services/paper_pipeline/summary.py | PASS |
+| apps/api/src/app/schemas/paper_summary.py 文档输入族 | PORT_REHOMED | locator 双源（source_url 或 DocumentParse locator，互斥）、input_versions 单一输入族约束、producer 模型 provenance 可选字段；collection 既有内容哈希不变（空 document_parses 不入 canonical payload） | current schemas | apps/api/src/app/schemas/paper_summary.py | PASS（fixture/既有测试不破） |
+| apps/api/src/app/services/paper_summary_exports.py | PORT_REHOMED（适配当前六段 schema + §39 文案约束） | exact-version 导出：不查 mutable latest、deterministic、stable content hash；JSON 含机器 provenance，Markdown 不铺内部标识 | current services | apps/api/src/app/services/paper_summary_exports.py | PASS（单测覆盖读取链路） |
+| apps/api/tests/test_paper_summary_chunking.py | TEST_ONLY | section-aware chunking、reading order、chunk Evidence allowlist 测试语义 | apps/api/tests | apps/api/tests/test_paper_summary_chunking.py | PASS（15 tests） |
+
 ## 6. 尚未移植（integration_pending）
 
 以下 REQUIRED 项已完成分类但尚未移植，保持 Draft 状态直至闭合：
 
 | Item | Classification（既定归宿） |
 | --- | --- |
-| Inosum 七段式 PaperSummary 运行时（document_summary + paper_summary_exports + summary/prompt/fixture 七段式迁移） | PORT_NEAR_AS_IS（需迁移 PaperSummary schema 七段式结构，涉及已合并 paper summary 流，单独收口） |
+| Inosum 分块多次执行编排（summary_chunks → 逐块提取 → 确定性归并为最终摘要）与 summarizing_papers 步骤对 DocumentParse 输入的 RunPlan 接线 | PORT_REHOMED（chunker 与有界单次执行已就绪；编排环单独收口） |
 | agent_runtime function-calling producer 审计写路径 | PORT_REHOMED（DB 审计列已就绪） |

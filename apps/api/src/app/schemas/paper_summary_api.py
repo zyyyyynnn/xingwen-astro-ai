@@ -7,7 +7,7 @@ from typing import Annotated
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 from .enums import UpstreamFailureClass
-from .paper_summary import PaperSummaryArtifactContent
+from .paper_summary import PaperSummaryArtifactContent, PaperSummaryPaperMetadata
 from .research_input import ResearchInputRef
 from .core import (
     ContentHash,
@@ -34,17 +34,6 @@ NonBlankString = Annotated[
     Field(min_length=1),
     AfterValidator(_reject_blank),
 ]
-
-
-class PaperSummaryPaperMetadata(BaseModel):
-    """Bibliographic identity projected from the pinned input PaperCollection."""
-
-    model_config = MODEL_CONFIG
-
-    paper_id: Identifier
-    title: NonBlankString
-    authors: tuple[NonBlankString, ...] = ()
-    year: int | None = Field(default=None, ge=1900, le=2100)
 
 
 class PaperSummaryCacheAudit(BaseModel):

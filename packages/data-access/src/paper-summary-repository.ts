@@ -81,7 +81,7 @@ function mapLocator(
   if (dto.kind === "paper_text") {
     return {
       kind: "paper_text",
-      sourceUrl: dto.source_url,
+      sourceUrl: dto.source_url ?? null,
       section: dto.section ?? "",
       paragraph: dto.paragraph ?? null,
       textRange: dto.text_range ?? "",
@@ -90,7 +90,8 @@ function mapLocator(
   }
   return {
     kind: "paper_metadata",
-    sourceUrl: dto.source_url,
+    // The backend contract requires a source URL for metadata locators.
+    sourceUrl: dto.source_url ?? "",
     metadataField: dto.metadata_field ?? "",
   };
 }
@@ -132,9 +133,15 @@ function mapInputVersions(
   dto: PaperSummaryInputVersionsDto,
 ): PaperSummaryInputVersionsReview {
   return {
-    paperCollectionVersionId: mapId(dto.paper_collection_version_id),
-    paperCollectionSchemaVersion: dto.paper_collection_schema_version,
-    paperCollectionOutputHash: dto.paper_collection_output_hash as ContentHash,
+    paperCollectionVersionId:
+      dto.paper_collection_version_id === null ||
+      dto.paper_collection_version_id === undefined
+        ? null
+        : mapId(dto.paper_collection_version_id),
+    paperCollectionSchemaVersion: dto.paper_collection_schema_version ?? null,
+    paperCollectionOutputHash:
+      (dto.paper_collection_output_hash as ContentHash | null | undefined) ??
+      null,
     sourceSnapshots: dto.source_snapshots.map((snapshot) => ({
       sourceSnapshotId: mapId(snapshot.source_snapshot_id),
       sourceId: mapId(snapshot.source_id),
@@ -281,13 +288,15 @@ export function assemblePaperSummaryReview(
       year: read.paper.year ?? null,
     },
     schemaVersion: summary.schema_version,
-    benchmark: {
-      benchmarkId: mapId(summary.benchmark.benchmark_id),
-      benchmarkVersion: summary.benchmark.benchmark_version,
-      scenarioId: mapId(summary.benchmark.scenario_id),
-      schemaVersion: summary.benchmark.schema_version,
-      contentHash: summary.benchmark.content_hash as ContentHash,
-    },
+    benchmark: summary.benchmark
+      ? {
+          benchmarkId: mapId(summary.benchmark.benchmark_id),
+          benchmarkVersion: summary.benchmark.benchmark_version,
+          scenarioId: mapId(summary.benchmark.scenario_id),
+          schemaVersion: summary.benchmark.schema_version,
+          contentHash: summary.benchmark.content_hash as ContentHash,
+        }
+      : null,
     inputVersions: mapInputVersions(summary.input_versions),
     researchGoal: mapStatementOrNull(summary.research_goal),
     method: mapStatementOrNull(summary.method),

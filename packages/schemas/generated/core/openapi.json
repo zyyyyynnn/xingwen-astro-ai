@@ -2841,6 +2841,127 @@
         "title": "DerivationKind",
         "type": "string"
       },
+      "DocumentBBox": {
+        "additionalProperties": false,
+        "description": "Axis-aligned bounding box in absolute PDF points.\n\nCoordinate system (authoritative):\n- origin: top-left corner of the page, ``(0, 0)``.\n- x axis: increases left → right.\n- y axis: increases top → bottom.\n- units: PDF points (1 point = 1/72 inch).\n- page-relative: coordinates are expressed in the page's own width/height\n  space; a locator is only meaningful together with its ``page_index``.\n- normalized: **false** — these are absolute points, not 0..1 ratios.\n- valid range (enforced at the aggregate level, where page geometry is\n  known): ``0 <= x1 <= x2 <= page_width`` and\n  ``0 <= y1 <= y2 <= page_height``.\n- empty/unknown semantics: ``None`` (the enclosing ``DocumentLocator.bbox``\n  is ``None``). A zero-rect MUST NOT be used to mean \"unknown\".",
+        "properties": {
+          "x1": {
+            "minimum": 0.0,
+            "title": "X1",
+            "type": "number"
+          },
+          "x2": {
+            "minimum": 0.0,
+            "title": "X2",
+            "type": "number"
+          },
+          "y1": {
+            "minimum": 0.0,
+            "title": "Y1",
+            "type": "number"
+          },
+          "y2": {
+            "minimum": 0.0,
+            "title": "Y2",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x1",
+          "y1",
+          "x2",
+          "y2"
+        ],
+        "title": "DocumentBBox",
+        "type": "object"
+      },
+      "DocumentLocator": {
+        "additionalProperties": false,
+        "description": "Canonical SINGLE SOURCE OF TRUTH locator back to a parsed element.\n\nA locator is only complete together with the owning ``DocumentParseCandidate``\n(which carries ``research_input_id`` / input ``content_hash``). It must be\npersistable and verifiable by DocumentParse Persistence without re-parsing the source.\n\nThis is the ONLY locator representation in the contract. ``page_index``,\n``block_id``, ``bbox``, ``table_id`` and ``cell_id`` live here and nowhere\nelse; the ``ScientificDataExtractionCandidate`` references a parse solely\nthrough this locator, so contradictory parallel locator fields are\nimpossible by construction.",
+        "properties": {
+          "bbox": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DocumentBBox"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "block_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block Id"
+          },
+          "cell_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cell Id"
+          },
+          "page_index": {
+            "minimum": 0.0,
+            "title": "Page Index",
+            "type": "integer"
+          },
+          "reading_order": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reading Order"
+          },
+          "table_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Table Id"
+          },
+          "text_span": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TextSpan"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "page_index"
+        ],
+        "title": "DocumentLocator",
+        "type": "object"
+      },
       "EntityLevel": {
         "enum": [
           "host_star",
@@ -10267,7 +10388,14 @@
         "description": "Publisher-ready PaperSummary Pipeline content used directly by the core Artifact discriminator.",
         "properties": {
           "benchmark": {
-            "$ref": "#/components/schemas/PaperBenchmarkReference"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaperBenchmarkReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "dataset": {
             "anyOf": [
@@ -10343,6 +10471,16 @@
             "title": "Output Hash",
             "type": "string"
           },
+          "paper": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaperSummaryPaperMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "paper_id": {
             "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
             "title": "Paper Id",
@@ -10384,7 +10522,6 @@
           "schema_version",
           "summary_id",
           "paper_id",
-          "benchmark",
           "input_versions",
           "research_goal",
           "method",
@@ -10462,13 +10599,87 @@
         "title": "PaperSummaryCacheAudit",
         "type": "object"
       },
+      "PaperSummaryDocumentParseReference": {
+        "additionalProperties": false,
+        "properties": {
+          "candidate_parse_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Candidate Parse Id",
+            "type": "string"
+          },
+          "canonical_output_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Canonical Output Hash",
+            "type": "string"
+          },
+          "config_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Config Hash",
+            "type": "string"
+          },
+          "document_parse_id": {
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Document Parse Id",
+            "type": "string"
+          },
+          "input_content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Input Content Hash",
+            "type": "string"
+          },
+          "parser_profile_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Parser Profile Id",
+            "type": "string"
+          },
+          "parser_profile_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Parser Profile Version",
+            "type": "string"
+          },
+          "research_input_id": {
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Research Input Id",
+            "type": "string"
+          },
+          "source_snapshot_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Source Snapshot Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document_parse_id",
+          "candidate_parse_id",
+          "research_input_id",
+          "source_snapshot_id",
+          "input_content_hash",
+          "canonical_output_hash",
+          "parser_profile_id",
+          "parser_profile_version",
+          "config_hash"
+        ],
+        "title": "PaperSummaryDocumentParseReference",
+        "type": "object"
+      },
       "PaperSummaryEvidence": {
         "additionalProperties": false,
         "properties": {
           "candidate_id": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-            "title": "Candidate Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+                "type": "string"
+              },
+              {
+                "maxLength": 36,
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              }
+            ],
+            "title": "Candidate Id"
           },
           "evidence_id": {
             "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
@@ -10545,6 +10756,45 @@
       "PaperSummaryEvidenceLocator": {
         "additionalProperties": false,
         "properties": {
+          "document_locator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DocumentLocator"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "document_parse_id": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+                "type": "string"
+              },
+              {
+                "maxLength": 36,
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Parse Id"
+          },
+          "document_parse_output_hash": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Parse Output Hash"
+          },
           "kind": {
             "enum": [
               "paper_text",
@@ -10611,11 +10861,18 @@
             "title": "Section"
           },
           "source_url": {
-            "format": "uri",
-            "maxLength": 2083,
-            "minLength": 1,
-            "title": "Source Url",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uri",
+                "maxLength": 2083,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
           },
           "text_range": {
             "anyOf": [
@@ -10632,8 +10889,7 @@
           }
         },
         "required": [
-          "kind",
-          "source_url"
+          "kind"
         ],
         "title": "PaperSummaryEvidenceLocator",
         "type": "object"
@@ -10641,21 +10897,50 @@
       "PaperSummaryInputVersions": {
         "additionalProperties": false,
         "properties": {
+          "document_parses": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PaperSummaryDocumentParseReference"
+            },
+            "title": "Document Parses",
+            "type": "array"
+          },
           "paper_collection_output_hash": {
-            "pattern": "^sha256:[0-9a-f]{64}$",
-            "title": "Paper Collection Output Hash",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paper Collection Output Hash"
           },
           "paper_collection_schema_version": {
-            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
-            "title": "Paper Collection Schema Version",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paper Collection Schema Version"
           },
           "paper_collection_version_id": {
-            "maxLength": 36,
-            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-            "title": "Paper Collection Version Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paper Collection Version Id"
           },
           "source_snapshots": {
             "items": {
@@ -10666,21 +10951,46 @@
           }
         },
         "required": [
-          "paper_collection_version_id",
-          "paper_collection_schema_version",
-          "paper_collection_output_hash",
           "source_snapshots"
         ],
         "title": "PaperSummaryInputVersions",
         "type": "object"
       },
+      "PaperSummaryModelUsage": {
+        "additionalProperties": false,
+        "properties": {
+          "completion_tokens": {
+            "minimum": 0.0,
+            "title": "Completion Tokens",
+            "type": "integer"
+          },
+          "prompt_tokens": {
+            "minimum": 0.0,
+            "title": "Prompt Tokens",
+            "type": "integer"
+          },
+          "total_tokens": {
+            "minimum": 0.0,
+            "title": "Total Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "prompt_tokens",
+          "completion_tokens",
+          "total_tokens"
+        ],
+        "title": "PaperSummaryModelUsage",
+        "type": "object"
+      },
       "PaperSummaryPaperMetadata": {
         "additionalProperties": false,
-        "description": "Bibliographic identity projected from the pinned input PaperCollection.",
+        "description": "Bibliographic identity of the summarized paper.\n\nCollection-backed summaries project it from the pinned PaperCollection;\nDocumentParse-backed summaries carry it explicitly.",
         "properties": {
           "authors": {
             "default": [],
             "items": {
+              "maxLength": 4000,
               "minLength": 1,
               "type": "string"
             },
@@ -10688,12 +10998,12 @@
             "type": "array"
           },
           "paper_id": {
-            "maxLength": 128,
-            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
             "title": "Paper Id",
             "type": "string"
           },
           "title": {
+            "maxLength": 4000,
             "minLength": 1,
             "title": "Title",
             "type": "string"
@@ -10786,6 +11096,19 @@
             "title": "Model Response Hash",
             "type": "string"
           },
+          "model_revision": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Revision"
+          },
           "output_hash": {
             "anyOf": [
               {
@@ -10841,6 +11164,32 @@
             "title": "Prompt Version",
             "type": "string"
           },
+          "provider": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "provider_request_id": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Request Id"
+          },
           "run_id": {
             "anyOf": [
               {
@@ -10872,6 +11221,16 @@
             "default": "summarizing_papers",
             "title": "Step Key",
             "type": "string"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaperSummaryModelUsage"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -16250,6 +16609,28 @@
           "text_content"
         ],
         "title": "TextResearchInputRequest",
+        "type": "object"
+      },
+      "TextSpan": {
+        "additionalProperties": false,
+        "description": "Character-offset span within a block's raw text (0-based, inclusive start).",
+        "properties": {
+          "end": {
+            "minimum": 0.0,
+            "title": "End",
+            "type": "integer"
+          },
+          "start": {
+            "minimum": 0.0,
+            "title": "Start",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "TextSpan",
         "type": "object"
       },
       "TransformationEvidence": {

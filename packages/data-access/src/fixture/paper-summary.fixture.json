@@ -16,7 +16,7 @@
     "version_number": 1,
     "supersedes_version_id": null,
     "source_mode": "fixture",
-    "content_hash": "sha256:18d0c871bf67b6a261f7393fc5c98a56ad650f96c367d5a34dd2451da1898698",
+    "content_hash": "sha256:3c26760f5d1774fb2276007385cc1fb849f432657a8983fb0c65b480264a8c7d",
     "input_hash": "sha256:742203d25c8ca4aa2539e940eafadfdf686b4bd7836a856e7d507f3d9168e9cf",
     "created_at": "2026-07-21T08:25:00Z",
     "paper": {
@@ -30,6 +30,7 @@
       "schema_version": "1.0.0",
       "summary_id": "summary.1b5a8a2352dcf1a71b7c1971",
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "paper": null,
       "benchmark": {
         "benchmark_id": "exoplanet_host_star.paper_reasoning",
         "schema_version": "2.0.0",
@@ -42,6 +43,7 @@
         "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
         "paper_collection_schema_version": "2.1.0",
         "paper_collection_output_hash": "sha256:93eeca827498b3217df9a214f8625af045eae3aa571ece41f3ed295e5b8ef77e",
+        "document_parses": [],
         "source_snapshots": [
           {
             "source_snapshot_id": "snapshot.crossref.afb7bb833771264a51aeeef7",
@@ -114,6 +116,9 @@
             "paragraph": null,
             "text_range": null,
             "metadata_field": "year",
+            "document_parse_id": null,
+            "document_parse_output_hash": null,
+            "document_locator": null,
             "page_index": null
           },
           "quote_or_value": "2019",
@@ -136,6 +141,9 @@
             "paragraph": null,
             "text_range": null,
             "metadata_field": "doi",
+            "document_parse_id": null,
+            "document_parse_output_hash": null,
+            "document_locator": null,
             "page_index": null
           },
           "quote_or_value": "10.3847/1538-3881/ab3467",
@@ -158,6 +166,9 @@
             "paragraph": null,
             "text_range": null,
             "metadata_field": "title",
+            "document_parse_id": null,
+            "document_parse_output_hash": null,
+            "document_locator": null,
             "page_index": null
           },
           "quote_or_value": "The Revised TESS Input Catalog and Candidate Target List",
@@ -180,6 +191,9 @@
             "paragraph": null,
             "text_range": "paragraph 2, sentences 1-3",
             "metadata_field": null,
+            "document_parse_id": null,
+            "document_parse_output_hash": null,
+            "document_locator": null,
             "page_index": null
           },
           "quote_or_value": "Stellar parameters are compiled from all-sky photometric catalogs and parallax measurements.",
@@ -196,6 +210,10 @@
         "producer_name": "xingwen.paper_summary",
         "producer_version": "1.0.0",
         "model_name": "fixture-model",
+        "model_revision": null,
+        "provider": null,
+        "provider_request_id": null,
+        "usage": null,
         "prompt_name": "paper_summary",
         "prompt_version": "2.0.2",
         "prompt_hash": "sha256:dde151d161caec0e5c737adbed4ad65b9c2f9412591797c773d52782f8bc4f95",
@@ -205,6 +223,7 @@
           "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
           "paper_collection_schema_version": "2.1.0",
           "paper_collection_output_hash": "sha256:93eeca827498b3217df9a214f8625af045eae3aa571ece41f3ed295e5b8ef77e",
+          "document_parses": [],
           "source_snapshots": [
             {
               "source_snapshot_id": "snapshot.crossref.afb7bb833771264a51aeeef7",
@@ -251,7 +270,7 @@
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
       "input_hash": "sha256:742203d25c8ca4aa2539e940eafadfdf686b4bd7836a856e7d507f3d9168e9cf",
-      "output_hash": "sha256:18d0c871bf67b6a261f7393fc5c98a56ad650f96c367d5a34dd2451da1898698",
+      "output_hash": "sha256:3c26760f5d1774fb2276007385cc1fb849f432657a8983fb0c65b480264a8c7d",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",
@@ -375,6 +394,7 @@
       "schema_version": "1.0.0",
       "summary_id": "summary.1b5a8a2352dcf1a71b7c1971",
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "paper": null,
       "benchmark": {
         "benchmark_id": "exoplanet_host_star.paper_reasoning",
         "schema_version": "2.0.0",
@@ -387,6 +407,7 @@
         "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
         "paper_collection_schema_version": "2.1.0",
         "paper_collection_output_hash": "sha256:93eeca827498b3217df9a214f8625af045eae3aa571ece41f3ed295e5b8ef77e",
+        "document_parses": [],
         "source_snapshots": [
           {
             "source_snapshot_id": "snapshot.crossref.afb7bb833771264a51aeeef7",
@@ -459,6 +480,9 @@
             "paragraph": null,
             "text_range": null,
             "metadata_field": "year",
+            "document_parse_id": null,
+            "document_parse_output_hash": null,
+            "document_locator": null,
             "page_index": null
           },
           "quote_or_value": "2019",
@@ -481,6 +505,9 @@
             "paragraph": null,
             "text_range": null,
             "metadata_field": "doi",
+            "document_parse_id": null,
+            "document_parse_output_hash": null,
+            "document_locator": null,
             "page_index": null
           },
           "quote_or_value": "10.3847/1538-3881/ab3467",
@@ -503,6 +530,9 @@
             "paragraph": null,
             "text_range": null,
             "metadata_field": "title",
+            "document_parse_id": null,
+            "document_parse_output_hash": null,
+            "document_locator": null,
             "page_index": null
           },
           "quote_or_value": "The Revised TESS Input Catalog and Candidate Target List",
@@ -525,6 +555,9 @@
             "paragraph": null,
             "text_range": "paragraph 2, sentences 1-3",
             "metadata_field": null,
+            "document_parse_id": null,
+            "document_parse_output_hash": null,
+            "document_locator": null,
             "page_index": null
           },
           "quote_or_value": "Stellar parameters are compiled from all-sky photometric catalogs and parallax measurements.",
@@ -541,6 +574,10 @@
         "producer_name": "xingwen.paper_summary",
         "producer_version": "1.0.0",
         "model_name": "fixture-model",
+        "model_revision": null,
+        "provider": null,
+        "provider_request_id": null,
+        "usage": null,
         "prompt_name": "paper_summary",
         "prompt_version": "2.0.2",
         "prompt_hash": "sha256:dde151d161caec0e5c737adbed4ad65b9c2f9412591797c773d52782f8bc4f95",
@@ -550,6 +587,7 @@
           "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
           "paper_collection_schema_version": "2.1.0",
           "paper_collection_output_hash": "sha256:93eeca827498b3217df9a214f8625af045eae3aa571ece41f3ed295e5b8ef77e",
+          "document_parses": [],
           "source_snapshots": [
             {
               "source_snapshot_id": "snapshot.crossref.afb7bb833771264a51aeeef7",
@@ -571,7 +609,7 @@
       "input_hash": "sha256:742203d25c8ca4aa2539e940eafadfdf686b4bd7836a856e7d507f3d9168e9cf",
       "output_hash": "sha256:ac5df02780ea4ee1a266a6bf0401a207c385bd06da8423c5025912be3802db3b"
     },
-    "content_hash": "sha256:18d0c871bf67b6a261f7393fc5c98a56ad650f96c367d5a34dd2451da1898698",
+    "content_hash": "sha256:3c26760f5d1774fb2276007385cc1fb849f432657a8983fb0c65b480264a8c7d",
     "input_hash": "sha256:742203d25c8ca4aa2539e940eafadfdf686b4bd7836a856e7d507f3d9168e9cf",
     "source_mode": "fixture",
     "producer": {
@@ -620,7 +658,7 @@
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
       "input_hash": "sha256:742203d25c8ca4aa2539e940eafadfdf686b4bd7836a856e7d507f3d9168e9cf",
-      "output_hash": "sha256:18d0c871bf67b6a261f7393fc5c98a56ad650f96c367d5a34dd2451da1898698",
+      "output_hash": "sha256:3c26760f5d1774fb2276007385cc1fb849f432657a8983fb0c65b480264a8c7d",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",

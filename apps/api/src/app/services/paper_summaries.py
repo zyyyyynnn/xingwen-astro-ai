@@ -24,6 +24,9 @@ from app.services.artifacts import ArtifactReadService
 #: Resolves the authorized full-text ResearchInput for one summarized paper.
 PdfSourceResolver = Callable[..., Any]
 
+#: Resolves a ResearchInput by its immutable identity for document summaries.
+DocumentPdfSourceResolver = Callable[..., Any]
+
 
 class PaperSummaryReadService:
     """Validate and project PaperSummary Pipeline content without repeating pipeline logic."""
@@ -33,9 +36,11 @@ class PaperSummaryReadService:
         artifacts: ArtifactReadService,
         *,
         pdf_source_resolver: PdfSourceResolver | None = None,
+        research_input_resolver: DocumentPdfSourceResolver | None = None,
     ) -> None:
         self._artifacts = artifacts
         self._pdf_source_resolver = pdf_source_resolver
+        self._research_input_resolver = research_input_resolver
 
     def get_summary(self, *, version_id: str, session_id: str) -> PaperSummaryRead:
         version = self._artifacts.get_version(
@@ -53,18 +58,41 @@ class PaperSummaryReadService:
             )
 
         summary = self._validated_summary(version)
-        collection = self._validate_input_collection(version, summary, session_id)
-        snapshot_ids = self._validate_snapshots_and_evidence(
-            version,
-            summary,
-            collection,
-        )
-        cache_audits = _cache_audits(
-            collection,
-            snapshot_ids,
-            version.source_snapshots,
-            source_mode=version.source_mode,
-        )
+        if summary.input_versions.paper_collection_version_id is not None:
+            collection = self._validate_input_collection(version, summary, session_id)
+            expected_snapshot_keys = _collection_snapshot_keys(collection, summary)
+            paper = _paper_metadata(collection, summary.paper_id)
+            snapshot_ids = self._validate_snapshots_and_evidence(
+                version,
+                summary,
+                expected_snapshot_keys,
+            )
+            cache_audits = _cache_audits(
+                collection,
+                snapshot_ids,
+                version.source_snapshots,
+                source_mode=version.source_mode,
+            )
+        else:
+            if summary.paper is None or summary.input_versions.document_parses == ():
+                raise _schema_problem()
+            if version.source_mode is SourceMode.cached:
+                raise _provenance_problem()
+            paper = summary.paper
+            expected_snapshot_keys = {
+                reference.source_snapshot_id: (
+                    reference.source_id,
+                    reference.source_version,
+                    reference.content_hash,
+                )
+                for reference in summary.input_versions.source_snapshots
+            }
+            self._validate_snapshots_and_evidence(
+                version,
+                summary,
+                expected_snapshot_keys,
+            )
+            cache_audits = ()
         return PaperSummaryRead(
             artifact_version_id=version.id,
             artifact_id=version.artifact_id,
@@ -108,16 +136,33 @@ class PaperSummaryReadService:
                 "The ArtifactVersion is not a paper_summary",
             )
         summary = self._validated_summary(version)
-        self._validate_input_collection(version, summary, session_id)
-        if self._pdf_source_resolver is None:
+        if summary.input_versions.paper_collection_version_id is not None:
+            self._validate_input_collection(version, summary, session_id)
+            if self._pdf_source_resolver is None:
+                return PaperSummaryPdfSourceRead(research_input=None)
+            record = self._pdf_source_resolver(
+                session_id=session_id,
+                project_id=str(version.project_id),
+                paper_collection_version_id=str(
+                    summary.input_versions.paper_collection_version_id
+                ),
+                canonical_paper_id=summary.paper_id,
+            )
+            if record is None:
+                return PaperSummaryPdfSourceRead(research_input=None)
+            return PaperSummaryPdfSourceRead(research_input=record.to_ref())
+        parse_reference = (
+            summary.input_versions.document_parses[0]
+            if summary.input_versions.document_parses
+            else None
+        )
+        if parse_reference is None or self._research_input_resolver is None:
             return PaperSummaryPdfSourceRead(research_input=None)
-        record = self._pdf_source_resolver(
+        record = self._research_input_resolver(
             session_id=session_id,
             project_id=str(version.project_id),
-            paper_collection_version_id=str(
-                summary.input_versions.paper_collection_version_id
-            ),
-            canonical_paper_id=summary.paper_id,
+            research_input_id=str(parse_reference.research_input_id),
+            input_content_hash=parse_reference.input_content_hash,
         )
         if record is None:
             return PaperSummaryPdfSourceRead(research_input=None)
@@ -152,6 +197,23 @@ class PaperSummaryReadService:
             or runtime_producer.producer.prompt_hash != producer.prompt_hash
             or runtime_producer.producer.parameters_hash != producer.parameters_hash
             or version.producer != runtime_producer.producer
+            or (
+                producer.model_revision is not None
+                and runtime_producer.producer.explicit_revision != producer.model_revision
+            )
+            or (
+                producer.provider is not None
+                and runtime_producer.producer.model_provider != producer.provider
+            )
+            or (
+                producer.provider_request_id is not None
+                and runtime_producer.provider_request_id != producer.provider_request_id
+            )
+            or (
+                producer.usage is not None
+                and runtime_producer.token_usage
+                != producer.usage.model_dump(mode="json")
+            )
         ):
             raise _schema_problem()
         if producer.run_id is not None and producer.run_id != version.created_by_run_id:
@@ -198,9 +260,8 @@ class PaperSummaryReadService:
     def _validate_snapshots_and_evidence(
         version: ArtifactVersionDetail,
         summary: PaperSummaryArtifactContent,
-        collection: PaperCollection,
+        expected_snapshot_keys: Mapping[str, tuple[str, str, str]],
     ) -> dict[str, str]:
-        expected_snapshot_keys = _collection_snapshot_keys(collection, summary)
         persisted_snapshots = _snapshot_map(version.source_snapshots)
         if set(version.source_snapshot_ids) != {
             item.id for item in version.source_snapshots

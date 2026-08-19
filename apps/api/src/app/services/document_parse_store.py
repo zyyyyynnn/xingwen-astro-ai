@@ -194,7 +194,7 @@ class DocumentParseService:
         candidate = await self.get_candidate(
             project_id=project_id, document_parse_id=document_parse_id
         )
-        _validate_locator(candidate, locator)
+        validate_document_locator(candidate, locator)
         return self._repository.persist_locator(
             project_id=project_id,
             document_parse_id=document_parse_id,
@@ -615,7 +615,7 @@ def _source_snapshot_for_input(
     return snapshot, snapshot.id
 
 
-def _validate_locator(
+def validate_document_locator(
     candidate: DocumentParseCandidate, locator: DocumentLocator
 ) -> None:
     pages = {page.page_index: page for page in candidate.pages}
@@ -786,4 +786,5 @@ __all__ = [
     "PersistedDocumentLocator",
     "document_parse_identity_hash",
     "document_parse_payload_semantic_hash",
+    "validate_document_locator",
 ]
