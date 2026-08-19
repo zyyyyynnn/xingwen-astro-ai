@@ -132,8 +132,8 @@
       "category": "function",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "JSON and Markdown export through the artifact export seam.",
+      "implementation_state": "implemented",
+      "notes": "Exact-version JSON/Markdown export; Markdown keeps internal identifiers out of the reading copy, JSON carries machine provenance.",
       "reference": "inosum",
       "reference_sources": [
         "inosum/Auto_doc_analysis_summarize.py"
@@ -141,7 +141,10 @@
       "verification": [
         "unit"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/api/src/app/services/paper_summary_exports.py",
+        "apps/api/src/app/routers/artifacts.py"
+      ]
     },
     {
       "capability_id": "inosum.presentation.seven_section_report",
@@ -310,56 +313,74 @@
       "category": "interaction",
       "disposition": "adopted",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Requires the PR #240 Report | PDF workspace shell.",
+      "implementation_state": "implemented",
+      "notes": "Resizable report/PDF split panes keep independent reading state.",
       "reference": "inosum",
       "reference_sources": [
         "inosum/Auto_doc_analysis_summarize.py"
       ],
-      "verification": [],
-      "xingwen_owners": []
+      "verification": [
+        "component"
+      ],
+      "xingwen_owners": [
+        "apps/workspace/src/components/paper-result-workspace.tsx"
+      ]
     },
     {
       "capability_id": "inosum.interaction.fullscreen",
       "category": "interaction",
       "disposition": "adopted",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Requires the PR #240 result fullscreen shell.",
+      "implementation_state": "implemented",
+      "notes": "Fullscreen report workspace renders the admitted summary.",
       "reference": "inosum",
       "reference_sources": [
         "inosum/Auto_doc_analysis_summarize.py"
       ],
-      "verification": [],
-      "xingwen_owners": []
+      "verification": [
+        "component"
+      ],
+      "xingwen_owners": [
+        "apps/workspace/src/components/paper-result-workspace.tsx",
+        "apps/workspace/src/components/artifact-fullscreen-workspace.tsx"
+      ]
     },
     {
       "capability_id": "inosum.interaction.evidence_pdf_jump",
       "category": "interaction",
       "disposition": "adopted",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Requires the PR #240 PDF viewer shell; locator payload is already implemented.",
+      "implementation_state": "implemented",
+      "notes": "Evidence selection queues a real locator page jump after viewer readiness; never guesses pages.",
       "reference": "inosum",
       "reference_sources": [
         "inosum/Auto_doc_analysis_summarize.py"
       ],
-      "verification": [],
-      "xingwen_owners": []
+      "verification": [
+        "component"
+      ],
+      "xingwen_owners": [
+        "apps/workspace/src/components/paper-result-workspace.tsx"
+      ]
     },
     {
       "capability_id": "inosum.interaction.right_result_click",
       "category": "interaction",
       "disposition": "adopted",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Requires the PR #240 right result index.",
+      "implementation_state": "implemented",
+      "notes": "Thread result block opens the pinned ArtifactVersion fullscreen.",
       "reference": "inosum",
       "reference_sources": [
         "inosum/Auto_doc_analysis_summarize.py"
       ],
-      "verification": [],
-      "xingwen_owners": []
+      "verification": [
+        "component"
+      ],
+      "xingwen_owners": [
+        "apps/workspace/src/presentation/artifact-renderer-registry.tsx",
+        "apps/workspace/src/router.tsx"
+      ]
     },
     {
       "capability_id": "autoastro.data.loading",
@@ -736,8 +757,8 @@
       "category": "presentation",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Analysis report content: question, samples, tests, effect sizes, significance, limitations.",
+      "implementation_state": "implemented",
+      "notes": "Metrics, findings, limitations and human-review warnings.",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/code/analyze.py"
@@ -745,15 +766,18 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-content/analysis-report-content.tsx",
+        "apps/workspace/src/presentation/artifact-renderer-registry.tsx"
+      ]
     },
     {
       "capability_id": "autoastro.presentation.chart",
       "category": "presentation",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Declarative chart renderer for scatter/line/bar/histogram/heatmap/time-series.",
+      "implementation_state": "implemented",
+      "notes": "Typed chart spec rendered through the internal Vega-Lite builder with table/text fallback; no raw specs or expressions.",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/code/prompt.py"
@@ -761,15 +785,18 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-chart.tsx",
+        "apps/workspace/src/components/scientific-content/visualization-content.tsx"
+      ]
     },
     {
       "capability_id": "autoastro.presentation.model_evaluation",
       "category": "presentation",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Split disclosure, baselines, metrics, confusion matrix, cross-validation.",
+      "implementation_state": "implemented",
+      "notes": "Split strategy, metrics versus baseline, limitations.",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/code/prompt.py"
@@ -777,15 +804,18 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-content/model-evaluation-content.tsx",
+        "apps/workspace/src/presentation/artifact-renderer-registry.tsx"
+      ]
     },
     {
       "capability_id": "autoastro.presentation.model_artifact",
       "category": "presentation",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Model type, task, input requirements, output semantics, training summary, and download; no operator lists or hashes.",
+      "implementation_state": "implemented",
+      "notes": "ONNX-only binary download through the immutable content channel.",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/model/self_model/class_model.py"
@@ -793,15 +823,18 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-content/model-evaluation-content.tsx",
+        "apps/workspace/src/presentation/artifact-renderer-registry.tsx"
+      ]
     },
     {
       "capability_id": "autoastro.presentation.time_series",
       "category": "presentation",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Time-series chart with explicit ordering semantics.",
+      "implementation_state": "implemented",
+      "notes": "Time-scale identity, period analysis and time-axis charts.",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/model/self_model/pre_model.py"
@@ -809,15 +842,18 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-content/light-curve-content.tsx",
+        "apps/workspace/src/components/scientific-chart.tsx"
+      ]
     },
     {
       "capability_id": "autoastro.presentation.quality_limitations",
       "category": "presentation",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Failures, partial results, and limitations are first-class content.",
+      "implementation_state": "implemented",
+      "notes": "Limitations plus human-required warnings surfaced honestly.",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/code/analyze.py"
@@ -825,7 +861,10 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-content/analysis-report-content.tsx",
+        "apps/workspace/src/components/scientific-content/model-evaluation-content.tsx"
+      ]
     },
     {
       "capability_id": "autoastro.interaction.table_sorting",
@@ -886,8 +925,8 @@
       "category": "interaction",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Tooltip and legend toggle on declarative charts; zoom/pan only where the chart library supports it natively.",
+      "implementation_state": "implemented",
+      "notes": "Vega tooltips plus deterministic table fallback and finalize.",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/code/code_executor.py"
@@ -895,7 +934,9 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-chart.tsx"
+      ]
     },
     {
       "capability_id": "autoastro.interaction.model_download",
@@ -920,14 +961,19 @@
       "category": "interaction",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Requires the PR #240 right result index; console input selection is not migrated.",
+      "implementation_state": "implemented",
+      "notes": "Result selection pins one ArtifactVersion into fullscreen.",
       "reference": "autoastro",
       "reference_sources": [
         "AutoAstro/AutoAstro/code/load_and_analyze_data.py"
       ],
-      "verification": [],
-      "xingwen_owners": []
+      "verification": [
+        "component"
+      ],
+      "xingwen_owners": [
+        "apps/workspace/src/presentation/artifact-renderer-registry.tsx",
+        "apps/workspace/src/router.tsx"
+      ]
     },
     {
       "capability_id": "autoastro.exec.arbitrary_code_execution",
@@ -1424,8 +1470,8 @@
       "category": "presentation",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Spectrum display with units and provenance instead of a downloaded FITS file.",
+      "implementation_state": "implemented",
+      "notes": "Units, sampling, S/N, detected lines with uncertainty.",
       "reference": "mavis",
       "reference_sources": [
         "mavis/data/api_for_prompt/getData2.json"
@@ -1433,15 +1479,18 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-content/spectrum-content.tsx",
+        "apps/workspace/src/presentation/artifact-renderer-registry.tsx"
+      ]
     },
     {
       "capability_id": "mavis.presentation.light_curve",
       "category": "presentation",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Light-curve display with time and magnitude axes.",
+      "implementation_state": "implemented",
+      "notes": "Time-scale identity, quality filtering, period peaks.",
       "reference": "mavis",
       "reference_sources": [
         "mavis/data/api_for_prompt/getData2.json"
@@ -1449,15 +1498,18 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-content/light-curve-content.tsx",
+        "apps/workspace/src/presentation/artifact-renderer-registry.tsx"
+      ]
     },
     {
       "capability_id": "mavis.presentation.fits",
       "category": "presentation",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "FITS display in the WWT viewport with stretch and colormap controls.",
+      "implementation_state": "implemented",
+      "notes": "FITS visualization renders through the WWT viewport with the immutable binary read channel.",
       "reference": "mavis",
       "reference_sources": [
         "mavis/local_tools.py"
@@ -1465,15 +1517,18 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/scientific-content/visualization-content.tsx",
+        "apps/workspace/src/components/wwt-viewport.tsx"
+      ]
     },
     {
       "capability_id": "mavis.presentation.wwt_scene",
       "category": "presentation",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Declarative WWT viewport with text and table alternatives.",
+      "implementation_state": "implemented",
+      "notes": "Single engine session with lease/supersession, declarative scene spec, grids, observer, time, overlays and readback.",
       "reference": "mavis",
       "reference_sources": [
         "mavis/web_django/myvue/src/components/WWTComponent.vue"
@@ -1481,7 +1536,11 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-session.ts",
+        "apps/workspace/src/components/wwt-viewport.tsx",
+        "apps/workspace/src/components/wwt-scene-controls.tsx"
+      ]
     },
     {
       "capability_id": "mavis.presentation.event_list",
@@ -1526,8 +1585,8 @@
       "category": "presentation",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Explicit RA hours / Dec degrees presentation with readback.",
+      "implementation_state": "implemented",
+      "notes": "RA hours / Dec degrees center presentation with real readback.",
       "reference": "mavis",
       "reference_sources": [
         "mavis/web_django/myvue/src/components/WWTComponent.vue"
@@ -1535,15 +1594,18 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-scene-controls.tsx",
+        "apps/workspace/src/components/wwt-viewport.tsx"
+      ]
     },
     {
       "capability_id": "mavis.interaction.wwt_navigation",
       "category": "interaction",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Declarative center, track, field of view, and camera roll.",
+      "implementation_state": "implemented",
+      "notes": "Coordinate/FOV inputs re-render the bounded scene on the fullscreen presentation state only.",
       "reference": "mavis",
       "reference_sources": [
         "mavis/data/api_for_prompt/wwt_agent.json"
@@ -1551,15 +1613,17 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-scene-controls.tsx"
+      ]
     },
     {
       "capability_id": "mavis.interaction.wwt_time_control",
       "category": "interaction",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Fixed time, playback rate, pause, and system clock.",
+      "implementation_state": "implemented",
+      "notes": "System clock, paused observation time and bounded playback rate.",
       "reference": "mavis",
       "reference_sources": [
         "mavis/data/api_for_prompt/wwt_agent.json"
@@ -1567,15 +1631,17 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-scene-controls.tsx"
+      ]
     },
     {
       "capability_id": "mavis.interaction.wwt_layers",
       "category": "interaction",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "FITS and table layers with cleanup and failed-layer recovery.",
+      "implementation_state": "implemented",
+      "notes": "Layer visibility toggles re-render the bounded scene on presentation state only.",
       "reference": "mavis",
       "reference_sources": [
         "mavis/data/api_for_prompt/wwt_agent2.json"
@@ -1583,15 +1649,17 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-scene-controls.tsx"
+      ]
     },
     {
       "capability_id": "mavis.interaction.wwt_annotation",
       "category": "interaction",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Circle, line, point, and label annotations with typed coordinates.",
+      "implementation_state": "implemented",
+      "notes": "Published declarative annotations render in the scene; visibility is user-controlled while interactive creation stays out of the declarative boundary.",
       "reference": "mavis",
       "reference_sources": [
         "mavis/data/api_for_prompt/wwt_agent.json"
@@ -1599,15 +1667,17 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-scene-controls.tsx"
+      ]
     },
     {
       "capability_id": "mavis.interaction.wwt_tour",
       "category": "interaction",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Tour step navigation with hold durations and autoplay.",
+      "implementation_state": "implemented",
+      "notes": "Bounded tour playback start/stop over the published tour steps.",
       "reference": "mavis",
       "reference_sources": [
         "mavis/data/api_for_prompt/wwt_agent.json"
@@ -1615,15 +1685,17 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-scene-controls.tsx"
+      ]
     },
     {
       "capability_id": "mavis.interaction.wwt_readback",
       "category": "interaction",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Current center, field of view, roll, and time readback without polling loops.",
+      "implementation_state": "implemented",
+      "notes": "Actual center/FOV/roll/time readback after scene render.",
       "reference": "mavis",
       "reference_sources": [
         "mavis/web_django/myvue/src/components/WWTComponent.vue"
@@ -1631,15 +1703,17 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-viewport.tsx"
+      ]
     },
     {
       "capability_id": "mavis.interaction.wwt_png_export",
       "category": "interaction",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Explicit user-triggered PNG export with semantic file names.",
+      "implementation_state": "implemented",
+      "notes": "Canvas PNG capture with honest failure reporting.",
       "reference": "mavis",
       "reference_sources": [
         "mavis/web_django/myvue/src/components/WWTComponent.vue"
@@ -1647,15 +1721,17 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-viewport.tsx"
+      ]
     },
     {
       "capability_id": "mavis.interaction.view_interaction",
       "category": "interaction",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Keyboard-focusable engine-native pan/zoom interaction.",
+      "implementation_state": "implemented",
+      "notes": "Engine canvas mount with focus, loading/error/retry and text fallback; real WebGL behavior remains browser-verification territory.",
       "reference": "mavis",
       "reference_sources": [
         "mavis/web_django/myvue/src/components/WWTComponent.vue"
@@ -1663,21 +1739,28 @@
       "verification": [
         "component"
       ],
-      "xingwen_owners": []
+      "xingwen_owners": [
+        "apps/workspace/src/components/wwt-viewport.tsx"
+      ]
     },
     {
       "capability_id": "mavis.interaction.result_selection",
       "category": "interaction",
       "disposition": "replaced",
       "eligible": true,
-      "implementation_state": "integration_pending",
-      "notes": "Requires the PR #240 right result index; the reference screenshot-polling page is not migrated.",
+      "implementation_state": "implemented",
+      "notes": "Result selection pins one ArtifactVersion into fullscreen.",
       "reference": "mavis",
       "reference_sources": [
         "mavis/web_django/myvue/src/views/Tt.vue"
       ],
-      "verification": [],
-      "xingwen_owners": []
+      "verification": [
+        "component"
+      ],
+      "xingwen_owners": [
+        "apps/workspace/src/presentation/artifact-renderer-registry.tsx",
+        "apps/workspace/src/router.tsx"
+      ]
     },
     {
       "capability_id": "mavis.exec.websocket_remote_control",

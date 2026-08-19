@@ -134,4 +134,4 @@ DROP_INVALID` 之一，并记录保留的能力、目标 owner 与验证方式�
 
 | Item | Classification（既定归宿） |
 | --- | --- |
-| Inosum summarizing_papers 步骤对 DocumentParse 输入的 RunPlan 接线（ResearchInput PDF → DocumentParse → 分块摘要 → 发布缝合） | PORT_REHOMED（运行时与分块编排已就绪；生产链接线单独收口） |
+| Inosum summarizing_papers 步骤对 DocumentParse 输入的 RunPlan 接线（ResearchInput PDF → DocumentParse → 分块摘要 → 发布缝合） | BLOCKED（§33 停止并报告：生产 parser 尚不存在——SCIENTIFIC_DOCUMENT_PARSING_CONTRACT §10/§14 明确 native baseline 仅 benchmark、visual adapter 未实现；运行时与分块编排已就绪，待生产 parser 授权后接线） |
