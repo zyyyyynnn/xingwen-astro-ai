@@ -27,8 +27,8 @@ from services.paper_pipeline.summary import (
     build_document_summary_input_identity,
 )
 
-_MAX_EVIDENCE_ITEMS = 512
-_MAX_EVIDENCE_CHARACTERS = 200_000
+MAX_SINGLE_EXECUTION_EVIDENCE_ITEMS = 512
+MAX_SINGLE_EXECUTION_EVIDENCE_CHARACTERS = 200_000
 
 
 class DocumentSummaryInputTooLargeError(ValueError):
@@ -105,8 +105,8 @@ class DocumentSummaryService:
         )
         character_count = sum(len(item.quote_or_value) for item in evidence)
         if (
-            len(evidence) > _MAX_EVIDENCE_ITEMS
-            or character_count > _MAX_EVIDENCE_CHARACTERS
+            len(evidence) > MAX_SINGLE_EXECUTION_EVIDENCE_ITEMS
+            or character_count > MAX_SINGLE_EXECUTION_EVIDENCE_CHARACTERS
         ):
             raise DocumentSummaryInputTooLargeError(
                 "parsed document exceeds the bounded single-execution summary budget"
@@ -240,5 +240,7 @@ __all__ = [
     "DocumentSummaryInputTooLargeError",
     "DocumentSummaryService",
     "ExecuteDocumentSummaryRequest",
+    "MAX_SINGLE_EXECUTION_EVIDENCE_CHARACTERS",
+    "MAX_SINGLE_EXECUTION_EVIDENCE_ITEMS",
     "PreparedDocumentSummary",
 ]
