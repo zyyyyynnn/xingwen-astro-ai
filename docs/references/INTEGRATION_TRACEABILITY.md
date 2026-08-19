@@ -104,6 +104,18 @@ DROP_INVALID` 之一，并记录保留的能力、目标 owner 与验证方式�
 | services/scientific_artifacts.py | PORT_NEAR_AS_IS | 科学成果读取服务（kind 分发 + binary reference closure + range content） | current services | apps/api/src/app/services/scientific_artifacts.py | PASS |
 | GET /api/artifact-versions/{id}/scientific + /scientific/content/{hash} | PORT_REHOMED | 精确 ArtifactVersion 读取 + 二进制 Range 读取（ownership/hash 闭合） | current artifacts router + contracts | apps/api/src/app/routers/artifacts.py + contracts/core.py | PASS（openapi/contract parity） |
 
+## 5.3 科学成果展示与交互（本轮移植，§56-77）
+
+| Old source | Classification | Preserved capability | Target owner | Target file | Verification |
+| --- | --- | --- | --- | --- | --- |
+| 科学成果内容组件（analysis-report/spectrum/light-curve/model-evaluation content） | PORT_REHOMED | 指标、发现、局限、人工确认、采样表、time-scale identity、Evidence wiring | 唯一 Renderer Registry + Fullscreen seam | apps/workspace/src/components/scientific-content/* | PASS（scientific-artifact-renderer.test.tsx） |
+| scientific-artifact-renderer + registry 六 kind 接线 | PORT_REHOMED | 六个科学 kind 真实内容读取（ownership/version/kind 闭合） | 唯一 Registry | apps/workspace/src/presentation/artifact-renderer-registry.tsx | PASS（registry exhaustiveness + renderer tests） |
+| wwt-session.ts | PORT_NEAR_AS_IS | 单一引擎 session、lease/supersession、串行渲染队列、场景重置、图层/注释/Blob URL 清理、FITS/table 图层、网格/观测者/时间/太阳系/星座/岁差、tour、readback | current components | apps/workspace/src/components/wwt-session.ts | PASS（wwt-viewport.test.tsx lease/close） |
+| wwt-viewport.tsx | PORT_NEAR_AS_IS | StrictMode-safe mount、loading/error/retry、canvas focus、PNG 导出、文本与表格替代、实际状态 readback | current components | apps/workspace/src/components/wwt-viewport.tsx | PASS（wwt-viewport.test.tsx） |
+| scientific-chart.tsx（旧手写 SVG renderer） | PORT_REHOMED | typed 轴/单位/序列语义 → Vega-Lite 安全构建器（无 raw spec/eval，卸载 finalize，表格替代） | current components | apps/workspace/src/components/scientific-chart.tsx | PASS（scientific-chart.test.tsx） |
+| packages/ui/src/select.tsx | PORT_NEAR_AS_IS | shadcn registry（shadcn-cli@4.16.2）正式接入，图标重绑治理 barrel | packages/ui | packages/ui/src/select.tsx + component-sources.json | PASS（packages/ui/test/select.test.tsx） |
+| apps/api/tests/test_wwt_scene_contract.py | TEST_ONLY | WWT 场景声明式契约、bounded skill 输出、危险远程控制拒绝、能力矩阵真实性 | apps/api/tests | apps/api/tests/test_wwt_scene_contract.py | PASS（9 tests） |
+
 ## 6. 尚未移植（integration_pending）
 
 以下 REQUIRED 项已完成分类但尚未移植，保持 Draft 状态直至闭合：
@@ -111,6 +123,4 @@ DROP_INVALID` 之一，并记录保留的能力、目标 owner 与验证方式�
 | Item | Classification（既定归宿） |
 | --- | --- |
 | Inosum 七段式 PaperSummary 运行时（document_summary + paper_summary_exports + summary/prompt/fixture 七段式迁移） | PORT_NEAR_AS_IS（需迁移 PaperSummary schema 七段式结构，涉及已合并 paper summary 流，单独收口） |
-| 科学成果专用 Renderer（analysis_report/visualization/spectrum/light_curve/model_evaluation/model_artifact 真实内容，接入科学读路径） | PORT_REHOMED（当前为 user-safe fallback） |
-| WWT viewport/session 前端交互 + Vega 图表 + Select primitive | PORT_REHOMED（唯一 Registry 与 Fullscreen seam） |
 | agent_runtime function-calling producer 审计写路径 | PORT_REHOMED（DB 审计列已就绪） |
