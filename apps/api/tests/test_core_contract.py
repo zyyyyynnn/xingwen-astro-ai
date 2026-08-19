@@ -384,6 +384,7 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
         "getPaperCollection",
         "getPaperSummary",
         "getPaperSummaryPdfSource",
+        "downloadPaperSummaryExport",
         "getScientificArtifact",
         "getScientificArtifactContent",
         "getGraphArtifact",

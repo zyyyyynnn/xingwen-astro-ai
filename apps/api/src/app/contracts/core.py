@@ -8,7 +8,7 @@ single generated operation and transport-schema document.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Annotated, Any, NoReturn, cast
+from typing import Annotated, Any, Literal, NoReturn, cast
 
 from fastapi import Body, FastAPI, Header, Path, Query, Response
 from pydantic import TypeAdapter
@@ -519,6 +519,34 @@ def create_contract_app() -> FastAPI:
         version_id: Annotated[str, Path(min_length=1)],
     ) -> NoReturn:
         _ = version_id
+        return _contract_only()
+
+    @app.get(
+        "/api/artifact-versions/{version_id}/paper-summary/export",
+        operation_id="downloadPaperSummaryExport",
+        response_class=Response,
+        response_model=None,
+        responses={
+            **PROBLEM_RESPONSES,
+            200: {
+                "content": {
+                    "application/json": {
+                        "schema": {"type": "string", "format": "binary"}
+                    },
+                    "text/markdown": {
+                        "schema": {"type": "string", "format": "binary"}
+                    },
+                }
+            },
+        },
+    )
+    def download_paper_summary_export(
+        version_id: Annotated[str, Path(min_length=1)],
+        export_format: Annotated[
+            Literal["json", "markdown"], Query(alias="format")
+        ] = "json",
+    ) -> Response:
+        _ = (version_id, export_format)
         return _contract_only()
 
     @app.get(

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Header, Path, Query, Request, Response
 from fastapi.responses import Response as RawResponse
@@ -54,6 +54,7 @@ from app.schemas.paper_collection_api import (
     PaperCollectionRead,
 )
 from app.schemas.paper_summary_api import PaperSummaryPdfSourceRead, PaperSummaryRead
+from app.services.paper_summary_exports import PaperSummaryExportService
 from app.schemas.scientific_artifact_api import ScientificArtifactRead
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
@@ -331,6 +332,55 @@ def get_paper_summary_pdf_source(
     _no_store(response)
     path = f"/api/artifact-versions/{version_id}/paper-summary/pdf-source"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/artifact-versions/{version_id}/paper-summary/export",
+    operation_id="downloadPaperSummaryExport",
+    response_class=RawResponse,
+    response_model=None,
+    responses={
+        200: {
+            "content": {
+                "application/json": {
+                    "schema": {"type": "string", "format": "binary"}
+                },
+                "text/markdown": {
+                    "schema": {"type": "string", "format": "binary"}
+                },
+            }
+        },
+        400: {"model": ProblemDetails},
+        401: {"model": ProblemDetails},
+        403: {"model": ProblemDetails},
+        404: {"model": ProblemDetails},
+        409: {"model": ProblemDetails},
+        413: {"model": ProblemDetails},
+        422: {"model": ProblemDetails},
+        429: {"model": ProblemDetails},
+    },
+)
+def download_paper_summary_export(
+    version_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    export_format: Annotated[
+        Literal["json", "markdown"], Query(alias="format")
+    ] = "json",
+) -> RawResponse:
+    """Download one exact PaperSummary ArtifactVersion as JSON or Markdown."""
+
+    download = PaperSummaryExportService(_summary_service(request)).export(
+        version_id=version_id,
+        session_id=_session_id(request),
+        export_format=export_format,
+    )
+    response = RawResponse(
+        content=download.content,
+        media_type=download.media_type,
+        headers={"Content-Disposition": f'attachment; filename="{download.filename}"'},
+    )
+    _no_store(response)
+    return response
 
 
 @router.get(

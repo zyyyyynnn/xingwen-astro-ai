@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import re
-from typing import Literal
+from typing import Any, Literal
 
 from app.schemas.paper_summary import PaperSummaryStatement
 from app.schemas.paper_summary_api import PaperSummaryRead
@@ -91,7 +91,12 @@ def _render_markdown(read: PaperSummaryRead) -> str:
     for heading, field_name in _SECTIONS:
         lines.extend(("", f"## {heading}", ""))
         value = getattr(summary, field_name)
-        statements = (value,) if isinstance(value, PaperSummaryStatement) else tuple(value)
+        if value is None:
+            statements: tuple[Any, ...] = ()
+        elif isinstance(value, PaperSummaryStatement):
+            statements = (value,)
+        else:
+            statements = tuple(value)
         statements = tuple(item for item in statements if item is not None)
         if not statements:
             lines.append("_未收录已接纳的陈述。_")
