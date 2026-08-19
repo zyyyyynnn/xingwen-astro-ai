@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@xingwen/ui";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { WwtViewport } from "./wwt-viewport";
 
@@ -57,7 +57,27 @@ export function WwtSceneControls({
   readonly versionNumber: number;
   readonly loadContent: (contentHash: ContentHash) => Promise<ArrayBuffer>;
 }) {
-  const [effective, setEffective] = useState(spec);
+  const [base, setBase] = useState(spec);
+  const [hiddenLayers, setHiddenLayers] = useState<readonly string[]>([]);
+  const [annotationsHidden, setAnnotationsHidden] = useState(false);
+
+  const effective = useMemo<WwtSceneVisualizationReview>(() => {
+    if (hiddenLayers.length === 0 && !annotationsHidden) {
+      return base;
+    }
+    const hidden = new Set(hiddenLayers);
+    return {
+      ...base,
+      fitsLayers: base.fitsLayers.map((layer) =>
+        hidden.has(layer.layerId) ? { ...layer, opacity: 0 } : layer,
+      ),
+      tableLayers: base.tableLayers.map((layer) =>
+        hidden.has(layer.layerId) ? { ...layer, opacity: 0 } : layer,
+      ),
+      annotations: annotationsHidden ? [] : base.annotations,
+    };
+  }, [base, hiddenLayers, annotationsHidden]);
+
   const [raInput, setRaInput] = useState("");
   const [decInput, setDecInput] = useState("");
   const [fovInput, setFovInput] = useState("");
@@ -77,13 +97,12 @@ export function WwtSceneControls({
     ) {
       return;
     }
-    setEffective({
-      ...effective,
+    setBase({
+      ...base,
       view: {
         kind: "coordinates",
         center: { raHours, decDegrees },
-        fieldOfViewDegrees:
-          fieldOfViewDegrees ?? effective.view.fieldOfViewDegrees,
+        fieldOfViewDegrees: fieldOfViewDegrees ?? base.view.fieldOfViewDegrees,
         rollDegrees: 0,
         transitionSeconds: 1,
       },
@@ -91,51 +110,65 @@ export function WwtSceneControls({
   };
 
   const toggleGrid = (system: (typeof GRID_SYSTEMS)[number]["system"]) => {
-    const current = effective.coordinateGrids.find(
-      (grid) => grid.system === system,
-    );
+    const current = base.coordinateGrids.find((grid) => grid.system === system);
     const coordinateGrids = current
-      ? effective.coordinateGrids.filter((grid) => grid.system !== system)
-      : [...effective.coordinateGrids, { system, labels: true }];
-    setEffective({ ...effective, coordinateGrids });
+      ? base.coordinateGrids.filter((grid) => grid.system !== system)
+      : [...base.coordinateGrids, { system, labels: true }];
+    setBase({ ...base, coordinateGrids });
   };
 
   const toggleConstellation = (
     key: (typeof CONSTELLATION_OPTIONS)[number]["key"],
   ) => {
-    setEffective({
-      ...effective,
+    setBase({
+      ...base,
       constellations: {
-        ...effective.constellations,
-        [key]: !effective.constellations[key],
+        ...base.constellations,
+        [key]: !base.constellations[key],
       },
     });
   };
 
+  const toggleLayer = (layerId: string) => {
+    setHiddenLayers((current) =>
+      current.includes(layerId)
+        ? current.filter((item) => item !== layerId)
+        : [...current, layerId],
+    );
+  };
+
   const setTimeMode = (mode: string) => {
     if (mode === "system_clock") {
-      setEffective({
-        ...effective,
+      setBase({
+        ...base,
         time: { mode: "system_clock", observedAt: null, rate: null },
       });
       return;
     }
-    const observedAt = effective.time.observedAt ?? new Date().toISOString();
+    const observedAt = base.time.observedAt ?? new Date().toISOString();
     if (mode === "paused") {
-      setEffective({
-        ...effective,
+      setBase({
+        ...base,
         time: { mode: "paused", observedAt, rate: null },
       });
       return;
     }
-    const rate = parseNumber(rateInput) ?? effective.time.rate ?? 10;
-    setEffective({
-      ...effective,
+    const rate = parseNumber(rateInput) ?? base.time.rate ?? 10;
+    setBase({
+      ...base,
       time: { mode: "playback", observedAt, rate: rate === 0 ? 10 : rate },
     });
   };
 
-  const resetScene = () => setEffective(spec);
+  const toggleTour = () => {
+    setBase({ ...base, tourAutoplay: !base.tourAutoplay });
+  };
+
+  const resetScene = () => {
+    setBase(spec);
+    setHiddenLayers([]);
+    setAnnotationsHidden(false);
+  };
 
   return (
     <div className="wwt-scene-controls">
@@ -169,10 +202,10 @@ export function WwtSceneControls({
       </div>
       <div className="wwt-scene-controls__group" aria-label="场景设置">
         <Select
-          value={effective.background}
+          value={base.background}
           onValueChange={(value) =>
-            setEffective({
-              ...effective,
+            setBase({
+              ...base,
               background: value as WwtSceneVisualizationReview["background"],
             })
           }
@@ -201,7 +234,7 @@ export function WwtSceneControls({
             {GRID_SYSTEMS.map((grid) => (
               <DropdownMenuCheckboxItem
                 key={grid.system}
-                checked={effective.coordinateGrids.some(
+                checked={base.coordinateGrids.some(
                   (item) => item.system === grid.system,
                 )}
                 onCheckedChange={() => toggleGrid(grid.system)}
@@ -221,18 +254,18 @@ export function WwtSceneControls({
             {CONSTELLATION_OPTIONS.map((option) => (
               <DropdownMenuCheckboxItem
                 key={option.key}
-                checked={effective.constellations[option.key]}
+                checked={base.constellations[option.key]}
                 onCheckedChange={() => toggleConstellation(option.key)}
               >
                 {option.label}
               </DropdownMenuCheckboxItem>
             ))}
             <DropdownMenuCheckboxItem
-              checked={effective.precessionChart}
+              checked={base.precessionChart}
               onCheckedChange={() =>
-                setEffective({
-                  ...effective,
-                  precessionChart: !effective.precessionChart,
+                setBase({
+                  ...base,
+                  precessionChart: !base.precessionChart,
                 })
               }
             >
@@ -240,10 +273,59 @@ export function WwtSceneControls({
             </DropdownMenuCheckboxItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        {base.fitsLayers.length > 0 || base.tableLayers.length > 0 ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="secondary" size="small">
+                图层
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {base.fitsLayers.map((layer, index) => (
+                <DropdownMenuCheckboxItem
+                  key={layer.layerId}
+                  checked={!hiddenLayers.includes(layer.layerId)}
+                  onCheckedChange={() => toggleLayer(layer.layerId)}
+                >
+                  {`FITS 图层 ${index + 1}`}
+                </DropdownMenuCheckboxItem>
+              ))}
+              {base.tableLayers.map((layer, index) => (
+                <DropdownMenuCheckboxItem
+                  key={layer.layerId}
+                  checked={!hiddenLayers.includes(layer.layerId)}
+                  onCheckedChange={() => toggleLayer(layer.layerId)}
+                >
+                  {`表格图层 ${index + 1}`}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+        {base.annotations.length > 0 ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="small"
+            onClick={() => setAnnotationsHidden((value) => !value)}
+          >
+            {annotationsHidden ? "显示标注" : "隐藏标注"}
+          </Button>
+        ) : null}
+        {base.tourSteps.length > 0 ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="small"
+            onClick={toggleTour}
+          >
+            {base.tourAutoplay ? "停止巡览" : "播放巡览"}
+          </Button>
+        ) : null}
       </div>
       <div className="wwt-scene-controls__group" aria-label="时间控制">
         <Select
-          value={effective.time.mode}
+          value={base.time.mode}
           onValueChange={(value) => setTimeMode(value)}
         >
           <SelectTrigger
@@ -260,7 +342,7 @@ export function WwtSceneControls({
             ))}
           </SelectContent>
         </Select>
-        {effective.time.mode === "playback" ? (
+        {base.time.mode === "playback" ? (
           <Input
             aria-label="时间倍率"
             placeholder="倍率"
