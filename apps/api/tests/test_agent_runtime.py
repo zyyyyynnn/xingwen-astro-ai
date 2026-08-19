@@ -179,7 +179,7 @@ def test_agent_emits_reasoning_and_one_tool_lifecycle() -> None:
     assert audit.authorization == {
         "authorized_tool_name": "query_astronomy_data",
         "authorized_skill_id": "fetching_data",
-        "registry_revision": "research_step_tools.v1",
+        "registry_revision": "research_step_tools.initial",
     }
     assert audit.completed is not None
     assert audit.completed["tool_call_id"] == "tool-1"

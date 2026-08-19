@@ -95,7 +95,7 @@ class StepTool:
         }
 
 
-STEP_TOOLS_REGISTRY_REVISION = "research_step_tools.v1"
+STEP_TOOLS_REGISTRY_REVISION = "research_step_tools.initial"
 
 
 STEP_TOOLS: dict[str, StepTool] = {
