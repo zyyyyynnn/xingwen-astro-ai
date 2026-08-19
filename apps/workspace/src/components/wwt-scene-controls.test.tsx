@@ -272,4 +272,123 @@ describe("WwtSceneControls", () => {
     fireEvent.click(screen.getByRole("button", { name: "停止巡览" }));
     await waitFor(() => expect(lastViewportSpec().tourAutoplay).toBe(false));
   });
+
+  it("applies an explicit camera roll and keeps it across navigation", async () => {
+    renderControls();
+    fireEvent.change(screen.getByLabelText("中心赤经（小时）"), {
+      target: { value: "5.6" },
+    });
+    fireEvent.change(screen.getByLabelText("中心赤纬（度）"), {
+      target: { value: "24.1" },
+    });
+    fireEvent.change(screen.getByLabelText("相机滚转（度）"), {
+      target: { value: "30" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "前往坐标" }));
+    await waitFor(() => expect(lastViewportSpec().view.rollDegrees).toBe(30));
+
+    // Navigating again without touching the roll input must keep the current
+    // scene roll instead of resetting it to zero.
+    fireEvent.change(screen.getByLabelText("相机滚转（度）"), {
+      target: { value: "" },
+    });
+    fireEvent.change(screen.getByLabelText("中心赤经（小时）"), {
+      target: { value: "6.2" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "前往坐标" }));
+    await waitFor(() => {
+      const view = lastViewportSpec().view;
+      expect(view.kind).toBe("coordinates");
+      if (view.kind !== "coordinates") return;
+      expect(view.center.raHours).toBe(6.2);
+      expect(view.rollDegrees).toBe(30);
+    });
+  });
+
+  it("rejects an out-of-range camera roll with a visible error", async () => {
+    renderControls();
+    fireEvent.change(screen.getByLabelText("中心赤经（小时）"), {
+      target: { value: "5.6" },
+    });
+    fireEvent.change(screen.getByLabelText("中心赤纬（度）"), {
+      target: { value: "24.1" },
+    });
+    fireEvent.change(screen.getByLabelText("相机滚转（度）"), {
+      target: { value: "400" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "前往坐标" }));
+
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(lastViewportSpec()).toEqual(publishedSpec);
+  });
+
+  it("tracks a solar-system object while preserving FOV and roll", async () => {
+    renderControls();
+    fireEvent.click(screen.getByRole("combobox", { name: "跟踪天体" }));
+    fireEvent.click(await screen.findByRole("option", { name: "木星" }));
+    fireEvent.click(screen.getByRole("button", { name: "跟踪天体" }));
+
+    await waitFor(() => {
+      const view = lastViewportSpec().view;
+      expect(view.kind).toBe("tracked_object");
+      if (view.kind !== "tracked_object") return;
+      expect(view.target).toBe("jupiter");
+      expect(view.fieldOfViewDegrees).toBe(
+        publishedSpec.view.fieldOfViewDegrees,
+      );
+      expect(view.rollDegrees).toBe(publishedSpec.view.rollDegrees);
+    });
+  });
+
+  it("applies validated observer coordinates", async () => {
+    renderControls();
+    fireEvent.click(screen.getByRole("button", { name: "观测点" }));
+    fireEvent.change(await screen.findByLabelText("观测点纬度（度）"), {
+      target: { value: "26.6" },
+    });
+    fireEvent.change(screen.getByLabelText("观测点经度（度）"), {
+      target: { value: "106.7" },
+    });
+    fireEvent.change(screen.getByLabelText("观测点海拔（米）"), {
+      target: { value: "1070" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "应用观测点" }));
+
+    await waitFor(() =>
+      expect(lastViewportSpec().observer).toEqual({
+        latitudeDegrees: 26.6,
+        longitudeDegrees: 106.7,
+        elevationMeters: 1070,
+        localHorizonMode: false,
+      }),
+    );
+  });
+
+  it("rejects an out-of-range observer latitude", async () => {
+    renderControls();
+    fireEvent.click(screen.getByRole("button", { name: "观测点" }));
+    fireEvent.change(await screen.findByLabelText("观测点纬度（度）"), {
+      target: { value: "95" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "应用观测点" }));
+
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(lastViewportSpec().observer).toBeNull();
+  });
+
+  it("fixes the observation time as explicit UTC", async () => {
+    renderControls();
+    fireEvent.change(screen.getByLabelText("观测时间（UTC）"), {
+      target: { value: "2026-08-19T03:04" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "固定观测时间（UTC）" }),
+    );
+
+    await waitFor(() => {
+      const time = lastViewportSpec().time;
+      expect(time.mode).toBe("paused");
+      expect(time.observedAt).toBe("2026-08-19T03:04:00.000Z");
+    });
+  });
 });

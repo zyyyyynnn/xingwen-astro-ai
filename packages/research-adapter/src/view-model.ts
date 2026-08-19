@@ -18,6 +18,7 @@ import type {
   ResearchThreadSummary,
   ResearchThreadUserPayload,
   RunStatus,
+  ScientificTask,
   SemanticVersion,
   SourceMode,
   UnitPolicy,
@@ -133,6 +134,7 @@ export interface ContractInputViewModel {
     readonly sourceIds: readonly DomainEntityId[];
     readonly maxCandidates: number;
   };
+  readonly scientificTasks: readonly ScientificTask[];
   readonly outputRequirements: readonly ArtifactKind[];
   readonly evidenceRequirements: {
     readonly requireLocator: boolean;

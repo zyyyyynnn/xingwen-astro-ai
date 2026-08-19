@@ -7,7 +7,12 @@
  * `ResearchContractInput` in the Pydantic `/api` authoring source.
  */
 
-import type { ArtifactKind, ContractDraftStatus, UnitPolicy } from "./enums";
+import type {
+  ArtifactKind,
+  ContractDraftStatus,
+  ScientificSkillId,
+  UnitPolicy,
+} from "./enums";
 import type { DomainEntityId } from "./identifiers";
 import type {
   ContentHash,
@@ -43,6 +48,24 @@ export interface QualityConstraints {
   readonly unitConsistencyMin: number;
 }
 
+/**
+ * JSON-compatible parameter value. Mirrors the transport `JsonValue`
+ * definition so bounded skill parameters survive the round-trip unchanged.
+ */
+export type JsonValue = unknown;
+
+/**
+ * One bounded invocation of a registered scientific skill, authorized by the
+ * planner. Mirrors `ScientificTaskInput` in the Pydantic `/api` authoring
+ * source; the skill → produced artifact mapping stays backend authority.
+ */
+export interface ScientificTask {
+  readonly taskId: DomainEntityId;
+  readonly skillId: ScientificSkillId;
+  readonly parameters: Readonly<Record<string, JsonValue>>;
+  readonly inputRefs: readonly DomainEntityId[];
+}
+
 export interface ResearchContractInput {
   readonly researchGoal: ResearchGoal;
   readonly targetObjects: readonly DomainEntityId[];
@@ -50,6 +73,7 @@ export interface ResearchContractInput {
   readonly requestedFields: readonly DomainEntityId[];
   readonly sourceScope: SourceScope;
   readonly paperSearchScope: PaperSearchScope;
+  readonly scientificTasks: readonly ScientificTask[];
   readonly outputRequirements: readonly ArtifactKind[];
   readonly evidenceRequirements: EvidenceRequirements;
   readonly qualityConstraints: QualityConstraints;
@@ -88,6 +112,17 @@ export function validateContractInputInvariants(
   const { yearFrom, yearTo } = input.paperSearchScope;
   if (yearFrom !== null && yearTo !== null && yearFrom > yearTo) {
     violations.push("year_from must not exceed year_to");
+  }
+
+  const taskIds = input.scientificTasks.map((task) => task.taskId);
+  if (taskIds.length !== new Set(taskIds).size) {
+    violations.push("scientific_tasks must use unique task_id values");
+  }
+  for (const task of input.scientificTasks) {
+    if (task.inputRefs.length !== new Set(task.inputRefs).size) {
+      violations.push("scientific task input_refs must not contain duplicates");
+      break;
+    }
   }
 
   return violations;

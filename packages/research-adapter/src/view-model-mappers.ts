@@ -67,6 +67,12 @@ function toContractInputViewModel(
       sourceIds: [...input.paperSearchScope.sourceIds],
       maxCandidates: input.paperSearchScope.maxCandidates,
     },
+    scientificTasks: input.scientificTasks.map((task) => ({
+      taskId: task.taskId,
+      skillId: task.skillId,
+      parameters: { ...task.parameters },
+      inputRefs: [...task.inputRefs],
+    })),
     outputRequirements: [...input.outputRequirements],
     evidenceRequirements: {
       requireLocator: input.evidenceRequirements.requireLocator,

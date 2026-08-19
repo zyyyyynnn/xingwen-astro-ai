@@ -38,6 +38,7 @@ const contractInput = {
     sourceIds: [asEntityId("nasa_ads")],
     maxCandidates: 10,
   },
+  scientificTasks: [],
   outputRequirements: ["dataset" as const],
   evidenceRequirements: {
     requireLocator: true,

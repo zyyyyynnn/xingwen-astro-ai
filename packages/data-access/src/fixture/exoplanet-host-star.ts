@@ -137,7 +137,7 @@ const contract: ResearchContractDto = {
   created_from_draft_id: "rcd_01JEXAMPLE",
   created_at: T2,
   content_hash:
-    "sha256:d43c90e165cbe6b068f2c95247703ff5bfed6e371a4826831afa17ee733b9986",
+    "sha256:7b810e492de26672a8f2cc4c70179a754e4a82ed3bd72461bcc9e9c2abbd983f",
 };
 
 const run: ResearchRunDto = {

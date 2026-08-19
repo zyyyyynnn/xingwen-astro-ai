@@ -223,7 +223,16 @@ export interface ResearchInputRepository {
 
 /** Domain input types accepted by the controlled ResearchInput endpoint. */
 export type ResearchInputType =
-  "pdf" | "csv" | "fits" | "json" | "image" | "url" | "text";
+  | "pdf"
+  | "csv"
+  | "xlsx"
+  | "parquet"
+  | "fits"
+  | "json"
+  | "image"
+  | "image_dataset"
+  | "url"
+  | "text";
 
 export type ResearchInputStatus =
   "accepted" | "unsupported_processing" | "failed_ingestion";

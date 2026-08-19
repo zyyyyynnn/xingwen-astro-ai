@@ -163,6 +163,7 @@ describe("OpenHands-derived research message flow", () => {
           sourceIds: ["ads" as any],
           maxCandidates: 10,
         },
+        scientificTasks: [],
         outputRequirements: ["paper_summary" as any],
         evidenceRequirements: {
           requireLocator: true,

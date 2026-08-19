@@ -10,6 +10,7 @@ import {
   validateContractInputInvariants,
   type ArtifactKind,
   type ResearchContractInput,
+  type ScientificTask,
 } from "@xingwen/domain";
 import type { ResearchContractDraftViewModel } from "@xingwen/research-adapter";
 import type { ResearchPlanningCatalog } from "@xingwen/domain";
@@ -385,7 +386,10 @@ function parseOptionalYear(value: string): number | null {
   return value.trim() ? Number(value) : null;
 }
 
-function parseContract(form: ContractFormState): {
+function parseContract(
+  form: ContractFormState,
+  scientificTasks: readonly ScientificTask[],
+): {
   readonly input: ResearchContractInput | null;
   readonly issues: readonly ValidationIssue[];
 } {
@@ -535,6 +539,7 @@ function parseContract(form: ContractFormState): {
       sourceIds,
       maxCandidates,
     },
+    scientificTasks: [...scientificTasks],
     outputRequirements: form.outputRequirements,
     evidenceRequirements: {
       requireLocator: form.requireLocator,
@@ -632,7 +637,7 @@ function ResearchContractFormSurface({
   };
 
   const submitDraft = async () => {
-    const parsed = parseContract(form);
+    const parsed = parseContract(form, draft.contract.scientificTasks);
     setValidationIssues(parsed.issues);
     if (!parsed.input) {
       setActiveSection(parsed.issues[0]?.section ?? "goal");
@@ -898,6 +903,34 @@ function ResearchContractFormSurface({
                     />
                   </CollapsibleContent>
                 </Collapsible>
+                {draft.contract.scientificTasks.length > 0 ? (
+                  <FieldSet className="research-contract-form__output-group">
+                    <FieldLegend className="research-contract-form__output-group-title">
+                      计划执行的科学任务
+                    </FieldLegend>
+                    <FieldDescription>
+                      以下任务已由规划阶段授权，确认后随研究执行，本表单不提供编辑。
+                    </FieldDescription>
+                    <ul className="research-contract-form__scientific-tasks">
+                      {draft.contract.scientificTasks.map((task) => {
+                        const option = catalog.scientificSkills.find(
+                          (skill) => skill.value === task.skillId,
+                        );
+                        return (
+                          <li key={String(task.taskId)}>
+                            <Check aria-hidden="true" />
+                            <span>
+                              <strong>{option?.label ?? "暂未命名"}</strong>
+                              {option?.description ? (
+                                <small>{option.description}</small>
+                              ) : null}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </FieldSet>
+                ) : null}
               </FieldGroup>
             </TabsContent>
 

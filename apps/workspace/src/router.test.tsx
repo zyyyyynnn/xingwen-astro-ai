@@ -504,6 +504,7 @@ describe("Workspace routes", () => {
           group: "common",
         },
       ],
+      scientificSkills: [],
     } satisfies ResearchPlanningCatalog;
     vi.spyOn(
       runtime.repositories.researchCatalog,
@@ -675,6 +676,7 @@ describe("Workspace routes", () => {
         description: "",
         group: "common" as const,
       })),
+      scientificSkills: [],
     } satisfies ResearchPlanningCatalog;
 
     let projectRead: ResearchProject = {

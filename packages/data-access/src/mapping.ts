@@ -36,6 +36,8 @@ import type {
   RunStepSnapshot,
   RunEvent,
   RunStatus,
+  ScientificSkillId,
+  ScientificTask,
   ShareSnapshot,
   ShareSnapshotCreated,
   CreateShareSnapshotRequest,
@@ -49,6 +51,7 @@ import {
   asEntityId,
   isEvidenceTargetType,
   isEvidenceType,
+  isScientificSkillId,
   parseEntityId,
 } from "@xingwen/domain";
 
@@ -112,6 +115,22 @@ function mapPaperSearchScope(
   };
 }
 
+function mapScientificTask(
+  dto: NonNullable<ResearchContractInputDto["scientific_tasks"]>[number],
+): ScientificTask {
+  if (!isScientificSkillId(dto.skill_id)) {
+    throw new TypeError(
+      `Scientific task ${dto.task_id} references an unknown skill_id: ${dto.skill_id}`,
+    );
+  }
+  return {
+    taskId: mapId(dto.task_id),
+    skillId: dto.skill_id,
+    parameters: { ...(dto.parameters ?? {}) },
+    inputRefs: mapIds(dto.input_refs),
+  };
+}
+
 function mapContractInput(
   dto: ResearchContractInputDto,
 ): ResearchContractInput {
@@ -124,6 +143,7 @@ function mapContractInput(
       allowedSources: mapIds(dto.source_scope.allowed_sources),
     },
     paperSearchScope: mapPaperSearchScope(dto.paper_search_scope),
+    scientificTasks: (dto.scientific_tasks ?? []).map(mapScientificTask),
     outputRequirements: [
       ...(dto.output_requirements ?? []),
     ] as readonly ArtifactKind[],
@@ -195,6 +215,7 @@ export function mapResearchPlanningCatalog(
     targetObjects: mapOptions<DomainEntityId>(dto.target_objects),
     requestedFields: mapOptions<DomainEntityId>(dto.requested_fields),
     allowedSources: mapOptions<DomainEntityId>(dto.allowed_sources),
+    scientificSkills: mapOptions<ScientificSkillId>(dto.scientific_skills),
     outputRequirements: mapOptions<ArtifactKind>(dto.output_requirements),
   };
 }
@@ -884,6 +905,12 @@ export function mapDomainContractInputToDto(
       source_ids: [...input.paperSearchScope.sourceIds],
       max_candidates: input.paperSearchScope.maxCandidates,
     },
+    scientific_tasks: input.scientificTasks.map((task) => ({
+      task_id: String(task.taskId),
+      skill_id: task.skillId,
+      parameters: { ...task.parameters },
+      input_refs: [...task.inputRefs].map(String),
+    })),
     output_requirements: [...input.outputRequirements] as unknown as [
       ArtifactKind,
       ...ArtifactKind[],

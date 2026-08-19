@@ -61,11 +61,13 @@ export {
 export type {
   DataRequirements,
   EvidenceRequirements,
+  JsonValue,
   PaperSearchScope,
   QualityConstraints,
   ResearchContract,
   ResearchContractDraft,
   ResearchContractInput,
+  ScientificTask,
   SourceScope,
 } from "./research-contract";
 export { validateContractInputInvariants } from "./research-contract";
