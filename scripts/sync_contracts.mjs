@@ -23,6 +23,7 @@ import {
   cpSync,
   mkdirSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -117,6 +118,7 @@ function stripPropertyTitles(schemas) {
 
 async function vendorJsonSchemas() {
   const jsonTargetDir = resolve(targetDir, "json");
+  rmSync(jsonTargetDir, { recursive: true, force: true });
   mkdirSync(jsonTargetDir, { recursive: true });
 
   // Copy all .schema.json files.

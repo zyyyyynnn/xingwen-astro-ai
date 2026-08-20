@@ -1,21 +1,5 @@
 {
   "$defs": {
-    "ArtifactKind": {
-      "enum": [
-        "dataset",
-        "field_dictionary",
-        "source_collection",
-        "paper_collection",
-        "paper_summary",
-        "literature_claims",
-        "literature_relations",
-        "reasoning_traces",
-        "graph",
-        "export"
-      ],
-      "title": "ArtifactKind",
-      "type": "string"
-    },
     "SourceMode": {
       "enum": [
         "fixture",
@@ -27,7 +11,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "Redacted immutable version metadata safe for an anonymous share response.",
+  "description": "Bounded immutable-version reference used by Artifact detail reads.",
   "properties": {
     "artifact_id": {
       "maxLength": 128,
@@ -51,9 +35,6 @@
       "title": "Id",
       "type": "string"
     },
-    "kind": {
-      "$ref": "#/$defs/ArtifactKind"
-    },
     "schema_version": {
       "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
       "title": "Schema Version",
@@ -62,10 +43,19 @@
     "source_mode": {
       "$ref": "#/$defs/SourceMode"
     },
-    "title": {
-      "minLength": 1,
-      "title": "Title",
-      "type": "string"
+    "supersedes_version_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Supersedes Version Id"
     },
     "version_number": {
       "minimum": 1,
@@ -76,14 +66,12 @@
   "required": [
     "id",
     "artifact_id",
-    "kind",
-    "title",
     "version_number",
     "schema_version",
     "content_hash",
     "source_mode",
     "created_at"
   ],
-  "title": "PublicArtifactVersion",
+  "title": "ArtifactVersionSummary",
   "type": "object"
 }

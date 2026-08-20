@@ -17,6 +17,11 @@
       "path": "json/ArtifactVersionDetail.schema.json"
     },
     {
+      "module": "app.schemas.core",
+      "name": "ArtifactVersionSummary",
+      "path": "json/ArtifactVersionSummary.schema.json"
+    },
+    {
       "module": "app.schemas.revision",
       "name": "ConfirmRevisionPlanRequest",
       "path": "json/ConfirmRevisionPlanRequest.schema.json"
@@ -260,6 +265,11 @@
       "module": "app.schemas.revision",
       "name": "RevisionVersionDecision",
       "path": "json/RevisionVersionDecision.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "RunCheckpoint",
+      "path": "json/RunCheckpoint.schema.json"
     },
     {
       "module": "app.schemas.core",
