@@ -13,7 +13,7 @@ import {
   containsRepositoryProgressWording,
   containsRepositoryTaskCode,
   containsRepositoryTaskCodePath,
-  containsRepositoryVersionLabelForPath,
+  containsRepositoryVersionLabel,
   containsRepositoryVersionLabelPath,
   isIssueOrPullRequestBodyTemplatePath,
   isRepositoryTextPath,
@@ -44,11 +44,7 @@ const repositoryTextFiles = trackedFiles.filter(
     !["apps/api/uv.lock", "pnpm-lock.yaml"].includes(file) &&
     file !== "scripts/governance-identifiers.mjs" &&
     file !== "scripts/check-architecture-delegacy.mjs" &&
-    file !== "scripts/check-title-governance.mjs" &&
-    // Reference-integration coverage Authority carries structured
-    // implementation-state, schema-version and phase data as machine fields,
-    // not repository prose.
-    !file.startsWith("services/reference_integration/"),
+    file !== "scripts/check-title-governance.mjs",
 );
 
 const results = new Map();
@@ -173,7 +169,7 @@ for (const file of repositoryTextFiles) {
         `${file}: line ${index + 1}: phase identifier is not allowed in repository prose`,
       );
     }
-    if (containsRepositoryVersionLabelForPath(line, file)) {
+    if (containsRepositoryVersionLabel(line)) {
       errors.push(
         `${file}: line ${index + 1}: pseudo-version label is not allowed in repository prose`,
       );

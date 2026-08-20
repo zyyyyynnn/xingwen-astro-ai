@@ -25,10 +25,6 @@ const repositoryProgressWordingPattern =
   /(?:\b(?:client|cache|module|package|boundary|integration)\s+placeholders?\b|\bplaceholders?\s+for\s+(?:later|future)\b|\b(?:later|future)[,\s]+(?:the\s+)?(?:[A-Za-z][\w-]*\s+){0,3}(?:apis?|adapters?|owners?|controls?|runtimes?|services?|clients?|ports?|pipelines?|modules?|tasks?|issues?|integrations?|publishers?|baselines?)\b|\b(?:later|future)\s+(?:quality|source|workspace)\b|\bnot implemented in\b|\bretained for future\b|\bcontract[- ]freeze(?:\s+change)?\b|\bparser contract change\b|\b[A-D]-(?:module|pipeline)\b|\b[A-D]\s+mapping changes?\b|未来.{0,24}(?:边界|消费端|适配器|接口|实现|启用|任务|模块)|后续.{0,16}(?:边界|持久化))/iu;
 const repositoryTextPathPattern =
   /\.(?:astro|bat|cmd|conf|csv|css|env|example|html|ini|js|json|md|mjs|ps1|py|sh|sql|svg|toml|ts|tsx|txt|xml|ya?ml)$/iu;
-const externalTechnicalIdentifierPattern = new RegExp(
-  ["\\bcall_deepseek_v", "3_2\\b"].join(""),
-  "giu",
-);
 const taskCodePathTokenPattern = /^(?:[a-d]\d+|x(?!(?:64|86)$)\d+)$/iu;
 const phasePathTokenPattern = /^phase(?:[_-]?\d+)$/iu;
 
@@ -113,15 +109,6 @@ export function containsRepositoryVersionLabel(value) {
     camelPseudoVersionPattern.test(normalized) ||
     versionedDomainIdentityPattern.test(normalized)
   );
-}
-
-export function containsRepositoryVersionLabelForPath(value, path) {
-  const normalizedPath = path.replaceAll("\\", "/");
-  const scopedValue =
-    normalizedPath === "docs/references/inosum/code/paper_summary.py"
-      ? value.replace(externalTechnicalIdentifierPattern, "")
-      : value;
-  return containsRepositoryVersionLabel(scopedValue);
 }
 
 export function containsRepositoryVersionLabelPath(value) {
