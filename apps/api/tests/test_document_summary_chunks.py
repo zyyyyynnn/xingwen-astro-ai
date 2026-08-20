@@ -144,18 +144,19 @@ class _ChunkModel:
             chunk_id = chunk["chunk_id"]
         cited = "evidence.invented" if self.invent_evidence else evidence_ids[0]
         payload = {
-            "research_goal": None,
-            "method": None,
-            "dataset": None,
-            "findings": [
+            "background": [],
+            "methodology": [],
+            "dataset": [],
+            "experiments": [
                 {
                     "statement_id": f"finding.{chunk_id}",
                     "text": f"Chunk {chunk_id} reports an observation.",
                     "evidence_ids": [cited],
                 }
             ],
+            "discussion": [],
             "limitations": [],
-            "future_work": [],
+            "research_questions": [],
             "evidence_ids": [cited],
         }
         return ModelExecutionResponse(
@@ -190,18 +191,18 @@ def test_long_document_runs_one_bounded_call_per_chunk() -> None:
     assert result.admission.admission_status is PaperSummaryAdmissionStatus.accepted
     summary = result.admission.summary
     assert summary is not None
-    findings = summary.findings
-    assert len(findings) == result.chunk_count
+    experiments = summary.experiments
+    assert len(experiments) == result.chunk_count
     # Deterministic statement identities in chunk order.
-    assert [item.statement_id for item in findings] == [
-        f"summary.document.findings.{index:02d}"
-        for index in range(1, len(findings) + 1)
+    assert [item.statement_id for item in experiments] == [
+        f"summary.document.experiments.{index:02d}"
+        for index in range(1, len(experiments) + 1)
     ]
     # Every finding keeps its chunk Evidence identity.
-    assert all(item.evidence_ids for item in findings)
+    assert all(item.evidence_ids for item in experiments)
     assert all(
         item.status.value == "supported"
-        for item in findings
+        for item in experiments
     )
     assert result.token_usage is not None
     assert result.token_usage.total_tokens == 15 * result.chunk_count

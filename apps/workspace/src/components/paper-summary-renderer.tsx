@@ -94,9 +94,9 @@ export function PaperSummaryThreadRenderer({
           <p className="m-0 text-xs text-[var(--oh-muted)]">
             {ARTIFACT_CARD_COPY.keyFinding}
           </p>
-          {review.findings[0] ? (
+          {review.experiments[0] ? (
             <p className="mb-0 mt-[var(--oh-space-1)] line-clamp-3 text-sm leading-6 text-[var(--oh-muted)]">
-              {review.findings[0].text}
+              {review.experiments[0].text}
             </p>
           ) : (
             <p className="mb-0 mt-[var(--oh-space-1)] text-sm text-[var(--oh-muted)]">
@@ -339,12 +339,6 @@ function SummarySection({
   );
 }
 
-function singleton(
-  statement: PaperSummaryStatementReview | null,
-): readonly PaperSummaryStatementReview[] {
-  return statement === null ? [] : [statement];
-}
-
 export function PaperSummaryFullscreenRenderer({
   artifact,
   review,
@@ -383,9 +377,9 @@ export function PaperSummaryFullscreenRenderer({
       <Separator />
 
       <SummarySection
-        title="研究目标"
+        title="研究背景"
         icon={Target}
-        statements={singleton(review.researchGoal)}
+        statements={review.background}
         review={review}
         forceOpen={expandAll}
         onJumpToPage={onJumpToPage}
@@ -393,7 +387,7 @@ export function PaperSummaryFullscreenRenderer({
       <SummarySection
         title="研究方法"
         icon={BrainCircuit}
-        statements={singleton(review.method)}
+        statements={review.methodology}
         review={review}
         forceOpen={expandAll}
         onJumpToPage={onJumpToPage}
@@ -401,15 +395,23 @@ export function PaperSummaryFullscreenRenderer({
       <SummarySection
         title="数据集"
         icon={Database}
-        statements={singleton(review.dataset)}
+        statements={review.dataset}
         review={review}
         forceOpen={expandAll}
         onJumpToPage={onJumpToPage}
       />
       <SummarySection
-        title="核心发现"
+        title="实验与结果"
         icon={Lightbulb}
-        statements={review.findings}
+        statements={review.experiments}
+        review={review}
+        forceOpen={expandAll}
+        onJumpToPage={onJumpToPage}
+      />
+      <SummarySection
+        title="讨论"
+        icon={Quote}
+        statements={review.discussion}
         review={review}
         forceOpen={expandAll}
         onJumpToPage={onJumpToPage}
@@ -423,9 +425,9 @@ export function PaperSummaryFullscreenRenderer({
         onJumpToPage={onJumpToPage}
       />
       <SummarySection
-        title="后续研究"
+        title="研究问题"
         icon={ScanSearch}
-        statements={review.futureWork}
+        statements={review.researchQuestions}
         review={review}
         forceOpen={expandAll}
         onJumpToPage={onJumpToPage}

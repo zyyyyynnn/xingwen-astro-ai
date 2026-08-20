@@ -20,7 +20,7 @@ describe("PaperSummary renderer", () => {
     if (!artifact || !version) throw new Error("Fixture Artifact is missing.");
     const review = {
       ...sourceReview,
-      findings: sourceReview.findings.map((finding, index) =>
+      experiments: sourceReview.experiments.map((finding, index) =>
         index === 0
           ? { ...finding, status: "unsupported" as const, evidenceIds: [] }
           : finding,
@@ -36,18 +36,19 @@ describe("PaperSummary renderer", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "研究目标" }),
+      screen.getByRole("heading", { name: "研究背景" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "研究方法" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "数据集" })).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "核心发现" }),
+      screen.getByRole("heading", { name: "实验与结果" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "讨论" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "局限性" })).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "后续研究" }),
+      screen.getByRole("heading", { name: "研究问题" }),
     ).toBeInTheDocument();
     expect(screen.getAllByText("证据不足").length).toBeGreaterThan(0);
     expect(screen.getAllByText("证据链不完整").length).toBeGreaterThan(0);

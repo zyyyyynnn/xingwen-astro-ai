@@ -6,7 +6,7 @@ import {
 } from "@xingwen/data-access";
 
 const API_ORIGIN =
-  process.env.REAL_INTEGRATION_API_ORIGIN ?? "http://127.0.0.1:8000";
+  process.env.REAL_INTEGRATION_API_ORIGIN ?? "http://localhost:8000";
 
 function cookieFetch(): typeof fetch {
   let cookie = "";

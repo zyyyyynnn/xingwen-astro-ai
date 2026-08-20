@@ -68,12 +68,6 @@ function mapStatement(
   };
 }
 
-function mapStatementOrNull(
-  dto: PaperSummaryStatementDto | null,
-): PaperSummaryStatementReview | null {
-  return dto === null ? null : mapStatement(dto);
-}
-
 /** Narrow the wire locator to the domain discriminated union. */
 function mapLocator(
   dto: PaperSummaryEvidenceLocatorDto,
@@ -298,12 +292,13 @@ export function assemblePaperSummaryReview(
         }
       : null,
     inputVersions: mapInputVersions(summary.input_versions),
-    researchGoal: mapStatementOrNull(summary.research_goal),
-    method: mapStatementOrNull(summary.method),
-    dataset: mapStatementOrNull(summary.dataset),
-    findings: summary.findings.map(mapStatement),
+    background: summary.background.map(mapStatement),
+    methodology: summary.methodology.map(mapStatement),
+    dataset: summary.dataset.map(mapStatement),
+    experiments: summary.experiments.map(mapStatement),
+    discussion: summary.discussion.map(mapStatement),
     limitations: summary.limitations.map(mapStatement),
-    futureWork: summary.future_work.map(mapStatement),
+    researchQuestions: summary.research_questions.map(mapStatement),
     summaryEvidence: summary.evidence.map(mapSummaryEvidence),
     sourceConflicts: summary.source_conflicts.map(mapSourceConflict),
     producer: mapProducer(summary.producer),

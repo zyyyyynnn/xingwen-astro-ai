@@ -119,7 +119,7 @@ def test_fixture_exercises_all_three_support_statuses(
     statuses = {statement.status.value for statement in summary.statements()}
     assert statuses == {"supported", "unsupported", "unverifiable"}
     # The supported finding is verified against real paper_metadata.
-    finding = summary.findings[0]
+    finding = summary.experiments[0]
     assert finding.status.value == "supported"
     evidence_by_id = {item.evidence_id: item for item in summary.evidence}
     assert all(
@@ -262,7 +262,7 @@ def test_broken_statement_evidence_link_fails_validation(
     committed_document: dict[str, Any],
 ) -> None:
     payload = _summary_payload(committed_document)
-    referenced = payload["research_goal"]["evidence_ids"][0]
+    referenced = payload["background"][0]["evidence_ids"][0]
     payload["evidence"] = [
         item for item in payload["evidence"] if item["evidence_id"] != referenced
     ]

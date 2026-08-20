@@ -683,7 +683,7 @@ def _fit_tabular(
     )
     split_report: dict[str, object] = {
         "strategy": split_strategy,
-        "random_seed": seed,
+        "random_seed": seed if split_strategy != "time" else None,
         "train_count": len(train_indices),
         "test_count": len(test_indices),
         "cross_validation_folds": cv_folds

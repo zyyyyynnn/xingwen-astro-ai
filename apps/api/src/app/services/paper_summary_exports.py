@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import re
-from typing import Any, Literal
+from typing import Literal
 
 from app.schemas.paper_summary import PaperSummaryStatement
 from app.schemas.paper_summary_api import PaperSummaryRead
@@ -17,12 +17,13 @@ PaperSummaryExportFormat = Literal["json", "markdown"]
 _MARKDOWN_ESCAPE = re.compile(r"([\\`*{}\[\]()#+\-.!_|>])")
 _SAFE_FILENAME = re.compile(r"[^A-Za-z0-9._-]+")
 _SECTIONS = (
-    ("研究目标", "research_goal"),
-    ("方法", "method"),
+    ("研究背景", "background"),
+    ("研究方法", "methodology"),
     ("数据集", "dataset"),
-    ("实验与结果", "findings"),
+    ("实验与结果", "experiments"),
+    ("讨论", "discussion"),
     ("局限性", "limitations"),
-    ("未来工作", "future_work"),
+    ("研究问题", "research_questions"),
 )
 
 
@@ -91,13 +92,7 @@ def _render_markdown(read: PaperSummaryRead) -> str:
     for heading, field_name in _SECTIONS:
         lines.extend(("", f"## {heading}", ""))
         value = getattr(summary, field_name)
-        if value is None:
-            statements: tuple[Any, ...] = ()
-        elif isinstance(value, PaperSummaryStatement):
-            statements = (value,)
-        else:
-            statements = tuple(value)
-        statements = tuple(item for item in statements if item is not None)
+        statements: tuple[PaperSummaryStatement, ...] = tuple(value)
         if not statements:
             lines.append("_未收录已接纳的陈述。_")
             continue

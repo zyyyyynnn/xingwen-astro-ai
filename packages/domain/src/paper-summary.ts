@@ -2,8 +2,8 @@
  * Paper summary review domain model (Literature Summary Workspace).
  *
  * A read-only projection of the PaperSummary API `PaperSummaryRead` transport contract into
- * the frontend domain: structured summary statements (goal, method, dataset,
- * findings, limitations, future work), per-item evidence with locators and
+ * the frontend domain: seven structured sections (background, methodology,
+ * dataset, experiments, discussion, limitations, research questions),
  * support status, source-version conflicts, the model/prompt provenance and the
  * persisted SourceSnapshots. It carries no DOM, React or transport dependency.
  *
@@ -176,12 +176,13 @@ export interface PaperSummaryReview {
   /** Null for DocumentParse-backed summaries. */
   readonly benchmark: PaperBenchmarkReview | null;
   readonly inputVersions: PaperSummaryInputVersionsReview;
-  readonly researchGoal: PaperSummaryStatementReview | null;
-  readonly method: PaperSummaryStatementReview | null;
-  readonly dataset: PaperSummaryStatementReview | null;
-  readonly findings: readonly PaperSummaryStatementReview[];
+  readonly background: readonly PaperSummaryStatementReview[];
+  readonly methodology: readonly PaperSummaryStatementReview[];
+  readonly dataset: readonly PaperSummaryStatementReview[];
+  readonly experiments: readonly PaperSummaryStatementReview[];
+  readonly discussion: readonly PaperSummaryStatementReview[];
   readonly limitations: readonly PaperSummaryStatementReview[];
-  readonly futureWork: readonly PaperSummaryStatementReview[];
+  readonly researchQuestions: readonly PaperSummaryStatementReview[];
   readonly summaryEvidence: readonly PaperSummaryEvidenceReview[];
   readonly sourceConflicts: readonly PaperSummarySourceConflictReview[];
   readonly producer: PaperSummaryProducerReview;

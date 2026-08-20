@@ -76,6 +76,7 @@ from app.schemas.core import (
 )
 from app.services.research_thread import append_thread_entry
 from app.schemas.manifest import ManifestBundle
+from app.schemas.scientific_capabilities import planning_capabilities
 from app.security import SecurityProblem, canonical_request_hash, require_revision
 from app.services.model_execution import ModelExecutionError, ModelExecutionResponse
 from app.services.research_planner import PlannerResult, ResearchContractPlanner
@@ -1928,34 +1929,6 @@ _OUTPUT_PRESENTATION = {
     ),
 }
 
-_SKILL_PRESENTATION = {
-    "catalog_crossmatch": ("目录交叉匹配", "将研究对象与天文目录交叉对齐。"),
-    "data_profile": ("数据剖析", "生成数据质量与分布概览。"),
-    "statistical_analysis": ("统计分析", "执行假设检验与效应量估计。"),
-    "correlation_analysis": ("相关性分析", "计算变量间相关关系。"),
-    "clustering_analysis": ("聚类分析", "发现数据中的自然分组。"),
-    "anomaly_detection": ("异常检测", "识别数据中的离群点。"),
-    "chart_visualization": ("科学图表", "生成受治理的科学图表。"),
-    "simbad_lookup": ("SIMBAD 检索", "从 SIMBAD 获取天体标识与坐标。"),
-    "skyview_fits": ("SkyView FITS", "从 SkyView 获取巡天 FITS 影像。"),
-    "ephemeris": ("星历计算", "计算天体升落与位置星历。"),
-    "celestial_events": ("天象事件", "计算可见天象事件。"),
-    "gaia_cone_search": ("Gaia 锥搜索", "从 Gaia 目录检索锥形天区。"),
-    "vizier_tap": ("VizieR TAP", "通过 TAP 查询 VizieR 目录。"),
-    "fits_image_analysis": ("FITS 影像分析", "执行背景估计与源检测测光。"),
-    "spectrum_analysis": ("光谱分析", "检测谱线并测量光谱参数。"),
-    "spectrum_acquisition": ("光谱获取", "获取目标光谱数据。"),
-    "light_curve_analysis": ("光变分析", "执行周期与相位分析。"),
-    "light_curve_acquisition": ("光变获取", "获取目标光变曲线数据。"),
-    "tabular_machine_learning": ("表格机器学习", "训练分类或回归模型。"),
-    "time_series_classification": ("时序分类", "对时间序列执行分类建模。"),
-    "time_series_forecast": ("时序预测", "对时间序列执行预测建模。"),
-    "image_classification": ("图像分类", "对图像数据集执行分类建模。"),
-    "model_inference": ("模型推理", "使用已训练模型执行推理。"),
-    "wwt_scene": ("WWT 天图场景", "生成可交互的天图场景。"),
-}
-
-
 def _research_planning_catalog(
     *,
     project_id: str,
@@ -1998,15 +1971,11 @@ def _research_planning_catalog(
         ),
         scientific_skills=tuple(
             ResearchCatalogOption(
-                value=skill_id.value,
-                label=_SKILL_PRESENTATION.get(
-                    skill_id.value, (skill_id.value, "")
-                )[0],
-                description=_SKILL_PRESENTATION.get(
-                    skill_id.value, (skill_id.value, "")
-                )[1],
+                value=str(capability["id"]),
+                label=str(capability["label"]),
+                description=str(capability["description"]),
             )
-            for skill_id in ScientificSkillId
+            for capability in planning_capabilities()
         ),
         output_requirements=tuple(
             ResearchCatalogOption(

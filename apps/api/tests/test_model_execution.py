@@ -383,6 +383,62 @@ def test_planner_uses_the_registered_prompt_and_identified_output_contract() -> 
         "default_requested_field_ids"
     ]
     assert catalog["requested_fields"][0]["label"]
+    capabilities = {
+        capability["id"]: capability
+        for capability in catalog["scientific_capabilities"]
+    }
+    assert capabilities["clustering_analysis"] == {
+        "id": "clustering_analysis",
+        "label": "聚类分析",
+        "description": "KMeans / DBSCAN 聚类、轮廓系数与 PCA 投影。",
+        "phase": "analyzing_data",
+        "accepted_input_kinds": ["tabular_rows"],
+        "produced_artifact_kinds": ["analysis_report", "visualization"],
+        "parameters": [
+            {
+                "name": "rows",
+                "kind": "rows",
+                "required": True,
+                "description": "待聚类的数据行",
+            },
+            {
+                "name": "feature_fields",
+                "kind": "string_list",
+                "required": True,
+                "description": "聚类特征字段",
+            },
+            {
+                "name": "algorithm",
+                "kind": "string",
+                "required": False,
+                "description": "聚类算法",
+            },
+            {
+                "name": "cluster_count",
+                "kind": "integer",
+                "required": False,
+                "description": "KMeans 簇数",
+            },
+            {
+                "name": "eps",
+                "kind": "number",
+                "required": False,
+                "description": "DBSCAN 邻域半径",
+            },
+            {
+                "name": "min_samples",
+                "kind": "integer",
+                "required": False,
+                "description": "DBSCAN 最小样本数",
+            },
+            {
+                "name": "random_seed",
+                "kind": "integer",
+                "required": False,
+                "description": "随机种子",
+            },
+        ],
+    }
     assert catalog["output_requirement_ids"] == [kind.value for kind in ArtifactKind]
     assert catalog["executable_output_requirement_ids"] == [
         kind.value for kind in ArtifactKind if kind is not ArtifactKind.export

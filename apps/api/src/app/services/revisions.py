@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import (
     ArtifactVersionModel,
+    ProducerExecutionModel,
     ResearchArtifactModel,
     ResearchContractModel,
     ResearchProjectModel,
@@ -19,9 +20,10 @@ from app.db.models import (
     RevisionPlanFeedbackModel,
     RevisionPlanModel,
     RevisionPlanVersionModel,
+    RunStepModel,
     UserFeedbackModel,
 )
-from app.schemas.core import ArtifactKind, ResearchContractInput, ResearchThreadEntryKind
+from app.schemas.core import ResearchThreadEntryKind
 from app.schemas.revision import (
     ConfirmRevisionPlanRequest,
     CreateRevisionPlanRequest,
@@ -37,79 +39,8 @@ from app.security import SecurityProblem, canonical_request_hash
 from app.services.artifacts import ArtifactReadService
 from app.services.feedback_targets import FeedbackTargetAuthority
 from app.services.research_thread import append_thread_entry
-from app.workflow.run_plan import compile_revision_run_plan, compile_run_plan
-from app.workflow.store import RUN_STEP_STATUS_ORDER, PersistentWorkflowStore
-
-_DATA_KINDS = frozenset(
-    {
-        ArtifactKind.dataset,
-        ArtifactKind.field_dictionary,
-        ArtifactKind.source_collection,
-    }
-)
-_LITERATURE_KINDS = frozenset(
-    {
-        ArtifactKind.literature_claims,
-        ArtifactKind.literature_relations,
-        ArtifactKind.reasoning_traces,
-    }
-)
-_AFFECTED_KIND_CLOSURE: dict[ArtifactKind, frozenset[ArtifactKind]] = {
-    **{kind: frozenset({*_DATA_KINDS, ArtifactKind.graph}) for kind in _DATA_KINDS},
-    ArtifactKind.analysis_report: frozenset({ArtifactKind.analysis_report}),
-    ArtifactKind.visualization: frozenset({ArtifactKind.visualization}),
-    ArtifactKind.spectrum: frozenset({ArtifactKind.spectrum}),
-    ArtifactKind.light_curve: frozenset({ArtifactKind.light_curve}),
-    ArtifactKind.model_evaluation: frozenset({ArtifactKind.model_evaluation}),
-    ArtifactKind.model_artifact: frozenset({ArtifactKind.model_artifact}),
-    ArtifactKind.paper_collection: frozenset(
-        {
-            ArtifactKind.paper_collection,
-            ArtifactKind.paper_summary,
-            *_LITERATURE_KINDS,
-            ArtifactKind.graph,
-        }
-    ),
-    ArtifactKind.paper_summary: frozenset(
-        {ArtifactKind.paper_summary, *_LITERATURE_KINDS, ArtifactKind.graph}
-    ),
-    ArtifactKind.literature_claims: frozenset(
-        {
-            ArtifactKind.literature_claims,
-            ArtifactKind.literature_relations,
-            ArtifactKind.reasoning_traces,
-            ArtifactKind.graph,
-        }
-    ),
-    ArtifactKind.literature_relations: frozenset(
-        {
-            ArtifactKind.literature_relations,
-            ArtifactKind.reasoning_traces,
-            ArtifactKind.graph,
-        }
-    ),
-    ArtifactKind.reasoning_traces: frozenset(
-        {ArtifactKind.reasoning_traces, ArtifactKind.graph}
-    ),
-    ArtifactKind.graph: frozenset({ArtifactKind.graph}),
-}
-_KIND_STEP = {
-    ArtifactKind.dataset: "cleaning_data",
-    ArtifactKind.field_dictionary: "cleaning_data",
-    ArtifactKind.source_collection: "fetching_data",
-    ArtifactKind.analysis_report: "analyzing_data",
-    ArtifactKind.visualization: "building_visualizations",
-    ArtifactKind.spectrum: "analyzing_data",
-    ArtifactKind.light_curve: "analyzing_data",
-    ArtifactKind.model_evaluation: "training_models",
-    ArtifactKind.model_artifact: "training_models",
-    ArtifactKind.paper_collection: "searching_papers",
-    ArtifactKind.paper_summary: "summarizing_papers",
-    ArtifactKind.literature_claims: "reasoning_literature",
-    ArtifactKind.literature_relations: "reasoning_literature",
-    ArtifactKind.reasoning_traces: "reasoning_literature",
-    ArtifactKind.graph: "building_graph",
-}
+from app.workflow.run_plan import compile_revision_run_plan
+from app.workflow.store import PersistentWorkflowStore, RunStepDefinition
 
 
 class RevisionApplicationService:
@@ -332,21 +263,25 @@ class RevisionApplicationService:
             contract = session.get(ResearchContractModel, parent.contract_id)
             if contract is None or contract.project_id != project.id:
                 raise _not_found("CONTRACT_NOT_FOUND")
-            try:
-                parent_step_keys = {
-                    item.key
-                    for item in compile_run_plan(
-                        ResearchContractInput.model_validate(contract.content)
-                    )
-                }
-            except ValueError as exc:
+            parent_steps = tuple(
+                session.scalars(
+                    select(RunStepModel)
+                    .where(RunStepModel.run_id == parent.id)
+                    .order_by(RunStepModel.position)
+                )
+            )
+            if not parent_steps or parent_steps[0].key != "planning":
                 raise _conflict(
-                    "REVISION_CONTRACT_INVALID",
-                    "The parent Contract cannot define a revision Run",
-                ) from exc
-            governed_kinds = {
-                kind for kind, step in _KIND_STEP.items() if step in parent_step_keys
-            }
+                    "REVISION_PARENT_STEPS_INVALID",
+                    "The parent Run has no valid frozen step plan",
+                )
+            parent_step_by_id = {step.id: step for step in parent_steps}
+            parent_step_by_key = {step.key: step for step in parent_steps}
+            if len(parent_step_by_key) != len(parent_steps):
+                raise _conflict(
+                    "REVISION_PARENT_STEPS_INVALID",
+                    "The parent Run step keys are not unique",
+                )
 
             latest_rows = tuple(
                 session.execute(
@@ -374,33 +309,69 @@ class RevisionApplicationService:
                     "One or more Feedback baselines are no longer current",
                 )
 
-            artifact_by_id = {artifact.id: artifact for artifact, _ in latest_rows}
-            affected_kinds: set[ArtifactKind] = set()
-            for feedback in ordered_feedback:
-                kind = ArtifactKind(artifact_by_id[feedback.artifact_id].kind)
-                closure = _AFFECTED_KIND_CLOSURE.get(kind)
-                if closure is None:
-                    raise _conflict(
-                        "REVISION_ARTIFACT_UNSUPPORTED",
-                        "The Feedback target has no revision impact mapping",
+            parent_versions = tuple(
+                version
+                for _, version in latest_rows
+                if version.created_by_run_id == parent.id
+            )
+            producer_ids = {version.producer_execution_id for version in parent_versions}
+            producers = tuple(
+                session.scalars(
+                    select(ProducerExecutionModel).where(
+                        ProducerExecutionModel.id.in_(producer_ids)
                     )
-                affected_kinds.update(closure)
+                )
+            )
+            producer_by_id = {producer.id: producer for producer in producers}
+
+            def producer_step_key(version: ArtifactVersionModel) -> str:
+                producer = producer_by_id.get(version.producer_execution_id)
+                step = parent_step_by_id.get(version.run_step_id)
+                if (
+                    producer is None
+                    or step is None
+                    or producer.run_id != parent.id
+                    or producer.run_step_id != step.id
+                    or producer.step_key != step.key
+                    or version.step_attempt_id != producer.step_attempt_id
+                ):
+                    raise _conflict(
+                        "REVISION_PRODUCER_INVALID",
+                        "An ArtifactVersion producer does not match the parent RunStep",
+                    )
+                return step.key
+
+            baseline_step_keys = {
+                producer_step_key(
+                    baseline_by_id[feedback.baseline_artifact_version_id]
+                )
+                for feedback in ordered_feedback
+            }
+            affected_step_keys = set(baseline_step_keys)
+            changed = True
+            while changed:
+                changed = False
+                for step in parent_steps:
+                    if step.key in affected_step_keys:
+                        continue
+                    if set(step.depends_on_step_keys) & affected_step_keys:
+                        affected_step_keys.add(step.key)
+                        changed = True
+            affected_step_keys.add("planning")
             plan_id = uuid4()
             decisions: list[RevisionPlanVersionModel] = []
             frozen_decisions: list[dict[str, object]] = []
             for position, (artifact, version) in enumerate(latest_rows):
-                kind = ArtifactKind(artifact.kind)
                 decision = (
                     RevisionDecision.recompute
                     if (
-                        kind in affected_kinds
-                        and kind in governed_kinds
-                        and version.created_by_run_id == parent.id
+                        version.created_by_run_id == parent.id
+                        and producer_step_key(version) in affected_step_keys
                     )
                     else RevisionDecision.reuse
                 )
                 step_key = (
-                    _KIND_STEP.get(kind)
+                    producer_step_key(version)
                     if decision is RevisionDecision.recompute
                     else None
                 )
@@ -411,7 +382,7 @@ class RevisionApplicationService:
                         artifact_id=artifact.id,
                         project_id=project.id,
                         position=position,
-                        artifact_kind=kind.value,
+                        artifact_kind=artifact.kind,
                         version_number=version.version_number,
                         decision=decision.value,
                         step_key=step_key,
@@ -421,7 +392,7 @@ class RevisionApplicationService:
                     {
                         "artifact_version_id": str(version.id),
                         "artifact_id": str(artifact.id),
-                        "artifact_kind": kind.value,
+                        "artifact_kind": artifact.kind,
                         "version_number": version.version_number,
                         "decision": decision.value,
                         "step_key": step_key,
@@ -440,17 +411,8 @@ class RevisionApplicationService:
                     "REVISION_BASELINE_OUTSIDE_CONTRACT",
                     "A Feedback baseline is outside the parent Contract output closure",
                 )
-            affected_steps = {
-                "planning",
-                *(
-                    item.step_key
-                    for item in decisions
-                    if item.decision == RevisionDecision.recompute.value
-                    and item.step_key is not None
-                ),
-            }
             recompute_steps = tuple(
-                step for step in RUN_STEP_STATUS_ORDER if step in affected_steps
+                step.key for step in parent_steps if step.key in affected_step_keys
             )
             plan_payload = {
                 "project_id": str(project.id),
@@ -616,7 +578,26 @@ class RevisionApplicationService:
                     "An Artifact latest version changed after the RevisionPlan was created",
                 )
 
-            steps = compile_revision_run_plan(frozenset(plan.recompute_steps))
+            parent_steps = tuple(
+                RunStepDefinition(
+                    key=step.key,
+                    label=step.label,
+                    enter_status=step.enter_status,
+                    success_status=step.success_status,
+                    max_attempts=step.max_attempts,
+                    task_id=step.task_id,
+                    skill_id=step.skill_id,
+                    depends_on_step_keys=tuple(step.depends_on_step_keys),
+                )
+                for step in session.scalars(
+                    select(RunStepModel)
+                    .where(RunStepModel.run_id == parent.id)
+                    .order_by(RunStepModel.position)
+                )
+            )
+            steps = compile_revision_run_plan(
+                parent_steps, frozenset(plan.recompute_steps)
+            )
             run_id = self._workflow.create_run_in_session(
                 session,
                 project_id=plan.project_id,

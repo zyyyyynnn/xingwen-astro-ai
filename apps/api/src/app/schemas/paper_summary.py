@@ -86,6 +86,16 @@ class PaperSummaryFailureStage(StrEnum):
     schema = "schema"
 
 
+class PaperSummarySectionKind(StrEnum):
+    background = "background"
+    methodology = "methodology"
+    dataset = "dataset"
+    experiments = "experiments"
+    discussion = "discussion"
+    limitations = "limitations"
+    research_questions = "research_questions"
+
+
 class PaperSummaryStatementCandidate(BaseModel):
     model_config = MODEL_CONFIG
 
@@ -105,12 +115,13 @@ class PaperSummaryModelOutput(BaseModel):
     model_config = MODEL_CONFIG
     __artifact_publication_requires_admission__: ClassVar[bool] = True
 
-    research_goal: PaperSummaryStatementCandidate | None
-    method: PaperSummaryStatementCandidate | None
-    dataset: PaperSummaryStatementCandidate | None
-    findings: tuple[PaperSummaryStatementCandidate, ...]
+    background: tuple[PaperSummaryStatementCandidate, ...]
+    methodology: tuple[PaperSummaryStatementCandidate, ...]
+    dataset: tuple[PaperSummaryStatementCandidate, ...]
+    experiments: tuple[PaperSummaryStatementCandidate, ...]
+    discussion: tuple[PaperSummaryStatementCandidate, ...]
     limitations: tuple[PaperSummaryStatementCandidate, ...]
-    future_work: tuple[PaperSummaryStatementCandidate, ...]
+    research_questions: tuple[PaperSummaryStatementCandidate, ...]
     evidence_ids: tuple[Identifier, ...]
 
     @model_validator(mode="after")
@@ -128,12 +139,11 @@ class PaperSummaryModelOutput(BaseModel):
         return self
 
     def statements(self) -> tuple[PaperSummaryStatementCandidate, ...]:
-        singular = tuple(
-            item
-            for item in (self.research_goal, self.method, self.dataset)
-            if item is not None
+        return tuple(
+            statement
+            for section in PaperSummarySectionKind
+            for statement in getattr(self, section.value)
         )
-        return singular + self.findings + self.limitations + self.future_work
 
 
 class PaperSummaryEvidenceLocator(BaseModel):
@@ -380,18 +390,19 @@ class PaperSummaryArtifactContent(BaseModel):
     _artifact_publication_seal: object | None = PrivateAttr(default=None)
 
     kind: Literal["paper_summary"]
-    schema_version: Literal["1.0.0"]
+    schema_version: Literal["2.0.0"]
     summary_id: Identifier
     paper_id: Identifier
     paper: PaperSummaryPaperMetadata | None = None
     benchmark: PaperBenchmarkReference | None = None
     input_versions: PaperSummaryInputVersions
-    research_goal: PaperSummaryStatement | None
-    method: PaperSummaryStatement | None
-    dataset: PaperSummaryStatement | None
-    findings: tuple[PaperSummaryStatement, ...]
+    background: tuple[PaperSummaryStatement, ...]
+    methodology: tuple[PaperSummaryStatement, ...]
+    dataset: tuple[PaperSummaryStatement, ...]
+    experiments: tuple[PaperSummaryStatement, ...]
+    discussion: tuple[PaperSummaryStatement, ...]
     limitations: tuple[PaperSummaryStatement, ...]
-    future_work: tuple[PaperSummaryStatement, ...]
+    research_questions: tuple[PaperSummaryStatement, ...]
     evidence_ids: tuple[Identifier, ...]
     evidence: tuple[PaperSummaryEvidence, ...]
     source_conflicts: tuple[PaperSummarySourceConflict, ...]
@@ -463,12 +474,11 @@ class PaperSummaryArtifactContent(BaseModel):
         return self
 
     def statements(self) -> tuple[PaperSummaryStatement, ...]:
-        singular = tuple(
-            item
-            for item in (self.research_goal, self.method, self.dataset)
-            if item is not None
+        return tuple(
+            statement
+            for section in PaperSummarySectionKind
+            for statement in getattr(self, section.value)
         )
-        return singular + self.findings + self.limitations + self.future_work
 
     def __artifact_publication_is_admitted__(self) -> bool:
         return self._artifact_publication_seal is _ARTIFACT_PUBLICATION_SEAL

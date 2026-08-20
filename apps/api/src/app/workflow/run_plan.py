@@ -8,10 +8,12 @@ from hashlib import sha256
 from app.schemas.core import (
     ArtifactKind,
     ResearchContractInput,
-    ScientificSkillId,
+)
+from app.schemas.scientific_capabilities import (
+    requires_dataset_prerequisite,
+    scientific_skill_phase,
 )
 from app.workflow.store import RUN_STEP_STATUS_ORDER, RunStepDefinition
-from services.scientific_skills.planning import scientific_skill_phase
 
 
 class UnsupportedRunPlanError(ValueError):
@@ -54,60 +56,6 @@ _LITERATURE_OUTPUTS = frozenset(
         ArtifactKind.literature_claims,
         ArtifactKind.literature_relations,
         ArtifactKind.reasoning_traces,
-    }
-)
-_DATA_ANALYSIS_SKILLS = frozenset(
-    {
-        ScientificSkillId.catalog_crossmatch,
-        ScientificSkillId.data_profile,
-        ScientificSkillId.statistical_analysis,
-        ScientificSkillId.correlation_analysis,
-        ScientificSkillId.spectrum_analysis,
-        ScientificSkillId.light_curve_analysis,
-        ScientificSkillId.tabular_machine_learning,
-        ScientificSkillId.time_series_classification,
-        ScientificSkillId.time_series_forecast,
-        ScientificSkillId.image_classification,
-        ScientificSkillId.model_inference,
-    }
-)
-_OBSERVATION_SKILLS = frozenset(
-    {
-        ScientificSkillId.simbad_lookup,
-        ScientificSkillId.skyview_fits,
-        ScientificSkillId.ephemeris,
-        ScientificSkillId.celestial_events,
-        ScientificSkillId.gaia_cone_search,
-        ScientificSkillId.vizier_tap,
-        ScientificSkillId.spectrum_acquisition,
-        ScientificSkillId.light_curve_acquisition,
-    }
-)
-_ANALYSIS_SKILLS = frozenset(
-    {
-        ScientificSkillId.catalog_crossmatch,
-        ScientificSkillId.data_profile,
-        ScientificSkillId.statistical_analysis,
-        ScientificSkillId.correlation_analysis,
-        ScientificSkillId.fits_image_analysis,
-        ScientificSkillId.spectrum_analysis,
-        ScientificSkillId.light_curve_analysis,
-        ScientificSkillId.vizier_tap,
-        ScientificSkillId.model_inference,
-    }
-)
-_MODEL_SKILLS = frozenset(
-    {
-        ScientificSkillId.tabular_machine_learning,
-        ScientificSkillId.time_series_classification,
-        ScientificSkillId.time_series_forecast,
-        ScientificSkillId.image_classification,
-    }
-)
-_VISUALIZATION_SKILLS = frozenset(
-    {
-        ScientificSkillId.chart_visualization,
-        ScientificSkillId.wwt_scene,
     }
 )
 _SCIENTIFIC_PHASES = frozenset(
@@ -233,25 +181,22 @@ def compile_run_plan(
     """Freeze the smallest ordered prerequisite closure for requested outputs."""
 
     outputs = frozenset(contract.output_requirements)
-    skills = frozenset(task.skill_id for task in contract.scientific_tasks)
     unsupported = outputs - SUPPORTED_RUN_OUTPUTS
     if unsupported:
         raise UnsupportedRunPlanError(unsupported)
 
     required = {"planning"}
-    if outputs & _DATA_OUTPUTS or skills & _DATA_ANALYSIS_SKILLS:
+    if outputs & _DATA_OUTPUTS:
         required.update(("fetching_data", "cleaning_data"))
-    if skills & _OBSERVATION_SKILLS:
-        required.add("acquiring_observations")
-    if skills & _ANALYSIS_SKILLS:
-        required.add("analyzing_data")
-    if (
-        outputs & {ArtifactKind.model_evaluation, ArtifactKind.model_artifact}
-        or skills & _MODEL_SKILLS
-    ):
+    # Every scientific task owns its phase and dataset prerequisites through
+    # the capability table; a planned task can never be silently dropped from
+    # the frozen step chain.
+    for task in contract.scientific_tasks:
+        required.add(scientific_skill_phase(task.skill_id.value))
+        if requires_dataset_prerequisite(task.skill_id.value):
+            required.update(("fetching_data", "cleaning_data"))
+    if outputs & {ArtifactKind.model_evaluation, ArtifactKind.model_artifact}:
         required.add("training_models")
-    if skills & _VISUALIZATION_SKILLS:
-        required.add("building_visualizations")
     if ArtifactKind.paper_collection in outputs:
         required.add("searching_papers")
     if (
@@ -269,7 +214,7 @@ def compile_run_plan(
         phase: tuple(
             task
             for task in contract.scientific_tasks
-            if scientific_skill_phase(task.skill_id) == phase
+            if scientific_skill_phase(task.skill_id.value) == phase
         )
         for phase in _SCIENTIFIC_PHASES
     }
@@ -324,22 +269,37 @@ def compile_run_plan(
 
 
 def compile_revision_run_plan(
+    parent_steps: tuple[RunStepDefinition, ...],
     step_keys: frozenset[str],
 ) -> tuple[RunStepDefinition, ...]:
-    """Freeze an already-computed affected-step closure for a revision Run."""
+    """Freeze selected parent steps without losing scientific task identity."""
 
-    unknown = step_keys - set(RUN_STEP_STATUS_ORDER)
+    parent_by_key = {step.key: step for step in parent_steps}
+    if len(parent_by_key) != len(parent_steps):
+        raise ValueError("parent Run steps must use unique keys")
+    unknown = step_keys - set(parent_by_key)
     if unknown or "planning" not in step_keys:
-        raise ValueError("revision Run steps must be canonical and include planning")
-    ordered = tuple(step for step in RUN_STEP_STATUS_ORDER if step in step_keys)
+        raise ValueError("revision Run steps must belong to the parent and include planning")
+    ordered = tuple(step for step in parent_steps if step.key in step_keys)
     return tuple(
         RunStepDefinition(
-            key=step,
-            label=_STEP_LABELS[step],
-            enter_status=step,
+            key=step.key,
+            label=step.label,
+            enter_status=step.enter_status,
             success_status=(
-                ordered[position + 1] if position + 1 < len(ordered) else "completed"
+                ordered[position + 1].enter_status
+                if position + 1 < len(ordered)
+                else "completed"
             ),
+            max_attempts=step.max_attempts,
+            task_id=step.task_id,
+            skill_id=step.skill_id,
+            depends_on_step_keys=tuple(
+                dependency
+                for dependency in step.depends_on_step_keys
+                if dependency in step_keys
+            )
+            or ((ordered[position - 1].key,) if position else ()),
         )
         for position, step in enumerate(ordered)
     )

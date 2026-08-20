@@ -987,11 +987,14 @@ class ModelTaskKind(StrEnum):
 class ModelSplitReference(BaseModel):
     model_config = MODEL_CONFIG
 
-    strategy: Literal["holdout", "stratified_holdout", "time_ordered"]
+    strategy: Literal["random", "stratified", "group", "entity", "time"]
+    field: Identifier | None = None
     random_seed: int | None = Field(default=None, ge=0, le=2**32 - 1)
     train_fraction: float = Field(gt=0, lt=1)
     validation_fraction: float = Field(ge=0, lt=1)
     test_fraction: float = Field(gt=0, lt=1)
+    cross_validation_folds: int | None = Field(default=None, ge=2)
+    train_cutoff: NonEmptyString | int | float | None = None
 
     @model_validator(mode="after")
     def validate_fractions(self) -> Self:
@@ -1000,8 +1003,19 @@ class ModelSplitReference(BaseModel):
             > 1e-9
         ):
             raise ValueError("model split fractions must total 1")
-        if self.strategy == "time_ordered" and self.random_seed is not None:
-            raise ValueError("time_ordered split cannot use random_seed")
+        if self.strategy in {"group", "entity", "time"} and self.field is None:
+            raise ValueError(f"{self.strategy} split requires field")
+        if self.strategy in {"random", "stratified"} and self.field is not None:
+            raise ValueError(f"{self.strategy} split cannot declare field")
+        if self.strategy == "time":
+            if self.random_seed is not None:
+                raise ValueError("time split cannot use random_seed")
+            if self.cross_validation_folds is not None:
+                raise ValueError("time split cannot use cross-validation")
+            if self.train_cutoff is None:
+                raise ValueError("time split requires train_cutoff")
+        elif self.train_cutoff is not None:
+            raise ValueError("only time split can declare train_cutoff")
         return self
 
 

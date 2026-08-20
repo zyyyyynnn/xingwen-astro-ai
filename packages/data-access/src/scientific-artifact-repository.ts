@@ -404,10 +404,13 @@ function mapModel(dto: ModelEvaluationDto): ModelEvaluationReviewContent {
     targetField: id(dto.target_field),
     split: {
       strategy: dto.split.strategy,
+      field: dto.split.field ? id(dto.split.field) : null,
       randomSeed: dto.split.random_seed ?? null,
       trainFraction: dto.split.train_fraction,
       validationFraction: dto.split.validation_fraction,
       testFraction: dto.split.test_fraction,
+      crossValidationFolds: dto.split.cross_validation_folds ?? null,
+      trainCutoff: dto.split.train_cutoff ?? null,
     },
     metrics: dto.metrics.map(mapMetric),
     baselineMetrics: (dto.baseline_metrics ?? []).map(mapMetric),

@@ -10,6 +10,7 @@ import type {
   AnalysisReportReviewContent,
   LightCurveArtifactReviewContent,
   ModelArtifactReviewContent,
+  ModelEvaluationReviewContent,
   ScientificArtifactReview,
   ScientificArtifactReviewContent,
   SpectrumArtifactReviewContent,
@@ -196,6 +197,68 @@ describe("ScientificArtifactRenderer scientific content", () => {
     expect(screen.getByText("请人工核对光谱分类")).toBeInTheDocument();
   });
 
+  it("renders astronomy source rows as a bounded sortable table with units and evidence", () => {
+    const evidenceId = asEntityId("evidence-gaia-1");
+    const onSelectEvidence = vi.fn();
+    const content: AnalysisReportReviewContent = {
+      kind: "analysis_report",
+      schemaVersion: "1.0.0",
+      reportId: asEntityId("report-gaia"),
+      title: "Gaia 锥形检索",
+      summary: "返回两个 Gaia DR3 源。",
+      skillExecutions: [],
+      resultBlocks: [
+        {
+          blockId: asEntityId("result-gaia"),
+          label: "Gaia DR3 查询结果",
+          representation: "catalog",
+          payload: {
+            service: "gaia_archive",
+            data_release: "gaiadr3",
+            coordinate_frame: "ICRS",
+            column_metadata: [
+              { field: "source_id", label: "Gaia 源标识", unit: null },
+              { field: "parallax", label: "视差", unit: "mas" },
+            ],
+            rows: [
+              { source_id: "2", parallax: 2.4 },
+              { source_id: "1", parallax: 1.2 },
+            ],
+          },
+          contentHash: "sha256:gaia",
+          evidenceIds: [evidenceId],
+        },
+      ],
+      metrics: [],
+      findings: [],
+      limitations: [],
+      humanRequired: [],
+      relatedArtifactVersionIds: [],
+      sourceSnapshotIds: [asEntityId("snapshot-gaia")],
+      evidenceIds: [evidenceId],
+      inputHash: "sha256:input",
+      outputHash: "sha256:output",
+    };
+
+    render(
+      <ScientificArtifactRenderer
+        review={makeReview(content)}
+        title="Gaia 查询"
+        surface="fullscreen"
+        onSelectEvidence={onSelectEvidence}
+      />,
+    );
+
+    expect(screen.getByText("数据服务：")).toBeInTheDocument();
+    expect(screen.getByText("ICRS")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "视差 (mas)" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /1\.2.*mas/ }));
+    expect(onSelectEvidence).toHaveBeenCalledWith(evidenceId);
+    expect(screen.queryByText(/column_metadata/)).toBeNull();
+  });
+
   it("keeps light-curve time-scale identity visible", () => {
     const content: LightCurveArtifactReviewContent = {
       kind: "light_curve",
@@ -362,5 +425,67 @@ describe("ScientificArtifactRenderer scientific content", () => {
         }),
       ),
     );
+  });
+
+  it("renders exact entity split provenance and runtime limitations", () => {
+    const content: ModelEvaluationReviewContent = {
+      kind: "model_evaluation",
+      schemaVersion: "1.0.0",
+      evaluationId: asEntityId("evaluation-1"),
+      title: "宿主星分类评估",
+      taskKind: "classification",
+      algorithm: "random_forest",
+      algorithmVersion: "1.6.1",
+      trainingInput: {
+        kind: "dataset_artifact_version",
+        refId: asEntityId("dataset-1"),
+      },
+      featureFields: [asEntityId("teff"), asEntityId("feh")],
+      targetField: asEntityId("host_label"),
+      split: {
+        strategy: "entity",
+        field: asEntityId("object_id"),
+        randomSeed: 42,
+        trainFraction: 0.8,
+        validationFraction: 0,
+        testFraction: 0.2,
+        crossValidationFolds: 5,
+        trainCutoff: null,
+      },
+      metrics: [],
+      baselineMetrics: [],
+      skillExecution: {
+        executionId: asEntityId("execution-1"),
+        skillId: "tabular_machine_learning",
+        skillRevision: "1.0.0",
+        status: "completed",
+        inputHash: "sha256:input",
+        outputHash: "sha256:output",
+        durationMs: 1200,
+        warnings: [],
+      },
+      modelBinary: null,
+      diagnosticVisualizationIds: [],
+      limitations: ["同一实体不会跨越训练与测试边界"],
+      sourceSnapshotIds: [],
+      evidenceIds: [],
+      inputHash: "sha256:input",
+      outputHash: "sha256:output",
+    };
+
+    render(
+      <ScientificArtifactRenderer
+        review={makeReview(content)}
+        title="模型评估"
+        surface="fullscreen"
+      />,
+    );
+
+    expect(screen.getByText(/实体隔离划分/)).toHaveTextContent(
+      "实体隔离划分 · 划分字段 object_id · 随机种子 42 · 5 折交叉验证",
+    );
+    expect(
+      screen.getByText("同一实体不会跨越训练与测试边界"),
+    ).toBeInTheDocument();
   });
 });

@@ -9,7 +9,11 @@ import { asEntityId } from "@xingwen/domain";
 import type { WwtSceneVisualizationReview } from "@xingwen/domain";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { WwtSceneControls } from "./wwt-scene-controls";
+import {
+  transitionSceneBackground,
+  transitionToTrackedObject,
+  WwtSceneControls,
+} from "./wwt-scene-controls";
 
 beforeAll(() => {
   // jsdom does not implement scrollIntoView, which Radix listboxes use.
@@ -126,6 +130,13 @@ const loadContent = vi.fn(async () => new ArrayBuffer(0));
 
 const trackedObjectSpec: WwtSceneVisualizationReview = {
   ...publishedSpec,
+  background: "solar_system",
+  constellations: {
+    boundaries: false,
+    figures: false,
+    pictures: false,
+    labels: false,
+  },
   view: {
     kind: "tracked_object",
     target: "jupiter",
@@ -163,6 +174,56 @@ function renderControls() {
 }
 
 describe("WwtSceneControls", () => {
+  it("normalizes track-object transitions into a backend-valid solar scene", () => {
+    const tracked = transitionToTrackedObject(
+      {
+        ...publishedSpec,
+        foreground: { imageSet: "wise", opacity: 0.4 },
+        precessionChart: true,
+      },
+      "mars",
+    );
+
+    expect(tracked.view).toEqual({
+      kind: "tracked_object",
+      target: "mars",
+      fieldOfViewDegrees: 1.5,
+      rollDegrees: 0,
+      transitionSeconds: 1,
+    });
+    expect(tracked.background).toBe("solar_system");
+    expect(tracked.foreground).toBeNull();
+    expect(Object.values(tracked.constellations)).toEqual([
+      false,
+      false,
+      false,
+      false,
+    ]);
+    expect(tracked.precessionChart).toBe(false);
+  });
+
+  it("clears incompatible overlays on solar background and does not restore them", () => {
+    const solar = transitionSceneBackground(
+      {
+        ...publishedSpec,
+        foreground: { imageSet: "wise", opacity: 0.4 },
+        precessionChart: true,
+      },
+      "solar_system",
+    );
+    const sky = transitionSceneBackground(solar, "gaia");
+
+    expect(solar.foreground).toBeNull();
+    expect(Object.values(solar.constellations).every((value) => !value)).toBe(
+      true,
+    );
+    expect(solar.precessionChart).toBe(false);
+    expect(sky.background).toBe("gaia");
+    expect(sky.foreground).toBeNull();
+    expect(sky.constellations).toEqual(solar.constellations);
+    expect(sky.precessionChart).toBe(false);
+  });
+
   it("initializes control drafts from the published coordinates spec", () => {
     renderControls();
     expect(screen.getByLabelText("中心赤经（小时）")).toHaveValue("6");
@@ -252,6 +313,34 @@ describe("WwtSceneControls", () => {
     await waitFor(() =>
       expect(lastViewportSpec().constellations.boundaries).toBe(true),
     );
+  });
+
+  it("disables the AltAz grid until an observer is configured", async () => {
+    renderControls();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "坐标网格" }));
+    const altaz = await screen.findByRole("menuitemcheckbox", {
+      name: "地平网格（需先设置观测点）",
+    });
+    expect(altaz).toHaveAttribute("data-disabled");
+    fireEvent.click(altaz);
+    expect(lastViewportSpec().coordinateGrids).toEqual(
+      publishedSpec.coordinateGrids,
+    );
+  });
+
+  it("prevents a tracked-object scene from selecting an invalid sky background", async () => {
+    render(
+      <WwtSceneControls
+        spec={trackedObjectSpec}
+        versionNumber={2}
+        loadContent={loadContent}
+      />,
+    );
+    fireEvent.click(screen.getByRole("combobox", { name: "背景天图" }));
+    const gaia = await screen.findByRole("option", { name: "Gaia DR3" });
+    expect(gaia).toHaveAttribute("data-disabled");
+    fireEvent.click(gaia);
+    expect(lastViewportSpec().background).toBe("solar_system");
   });
 
   it("switches time mode into bounded playback", async () => {

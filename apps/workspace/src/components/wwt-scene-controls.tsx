@@ -73,6 +73,50 @@ function parseNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+const EMPTY_CONSTELLATIONS: WwtSceneVisualizationReview["constellations"] = {
+  boundaries: false,
+  figures: false,
+  pictures: false,
+  labels: false,
+};
+
+export function normalizeSolarSystemScene(
+  scene: WwtSceneVisualizationReview,
+): WwtSceneVisualizationReview {
+  return {
+    ...scene,
+    background: "solar_system",
+    foreground: null,
+    constellations: EMPTY_CONSTELLATIONS,
+    precessionChart: false,
+  };
+}
+
+export function transitionSceneBackground(
+  scene: WwtSceneVisualizationReview,
+  background: WwtSceneVisualizationReview["background"],
+): WwtSceneVisualizationReview {
+  return background === "solar_system"
+    ? normalizeSolarSystemScene(scene)
+    : { ...scene, background };
+}
+
+export function transitionToTrackedObject(
+  scene: WwtSceneVisualizationReview,
+  target: WwtTrackedObjectViewReview["target"],
+): WwtSceneVisualizationReview {
+  return normalizeSolarSystemScene({
+    ...scene,
+    view: {
+      kind: "tracked_object",
+      target,
+      fieldOfViewDegrees: scene.view.fieldOfViewDegrees,
+      rollDegrees: scene.view.rollDegrees,
+      transitionSeconds: 1,
+    },
+  });
+}
+
 export function WwtSceneControls({
   spec,
   versionNumber,
@@ -181,16 +225,7 @@ export function WwtSceneControls({
 
   const trackObject = () => {
     setControlError(null);
-    setBase({
-      ...base,
-      view: {
-        kind: "tracked_object",
-        target: trackedTarget,
-        fieldOfViewDegrees: base.view.fieldOfViewDegrees,
-        rollDegrees: base.view.rollDegrees,
-        transitionSeconds: 1,
-      },
-    });
+    setBase((current) => transitionToTrackedObject(current, trackedTarget));
   };
 
   const applyObserver = () => {
@@ -253,6 +288,7 @@ export function WwtSceneControls({
   };
 
   const toggleGrid = (system: (typeof GRID_SYSTEMS)[number]["system"]) => {
+    if (system === "altaz" && base.observer === null) return;
     const current = base.coordinateGrids.find((grid) => grid.system === system);
     const coordinateGrids = current
       ? base.coordinateGrids.filter((grid) => grid.system !== system)
@@ -451,12 +487,15 @@ export function WwtSceneControls({
       <div className="wwt-scene-controls__group" aria-label="场景设置">
         <Select
           value={base.background}
-          onValueChange={(value) =>
-            setBase({
-              ...base,
-              background: value as WwtSceneVisualizationReview["background"],
-            })
-          }
+          onValueChange={(value) => {
+            setControlError(null);
+            setBase((current) =>
+              transitionSceneBackground(
+                current,
+                value as WwtSceneVisualizationReview["background"],
+              ),
+            );
+          }}
         >
           <SelectTrigger
             aria-label="背景天图"
@@ -466,7 +505,14 @@ export function WwtSceneControls({
           </SelectTrigger>
           <SelectContent>
             {BACKGROUND_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
+              <SelectItem
+                key={option.value}
+                value={option.value}
+                disabled={
+                  base.view.kind === "tracked_object" &&
+                  option.value !== "solar_system"
+                }
+              >
                 {option.label}
               </SelectItem>
             ))}
@@ -482,12 +528,15 @@ export function WwtSceneControls({
             {GRID_SYSTEMS.map((grid) => (
               <DropdownMenuCheckboxItem
                 key={grid.system}
+                disabled={grid.system === "altaz" && base.observer === null}
                 checked={base.coordinateGrids.some(
                   (item) => item.system === grid.system,
                 )}
                 onCheckedChange={() => toggleGrid(grid.system)}
               >
-                {grid.label}
+                {grid.system === "altaz" && base.observer === null
+                  ? `${grid.label}（需先设置观测点）`
+                  : grid.label}
               </DropdownMenuCheckboxItem>
             ))}
           </DropdownMenuContent>
@@ -502,6 +551,7 @@ export function WwtSceneControls({
             {CONSTELLATION_OPTIONS.map((option) => (
               <DropdownMenuCheckboxItem
                 key={option.key}
+                disabled={base.background === "solar_system"}
                 checked={base.constellations[option.key]}
                 onCheckedChange={() => toggleConstellation(option.key)}
               >
@@ -509,6 +559,7 @@ export function WwtSceneControls({
               </DropdownMenuCheckboxItem>
             ))}
             <DropdownMenuCheckboxItem
+              disabled={base.background === "solar_system"}
               checked={base.precessionChart}
               onCheckedChange={() =>
                 setBase({

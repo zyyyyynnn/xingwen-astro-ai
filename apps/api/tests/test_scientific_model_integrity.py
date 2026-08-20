@@ -170,6 +170,8 @@ def test_time_split_evaluates_only_rows_after_the_training_cutoff() -> None:
 
     split = result.output["split"]
     assert split["strategy"] == "time"
+    assert split["field"] == "day"
+    assert split["random_seed"] is None
     train_cutoff = float(split["train_cutoff"])
     time_by_row = {str(row["row_id"]): float(row["day"]) for row in rows}
     predictions = result.output["predictions"]
@@ -180,6 +182,10 @@ def test_time_split_evaluates_only_rows_after_the_training_cutoff() -> None:
         )
     # Time splits must skip cross-validation rather than leak the future.
     assert split["cross_validation_folds"] is None
+    assert (
+        "validation is strictly after the training cutoff; cross-validation is skipped to avoid future leakage"
+        in result.output["limitations"]
+    )
 
 
 def test_group_split_reports_grouped_cross_validation_metrics() -> None:
@@ -201,6 +207,8 @@ def test_group_split_reports_grouped_cross_validation_metrics() -> None:
     metrics = result.output["metrics"]
     split = result.output["split"]
     assert split["strategy"] == "group"
+    assert split["field"] == "telescope"
+    assert split["random_seed"] == 42
     assert split["cross_validation_folds"] == 3
     assert "cv_accuracy_mean" in metrics
     assert "cv_macro_f1_mean" in metrics

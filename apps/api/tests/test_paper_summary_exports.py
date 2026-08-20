@@ -97,17 +97,18 @@ def _summary_content() -> PaperSummaryArtifactContent:
     )
     payload = {
         "kind": "paper_summary",
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "summary_id": "summary.export",
         "paper_id": "paper.export",
         "benchmark": None,
         "input_versions": input_versions.model_dump(mode="json"),
-        "research_goal": goal.model_dump(mode="json"),
-        "method": None,
-        "dataset": None,
-        "findings": [],
+        "background": [goal.model_dump(mode="json")],
+        "methodology": [],
+        "dataset": [],
+        "experiments": [],
+        "discussion": [],
         "limitations": [],
-        "future_work": [],
+        "research_questions": [],
         "evidence_ids": [evidence.evidence_id],
         "evidence": [evidence.model_dump(mode="json")],
         "source_conflicts": [],
@@ -211,7 +212,7 @@ def test_markdown_export_stays_readable_without_internal_identifiers() -> None:
     text = download.content.decode("utf-8")
     assert "# Transit Confirmation Study" in text
     assert "Author One, Author Two · 2026" in text
-    assert "## 研究目标" in text
+    assert "## 研究背景" in text
     assert "研究目标是确认凌星信号。" in text
     # Internal identifiers stay out of the reading Markdown (§39).
     assert version_id not in text

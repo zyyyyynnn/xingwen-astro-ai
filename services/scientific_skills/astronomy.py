@@ -96,9 +96,11 @@ def query_simbad(request: ScientificSkillRequest) -> dict[str, object]:
     rows = _table_rows(table, request.budget.max_output_rows)
     return {
         "service": "simbad",
+        "coordinate_frame": "ICRS",
         "query_kind": query_kind,
         "object_name": object_name,
         "row_count": len(rows),
+        "column_metadata": _table_column_metadata(table),
         "rows": rows,
     }
 
@@ -1162,6 +1164,23 @@ def _table_rows(table: Any, max_rows: int) -> list[dict[str, object]]:
     result: list[dict[str, object]] = []
     for row in table[:max_rows]:
         result.append({name: _json_scalar(row[name]) for name in table.colnames})
+    return result
+
+
+def _table_column_metadata(table: Any) -> list[dict[str, object]]:
+    if table is None:
+        return []
+    result: list[dict[str, object]] = []
+    for name in table.colnames:
+        column = table[name]
+        unit = getattr(column, "unit", None)
+        result.append(
+            {
+                "field": name,
+                "label": str(name).replace("_", " ").title(),
+                "unit": str(unit) if unit is not None else None,
+            }
+        )
     return result
 
 

@@ -326,11 +326,14 @@ export interface VisualizationReviewContent {
 }
 
 export interface ModelSplitReview {
-  readonly strategy: "holdout" | "stratified_holdout" | "time_ordered";
+  readonly strategy: "random" | "stratified" | "group" | "entity" | "time";
+  readonly field: DomainEntityId | null;
   readonly randomSeed: number | null;
   readonly trainFraction: number;
   readonly validationFraction: number;
   readonly testFraction: number;
+  readonly crossValidationFolds: number | null;
+  readonly trainCutoff: string | number | null;
 }
 
 export interface ModelTrainingInputReview {

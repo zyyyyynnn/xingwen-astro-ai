@@ -49,16 +49,17 @@ class _Model:
             "evidence_id"
         ]
         payload = {
-            "research_goal": {
+            "background": [{
                 "statement_id": "summary.document.research_goal",
                 "text": "The paper studies transit signals.",
                 "evidence_ids": [evidence_id],
-            },
-            "method": None,
-            "dataset": None,
-            "findings": [],
+            }],
+            "methodology": [],
+            "dataset": [],
+            "experiments": [],
+            "discussion": [],
             "limitations": [],
-            "future_work": [],
+            "research_questions": [],
             "evidence_ids": [evidence_id],
         }
         output_hash = compute_canonical_payload_hash(payload)

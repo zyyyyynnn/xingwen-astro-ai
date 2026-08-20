@@ -25,6 +25,7 @@ from app.schemas.paper_summary import (
     PaperSummaryEvidenceCandidate,
     PaperSummaryModelOutput,
     PaperSummaryModelUsage,
+    PaperSummarySectionKind,
 )
 from app.schemas.scientific_document import (
     DocumentBlockKind,
@@ -48,13 +49,14 @@ from services.paper_pipeline.summary import (
     build_document_evidence_candidates,
 )
 from services.paper_pipeline.summary_chunks import (
+    ChunkSectionExtraction,
     ChunkDocumentBlock,
+    SectionStatement,
     SummaryChunk,
     build_summary_chunks,
+    reduce_chunk_sections,
 )
 
-_SINGULAR_FIELDS = ("research_goal", "method", "dataset")
-_LIST_FIELDS = ("findings", "limitations", "future_work")
 _MAX_STATEMENTS_PER_FIELD_PER_CHUNK = 32
 
 
@@ -148,7 +150,7 @@ class ChunkedDocumentSummaryService:
             _enforce_chunk_evidence_allowlist(chunk, output)
             chunk_outputs.append(output)
 
-        merged_payload = _reduce_chunk_outputs(chunk_outputs)
+        merged_payload = _reduce_chunk_outputs(chunks, chunk_outputs)
         model_response = json.dumps(
             merged_payload,
             ensure_ascii=False,
@@ -306,61 +308,48 @@ def _enforce_chunk_evidence_allowlist(
 
 
 def _reduce_chunk_outputs(
+    chunks: tuple[SummaryChunk, ...],
     chunk_outputs: list[PaperSummaryModelOutput],
 ) -> dict[str, Any]:
-    """Deterministically merge chunk outputs into the current output shape.
+    """Use the canonical seven-section reducer for the final model payload."""
 
-    Singular fields keep the first chunk statement in document order; list
-    fields concatenate in chunk order. Statement identities are reassigned
-    deterministically; Evidence identity is preserved untouched.
-    """
-
-    singular: dict[str, dict[str, Any] | None] = {
-        field: None for field in _SINGULAR_FIELDS
+    if len(chunks) != len(chunk_outputs):
+        raise ValueError("chunk output count does not match the frozen chunk plan")
+    reduced = reduce_chunk_sections(
+        tuple(
+            ChunkSectionExtraction(
+                chunk_id=chunk.chunk_id,
+                chunk_evidence_ids=chunk.evidence_ids,
+                sections={
+                    section.value: tuple(
+                        SectionStatement(
+                            text=statement.text,
+                            evidence_ids=statement.evidence_ids,
+                        )
+                        for statement in getattr(output, section.value)
+                    )
+                    for section in PaperSummarySectionKind
+                },
+            )
+            for chunk, output in zip(chunks, chunk_outputs, strict=True)
+        )
+    )
+    payload: dict[str, Any] = {
+        section.section: [] for section in reduced
     }
-    lists: dict[str, list[dict[str, Any]]] = {field: [] for field in _LIST_FIELDS}
-    for output in chunk_outputs:
-        for field in _SINGULAR_FIELDS:
-            statement = getattr(output, field)
-            if singular[field] is None and statement is not None:
-                singular[field] = {
+    all_evidence: set[str] = set()
+    for section in reduced:
+        for index, statement in enumerate(section.statements, start=1):
+            all_evidence.update(statement.evidence_ids)
+            payload[section.section].append(
+                {
+                    "statement_id": (
+                        f"summary.document.{section.section}.{index:02d}"
+                    ),
                     "text": statement.text,
                     "evidence_ids": list(statement.evidence_ids),
                 }
-        for field in _LIST_FIELDS:
-            for statement in getattr(output, field):
-                lists[field].append(
-                    {
-                        "text": statement.text,
-                        "evidence_ids": list(statement.evidence_ids),
-                    }
-                )
-
-    payload: dict[str, Any] = {}
-    all_evidence: set[str] = set()
-
-    def assign_ids(
-        field: str, statements: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
-        assigned: list[dict[str, Any]] = []
-        for index, statement in enumerate(statements, start=1):
-            all_evidence.update(statement["evidence_ids"])
-            assigned.append(
-                {
-                    "statement_id": f"summary.document.{field}.{index:02d}",
-                    "text": statement["text"],
-                    "evidence_ids": list(statement["evidence_ids"]),
-                }
             )
-        return assigned
-
-    for field in _SINGULAR_FIELDS:
-        statement = singular[field]
-        payload[field] = (
-            assign_ids(field, [statement])[0] if statement is not None else None
-        )
-    for field in _LIST_FIELDS:
-        payload[field] = assign_ids(field, lists[field])
     payload["evidence_ids"] = sorted(all_evidence)
     # Validate the merged shape before admission (fail closed on any drift).
     PaperSummaryModelOutput.model_validate(payload)

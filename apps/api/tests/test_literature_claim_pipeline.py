@@ -195,7 +195,7 @@ def _summary(
     )
     payload = {
         "kind": "paper_summary",
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "summary_id": summary_id,
         "paper_id": paper_id,
         "benchmark": PaperBenchmarkReference(
@@ -207,12 +207,13 @@ def _summary(
             scenario_id="search.tess_mission_and_catalogs",
         ).model_dump(mode="json"),
         "input_versions": input_versions.model_dump(mode="json"),
-        "research_goal": None,
-        "method": statement.model_dump(mode="json"),
-        "dataset": None,
-        "findings": [],
+        "background": [],
+        "methodology": [statement.model_dump(mode="json")],
+        "dataset": [],
+        "experiments": [],
+        "discussion": [],
         "limitations": [],
-        "future_work": [],
+        "research_questions": [],
         "evidence_ids": [evidence_id],
         "evidence": [evidence.model_dump(mode="json")],
         "source_conflicts": [],
@@ -231,7 +232,7 @@ def _summary(
 def _versions(
     summary: PaperSummaryArtifactContent | None = None,
     *,
-    schema_version: str = "1.0.0",
+    schema_version: str = "2.0.0",
 ) -> dict[str, PaperSummaryArtifactVersionInput]:
     content = summary or _summary()
     return {
@@ -509,7 +510,7 @@ def test_unknown_input_artifact_version_is_stably_rejected() -> None:
 
 
 def test_unsupported_input_schema_version_is_stably_rejected() -> None:
-    result = _admit(_response(), versions=_versions(schema_version="2.0.0"))
+    result = _admit(_response(), versions=_versions(schema_version="1.0.0"))
 
     assert result.records[0].rejection_reason is (
         LiteratureClaimRejectionReason.input_schema_version_unsupported
@@ -581,7 +582,7 @@ def test_summary_version_repository_ownership_mismatch_is_rejected() -> None:
     versions = {
         SUMMARY_VERSION_ID: PaperSummaryArtifactVersionInput(
             artifact_version_id=_persisted_uuid("paper-summary.other"),
-            schema_version="1.0.0",
+            schema_version="2.0.0",
             content=summary,
         )
     }

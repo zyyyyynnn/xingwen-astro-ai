@@ -23,6 +23,7 @@ from app.db.models import (
 from app.schemas.core import ScientificSkillId, ScientificTaskInput
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.data_artifacts import DatasetArtifactCandidate
+from app.schemas.scientific_capabilities import accepts_artifact_version
 from app.schemas.scientific_skills import ModelArtifactContent
 from app.services.content_storage import ContentStorage, sha256_content_hash
 from app.services.image_dataset import (
@@ -31,22 +32,6 @@ from app.services.image_dataset import (
 )
 from services.scientific_skills.execution import ScientificInputBinding
 from services.scientific_skills.types import ScientificSourceReference
-
-
-_ROW_SKILLS = frozenset(
-    {
-        ScientificSkillId.data_profile,
-        ScientificSkillId.statistical_analysis,
-        ScientificSkillId.correlation_analysis,
-        ScientificSkillId.clustering_analysis,
-        ScientificSkillId.anomaly_detection,
-        ScientificSkillId.chart_visualization,
-        ScientificSkillId.tabular_machine_learning,
-        ScientificSkillId.time_series_classification,
-        ScientificSkillId.time_series_forecast,
-        ScientificSkillId.model_inference,
-    }
-)
 
 
 class DatabaseScientificInputResolver:
@@ -161,7 +146,7 @@ async def _artifact_binding(
     version: ArtifactVersionModel,
     content_storage: ContentStorage,
 ) -> ScientificInputBinding:
-    if task.skill_id not in _ROW_SKILLS:
+    if not accepts_artifact_version(task.skill_id.value):
         raise ValueError(
             f"{task.skill_id.value} does not accept an ArtifactVersion input"
         )
@@ -389,7 +374,7 @@ def _content_parameters(
             content,
             policy=image_dataset_policy or ImageDatasetPolicy(),
         )
-    if skill_id in _ROW_SKILLS:
+    if accepts_artifact_version(skill_id.value):
         if input_type == "csv":
             return {"rows": _csv_rows(content)}
         if input_type == "xlsx":

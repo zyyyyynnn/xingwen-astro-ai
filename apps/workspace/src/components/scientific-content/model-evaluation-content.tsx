@@ -24,6 +24,17 @@ const TASK_KIND_LABELS: Record<string, string> = {
   time_series_classification: "时间序列分类",
 };
 
+const SPLIT_STRATEGY_LABELS: Record<
+  ModelEvaluationReviewContent["split"]["strategy"],
+  string
+> = {
+  random: "随机划分",
+  stratified: "分层划分",
+  group: "分组划分",
+  entity: "实体隔离划分",
+  time: "时间顺序划分",
+};
+
 function taskKindLabel(value: string): string {
   return TASK_KIND_LABELS[value] ?? humanizeToken(value);
 }
@@ -88,10 +99,19 @@ export function ModelEvaluationContent({
           </span>
         </div>
         <p>
-          {content.split.strategy}
+          {SPLIT_STRATEGY_LABELS[content.split.strategy]}
+          {content.split.field === null
+            ? ""
+            : ` · 划分字段 ${content.split.field}`}
           {content.split.randomSeed === null
-            ? " · 时间有序，无随机种子"
+            ? " · 无随机种子"
             : ` · 随机种子 ${content.split.randomSeed}`}
+          {content.split.crossValidationFolds === null
+            ? " · 未执行交叉验证"
+            : ` · ${content.split.crossValidationFolds} 折交叉验证`}
+          {content.split.trainCutoff === null
+            ? ""
+            : ` · 训练截止 ${content.split.trainCutoff}`}
         </p>
       </section>
       <Metrics

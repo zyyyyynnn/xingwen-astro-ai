@@ -81,6 +81,36 @@ _GAIA_DEFAULT_FIELDS = (
     "ruwe",
 )
 
+_GAIA_FIELD_UNITS: Mapping[str, str] = MappingProxyType(
+    {
+        "ra": "deg",
+        "dec": "deg",
+        "parallax": "mas",
+        "pmra": "mas/yr",
+        "pmdec": "mas/yr",
+        "radial_velocity": "km/s",
+        "phot_g_mean_mag": "mag",
+        "phot_bp_mean_mag": "mag",
+        "phot_rp_mean_mag": "mag",
+        "distance_gspphot": "pc",
+        "teff_gspphot": "K",
+    }
+)
+
+
+def _column_metadata(
+    fields: tuple[str, ...],
+    units: Mapping[str, str | None],
+) -> list[dict[str, object]]:
+    return [
+        {
+            "field": field,
+            "label": field.replace("_", " ").title(),
+            "unit": units.get(field),
+        }
+        for field in fields
+    ]
+
 
 @dataclass(frozen=True, slots=True)
 class VizierFieldManifest:
@@ -403,10 +433,12 @@ class GaiaTapAdapter:
         return {
             "service": "gaia_archive",
             "data_release": "gaiadr3",
+            "coordinate_frame": "ICRS",
             "query_kind": "cone_search",
             "center": {"ra_degrees": ra, "dec_degrees": dec},
             "radius_degrees": radius,
             "fields": list(fields),
+            "column_metadata": _column_metadata(fields, _GAIA_FIELD_UNITS),
             "row_count": len(rows),
             "rows": rows,
             "response_format": response_format,
@@ -546,9 +578,14 @@ class VizierTapAdapter:
             "table": manifest.table,
             "qualified_table": manifest.qualified_table,
             "query_kind": "icrs_cone",
+            "coordinate_frame": "ICRS",
             "center": {"ra_degrees": ra, "dec_degrees": dec},
             "radius_degrees": radius,
             "fields": list(fields),
+            "column_metadata": _column_metadata(
+                fields,
+                {field: manifest.fields[field].unit for field in fields},
+            ),
             "row_count": len(rows),
             "rows": rows,
             "response_format": response_format,

@@ -30,6 +30,7 @@ from app.schemas.paper_summary import (
     PaperSummarySourceSnapshotReference,
     PaperSummaryStatement,
     PaperSummaryStatementCandidate,
+    PaperSummarySectionKind,
     PaperSummarySupportStatus,
     _seal_paper_summary_for_publication,
     compute_paper_summary_output_hash,
@@ -417,18 +418,20 @@ def _admit_evidence(
             validation_code=validation_code,
         )
 
-    research_goal = admit_statement(model_output.research_goal)
-    method = admit_statement(model_output.method)
-    dataset = admit_statement(model_output.dataset)
-    findings = tuple(admit_statement(item) for item in model_output.findings)
-    limitations = tuple(admit_statement(item) for item in model_output.limitations)
-    future_work = tuple(admit_statement(item) for item in model_output.future_work)
-    typed_findings = tuple(item for item in findings if item is not None)
-    typed_limitations = tuple(item for item in limitations if item is not None)
-    typed_future_work = tuple(item for item in future_work if item is not None)
+    sections = {
+        section.value: tuple(
+            admitted
+            for item in getattr(model_output, section.value)
+            for admitted in (admit_statement(item),)
+            if admitted is not None
+        )
+        for section in PaperSummarySectionKind
+    }
     all_statements = tuple(
-        item for item in (research_goal, method, dataset) if item is not None
-    ) + typed_findings + typed_limitations + typed_future_work
+        statement
+        for section in PaperSummarySectionKind
+        for statement in sections[section.value]
+    )
     evidence_ids = tuple(
         sorted({evidence_id for item in all_statements for evidence_id in item.evidence_ids})
     )
@@ -449,18 +452,18 @@ def _admit_evidence(
     )
     payload = {
         "kind": "paper_summary",
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "summary_id": summary_id,
         "paper_id": paper_id,
         "paper": None if paper is None else paper.model_dump(mode="json"),
         "benchmark": None if benchmark is None else benchmark.model_dump(mode="json"),
         "input_versions": dump_paper_summary_input_versions(input_versions),
-        "research_goal": _dump_optional(research_goal),
-        "method": _dump_optional(method),
-        "dataset": _dump_optional(dataset),
-        "findings": [item.model_dump(mode="json") for item in typed_findings],
-        "limitations": [item.model_dump(mode="json") for item in typed_limitations],
-        "future_work": [item.model_dump(mode="json") for item in typed_future_work],
+        **{
+            section.value: [
+                item.model_dump(mode="json") for item in sections[section.value]
+            ]
+            for section in PaperSummarySectionKind
+        },
         "evidence_ids": evidence_ids,
         "evidence": [item.model_dump(mode="json") for item in evidence],
         "source_conflicts": [item.model_dump(mode="json") for item in conflicts],

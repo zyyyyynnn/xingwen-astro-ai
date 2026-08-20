@@ -51,7 +51,7 @@ from .summary import ParameterValue, _validate_parameters
 
 
 Clock = Callable[[], datetime]
-SUPPORTED_SUMMARY_SCHEMA_VERSIONS = frozenset({"1.0.0"})
+SUPPORTED_SUMMARY_SCHEMA_VERSIONS = frozenset({"2.0.0"})
 _WHITESPACE = re.compile(r"\s+")
 _NEGATION = re.compile(
     r"(?:\b(?:cannot|never|neither|no|nor|not|without)\b|不|无|未|否)",

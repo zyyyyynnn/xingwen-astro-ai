@@ -8685,6 +8685,31 @@
       "ModelSplitReference": {
         "additionalProperties": false,
         "properties": {
+          "cross_validation_folds": {
+            "anyOf": [
+              {
+                "minimum": 2.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cross Validation Folds"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
           "random_seed": {
             "anyOf": [
               {
@@ -8700,9 +8725,11 @@
           },
           "strategy": {
             "enum": [
-              "holdout",
-              "stratified_holdout",
-              "time_ordered"
+              "random",
+              "stratified",
+              "group",
+              "entity",
+              "time"
             ],
             "title": "Strategy",
             "type": "string"
@@ -8712,6 +8739,25 @@
             "exclusiveMinimum": 0.0,
             "title": "Test Fraction",
             "type": "number"
+          },
+          "train_cutoff": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Train Cutoff"
           },
           "train_fraction": {
             "exclusiveMaximum": 1.0,
@@ -10387,6 +10433,13 @@
         "additionalProperties": false,
         "description": "Publisher-ready PaperSummary Pipeline content used directly by the core Artifact discriminator.",
         "properties": {
+          "background": {
+            "items": {
+              "$ref": "#/components/schemas/PaperSummaryStatement"
+            },
+            "title": "Background",
+            "type": "array"
+          },
           "benchmark": {
             "anyOf": [
               {
@@ -10398,14 +10451,18 @@
             ]
           },
           "dataset": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PaperSummaryStatement"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "items": {
+              "$ref": "#/components/schemas/PaperSummaryStatement"
+            },
+            "title": "Dataset",
+            "type": "array"
+          },
+          "discussion": {
+            "items": {
+              "$ref": "#/components/schemas/PaperSummaryStatement"
+            },
+            "title": "Discussion",
+            "type": "array"
           },
           "evidence": {
             "items": {
@@ -10422,18 +10479,11 @@
             "title": "Evidence Ids",
             "type": "array"
           },
-          "findings": {
+          "experiments": {
             "items": {
               "$ref": "#/components/schemas/PaperSummaryStatement"
             },
-            "title": "Findings",
-            "type": "array"
-          },
-          "future_work": {
-            "items": {
-              "$ref": "#/components/schemas/PaperSummaryStatement"
-            },
-            "title": "Future Work",
+            "title": "Experiments",
             "type": "array"
           },
           "input_hash": {
@@ -10456,15 +10506,12 @@
             "title": "Limitations",
             "type": "array"
           },
-          "method": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PaperSummaryStatement"
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "methodology": {
+            "items": {
+              "$ref": "#/components/schemas/PaperSummaryStatement"
+            },
+            "title": "Methodology",
+            "type": "array"
           },
           "output_hash": {
             "pattern": "^sha256:[0-9a-f]{64}$",
@@ -10489,18 +10536,15 @@
           "producer": {
             "$ref": "#/components/schemas/PaperSummaryProducerExecution"
           },
-          "research_goal": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PaperSummaryStatement"
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "research_questions": {
+            "items": {
+              "$ref": "#/components/schemas/PaperSummaryStatement"
+            },
+            "title": "Research Questions",
+            "type": "array"
           },
           "schema_version": {
-            "const": "1.0.0",
+            "const": "2.0.0",
             "title": "Schema Version",
             "type": "string"
           },
@@ -10523,12 +10567,13 @@
           "summary_id",
           "paper_id",
           "input_versions",
-          "research_goal",
-          "method",
+          "background",
+          "methodology",
           "dataset",
-          "findings",
+          "experiments",
+          "discussion",
           "limitations",
-          "future_work",
+          "research_questions",
           "evidence_ids",
           "evidence",
           "source_conflicts",

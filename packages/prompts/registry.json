@@ -18,9 +18,9 @@
       ]
     },
     "paper_summary": {
-      "version": "2.0.2",
+      "version": "3.0.0",
       "path": "paper_summary/prompt.md",
-      "content_hash": "sha256:dde151d161caec0e5c737adbed4ad65b9c2f9412591797c773d52782f8bc4f95",
+      "content_hash": "sha256:758c9277003b9597514721ce359738219b7ba154ab0a924cb5b9600cef0b6323",
       "output_models": [
         "PaperSummaryModelOutput"
       ]

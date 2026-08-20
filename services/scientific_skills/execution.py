@@ -42,8 +42,11 @@ from app.schemas.scientific_skills import (
     WwtSceneVisualizationSpec,
     scientific_artifact_output_hash,
 )
+from app.schemas.scientific_capabilities import (
+    produced_artifact_kinds as _capability_produced_kinds,
+    produces_source_snapshot as _capability_produces_snapshot,
+)
 from app.services.content_storage import ContentStorage
-
 from .planning import scientific_skill_phase
 from .registry import ScientificSkillRegistry
 from .types import (
@@ -128,45 +131,25 @@ class InProcessScientificSkillExecutor:
         return await asyncio.to_thread(self._registry.execute, request)
 
 
-_SNAPSHOT_PRODUCING_SKILLS = frozenset(
-    {
-        ScientificSkillId.simbad_lookup,
-        ScientificSkillId.skyview_fits,
-        ScientificSkillId.ephemeris,
-        ScientificSkillId.celestial_events,
-        ScientificSkillId.gaia_cone_search,
-        ScientificSkillId.vizier_tap,
-        ScientificSkillId.spectrum_acquisition,
-        ScientificSkillId.light_curve_acquisition,
-    }
-)
-_ANALYSIS_SKILLS = frozenset(
-    {
-        ScientificSkillId.catalog_crossmatch,
-        ScientificSkillId.data_profile,
-        ScientificSkillId.statistical_analysis,
-        ScientificSkillId.correlation_analysis,
-        ScientificSkillId.clustering_analysis,
-        ScientificSkillId.anomaly_detection,
-        ScientificSkillId.simbad_lookup,
-        ScientificSkillId.ephemeris,
-        ScientificSkillId.celestial_events,
-        ScientificSkillId.fits_image_analysis,
-        ScientificSkillId.spectrum_analysis,
-        ScientificSkillId.light_curve_analysis,
-        ScientificSkillId.gaia_cone_search,
-        ScientificSkillId.vizier_tap,
-        ScientificSkillId.model_inference,
-    }
-)
-_MODEL_SKILLS = frozenset(
-    {
-        ScientificSkillId.tabular_machine_learning,
-        ScientificSkillId.time_series_classification,
-        ScientificSkillId.time_series_forecast,
-        ScientificSkillId.image_classification,
-    }
-)
+def _produced_kinds(skill_id: ScientificSkillId) -> frozenset[ArtifactKind]:
+    """Descriptor-driven Artifact kinds one skill may publish."""
+
+    return frozenset(
+        ArtifactKind(kind)
+        for kind in _capability_produced_kinds(skill_id.value)
+    )
+
+
+def _produces_model_artifact(skill_id: ScientificSkillId) -> bool:
+    """Whether the skill must materialize a model binary through storage."""
+
+    return ArtifactKind.model_artifact in _produced_kinds(skill_id)
+
+
+def _produces_source_snapshot(skill_id: ScientificSkillId) -> bool:
+    """Whether the skill outcome must be persisted as a SourceSnapshot."""
+
+    return _capability_produces_snapshot(skill_id.value)
 
 
 class ScientificStepAdapter:
@@ -262,7 +245,7 @@ class ScientificStepAdapter:
         result = await self._executor.execute(request)
         duration_ms = max(0, round((monotonic() - started) * 1000))
         produced_sources: tuple[ScientificSourceReference, ...] = ()
-        if task.skill_id in _SNAPSHOT_PRODUCING_SKILLS:
+        if _produces_source_snapshot(task.skill_id):
             produced_sources = await self._source_recorder.record(
                 project_id=project_id,
                 run_id=run_id,
@@ -309,7 +292,7 @@ async def _materialize_output(
     output: Mapping[str, object],
     content_storage: ContentStorage,
 ) -> Mapping[str, object]:
-    if skill_id in _MODEL_SKILLS:
+    if _produces_model_artifact(skill_id):
         raw_binary = output.get("model_binary")
         if not isinstance(raw_binary, dict):
             raise ValueError("model skill output has no model binary")
@@ -363,52 +346,68 @@ def _assemble_candidates(
     | ModelArtifactContent,
     ...,
 ]:
-    skill_id = outcome.task.skill_id
-    if skill_id in {
-        ScientificSkillId.spectrum_analysis,
-        ScientificSkillId.spectrum_acquisition,
-    }:
-        spectrum_candidates: list[
-            AnalysisReportArtifactContent | SpectrumArtifactContent
-        ] = []
-        if ArtifactKind.spectrum in requested_outputs:
-            spectrum_candidates.append(_spectrum(outcome))
-        if ArtifactKind.analysis_report in requested_outputs:
-            spectrum_candidates.append(_analysis_report(outcome))
-        return tuple(spectrum_candidates)
-    if skill_id in {
-        ScientificSkillId.light_curve_analysis,
-        ScientificSkillId.light_curve_acquisition,
-    }:
-        light_curve_candidates: list[
-            AnalysisReportArtifactContent | LightCurveArtifactContent
-        ] = []
-        if ArtifactKind.light_curve in requested_outputs:
-            light_curve_candidates.append(_light_curve(outcome))
-        if ArtifactKind.analysis_report in requested_outputs:
-            light_curve_candidates.append(_analysis_report(outcome))
-        return tuple(light_curve_candidates)
+    # Candidate assembly is descriptor-driven: the capability table decides
+    # which Artifact kinds a skill may publish, the contract decides which of
+    # them this Run requested. No parallel per-skill allowlist may drift here.
+    produced = _produced_kinds(outcome.task.skill_id)
+    candidates: list[
+        AnalysisReportArtifactContent
+        | VisualizationArtifactContent
+        | SpectrumArtifactContent
+        | LightCurveArtifactContent
+        | ModelEvaluationArtifactContent
+        | ModelArtifactContent
+    ] = []
+    if ArtifactKind.spectrum in produced and ArtifactKind.spectrum in requested_outputs:
+        candidates.append(_spectrum(outcome))
     if (
-        skill_id in _ANALYSIS_SKILLS
+        ArtifactKind.light_curve in produced
+        and ArtifactKind.light_curve in requested_outputs
+    ):
+        candidates.append(_light_curve(outcome))
+    if (
+        ArtifactKind.analysis_report in produced
         and ArtifactKind.analysis_report in requested_outputs
     ):
-        return (_analysis_report(outcome),)
-    if skill_id in _MODEL_SKILLS:
-        candidates: list[ModelEvaluationArtifactContent | ModelArtifactContent] = []
-        if ArtifactKind.model_evaluation in requested_outputs:
-            candidates.append(_model_evaluation(outcome))
-        if ArtifactKind.model_artifact in requested_outputs:
-            candidates.append(_model_artifact(outcome))
-        return tuple(candidates)
-    if ArtifactKind.visualization not in requested_outputs:
-        return ()
+        candidates.append(_analysis_report(outcome))
+    if (
+        ArtifactKind.model_evaluation in produced
+        and ArtifactKind.model_evaluation in requested_outputs
+    ):
+        candidates.append(_model_evaluation(outcome))
+    if (
+        ArtifactKind.model_artifact in produced
+        and ArtifactKind.model_artifact in requested_outputs
+    ):
+        candidates.append(_model_artifact(outcome))
+    if (
+        ArtifactKind.visualization in produced
+        and ArtifactKind.visualization in requested_outputs
+    ):
+        candidates.extend(_visualization_candidates(outcome))
+    return tuple(candidates)
+
+
+def _visualization_candidates(
+    outcome: ScientificTaskExecutionOutcome,
+) -> tuple[VisualizationArtifactContent, ...]:
+    """Dispatch the concrete declarative visualization for one skill."""
+
+    skill_id = outcome.task.skill_id
     if skill_id is ScientificSkillId.chart_visualization:
         return (_chart_visualization(outcome),)
     if skill_id is ScientificSkillId.wwt_scene:
         return (_wwt_visualization(outcome),)
     if skill_id is ScientificSkillId.skyview_fits:
         return _fits_visualizations(outcome)
-    return ()
+    if skill_id in {
+        ScientificSkillId.clustering_analysis,
+        ScientificSkillId.anomaly_detection,
+    }:
+        return (_projection_visualization(outcome),)
+    raise ValueError(
+        f"skill declares visualization output without an assembler: {skill_id.value}"
+    )
 
 
 def _spectrum(outcome: ScientificTaskExecutionOutcome) -> SpectrumArtifactContent:
@@ -569,6 +568,98 @@ def _chart_visualization(
     return _visualization(outcome, spec=spec, title=_text(output, "title"))
 
 
+_PROJECTION_COLORS = ("brand", "information", "success", "warning", "error", "neutral")
+
+
+def _projection_visualization(
+    outcome: ScientificTaskExecutionOutcome,
+) -> VisualizationArtifactContent:
+    """Map PCA projection, cluster assignment or anomaly score onto the
+    existing declarative chart contract instead of a renderer-specific
+    Artifact."""
+
+    dataset_id = _require_dataset_version(outcome)
+    output = outcome.materialized_output
+    algorithm = _text(output, "algorithm")
+    series_payloads: list[dict[str, object]] = []
+    if outcome.task.skill_id is ScientificSkillId.clustering_analysis:
+        raw_assignments = output.get("assignments")
+        if not isinstance(raw_assignments, list) or not raw_assignments:
+            raise ValueError("clustering task produced no assignments")
+        by_cluster: dict[int, list[dict[str, object]]] = {}
+        for item in raw_assignments:
+            if not isinstance(item, dict):
+                raise ValueError("clustering assignment must be an object")
+            by_cluster.setdefault(int(item["cluster"]), []).append(item)
+        for index, cluster in enumerate(sorted(by_cluster)):
+            label = "噪声（未分组）" if cluster < 0 else f"簇 {cluster}"
+            series_id = "cluster.noise" if cluster < 0 else f"cluster.{cluster}"
+            series_payloads.append(
+                {
+                    "series_id": series_id,
+                    "label": label,
+                    "points": [
+                        {"x": item["pca_x"], "y": item["pca_y"]}
+                        for item in by_cluster[cluster]
+                    ],
+                    "color_token": _PROJECTION_COLORS[index % len(_PROJECTION_COLORS)],
+                }
+            )
+        title = f"{algorithm} 聚类投影"
+    else:
+        raw_ranked = output.get("ranked_observations")
+        if not isinstance(raw_ranked, list) or not raw_ranked:
+            raise ValueError("anomaly task produced no ranked observations")
+        partitions: dict[bool, list[dict[str, object]]] = {False: [], True: []}
+        for item in raw_ranked:
+            if not isinstance(item, dict):
+                raise ValueError("anomaly observation must be an object")
+            partitions[bool(item["is_anomaly"])].append(item)
+        series_payloads = [
+            {
+                "series_id": "anomaly.normal",
+                "label": "正常观测",
+                "points": [
+                    {"x": item["pca_x"], "y": item["pca_y"]}
+                    for item in partitions[False]
+                ],
+                "color_token": "brand",
+            },
+            {
+                "series_id": "anomaly.flagged",
+                "label": "异常观测",
+                "points": [
+                    {"x": item["pca_x"], "y": item["pca_y"]}
+                    for item in partitions[True]
+                ],
+                "color_token": "warning",
+            },
+        ]
+        title = f"{algorithm} 异常检测投影"
+    spec = ChartVisualizationSpec.model_validate(
+        {
+            "mode": "chart",
+            "dataset_artifact_version_id": dataset_id,
+            "x_axis": {"field": "pca_x", "label": "PCA 第一主成分"},
+            "y_axis": {"field": "pca_y", "label": "PCA 第二主成分"},
+            "series": [
+                {
+                    "series_id": payload["series_id"],
+                    "label": payload["label"],
+                    "x_field": "pca_x",
+                    "y_field": "pca_y",
+                    "mark": "point",
+                    "color_token": payload["color_token"],
+                    "points": payload["points"],
+                }
+                for payload in series_payloads
+                if payload["points"]
+            ],
+        }
+    )
+    return _visualization(outcome, spec=spec, title=title)
+
+
 def _wwt_visualization(
     outcome: ScientificTaskExecutionOutcome,
 ) -> VisualizationArtifactContent:
@@ -643,16 +734,7 @@ def _visualization(
     return _seal(VisualizationArtifactContent, payload)
 
 
-_SPLIT_STRATEGY_DOMAIN_LABELS = {
-    "random": "holdout",
-    "stratified": "stratified_holdout",
-    "group": "holdout",
-    "entity": "holdout",
-    "time": "time_ordered",
-    "holdout": "holdout",
-    "stratified_holdout": "stratified_holdout",
-    "time_ordered": "time_ordered",
-}
+_MODEL_SPLIT_STRATEGIES = frozenset({"random", "stratified", "group", "entity", "time"})
 
 
 def _model_evaluation(
@@ -667,20 +749,22 @@ def _model_evaluation(
     test_count = _positive_int(raw_split, "test_count")
     total = train_count + test_count
     raw_strategy = _text(raw_split, "strategy")
-    strategy = _SPLIT_STRATEGY_DOMAIN_LABELS.get(raw_strategy)
-    if strategy is None:
+    if raw_strategy not in _MODEL_SPLIT_STRATEGIES:
         raise ValueError(f"unknown split strategy: {raw_strategy}")
     random_seed = raw_split.get("random_seed")
     split = ModelSplitReference(
-        strategy=strategy,
+        strategy=raw_strategy,
+        field=raw_split.get("field"),
         random_seed=(
             int(random_seed)
-            if strategy != "time_ordered" and random_seed is not None
+            if raw_strategy != "time" and random_seed is not None
             else None
         ),
         train_fraction=train_count / total,
         validation_fraction=0,
         test_fraction=test_count / total,
+        cross_validation_folds=raw_split.get("cross_validation_folds"),
+        train_cutoff=raw_split.get("train_cutoff"),
     )
     evaluation_id = _stable_id("evaluation", outcome.task.task_id)
     scientific_evidence, evidence_ids = _evidence_for_target(
@@ -731,7 +815,7 @@ def _model_evaluation(
         "skill_execution": _skill_execution(outcome).model_dump(mode="json"),
         "model_binary": model_binary.model_dump(mode="json"),
         "diagnostic_visualization_ids": [],
-        "limitations": list(outcome.result.warnings),
+        "limitations": _model_limitations(outcome),
         "scientific_evidence": [
             item.model_dump(mode="json") for item in scientific_evidence
         ],
@@ -791,7 +875,7 @@ def _model_artifact(
         "opset_imports": _opset_imports(raw_model_binary),
         "dependency_revisions": _model_dependency_revisions(outcome),
         "skill_execution": _skill_execution(outcome).model_dump(mode="json"),
-        "limitations": list(outcome.result.warnings),
+        "limitations": _model_limitations(outcome),
         "scientific_evidence": [
             item.model_dump(mode="json") for item in scientific_evidence
         ],
@@ -801,6 +885,16 @@ def _model_artifact(
         "output_hash": "sha256:" + "0" * 64,
     }
     return _seal(ModelArtifactContent, payload)
+
+
+def _model_limitations(outcome: ScientificTaskExecutionOutcome) -> list[str]:
+    raw_limitations = outcome.materialized_output.get("limitations")
+    runtime_limitations = (
+        [item for item in raw_limitations if isinstance(item, str) and item.strip()]
+        if isinstance(raw_limitations, list)
+        else []
+    )
+    return list(dict.fromkeys((*runtime_limitations, *outcome.result.warnings)))
 
 
 def _model_feature_fields(outcome: ScientificTaskExecutionOutcome) -> list[str]:

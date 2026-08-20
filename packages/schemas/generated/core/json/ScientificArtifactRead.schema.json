@@ -1400,6 +1400,33 @@
     "ModelSplitReference": {
       "additionalProperties": false,
       "properties": {
+        "cross_validation_folds": {
+          "anyOf": [
+            {
+              "minimum": 2,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cross Validation Folds"
+        },
+        "field": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field"
+        },
         "random_seed": {
           "anyOf": [
             {
@@ -1416,9 +1443,11 @@
         },
         "strategy": {
           "enum": [
-            "holdout",
-            "stratified_holdout",
-            "time_ordered"
+            "random",
+            "stratified",
+            "group",
+            "entity",
+            "time"
           ],
           "title": "Strategy",
           "type": "string"
@@ -1428,6 +1457,26 @@
           "exclusiveMinimum": 0,
           "title": "Test Fraction",
           "type": "number"
+        },
+        "train_cutoff": {
+          "anyOf": [
+            {
+              "maxLength": 4000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train Cutoff"
         },
         "train_fraction": {
           "exclusiveMaximum": 1,

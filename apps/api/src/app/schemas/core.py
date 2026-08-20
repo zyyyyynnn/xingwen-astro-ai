@@ -19,6 +19,7 @@ from pydantic import (
 )
 
 from ._hashing import compute_canonical_payload_hash
+from .scientific_capabilities import produced_artifact_kinds
 
 
 CORE_MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
@@ -139,49 +140,28 @@ class ScientificSkillId(StrEnum):
     wwt_scene = "wwt_scene"
 
 
-_ANALYSIS_SKILLS = frozenset(
+# Scientific output admission derives from the single capability authoring
+# source (app.schemas.scientific_capabilities); this module must not re-list
+# skill ids in a second capability table.
+def _skill_produced_kinds(skill_id: ScientificSkillId) -> frozenset[ArtifactKind]:
+    """Artifact kinds one registered skill is authorized to publish."""
+
+    return frozenset(
+        ArtifactKind(kind) for kind in produced_artifact_kinds(skill_id.value)
+    )
+
+
+#: Output kinds that require an explicitly authorized scientific skill in the
+#: same contract. Data / literature / graph kinds are owned by their own
+#: pipeline phases and stay outside this admission.
+_SCIENTIFIC_OUTPUT_KINDS = frozenset(
     {
-        ScientificSkillId.catalog_crossmatch,
-        ScientificSkillId.data_profile,
-        ScientificSkillId.statistical_analysis,
-        ScientificSkillId.correlation_analysis,
-        ScientificSkillId.clustering_analysis,
-        ScientificSkillId.anomaly_detection,
-        ScientificSkillId.simbad_lookup,
-        ScientificSkillId.ephemeris,
-        ScientificSkillId.celestial_events,
-        ScientificSkillId.gaia_cone_search,
-        ScientificSkillId.vizier_tap,
-        ScientificSkillId.fits_image_analysis,
-        ScientificSkillId.spectrum_analysis,
-        ScientificSkillId.spectrum_acquisition,
-        ScientificSkillId.light_curve_analysis,
-        ScientificSkillId.light_curve_acquisition,
-        ScientificSkillId.model_inference,
-    }
-)
-_SPECTRUM_SKILLS = frozenset(
-    {ScientificSkillId.spectrum_analysis, ScientificSkillId.spectrum_acquisition}
-)
-_LIGHT_CURVE_SKILLS = frozenset(
-    {
-        ScientificSkillId.light_curve_analysis,
-        ScientificSkillId.light_curve_acquisition,
-    }
-)
-_VISUALIZATION_SKILLS = frozenset(
-    {
-        ScientificSkillId.chart_visualization,
-        ScientificSkillId.skyview_fits,
-        ScientificSkillId.wwt_scene,
-    }
-)
-_MODEL_EVALUATION_SKILLS = frozenset(
-    {
-        ScientificSkillId.tabular_machine_learning,
-        ScientificSkillId.time_series_classification,
-        ScientificSkillId.time_series_forecast,
-        ScientificSkillId.image_classification,
+        ArtifactKind.analysis_report,
+        ArtifactKind.visualization,
+        ArtifactKind.spectrum,
+        ArtifactKind.light_curve,
+        ArtifactKind.model_evaluation,
+        ArtifactKind.model_artifact,
     }
 )
 
@@ -322,39 +302,20 @@ class ResearchContractInput(BaseModel):
         task_ids = tuple(task.task_id for task in self.scientific_tasks)
         if len(task_ids) != len(set(task_ids)):
             raise ValueError("scientific_tasks must use unique task_id values")
-        selected_skills = frozenset(task.skill_id for task in self.scientific_tasks)
         selected_outputs = frozenset(self.output_requirements)
-        required_capabilities = (
-            (ArtifactKind.analysis_report, _ANALYSIS_SKILLS),
-            (ArtifactKind.visualization, _VISUALIZATION_SKILLS),
-            (ArtifactKind.spectrum, _SPECTRUM_SKILLS),
-            (ArtifactKind.light_curve, _LIGHT_CURVE_SKILLS),
-            (ArtifactKind.model_evaluation, _MODEL_EVALUATION_SKILLS),
-            (ArtifactKind.model_artifact, _MODEL_EVALUATION_SKILLS),
-        )
-        for artifact_kind, capable_skills in required_capabilities:
-            if artifact_kind in selected_outputs and not selected_skills & capable_skills:
+        for artifact_kind in _SCIENTIFIC_OUTPUT_KINDS:
+            if artifact_kind not in selected_outputs:
+                continue
+            capable = any(
+                artifact_kind in _skill_produced_kinds(task.skill_id)
+                for task in self.scientific_tasks
+            )
+            if not capable:
                 raise ValueError(
                     f"{artifact_kind.value} requires an explicitly authorized scientific skill"
                 )
         for task in self.scientific_tasks:
-            if task.skill_id in _MODEL_EVALUATION_SKILLS:
-                produced_kinds = frozenset(
-                    {ArtifactKind.model_evaluation, ArtifactKind.model_artifact}
-                )
-            elif task.skill_id in _SPECTRUM_SKILLS:
-                produced_kinds = frozenset(
-                    {ArtifactKind.spectrum, ArtifactKind.analysis_report}
-                )
-            elif task.skill_id in _LIGHT_CURVE_SKILLS:
-                produced_kinds = frozenset(
-                    {ArtifactKind.light_curve, ArtifactKind.analysis_report}
-                )
-            elif task.skill_id in _VISUALIZATION_SKILLS:
-                produced_kinds = frozenset({ArtifactKind.visualization})
-            else:
-                produced_kinds = frozenset({ArtifactKind.analysis_report})
-            if not produced_kinds & selected_outputs:
+            if not _skill_produced_kinds(task.skill_id) & selected_outputs:
                 raise ValueError(
                     f"scientific task {task.task_id} has no requested output"
                 )

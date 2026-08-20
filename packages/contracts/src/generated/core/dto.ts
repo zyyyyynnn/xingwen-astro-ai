@@ -3521,23 +3521,24 @@ export interface PaperSummaryPaperMetadata {
  * via the `definition` "PaperSummaryArtifactContent".
  */
 export interface PaperSummaryArtifactContent {
+  background: PaperSummaryStatement[];
   benchmark?: PaperBenchmarkReference | null;
-  dataset: PaperSummaryStatement | null;
+  dataset: PaperSummaryStatement[];
+  discussion: PaperSummaryStatement[];
   evidence: PaperSummaryEvidence[];
   evidence_ids: string[];
-  findings: PaperSummaryStatement[];
-  future_work: PaperSummaryStatement[];
+  experiments: PaperSummaryStatement[];
   input_hash: string;
   input_versions: PaperSummaryInputVersions;
   kind: "paper_summary";
   limitations: PaperSummaryStatement[];
-  method: PaperSummaryStatement | null;
+  methodology: PaperSummaryStatement[];
   output_hash: string;
   paper?: PaperSummaryPaperMetadata | null;
   paper_id: string;
   producer: PaperSummaryProducerExecution;
-  research_goal: PaperSummaryStatement | null;
-  schema_version: "1.0.0";
+  research_questions: PaperSummaryStatement[];
+  schema_version: "2.0.0";
   source_conflicts: PaperSummarySourceConflict[];
   summary_id: string;
 }
@@ -4711,9 +4712,12 @@ export interface ModelBinaryReference {
  * via the `definition` "ModelSplitReference".
  */
 export interface ModelSplitReference {
+  cross_validation_folds?: number | null;
+  field?: string | null;
   random_seed?: number | null;
-  strategy: "holdout" | "stratified_holdout" | "time_ordered";
+  strategy: "random" | "stratified" | "group" | "entity" | "time";
   test_fraction: number;
+  train_cutoff?: string | number | null;
   train_fraction: number;
   validation_fraction: number;
 }

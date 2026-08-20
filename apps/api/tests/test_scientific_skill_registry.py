@@ -621,6 +621,70 @@ async def test_step_adapter_resolves_dataset_input_and_builds_analysis_artifact(
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("skill_id", "parameters"),
+    (
+        (
+            ScientificSkillId.clustering_analysis,
+            {"feature_fields": ["x", "y"], "cluster_count": 3},
+        ),
+        (
+            ScientificSkillId.anomaly_detection,
+            {"feature_fields": ["x", "y"], "contamination": 0.1},
+        ),
+    ),
+)
+async def test_descriptor_drives_unsupervised_report_and_chart_candidates(
+    skill_id: ScientificSkillId,
+    parameters: dict[str, object],
+) -> None:
+    adapter = ScientificStepAdapter(
+        build_scientific_skill_registry(),
+        content_storage=_MemoryStorage(),
+        source_recorder=_SourceRecorder(),
+    )
+    contract = _contract(
+        skill_id=skill_id,
+        output=("analysis_report", "visualization"),
+        input_refs=[DATASET_VERSION_ID],
+        parameters=parameters,
+    )
+
+    async def resolve(_: ScientificTaskInput) -> Sequence[ScientificInputBinding]:
+        return (
+            ScientificInputBinding(
+                ref_id=DATASET_VERSION_ID,
+                kind="artifact_version",
+                parameters={"rows": _rows(40)},
+                source_references=(
+                    ScientificSourceReference(
+                        source_snapshot_id=SNAPSHOT_ID,
+                        content_hash=HASH,
+                    ),
+                ),
+            ),
+        )
+
+    output = await adapter.execute(
+        task_id="task.primary",
+        project_id=PROJECT_ID,
+        run_id=RUN_ID,
+        contract=contract,
+        resolve_inputs=resolve,
+    )
+
+    assert tuple(candidate.kind for candidate in output.artifact_candidates) == (
+        "analysis_report",
+        "visualization",
+    )
+    visualization = output.artifact_candidates[1]
+    assert isinstance(visualization, VisualizationArtifactContent)
+    assert visualization.spec.mode == "chart"
+    assert visualization.spec.x_axis.field == "pca_x"
+    assert visualization.spec.y_axis.field == "pca_y"
+
+
+@pytest.mark.anyio
 async def test_step_adapter_materializes_an_onnx_model_binary() -> None:
     storage = _MemoryStorage()
     adapter = ScientificStepAdapter(
@@ -637,6 +701,8 @@ async def test_step_adapter_materializes_an_onnx_model_binary() -> None:
             "target_field": "label",
             "task_kind": "classification",
             "algorithm": "random_forest",
+            "split_strategy": "entity",
+            "entity_field": "object_id",
         },
     )
 
@@ -645,7 +711,12 @@ async def test_step_adapter_materializes_an_onnx_model_binary() -> None:
             ScientificInputBinding(
                 ref_id=DATASET_VERSION_ID,
                 kind="artifact_version",
-                parameters={"rows": _rows(40)},
+                parameters={
+                    "rows": [
+                        {**row, "object_id": f"star.{index % 8}"}
+                        for index, row in enumerate(_rows(40))
+                    ]
+                },
                 source_references=(
                     ScientificSourceReference(
                         source_snapshot_id=SNAPSHOT_ID,
@@ -671,6 +742,12 @@ async def test_step_adapter_materializes_an_onnx_model_binary() -> None:
     assert evaluation.model_binary == model.model_binary
     assert model.model_binary.media_type == "application/onnx"
     assert model.status == "active"
+    assert evaluation.split.strategy == "entity"
+    assert evaluation.split.field == "object_id"
+    assert evaluation.split.cross_validation_folds == 5
+    assert evaluation.split.train_cutoff is None
+    assert any("never cross the train/test boundary" in item for item in evaluation.limitations)
+    assert model.limitations == evaluation.limitations
     assert model.input_shape[0] is None
     assert model.opset_imports
     assert storage.content[model.model_binary.content_hash]

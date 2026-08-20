@@ -16,8 +16,8 @@
     "version_number": 1,
     "supersedes_version_id": null,
     "source_mode": "fixture",
-    "content_hash": "sha256:3c26760f5d1774fb2276007385cc1fb849f432657a8983fb0c65b480264a8c7d",
-    "input_hash": "sha256:742203d25c8ca4aa2539e940eafadfdf686b4bd7836a856e7d507f3d9168e9cf",
+    "content_hash": "sha256:2d56cea6a8767577ab12fbd830d1873b2b470c8673e47f46b009c8745a966d63",
+    "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
     "created_at": "2026-07-21T08:25:00Z",
     "paper": {
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
@@ -27,8 +27,8 @@
     },
     "summary": {
       "kind": "paper_summary",
-      "schema_version": "1.0.0",
-      "summary_id": "summary.1b5a8a2352dcf1a71b7c1971",
+      "schema_version": "2.0.0",
+      "summary_id": "summary.689962460325bd4e386896bd",
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
       "paper": null,
       "benchmark": {
@@ -53,28 +53,34 @@
           }
         ]
       },
-      "research_goal": {
-        "statement_id": "stmt.research_goal",
-        "text": "The paper delivers The Revised TESS Input Catalog and Candidate Target List to prioritize TESS targets.",
-        "evidence_ids": ["ev.goal_title"],
-        "status": "supported",
-        "validation_code": "evidence.supported"
-      },
-      "method": {
-        "statement_id": "stmt.method",
-        "text": "The catalog compiles stellar parameters from photometric catalogs and parallax measurements.",
-        "evidence_ids": ["ev.method_text"],
-        "status": "unverifiable",
-        "validation_code": "evidence.unverifiable"
-      },
-      "dataset": {
-        "statement_id": "stmt.dataset",
-        "text": "The catalog release analyzed here dates to 2019.",
-        "evidence_ids": ["ev.dataset_year"],
-        "status": "supported",
-        "validation_code": "evidence.supported"
-      },
-      "findings": [
+      "background": [
+        {
+          "statement_id": "stmt.research_goal",
+          "text": "The paper delivers The Revised TESS Input Catalog and Candidate Target List to prioritize TESS targets.",
+          "evidence_ids": ["ev.goal_title"],
+          "status": "supported",
+          "validation_code": "evidence.supported"
+        }
+      ],
+      "methodology": [
+        {
+          "statement_id": "stmt.method",
+          "text": "The catalog compiles stellar parameters from photometric catalogs and parallax measurements.",
+          "evidence_ids": ["ev.method_text"],
+          "status": "unverifiable",
+          "validation_code": "evidence.unverifiable"
+        }
+      ],
+      "dataset": [
+        {
+          "statement_id": "stmt.dataset",
+          "text": "The catalog release analyzed here dates to 2019.",
+          "evidence_ids": ["ev.dataset_year"],
+          "status": "supported",
+          "validation_code": "evidence.supported"
+        }
+      ],
+      "experiments": [
         {
           "statement_id": "stmt.finding_doi",
           "text": "The published catalog is registered under DOI 10.3847/1538-3881/ab3467.",
@@ -83,6 +89,7 @@
           "validation_code": "evidence.supported"
         }
       ],
+      "discussion": [],
       "limitations": [
         {
           "statement_id": "stmt.limitation_unsupported",
@@ -92,7 +99,7 @@
           "validation_code": "evidence.not_provided"
         }
       ],
-      "future_work": [],
+      "research_questions": [],
       "evidence_ids": [
         "ev.dataset_year",
         "ev.finding_doi",
@@ -203,7 +210,7 @@
       ],
       "source_conflicts": [],
       "producer": {
-        "execution_id": "execution.742203d25c8ca4aa2539e940",
+        "execution_id": "execution.2d5a9d060c75c4177879afd3",
         "run_id": null,
         "step_key": "summarizing_papers",
         "producer_type": "model",
@@ -215,8 +222,8 @@
         "provider_request_id": null,
         "usage": null,
         "prompt_name": "paper_summary",
-        "prompt_version": "2.0.2",
-        "prompt_hash": "sha256:dde151d161caec0e5c737adbed4ad65b9c2f9412591797c773d52782f8bc4f95",
+        "prompt_version": "3.0.0",
+        "prompt_hash": "sha256:758c9277003b9597514721ce359738219b7ba154ab0a924cb5b9600cef0b6323",
         "parameters_version": "1.0.0",
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
         "input_versions": {
@@ -233,17 +240,17 @@
             }
           ]
         },
-        "input_hash": "sha256:742203d25c8ca4aa2539e940eafadfdf686b4bd7836a856e7d507f3d9168e9cf",
-        "model_response_hash": "sha256:55298827faa717234747414f5c3fd53bf7b9e2fa0967b3f186600571d4223c39",
-        "output_hash": "sha256:ac5df02780ea4ee1a266a6bf0401a207c385bd06da8423c5025912be3802db3b",
+        "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
+        "model_response_hash": "sha256:90dfa5e86c7510c092a671d33dbbd308ce9470e3c8c90be0cf3c62a6d2e04d3d",
+        "output_hash": "sha256:86a96060599d87255fe9debcb53884cf0588875f5dac69bff202f23ef5378f3f",
         "status": "completed",
         "started_at": "2026-07-21T08:25:00Z",
         "finished_at": "2026-07-21T08:25:00Z",
         "latency_ms": 0,
         "error_code": null
       },
-      "input_hash": "sha256:742203d25c8ca4aa2539e940eafadfdf686b4bd7836a856e7d507f3d9168e9cf",
-      "output_hash": "sha256:ac5df02780ea4ee1a266a6bf0401a207c385bd06da8423c5025912be3802db3b"
+      "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
+      "output_hash": "sha256:86a96060599d87255fe9debcb53884cf0588875f5dac69bff202f23ef5378f3f"
     },
     "cache_audits": [],
     "producer_execution": {
@@ -260,8 +267,8 @@
         "provider_returned_model": null,
         "explicit_revision": null,
         "prompt_name": "paper_summary",
-        "prompt_version": "2.0.2",
-        "prompt_hash": "sha256:dde151d161caec0e5c737adbed4ad65b9c2f9412591797c773d52782f8bc4f95",
+        "prompt_version": "3.0.0",
+        "prompt_hash": "sha256:758c9277003b9597514721ce359738219b7ba154ab0a924cb5b9600cef0b6323",
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2"
       },
       "parameters": {
@@ -269,8 +276,8 @@
         "top_p": 1
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
-      "input_hash": "sha256:742203d25c8ca4aa2539e940eafadfdf686b4bd7836a856e7d507f3d9168e9cf",
-      "output_hash": "sha256:3c26760f5d1774fb2276007385cc1fb849f432657a8983fb0c65b480264a8c7d",
+      "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
+      "output_hash": "sha256:2d56cea6a8767577ab12fbd830d1873b2b470c8673e47f46b009c8745a966d63",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",
@@ -388,11 +395,11 @@
     "project_id": "proj_01JEXAMPLE",
     "created_by_run_id": "run_01JEXAMPLE",
     "version_number": 1,
-    "schema_version": "1.0.0",
+    "schema_version": "2.0.0",
     "content": {
       "kind": "paper_summary",
-      "schema_version": "1.0.0",
-      "summary_id": "summary.1b5a8a2352dcf1a71b7c1971",
+      "schema_version": "2.0.0",
+      "summary_id": "summary.689962460325bd4e386896bd",
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
       "paper": null,
       "benchmark": {
@@ -417,28 +424,34 @@
           }
         ]
       },
-      "research_goal": {
-        "statement_id": "stmt.research_goal",
-        "text": "The paper delivers The Revised TESS Input Catalog and Candidate Target List to prioritize TESS targets.",
-        "evidence_ids": ["ev.goal_title"],
-        "status": "supported",
-        "validation_code": "evidence.supported"
-      },
-      "method": {
-        "statement_id": "stmt.method",
-        "text": "The catalog compiles stellar parameters from photometric catalogs and parallax measurements.",
-        "evidence_ids": ["ev.method_text"],
-        "status": "unverifiable",
-        "validation_code": "evidence.unverifiable"
-      },
-      "dataset": {
-        "statement_id": "stmt.dataset",
-        "text": "The catalog release analyzed here dates to 2019.",
-        "evidence_ids": ["ev.dataset_year"],
-        "status": "supported",
-        "validation_code": "evidence.supported"
-      },
-      "findings": [
+      "background": [
+        {
+          "statement_id": "stmt.research_goal",
+          "text": "The paper delivers The Revised TESS Input Catalog and Candidate Target List to prioritize TESS targets.",
+          "evidence_ids": ["ev.goal_title"],
+          "status": "supported",
+          "validation_code": "evidence.supported"
+        }
+      ],
+      "methodology": [
+        {
+          "statement_id": "stmt.method",
+          "text": "The catalog compiles stellar parameters from photometric catalogs and parallax measurements.",
+          "evidence_ids": ["ev.method_text"],
+          "status": "unverifiable",
+          "validation_code": "evidence.unverifiable"
+        }
+      ],
+      "dataset": [
+        {
+          "statement_id": "stmt.dataset",
+          "text": "The catalog release analyzed here dates to 2019.",
+          "evidence_ids": ["ev.dataset_year"],
+          "status": "supported",
+          "validation_code": "evidence.supported"
+        }
+      ],
+      "experiments": [
         {
           "statement_id": "stmt.finding_doi",
           "text": "The published catalog is registered under DOI 10.3847/1538-3881/ab3467.",
@@ -447,6 +460,7 @@
           "validation_code": "evidence.supported"
         }
       ],
+      "discussion": [],
       "limitations": [
         {
           "statement_id": "stmt.limitation_unsupported",
@@ -456,7 +470,7 @@
           "validation_code": "evidence.not_provided"
         }
       ],
-      "future_work": [],
+      "research_questions": [],
       "evidence_ids": [
         "ev.dataset_year",
         "ev.finding_doi",
@@ -567,7 +581,7 @@
       ],
       "source_conflicts": [],
       "producer": {
-        "execution_id": "execution.742203d25c8ca4aa2539e940",
+        "execution_id": "execution.2d5a9d060c75c4177879afd3",
         "run_id": null,
         "step_key": "summarizing_papers",
         "producer_type": "model",
@@ -579,8 +593,8 @@
         "provider_request_id": null,
         "usage": null,
         "prompt_name": "paper_summary",
-        "prompt_version": "2.0.2",
-        "prompt_hash": "sha256:dde151d161caec0e5c737adbed4ad65b9c2f9412591797c773d52782f8bc4f95",
+        "prompt_version": "3.0.0",
+        "prompt_hash": "sha256:758c9277003b9597514721ce359738219b7ba154ab0a924cb5b9600cef0b6323",
         "parameters_version": "1.0.0",
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
         "input_versions": {
@@ -597,20 +611,20 @@
             }
           ]
         },
-        "input_hash": "sha256:742203d25c8ca4aa2539e940eafadfdf686b4bd7836a856e7d507f3d9168e9cf",
-        "model_response_hash": "sha256:55298827faa717234747414f5c3fd53bf7b9e2fa0967b3f186600571d4223c39",
-        "output_hash": "sha256:ac5df02780ea4ee1a266a6bf0401a207c385bd06da8423c5025912be3802db3b",
+        "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
+        "model_response_hash": "sha256:90dfa5e86c7510c092a671d33dbbd308ce9470e3c8c90be0cf3c62a6d2e04d3d",
+        "output_hash": "sha256:86a96060599d87255fe9debcb53884cf0588875f5dac69bff202f23ef5378f3f",
         "status": "completed",
         "started_at": "2026-07-21T08:25:00Z",
         "finished_at": "2026-07-21T08:25:00Z",
         "latency_ms": 0,
         "error_code": null
       },
-      "input_hash": "sha256:742203d25c8ca4aa2539e940eafadfdf686b4bd7836a856e7d507f3d9168e9cf",
-      "output_hash": "sha256:ac5df02780ea4ee1a266a6bf0401a207c385bd06da8423c5025912be3802db3b"
+      "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
+      "output_hash": "sha256:86a96060599d87255fe9debcb53884cf0588875f5dac69bff202f23ef5378f3f"
     },
-    "content_hash": "sha256:3c26760f5d1774fb2276007385cc1fb849f432657a8983fb0c65b480264a8c7d",
-    "input_hash": "sha256:742203d25c8ca4aa2539e940eafadfdf686b4bd7836a856e7d507f3d9168e9cf",
+    "content_hash": "sha256:2d56cea6a8767577ab12fbd830d1873b2b470c8673e47f46b009c8745a966d63",
+    "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
     "source_mode": "fixture",
     "producer": {
       "type": "model",
@@ -621,8 +635,8 @@
       "provider_returned_model": null,
       "explicit_revision": null,
       "prompt_name": "paper_summary",
-      "prompt_version": "2.0.2",
-      "prompt_hash": "sha256:dde151d161caec0e5c737adbed4ad65b9c2f9412591797c773d52782f8bc4f95",
+      "prompt_version": "3.0.0",
+      "prompt_hash": "sha256:758c9277003b9597514721ce359738219b7ba154ab0a924cb5b9600cef0b6323",
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2"
     },
     "source_snapshot_ids": ["snap_papsum_crossref_01"],
@@ -648,8 +662,8 @@
         "provider_returned_model": null,
         "explicit_revision": null,
         "prompt_name": "paper_summary",
-        "prompt_version": "2.0.2",
-        "prompt_hash": "sha256:dde151d161caec0e5c737adbed4ad65b9c2f9412591797c773d52782f8bc4f95",
+        "prompt_version": "3.0.0",
+        "prompt_hash": "sha256:758c9277003b9597514721ce359738219b7ba154ab0a924cb5b9600cef0b6323",
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2"
       },
       "parameters": {
@@ -657,8 +671,8 @@
         "top_p": 1
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
-      "input_hash": "sha256:742203d25c8ca4aa2539e940eafadfdf686b4bd7836a856e7d507f3d9168e9cf",
-      "output_hash": "sha256:3c26760f5d1774fb2276007385cc1fb849f432657a8983fb0c65b480264a8c7d",
+      "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
+      "output_hash": "sha256:2d56cea6a8767577ab12fbd830d1873b2b470c8673e47f46b009c8745a966d63",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",
