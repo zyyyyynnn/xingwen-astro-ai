@@ -58,6 +58,58 @@ export type ScientificSkillId =
 export type ScientificSkillStatus = "completed" | "partial" | "unsupported" | "failed";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "QualityMetricId".
+ */
+export type QualityMetricId =
+  | "field_completeness"
+  | "field_missingness"
+  | "field_unresolved_rate"
+  | "field_provenance_coverage"
+  | "field_evidence_coverage"
+  | "field_unit_consistency"
+  | "field_same_source_conflict_rate"
+  | "field_cross_source_conflict_rate"
+  | "row_completeness"
+  | "row_missingness"
+  | "row_unresolved_rate"
+  | "row_provenance_coverage"
+  | "row_evidence_coverage"
+  | "row_unit_consistency"
+  | "row_conflict_rate"
+  | "row_low_confidence_flag"
+  | "row_review_required_flag"
+  | "row_inconclusive_flag"
+  | "dataset_completeness"
+  | "dataset_missingness"
+  | "dataset_unresolved_rate"
+  | "dataset_provenance_coverage"
+  | "dataset_evidence_coverage"
+  | "dataset_unit_consistency"
+  | "dataset_cross_source_conflict_rate"
+  | "dataset_same_source_conflict_rate"
+  | "object_match_coverage"
+  | "low_confidence_edge_rate"
+  | "review_required_record_rate"
+  | "inconclusive_record_rate"
+  | "source_scope_completeness"
+  | "validation_integrity";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "QualityMetricStatus".
+ */
+export type QualityMetricStatus = "determinate" | "insufficient" | "not_applicable";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "QualityGateStatus".
+ */
+export type QualityGateStatus = "pass" | "fail" | "insufficient";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "QualityMetricScope".
+ */
+export type QualityMetricScope = "field" | "row" | "dataset";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ArtifactKind".
  */
 export type ArtifactKind =
@@ -744,6 +796,7 @@ export interface AnalysisReportArtifactContent {
    */
   skill_executions: [ScientificSkillExecution, ...ScientificSkillExecution[]];
   source_snapshot_ids: string[];
+  source_table_admissions?: SourceTableAdmission[];
   summary: string;
   title: string;
 }
@@ -828,6 +881,159 @@ export interface ScientificSkillExecution {
   skill_revision: string;
   status: ScientificSkillStatus;
   warnings?: string[];
+}
+/**
+ * Hash-closed mapping, quality and Evidence result for one source table.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SourceTableAdmission".
+ */
+export interface SourceTableAdmission {
+  admission_id: string;
+  cells?: SourceTableCellAdmission[];
+  /**
+   * @minItems 3
+   * @maxItems 3
+   */
+  checks: [QualityConstraintResult, QualityConstraintResult, QualityConstraintResult];
+  /**
+   * @minItems 1
+   */
+  columns: [SourceTableColumnAdmission, ...SourceTableColumnAdmission[]];
+  conversion_catalog_content_hash: string;
+  conversion_catalog_id: string;
+  conversion_catalog_version: string;
+  evidence_scope_id: string;
+  input_hash: string;
+  kind?: "source_table_admission";
+  manifest_pins: ManifestPins;
+  mapping_rule_set_content_hash: string;
+  mapping_rule_set_id: string;
+  mapping_rule_set_version: string;
+  /**
+   * @minItems 3
+   * @maxItems 3
+   */
+  metrics: [QualityMetricResult, QualityMetricResult, QualityMetricResult];
+  output_hash: string;
+  overall_status: QualityGateStatus;
+  quality_rule_set_content_hash: string;
+  quality_rule_set_id: string;
+  quality_rule_set_version: string;
+  query_hash: string;
+  research_contract_content_hash: string;
+  research_contract_id: string;
+  research_contract_version: number;
+  retrieved_at: string;
+  rows?: SourceTableRowAdmission[];
+  schema_version?: "1.0.0";
+  source_id: string;
+  source_result_status: "complete" | "empty" | "truncated";
+  source_snapshot_content_hash: string;
+  source_snapshot_id: string;
+  source_table: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SourceTableCellAdmission".
+ */
+export interface SourceTableCellAdmission {
+  canonical_field_id: string;
+  canonical_unit: string;
+  canonical_value: string | null;
+  evidence_id: string;
+  locator: SourceCellLocator;
+  raw_value: JsonValue | null;
+  row_id: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SourceCellLocator".
+ */
+export interface SourceCellLocator {
+  query_hash: string;
+  raw_field: string;
+  raw_record_content_hash: string;
+  /**
+   * @minItems 1
+   */
+  row_key: [[unknown, unknown], ...[unknown, unknown][]];
+  source_id: string;
+  source_role: "left" | "right" | "single";
+  source_snapshot_content_hash: string;
+  source_snapshot_id: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "QualityConstraintResult".
+ */
+export interface QualityConstraintResult {
+  constraint_id: string;
+  input_locator: string;
+  metric_id: QualityMetricId | null;
+  observation_key: string;
+  observed_status: QualityMetricStatus | "not_checked";
+  observed_value: string | null;
+  operator: "gte" | "equals";
+  result: QualityGateStatus;
+  rule_binding_version: string;
+  source_field: string;
+  threshold: string | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SourceTableColumnAdmission".
+ */
+export interface SourceTableColumnAdmission {
+  canonical_field_id: string;
+  canonical_unit: string;
+  canonical_unit_symbol?: string | null;
+  label_zh: string;
+  raw_field: string;
+  source_unit: string;
+  source_unit_symbol?: string | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ManifestPins".
+ */
+export interface ManifestPins {
+  case_manifest_content_hash: string;
+  case_manifest_id: string;
+  case_manifest_version: string;
+  field_manifest_content_hash: string;
+  field_manifest_id: string;
+  field_manifest_version: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "QualityMetricResult".
+ */
+export interface QualityMetricResult {
+  denominator: number;
+  formula_id: string;
+  formula_scope: QualityMetricScope;
+  formula_version: string;
+  input_locator: string;
+  metric_id: QualityMetricId;
+  numerator: number;
+  precision_digits: number;
+  scope: QualityMetricScope;
+  status: QualityMetricStatus;
+  target_id: string;
+  value?: string | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SourceTableRowAdmission".
+ */
+export interface SourceTableRowAdmission {
+  canonical_identity: string;
+  evidence_ids: string[];
+  row_id: string;
+  values: {
+    [k: string]: string | null;
+  };
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -2520,18 +2726,6 @@ export interface FieldConflictRecord {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "ManifestPins".
- */
-export interface ManifestPins {
-  case_manifest_content_hash: string;
-  case_manifest_id: string;
-  case_manifest_version: string;
-  field_manifest_content_hash: string;
-  field_manifest_id: string;
-  field_manifest_version: string;
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "FieldSelectionRecord".
  */
 export interface FieldSelectionRecord {
@@ -2577,23 +2771,6 @@ export interface SourceValueCandidate {
   source_value_id: string;
   transformation_rule_version: string;
   uncertainty: UncertaintyValue;
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "SourceCellLocator".
- */
-export interface SourceCellLocator {
-  query_hash: string;
-  raw_field: string;
-  raw_record_content_hash: string;
-  /**
-   * @minItems 1
-   */
-  row_key: [[unknown, unknown], ...[unknown, unknown][]];
-  side: CrossmatchSide;
-  source_id: string;
-  source_snapshot_content_hash: string;
-  source_snapshot_id: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -4994,12 +5171,12 @@ export interface RepairDefect {
   /**
    * @minItems 1
    */
-  left_candidate_ids: [string, ...string[]];
+  left_candidates: [RepairCandidateSummary, ...RepairCandidateSummary[]];
   logical_match_key: string;
   /**
    * @minItems 1
    */
-  right_candidate_ids: [string, ...string[]];
+  right_candidates: [RepairCandidateSummary, ...RepairCandidateSummary[]];
 }
 /**
  * User-readable evidence for one candidate pair at a repair checkpoint.
@@ -5013,6 +5190,41 @@ export interface RepairEvidenceFact {
   left_candidate_id: string;
   right_candidate_id: string;
   summary: string;
+}
+/**
+ * Domain facts needed to judge a candidate without exposing opaque IDs.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RepairCandidateSummary".
+ */
+export interface RepairCandidateSummary {
+  candidate_id: string;
+  coordinate?: RepairCandidateCoordinate | null;
+  entity_label: string;
+  /**
+   * @minItems 1
+   */
+  identities: [RepairCandidateIdentity, ...RepairCandidateIdentity[]];
+  source_label: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RepairCandidateCoordinate".
+ */
+export interface RepairCandidateCoordinate {
+  declination_degrees: number;
+  frame?: "ICRS";
+  right_ascension_degrees: number;
+}
+/**
+ * One user-readable canonical identity carried by a repair candidate.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RepairCandidateIdentity".
+ */
+export interface RepairCandidateIdentity {
+  label: string;
+  value: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema

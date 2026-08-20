@@ -161,6 +161,9 @@ class StepSnapshot:
     enter_status: str
     success_status: str
     max_attempts: int
+    task_id: str | None
+    skill_id: str | None
+    depends_on_step_keys: tuple[str, ...]
     status: str
     progress: int
     started_at: datetime | None
@@ -1360,6 +1363,9 @@ class PersistentWorkflowStore:
                         enter_status=step.enter_status,
                         success_status=step.success_status,
                         max_attempts=step.max_attempts,
+                        task_id=step.task_id,
+                        skill_id=step.skill_id,
+                        depends_on_step_keys=tuple(step.depends_on_step_keys),
                         status=step.status,
                         progress=step.progress,
                         started_at=step.started_at,
@@ -1391,17 +1397,22 @@ class PersistentWorkflowStore:
             status: position for position, status in enumerate(RUN_STEP_STATUS_ORDER)
         }
         for position, step in enumerate(steps):
-            if step.key != step.enter_status or step.enter_status not in order:
+            if step.enter_status not in order:
+                raise ValueError("run step must enter a declared workflow status")
+            if step.skill_id is None:
+                if step.key != step.enter_status or step.task_id is not None:
+                    raise ValueError(
+                        "canonical run step key must identify its workflow status"
+                    )
+            elif not step.key.startswith("scientific.") or step.task_id is None:
                 raise ValueError(
-                    "run step key must identify a declared workflow status"
+                    "scientific run step must preserve its task and skill identity"
                 )
             if (
                 position > 0
-                and order[step.enter_status] <= order[steps[position - 1].enter_status]
+                and order[step.enter_status] < order[steps[position - 1].enter_status]
             ):
-                raise ValueError(
-                    "run step statuses must follow canonical order without duplication"
-                )
+                raise ValueError("run step statuses must follow canonical order")
             expected_success_status = (
                 steps[position + 1].enter_status
                 if position + 1 < len(steps)

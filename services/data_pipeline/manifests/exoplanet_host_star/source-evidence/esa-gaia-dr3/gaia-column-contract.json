@@ -1,0 +1,25 @@
+{
+  "snapshot_id": "esa_gaia_dr3.column_contract",
+  "snapshot_version": "1.0.0",
+  "provider_source_id": "esa_gaia_dr3",
+  "evidence_chain": [
+    {
+      "evidence_kind": "official_tap_schema_contract",
+      "path": "services/data_pipeline/manifests/exoplanet_host_star/source-evidence/esa-gaia-dr3/gaia-runtime-schema-contract.json"
+    }
+  ],
+  "decision_policy": [
+    "Only columns declared by the Gaia DR3 TAP schema contract enter the production query allowlist."
+  ],
+  "critical_column_decisions": [],
+  "table_contracts": [
+    {
+      "source_id": "esa_gaia_dr3.gaiadr3.gaia_source",
+      "source_table": "gaiadr3.gaia_source",
+      "approved_columns": ["source_id", "ra", "dec", "teff_gspphot"],
+      "row_key_fields": ["source_id"],
+      "reference_columns": [],
+      "provenance_columns": []
+    }
+  ]
+}

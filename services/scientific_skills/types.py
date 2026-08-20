@@ -7,7 +7,13 @@ from typing import Annotated, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from app.schemas._hashing import compute_canonical_payload_hash
-from app.schemas.core import ContentHash, Identifier, JsonValue, ScientificSkillId
+from app.schemas.core import (
+    ContentHash,
+    Identifier,
+    JsonValue,
+    ScientificSkillId,
+    UtcDateTime,
+)
 
 
 MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
@@ -31,6 +37,9 @@ class ScientificSourceReference(BaseModel):
 
     source_snapshot_id: Identifier
     content_hash: ContentHash
+    source_id: Identifier | None = None
+    query_hash: ContentHash | None = None
+    retrieved_at: UtcDateTime | None = None
 
 
 class ScientificSkillRequest(BaseModel):

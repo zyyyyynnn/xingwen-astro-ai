@@ -21,16 +21,20 @@ from app.main import create_app
 from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.research_input import ResearchInputStatus
 from app.security import InMemoryRateLimiter
-from app.services import url_fetcher as url_fetcher_module
 from app.services.content_storage import sha256_content_hash
 from app.services.research_input_store import InMemoryResearchInputStore
 from app.services.url_fetcher import UrlFetchConfig, UrlFetchError, UrlFetchResult
 
 FIXTURES = Path(__file__).parent / "fixtures"
-FIXTURES_BYTES = {name: (FIXTURES / name).read_bytes() for name in ("sample.pdf", "sample.csv", "sample.json", "sample.png", "sample.txt")}
+FIXTURES_BYTES = {
+    name: (FIXTURES / name).read_bytes()
+    for name in ("sample.pdf", "sample.csv", "sample.json", "sample.png", "sample.txt")
+}
 
 
-def test_research_input_status_preserves_lifecycle_without_fabricating_failures() -> None:
+def test_research_input_status_preserves_lifecycle_without_fabricating_failures() -> (
+    None
+):
     assert {status.value for status in ResearchInputStatus} == {
         "accepted",
         "unsupported_processing",
@@ -55,7 +59,9 @@ def app_and_client(
     return app, client, session_id, csrf_token
 
 
-def _headers(csrf_token: str, idempotency_key: str | None = None, **extra: str) -> dict[str, str]:
+def _headers(
+    csrf_token: str, idempotency_key: str | None = None, **extra: str
+) -> dict[str, str]:
     headers: dict[str, str] = {
         "X-CSRF-Token": csrf_token,
         "Idempotency-Key": idempotency_key or f"idem-{secrets.token_hex(4)}",
@@ -72,9 +78,7 @@ def _seed_project(
     owner: str | None = None,
 ) -> None:
     store: InMemoryResearchInputStore = app.state.research_input_store
-    store.register_project(
-        project_id=project_id, owner_session_id=owner or session_id
-    )
+    store.register_project(project_id=project_id, owner_session_id=owner or session_id)
 
 
 def _install_fetcher(app: FastAPI, fetcher: object) -> None:
@@ -103,7 +107,6 @@ def _create_text(
     )
     assert response.status_code == 201
     return response.json()["data"]
-
 
 
 # ---- transport envelope ----------------------------------------------------
@@ -202,6 +205,7 @@ def test_pdf_upload_is_accepted_and_sniffed(
     assert data["mime_type"] == "application/pdf"
     assert data["filename"] == "report.pdf"
     assert data["content_hash"] == sha256_content_hash(FIXTURES_BYTES["sample.pdf"])
+    assert data["source_snapshot_id"] is not None
 
 
 def test_lying_client_mime_and_unknown_binary_are_rejected_415(
@@ -550,7 +554,6 @@ def test_content_is_never_exposed_in_any_response(
     assert "secret prose" not in dump
 
 
-
 def test_project_isolation_dedup(
     app_and_client: tuple[FastAPI, TestClient, str, str],
 ) -> None:
@@ -604,7 +607,11 @@ def test_idempotency_key_replay_and_conflict(
     # Conflict with different payload under same idempotency key
     res3 = client.post(
         "/api/research-inputs",
-        json={"project_id": "proj_01", "type": "text", "text_content": "different content"},
+        json={
+            "project_id": "proj_01",
+            "type": "text",
+            "text_content": "different content",
+        },
         headers=headers,
     )
     assert res3.status_code == 409

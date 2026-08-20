@@ -106,6 +106,12 @@ def test_gaia_preflights_schema_and_reuses_project_scoped_response() -> None:
             "dec": 24.1081972,
         }
     ]
+    assert live["column_metadata"] == [
+        {"field": "source_id", "label": "Gaia DR3 宿主恒星标识", "unit": None},
+        {"field": "ra", "label": "系统赤经", "unit": "deg"},
+        {"field": "dec", "label": "系统赤纬", "unit": "deg"},
+    ]
+    assert "data_admission" not in live
     assert live["acquisition"]["cache_version"] == GAIA_CACHE_VERSION
     assert live["result_status"] == "complete"
     assert live["truncated"] is False
@@ -132,12 +138,7 @@ def test_gaia_fetches_one_extra_row_to_report_truncation() -> None:
         )
         return httpx.Response(
             200,
-            content=(
-                b"source_id,ra,dec\n"
-                b"1,56.7,24.1\n"
-                b"2,56.8,24.2\n"
-                b"3,56.9,24.3\n"
-            ),
+            content=(b"source_id,ra,dec\n1,56.7,24.1\n2,56.8,24.2\n3,56.9,24.3\n"),
             request=request,
         )
 
@@ -147,6 +148,7 @@ def test_gaia_fetches_one_extra_row_to_report_truncation() -> None:
     assert [row["source_id"] for row in result["rows"]] == ["1", "2"]
     assert result["truncated"] is True
     assert result["result_status"] == "truncated"
+
 
 def test_gaia_schema_drift_fails_before_the_data_query() -> None:
     call_count = 0
@@ -166,7 +168,7 @@ def test_gaia_schema_drift_fails_before_the_data_query() -> None:
     assert failed.value.code == "GAIA_TAP_SCHEMA_DRIFT"
 
 
-def test_gaia_accepts_the_official_tap_unit_encoding() -> None:
+def test_gaia_accepts_the_manifest_pinned_tap_unit_encoding() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         query = parse_qs(request.content.decode("ascii"))["QUERY"][0]
         if "TAP_SCHEMA.columns" in query:
@@ -174,15 +176,14 @@ def test_gaia_accepts_the_official_tap_unit_encoding() -> None:
                 200,
                 content=(
                     b"column_name,datatype,unit\n"
-                    b"pmra,double,mas.yr**-1\n"
-                    b"radial_velocity,float,km.s**-1\n"
+                    b"teff_gspphot,double,K\n"
                     b"source_id,long,\n"
                 ),
                 request=request,
             )
         return httpx.Response(
             200,
-            content=(b"source_id,pmra,radial_velocity\n65214061869072512,3.25,-18.5\n"),
+            content=(b"source_id,teff_gspphot\n65214061869072512,5720.5\n"),
             request=request,
         )
 
@@ -191,7 +192,7 @@ def test_gaia_accepts_the_official_tap_unit_encoding() -> None:
             "parameters": {
                 "ra_degrees": 56.75,
                 "dec_degrees": 24.1167,
-                "fields": ["source_id", "pmra", "radial_velocity"],
+                "fields": ["source_id", "teff_gspphot"],
                 "max_results": 1,
             }
         }
@@ -201,8 +202,7 @@ def test_gaia_accepts_the_official_tap_unit_encoding() -> None:
     assert result["rows"] == [
         {
             "source_id": "65214061869072512",
-            "pmra": 3.25,
-            "radial_velocity": -18.5,
+            "teff_gspphot": 5720.5,
         }
     ]
 
@@ -220,9 +220,7 @@ def test_gaia_rate_limit_has_a_stable_retryable_failure() -> None:
     assert failed.value.retryable is True
 
 
-@pytest.mark.skipif(
-    not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured"
-)
+@pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured")
 def test_gaia_cache_is_project_scoped_persistent_and_expires() -> None:
     assert TEST_DATABASE_URL is not None
     assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower()

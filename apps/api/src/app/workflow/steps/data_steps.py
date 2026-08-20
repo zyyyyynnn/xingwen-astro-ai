@@ -7,6 +7,9 @@ from typing import Any
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import (
     RepairCheckpointContext,
+    RepairCandidateCoordinate,
+    RepairCandidateIdentity,
+    RepairCandidateSummary,
     RepairDefect,
     RepairEvidenceFact,
     RepairOutcome,
@@ -18,6 +21,7 @@ from app.schemas.crossmatch import (
     CrossmatchCondition,
     CrossmatchInput,
     CrossmatchResult,
+    EntityCandidate,
     ManualReviewDecision,
     MatchDecision,
     PairedMatch,
@@ -166,7 +170,7 @@ class DataStepService:
         )
         crossmatch_input = CrossmatchInput.model_validate(crossmatch_payload)
         crossmatch = align_cross_source_records(crossmatch_input)
-        defects = _repair_defects(crossmatch)
+        defects = _repair_defects(crossmatch, manifests=self._manifests)
         repair_state = self._store.repair_checkpoint_decision(
             context.run_id, step_key=step_key
         )
@@ -384,9 +388,18 @@ class DataStepService:
         )
 
 
-def _repair_defects(crossmatch: CrossmatchResult) -> tuple[RepairDefect, ...]:
+def _repair_defects(
+    crossmatch: CrossmatchResult, *, manifests: ManifestBundle
+) -> tuple[RepairDefect, ...]:
     defects: list[RepairDefect] = []
     evidence_by_id = {item.evidence_id: item for item in crossmatch.evidence}
+    candidates_by_id = {item.candidate_id: item for item in crossmatch.candidates}
+    field_labels = {
+        item.field_id: item.meaning_zh for item in manifests.field_manifest.fields
+    }
+    source_labels = {
+        item.source_id: item.name for item in manifests.field_manifest.sources
+    }
     for record in crossmatch.records:
         if isinstance(record, ConflictGroup):
             conflict_code = record.conflict_code
@@ -402,8 +415,22 @@ def _repair_defects(crossmatch: CrossmatchResult) -> tuple[RepairDefect, ...]:
                 defect_id=f"repair-{record.logical_match_key[7:31]}",
                 logical_match_key=record.logical_match_key,
                 conflict_code=conflict_code,
-                left_candidate_ids=tuple(sorted(record.left_candidate_ids)),
-                right_candidate_ids=tuple(sorted(record.right_candidate_ids)),
+                left_candidates=tuple(
+                    _repair_candidate_summary(
+                        candidates_by_id[candidate_id],
+                        field_labels=field_labels,
+                        source_labels=source_labels,
+                    )
+                    for candidate_id in sorted(record.left_candidate_ids)
+                ),
+                right_candidates=tuple(
+                    _repair_candidate_summary(
+                        candidates_by_id[candidate_id],
+                        field_labels=field_labels,
+                        source_labels=source_labels,
+                    )
+                    for candidate_id in sorted(record.right_candidate_ids)
+                ),
                 evidence=tuple(
                     RepairEvidenceFact(
                         evidence_id=item.evidence_id,
@@ -423,6 +450,40 @@ def _repair_defects(crossmatch: CrossmatchResult) -> tuple[RepairDefect, ...]:
             )
         )
     return tuple(sorted(defects, key=lambda item: item.defect_id))
+
+
+def _repair_candidate_summary(
+    candidate: EntityCandidate,
+    *,
+    field_labels: dict[str, str],
+    source_labels: dict[str, str],
+) -> RepairCandidateSummary:
+    entity_labels = {
+        "host_star": "宿主恒星",
+        "planet_candidate": "行星候选体",
+        "planet_assertion": "行星记录",
+    }
+    coordinate = candidate.coordinate
+    return RepairCandidateSummary(
+        candidate_id=candidate.candidate_id,
+        source_label=source_labels[candidate.source_record.source_id],
+        entity_label=entity_labels[candidate.entity_level.value],
+        identities=tuple(
+            RepairCandidateIdentity(
+                label=field_labels[item.field_id],
+                value=item.normalized_value,
+            )
+            for item in candidate.identity_values
+        ),
+        coordinate=(
+            RepairCandidateCoordinate(
+                right_ascension_degrees=coordinate.right_ascension,
+                declination_degrees=coordinate.declination,
+            )
+            if coordinate is not None
+            else None
+        ),
+    )
 
 
 def _repair_condition_summary(condition: CrossmatchCondition) -> str:
@@ -485,8 +546,12 @@ def _manual_review_decision(
         "rule_set_id": rules.rule_set_id,
         "rule_set_version": rules.version,
         "rule_set_content_hash": rules.content_hash,
-        "left_candidate_ids": defect.left_candidate_ids,
-        "right_candidate_ids": defect.right_candidate_ids,
+        "left_candidate_ids": tuple(
+            item.candidate_id for item in defect.left_candidates
+        ),
+        "right_candidate_ids": tuple(
+            item.candidate_id for item in defect.right_candidates
+        ),
         "evidence_ids": tuple(item.evidence_id for item in defect.evidence),
     }
     payload["content_hash"] = compute_canonical_payload_hash(

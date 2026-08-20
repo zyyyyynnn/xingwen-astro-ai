@@ -149,6 +149,7 @@ def test_default_mime_allowlist_covers_production_research_inputs() -> None:
         "image/png",
         "image/jpeg",
         "image/gif",
+        "image/tiff",
         "image/webp",
         "text/plain",
         "text/markdown",
@@ -167,6 +168,7 @@ def test_env_example_mime_allowlist_matches_production_coverage() -> None:
         "application/fits",
         "image/fits",
         "application/zip",
+        "image/tiff",
         "text/markdown",
         "text/x-markdown",
     ):

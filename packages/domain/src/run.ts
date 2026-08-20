@@ -98,9 +98,24 @@ export interface RepairDefect {
   readonly defectId: DomainEntityId;
   readonly logicalMatchKey: ContentHash;
   readonly conflictCode: string;
-  readonly leftCandidateIds: readonly DomainEntityId[];
-  readonly rightCandidateIds: readonly DomainEntityId[];
+  readonly leftCandidates: readonly RepairCandidateSummary[];
+  readonly rightCandidates: readonly RepairCandidateSummary[];
   readonly evidence: readonly RepairEvidenceFact[];
+}
+
+export interface RepairCandidateSummary {
+  readonly candidateId: DomainEntityId;
+  readonly sourceLabel: string;
+  readonly entityLabel: string;
+  readonly identities: readonly {
+    readonly label: string;
+    readonly value: string;
+  }[];
+  readonly coordinate: {
+    readonly frame: "ICRS";
+    readonly rightAscensionDegrees: number;
+    readonly declinationDegrees: number;
+  } | null;
 }
 
 export interface RepairRuleSetReference {

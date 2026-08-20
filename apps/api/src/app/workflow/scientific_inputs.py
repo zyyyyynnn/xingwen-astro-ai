@@ -9,19 +9,17 @@ from datetime import date, datetime, time
 from decimal import Decimal
 from io import BytesIO, StringIO
 import json
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
     ArtifactVersionModel,
-    ResearchInputContentModel,
     ResearchInputModel,
     SourceSnapshotModel,
 )
 from app.schemas.core import ScientificSkillId, ScientificTaskInput
-from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.data_artifacts import DatasetArtifactCandidate
 from app.schemas.scientific_capabilities import accepts_artifact_version
 from app.schemas.scientific_skills import ModelArtifactContent
@@ -89,11 +87,13 @@ class DatabaseScientificInputResolver:
             if source is not None:
                 return _source_binding(source)
             research_input = session.scalar(
-                select(ResearchInputModel).where(
+                select(ResearchInputModel)
+                .where(
                     ResearchInputModel.id == reference_uuid,
                     ResearchInputModel.project_id == self._project_id,
                     ResearchInputModel.expires_at.is_(None),
-                ).with_for_update()
+                )
+                .with_for_update()
             )
             if research_input is None:
                 raise ValueError(
@@ -101,27 +101,11 @@ class DatabaseScientificInputResolver:
                 )
             content_hash = research_input.content_hash
             input_type = research_input.type
-            source_snapshot_id = research_input.source_snapshot_id
-            source_reference = None
-            if input_type == "image_dataset":
-                source_reference = _image_dataset_source_reference(
-                    session,
-                    research_input,
-                    project_id=self._project_id,
-                )
-            elif source_snapshot_id is not None:
-                snapshot = session.scalar(
-                    select(SourceSnapshotModel).where(
-                        SourceSnapshotModel.id == source_snapshot_id,
-                        SourceSnapshotModel.project_id == self._project_id,
-                    )
-                )
-                if snapshot is None:
-                    raise ValueError("Research Input SourceSnapshot is missing")
-                source_reference = ScientificSourceReference(
-                    source_snapshot_id=str(snapshot.id),
-                    content_hash=snapshot.content_hash,
-                )
+            source_reference = _research_input_source_reference(
+                session,
+                research_input,
+                project_id=self._project_id,
+            )
         content = await self._content_storage.retrieve(content_hash)
         if content is None:
             raise ValueError("scientific input content blob is missing")
@@ -220,74 +204,47 @@ def _source_binding(source: SourceSnapshotModel) -> ScientificInputBinding:
             ScientificSourceReference(
                 source_snapshot_id=str(source.id),
                 content_hash=source.content_hash,
+                source_id=source.source_id,
+                query_hash=source.query_hash,
+                retrieved_at=source.retrieved_at,
             ),
         ),
     )
 
 
-def _image_dataset_source_reference(
+def _research_input_source_reference(
     session: Session,
     research_input: ResearchInputModel,
     *,
     project_id: UUID,
-) -> ScientificSourceReference:
-    if research_input.source_type != "upload" or research_input.status != "accepted":
-        raise ValueError("image dataset requires an accepted upload Research Input")
-    content = session.get(
-        ResearchInputContentModel,
-        (project_id, research_input.content_hash),
+) -> ScientificSourceReference | None:
+    if research_input.source_snapshot_id is None:
+        if research_input.source_type == "upload":
+            raise ValueError("accepted upload Research Input has no SourceSnapshot")
+        return None
+    snapshot = session.scalar(
+        select(SourceSnapshotModel).where(
+            SourceSnapshotModel.id == research_input.source_snapshot_id,
+            SourceSnapshotModel.project_id == project_id,
+        )
     )
-    if content is None or content.mime_type != "application/zip":
-        raise ValueError("image dataset Research Input MIME provenance is invalid")
-    snapshot = None
-    if research_input.source_snapshot_id is not None:
-        snapshot = session.scalar(
-            select(SourceSnapshotModel).where(
-                SourceSnapshotModel.id == research_input.source_snapshot_id,
-                SourceSnapshotModel.project_id == project_id,
-            )
+    if snapshot is None:
+        raise ValueError("Research Input SourceSnapshot is missing")
+    if snapshot.content_hash != research_input.content_hash or (
+        research_input.source_type == "upload"
+        and (
+            snapshot.source_id != f"research_input:{research_input.id}"
+            or snapshot.source_type != "research_input_upload"
+            or snapshot.retrieved_at != research_input.created_at
         )
-        if snapshot is None:
-            raise ValueError("image dataset SourceSnapshot reference is dangling")
-    else:
-        source_id = f"research_input:{research_input.id}"
-        snapshot = session.scalar(
-            select(SourceSnapshotModel).where(
-                SourceSnapshotModel.project_id == project_id,
-                SourceSnapshotModel.source_id == source_id,
-                SourceSnapshotModel.source_type == "research_input_upload",
-                SourceSnapshotModel.content_hash == research_input.content_hash,
-            )
-        )
-        if snapshot is None:
-            query = {"research_input_id": str(research_input.id)}
-            snapshot = SourceSnapshotModel(
-                id=uuid4(),
-                project_id=project_id,
-                source_id=source_id,
-                source_type="research_input_upload",
-                retrieved_at=research_input.created_at,
-                query=query,
-                query_hash=compute_canonical_payload_hash(query),
-                source_version_or_etag=None,
-                content_hash=research_input.content_hash,
-                license_note="user-provided upload",
-                cache_version=None,
-                request_metadata={"ingestion_source": "upload"},
-            )
-            session.add(snapshot)
-            session.flush()
-        research_input.source_snapshot_id = snapshot.id
-    if (
-        snapshot.project_id != project_id
-        or snapshot.source_id != f"research_input:{research_input.id}"
-        or snapshot.source_type != "research_input_upload"
-        or snapshot.content_hash != research_input.content_hash
     ):
-        raise ValueError("image dataset SourceSnapshot provenance is invalid")
+        raise ValueError("Research Input SourceSnapshot provenance is invalid")
     return ScientificSourceReference(
         source_snapshot_id=str(snapshot.id),
         content_hash=snapshot.content_hash,
+        source_id=snapshot.source_id,
+        query_hash=snapshot.query_hash,
+        retrieved_at=snapshot.retrieved_at,
     )
 
 
@@ -318,6 +275,9 @@ def _source_references(
         ScientificSourceReference(
             source_snapshot_id=str(item),
             content_hash=by_id[item].content_hash,
+            source_id=by_id[item].source_id,
+            query_hash=by_id[item].query_hash,
+            retrieved_at=by_id[item].retrieved_at,
         )
         for item in ids
     )
@@ -518,7 +478,9 @@ def _parquet_rows(content: bytes) -> list[dict[str, object]]:
         ):
             raise ValueError("Parquet Research Input exceeds the decoded byte limit")
         fields = _tabular_fields(parquet.schema_arrow.names, format_name="Parquet")
-        if any(not _supported_arrow_type(field.type, pa) for field in parquet.schema_arrow):
+        if any(
+            not _supported_arrow_type(field.type, pa) for field in parquet.schema_arrow
+        ):
             raise ValueError("Parquet Research Input contains a nested or binary field")
         raw_rows = parquet.read(use_threads=False).to_pylist()
     except ValueError:

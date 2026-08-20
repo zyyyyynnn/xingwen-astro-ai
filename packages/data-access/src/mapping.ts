@@ -395,6 +395,10 @@ export function mapRunStep(dto: RunStepReadDto): RunStepSnapshot {
     position: dto.position,
     key: mapId(dto.key),
     label: dto.label,
+    phase: dto.phase,
+    taskId: dto.task_id ? mapId(dto.task_id) : null,
+    skillId: dto.skill_id ?? null,
+    dependsOnStepKeys: mapIds(dto.depends_on_step_keys ?? []),
     status: dto.status as RunStepSnapshot["status"],
     progress: dto.progress,
     publicMessage: dto.public_message,
@@ -506,8 +510,40 @@ export function mapRunCheckpoint(dto: RunCheckpointDto): RunCheckpoint {
           defectId: mapId(defect.defect_id),
           logicalMatchKey: defect.logical_match_key as ContentHash,
           conflictCode: defect.conflict_code,
-          leftCandidateIds: mapIds(defect.left_candidate_ids),
-          rightCandidateIds: mapIds(defect.right_candidate_ids),
+          leftCandidates: defect.left_candidates.map((candidate) => ({
+            candidateId: mapId(candidate.candidate_id),
+            sourceLabel: candidate.source_label,
+            entityLabel: candidate.entity_label,
+            identities: candidate.identities.map((identity) => ({
+              label: identity.label,
+              value: identity.value,
+            })),
+            coordinate: candidate.coordinate
+              ? {
+                  frame: "ICRS" as const,
+                  rightAscensionDegrees:
+                    candidate.coordinate.right_ascension_degrees,
+                  declinationDegrees: candidate.coordinate.declination_degrees,
+                }
+              : null,
+          })),
+          rightCandidates: defect.right_candidates.map((candidate) => ({
+            candidateId: mapId(candidate.candidate_id),
+            sourceLabel: candidate.source_label,
+            entityLabel: candidate.entity_label,
+            identities: candidate.identities.map((identity) => ({
+              label: identity.label,
+              value: identity.value,
+            })),
+            coordinate: candidate.coordinate
+              ? {
+                  frame: "ICRS" as const,
+                  rightAscensionDegrees:
+                    candidate.coordinate.right_ascension_degrees,
+                  declinationDegrees: candidate.coordinate.declination_degrees,
+                }
+              : null,
+          })),
           evidence: defect.evidence.map((evidence) => ({
             evidenceId: mapId(evidence.evidence_id),
             leftCandidateId: mapId(evidence.left_candidate_id),

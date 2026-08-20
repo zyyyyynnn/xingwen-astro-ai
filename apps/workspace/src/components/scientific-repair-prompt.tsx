@@ -1,5 +1,6 @@
 import type {
   RepairAction,
+  RepairCandidateSummary,
   RepairCheckpointContext,
   RepairDecisionInput,
   RepairOutcome,
@@ -23,6 +24,37 @@ const ACTION_LABELS: Readonly<Record<RepairAction, string>> = {
 interface DraftDecision {
   readonly action: RepairAction | null;
   readonly rationale: string;
+}
+
+function CandidateFacts({
+  candidate,
+}: {
+  readonly candidate: RepairCandidateSummary;
+}) {
+  return (
+    <article>
+      <strong>
+        {candidate.sourceLabel} · {candidate.entityLabel}
+      </strong>
+      <dl>
+        {candidate.identities.map((identity) => (
+          <div key={`${identity.label}:${identity.value}`}>
+            <dt>{identity.label}</dt>
+            <dd>{identity.value}</dd>
+          </div>
+        ))}
+        {candidate.coordinate ? (
+          <div>
+            <dt>{candidate.coordinate.frame} 坐标</dt>
+            <dd>
+              赤经 {candidate.coordinate.rightAscensionDegrees.toFixed(6)}
+              °，赤纬 {candidate.coordinate.declinationDegrees.toFixed(6)}°
+            </dd>
+          </div>
+        ) : null}
+      </dl>
+    </article>
+  );
 }
 
 export function ScientificRepairPrompt({
@@ -94,11 +126,25 @@ export function ScientificRepairPrompt({
               <dl className="scientific-repair__candidates">
                 <div>
                   <dt>左侧候选</dt>
-                  <dd>{defect.leftCandidateIds.join("、")}</dd>
+                  <dd>
+                    {defect.leftCandidates.map((candidate) => (
+                      <CandidateFacts
+                        key={candidate.candidateId}
+                        candidate={candidate}
+                      />
+                    ))}
+                  </dd>
                 </div>
                 <div>
                   <dt>右侧候选</dt>
-                  <dd>{defect.rightCandidateIds.join("、")}</dd>
+                  <dd>
+                    {defect.rightCandidates.map((candidate) => (
+                      <CandidateFacts
+                        key={candidate.candidateId}
+                        candidate={candidate}
+                      />
+                    ))}
+                  </dd>
                 </div>
               </dl>
               <ul className="scientific-repair__evidence" aria-label="匹配证据">

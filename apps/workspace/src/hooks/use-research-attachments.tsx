@@ -88,6 +88,8 @@ export function inferInputType(
     case "jpg":
     case "jpeg":
     case "gif":
+    case "tif":
+    case "tiff":
     case "webp":
       return "image";
     default:

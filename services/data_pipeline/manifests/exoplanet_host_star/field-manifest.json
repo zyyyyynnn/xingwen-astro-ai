@@ -7,6 +7,25 @@
   "manifest_version": "2.0.0",
   "sources": [
     {
+      "source_id": "esa_gaia_dr3.gaiadr3.gaia_source",
+      "provider": "ESA Gaia Archive",
+      "name": "Gaia DR3 Source",
+      "source_table": "gaiadr3.gaia_source",
+      "documentation_url": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_main_source_catalogue/ssec_dm_gaia_source.html",
+      "declaration_mode": "metadata_only",
+      "provider_source_id": "esa_gaia_dr3",
+      "approved_columns": ["source_id", "ra", "dec", "teff_gspphot"],
+      "row_key_fields": ["source_id"],
+      "reference_columns": [],
+      "provenance_columns": [],
+      "column_contract": {
+        "snapshot_id": "esa_gaia_dr3.column_contract",
+        "snapshot_version": "1.0.0",
+        "path": "services/data_pipeline/manifests/exoplanet_host_star/source-evidence/esa-gaia-dr3/gaia-column-contract.json",
+        "content_hash": "sha256:59e029164cc984c6ab7252b18e8f7684d881d23701a8d0c9422558cd2dadb6db"
+      }
+    },
+    {
       "source_id": "nasa_exoplanet_archive.ps",
       "provider": "NASA Exoplanet Archive",
       "name": "Planetary Systems",
@@ -563,6 +582,15 @@
       "canonical_unit": "none",
       "source_aliases": [
         {
+          "source_id": "esa_gaia_dr3.gaiadr3.gaia_source",
+          "source_table": "gaiadr3.gaia_source",
+          "raw_field": "source_id",
+          "source_unit": "none",
+          "conversion_rule_id": "unit.identity",
+          "priority": 1,
+          "row_key_fields": ["source_id"]
+        },
+        {
           "source_id": "nasa_exoplanet_archive.ps",
           "source_table": "ps",
           "raw_field": "gaia_dr3_id",
@@ -584,6 +612,7 @@
         }
       ],
       "source_priority": [
+        "esa_gaia_dr3.gaiadr3.gaia_source",
         "nasa_exoplanet_archive.ps",
         "nasa_exoplanet_archive.pscomppars"
       ],
@@ -693,6 +722,15 @@
       "canonical_unit": "degree",
       "source_aliases": [
         {
+          "source_id": "esa_gaia_dr3.gaiadr3.gaia_source",
+          "source_table": "gaiadr3.gaia_source",
+          "raw_field": "ra",
+          "source_unit": "degree",
+          "conversion_rule_id": "unit.identity",
+          "priority": 1,
+          "row_key_fields": ["source_id"]
+        },
+        {
           "source_id": "nasa_exoplanet_archive.toi",
           "source_table": "toi",
           "raw_field": "ra",
@@ -727,6 +765,7 @@
         }
       ],
       "source_priority": [
+        "esa_gaia_dr3.gaiadr3.gaia_source",
         "nasa_exoplanet_archive.toi",
         "nasa_exoplanet_archive.ps",
         "nasa_exoplanet_archive.pscomppars"
@@ -773,6 +812,15 @@
       "canonical_unit": "degree",
       "source_aliases": [
         {
+          "source_id": "esa_gaia_dr3.gaiadr3.gaia_source",
+          "source_table": "gaiadr3.gaia_source",
+          "raw_field": "dec",
+          "source_unit": "degree",
+          "conversion_rule_id": "unit.identity",
+          "priority": 1,
+          "row_key_fields": ["source_id"]
+        },
+        {
           "source_id": "nasa_exoplanet_archive.toi",
           "source_table": "toi",
           "raw_field": "dec",
@@ -807,6 +855,7 @@
         }
       ],
       "source_priority": [
+        "esa_gaia_dr3.gaiadr3.gaia_source",
         "nasa_exoplanet_archive.toi",
         "nasa_exoplanet_archive.ps",
         "nasa_exoplanet_archive.pscomppars"
@@ -1225,6 +1274,15 @@
       "canonical_unit": "kelvin",
       "source_aliases": [
         {
+          "source_id": "esa_gaia_dr3.gaiadr3.gaia_source",
+          "source_table": "gaiadr3.gaia_source",
+          "raw_field": "teff_gspphot",
+          "source_unit": "kelvin",
+          "conversion_rule_id": "unit.identity",
+          "priority": 1,
+          "row_key_fields": ["source_id"]
+        },
+        {
           "source_id": "nasa_exoplanet_archive.ps",
           "source_table": "ps",
           "raw_field": "st_teff",
@@ -1281,6 +1339,7 @@
         }
       ],
       "source_priority": [
+        "esa_gaia_dr3.gaiadr3.gaia_source",
         "nasa_exoplanet_archive.ps",
         "nasa_exoplanet_archive.toi",
         "nasa_exoplanet_archive.pscomppars"
@@ -1604,5 +1663,5 @@
     "module": "data_pipeline",
     "role": "data_pipeline"
   },
-  "content_hash": "sha256:b0ce150bebbfa9549273ecbb5e26ed302f64b9925d768bb42f944554d011a86f"
+  "content_hash": "sha256:d74d01950e7171aacce8cf660582d5245a2fa84e8bf6948224695740cd3c334e"
 }

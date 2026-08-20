@@ -11,7 +11,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 import os
 import threading
-from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
@@ -21,9 +20,7 @@ from sqlalchemy import Engine
 from sqlalchemy.exc import IntegrityError
 
 from app.db.models import (
-    ResearchContractDraftModel,
     ResearchInputBindingModel,
-    ResearchContractModel,
     ResearchInputModel,
     ResearchProjectModel,
     ResearchRunModel,
@@ -206,7 +203,9 @@ def _create(
         request_hash=request_hash,
     )
     if reservation.replayed_input_id is not None:
-        replayed = store.get(session_id=session_id, input_id=reservation.replayed_input_id)
+        replayed = store.get(
+            session_id=session_id, input_id=reservation.replayed_input_id
+        )
         if replayed is not None:
             return replayed
     return store.commit_ingestion(
@@ -249,6 +248,53 @@ def test_persistent_store_round_trips_and_scopes_to_session(
     assert persisted is not None
     assert persisted.project_id == row
     assert persisted.session_id == ctx["owner"].id
+
+
+def test_persistent_upload_materializes_one_immutable_source_snapshot(
+    store_context: dict[str, object],
+) -> None:
+    ctx = store_context
+    factory = ctx["factory"]
+    store = _store(ctx)
+    content = b"row_id,value\na,1\n"
+    request_hash = sha256_content_hash(content)
+    key = f"pg-upload-{uuid4().hex}"
+    project_id = str(ctx["ids"]["project"])
+    reservation = PersistentIdempotencyRepository(factory).resolve(
+        session_id=ctx["owner"].id,
+        project_id=project_id,
+        idempotency_key=key,
+        request_hash=request_hash,
+    )
+
+    created = store.commit_ingestion(
+        session_id=ctx["owner"].id,
+        project_id=project_id,
+        payload=ResearchInputCreate(type="csv"),
+        prepared=PreparedInput(
+            content_hash=request_hash,
+            storage_ref="ab/cd",
+            size_bytes=len(content),
+            mime_type="text/csv",
+            filename="sample.csv",
+            source_snapshot=None,
+        ),
+        idempotency_key=key,
+        lease_token=reservation.lease_token,
+        request_hash=request_hash,
+    )
+
+    assert created.source_snapshot_id is not None
+    with factory() as session:
+        snapshot = session.get(SourceSnapshotModel, UUID(created.source_snapshot_id))
+        row = session.get(ResearchInputModel, UUID(created.id))
+    assert snapshot is not None
+    assert row is not None
+    assert snapshot.project_id == row.project_id
+    assert snapshot.source_id == f"research_input:{row.id}"
+    assert snapshot.source_type == "research_input_upload"
+    assert snapshot.content_hash == row.content_hash
+    assert snapshot.retrieved_at == row.created_at
 
 
 def test_persistent_store_replays_identical_content_within_session(

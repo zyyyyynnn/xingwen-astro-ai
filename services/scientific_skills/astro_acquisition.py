@@ -26,6 +26,7 @@ import numpy as np
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.enums import UpstreamFailureClass
+from services.data_pipeline.source_table import gaia_source_contract
 from services.data_pipeline.sources.base import SourceFailure
 
 from .astro_series import analyze_light_curve, analyze_spectrum
@@ -51,75 +52,25 @@ SDSS_DR17_SPECTRA_ROOT = (
 MAST_DOWNLOAD_ENDPOINT = "https://mast.stsci.edu/api/v0.1/Download/file"
 MAST_TESS_STORAGE_ORIGIN = "https://stpubdata.s3.us-east-1.amazonaws.com"
 
-GAIA_ADAPTER_VERSION = "1.0.0"
-GAIA_SCHEMA_REVISION = "gaiadr3.gaia_source:1"
+GAIA_ADAPTER_VERSION = "3.0.0"
+GAIA_SCHEMA_REVISION = "gaiadr3.gaia_source:2"
 GAIA_CACHE_VERSION = f"gaia-tap:{GAIA_ADAPTER_VERSION}:{GAIA_SCHEMA_REVISION}"
 VIZIER_TAP_ADAPTER_VERSION = "1.0.0"
 SDSS_SPECTRUM_ADAPTER_VERSION = "1.0.0"
 MAST_LIGHT_CURVE_ADAPTER_VERSION = "1.0.0"
 
-_GAIA_FIELD_TYPES: dict[str, Literal["identifier", "number"]] = {
-    "source_id": "identifier",
-    "ra": "number",
-    "dec": "number",
-    "parallax": "number",
-    "pmra": "number",
-    "pmdec": "number",
-    "radial_velocity": "number",
-    "phot_g_mean_mag": "number",
-    "phot_bp_mean_mag": "number",
-    "phot_rp_mean_mag": "number",
-    "bp_rp": "number",
-    "ruwe": "number",
-    "teff_gspphot": "number",
-    "distance_gspphot": "number",
-}
-_GAIA_DEFAULT_FIELDS = (
-    "source_id",
-    "ra",
-    "dec",
-    "parallax",
-    "pmra",
-    "pmdec",
-    "phot_g_mean_mag",
-    "bp_rp",
-    "ruwe",
+_GAIA_SOURCE_CONTRACT = MappingProxyType(
+    {field.raw_field: field for field in gaia_source_contract()}
 )
-
-_GAIA_FIELD_UNITS: Mapping[str, str] = MappingProxyType(
-    {
-        "ra": "deg",
-        "dec": "deg",
-        "parallax": "mas",
-        "pmra": "mas/yr",
-        "pmdec": "mas/yr",
-        "radial_velocity": "km/s",
-        "phot_g_mean_mag": "mag",
-        "phot_bp_mean_mag": "mag",
-        "phot_rp_mean_mag": "mag",
-        "bp_rp": "mag",
-        "distance_gspphot": "pc",
-        "teff_gspphot": "K",
-    }
-)
-
+_GAIA_DEFAULT_FIELDS = tuple(_GAIA_SOURCE_CONTRACT)
 _GAIA_SCHEMA_DATATYPES: Mapping[str, frozenset[str]] = MappingProxyType(
     {
-        field: (
-            frozenset({"long", "bigint"})
-            if value_kind == "identifier"
-            else frozenset({"double", "float", "real"})
-        )
-        for field, value_kind in _GAIA_FIELD_TYPES.items()
+        field: contract.schema_datatypes
+        for field, contract in _GAIA_SOURCE_CONTRACT.items()
     }
 )
-_GAIA_SCHEMA_UNITS: Mapping[str, str] = MappingProxyType(
-    {
-        **_GAIA_FIELD_UNITS,
-        "pmra": "mas.yr**-1",
-        "pmdec": "mas.yr**-1",
-        "radial_velocity": "km.s**-1",
-    }
+_GAIA_SCHEMA_UNITS: Mapping[str, str | None] = MappingProxyType(
+    {field: contract.schema_unit for field, contract in _GAIA_SOURCE_CONTRACT.items()}
 )
 
 
@@ -435,12 +386,17 @@ class GaiaTapAdapter:
             raise ValueError("radius_degrees must be within (0, 1]")
         if response_format not in {"csv", "votable"}:
             raise ValueError("response_format must be csv or votable")
-        fields = (
-            require_string_list(request.parameters, "fields", max_items=16)
+        requested_fields = (
+            require_string_list(
+                request.parameters, "fields", max_items=len(_GAIA_SOURCE_CONTRACT)
+            )
             if "fields" in request.parameters
             else _GAIA_DEFAULT_FIELDS
         )
-        unsupported = tuple(field for field in fields if field not in _GAIA_FIELD_TYPES)
+        fields = tuple(dict.fromkeys(("source_id", *requested_fields)))
+        unsupported = tuple(
+            field for field in fields if field not in _GAIA_SOURCE_CONTRACT
+        )
         if unsupported:
             raise ValueError(f"unsupported Gaia fields: {list(unsupported)}")
         query = _gaia_cone_query(
@@ -522,7 +478,14 @@ class GaiaTapAdapter:
             "center": {"ra_degrees": ra, "dec_degrees": dec},
             "radius_degrees": radius,
             "fields": list(fields),
-            "column_metadata": _column_metadata(fields, _GAIA_FIELD_UNITS),
+            "column_metadata": [
+                {
+                    "field": field,
+                    "label": _GAIA_SOURCE_CONTRACT[field].label_zh,
+                    "unit": _GAIA_SOURCE_CONTRACT[field].schema_unit,
+                }
+                for field in fields
+            ],
             "row_count": len(rows),
             "rows": rows,
             "truncated": truncated,
@@ -1131,7 +1094,7 @@ def _coerce_gaia_row(
         if not text:
             row[field] = None
             continue
-        if _GAIA_FIELD_TYPES[field] == "identifier":
+        if _GAIA_SOURCE_CONTRACT[field].value_kind == "identifier":
             if not text.isascii() or not text.isdigit() or len(text) > 32:
                 raise _invalid_response("GAIA_TAP_IDENTIFIER_INVALID")
             row[field] = text

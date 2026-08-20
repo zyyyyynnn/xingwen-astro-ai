@@ -18,6 +18,7 @@ from pydantic import (
 )
 
 from ._hashing import compute_canonical_payload_hash
+from .core import Identifier as RuntimeIdentifier
 from .data_artifact_identity import (
     compute_dataset_candidate_id,
     compute_dataset_canonical_content_hash,
@@ -333,8 +334,8 @@ class DataArtifactProducer(BaseModel):
 class SourceCellLocator(BaseModel):
     model_config = MODEL_CONFIG
 
-    side: CrossmatchSide
-    source_snapshot_id: Identifier
+    source_role: Literal["left", "right", "single"]
+    source_snapshot_id: RuntimeIdentifier
     source_snapshot_content_hash: ContentHash
     source_id: Identifier
     query_hash: ContentHash

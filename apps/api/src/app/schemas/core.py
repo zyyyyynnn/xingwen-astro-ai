@@ -842,6 +842,35 @@ class RepairEvidenceFact(BaseModel):
     summary: NonEmptyString
 
 
+class RepairCandidateIdentity(BaseModel):
+    """One user-readable canonical identity carried by a repair candidate."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    label: NonEmptyString
+    value: NonEmptyString
+
+
+class RepairCandidateCoordinate(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    frame: Literal["ICRS"] = "ICRS"
+    right_ascension_degrees: float = Field(ge=0, lt=360)
+    declination_degrees: float = Field(ge=-90, le=90)
+
+
+class RepairCandidateSummary(BaseModel):
+    """Domain facts needed to judge a candidate without exposing opaque IDs."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    candidate_id: Identifier
+    source_label: NonEmptyString
+    entity_label: NonEmptyString
+    identities: tuple[RepairCandidateIdentity, ...] = Field(min_length=1)
+    coordinate: RepairCandidateCoordinate | None = None
+
+
 class RepairDefect(BaseModel):
     """One cross-source conflict that cannot be resolved without human authority."""
 
@@ -851,8 +880,8 @@ class RepairDefect(BaseModel):
     defect_type: Literal["cross_source_conflict"] = "cross_source_conflict"
     logical_match_key: ContentHash
     conflict_code: Identifier
-    left_candidate_ids: tuple[Identifier, ...] = Field(min_length=1)
-    right_candidate_ids: tuple[Identifier, ...] = Field(min_length=1)
+    left_candidates: tuple[RepairCandidateSummary, ...] = Field(min_length=1)
+    right_candidates: tuple[RepairCandidateSummary, ...] = Field(min_length=1)
     evidence: tuple[RepairEvidenceFact, ...] = Field(min_length=1)
 
 

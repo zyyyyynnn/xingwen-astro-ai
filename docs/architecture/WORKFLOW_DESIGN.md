@@ -43,10 +43,10 @@ Planner 只有在持久化明确的输入请求后才能从 `planning` 进入 `w
 
 ## 3. 顺序、重试与失败
 
-- `planning` 始终是首 Step；其后只冻结 Contract 产物闭包需要的 canonical steps，并保持 canonical 相对顺序。每个 Step 的 `success_status` 必须精确指向冻结 Plan 的下一 Step，末 Step 指向 `completed`。
-- `dataset | field_dictionary | source_collection` 引入 `fetching_data -> cleaning_data`；每个 scientific task 由能力表唯一映射到 `acquiring_observations | analyzing_data | training_models | building_visualizations` 之一，需要 Dataset 前置条件的任务同时引入数据闭包；`paper_collection` 引入 `searching_papers`；`paper_summary` 追加 `summarizing_papers`；Literature Claim/Relation/ReasoningTrace 追加完整文献检索、总结与 `reasoning_literature` 闭包；`graph` 追加完整文献闭包与 `building_graph`，仅当 Contract 同时请求数据产物时才包含数据闭包。
+- `planning` 始终是首 Step；其后只冻结 Contract 产物闭包需要的 canonical steps，并保持 canonical 相对顺序。canonical Step 的 key 等于状态名；每个 scientific task 使用独立稳定 key，同时保留 `task_id`、`skill_id` 与所属状态，同一科学阶段可顺序执行多个 task。每个 Step 的 `success_status` 必须精确指向冻结 Plan 的下一 Step 状态，末 Step 指向 `completed`。
+- `dataset | field_dictionary | source_collection` 引入 `fetching_data -> cleaning_data`；每个 scientific task 由能力表唯一映射到 `acquiring_observations | analyzing_data | training_models | building_visualizations` 之一，需要 Dataset 前置条件且没有显式 `input_refs` 的任务同时引入数据闭包，已冻结显式输入的任务直接消费该输入，不重复抓取无关数据；`paper_collection` 引入 `searching_papers`；`paper_summary` 追加 `summarizing_papers`；Literature Claim/Relation/ReasoningTrace 追加完整文献检索、总结与 `reasoning_literature` 闭包；`graph` 追加完整文献闭包与 `building_graph`，仅当 Contract 同时请求数据产物时才包含数据闭包。
 - 可执行 requested output 由 `SUPPORTED_RUN_OUTPUTS` 显式 allowlist 声明；新增 ArtifactKind 在获得明确 RunPlan mapping 前必须 fail closed，且不得创建 Run。不得使用枚举全集减例外的方式自动授予执行能力。
-- RunStep 数据库约束只守住 status domain、唯一性与 position 等局部不变量；Contract-driven 子集链的冻结顺序与 next-step transition 由 Workflow Store 按唯一 `RUN_STEP_STATUS_ORDER` 验证，不在数据库枚举所有 transition pair。前序 Step 未完成时不得启动后序 Step。
+- RunStep 数据库约束只守住 status domain、唯一性与 position 等局部不变量；Contract-driven 子集链的冻结顺序与 next-step transition 由 Workflow Store 按唯一 `RUN_STEP_STATUS_ORDER` 验证，状态顺序只允许前进或在多个 scientific task 间保持同一阶段，不在数据库枚举所有 transition pair。前序 Step 未完成时不得启动后序 Step。
 - StepAttempt 使用递增 `attempt_number`、稳定 idempotency key、错误分类与 retryable 标记记录实际尝试。
 - 外部超时、限流或临时网络故障可在该 Step 的 `max_attempts` 内重试；Schema、权限与状态冲突等确定性失败不得重试。
 - Artifact 级 Candidate 未通过 Schema、Evidence、质量或领域准入时不得发布 ArtifactVersion。Claim/Relation 的记录级 `candidate | rejected` 是已完成准入计算的事实，可保存在通过聚合完整性校验的 ArtifactVersion 中；这不等于将记录提升为 `accepted`，下游仍必须按记录状态执行自己的准入门禁。

@@ -243,8 +243,28 @@ describe("OpenHands-derived research message flow", () => {
               defectId: asEntityId("repair-defect-1"),
               logicalMatchKey: "sha256:match",
               conflictCode: "low_confidence_match",
-              leftCandidateIds: [asEntityId("gaia-source")],
-              rightCandidateIds: [asEntityId("simbad-source")],
+              leftCandidates: [
+                {
+                  candidateId: asEntityId("gaia-source"),
+                  sourceLabel: "Gaia DR3",
+                  entityLabel: "宿主恒星",
+                  identities: [{ label: "Gaia DR3 标识", value: "123" }],
+                  coordinate: {
+                    frame: "ICRS",
+                    rightAscensionDegrees: 12.345,
+                    declinationDegrees: -6.789,
+                  },
+                },
+              ],
+              rightCandidates: [
+                {
+                  candidateId: asEntityId("simbad-source"),
+                  sourceLabel: "SIMBAD",
+                  entityLabel: "宿主恒星",
+                  identities: [{ label: "天体名称", value: "HD 123" }],
+                  coordinate: null,
+                },
+              ],
               evidence: [
                 {
                   evidenceId: asEntityId("evidence-1"),
@@ -274,6 +294,8 @@ describe("OpenHands-derived research message flow", () => {
     );
 
     expect(screen.getByText("角距离 0.320 角秒")).toBeInTheDocument();
+    expect(screen.getByText("Gaia DR3 标识")).toBeInTheDocument();
+    expect(screen.queryByText("gaia-source")).not.toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("接受候选匹配"));
     fireEvent.change(screen.getByLabelText("冲突 1 的决定理由"), {
       target: { value: "坐标距离与来源字段均满足规则" },

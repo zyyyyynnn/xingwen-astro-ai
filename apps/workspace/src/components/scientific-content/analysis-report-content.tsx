@@ -26,6 +26,12 @@ const FINDING_ALERT_STATUSES = new Set([
   "conflicted",
 ]);
 
+const FINDING_STATUS_LABELS: Readonly<Record<string, string>> = {
+  partial: "部分成立",
+  unverifiable: "无法核验",
+  conflicted: "存在冲突",
+};
+
 const COLUMN_LABELS: Readonly<Record<string, string>> = {
   source_id: "源标识",
   object_id: "天体标识",
@@ -47,6 +53,34 @@ const COLUMN_LABELS: Readonly<Record<string, string>> = {
   observed_at: "观测时间",
   event: "事件",
   apparent_magnitude: "视星等",
+  identity_mapping: "身份映射",
+  mapped_field_count: "已映射字段",
+  validated_row_count: "已校验记录",
+  null_cell_count: "空值单元格",
+  quality_status: "质量状态",
+  algorithm: "算法",
+  sample_count: "样本数",
+  cluster_count: "聚类数量",
+  noise_count: "噪声样本数",
+  silhouette_score: "轮廓系数",
+  row_id: "记录",
+  cluster: "聚类",
+  pca_x: "PCA 横轴",
+  pca_y: "PCA 纵轴",
+  anomaly_score: "异常分数",
+  is_anomaly: "是否异常",
+  result_status: "结果状态",
+  truncated: "是否截断",
+  response_format: "响应格式",
+  radius_degrees: "检索半径",
+};
+
+const PUBLIC_VALUE_LABELS: Readonly<Record<string, string>> = {
+  pass: "通过",
+  review_required: "需要复核",
+  complete: "完整",
+  empty: "无结果",
+  truncated: "已截断",
 };
 
 function humanColumnLabel(key: string): string {
@@ -137,6 +171,22 @@ function explicitColumns(
   );
 }
 
+function cellEvidenceIds(
+  record: Readonly<Record<string, unknown>>,
+  key: string,
+  blockEvidenceIds: readonly DomainEntityId[],
+): readonly DomainEntityId[] {
+  const metadata = record.cell_evidence_ids;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return blockEvidenceIds;
+  }
+  const evidenceId = (metadata as Record<string, unknown>)[key];
+  const admitted = blockEvidenceIds.find(
+    (candidate) => candidate === evidenceId,
+  );
+  return admitted ? [admitted] : [];
+}
+
 function tableModel(
   block: ScientificResultBlockReview,
 ): { columns: ScientificTableColumn[]; rows: ScientificTableRow[] } | null {
@@ -170,7 +220,7 @@ function tableModel(
           {
             value: isScalar(record[key]) ? record[key] : null,
             unit: explicit.get(key)?.unit ?? inferredUnit(key),
-            evidenceIds: block.evidenceIds,
+            evidenceIds: cellEvidenceIds(record, key, block.evidenceIds),
           },
         ]),
       ),
@@ -178,9 +228,28 @@ function tableModel(
   };
 }
 
-function StructuredValue({ value }: { readonly value: unknown }) {
+function StructuredValue({
+  value,
+  fieldKey,
+}: {
+  readonly value: unknown;
+  readonly fieldKey?: string;
+}) {
   if (isScalar(value))
-    return <span>{value === null ? "无" : String(value)}</span>;
+    return (
+      <span>
+        {value === null
+          ? "无"
+          : typeof value === "string"
+            ? (PUBLIC_VALUE_LABELS[value] ?? value)
+            : typeof value === "boolean"
+              ? value
+                ? "是"
+                : "否"
+              : String(value)}
+        {fieldKey === "radius_degrees" && typeof value === "number" ? "°" : ""}
+      </span>
+    );
   if (Array.isArray(value)) {
     if (value.length === 0) return <span>暂无数据</span>;
     return (
@@ -200,7 +269,7 @@ function StructuredValue({ value }: { readonly value: unknown }) {
           <div key={key}>
             <dt className="font-medium">{humanColumnLabel(key)}</dt>
             <dd className="text-[var(--oh-muted)]">
-              <StructuredValue value={item} />
+              <StructuredValue value={item} fieldKey={key} />
             </dd>
           </div>
         ))}
@@ -301,25 +370,38 @@ export function Metrics({
   return (
     <section className="scientific-metrics" aria-label="评估指标">
       <h4>指标</h4>
-      <dl>
-        {metrics.map((metric) => (
-          <div key={metric.metricId}>
-            <dt>{metric.label}</dt>
-            <dd>
-              <strong>{metric.value}</strong>
-              {metric.unit ? <span>{metric.unit}</span> : null}
-              {baselineByLabel.has(metric.label) ? (
-                <small>基线 {baselineByLabel.get(metric.label)?.value}</small>
+      <table>
+        <caption className="sr-only">关键科学指标</caption>
+        <thead>
+          <tr>
+            <th scope="col">指标</th>
+            <th scope="col">结果</th>
+            {baseline.length > 0 ? <th scope="col">基线</th> : null}
+            <th scope="col">证据</th>
+          </tr>
+        </thead>
+        <tbody>
+          {metrics.map((metric) => (
+            <tr key={metric.metricId}>
+              <th scope="row">{metric.label}</th>
+              <td>
+                {metric.value}
+                {metric.unit ? <span> {metric.unit}</span> : null}
+              </td>
+              {baseline.length > 0 ? (
+                <td>{baselineByLabel.get(metric.label)?.value ?? "—"}</td>
               ) : null}
-              <EvidenceLinks
-                evidenceIds={metric.evidenceIds}
-                label={`${metric.label}的证据`}
-                onSelectEvidence={onSelectEvidence}
-              />
-            </dd>
-          </div>
-        ))}
-      </dl>
+              <td>
+                <EvidenceLinks
+                  evidenceIds={metric.evidenceIds}
+                  label={`${metric.label}的证据`}
+                  onSelectEvidence={onSelectEvidence}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </section>
   );
 }
@@ -370,7 +452,9 @@ export function AnalysisReportContent({
               <header>
                 <strong>{finding.title}</strong>
                 {FINDING_ALERT_STATUSES.has(finding.status) ? (
-                  <Badge variant="outline">{finding.status}</Badge>
+                  <Badge variant="outline">
+                    {FINDING_STATUS_LABELS[finding.status] ?? "需要核验"}
+                  </Badge>
                 ) : null}
               </header>
               <p>{finding.statement}</p>

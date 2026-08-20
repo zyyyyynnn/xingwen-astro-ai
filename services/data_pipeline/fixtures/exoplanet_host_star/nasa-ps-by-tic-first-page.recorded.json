@@ -11,9 +11,9 @@
   "source_mode": "fixture",
   "data_level": "recorded_response",
   "case_manifest_version": "2.0.0",
-  "case_manifest_content_hash": "sha256:efbee5ec7d9e9e450a1b08685eb27e0a600f58faec5524d37dc05a9b1f28276c",
+  "case_manifest_content_hash": "sha256:baa4d6c24ff46d25172074fd26c8c692c50e006e643dc7c72b4bc18c90be52bf",
   "field_manifest_version": "2.0.0",
-  "field_manifest_content_hash": "sha256:b0ce150bebbfa9549273ecbb5e26ed302f64b9925d768bb42f944554d011a86f",
+  "field_manifest_content_hash": "sha256:d74d01950e7171aacce8cf660582d5245a2fa84e8bf6948224695740cd3c334e",
   "column_contract_snapshot_id": "nasa_exoplanet_archive.column_adjudications.2026-07-19",
   "column_contract_snapshot_version": "1.0.0",
   "column_contract_content_hash": "sha256:a4351598b4cc9ec0537a95e30f6abaa1af6e6c8e015f1d7a8662a4ce4708625a",
@@ -27,8 +27,8 @@
     "max_pages": 1,
     "record_limit": 2
   },
-  "input_hash": "sha256:29433dc3cd93c27fc9a59132895dbd7b43c7054a115bb08a1871edebe517e662",
-  "query_hash": "sha256:8ab5444cb0000fc7533ef5511fc00a428b458f82f7c402c35d7705ea0eef8995",
+  "input_hash": "sha256:8dcc23e0799d0614d61d97e327affc2b6539e90c4e3beb6a31988eca51226858",
+  "query_hash": "sha256:7d87f9684e769b13418e1739b3673ee43af22a5e02f43a9c37b238f7f84e3882",
   "schema_response_hash": "sha256:a28e495ee8ee1d22d4d3d312cccf9e0e61ec68684454c83724ac5f7e4ba3151a",
   "page_response_hash": "sha256:d79407c7c9385291a58fdd02037e87b70270ba8880c95eb08976f7a117c176e9",
   "provenance_note": "Recorded from a successful bounded supplemental source acquisition metadata request to the official NASA Exoplanet Archive TAP sync endpoint. The request used the normalized TIC inputs and pagination stored here; schema_response_hash and page_response_hash bind the two captured JSON responses. Replay is fixture evidence and must never be labeled live or cached.",
@@ -382,5 +382,5 @@
   "page_safe_response_headers": {
     "date": "Thu, 30 Jul 2026 05:56:12 GMT"
   },
-  "content_hash": "sha256:07621a53faf7320afdd93eb3b312df20aa05b9bfb43c3f767c7fb43d0e916c26"
+  "content_hash": "sha256:22417f2aab037b978d341a4c5417939cb139e7b5c8639145b2715217e4b56710"
 }

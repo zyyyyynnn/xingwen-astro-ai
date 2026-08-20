@@ -24,7 +24,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Protocol
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -42,6 +42,7 @@ from app.db.models import (
     SourceSnapshotModel,
 )
 from app.schemas.evidence import SourceSnapshotRecord
+from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.research_input import (
     FILE_INPUT_TYPES,
     RESEARCH_INPUT_NOT_FOUND,
@@ -284,8 +285,9 @@ class InMemoryResearchInputStore:
                 size_bytes=prepared.size_bytes,
             )
             now = datetime.now(UTC)
+            input_id = f"input_{secrets.token_urlsafe(18)}"
             record = ResearchInputRecord(
-                id=f"input_{secrets.token_urlsafe(18)}",
+                id=input_id,
                 session_id=session_id,
                 project_id=project_id,
                 type=payload.type,
@@ -299,7 +301,11 @@ class InMemoryResearchInputStore:
                 source_snapshot_id=(
                     prepared.source_snapshot.snapshot_id
                     if prepared.source_snapshot is not None
-                    else None
+                    else (
+                        str(_upload_snapshot_id(project_id, input_id))
+                        if payload.type in FILE_INPUT_TYPES
+                        else None
+                    )
                 ),
                 url=_snapshot_url(prepared.source_snapshot),
                 created_at=now,
@@ -410,7 +416,8 @@ class InMemoryIdempotencyRepository:
     ) -> None:
         # entry: (request_hash, status, input_id, lease_token, lease_expires_at)
         self._entries: dict[
-            tuple[str, str, str], tuple[str, str, str | None, str | None, datetime | None]
+            tuple[str, str, str],
+            tuple[str, str, str | None, str | None, datetime | None],
         ] = {}
         self._clock = clock or (lambda: datetime.now(UTC))
         self._lease_ttl = lease_ttl
@@ -603,6 +610,13 @@ class PersistentResearchInputStore:
             )
             session.add(row)
             session.flush()
+            if payload.type in FILE_INPUT_TYPES:
+                row.source_snapshot_id = _persist_upload_snapshot(
+                    session,
+                    row=row,
+                    mime_type=prepared.mime_type,
+                )
+                session.flush()
 
             # 3. atomically complete the lease: token + request must match.
             idem = session.get(
@@ -706,7 +720,9 @@ class PersistentResearchInputStore:
         contract_draft_id: str,
     ) -> None:
         with self._factory() as session, session.begin():
-            record = self._require_owned_input(session, session_id, input_id, project_id)
+            record = self._require_owned_input(
+                session, session_id, input_id, project_id
+            )
             draft_id = _uuid_or_none(contract_draft_id)
             draft = (
                 session.get(ResearchContractDraftModel, draft_id)
@@ -726,7 +742,9 @@ class PersistentResearchInputStore:
         run_id: str,
     ) -> None:
         with self._factory() as session, session.begin():
-            record = self._require_owned_input(session, session_id, input_id, project_id)
+            record = self._require_owned_input(
+                session, session_id, input_id, project_id
+            )
             rid = _uuid_or_none(run_id)
             run = session.get(ResearchRunModel, rid) if rid is not None else None
             if run is None or run.project_id != _uuid_or_none(project_id):
@@ -921,9 +939,7 @@ def _ensure_content_row(
     ``session.begin()`` block (e.g. ``commit_ingestion``).  After the
     conflict-safe insert, the row is re-read to verify consistency.
     """
-    existing = session.get(
-        ResearchInputContentModel, (project_id, content_hash)
-    )
+    existing = session.get(ResearchInputContentModel, (project_id, content_hash))
     if existing is not None:
         _assert_content_consistent(
             (existing.storage_ref, existing.mime_type, existing.size_bytes),
@@ -932,22 +948,24 @@ def _ensure_content_row(
             size_bytes,
         )
         return
-    stmt = pg_insert(ResearchInputContentModel.__table__).values(
-        project_id=project_id,
-        content_hash=content_hash,
-        storage_ref=storage_ref,
-        mime_type=mime_type,
-        size_bytes=size_bytes,
-        created_at=datetime.now(UTC),
-    ).on_conflict_do_nothing(
-        index_elements=["project_id", "content_hash"],
+    stmt = (
+        pg_insert(ResearchInputContentModel.__table__)
+        .values(
+            project_id=project_id,
+            content_hash=content_hash,
+            storage_ref=storage_ref,
+            mime_type=mime_type,
+            size_bytes=size_bytes,
+            created_at=datetime.now(UTC),
+        )
+        .on_conflict_do_nothing(
+            index_elements=["project_id", "content_hash"],
+        )
     )
     session.execute(stmt)
     session.flush()
     # Re-read the winner (may be this insert or a concurrent one).
-    winner = session.get(
-        ResearchInputContentModel, (project_id, content_hash)
-    )
+    winner = session.get(ResearchInputContentModel, (project_id, content_hash))
     if winner is None:
         raise _conflict_unresolved()
     _assert_content_consistent(
@@ -1015,6 +1033,46 @@ def _persist_snapshot(
     return snapshot.id
 
 
+def _upload_snapshot_id(project_id: str, input_id: str) -> UUID:
+    return uuid5(
+        NAMESPACE_URL,
+        f"xingwen:{project_id}:research-input-upload:{input_id}",
+    )
+
+
+def _persist_upload_snapshot(
+    session: Session,
+    *,
+    row: ResearchInputModel,
+    mime_type: str | None,
+) -> UUID:
+    """Persist the immutable provenance identity for one accepted file upload."""
+
+    source_id = f"research_input:{row.id}"
+    query = {"research_input_id": str(row.id)}
+    snapshot = SourceSnapshotModel(
+        id=_upload_snapshot_id(str(row.project_id), str(row.id)),
+        project_id=row.project_id,
+        source_id=source_id,
+        source_type="research_input_upload",
+        retrieved_at=row.created_at,
+        query=query,
+        query_hash=compute_canonical_payload_hash(query),
+        source_version_or_etag=None,
+        content_hash=row.content_hash,
+        license_note="user-provided upload",
+        cache_version=None,
+        request_metadata={
+            "ingestion_source": "upload",
+            "input_type": row.type,
+            "mime_type": mime_type,
+        },
+    )
+    session.add(snapshot)
+    session.flush()
+    return snapshot.id
+
+
 def _record(
     row: ResearchInputModel,
     *,
@@ -1046,11 +1104,7 @@ def _record(
             "_record() requires either an explicit content tuple or a session"
         )
     if url is None:
-        url = (
-            _snapshot_query_url(session, row)
-            if session is not None
-            else None
-        )
+        url = _snapshot_query_url(session, row) if session is not None else None
     return ResearchInputRecord(
         id=str(row.id),
         session_id=row.session_id,
@@ -1094,7 +1148,9 @@ def _upsert_binding(
             input_id=input_id,
             project_id=_uuid_or_none(project_id),
             contract_draft_id=(
-                _uuid_or_none(contract_draft_id) if contract_draft_id is not None else None
+                _uuid_or_none(contract_draft_id)
+                if contract_draft_id is not None
+                else None
             ),
             run_id=_uuid_or_none(run_id) if run_id is not None else None,
             bound_at=datetime.now(UTC),

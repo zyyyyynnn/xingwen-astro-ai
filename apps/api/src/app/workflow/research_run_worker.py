@@ -19,6 +19,7 @@ from app.db.models import (
 )
 from app.schemas.core import ResearchContract
 from app.schemas.manifest import ManifestBundle
+from app.schemas.scientific_capabilities import capability_for
 from app.services.content_storage import ContentStorage
 from app.services.scientific_document.ports import DocumentParserPort
 from app.services.model_execution import (
@@ -77,6 +78,16 @@ _STEP_STARTED_MESSAGES = {
     "reasoning_literature": "正在提取并核验文献论点、关系与支持证据。",
     "building_graph": "正在把已验证的研究事实组织为证据图谱。",
 }
+
+
+def _step_started_message(*, step_key: str, skill_id: str | None) -> str:
+    """Render one public start message from the frozen RunStep identity."""
+
+    if skill_id is not None:
+        label = str(capability_for(skill_id)["label"])
+        return f"正在执行{label}。"
+    return _STEP_STARTED_MESSAGES[step_key]
+
 
 _RETRYABLE_MODEL_FAILURE_CODES: frozenset[str] = frozenset(
     {
@@ -262,11 +273,15 @@ class ResearchRunWorker:
                     )
                     for version in result.versions:
                         kind = next(
-                            name
-                            for name, artifact_id in context.artifacts.items()
-                            if artifact_id == version.artifact_id
+                            (
+                                name
+                                for name, artifact_id in context.artifacts.items()
+                                if artifact_id == version.artifact_id
+                            ),
+                            None,
                         )
-                        context.versions[kind] = version.id
+                        if kind is not None:
+                            context.versions[kind] = version.id
                     await asyncio.to_thread(
                         self._append_run_assistant_message,
                         context,
@@ -289,7 +304,10 @@ class ResearchRunWorker:
                         lease=lease,
                         expected_status=snapshot.status,
                         expected_revision=snapshot.revision,
-                        public_message=_STEP_STARTED_MESSAGES[current_step.key],
+                        public_message=_step_started_message(
+                            step_key=current_step.key,
+                            skill_id=current_step.skill_id,
+                        ),
                         runner=runner,
                         commit_success=commit,
                         classify_failure=self._classify_failure,
@@ -367,17 +385,15 @@ class ResearchRunWorker:
                 created_at=contract.created_at,
                 **contract.content,
             )
-            # Authoritative artifact derivation: the frozen RunStep chain is the
-            # sole owner of the dependency closure. The Worker never recomputes
-            # the plan from the contract; it only maps the frozen step keys onto
-            # the Artifact kinds each step publishes.
-            required_kinds = {kind.value for kind in contract_value.output_requirements}
-            required_kinds.update(
+            # Fixed pipeline steps need their stable primary Artifact targets
+            # before execution. Scientific steps create exact candidate-owned
+            # targets in ScientificStepAdmission after candidate assembly.
+            required_kinds = {
                 kind.value
                 for kind in artifact_kinds_for_steps(
-                    [step.key for step in snapshot.steps]
+                    tuple(step for step in snapshot.steps if step.skill_id is None)
                 )
-            )
+            }
 
             artifacts: dict[str, UUID] = {}
             versions: dict[str, UUID] = {}

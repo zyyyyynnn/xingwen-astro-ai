@@ -1,5 +1,6 @@
 import type { DomainEntityId } from "./identifiers";
 import type { UtcIsoTimestamp } from "./value-types";
+import type { ScientificSkillId } from "./enums";
 
 export type RunStepStatus =
   | "pending"
@@ -16,6 +17,10 @@ export interface RunStepSnapshot {
   readonly position: number;
   readonly key: DomainEntityId;
   readonly label: string;
+  readonly phase: string;
+  readonly taskId: DomainEntityId | null;
+  readonly skillId: ScientificSkillId | null;
+  readonly dependsOnStepKeys: readonly DomainEntityId[];
   readonly status: RunStepStatus;
   readonly progress: number;
   readonly publicMessage: string;

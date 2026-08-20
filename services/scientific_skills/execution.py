@@ -19,10 +19,11 @@ from uuid import NAMESPACE_URL, uuid5
 
 from app.schemas.core import (
     ArtifactKind,
-    ResearchContractInput,
+    ResearchContract,
     ScientificSkillId,
     ScientificTaskInput,
 )
+from app.schemas.source_table import SourceTableAdmission
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.scientific_skills import (
     AnalysisReportArtifactContent,
@@ -50,6 +51,7 @@ from app.schemas.scientific_capabilities import (
     scientific_skill_phase,
 )
 from app.services.content_storage import ContentStorage
+from services.data_pipeline.source_table import GAIA_SOURCE_ID, admit_source_table
 from .registry import ScientificSkillRegistry
 from .types import (
     ScientificSkillBudget,
@@ -190,7 +192,7 @@ class ScientificStepAdapter:
         task_id: str,
         project_id: str,
         run_id: str,
-        contract: ResearchContractInput,
+        contract: ResearchContract,
         resolve_inputs: ScientificInputResolver,
     ) -> ScientificStepOutput:
         tasks = tuple(
@@ -206,6 +208,7 @@ class ScientificStepAdapter:
             task=task,
             project_id=project_id,
             run_id=run_id,
+            contract=contract,
             resolve_inputs=resolve_inputs,
         )
         candidates = tuple(
@@ -228,6 +231,7 @@ class ScientificStepAdapter:
         task: ScientificTaskInput,
         project_id: str,
         run_id: str,
+        contract: ResearchContract,
         resolve_inputs: ScientificInputResolver,
     ) -> ScientificTaskExecutionOutcome:
         bindings = tuple(await resolve_inputs(task))
@@ -270,6 +274,13 @@ class ScientificStepAdapter:
             result.output,
             self._content_storage,
         )
+        if task.skill_id is ScientificSkillId.gaia_cone_search:
+            materialized = _admit_gaia_output(
+                materialized,
+                produced_sources=produced_sources,
+                evidence_scope_id=request.request_id,
+                contract=contract,
+            )
         all_sources = _unique_sources((*sources, *produced_sources))
         return ScientificTaskExecutionOutcome(
             task=task,
@@ -297,6 +308,54 @@ class ScientificStepAdapter:
                 if binding.kind == "artifact_version"
             ),
         )
+
+
+def _admit_gaia_output(
+    output: Mapping[str, object],
+    *,
+    produced_sources: tuple[ScientificSourceReference, ...],
+    evidence_scope_id: str,
+    contract: ResearchContract,
+) -> Mapping[str, object]:
+    if len(produced_sources) != 1:
+        raise ValueError("Gaia admission requires exactly one physical SourceSnapshot")
+    source = produced_sources[0]
+    if (
+        source.source_id != GAIA_SOURCE_ID
+        or source.query_hash is None
+        or source.retrieved_at is None
+    ):
+        raise ValueError("Gaia SourceSnapshot facts are incomplete")
+    raw_fields = output.get("fields")
+    raw_rows = output.get("rows")
+    if (
+        not isinstance(raw_fields, list)
+        or not all(isinstance(field, str) for field in raw_fields)
+        or not isinstance(raw_rows, list)
+        or not all(isinstance(row, Mapping) for row in raw_rows)
+    ):
+        raise ValueError("Gaia result has no bounded source-table payload")
+    status = output.get("result_status")
+    truncated = output.get("truncated")
+    if status not in {"complete", "empty", "truncated"} or not isinstance(
+        truncated, bool
+    ):
+        raise ValueError("Gaia result completion status is invalid")
+    admission = admit_source_table(
+        source_id=source.source_id,
+        fields=raw_fields,
+        rows=raw_rows,
+        result_status=status,
+        source_snapshot_id=source.source_snapshot_id,
+        source_snapshot_content_hash=source.content_hash,
+        query_hash=source.query_hash,
+        retrieved_at=source.retrieved_at,
+        evidence_scope_id=evidence_scope_id,
+        contract=contract,
+    )
+    return {
+        key: value for key, value in output.items() if key != "source_table_admission"
+    } | {"source_table_admission": admission.model_dump(mode="json")}
 
 
 async def _materialize_output(
@@ -504,6 +563,7 @@ def _analysis_report(
 ) -> AnalysisReportArtifactContent:
     descriptor = capability_for(outcome.task.skill_id.value)
     result_blocks, scientific_evidence, evidence_ids = _result_blocks(outcome)
+    source_table_admissions = _source_table_admissions(outcome)
     metrics = _metrics_from_output(outcome, evidence_ids=evidence_ids)
     payload: dict[str, object] = {
         "kind": "analysis_report",
@@ -520,6 +580,9 @@ def _analysis_report(
         "related_artifact_version_ids": list(outcome.artifact_version_ids),
         "scientific_evidence": [
             item.model_dump(mode="json") for item in scientific_evidence
+        ],
+        "source_table_admissions": [
+            item.model_dump(mode="json") for item in source_table_admissions
         ],
         "source_snapshot_ids": list(outcome.source_snapshot_ids),
         "evidence_ids": list(evidence_ids),
@@ -714,9 +777,7 @@ def _visualization(
         "schema_version": "1.0.0",
         "visualization_id": visualization_id,
         "title": title,
-        "description": (
-            f"Declarative visualization produced by {outcome.task.skill_id.value}."
-        ),
+        "description": f"{capability_for(outcome.task.skill_id.value)['label']}生成的声明式科学视图。",
         "spec": spec.model_dump(mode="json"),
         "skill_executions": [_skill_execution(outcome).model_dump(mode="json")],
         "scientific_evidence": [
@@ -793,7 +854,7 @@ def _model_evaluation(
         "kind": "model_evaluation",
         "schema_version": "1.0.0",
         "evaluation_id": evaluation_id,
-        "title": f"{_text(output, 'algorithm').replace('_', ' ').title()} evaluation",
+        "title": f"{capability_for(outcome.task.skill_id.value)['label']}评估",
         "task_kind": _text(output, "task_kind"),
         "algorithm": _text(output, "algorithm"),
         "algorithm_version": _text(output, "algorithm_version"),
@@ -850,7 +911,7 @@ def _model_artifact(
         "kind": "model_artifact",
         "schema_version": "1.0.0",
         "model_id": model_id,
-        "title": f"{_text(output, 'algorithm').replace('_', ' ').title()} model",
+        "title": f"{capability_for(outcome.task.skill_id.value)['label']}模型",
         "status": "active",
         "task_kind": _text(output, "task_kind"),
         "algorithm": _text(output, "algorithm"),
@@ -1021,17 +1082,61 @@ def _metrics_from_output(
     *,
     evidence_ids: tuple[str, ...],
 ) -> tuple[ScientificMetric, ...]:
-    flattened: list[tuple[str, float | int | str]] = []
-    _collect_scalars(outcome.materialized_output, prefix="", target=flattened)
+    definitions = _DECISION_METRICS.get(outcome.task.skill_id, ())
     return tuple(
         ScientificMetric(
             metric_id=_stable_id("metric", outcome.task.task_id, path),
-            label=path[-256:],
+            label=label,
             value=value,
+            unit=unit,
             evidence_ids=evidence_ids,
         )
-        for path, value in flattened[:64]
+        for path, label, unit in definitions
+        if (value := _metric_value(outcome.materialized_output, path)) is not None
     )
+
+
+_DECISION_METRICS: dict[ScientificSkillId, tuple[tuple[str, str, str | None], ...]] = {
+    ScientificSkillId.data_profile: (
+        ("row_count", "记录数", "行"),
+        ("field_count", "字段数", "列"),
+    ),
+    ScientificSkillId.simbad_lookup: (("row_count", "返回记录", "行"),),
+    ScientificSkillId.gaia_cone_search: (("row_count", "返回记录", "行"),),
+    ScientificSkillId.vizier_tap: (("row_count", "返回记录", "行"),),
+    ScientificSkillId.clustering_analysis: (
+        ("sample_count", "有效样本", "个"),
+        ("cluster_count", "聚类数量", "个"),
+        ("noise_count", "噪声样本", "个"),
+        ("silhouette_score", "轮廓系数", None),
+    ),
+    ScientificSkillId.anomaly_detection: (
+        ("sample_count", "有效样本", "个"),
+        ("anomaly_count", "异常样本", "个"),
+    ),
+    ScientificSkillId.spectrum_analysis: (
+        ("sample_count", "光谱采样点", "个"),
+        ("signal_to_noise", "信噪比", None),
+        ("radial_velocity_km_s", "径向速度", "km/s"),
+    ),
+    ScientificSkillId.light_curve_analysis: (
+        ("accepted_sample_count", "有效采样点", "个"),
+        ("rejected_sample_count", "剔除采样点", "个"),
+        ("best_period", "最佳周期", None),
+        ("false_alarm_probability", "虚警概率", None),
+    ),
+}
+
+
+def _metric_value(output: Mapping[str, object], path: str) -> float | int | str | None:
+    value: object = output
+    for key in path.split("."):
+        if not isinstance(value, Mapping):
+            return None
+        value = value.get(key)
+    if isinstance(value, bool) or not isinstance(value, int | float | str):
+        return None
+    return value
 
 
 def _named_metrics(
@@ -1048,7 +1153,7 @@ def _named_metrics(
     return tuple(
         ScientificMetric(
             metric_id=_stable_id(prefix, outcome.task.task_id, str(name)),
-            label=str(name).replace("_", " ").title(),
+            label=_model_metric_label(str(name)),
             value=value,
             evidence_ids=evidence_ids,
         )
@@ -1057,21 +1162,19 @@ def _named_metrics(
     )
 
 
-def _collect_scalars(
-    value: object,
-    *,
-    prefix: str,
-    target: list[tuple[str, float | int | str]],
-) -> None:
-    if len(target) >= 64:
-        return
-    if isinstance(value, dict):
-        for key, item in sorted(value.items()):
-            _collect_scalars(item, prefix=f"{prefix}.{key}".strip("."), target=target)
-    elif isinstance(value, list):
-        return
-    elif isinstance(value, int | float | str) and not isinstance(value, bool):
-        target.append((prefix or "value", value))
+def _model_metric_label(name: str) -> str:
+    labels = {
+        "accuracy": "准确率",
+        "precision": "精确率",
+        "recall": "召回率",
+        "f1": "F1 分数",
+        "roc_auc": "ROC AUC",
+        "mae": "平均绝对误差",
+        "mse": "均方误差",
+        "rmse": "均方根误差",
+        "r2": "决定系数 R²",
+    }
+    return labels.get(name, name.upper())
 
 
 def _evidence_for_target(
@@ -1179,6 +1282,10 @@ def _result_blocks(
 ]:
     """Turn one typed handler result into explicit presentation-owned blocks."""
 
+    admissions = _source_table_admissions(outcome)
+    if admissions:
+        return _source_table_result_blocks(outcome, admissions[0])
+
     output = dict(outcome.materialized_output)
     metadata = {
         key: value for key, value in output.items() if key in _RESULT_METADATA_FIELDS
@@ -1246,6 +1353,106 @@ def _result_blocks(
         tuple(all_scientific_evidence),
         tuple(sorted(all_evidence_ids)),
     )
+
+
+def _source_table_admissions(
+    outcome: ScientificTaskExecutionOutcome,
+) -> tuple[SourceTableAdmission, ...]:
+    raw = outcome.materialized_output.get("source_table_admission")
+    if raw is None:
+        return ()
+    if outcome.task.skill_id is not ScientificSkillId.gaia_cone_search:
+        raise ValueError("only the Gaia source-table task may carry this admission")
+    return (SourceTableAdmission.model_validate(raw),)
+
+
+def _source_table_result_blocks(
+    outcome: ScientificTaskExecutionOutcome,
+    admission: SourceTableAdmission,
+) -> tuple[
+    tuple[ScientificResultBlock, ...],
+    tuple[ScientificEvidence, ...],
+    tuple[str, ...],
+]:
+    block_id = _stable_id("result", outcome.task.task_id, "source_table")
+    payload = source_table_result_payload(admission)
+    evidence = tuple(
+        ScientificEvidence(
+            evidence_id=cell.evidence_id,
+            target_type="result_block",
+            target_id=block_id,
+            source_snapshot_id=admission.source_snapshot_id,
+            evidence_type="service_response",
+            locator=cell.locator.model_dump(mode="json"),
+            quote_or_value=cell.canonical_value,
+        )
+        for cell in admission.cells
+    )
+    evidence_ids = tuple(sorted(item.evidence_id for item in evidence))
+    block = ScientificResultBlock(
+        block_id=block_id,
+        label="Gaia DR3 单源数据",
+        representation="table",
+        payload=payload,
+        content_hash=compute_canonical_payload_hash(payload),
+        evidence_ids=evidence_ids,
+    )
+    return (block,), evidence, evidence_ids
+
+
+def source_table_result_payload(
+    admission: SourceTableAdmission,
+) -> dict[str, object]:
+    """Project one admitted source table into its only public result payload."""
+
+    public_columns = [
+        {
+            "field": f"column_{index + 1}",
+            "label": column.label_zh,
+            "unit": column.canonical_unit_symbol,
+        }
+        for index, column in enumerate(admission.columns)
+    ]
+    evidence_by_cell = {
+        (cell.row_id, cell.canonical_field_id): cell.evidence_id
+        for cell in admission.cells
+    }
+    return {
+        "column_metadata": public_columns,
+        "rows": [
+            {
+                **{
+                    public_columns[index]["field"]: row.values[
+                        column.canonical_field_id
+                    ]
+                    for index, column in enumerate(admission.columns)
+                },
+                "cell_evidence_ids": {
+                    public_columns[index]["field"]: evidence_by_cell[
+                        (row.row_id, column.canonical_field_id)
+                    ]
+                    for index, column in enumerate(admission.columns)
+                },
+            }
+            for row in admission.rows
+        ],
+        "quality": {
+            "status": admission.overall_status.value,
+            "source_status": admission.source_result_status,
+            "metrics": [
+                {
+                    "label": label,
+                    "status": metric.status.value,
+                    "value": str(metric.value) if metric.value is not None else None,
+                }
+                for metric, label in zip(
+                    admission.metrics,
+                    ("来源完整性", "单位一致性", "证据覆盖率"),
+                    strict=True,
+                )
+            ],
+        },
+    }
 
 
 def _presentation_rows(values: Sequence[object]) -> list[object]:

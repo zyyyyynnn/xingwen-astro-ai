@@ -8,7 +8,7 @@ from collections.abc import Callable
 from sqlalchemy.orm import Session
 
 from app.db.models import RunStepModel
-from app.schemas.core import project_research_contract_input
+from app.schemas.scientific_capabilities import capability_for
 from app.services.content_storage import ContentStorage
 from app.workflow.scientific_admission import ScientificStepAdmission
 from app.workflow.scientific_inputs import DatabaseScientificInputResolver
@@ -54,7 +54,6 @@ class ScientificStepService:
         lease: LeaseGrant,
     ) -> PreparedStep:
         task_id, skill_id = self._step_binding(attempt.run_step_id)
-        contract_input = project_research_contract_input(context.contract)
         resolver = DatabaseScientificInputResolver(
             self._factory,
             self._content_storage,
@@ -71,7 +70,7 @@ class ScientificStepService:
                 task_id=task_id,
                 project_id=str(context.project_id),
                 run_id=str(context.run_id),
-                contract=contract_input,
+                contract=context.contract,
                 resolve_inputs=resolver.resolve,
             )
         )
@@ -79,14 +78,12 @@ class ScientificStepService:
             attempt=attempt,
             lease=lease,
             step_key=step_key,
-            contract=contract_input,
+            contract=context.contract,
             output=output,
             source_mode=output.source_mode,
         )
-        summary = (
-            f"科学技能 {skill_id} 完成任务 {task_id}，"
-            f"产出 {len(publications)} 个结果版本"
-        )
+        capability = capability_for(skill_id)
+        summary = f"{capability['label']}已完成，产出 {len(publications)} 个结果版本"
         return PreparedStep(
             publications=publications,
             activity_result_summary=summary,

@@ -39,6 +39,12 @@ describe("research attachment input type inference", () => {
     expect(inferInputType(file("frame.fts", ""))).toBe("fits");
   });
 
+  it("keeps TIFF reachable through its MIME and both extensions", () => {
+    expect(inferInputType(file("figure.tiff", "image/tiff"))).toBe("image");
+    expect(inferInputType(file("figure.tif", ""))).toBe("image");
+    expect(inferInputType(file("figure.tiff", ""))).toBe("image");
+  });
+
   it("does not pretend arbitrary archives or binaries are supported", () => {
     expect(inferInputType(file("archive.tar.gz", "application/gzip"))).toBe(
       null,

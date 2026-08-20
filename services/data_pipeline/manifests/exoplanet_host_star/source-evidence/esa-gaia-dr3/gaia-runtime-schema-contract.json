@@ -1,0 +1,18 @@
+{
+  "schema_id": "esa_gaia_dr3.gaiadr3.gaia_source.runtime_schema",
+  "schema_version": "1.0.0",
+  "source_id": "esa_gaia_dr3.gaiadr3.gaia_source",
+  "source_table": "gaiadr3.gaia_source",
+  "datatype_categories": {
+    "source_id": "integer",
+    "ra": "number",
+    "dec": "number",
+    "teff_gspphot": "number"
+  },
+  "source_units": {
+    "source_id": "none",
+    "ra": "degree",
+    "dec": "degree",
+    "teff_gspphot": "kelvin"
+  }
+}

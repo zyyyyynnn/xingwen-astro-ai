@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from base64 import b64decode, b64encode
 from collections.abc import Sequence
+from dataclasses import replace
+from datetime import UTC, datetime
 from math import exp, pi, sin
 from uuid import UUID, uuid4
 
@@ -9,9 +11,11 @@ import pytest
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import (
+    ResearchContract,
     ResearchContractInput,
     ScientificSkillId,
     ScientificTaskInput,
+    compute_research_contract_content_hash,
 )
 from app.schemas.scientific_skills import (
     AnalysisReportArtifactContent,
@@ -22,7 +26,10 @@ from app.schemas.scientific_skills import (
     VisualizationArtifactContent,
 )
 from app.services.content_storage import sha256_content_hash
-from app.workflow.publisher import admit_artifact_candidate
+from app.workflow.publisher import PublicationAdmissionError, admit_artifact_candidate
+from app.workflow.scientific_admission import (
+    _validate_source_table_admission_cardinality,
+)
 from services.scientific_skills import (
     ScientificInputBinding,
     ScientificSkillBudget,
@@ -537,20 +544,47 @@ class _TwoSourceRecorder:
         )
 
 
+class _GaiaSourceRecorder:
+    async def record(self, **_: object) -> tuple[ScientificSourceReference, ...]:
+        return (
+            ScientificSourceReference(
+                source_snapshot_id=SNAPSHOT_ID,
+                content_hash=HASH,
+                source_id="esa_gaia_dr3.gaiadr3.gaia_source",
+                query_hash="sha256:" + "b" * 64,
+                retrieved_at=datetime(2026, 8, 20, tzinfo=UTC),
+            ),
+        )
+
+
 def _contract(
     *,
     skill_id: ScientificSkillId,
     output: str | Sequence[str],
     input_refs: Sequence[str] = (),
     parameters: dict[str, object] | None = None,
-) -> ResearchContractInput:
-    return ResearchContractInput.model_validate(
+) -> ResearchContract:
+    contract_input = ResearchContractInput.model_validate(
         {
             "research_goal": "Execute a bounded scientific analysis",
             "target_objects": ["host_star"],
             "data_requirements": {},
-            "requested_fields": ["star.mass"],
-            "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
+            "requested_fields": (
+                [
+                    "star.gaia_dr3_id",
+                    "system.right_ascension",
+                    "system.declination",
+                ]
+                if skill_id is ScientificSkillId.gaia_cone_search
+                else ["star.mass"]
+            ),
+            "source_scope": {
+                "allowed_sources": [
+                    "esa_gaia_dr3"
+                    if skill_id is ScientificSkillId.gaia_cone_search
+                    else "nasa_exoplanet_archive"
+                ]
+            },
             "paper_search_scope": {},
             "scientific_tasks": [
                 {
@@ -567,6 +601,74 @@ def _contract(
             "quality_constraints": {},
         }
     )
+    return ResearchContract.model_validate(
+        contract_input.model_dump(mode="json")
+        | {
+            "id": "contract.scientific-test",
+            "project_id": PROJECT_ID,
+            "version": 1,
+            "created_from_draft_id": "draft.scientific-test",
+            "created_at": datetime(2026, 8, 20, tzinfo=UTC),
+            "content_hash": compute_research_contract_content_hash(contract_input),
+        }
+    )
+
+
+@pytest.mark.anyio
+async def test_gaia_source_table_is_readmitted_and_emits_cell_evidence() -> None:
+    def handler(_: ScientificSkillRequest) -> dict[str, object]:
+        return {
+            "service": "gaia_archive",
+            "fields": ["source_id", "ra", "dec"],
+            "rows": [{"source_id": "65214061869072512", "ra": 56.7, "dec": 24.1}],
+            "row_count": 1,
+            "truncated": False,
+            "result_status": "complete",
+            "source_table_admission": {"overall_status": "pass"},
+            "acquisition": {"source_mode": "cached"},
+        }
+
+    adapter = ScientificStepAdapter(
+        build_scientific_skill_registry(gaia_handler=handler),
+        content_storage=_MemoryStorage(),
+        source_recorder=_GaiaSourceRecorder(),
+    )
+    contract = _contract(
+        skill_id=ScientificSkillId.gaia_cone_search,
+        output="analysis_report",
+        parameters={"ra_degrees": 56.7, "dec_degrees": 24.1},
+    )
+
+    async def resolve(_: ScientificTaskInput) -> Sequence[ScientificInputBinding]:
+        return ()
+
+    output = await adapter.execute(
+        task_id="task.primary",
+        project_id=PROJECT_ID,
+        run_id=RUN_ID,
+        contract=contract,
+        resolve_inputs=resolve,
+    )
+
+    report = output.artifact_candidates[0]
+    assert isinstance(report, AnalysisReportArtifactContent)
+    admission = report.source_table_admissions[0]
+    assert admission.overall_status.value == "pass"
+    assert admission.research_contract_content_hash == contract.content_hash
+    assert report.result_blocks[0].payload["column_metadata"][0]["field"] == "column_1"
+    assert {item.locator["raw_field"] for item in report.scientific_evidence} == {
+        "source_id",
+        "ra",
+        "dec",
+    }
+    assert all(
+        item.locator["source_role"] == "single" for item in report.scientific_evidence
+    )
+    missing_attestation = report.model_copy(update={"source_table_admissions": ()})
+    with pytest.raises(PublicationAdmissionError, match="cardinality"):
+        _validate_source_table_admission_cardinality(
+            replace(output, artifact_candidates=(missing_attestation,))
+        )
 
 
 @pytest.mark.anyio
@@ -931,9 +1033,7 @@ async def test_acquisition_skills_publish_the_typed_artifacts_they_declare() -> 
         assert isinstance(typed_candidate, expected_type)
         assert typed_candidate.skill_executions[0].skill_id is skill_id
         assert output.source_mode == (
-            "cached"
-            if skill_id is ScientificSkillId.spectrum_acquisition
-            else "live"
+            "cached" if skill_id is ScientificSkillId.spectrum_acquisition else "live"
         )
 
 

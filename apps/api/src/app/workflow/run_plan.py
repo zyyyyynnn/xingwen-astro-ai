@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from hashlib import sha256
+from typing import Protocol
 
 from app.schemas.core import (
     ArtifactKind,
     ResearchContractInput,
 )
 from app.schemas.scientific_capabilities import (
+    capability_for,
+    produced_artifact_kinds,
     requires_dataset_prerequisite,
     scientific_skill_phase,
 )
@@ -28,17 +31,17 @@ class UnsupportedRunPlanError(ValueError):
 
 
 _STEP_LABELS = {
-    "planning": "Planning",
-    "fetching_data": "Fetching data",
-    "cleaning_data": "Cleaning data",
-    "acquiring_observations": "Acquiring astronomical observations",
-    "analyzing_data": "Analyzing scientific data",
-    "training_models": "Training scientific models",
-    "building_visualizations": "Building scientific visualizations",
-    "searching_papers": "Searching papers",
-    "summarizing_papers": "Summarizing papers",
-    "reasoning_literature": "Reasoning over literature",
-    "building_graph": "Building graph",
+    "planning": "规划研究步骤",
+    "fetching_data": "获取研究数据",
+    "cleaning_data": "对齐并校验数据",
+    "acquiring_observations": "获取天文观测",
+    "analyzing_data": "分析科学数据",
+    "training_models": "训练科学模型",
+    "building_visualizations": "生成科学可视化",
+    "searching_papers": "检索研究论文",
+    "summarizing_papers": "总结研究论文",
+    "reasoning_literature": "综合文献证据",
+    "building_graph": "构建证据图谱",
 }
 _STEP_MAX_ATTEMPTS = {
     "reasoning_literature": 2,
@@ -66,16 +69,13 @@ _SCIENTIFIC_PHASES = frozenset(
         "building_visualizations",
     }
 )
-_SCIENTIFIC_OUTPUT_KINDS = frozenset(
-    {
-        ArtifactKind.analysis_report,
-        ArtifactKind.visualization,
-        ArtifactKind.spectrum,
-        ArtifactKind.light_curve,
-        ArtifactKind.model_evaluation,
-        ArtifactKind.model_artifact,
-    }
-)
+
+
+class FrozenRunStep(Protocol):
+    key: str
+    skill_id: str | None
+
+
 SUPPORTED_RUN_OUTPUTS = frozenset(
     {
         ArtifactKind.dataset,
@@ -158,20 +158,20 @@ STEP_ARTIFACT_KINDS = {
 
 
 def artifact_kinds_for_steps(
-    step_keys: Sequence[str],
+    steps: Sequence[FrozenRunStep],
 ) -> tuple[ArtifactKind, ...]:
     """Return the Artifact kinds published by one frozen RunStep chain."""
 
     required: set[ArtifactKind] = set()
-    for key in step_keys:
-        if key in STEP_ARTIFACT_KINDS:
-            required.update(STEP_ARTIFACT_KINDS[key])
-        elif key.startswith("scientific."):
-            # Task-owned scientific steps publish within the bounded scientific
-            # kind set; the exact kinds stay bounded by the frozen step's skill.
-            required.update(_SCIENTIFIC_OUTPUT_KINDS)
+    for step in steps:
+        if step.skill_id is not None:
+            required.update(
+                ArtifactKind(kind) for kind in produced_artifact_kinds(step.skill_id)
+            )
+        elif step.key in STEP_ARTIFACT_KINDS:
+            required.update(STEP_ARTIFACT_KINDS[step.key])
         else:
-            raise KeyError(f"unknown RunStep key: {key}")
+            raise KeyError(f"unknown RunStep key: {step.key}")
     return tuple(kind for kind in ARTIFACT_KIND_ORDER if kind in required)
 
 
@@ -193,7 +193,7 @@ def compile_run_plan(
     # the frozen step chain.
     for task in contract.scientific_tasks:
         required.add(scientific_skill_phase(task.skill_id.value))
-        if requires_dataset_prerequisite(task.skill_id.value):
+        if requires_dataset_prerequisite(task.skill_id.value) and not task.input_refs:
             required.update(("fetching_data", "cleaning_data"))
     if outputs & {ArtifactKind.model_evaluation, ArtifactKind.model_artifact}:
         required.add("training_models")
@@ -227,10 +227,7 @@ def compile_run_plan(
             planned.extend(
                 RunStepDefinition(
                     key=_scientific_task_step_key(task.task_id),
-                    label=(
-                        f"{task.skill_id.value.replace('_', ' ').title()} · "
-                        f"{task.task_id}"
-                    ),
+                    label=str(capability_for(task.skill_id.value)["label"]),
                     enter_status=phase,
                     success_status="completed",
                     task_id=task.task_id,
@@ -279,7 +276,9 @@ def compile_revision_run_plan(
         raise ValueError("parent Run steps must use unique keys")
     unknown = step_keys - set(parent_by_key)
     if unknown or "planning" not in step_keys:
-        raise ValueError("revision Run steps must belong to the parent and include planning")
+        raise ValueError(
+            "revision Run steps must belong to the parent and include planning"
+        )
     ordered = tuple(step for step in parent_steps if step.key in step_keys)
     return tuple(
         RunStepDefinition(

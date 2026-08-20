@@ -20,7 +20,9 @@ from app.services.model_execution import (
     qwen_execution_lease_duration,
 )
 from app.services.research_planner import ResearchContractPlanner
-from app.test_support.integration_model import DeterministicIntegrationModelExecutionPort
+from app.test_support.integration_model import (
+    DeterministicIntegrationModelExecutionPort,
+)
 from packages.prompts.registry import PromptRegistry
 
 
@@ -210,7 +212,9 @@ def test_qwen_adapter_maps_provider_failures_without_leaking_body(
     assert captured.value.latency_ms is not None
 
 
-@pytest.mark.parametrize("provider_code", ["access_denied", "AllocationQuota.FreeTierOnly"])
+@pytest.mark.parametrize(
+    "provider_code", ["access_denied", "AllocationQuota.FreeTierOnly"]
+)
 def test_qwen_adapter_explains_model_access_failures_without_leaking_body(
     provider_code: str,
 ) -> None:
@@ -377,7 +381,8 @@ def test_planner_uses_the_registered_prompt_and_identified_output_contract() -> 
         {"id": "host_star", "object_type": "star"},
     ]
     assert catalog["allowed_sources"] == [
-        {"id": "nasa_exoplanet_archive", "scope": "provider"}
+        {"id": "nasa_exoplanet_archive", "scope": "provider"},
+        {"id": "esa_gaia_dr3", "scope": "provider"},
     ]
     assert [field["id"] for field in catalog["requested_fields"]] == catalog[
         "default_requested_field_ids"
@@ -404,11 +409,14 @@ def test_planner_uses_the_registered_prompt_and_identified_output_contract() -> 
         "rows",
         "source_total_pixels",
     }
-    assert not {
-        parameter["name"]
-        for capability in capabilities.values()
-        for parameter in capability["parameters"]
-    } & resolver_owned_parameters
+    assert (
+        not {
+            parameter["name"]
+            for capability in capabilities.values()
+            for parameter in capability["parameters"]
+        }
+        & resolver_owned_parameters
+    )
     assert capabilities["clustering_analysis"] == {
         "id": "clustering_analysis",
         "label": "聚类分析",
@@ -466,7 +474,9 @@ def test_planner_uses_the_registered_prompt_and_identified_output_contract() -> 
     )
 
 
-def test_integration_model_exercises_the_real_planner_contract_without_claiming_qwen() -> None:
+def test_integration_model_exercises_the_real_planner_contract_without_claiming_qwen() -> (
+    None
+):
     port = DeterministicIntegrationModelExecutionPort()
     planner = ResearchContractPlanner(
         model_port=port,
@@ -486,7 +496,9 @@ def test_integration_model_exercises_the_real_planner_contract_without_claiming_
 
     assert result.output.outcome == "draft_ready"
     assert result.output.contract.research_goal == "比较公开系外行星候选体的宿主星参数"
-    assert result.response.provider_returned_model == "deterministic-integration-planner"
+    assert (
+        result.response.provider_returned_model == "deterministic-integration-planner"
+    )
     assert result.response.provider_request_id == "integration-deterministic-planner"
     assert "qwen" not in result.response.provider_returned_model.lower()
     assert result.response.output_hash.startswith("sha256:")

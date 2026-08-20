@@ -1,9 +1,9 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
   screen,
-  waitFor,
 } from "@testing-library/react";
 import { asEntityId } from "@xingwen/domain";
 import type {
@@ -198,7 +198,8 @@ describe("ScientificArtifactRenderer scientific content", () => {
   });
 
   it("renders astronomy source rows as a bounded sortable table with units and evidence", () => {
-    const evidenceId = asEntityId("evidence-gaia-1");
+    const sourceEvidenceId = asEntityId("evidence-gaia-source");
+    const parallaxEvidenceId = asEntityId("evidence-gaia-parallax");
     const onSelectEvidence = vi.fn();
     const content: AnalysisReportReviewContent = {
       kind: "analysis_report",
@@ -217,16 +218,22 @@ describe("ScientificArtifactRenderer scientific content", () => {
             data_release: "gaiadr3",
             coordinate_frame: "ICRS",
             column_metadata: [
-              { field: "source_id", label: "Gaia 源标识", unit: null },
-              { field: "parallax", label: "视差", unit: "mas" },
+              { field: "column_1", label: "Gaia 源标识", unit: null },
+              { field: "column_2", label: "视差", unit: "mas" },
             ],
             rows: [
-              { source_id: "2", parallax: 2.4 },
-              { source_id: "1", parallax: 1.2 },
+              {
+                column_1: "Gaia DR3 2",
+                column_2: "2.4",
+                cell_evidence_ids: {
+                  column_1: sourceEvidenceId,
+                  column_2: parallaxEvidenceId,
+                },
+              },
             ],
           },
           contentHash: "sha256:gaia",
-          evidenceIds: [evidenceId],
+          evidenceIds: [sourceEvidenceId, parallaxEvidenceId],
         },
       ],
       metrics: [],
@@ -235,7 +242,7 @@ describe("ScientificArtifactRenderer scientific content", () => {
       humanRequired: [],
       relatedArtifactVersionIds: [],
       sourceSnapshotIds: [asEntityId("snapshot-gaia")],
-      evidenceIds: [evidenceId],
+      evidenceIds: [sourceEvidenceId, parallaxEvidenceId],
       inputHash: "sha256:input",
       outputHash: "sha256:output",
     };
@@ -254,8 +261,10 @@ describe("ScientificArtifactRenderer scientific content", () => {
     expect(
       screen.getByRole("button", { name: "视差 (mas)" }),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /1\.2.*mas/ }));
-    expect(onSelectEvidence).toHaveBeenCalledWith(evidenceId);
+    fireEvent.click(screen.getByRole("button", { name: /Gaia DR3 2/ }));
+    expect(onSelectEvidence).toHaveBeenLastCalledWith(sourceEvidenceId);
+    fireEvent.click(screen.getByRole("button", { name: /2\.4.*mas/ }));
+    expect(onSelectEvidence).toHaveBeenLastCalledWith(parallaxEvidenceId);
     expect(screen.queryByText(/column_metadata/)).toBeNull();
   });
 
@@ -496,15 +505,15 @@ describe("ScientificArtifactRenderer scientific content", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "下载 ONNX 模型" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "下载 ONNX 模型" }));
+    });
     expect(loadContent).toHaveBeenCalledWith("sha256:model");
-    await waitFor(() =>
-      expect(downloadBytes).toHaveBeenCalledWith(
-        expect.objectContaining({
-          fileName: "random_forest.onnx",
-          mediaType: "application/onnx",
-        }),
-      ),
+    expect(downloadBytes).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileName: "random_forest.onnx",
+        mediaType: "application/onnx",
+      }),
     );
   });
 

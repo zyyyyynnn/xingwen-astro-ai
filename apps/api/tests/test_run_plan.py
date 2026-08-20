@@ -6,6 +6,7 @@ from app.schemas.core import ArtifactKind, ResearchContractInput
 from app.workflow.run_plan import (
     SUPPORTED_RUN_OUTPUTS,
     UnsupportedRunPlanError,
+    artifact_kinds_for_steps,
     compile_revision_run_plan,
     compile_run_plan,
 )
@@ -65,7 +66,10 @@ def test_compile_run_plan_freezes_the_minimum_prerequisite_closure(
 
     assert tuple(step.key for step in plan) == expected_steps
     assert tuple(step.enter_status for step in plan) == expected_steps
-    assert tuple(step.success_status for step in plan) == (*expected_steps[1:], "completed")
+    assert tuple(step.success_status for step in plan) == (
+        *expected_steps[1:],
+        "completed",
+    )
 
 
 def test_compile_run_plan_includes_data_closure_only_when_requested() -> None:
@@ -126,7 +130,9 @@ def test_compiled_run_plan_uses_the_workflow_store_step_order_authority() -> Non
 
 
 @pytest.mark.parametrize("skill_id", ("clustering_analysis", "anomaly_detection"))
-def test_unsupervised_skill_is_frozen_as_task_owned_analysis_step(skill_id: str) -> None:
+def test_unsupervised_skill_is_frozen_as_task_owned_analysis_step(
+    skill_id: str,
+) -> None:
     contract = ResearchContractInput.model_validate(
         {
             **contract_for("dataset").model_dump(mode="json"),
@@ -169,12 +175,36 @@ def test_revision_plan_preserves_scientific_task_identity_and_dependencies() -> 
     parent = compile_run_plan(contract)
     scientific = next(step for step in parent if step.task_id == "cluster-stars")
 
-    derived = compile_revision_run_plan(
-        parent, frozenset({"planning", scientific.key})
-    )
+    derived = compile_revision_run_plan(parent, frozenset({"planning", scientific.key}))
 
     assert tuple(step.key for step in derived) == ("planning", scientific.key)
     assert derived[1].task_id == "cluster-stars"
     assert derived[1].skill_id == "clustering_analysis"
     assert derived[1].enter_status == "analyzing_data"
     assert derived[1].depends_on_step_keys == ("planning",)
+
+
+def test_scientific_artifact_closure_uses_the_frozen_skill_capability() -> None:
+    contract = ResearchContractInput.model_validate(
+        {
+            **contract_for("dataset").model_dump(mode="json"),
+            "output_requirements": ["analysis_report"],
+            "scientific_tasks": [
+                {
+                    "task_id": "gaia-nearby",
+                    "skill_id": "gaia_cone_search",
+                    "input_refs": [],
+                    "parameters": {
+                        "ra_degrees": 10.0,
+                        "dec_degrees": 20.0,
+                        "radius_degrees": 0.1,
+                    },
+                }
+            ],
+        }
+    )
+    plan = compile_run_plan(contract)
+
+    kinds = artifact_kinds_for_steps(plan)
+
+    assert kinds == (ArtifactKind.analysis_report,)

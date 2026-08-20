@@ -25,9 +25,12 @@ from sqlalchemy.orm import Session
 
 from app.db.models import (
     ArtifactVersionModel,
+    EvidenceModel,
     ProducerExecutionModel,
+    ResearchArtifactModel,
     ResearchThreadEntryModel,
     RunEventModel,
+    SourceSnapshotModel,
 )
 from app.db.session import create_engine_from_url, session_factory
 from app.schemas.core import (
@@ -38,18 +41,29 @@ from app.schemas.core import (
     ExecutionMode,
     ResearchThreadEntryKind,
 )
+from app.schemas.research_input import ResearchInputCreate
 from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.manifest import load_manifest_bundle
 from app.schemas.paper_collection import PaperSourcePage
 from app.schemas.enums import PaperDataLevel, SourceMode
 from app.security import canonical_request_hash
 from app.services.model_execution import (
-    ModelExecutionPort,
     ModelExecutionRequest,
     ModelExecutionResponse,
     ModelToolCall,
 )
+from app.services.content_storage import LocalContentStorage
+from app.services.research_input_ingestion import (
+    ResearchInputIngestionCommand,
+    ResearchInputIngestionService,
+)
+from app.services.research_input_policy import ResearchInputPolicy
+from app.services.research_input_store import (
+    PersistentIdempotencyRepository,
+    PersistentResearchInputStore,
+)
 from app.services.research import ResearchApplicationService
+from app.services.url_fetcher import UrlFetchConfig
 from app.workflow.persistent_executor import PersistentWorkflowExecutor
 from app.workflow.research_run_worker import ResearchRunWorker
 from app.workflow.store import PersistentWorkflowStore
@@ -60,6 +74,7 @@ from services.paper_pipeline.sources.base import (
     RawSourceRecord,
     SourceSearchResult,
 )
+from services.scientific_skills.astro_acquisition import GaiaTapAdapter
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
@@ -97,7 +112,11 @@ class ScriptedStepAgentModel:
             output_hash=canonical_request_hash(
                 {"tool": tool_name, "step_key": request.input_payload}
             ),
-            token_usage={"prompt_tokens": 8, "completion_tokens": 8, "total_tokens": 16},
+            token_usage={
+                "prompt_tokens": 8,
+                "completion_tokens": 8,
+                "total_tokens": 16,
+            },
             latency_ms=3,
             provider_request_id="req-scripted-agent",
             provider_returned_model="qwen3.8-max-2026-08-01",
@@ -243,7 +262,8 @@ def test_worker_executes_confirmed_contract_end_to_end(
 ) -> None:
     factory = session_factory(postgres_engine)
     manifests = load_manifest_bundle(
-        _ROOT / "services/data_pipeline/manifests/exoplanet_host_star/case-manifest.json",
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/case-manifest.json",
         _ROOT
         / "services/data_pipeline/manifests/exoplanet_host_star/field-manifest.json",
     )
@@ -328,13 +348,340 @@ def test_worker_executes_confirmed_contract_end_to_end(
         )
 
 
+def test_worker_executes_uploaded_csv_scientific_task_end_to_end(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    factory = session_factory(postgres_engine)
+    manifests = load_manifest_bundle(
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/case-manifest.json",
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/field-manifest.json",
+    )
+    store = PersistentWorkflowStore(factory)
+    service = ResearchApplicationService(
+        factory=factory,
+        workflow_store=store,
+        manifests=manifests,
+    )
+    session_id = f"session-{uuid4()}"
+    project = service.create_project(
+        session_id=session_id,
+        idempotency_key=f"project-{uuid4()}",
+        request=CreateResearchProjectRequest(
+            name="上传数据科学执行",
+            description="验证上传来源到科学产物的唯一生产链",
+            case_key="exoplanet_host_star",
+        ),
+    )
+
+    content_storage = LocalContentStorage(tmp_path / "content")
+    input_store = PersistentResearchInputStore(factory)
+    ingestion = ResearchInputIngestionService(
+        repository=input_store,
+        idempotency_repository=PersistentIdempotencyRepository(factory),
+        content_storage=content_storage,
+        policy=ResearchInputPolicy.from_values(
+            allowed_mime_types=("text/csv",),
+            max_size_bytes=1024 * 1024,
+        ),
+        url_fetch_config=UrlFetchConfig(
+            allowed_protocols=("https",),
+            allowed_hosts=(),
+            timeout_seconds=1,
+            max_redirects=0,
+            max_response_bytes=1024,
+        ),
+    )
+    research_input = asyncio.run(
+        ingestion.create(
+            ResearchInputIngestionCommand(
+                session_id=session_id,
+                project_id=project.id,
+                payload=ResearchInputCreate(
+                    type="csv",
+                    filename="observations.csv",
+                    mime_type="text/csv",
+                ),
+                idempotency_key=f"upload-{uuid4()}",
+                file_content=b"object_id,flux,temperature\nA,1.2,5700\nB,1.8,5900\n",
+                file_filename="observations.csv",
+            )
+        )
+    )
+    contract_payload = {
+        "research_goal": "分析上传观测表的字段完整性与数值分布。",
+        "target_objects": ["host_star"],
+        "data_requirements": {"unit_policy": "canonical"},
+        "requested_fields": ["star.tic_id"],
+        "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
+        "paper_search_scope": {"keywords": (), "source_ids": (), "max_candidates": 1},
+        "output_requirements": ["analysis_report"],
+        "evidence_requirements": {},
+        "quality_constraints": {},
+        "scientific_tasks": [
+            {
+                "task_id": "profile-uploaded-observations",
+                "skill_id": "data_profile",
+                "input_refs": [research_input.id],
+                "parameters": {},
+            }
+        ],
+    }
+    draft = service.create_draft(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"draft-{uuid4()}",
+        request=CreateResearchContractDraftRequest(
+            intent="分析已上传观测表",
+            contract=contract_payload,  # type: ignore[arg-type]
+        ),
+    )
+    input_store.bind_to_contract(
+        session_id=session_id,
+        input_id=research_input.id,
+        project_id=project.id,
+        contract_draft_id=draft.id,
+    )
+    contract = service.confirm_contract(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"confirm-{uuid4()}",
+        request=ConfirmResearchContractRequest(
+            draft_id=draft.id,
+            expected_draft_version=draft.version,
+        ),
+    )
+    run = service.create_run(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"run-{uuid4()}",
+        request=CreateRunRequest(
+            contract_id=contract.id,
+            execution_mode=ExecutionMode.live,
+        ),
+    )
+    snapshot = store.load_snapshot(UUID(run.id))
+    assert tuple(step.skill_id for step in snapshot.steps) == (None, "data_profile")
+
+    worker = ResearchRunWorker(
+        factory=factory,
+        store=store,
+        executor=PersistentWorkflowExecutor(store),
+        manifests=manifests,
+        model_port=ScriptedStepAgentModel(factory, UUID(run.id)),
+        requested_model="qwen3.8-max",
+        explicit_revision=None,
+        content_storage=content_storage,
+    )
+    asyncio.run(worker.execute_run(UUID(run.id)))
+
+    final = store.load_snapshot(UUID(run.id))
+    assert final.status == "completed"
+    with factory() as session:
+        versions = session.scalars(
+            select(ArtifactVersionModel).where(
+                ArtifactVersionModel.created_by_run_id == UUID(run.id)
+            )
+        ).all()
+        artifacts = [
+            session.get(ResearchArtifactModel, item.artifact_id) for item in versions
+        ]
+        assert all(item is not None for item in artifacts)
+        assert [(item.kind, item.title) for item in artifacts] == [
+            ("analysis_report", "数据画像"),
+        ]
+        assert len(versions) == 1
+        version = versions[0]
+        assert version.content["kind"] == "analysis_report"
+        assert version.content["result_blocks"]
+        assert research_input.source_snapshot_id is not None
+        snapshot_row = session.get(
+            SourceSnapshotModel, UUID(research_input.source_snapshot_id)
+        )
+        assert snapshot_row is not None
+        assert snapshot_row.source_type == "research_input_upload"
+        assert str(snapshot_row.id) in version.source_snapshot_ids
+
+
+def test_gaia_scientific_admission_publishes_uuid_cell_evidence_end_to_end(
+    postgres_engine: Engine,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response_hash = "sha256:" + "5" * 64
+    adapter_query_hash = "sha256:" + "6" * 64
+
+    def acquire_from_recorded_response(
+        _adapter: GaiaTapAdapter, _request: object
+    ) -> dict[str, object]:
+        return {
+            "service": "gaia_archive",
+            "data_release": "gaiadr3",
+            "coordinate_frame": "ICRS",
+            "query_kind": "cone_search",
+            "center": {"ra_degrees": 56.7, "dec_degrees": 24.1},
+            "radius_degrees": 0.05,
+            "fields": ["source_id", "ra", "dec"],
+            "column_metadata": [
+                {"field": "source_id", "label": "Gaia DR3 宿主恒星标识", "unit": None},
+                {"field": "ra", "label": "赤经", "unit": "deg"},
+                {"field": "dec", "label": "赤纬", "unit": "deg"},
+            ],
+            "row_count": 1,
+            "rows": [{"source_id": "65214061869072512", "ra": 56.7, "dec": 24.1}],
+            "truncated": False,
+            "result_status": "complete",
+            "response_format": "csv",
+            "acquisition": {
+                "source_mode": "cached",
+                "adapter": "gaia_tap",
+                "adapter_version": "3.0.0",
+                "endpoint": "https://gea.esac.esa.int/tap-server/tap/sync",
+                "response_content_hash": response_hash,
+                "cache_version": "gaia-dr3-cone:3.0.0:2",
+                "query_hash": adapter_query_hash,
+                "retrieved_at": _FIXED_NOW.isoformat(),
+                "schema_revision": "gaia-dr3-source-contract:2",
+                "schema_response_content_hash": "sha256:" + "7" * 64,
+            },
+        }
+
+    monkeypatch.setattr(GaiaTapAdapter, "acquire", acquire_from_recorded_response)
+    factory = session_factory(postgres_engine)
+    manifests = load_manifest_bundle(
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/case-manifest.json",
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/field-manifest.json",
+    )
+    store = PersistentWorkflowStore(factory)
+    service = ResearchApplicationService(
+        factory=factory,
+        workflow_store=store,
+        manifests=manifests,
+    )
+    session_id = f"session-{uuid4()}"
+    project = service.create_project(
+        session_id=session_id,
+        idempotency_key=f"project-{uuid4()}",
+        request=CreateResearchProjectRequest(
+            name="Gaia 单源科学发布",
+            description="验证 Gaia 准入到唯一 Publisher 的完整闭环",
+            case_key="exoplanet_host_star",
+        ),
+    )
+    contract_payload = {
+        "research_goal": "查询 Gaia DR3 宿主恒星并保留逐单元证据。",
+        "target_objects": ["host_star"],
+        "data_requirements": {"unit_policy": "canonical"},
+        "requested_fields": [
+            "star.gaia_dr3_id",
+            "system.right_ascension",
+            "system.declination",
+        ],
+        "source_scope": {"allowed_sources": ["esa_gaia_dr3"]},
+        "paper_search_scope": {"keywords": (), "source_ids": (), "max_candidates": 1},
+        "output_requirements": ["analysis_report"],
+        "evidence_requirements": {"minimum_coverage": 1},
+        "quality_constraints": {
+            "source_completeness_min": 1,
+            "unit_consistency_min": 1,
+        },
+        "scientific_tasks": [
+            {
+                "task_id": "query-gaia-host-star",
+                "skill_id": "gaia_cone_search",
+                "input_refs": [],
+                "parameters": {
+                    "ra_degrees": 56.7,
+                    "dec_degrees": 24.1,
+                    "fields": ["ra", "dec"],
+                    "max_results": 5,
+                },
+            }
+        ],
+    }
+    draft = service.create_draft(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"draft-{uuid4()}",
+        request=CreateResearchContractDraftRequest(
+            intent="查询 Gaia DR3",
+            contract=contract_payload,  # type: ignore[arg-type]
+        ),
+    )
+    contract = service.confirm_contract(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"confirm-{uuid4()}",
+        request=ConfirmResearchContractRequest(
+            draft_id=draft.id,
+            expected_draft_version=draft.version,
+        ),
+    )
+    content_storage = LocalContentStorage(tmp_path / "gaia-content")
+
+    def execute_run() -> UUID:
+        run = service.create_run(
+            project_id=project.id,
+            session_id=session_id,
+            idempotency_key=f"run-{uuid4()}",
+            request=CreateRunRequest(
+                contract_id=contract.id,
+                execution_mode=ExecutionMode.live,
+            ),
+        )
+        run_id = UUID(run.id)
+        worker = ResearchRunWorker(
+            factory=factory,
+            store=store,
+            executor=PersistentWorkflowExecutor(store),
+            manifests=manifests,
+            model_port=ScriptedStepAgentModel(factory, run_id),
+            requested_model="qwen3.8-max",
+            explicit_revision=None,
+            content_storage=content_storage,
+        )
+        asyncio.run(worker.execute_run(run_id))
+        assert store.load_snapshot(run_id).status == "completed"
+        return run_id
+
+    run_ids = (execute_run(), execute_run())
+    with factory() as session:
+        versions = session.scalars(
+            select(ArtifactVersionModel).where(
+                ArtifactVersionModel.created_by_run_id.in_(run_ids)
+            )
+        ).all()
+        assert len(versions) == 2
+        admissions = [
+            version.content["source_table_admissions"][0] for version in versions
+        ]
+        assert all(
+            admission["source_result_status"] == "complete" for admission in admissions
+        )
+        snapshot_ids = {
+            UUID(admission["source_snapshot_id"]) for admission in admissions
+        }
+        assert len(snapshot_ids) == 1
+        snapshot_id = next(iter(snapshot_ids))
+        evidence = session.scalars(
+            select(EvidenceModel).where(EvidenceModel.source_snapshot_id == snapshot_id)
+        ).all()
+        assert len(evidence) == 6
+        version_evidence = [set(version.evidence_ids) for version in versions]
+        assert version_evidence[0].isdisjoint(version_evidence[1])
+        assert {str(item.id) for item in evidence} == set.union(*version_evidence)
+        assert all(item.source_snapshot_id == snapshot_id for item in evidence)
+
+
 def _assert_publication_chain(
     session: Session, *, run_id: UUID, adapter: FrozenCrossrefAdapter
 ) -> None:
     executions = session.scalars(
-        select(ProducerExecutionModel).where(
-            ProducerExecutionModel.run_id == run_id
-        )
+        select(ProducerExecutionModel).where(ProducerExecutionModel.run_id == run_id)
     ).all()
     searching = [
         execution
@@ -354,8 +701,14 @@ def _assert_publication_chain(
     ]
     assert model_executions
     assert all(execution.status == "completed" for execution in model_executions)
-    assert all(execution.provider_request_id == "req-scripted-agent" for execution in model_executions)
-    assert all(execution.provider_returned_model == "qwen3.8-max-2026-08-01" for execution in model_executions)
+    assert all(
+        execution.provider_request_id == "req-scripted-agent"
+        for execution in model_executions
+    )
+    assert all(
+        execution.provider_returned_model == "qwen3.8-max-2026-08-01"
+        for execution in model_executions
+    )
 
     version = session.scalar(
         select(ArtifactVersionModel).where(
@@ -373,9 +726,7 @@ def _assert_publication_chain(
 
     seen = adapter.seen_query
     assert seen is not None
-    assert set(content["query"]["normalized_keywords"]) == set(
-        seen.normalized_keywords
-    )
+    assert set(content["query"]["normalized_keywords"]) == set(seen.normalized_keywords)
     contract_keywords = {
         normalize_text(keyword)
         for keyword in ("系外行星 宿主恒星", "exoplanet host star")
@@ -390,16 +741,13 @@ def _assert_run_events_and_thread(
         select(RunEventModel).where(RunEventModel.run_id == run_id)
     ).all()
     assert events
-    published = [
-        event for event in events if event.artifact_version_ids
-    ]
+    published = [event for event in events if event.artifact_version_ids]
     assert published
 
     messages = session.scalars(
         select(ResearchThreadEntryModel).where(
             ResearchThreadEntryModel.project_id == project_id,
-            ResearchThreadEntryModel.kind
-            == ResearchThreadEntryKind.assistant_message,
+            ResearchThreadEntryModel.kind == ResearchThreadEntryKind.assistant_message,
         )
     ).all()
     run_messages = [
@@ -411,6 +759,8 @@ def _assert_run_events_and_thread(
     assert {message.structured_payload.get("run_id") for message in run_messages} == {
         str(run_id)
     }
-    assert {
-        message.structured_payload.get("step_key") for message in run_messages
-    } >= {"run_started", "planning", "searching_papers"}
+    assert {message.structured_payload.get("step_key") for message in run_messages} >= {
+        "run_started",
+        "planning",
+        "searching_papers",
+    }

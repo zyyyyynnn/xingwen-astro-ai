@@ -113,6 +113,7 @@ class Settings(BaseSettings):
             "image/png",
             "image/jpeg",
             "image/gif",
+            "image/tiff",
             "image/webp",
             "text/plain",
             "text/markdown",

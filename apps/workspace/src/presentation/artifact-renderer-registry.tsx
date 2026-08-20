@@ -30,7 +30,7 @@ import {
   SelectValue,
   Skeleton,
 } from "@xingwen/ui";
-import { ArrowRight, FileText } from "@xingwen/ui/icons";
+import { ArrowRight } from "@xingwen/ui/icons";
 import { useMemo, useState, type ComponentType, type ReactNode } from "react";
 
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
@@ -145,10 +145,6 @@ function ThreadResultBlock({
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">
-          <FileText
-            className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-            aria-hidden="true"
-          />
           <div className="min-w-0">
             <h3 className="truncate text-sm font-medium text-foreground">
               {artifact.title}

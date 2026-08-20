@@ -105,6 +105,10 @@ export interface RunStepViewModel {
   readonly position: number;
   readonly key: DomainEntityId;
   readonly label: string;
+  readonly phase: string;
+  readonly taskId: DomainEntityId | null;
+  readonly skillId: import("@xingwen/domain").ScientificSkillId | null;
+  readonly dependsOnStepKeys: readonly DomainEntityId[];
   readonly status:
     | "pending"
     | "running"

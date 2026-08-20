@@ -29,6 +29,8 @@ from app.db.models import (
 )
 from app.schemas.core import (
     RepairCheckpointContext,
+    RepairCandidateIdentity,
+    RepairCandidateSummary,
     RepairDefect,
     RepairEvidenceFact,
     RepairOutcome,
@@ -258,8 +260,26 @@ def test_scientific_repair_checkpoint_resumes_same_run_and_freezes_outcome(
                 defect_id="repair.defect_1",
                 logical_match_key="sha256:" + "f" * 64,
                 conflict_code="low_confidence_match",
-                left_candidate_ids=("candidate.left_1",),
-                right_candidate_ids=("candidate.right_1",),
+                left_candidates=(
+                    RepairCandidateSummary(
+                        candidate_id="candidate.left_1",
+                        source_label="TOI 候选表",
+                        entity_label="宿主恒星",
+                        identities=(
+                            RepairCandidateIdentity(label="TIC 标识", value="TIC 1"),
+                        ),
+                    ),
+                ),
+                right_candidates=(
+                    RepairCandidateSummary(
+                        candidate_id="candidate.right_1",
+                        source_label="NASA 行星系统表",
+                        entity_label="宿主恒星",
+                        identities=(
+                            RepairCandidateIdentity(label="TIC 标识", value="TIC 1"),
+                        ),
+                    ),
+                ),
                 evidence=(
                     RepairEvidenceFact(
                         evidence_id="evidence.crossmatch_1",

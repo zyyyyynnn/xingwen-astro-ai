@@ -18,6 +18,7 @@ from pydantic import (
 )
 
 from ._hashing import compute_canonical_payload_hash
+from .source_table import SourceTableAdmission
 from .scientific_capabilities import skills_producing_artifact_kind
 from .core import (
     ArtifactKind,
@@ -204,6 +205,7 @@ class AnalysisReportArtifactContent(BaseModel):
     human_required: tuple[NonEmptyString, ...] = ()
     related_artifact_version_ids: tuple[Identifier, ...] = ()
     scientific_evidence: tuple[ScientificEvidence, ...] = ()
+    source_table_admissions: tuple[SourceTableAdmission, ...] = ()
     source_snapshot_ids: tuple[Identifier, ...]
     evidence_ids: tuple[Identifier, ...]
     input_hash: ContentHash
@@ -954,9 +956,7 @@ class LightCurveArtifactContent(BaseModel):
     def validate_light_curve(self, info: ValidationInfo) -> Self:
         if self.accepted_sample_count + self.rejected_sample_count != self.sample_count:
             raise ValueError("light-curve quality counts must equal sample_count")
-        light_curve_producers = frozenset(
-            skills_producing_artifact_kind("light_curve")
-        )
+        light_curve_producers = frozenset(skills_producing_artifact_kind("light_curve"))
         if any(
             execution.skill_id.value not in light_curve_producers
             for execution in self.skill_executions

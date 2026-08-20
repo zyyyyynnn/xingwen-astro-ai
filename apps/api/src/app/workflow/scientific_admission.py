@@ -22,8 +22,11 @@ from app.db.models import (
     ResearchArtifactModel,
     ResearchRunModel,
     RunStepModel,
+    SourceSnapshotModel,
 )
-from app.schemas.core import ResearchContractInput
+from app.schemas.core import ResearchContract, ScientificSkillId
+from app.schemas.data_quality import QualityGateStatus
+from app.schemas.source_table import SourceTableAdmission
 from app.schemas.scientific_skills import (
     AnalysisReportArtifactContent,
     ChartVisualizationSpec,
@@ -43,7 +46,11 @@ from app.workflow.publisher import (
     admit_artifact_candidate,
 )
 from app.workflow.store import AttemptHandle, LeaseGrant
-from services.scientific_skills.execution import ScientificStepOutput
+from services.scientific_skills.execution import (
+    ScientificStepOutput,
+    source_table_result_payload,
+)
+from services.data_pipeline.source_table import replay_source_table_admission
 
 
 ScientificCandidate = (
@@ -76,7 +83,7 @@ class ScientificStepAdmission:
         attempt: AttemptHandle,
         lease: LeaseGrant,
         step_key: str,
-        contract: ResearchContractInput,
+        contract: ResearchContract,
         output: ScientificStepOutput,
         source_mode: str,
     ) -> tuple[ArtifactPublication, ...]:
@@ -107,6 +114,7 @@ class ScientificStepAdmission:
             raise PublicationAdmissionError(
                 "A scientific Workflow step must publish its complete output set"
             )
+        _validate_source_table_admission_cardinality(output)
         project_id = self._project_id(attempt.run_id)
         publications: list[ArtifactPublication] = []
         for candidate in output.artifact_candidates:
@@ -282,22 +290,44 @@ def _domain_validator(
     def validate(context: ArtifactAdmissionContext) -> None:
         if context.candidate is not candidate:
             raise ValueError("scientific domain validator received another candidate")
-        if not referenced:
-            return
-        try:
-            version_ids = tuple(UUID(item) for item in referenced)
-        except ValueError as exc:
-            raise ValueError(
-                "scientific ArtifactVersion references must use UUID identities"
-            ) from exc
+        version_ids: tuple[UUID, ...] = ()
+        if referenced:
+            try:
+                version_ids = tuple(UUID(item) for item in referenced)
+            except ValueError as exc:
+                raise ValueError(
+                    "scientific ArtifactVersion references must use UUID identities"
+                ) from exc
+        admissions = (
+            candidate.source_table_admissions
+            if isinstance(candidate, AnalysisReportArtifactContent)
+            else ()
+        )
         with session_factory() as session:
-            rows = tuple(
-                session.scalars(
-                    select(ArtifactVersionModel).where(
-                        ArtifactVersionModel.id.in_(version_ids),
-                        ArtifactVersionModel.project_id == project_id,
+            rows = (
+                tuple(
+                    session.scalars(
+                        select(ArtifactVersionModel).where(
+                            ArtifactVersionModel.id.in_(version_ids),
+                            ArtifactVersionModel.project_id == project_id,
+                        )
                     )
                 )
+                if version_ids
+                else ()
+            )
+            snapshot_ids = tuple(UUID(item.source_snapshot_id) for item in admissions)
+            snapshots = (
+                tuple(
+                    session.scalars(
+                        select(SourceSnapshotModel).where(
+                            SourceSnapshotModel.id.in_(snapshot_ids),
+                            SourceSnapshotModel.project_id == project_id,
+                        )
+                    )
+                )
+                if snapshot_ids
+                else ()
             )
         if {row.id for row in rows} != set(version_ids):
             raise ValueError(
@@ -308,19 +338,29 @@ def _domain_validator(
             and candidate.training_input.kind == "dataset_artifact_version"
         ):
             row = next(
-                item
-                for item in rows
-                if str(item.id) == candidate.training_input.ref_id
+                item for item in rows if str(item.id) == candidate.training_input.ref_id
             )
             if row.content.get("kind") != "dataset":
                 raise ValueError("model input must be a Dataset ArtifactVersion")
+        snapshots_by_id = {str(row.id): row for row in snapshots}
+        for admission in admissions:
+            snapshot = snapshots_by_id.get(admission.source_snapshot_id)
+            if snapshot is None or (
+                snapshot.source_id != admission.source_id
+                or snapshot.content_hash != admission.source_snapshot_content_hash
+                or snapshot.query_hash != admission.query_hash
+                or snapshot.retrieved_at != admission.retrieved_at
+            ):
+                raise ValueError(
+                    "source-table admission is not bound to its persisted SourceSnapshot"
+                )
 
     return validate
 
 
 def _quality_validator(
     candidate: ScientificCandidate,
-    contract: ResearchContractInput,
+    contract: ResearchContract,
 ):
     def validate(context: ArtifactAdmissionContext) -> None:
         if context.candidate is not candidate:
@@ -341,8 +381,72 @@ def _quality_validator(
         )
         if any(item.status not in {"completed", "partial"} for item in executions):
             raise ValueError("scientific Artifact contains a non-publishable execution")
+        if isinstance(candidate, AnalysisReportArtifactContent):
+            for admission in candidate.source_table_admissions:
+                _validate_source_table_admission(candidate, contract, admission)
 
     return validate
+
+
+def _validate_source_table_admission_cardinality(
+    output: ScientificStepOutput,
+) -> None:
+    admissions = tuple(
+        admission
+        for candidate in output.artifact_candidates
+        if isinstance(candidate, AnalysisReportArtifactContent)
+        for admission in candidate.source_table_admissions
+    )
+    expected = 1 if output.skill_id is ScientificSkillId.gaia_cone_search else 0
+    if len(admissions) != expected:
+        raise PublicationAdmissionError(
+            "scientific source-table admission cardinality disagrees with the skill"
+        )
+
+
+def _validate_source_table_admission(
+    candidate: AnalysisReportArtifactContent,
+    contract: ResearchContract,
+    admission: SourceTableAdmission,
+) -> None:
+    if admission.overall_status is not QualityGateStatus.pass_:
+        raise ValueError(
+            "source table did not pass the Contract quality gate: "
+            + admission.source_result_status
+        )
+    if (
+        admission.research_contract_id != contract.id
+        or admission.research_contract_version != contract.version
+        or admission.research_contract_content_hash != contract.content_hash
+    ):
+        raise ValueError("source-table admission is not bound to this Contract")
+    replay_source_table_admission(admission, contract=contract)
+    if admission.source_snapshot_id not in candidate.source_snapshot_ids:
+        raise ValueError("source-table admission snapshot is outside the Artifact")
+    cell_evidence_ids = tuple(cell.evidence_id for cell in admission.cells)
+    if not cell_evidence_ids or not set(cell_evidence_ids) <= set(
+        candidate.evidence_ids
+    ):
+        raise ValueError("source-table cell Evidence is incomplete")
+    blocks = tuple(
+        block
+        for block in candidate.result_blocks
+        if block.evidence_ids == tuple(sorted(cell_evidence_ids))
+    )
+    if len(blocks) != 1:
+        raise ValueError("source-table admission does not close one result table")
+    if blocks[0].payload != source_table_result_payload(admission):
+        raise ValueError("source-table result payload drifted from its admission")
+    evidence_by_id = {item.evidence_id: item for item in candidate.scientific_evidence}
+    for cell in admission.cells:
+        evidence = evidence_by_id.get(cell.evidence_id)
+        if evidence is None or (
+            evidence.target_id != blocks[0].block_id
+            or evidence.source_snapshot_id != admission.source_snapshot_id
+            or evidence.locator != cell.locator.model_dump(mode="json")
+            or evidence.quote_or_value != cell.canonical_value
+        ):
+            raise ValueError("source-table cell Evidence locator drifted")
 
 
 def _referenced_artifact_versions(candidate: ScientificCandidate) -> Iterable[str]:

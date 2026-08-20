@@ -44,7 +44,7 @@ _SOURCE_METADATA: dict[ScientificSkillId, tuple[str, str, str]] = {
         "JPL DE421 ephemeris distributed by skyfield-data and evaluated with Skyfield.",
     ),
     ScientificSkillId.gaia_cone_search: (
-        "esa_gaia_dr3",
+        "esa_gaia_dr3.gaiadr3.gaia_source",
         "remote_catalog_service",
         "ESA Gaia Archive DR3 TAP service; Gaia data use and attribution rules apply.",
     ),
@@ -143,6 +143,9 @@ class DatabaseScientificSourceRecorder:
                     ScientificSourceReference(
                         source_snapshot_id=str(snapshot_id),
                         content_hash=source.content_hash,
+                        source_id=source.source_id,
+                        query_hash=query_hash,
+                        retrieved_at=source.retrieved_at,
                     )
                 )
         return tuple(references)
@@ -159,7 +162,9 @@ def _scientific_source_snapshot_id(
     """Identify one physical retrieval, even when its bytes match an older result."""
 
     if retrieved_at.tzinfo is None:
-        raise ValueError("scientific SourceSnapshot retrieved_at must be timezone-aware")
+        raise ValueError(
+            "scientific SourceSnapshot retrieved_at must be timezone-aware"
+        )
     retrieved_at_utc = retrieved_at.astimezone(UTC).isoformat()
     return uuid5(
         NAMESPACE_URL,

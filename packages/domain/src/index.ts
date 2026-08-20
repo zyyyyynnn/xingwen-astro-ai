@@ -105,6 +105,7 @@ export type {
   RepairCheckpointContext,
   RepairCheckpointDecisionRequest,
   RepairDecisionInput,
+  RepairCandidateSummary,
   RepairDefect,
   RepairEvidenceFact,
   RepairOutcome,

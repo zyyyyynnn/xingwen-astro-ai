@@ -60,9 +60,7 @@ _TYPE_MIME_FAMILIES: dict[ResearchInputType, tuple[str, ...]] = {
 _FILENAME_EXTENSION_MIME: dict[str, tuple[str, ...]] = {
     "pdf": ("application/pdf",),
     "csv": ("text/csv",),
-    "xlsx": (
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    ),
+    "xlsx": ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",),
     "parquet": ("application/vnd.apache.parquet",),
     "fits": ("application/fits", "image/fits"),
     "fit": ("application/fits", "image/fits"),
@@ -72,6 +70,8 @@ _FILENAME_EXTENSION_MIME: dict[str, tuple[str, ...]] = {
     "jpg": ("image/jpeg",),
     "jpeg": ("image/jpeg",),
     "gif": ("image/gif",),
+    "tif": ("image/tiff",),
+    "tiff": ("image/tiff",),
     "webp": ("image/webp",),
     "zip": ("application/zip",),
     "txt": ("text/plain",),
@@ -147,15 +147,18 @@ def sniff_mime_type(content: bytes) -> str | None:
         if _has_xlsx_identity(content):
             return None
         return _sniff_zip_mime(content)
-    if content.startswith(
-        (
-            b"\x1f\x8b",  # gzip
-            b"BZh",  # bzip2
-            b"7z\xbc\xaf\x27\x1c",
-            b"Rar!\x1a\x07",
-            b"!<arch>\n",  # Unix ar archives
+    if (
+        content.startswith(
+            (
+                b"\x1f\x8b",  # gzip
+                b"BZh",  # bzip2
+                b"7z\xbc\xaf\x27\x1c",
+                b"Rar!\x1a\x07",
+                b"!<arch>\n",  # Unix ar archives
+            )
         )
-    ) or (len(content) >= 262 and content[257:262] == b"ustar"):
+        or (len(content) >= 262 and content[257:262] == b"ustar")
+    ):
         return None
     if content.startswith(b"%PDF"):
         return "application/pdf"
@@ -169,6 +172,8 @@ def sniff_mime_type(content: bytes) -> str | None:
         return "image/jpeg"
     if content.startswith((b"GIF87a", b"GIF89a")):
         return "image/gif"
+    if content.startswith((b"II\x2a\x00", b"MM\x00\x2a")):
+        return "image/tiff"
     if len(content) >= 12 and content.startswith(b"RIFF") and content[8:12] == b"WEBP":
         return "image/webp"
     stripped = content.lstrip(b"\xef\xbb\xbf \t\r\n")
@@ -242,7 +247,9 @@ def _has_xlsx_identity(content: bytes) -> bool:
 
     try:
         with ZipFile(BytesIO(content)) as archive:
-            names = {member.filename.replace("\\", "/") for member in archive.infolist()}
+            names = {
+                member.filename.replace("\\", "/") for member in archive.infolist()
+            }
     except (BadZipFile, OSError, ValueError):
         return False
     return _XLSX_REQUIRED_MEMBERS.issubset(names)
@@ -375,7 +382,9 @@ def _looks_like_text(content: bytes) -> bool:
     sample = content[:4096]
     if not sample:
         return False
-    binary_bytes = sum(1 for byte in sample if byte < 9 or 13 < byte < 32 or byte == 127)
+    binary_bytes = sum(
+        1 for byte in sample if byte < 9 or 13 < byte < 32 or byte == 127
+    )
     return binary_bytes * 20 < len(sample)
 
 

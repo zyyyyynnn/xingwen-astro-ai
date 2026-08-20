@@ -39,14 +39,11 @@ function displayValue(value: ScientificTableScalar): string {
 
 function Cell({ cell }: { readonly cell: ScientificTableCell | undefined }) {
   if (!cell) return <>—</>;
-  if (cell.status === "missing" || cell.status === "unresolved") {
+  if (cell.status === "missing") return <>—</>;
+  if (cell.status === "unresolved") {
     return (
       <span className="inline-flex items-center gap-1">
-        <Badge
-          variant={cell.status === "unresolved" ? "destructive" : "outline"}
-        >
-          {cell.status === "unresolved" ? "未解析" : "空值"}
-        </Badge>
+        <Badge variant="destructive">未解析</Badge>
         {cell.reason ? (
           <small className="text-xs text-[var(--oh-muted)]">
             {cell.reason}
