@@ -314,7 +314,9 @@ class RevisionApplicationService:
                 for _, version in latest_rows
                 if version.created_by_run_id == parent.id
             )
-            producer_ids = {version.producer_execution_id for version in parent_versions}
+            producer_ids = {
+                version.producer_execution_id for version in parent_versions
+            }
             producers = tuple(
                 session.scalars(
                     select(ProducerExecutionModel).where(
@@ -342,9 +344,7 @@ class RevisionApplicationService:
                 return step.key
 
             baseline_step_keys = {
-                producer_step_key(
-                    baseline_by_id[feedback.baseline_artifact_version_id]
-                )
+                producer_step_key(baseline_by_id[feedback.baseline_artifact_version_id])
                 for feedback in ordered_feedback
             }
             affected_step_keys = set(baseline_step_keys)
@@ -414,6 +414,11 @@ class RevisionApplicationService:
             recompute_steps = tuple(
                 step.key for step in parent_steps if step.key in affected_step_keys
             )
+            if len(recompute_steps) < 2:
+                raise _conflict(
+                    "REVISION_BASELINE_OUTSIDE_CONTRACT",
+                    "A Feedback baseline has no recomputable parent RunStep",
+                )
             plan_payload = {
                 "project_id": str(project.id),
                 "parent_run_id": str(parent.id),
