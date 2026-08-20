@@ -118,6 +118,16 @@
   --oh-status-error: var(--color-error);
 }
 
+.ui-text-label {
+  font-size: var(--font-size-ui-label);
+  line-height: var(--line-height-ui-label);
+}
+
+.ui-text-body {
+  font-size: var(--font-size-ui-body);
+  line-height: var(--line-height-ui-body);
+}
+
 * {
   box-sizing: border-box;
 }

@@ -325,8 +325,10 @@ PaddleOCR-VL endpoint supplies visual page parsing. The parser result enters the
 single DocumentParse persistence and paper-summary path; it does not introduce a
 second workflow, Publisher or Evidence model. Missing visual configuration or a
 failed visual request fails closed for image documents and remains explicit on
-routed PDF pages. The paper-summary document-source read reuses this persisted
-DocumentParse boundary: it reloads the canonical candidate from CAS, checks the
-persisted SourceSnapshot and frozen parser identity, and validates every locator
-and quoted text span before resolving the ResearchInput. HTML parsing and plot
+routed PDF pages. The single asynchronous paper-summary read boundary reloads
+the canonical candidate from CAS, checks the persisted SourceSnapshot and
+frozen parser identity, and validates every locator and quoted text span before
+any summary, export, downstream Literature/Graph projection, Feedback target or
+document-source result is returned. The document-source endpoint only resolves
+the ResearchInput after that shared read succeeds. HTML parsing and plot
 digitization remain outside this contract.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import replace
 from datetime import UTC, datetime
 
@@ -42,6 +43,7 @@ def fixture() -> LiteratureFixture:
 def _client(fixture: LiteratureFixture, *, owner: bool = True) -> TestClient:
     app = create_app()
     app.state.artifact_read_service = fixture.artifacts  # type: ignore[assignment]
+    app.state.paper_summary_read_service = fixture.artifacts.paper_summary_reader
     session, credential, _ = app.state.session_service.create(now=datetime.now(UTC))
     session_id = "owner" if owner else "other"
     app.state.session_service.store.put(replace(session, id=session_id))
@@ -53,13 +55,18 @@ def _client(fixture: LiteratureFixture, *, owner: bool = True) -> TestClient:
 def test_claim_read_is_version_pinned_and_closes_summary_evidence(
     fixture: LiteratureFixture,
 ) -> None:
-    service = LiteratureArtifactReadService(fixture.artifacts)  # type: ignore[arg-type]
-    items, cursor, has_more = service.list_claims(
-        version_id=fixture.claim_version_ids[0],
-        session_id="owner",
-        status=LiteratureClaimStatus.accepted,
-        cursor=None,
-        limit=20,
+    service = LiteratureArtifactReadService(
+        fixture.artifacts,  # type: ignore[arg-type]
+        paper_summary_reader=fixture.artifacts.paper_summary_reader,  # type: ignore[arg-type]
+    )
+    items, cursor, has_more = asyncio.run(
+        service.list_claims(
+            version_id=fixture.claim_version_ids[0],
+            session_id="owner",
+            status=LiteratureClaimStatus.accepted,
+            cursor=None,
+            limit=20,
+        )
     )
 
     assert len(items) == 1
@@ -248,6 +255,7 @@ def test_unknown_literature_objects_return_non_disclosing_404(
         "REASONING_TRACE_NOT_FOUND",
     )
 
+
 def test_claim_read_rejects_upstream_summary_runtime_drift(
     fixture: LiteratureFixture,
 ) -> None:
@@ -260,8 +268,7 @@ def test_claim_read_rejects_upstream_summary_runtime_drift(
     )
     try:
         response = _client(fixture).get(
-            f"/api/artifact-versions/{fixture.claim_version_ids[0]}"
-            "/literature-claims"
+            f"/api/artifact-versions/{fixture.claim_version_ids[0]}/literature-claims"
         )
         assert response.status_code == 403
         assert response.json()["code"] == "PROVENANCE_SCOPE_VIOLATION"
@@ -320,32 +327,40 @@ def test_relation_endpoint_versions_are_bound_to_the_claim_registry(
 def test_literature_service_get_relations_batch_projections(
     fixture: LiteratureFixture,
 ) -> None:
-    service = LiteratureArtifactReadService(fixture.artifacts)
+    service = LiteratureArtifactReadService(
+        fixture.artifacts,  # type: ignore[arg-type]
+        paper_summary_reader=fixture.artifacts.paper_summary_reader,  # type: ignore[arg-type]
+    )
 
     assert (
-        service.get_relations(
-            version_id=fixture.relation_version_id,
-            relation_ids=(),
-            session_id="owner",
+        asyncio.run(
+            service.get_relations(
+                version_id=fixture.relation_version_id,
+                relation_ids=(),
+                session_id="owner",
+            )
         )
         == {}
     )
 
     relation_id = fixture.accepted_relation_id
-    result = service.get_relations(
-        version_id=fixture.relation_version_id,
-        relation_ids=[relation_id],
-        session_id="owner",
+    result = asyncio.run(
+        service.get_relations(
+            version_id=fixture.relation_version_id,
+            relation_ids=[relation_id],
+            session_id="owner",
+        )
     )
     assert relation_id in result
     assert result[relation_id].relation.relation_id == relation_id
 
     with pytest.raises(SecurityProblem) as exc_info:
-        service.get_relations(
-            version_id=fixture.relation_version_id,
-            relation_ids=["missing_relation_id"],
-            session_id="owner",
+        asyncio.run(
+            service.get_relations(
+                version_id=fixture.relation_version_id,
+                relation_ids=["missing_relation_id"],
+                session_id="owner",
+            )
         )
     assert exc_info.value.status == 404
     assert exc_info.value.code == "LITERATURE_RELATION_NOT_FOUND"
-

@@ -426,21 +426,45 @@ def test_document_parse_summary_is_readable_and_exportable() -> None:
     summary = execution.admission.summary
     assert summary is not None
     read_service = PaperSummaryReadService(
-        _PublishedSummaryArtifacts(_published_summary_version(summary))
+        _PublishedSummaryArtifacts(_published_summary_version(summary)),
+        document_parses=_DocumentParses(),
     )
 
-    read = read_service.get_summary(
-        version_id=_VERSION_ID,
-        session_id=_SESSION_ID,
+    read = asyncio.run(
+        read_service.get_summary(
+            version_id=_VERSION_ID,
+            session_id=_SESSION_ID,
+        )
     )
-    download = PaperSummaryExportService(read_service).export(
-        version_id=_VERSION_ID,
-        session_id=_SESSION_ID,
-        export_format="json",
+    download = asyncio.run(
+        PaperSummaryExportService(read_service).export(
+            version_id=_VERSION_ID,
+            session_id=_SESSION_ID,
+            export_format="json",
+        )
     )
 
     assert read.paper == summary.paper
     assert b'"title": "Transit Study"' in download.content
+
+
+def test_document_parse_summary_fails_closed_without_persisted_parse_reader() -> None:
+    execution = DocumentSummaryService(_Model()).execute(_request())
+    summary = execution.admission.summary
+    assert summary is not None
+    read_service = PaperSummaryReadService(
+        _PublishedSummaryArtifacts(_published_summary_version(summary))
+    )
+
+    with pytest.raises(SecurityProblem) as exc_info:
+        asyncio.run(
+            read_service.get_summary(
+                version_id=_VERSION_ID,
+                session_id=_SESSION_ID,
+            )
+        )
+
+    assert exc_info.value.code == "PROVENANCE_SCOPE_VIOLATION"
 
 
 def test_document_image_summary_returns_its_authorized_source() -> None:
@@ -498,7 +522,7 @@ def test_document_source_rejects_document_parse_provenance_drift() -> None:
     assert exc_info.value.code == "PROVENANCE_SCOPE_VIOLATION"
 
 
-def test_document_source_rejects_frozen_parse_identity_drift() -> None:
+def test_summary_read_rejects_frozen_parse_identity_drift() -> None:
     execution = DocumentSummaryService(_Model()).execute(_request())
     summary = execution.admission.summary
     assert summary is not None
@@ -514,20 +538,14 @@ def test_document_source_rejects_frozen_parse_identity_drift() -> None:
     payload["output_hash"] = output_hash
     payload["producer"]["output_hash"] = output_hash
     drifted = PaperSummaryArtifactContent.model_validate(payload)
-    pdf = _document_input_record(
-        input_type=ResearchInputType.pdf,
-        mime_type="application/pdf",
-        filename="transit-study.pdf",
-    )
     read_service = PaperSummaryReadService(
         _PublishedSummaryArtifacts(_published_summary_version(drifted)),
-        research_input_resolver=_research_input_by_identity(_ResearchInputs(pdf)),
         document_parses=_DocumentParses(),
     )
 
     with pytest.raises(SecurityProblem) as exc_info:
         asyncio.run(
-            read_service.get_document_source(
+            read_service.get_summary(
                 version_id=_VERSION_ID,
                 session_id=_SESSION_ID,
             )

@@ -25,6 +25,7 @@ from app.schemas.paper_summary_api import (
 from app.schemas.core import ArtifactVersionDetail, SourceMode, SourceSnapshotDetail
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
+from app.services.content_storage import ContentStorageError
 from app.services.document_parse_store import (
     DocumentParseError,
     DocumentParseSourceSnapshot,
@@ -71,6 +72,14 @@ class DocumentParseReadPort(Protocol):
     ) -> DocumentParseSourceSnapshot: ...
 
 
+class PaperSummaryReadPort(Protocol):
+    """Read one exact PaperSummary through the complete provenance boundary."""
+
+    async def get_summary(
+        self, *, version_id: str, session_id: str
+    ) -> PaperSummaryRead: ...
+
+
 class PaperSummaryReadService:
     """Validate and project PaperSummary Pipeline content without repeating pipeline logic."""
 
@@ -87,7 +96,9 @@ class PaperSummaryReadService:
         self._research_input_resolver = research_input_resolver
         self._document_parses = document_parses
 
-    def get_summary(self, *, version_id: str, session_id: str) -> PaperSummaryRead:
+    async def get_summary(
+        self, *, version_id: str, session_id: str
+    ) -> PaperSummaryRead:
         version = self._artifacts.get_version(
             version_id=version_id, session_id=session_id
         )
@@ -137,6 +148,7 @@ class PaperSummaryReadService:
                 summary,
                 expected_snapshot_keys,
             )
+            await self._validate_document_parse(summary, version.project_id)
             cache_audits = ()
         return PaperSummaryRead(
             artifact_version_id=version.id,
@@ -166,7 +178,7 @@ class PaperSummaryReadService:
         Never infers a document from title, DOI, candidate order, or list order.
         """
 
-        read = self.get_summary(version_id=version_id, session_id=session_id)
+        read = await self.get_summary(version_id=version_id, session_id=session_id)
         summary = read.summary
         if summary.input_versions.paper_collection_version_id is not None:
             if self._pdf_source_resolver is None:
@@ -182,28 +194,9 @@ class PaperSummaryReadService:
             if record is None:
                 return PaperSummaryDocumentSourceRead(research_input=None)
             return PaperSummaryDocumentSourceRead(research_input=record.to_ref())
-        if self._research_input_resolver is None or self._document_parses is None:
+        if self._research_input_resolver is None:
             return PaperSummaryDocumentSourceRead(research_input=None)
         (parse_reference,) = summary.input_versions.document_parses
-        try:
-            project_id = UUID(str(read.project_id))
-            document_parse_id = UUID(str(parse_reference.document_parse_id))
-            candidate = await self._document_parses.get_candidate(
-                project_id=project_id,
-                document_parse_id=document_parse_id,
-            )
-            source_snapshot = self._document_parses.source_snapshot(
-                project_id=project_id,
-                document_parse_id=document_parse_id,
-            )
-            _validate_document_parse_closure(
-                summary=summary,
-                reference=parse_reference,
-                candidate=candidate,
-                source_snapshot=source_snapshot,
-            )
-        except (DocumentParseError, ValueError) as exc:
-            raise _provenance_problem() from exc
         record = self._research_input_resolver(
             session_id=session_id,
             project_id=str(read.project_id),
@@ -213,6 +206,34 @@ class PaperSummaryReadService:
         if record is None:
             return PaperSummaryDocumentSourceRead(research_input=None)
         return PaperSummaryDocumentSourceRead(research_input=record.to_ref())
+
+    async def _validate_document_parse(
+        self, summary: PaperSummaryArtifactContent, project_id: str
+    ) -> None:
+        """Replay the persisted parse closure for every document-backed read."""
+
+        if self._document_parses is None:
+            raise _provenance_problem()
+        (reference,) = summary.input_versions.document_parses
+        try:
+            project_uuid = UUID(str(project_id))
+            document_parse_id = UUID(str(reference.document_parse_id))
+            candidate = await self._document_parses.get_candidate(
+                project_id=project_uuid,
+                document_parse_id=document_parse_id,
+            )
+            source_snapshot = self._document_parses.source_snapshot(
+                project_id=project_uuid,
+                document_parse_id=document_parse_id,
+            )
+            _validate_document_parse_closure(
+                summary=summary,
+                reference=reference,
+                candidate=candidate,
+                source_snapshot=source_snapshot,
+            )
+        except (ContentStorageError, DocumentParseError, ValueError) as exc:
+            raise _provenance_problem() from exc
 
     def _validated_summary(
         self, version: ArtifactVersionDetail
@@ -595,4 +616,4 @@ def _problem(status: int, code: str, title: str, detail: str) -> SecurityProblem
     return SecurityProblem(status=status, code=code, title=title, detail=detail)
 
 
-__all__ = ["PaperSummaryReadService"]
+__all__ = ["PaperSummaryReadPort", "PaperSummaryReadService"]

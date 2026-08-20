@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -32,6 +33,7 @@ from app.schemas.literature_relation import (
 )
 from app.security import SecurityProblem
 from app.services.graph_artifacts import GraphArtifactReadService
+from app.services.literature_artifacts import LiteratureArtifactReadService
 
 FORGED_HASH = f"sha256:{'0' * 64}"
 
@@ -49,7 +51,14 @@ def _service(fixture: GraphReadFixture) -> GraphArtifactReadService:
     ArtifactVersion; the whole upstream relation closure must be readable.
     """
 
-    return GraphArtifactReadService(fixture.artifacts)  # type: ignore[arg-type]
+    literature = LiteratureArtifactReadService(
+        fixture.artifacts,  # type: ignore[arg-type]
+        paper_summary_reader=fixture.artifacts.paper_summary_reader,  # type: ignore[arg-type]
+    )
+    return GraphArtifactReadService(
+        fixture.artifacts,  # type: ignore[arg-type]
+        literature_reader=literature,
+    )
 
 
 def test_graph_metadata_and_node_page_are_version_pinned(
@@ -104,13 +113,15 @@ def test_graph_cursor_is_bound_to_filter_scope(
 def test_graph_structural_edge_projects_evidence_and_snapshot(
     read_fixture: GraphReadFixture,
 ) -> None:
-    edges, _, _ = _service(read_fixture).list_edges(
-        version_id=read_fixture.graph_version_id,
-        session_id="owner",
-        edge_type=GraphEdgeType.supports_finding,
-        node_id=None,
-        cursor=None,
-        limit=100,
+    edges, _, _ = asyncio.run(
+        _service(read_fixture).list_edges(
+            version_id=read_fixture.graph_version_id,
+            session_id="owner",
+            edge_type=GraphEdgeType.supports_finding,
+            node_id=None,
+            cursor=None,
+            limit=100,
+        )
     )
 
     assert edges
@@ -248,9 +259,7 @@ def test_graph_read_rejects_a_forged_input_version_pin(
     content = json.loads(json.dumps(original.content))
     reference = content["input_versions"]["versions"][0]
     reference[field] = (
-        reference["version_number"] + 1
-        if field == "version_number"
-        else FORGED_HASH
+        reference["version_number"] + 1 if field == "version_number" else FORGED_HASH
     )
     content["input_hash"] = compute_graph_input_hash(content)
     content["scientific_hash"] = compute_graph_scientific_hash(content)
@@ -289,6 +298,7 @@ def test_graph_read_rejects_a_forged_input_version_pin(
 def _client(fixture: GraphReadFixture, *, owner: bool = True) -> TestClient:
     app = create_app()
     app.state.artifact_read_service = fixture.artifacts  # type: ignore[assignment]
+    app.state.paper_summary_read_service = fixture.artifacts.paper_summary_reader
     session, credential, _ = app.state.session_service.create(now=datetime.now(UTC))
     app.state.session_service.store.put(
         replace(session, id="owner" if owner else "other")
@@ -506,9 +516,7 @@ def test_graph_filters_bound_pagination_and_stable_progressive_ordering(
     )
     assert claims.status_code == 200
     assert claims.json()["data"]
-    assert all(
-        item["node"]["node_type"] == "claim" for item in claims.json()["data"]
-    )
+    assert all(item["node"]["node_type"] == "claim" for item in claims.json()["data"])
 
     structural = client.get(
         _graph_path(read_fixture, "/edges"),
@@ -534,9 +542,7 @@ def test_graph_filters_bound_pagination_and_stable_progressive_ordering(
     }
 
     assert (
-        client.get(
-            _graph_path(read_fixture, "/nodes"), params={"limit": 0}
-        ).status_code
+        client.get(_graph_path(read_fixture, "/nodes"), params={"limit": 0}).status_code
         == 422
     )
     assert (
@@ -588,7 +594,9 @@ def test_graph_cursor_reuse_across_artifact_versions_is_rejected(
     first = read_fixture.graph_version_id
     second = read_fixture.second_graph_version_id
     assert first != second
-    assert read_fixture.second_graph_version.content == read_fixture.graph_version.content
+    assert (
+        read_fixture.second_graph_version.content == read_fixture.graph_version.content
+    )
 
     def page(version_id: str, cursor: str | None = None) -> dict[str, object]:
         params: dict[str, object] = {"limit": 1}
@@ -641,9 +649,7 @@ def test_unknown_graph_objects_return_non_disclosing_404(
 def test_graph_reads_reject_a_non_graph_artifact_kind(
     read_fixture: GraphReadFixture,
 ) -> None:
-    path = (
-        f"/api/artifact-versions/{read_fixture.relation_version_id}/graph"
-    )
+    path = f"/api/artifact-versions/{read_fixture.relation_version_id}/graph"
     response = _client(read_fixture).get(path)
 
     assert response.status_code == 409
@@ -692,9 +698,9 @@ def test_graph_cursor_invalid_base64_characters_rejected(
     read_fixture: GraphReadFixture,
 ) -> None:
     client = _client(read_fixture)
-    valid_cursor = client.get(
-        _graph_path(read_fixture, "/nodes?limit=1")
-    ).json()["page"]["next_cursor"]
+    valid_cursor = client.get(_graph_path(read_fixture, "/nodes?limit=1")).json()[
+        "page"
+    ]["next_cursor"]
     assert valid_cursor is not None
 
     invalid_cursor = valid_cursor + "!!!!"
@@ -757,7 +763,8 @@ def test_graph_cursor_deterministic_round_trip_without_delimiter_ambiguity(
     last_id = next(
         candidate
         for candidate in fixture_node_ids + fallback_last_ids
-        if b"." in hmac.new(
+        if b"."
+        in hmac.new(
             key,
             legacy_unsigned_payload(candidate),
             hashlib.sha256,
@@ -813,10 +820,12 @@ def test_graph_list_edges_resolves_literature_relations_context_once_per_page(
     call_count = 0
     original_context = LiteratureArtifactReadService._relations_context
 
-    def counting_relations_context(self: LiteratureArtifactReadService, **kwargs: Any) -> Any:
+    async def counting_relations_context(
+        self: LiteratureArtifactReadService, **kwargs: Any
+    ) -> Any:
         nonlocal call_count
         call_count += 1
-        return original_context(self, **kwargs)
+        return await original_context(self, **kwargs)
 
     monkeypatch.setattr(
         LiteratureArtifactReadService,
@@ -830,8 +839,12 @@ def test_graph_list_edges_resolves_literature_relations_context_once_per_page(
     edges = response.json()["data"]
     literature_edges = [item for item in edges if item["relation"] is not None]
 
-    assert len(literature_edges) >= 2, "Multi-relation fixture must return >= 2 literature edges"
-    assert call_count == 1, "Single list_edges page must resolve LiteratureRelations context exactly once"
+    assert len(literature_edges) >= 2, (
+        "Multi-relation fixture must return >= 2 literature edges"
+    )
+    assert call_count == 1, (
+        "Single list_edges page must resolve LiteratureRelations context exactly once"
+    )
 
     expected_bindings = {
         edge.edge_id: edge.relation_trace
@@ -856,17 +869,9 @@ def test_graph_list_edges_resolves_literature_relations_context_once_per_page(
         relation = item["relation"]
         assert relation is not None
         assert relation["relation"]["relation_id"] == binding["relation_id"]
-        assert (
-            relation["relation"]["source_claim_id"]
-            == binding["source_claim_id"]
-        )
-        assert (
-            relation["relation"]["target_claim_id"]
-            == binding["target_claim_id"]
-        )
-        assert relation["reasoning_trace"]["trace_id"] == binding[
-            "reasoning_trace_id"
-        ]
+        assert relation["relation"]["source_claim_id"] == binding["source_claim_id"]
+        assert relation["relation"]["target_claim_id"] == binding["target_claim_id"]
+        assert relation["reasoning_trace"]["trace_id"] == binding["reasoning_trace_id"]
         assert item["relation"]["graph_eligible"] is True
 
     original_version = fixture.artifacts.versions[fixture.graph_version_id]

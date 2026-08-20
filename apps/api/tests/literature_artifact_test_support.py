@@ -35,9 +35,7 @@ from services.paper_pipeline.relation_benchmark_cases import (
 )
 
 NOW = datetime(2026, 8, 1, 8, 0, tzinfo=UTC)
-PROJECT_ID = str(
-    uuid5(NAMESPACE_URL, "xingwen.literature-relation-benchmark:project")
-)
+PROJECT_ID = str(uuid5(NAMESPACE_URL, "xingwen.literature-relation-benchmark:project"))
 RUN_ID = str(uuid5(NAMESPACE_URL, "xingwen.literature-benchmark:run"))
 
 
@@ -82,14 +80,15 @@ class FixtureArtifactReads:
         return self.artifacts[artifact_id]
 
 
-
 class FixturePaperSummaryReads:
     """Test-only Summary envelope validator for frozen paper acquisition benchmark inputs."""
 
     def __init__(self, artifacts: FixtureArtifactReads) -> None:
         self._artifacts = artifacts
 
-    def get_summary(self, *, version_id: str, session_id: str) -> PaperSummaryRead:
+    async def get_summary(
+        self, *, version_id: str, session_id: str
+    ) -> PaperSummaryRead:
         version = self._artifacts.get_version(
             version_id=version_id,
             session_id=session_id,
@@ -105,8 +104,7 @@ class FixturePaperSummaryReads:
             artifact.kind.value != "paper_summary"
             or artifact.project_id != version.project_id
             or version.schema_version != summary.schema_version
-            or version.content_hash
-            != compute_canonical_payload_hash(version.content)
+            or version.content_hash != compute_canonical_payload_hash(version.content)
             or version.input_hash != summary.input_hash
             or runtime.run_id != version.created_by_run_id
             or runtime.step_key != producer.step_key

@@ -185,7 +185,7 @@ function FieldDictionaryTable({
   );
   return (
     <div className="data-artifact__table-scroll overflow-x-auto my-2 border rounded border-[var(--oh-border)]">
-      <table className="w-full text-xs text-left border-collapse">
+      <table className="ui-text-body w-full text-left border-collapse">
         <caption className="sr-only">规范字段定义、单位与来源映射</caption>
         <thead>
           <tr className="border-b bg-[var(--oh-surface-subtle)] border-[var(--oh-border)]">
@@ -221,7 +221,7 @@ function FieldDictionaryTable({
               <td className="p-2">
                 {field.dataType}
                 {field.canonicalUnit ? ` · ${field.canonicalUnit}` : ""}
-                <div className="mt-0.5 text-xs text-[var(--oh-muted)]">
+                <div className="ui-text-label mt-0.5 text-[var(--oh-muted)]">
                   {field.required ? "必填" : "可选"} ·{" "}
                   {field.nullable ? "可为空" : "不可为空"}
                 </div>
@@ -286,7 +286,7 @@ function SourceCollectionTable({
   const members = review.members.slice(0, SURFACE_LIMITS[surface].fields);
   return (
     <div className="data-artifact__table-scroll overflow-x-auto my-2 border rounded border-[var(--oh-border)]">
-      <table className="w-full text-xs text-left border-collapse">
+      <table className="ui-text-body w-full text-left border-collapse">
         <caption className="sr-only">数据产物使用的来源与记录数量</caption>
         <thead>
           <tr className="border-b bg-[var(--oh-surface-subtle)] border-[var(--oh-border)]">

@@ -88,7 +88,7 @@ Assistant Message 由服务端基于真实已验证完成结果（`result.public
 ## 4.2 waiting_for_input、取消、重试与修订闭环
 
 - `waiting_for_input` 使用同一 Run 等待人工输入。Checkpoint 由 `RunCheckpoint`（run、step_key、question、options、created_at）与 `RunCheckpointDecision`（selected_option、可空 free_text、decided_at）持久化；Decision 不可变，提交后原子恢复同一 Run 到合法可执行状态，不创建新 Run、新 Contract 或第二套 review runtime。Checkpoint 的通用生命周期属于 Workspace 基础：等待表现、持久化读取、不可变决策、同 Run 恢复与共享 Choice 交互原语由通用运行时唯一提供；具体科学触发时机、科学问题与选项内容以及决策对科学执行的影响由科学能力集成通过同一机制接入，不得另建第二套 checkpoint 运行时。
-- 同一 Project 同时最多一个 non-terminal ResearchRun（服务端规则，不由前端按钮保证）：Application Service 返回用户友好 `409`，PostgreSQL partial unique index 是权威并发围栏。Retry / Revision 派生创建时，父 Run 必须已处于允许派生的稳定状态。
+- 同一 Project 同时最多一个 non-terminal ResearchRun（服务端规则，不由前端按钮保证）：唯一 Workflow Store writer 先锁定对应 Project 聚合根行，在同一事务中重放幂等请求并完成 active Run 准入；Application Service 返回用户友好 `409`，PostgreSQL partial unique index 保留为最终并发围栏。Retry / Revision 派生创建时，父 Run 必须已处于允许派生的稳定状态。
 - 取消必须以条件写入将 Run、未完成 Step 与运行中的 Attempt 一致推进为 `cancelled`，追加单调 Event，并拒绝取消后的晚到产物。重复取消终态 Run 保持幂等。已发布 ArtifactVersion、Thread、Event 与 Evidence 保留。
 - 自动 retry 只处理受治理的瞬时失败（bounded retry），耗尽后才对用户可见；人工 retry 沿用 retry derivation（`parent_run_id`、`derivation_kind=retry`、`retry_from_step`），只从真实 retryable failed step 建立，保留历史 Attempt，不原地覆盖失败尝试，不修改原 Run history。
 - Revision 由 UserFeedback 与已确认 RevisionPlan 驱动，确认后才产生 revision Run；运行中修改请求不静默修改当前 Run。

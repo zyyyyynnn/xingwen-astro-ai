@@ -168,11 +168,6 @@ def _configure_database_runtime(
             grace_seconds=settings.MODEL_EXECUTION_LEASE_GRACE_SECONDS,
         ),
     )
-    app.state.revision_service = RevisionApplicationService(
-        factory=factory,
-        workflow_store=workflow_store,
-        target_authority=FeedbackTargetAuthority(artifact_read_service),
-    )
     app.state.research_run_worker = None
     if settings.APP_ENV.lower() not in {"test", "integration"}:
         app.state.research_run_worker = ResearchRunWorker(
@@ -220,6 +215,7 @@ def create_app() -> FastAPI:
     app.state.db_session_factory = None
     app.state.content_storage = None
     app.state.document_parse_service = None
+    app.state.paper_summary_read_service = None
     _, database_session_factory, resource_authority = _configure_database_runtime(app)
 
     if database_session_factory is not None:
@@ -326,6 +322,7 @@ def create_app() -> FastAPI:
             DocumentParseService,
         )
         from app.services.paper_collections import PaperCollectionReadService
+        from app.services.paper_summaries import PaperSummaryReadService
 
         candidate_repository = PaperCandidateInputRepository(
             database_session_factory, lease_ttl=lease_ttl
@@ -345,6 +342,18 @@ def create_app() -> FastAPI:
         app.state.document_parse_service = DocumentParseService(
             DocumentParseRepository(database_session_factory),
             app.state.content_storage,
+        )
+        app.state.paper_summary_read_service = PaperSummaryReadService(
+            app.state.artifact_read_service,
+            document_parses=app.state.document_parse_service,
+        )
+        app.state.revision_service = RevisionApplicationService(
+            factory=database_session_factory,
+            workflow_store=app.state.workflow_store,
+            target_authority=FeedbackTargetAuthority(
+                app.state.artifact_read_service,
+                paper_summary_reader=app.state.paper_summary_read_service,
+            ),
         )
 
     app.add_middleware(

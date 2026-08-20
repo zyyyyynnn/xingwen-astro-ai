@@ -9,7 +9,7 @@ from typing import Literal
 
 from app.schemas.paper_summary import PaperSummaryStatement
 from app.schemas.paper_summary_api import PaperSummaryRead
-from app.services.paper_summaries import PaperSummaryReadService
+from app.services.paper_summaries import PaperSummaryReadPort
 
 
 PaperSummaryExportFormat = Literal["json", "markdown"]
@@ -39,17 +39,17 @@ class PaperSummaryExportDownload:
 class PaperSummaryExportService:
     """Render one already-validated summary without resolving a mutable latest pointer."""
 
-    def __init__(self, summaries: PaperSummaryReadService) -> None:
+    def __init__(self, summaries: PaperSummaryReadPort) -> None:
         self._summaries = summaries
 
-    def export(
+    async def export(
         self,
         *,
         version_id: str,
         session_id: str,
         export_format: PaperSummaryExportFormat,
     ) -> PaperSummaryExportDownload:
-        read = self._summaries.get_summary(
+        read = await self._summaries.get_summary(
             version_id=version_id,
             session_id=session_id,
         )

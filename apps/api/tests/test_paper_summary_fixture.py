@@ -10,6 +10,7 @@ validation path, and intentionally broken payloads must fail validation.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import datetime
 from typing import Any
@@ -88,9 +89,7 @@ def test_artifact_version_identity_is_consistent_with_the_summary(
     read = committed_document["read"]
     assert version["content"] == read["summary"]
     assert version["content_hash"] == read["content_hash"]
-    assert version["content_hash"] == compute_canonical_payload_hash(
-        version["content"]
-    )
+    assert version["content_hash"] == compute_canonical_payload_hash(version["content"])
     assert version["input_hash"] == read["summary"]["input_hash"]
     assert version["schema_version"] == read["summary"]["schema_version"]
     producer = version["producer"]
@@ -99,10 +98,7 @@ def test_artifact_version_identity_is_consistent_with_the_summary(
     assert producer["version"] == read["summary"]["producer"]["producer_version"]
     assert producer["requested_model"] == read["summary"]["producer"]["model_name"]
     assert producer["prompt_hash"] == read["summary"]["producer"]["prompt_hash"]
-    assert (
-        producer["parameters_hash"]
-        == read["summary"]["producer"]["parameters_hash"]
-    )
+    assert producer["parameters_hash"] == read["summary"]["producer"]["parameters_hash"]
     runtime = read["producer_execution"]
     assert runtime["step_key"] == read["summary"]["producer"]["step_key"]
     assert runtime["input_hash"] == read["summary"]["input_hash"]
@@ -173,7 +169,9 @@ class _Artifacts:
             )
         return version
 
-    def get_artifact(self, *, artifact_id: str, session_id: str) -> ResearchArtifactDetail:
+    def get_artifact(
+        self, *, artifact_id: str, session_id: str
+    ) -> ResearchArtifactDetail:
         entry = self._kinds.get(artifact_id) if session_id == "owner" else None
         if entry is None:
             raise SecurityProblem(
@@ -205,9 +203,11 @@ def test_committed_read_survives_the_real_paper_summary_api_service_path(
     `_validate_snapshots_and_evidence`) accept it unchanged."""
 
     service = PaperSummaryReadService(_Artifacts(summary_version, collection_version))
-    read = service.get_summary(version_id=summary_version.id, session_id="owner")
-    assert read.model_dump(mode="json", exclude_none=False) == (
-        committed_document["read"]
+    read = asyncio.run(
+        service.get_summary(version_id=summary_version.id, session_id="owner")
+    )
+    assert (
+        read.model_dump(mode="json", exclude_none=False) == (committed_document["read"])
     )
 
 
@@ -215,12 +215,10 @@ def test_service_rejects_tampered_version_content_hash(
     summary_version: ArtifactVersionDetail,
     collection_version: ArtifactVersionDetail,
 ) -> None:
-    tampered = summary_version.model_copy(
-        update={"content_hash": "sha256:" + "0" * 64}
-    )
+    tampered = summary_version.model_copy(update={"content_hash": "sha256:" + "0" * 64})
     service = PaperSummaryReadService(_Artifacts(tampered, collection_version))
     with pytest.raises(SecurityProblem) as excinfo:
-        service.get_summary(version_id=tampered.id, session_id="owner")
+        asyncio.run(service.get_summary(version_id=tampered.id, session_id="owner"))
     assert excinfo.value.code == "PAPER_SUMMARY_SCHEMA_INVALID"
 
 
@@ -231,7 +229,7 @@ def test_service_rejects_missing_persisted_evidence(
     tampered = summary_version.model_copy(update={"evidence": (), "evidence_ids": ()})
     service = PaperSummaryReadService(_Artifacts(tampered, collection_version))
     with pytest.raises(SecurityProblem) as excinfo:
-        service.get_summary(version_id=tampered.id, session_id="owner")
+        asyncio.run(service.get_summary(version_id=tampered.id, session_id="owner"))
     assert excinfo.value.code == "PROVENANCE_SCOPE_VIOLATION"
 
 

@@ -142,7 +142,7 @@ export function ScientificTable({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <table className="w-full text-xs text-left border-collapse">
+      <table className="ui-text-body w-full text-left border-collapse">
         <caption className="sr-only">{caption}</caption>
         <thead>
           <tr className="border-b bg-[var(--oh-surface-subtle)] border-[var(--oh-border)]">
@@ -156,7 +156,7 @@ export function ScientificTable({
                 <Button
                   variant="ghost"
                   size="small"
-                  className="h-auto p-0 font-medium text-xs text-inherit"
+                  className="ui-text-body h-auto p-0 font-medium text-inherit"
                   onClick={() => toggleSort(column.key)}
                 >
                   {column.label}
@@ -191,7 +191,7 @@ export function ScientificTable({
                       <Button
                         variant="ghost"
                         size="small"
-                        className="h-auto p-0 text-inherit text-xs"
+                        className="ui-text-body h-auto p-0 text-inherit"
                         title="查看该数值的证据"
                         onClick={() => onSelectEvidence(evidenceIds)}
                       >

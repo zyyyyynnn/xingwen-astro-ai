@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import datetime, timezone
 
@@ -171,7 +172,9 @@ class _FixedReadService:
         self.requests: list[dict[str, str]] = []
         self._read = _read("00000000-0000-4000-8000-0000000000aa")
 
-    def get_summary(self, *, version_id: str, session_id: str) -> PaperSummaryRead:
+    async def get_summary(
+        self, *, version_id: str, session_id: str
+    ) -> PaperSummaryRead:
         self.requests.append({"version_id": version_id, "session_id": session_id})
         return self._read.model_copy(update={"artifact_version_id": version_id})
 
@@ -180,11 +183,15 @@ def test_json_export_pins_the_exact_version_deterministically() -> None:
     service = PaperSummaryExportService(_FixedReadService())
     version_id = "00000000-0000-4000-8000-0000000000aa"
 
-    first = service.export(
-        version_id=version_id, session_id="session-1", export_format="json"
+    first = asyncio.run(
+        service.export(
+            version_id=version_id, session_id="session-1", export_format="json"
+        )
     )
-    second = service.export(
-        version_id=version_id, session_id="session-1", export_format="json"
+    second = asyncio.run(
+        service.export(
+            version_id=version_id, session_id="session-1", export_format="json"
+        )
     )
 
     assert first.content == second.content
@@ -202,8 +209,12 @@ def test_markdown_export_stays_readable_without_internal_identifiers() -> None:
     service = PaperSummaryExportService(_FixedReadService())
     version_id = "00000000-0000-4000-8000-0000000000bb"
 
-    download = service.export(
-        version_id=version_id, session_id="session-1", export_format="markdown"
+    download = asyncio.run(
+        service.export(
+            version_id=version_id,
+            session_id="session-1",
+            export_format="markdown",
+        )
     )
 
     assert download.media_type == "text/markdown"
@@ -225,8 +236,12 @@ def test_export_requests_the_exact_version_not_a_mutable_latest() -> None:
     service = PaperSummaryExportService(read_service)
     version_id = "00000000-0000-4000-8000-0000000000cc"
 
-    service.export(
-        version_id=version_id, session_id="session-2", export_format="markdown"
+    asyncio.run(
+        service.export(
+            version_id=version_id,
+            session_id="session-2",
+            export_format="markdown",
+        )
     )
 
     assert read_service.requests == [
@@ -237,8 +252,10 @@ def test_export_requests_the_exact_version_not_a_mutable_latest() -> None:
 def test_unknown_export_format_is_rejected() -> None:
     service = PaperSummaryExportService(_FixedReadService())
     with pytest.raises(ValueError, match="unsupported PaperSummary export format"):
-        service.export(
-            version_id="00000000-0000-4000-8000-0000000000dd",
-            session_id="session-3",
-            export_format="yaml",  # type: ignore[arg-type]
+        asyncio.run(
+            service.export(
+                version_id="00000000-0000-4000-8000-0000000000dd",
+                session_id="session-3",
+                export_format="yaml",  # type: ignore[arg-type]
+            )
         )

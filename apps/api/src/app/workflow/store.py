@@ -13,10 +13,10 @@ from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
 from sqlalchemy import func, or_, select, text, update
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.db.models import (
+    ResearchProjectModel,
     ResearchRunModel,
     RunCheckpointDecisionModel,
     RunCheckpointModel,
@@ -268,9 +268,52 @@ class PersistentWorkflowStore:
         self._validate_step_definitions(steps)
         if cache_policy not in {"disabled", "fallback_on_recoverable_failure"}:
             raise ValueError("cache_policy is not supported")
+
+        # Run admission is a Project aggregate invariant. Locking the exact
+        # parent row serializes same-Project creators before either the
+        # idempotency constraint or the partial single-active index can win a
+        # different insertion race.
+        locked_project_id = session.scalar(
+            select(ResearchProjectModel.id)
+            .where(ResearchProjectModel.id == project_id)
+            .with_for_update()
+        )
+        if locked_project_id is None:
+            raise WorkflowConflictError("Project does not exist")
+        existing = session.scalar(
+            select(ResearchRunModel).where(
+                ResearchRunModel.project_id == project_id,
+                ResearchRunModel.idempotency_key == idempotency_key,
+            )
+        )
+        if existing is not None:
+            if (
+                existing.request_hash != request_hash
+                or existing.execution_mode != execution_mode
+                or existing.contract_id != contract_id
+                or existing.parent_run_id != parent_run_id
+                or existing.derivation_kind != derivation_kind
+                or existing.retry_from_step != retry_from_step
+                or existing.cache_policy != cache_policy
+            ):
+                raise WorkflowConflictError(
+                    "idempotency key was already used with a different request"
+                )
+            return existing.id
+        active_run_id = session.scalar(
+            select(ResearchRunModel.id).where(
+                ResearchRunModel.project_id == project_id,
+                ResearchRunModel.status.not_in(TERMINAL_RUN_STATUSES),
+            )
+        )
+        if active_run_id is not None:
+            raise WorkflowConflictError(
+                "Project already has a non-terminal ResearchRun"
+            )
+
         candidate_run_id = uuid4()
         inserted_run_id = session.scalar(
-            pg_insert(ResearchRunModel)
+            ResearchRunModel.__table__.insert()
             .values(
                 id=candidate_run_id,
                 project_id=project_id,
@@ -289,32 +332,10 @@ class PersistentWorkflowStore:
                 idempotency_key=idempotency_key,
                 request_hash=request_hash,
             )
-            .on_conflict_do_nothing(constraint="uq_research_run_idempotency")
             .returning(ResearchRunModel.id)
         )
-        if inserted_run_id is None:
-            existing = session.scalar(
-                select(ResearchRunModel).where(
-                    ResearchRunModel.project_id == project_id,
-                    ResearchRunModel.idempotency_key == idempotency_key,
-                )
-            )
-            if existing is None:  # pragma: no cover - database invariant safeguard
-                raise WorkflowConflictError("idempotent Run creation lost its winner")
-            if (
-                existing.request_hash != request_hash
-                or existing.execution_mode != execution_mode
-                or existing.contract_id != contract_id
-                or existing.parent_run_id != parent_run_id
-                or existing.derivation_kind != derivation_kind
-                or existing.retry_from_step != retry_from_step
-                or existing.cache_policy != cache_policy
-            ):
-                raise WorkflowConflictError(
-                    "idempotency key was already used with a different request"
-                )
-            return existing.id
-
+        if inserted_run_id is None:  # pragma: no cover - RETURNING invariant
+            raise WorkflowConflictError("Run creation did not return its identity")
         run_id = inserted_run_id
         session.add_all(
             [

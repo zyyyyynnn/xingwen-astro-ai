@@ -56,8 +56,8 @@ function SupportBadge({
       data-support-status={status}
       className={
         isSupported
-          ? "gap-1 border-transparent bg-[var(--oh-surface-raised)] text-xs text-[var(--oh-status-success)]"
-          : "gap-1 text-xs text-[var(--oh-warning)]"
+          ? "ui-text-label gap-1 border-transparent bg-[var(--oh-surface-raised)] text-[var(--oh-status-success)]"
+          : "ui-text-label gap-1 text-[var(--oh-warning)]"
       }
     >
       {isSupported ? (
@@ -126,12 +126,12 @@ function EvidenceLocator({
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--oh-muted)]">
-      <span className="text-xs">{locationString}</span>
+      <span className="ui-text-label">{locationString}</span>
       {pageIndex !== null && onJumpToPage ? (
         <Button
           variant="ghost"
           size="small"
-          className="px-0 text-xs font-medium text-[var(--oh-accent)] hover:underline"
+          className="ui-text-label px-0 font-medium text-[var(--oh-accent)] hover:underline"
           onClick={() => onJumpToPage(pageIndex)}
           aria-label={`跳转到论文第 ${pageIndex + 1} 页`}
         >
@@ -142,7 +142,7 @@ function EvidenceLocator({
         <Link
           href={locator.sourceUrl}
           external
-          className="inline-flex items-center gap-1 text-xs font-medium text-[var(--oh-accent)] hover:underline"
+          className="ui-text-label inline-flex items-center gap-1 font-medium text-[var(--oh-accent)] hover:underline"
         >
           <span>打开来源</span>
           <ExternalLink className="size-3" aria-hidden="true" />
@@ -168,7 +168,7 @@ function SourceSnapshot({
     );
   }
   return (
-    <div className="mt-2 text-xs text-[var(--oh-muted)]">
+    <div className="ui-text-label mt-2 text-[var(--oh-muted)]">
       <span>获取时间：{snapshot.retrievedAt}</span>
     </div>
   );

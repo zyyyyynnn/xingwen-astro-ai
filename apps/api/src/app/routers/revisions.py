@@ -74,7 +74,7 @@ def _consume_rate_limit(request: Request, response: Response) -> None:
     status_code=status.HTTP_201_CREATED,
     response_model=Envelope[UserFeedback],
 )
-def create_user_feedback(
+async def create_user_feedback(
     version_id: Annotated[str, Path(min_length=1)],
     payload: CreateUserFeedbackRequest,
     request: Request,
@@ -86,7 +86,7 @@ def create_user_feedback(
 ) -> Envelope[UserFeedback]:
     _ = csrf_token
     _consume_rate_limit(request, response)
-    data = _service(request).create_feedback(
+    data = await _service(request).create_feedback(
         version_id=version_id,
         session_id=_session_id(request),
         idempotency_key=idempotency_key,

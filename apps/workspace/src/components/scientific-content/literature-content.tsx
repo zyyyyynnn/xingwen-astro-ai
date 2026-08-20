@@ -72,7 +72,7 @@ function ClaimsTable({
   const claims = review.claims.slice(0, SURFACE_LIMITS[surface]);
   return (
     <div className="scientific-artifact__table-scroll my-3 overflow-x-auto rounded border border-[var(--oh-border)]">
-      <table className="w-full border-collapse text-left text-xs">
+      <table className="ui-text-body w-full border-collapse text-left">
         <caption className="sr-only">文献论点与公开证据</caption>
         <thead>
           <tr className="border-b border-[var(--oh-border)] bg-[var(--oh-surface-subtle)]">
@@ -148,10 +148,10 @@ function ReasoningTrace({
 }) {
   return (
     <details className="rounded border border-[var(--oh-border)] bg-[var(--oh-surface-subtle)] p-3">
-      <summary className="cursor-pointer text-xs font-medium text-[var(--oh-foreground)]">
+      <summary className="ui-text-body cursor-pointer font-medium text-[var(--oh-foreground)]">
         {trace.conclusion || "查看公开推导过程"}
       </summary>
-      <div className="mt-3 space-y-2 text-xs">
+      <div className="ui-text-body mt-3 space-y-2">
         {trace.steps.length > 0 ? (
           <ol className="list-decimal space-y-1 pl-5 text-[var(--oh-muted)]">
             {trace.steps.map((step) => (
@@ -192,7 +192,7 @@ function RelationsTable({
   return (
     <div className="space-y-4">
       <div className="scientific-artifact__table-scroll my-3 overflow-x-auto rounded border border-[var(--oh-border)]">
-        <table className="w-full border-collapse text-left text-xs">
+        <table className="ui-text-body w-full border-collapse text-left">
           <caption className="sr-only">文献论点关系与证据</caption>
           <thead>
             <tr className="border-b border-[var(--oh-border)] bg-[var(--oh-surface-subtle)]">
@@ -296,7 +296,7 @@ function TraceList({
         </div>
       ))}
       {traces.length === 0 ? (
-        <p className="py-6 text-center text-xs text-[var(--oh-muted)]">
+        <p className="ui-text-body py-6 text-center text-[var(--oh-muted)]">
           当前结果没有可展示的公开推导过程。
         </p>
       ) : null}
@@ -339,7 +339,7 @@ export function LiteratureContent({
     >
       <ScientificContentHeader title={title} subtitle={label} />
       <div
-        className="my-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--oh-muted)]"
+        className="ui-text-body my-2 flex flex-wrap gap-x-4 gap-y-1 text-[var(--oh-muted)]"
         aria-label={`${label}摘要`}
       >
         <span>共 {count} 条</span>

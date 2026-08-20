@@ -188,11 +188,19 @@ def _data_service(request: Request) -> DataArtifactReadService:
 
 
 def _literature_service(request: Request) -> LiteratureArtifactReadService:
-    return LiteratureArtifactReadService(_service(request))
+    artifacts = _service(request)
+    return LiteratureArtifactReadService(
+        artifacts,
+        paper_summary_reader=(
+            request.app.state.paper_summary_read_service or _summary_service(request)
+        ),
+    )
 
 
 def _graph_service(request: Request) -> GraphArtifactReadService:
-    return GraphArtifactReadService(_service(request))
+    return GraphArtifactReadService(
+        _service(request), literature_reader=_literature_service(request)
+    )
 
 
 def _meta(request: Request) -> ResponseMeta:
@@ -322,12 +330,12 @@ def get_paper_collection(
     operation_id="getPaperSummary",
     response_model=Envelope[PaperSummaryRead],
 )
-def get_paper_summary(
+async def get_paper_summary(
     version_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
 ) -> Envelope[PaperSummaryRead]:
-    data = _summary_service(request).get_summary(
+    data = await _summary_service(request).get_summary(
         version_id=version_id, session_id=_session_id(request)
     )
     _no_store(response)
@@ -375,7 +383,7 @@ async def get_paper_summary_document_source(
         429: {"model": ProblemDetails},
     },
 )
-def download_paper_summary_export(
+async def download_paper_summary_export(
     version_id: Annotated[str, Path(min_length=1)],
     request: Request,
     export_format: Annotated[
@@ -384,7 +392,7 @@ def download_paper_summary_export(
 ) -> RawResponse:
     """Download one exact PaperSummary ArtifactVersion as JSON or Markdown."""
 
-    download = PaperSummaryExportService(_summary_service(request)).export(
+    download = await PaperSummaryExportService(_summary_service(request)).export(
         version_id=version_id,
         session_id=_session_id(request),
         export_format=export_format,
@@ -555,7 +563,7 @@ def get_graph_node(
     operation_id="listGraphEdges",
     response_model=CollectionEnvelope[GraphEdgeRead],
 )
-def list_graph_edges(
+async def list_graph_edges(
     version_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
@@ -564,7 +572,7 @@ def list_graph_edges(
     cursor: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> CollectionEnvelope[GraphEdgeRead]:
-    items, next_cursor, has_more = _graph_service(request).list_edges(
+    items, next_cursor, has_more = await _graph_service(request).list_edges(
         version_id=version_id,
         session_id=_session_id(request),
         edge_type=edge_type,
@@ -587,13 +595,13 @@ def list_graph_edges(
     operation_id="getGraphEdge",
     response_model=Envelope[GraphEdgeRead],
 )
-def get_graph_edge(
+async def get_graph_edge(
     version_id: Annotated[str, Path(min_length=1)],
     edge_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
 ) -> Envelope[GraphEdgeRead]:
-    data = _graph_service(request).get_edge(
+    data = await _graph_service(request).get_edge(
         version_id=version_id, edge_id=edge_id, session_id=_session_id(request)
     )
     _no_store(response)
@@ -606,7 +614,7 @@ def get_graph_edge(
     operation_id="listLiteratureClaims",
     response_model=CollectionEnvelope[LiteratureClaimRead],
 )
-def list_literature_claims(
+async def list_literature_claims(
     version_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
@@ -614,7 +622,7 @@ def list_literature_claims(
     cursor: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> CollectionEnvelope[LiteratureClaimRead]:
-    items, next_cursor, has_more = _literature_service(request).list_claims(
+    items, next_cursor, has_more = await _literature_service(request).list_claims(
         version_id=version_id,
         session_id=_session_id(request),
         status=status,
@@ -636,13 +644,13 @@ def list_literature_claims(
     operation_id="getLiteratureClaim",
     response_model=Envelope[LiteratureClaimRead],
 )
-def get_literature_claim(
+async def get_literature_claim(
     version_id: Annotated[str, Path(min_length=1)],
     claim_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
 ) -> Envelope[LiteratureClaimRead]:
-    data = _literature_service(request).get_claim(
+    data = await _literature_service(request).get_claim(
         version_id=version_id,
         claim_id=claim_id,
         session_id=_session_id(request),
@@ -657,7 +665,7 @@ def get_literature_claim(
     operation_id="listLiteratureRelations",
     response_model=CollectionEnvelope[LiteratureRelationRead],
 )
-def list_literature_relations(
+async def list_literature_relations(
     version_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
@@ -665,7 +673,7 @@ def list_literature_relations(
     cursor: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> CollectionEnvelope[LiteratureRelationRead]:
-    items, next_cursor, has_more = _literature_service(request).list_relations(
+    items, next_cursor, has_more = await _literature_service(request).list_relations(
         version_id=version_id,
         session_id=_session_id(request),
         status=status,
@@ -687,13 +695,13 @@ def list_literature_relations(
     operation_id="getLiteratureRelation",
     response_model=Envelope[LiteratureRelationRead],
 )
-def get_literature_relation(
+async def get_literature_relation(
     version_id: Annotated[str, Path(min_length=1)],
     relation_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
 ) -> Envelope[LiteratureRelationRead]:
-    data = _literature_service(request).get_relation(
+    data = await _literature_service(request).get_relation(
         version_id=version_id,
         relation_id=relation_id,
         session_id=_session_id(request),
@@ -708,7 +716,7 @@ def get_literature_relation(
     operation_id="listReasoningTraces",
     response_model=CollectionEnvelope[LiteratureReasoningTraceRead],
 )
-def list_reasoning_traces(
+async def list_reasoning_traces(
     version_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
@@ -716,7 +724,9 @@ def list_reasoning_traces(
     cursor: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> CollectionEnvelope[LiteratureReasoningTraceRead]:
-    items, next_cursor, has_more = _literature_service(request).list_reasoning_traces(
+    items, next_cursor, has_more = await _literature_service(
+        request
+    ).list_reasoning_traces(
         version_id=version_id,
         session_id=_session_id(request),
         status=status,
@@ -738,13 +748,13 @@ def list_reasoning_traces(
     operation_id="getReasoningTrace",
     response_model=Envelope[LiteratureReasoningTraceRead],
 )
-def get_reasoning_trace(
+async def get_reasoning_trace(
     version_id: Annotated[str, Path(min_length=1)],
     trace_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
 ) -> Envelope[LiteratureReasoningTraceRead]:
-    data = _literature_service(request).get_reasoning_trace(
+    data = await _literature_service(request).get_reasoning_trace(
         version_id=version_id,
         trace_id=trace_id,
         session_id=_session_id(request),

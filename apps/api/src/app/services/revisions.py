@@ -59,7 +59,7 @@ class RevisionApplicationService:
             ArtifactReadService(factory)
         )
 
-    def create_feedback(
+    async def create_feedback(
         self,
         *,
         version_id: str,
@@ -111,7 +111,7 @@ class RevisionApplicationService:
                     "ARTIFACT_VERSION_CONFLICT",
                     "Feedback must target the current ArtifactVersion",
                 )
-            self._targets.validate(
+            await self._targets.validate(
                 version_id=str(version.id),
                 artifact_id=str(artifact.id),
                 artifact_kind=artifact.kind,

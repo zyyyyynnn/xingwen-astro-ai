@@ -9,20 +9,29 @@ from app.services.data_artifacts import DataArtifactReadService
 from app.services.graph_artifacts import GraphArtifactReadService
 from app.services.literature_artifacts import LiteratureArtifactReadService
 from app.services.paper_collections import PaperCollectionReadService
-from app.services.paper_summaries import PaperSummaryReadService
+from app.services.paper_summaries import PaperSummaryReadPort, PaperSummaryReadService
 
 
 class FeedbackTargetAuthority:
     """Resolve one Feedback target through its version-pinned read authority."""
 
-    def __init__(self, artifacts: ArtifactReadService) -> None:
+    def __init__(
+        self,
+        artifacts: ArtifactReadService,
+        *,
+        paper_summary_reader: PaperSummaryReadPort | None = None,
+    ) -> None:
         self._data = DataArtifactReadService(artifacts)
         self._papers = PaperCollectionReadService(artifacts)
-        self._summaries = PaperSummaryReadService(artifacts)
-        self._literature = LiteratureArtifactReadService(artifacts)
-        self._graph = GraphArtifactReadService(artifacts)
+        self._summaries = paper_summary_reader or PaperSummaryReadService(artifacts)
+        self._literature = LiteratureArtifactReadService(
+            artifacts, paper_summary_reader=self._summaries
+        )
+        self._graph = GraphArtifactReadService(
+            artifacts, literature_reader=self._literature
+        )
 
-    def validate(
+    async def validate(
         self,
         *,
         version_id: str,
@@ -92,28 +101,30 @@ class FeedbackTargetAuthority:
                 )
             elif target_type is FeedbackTargetType.paper_summary:
                 self._require_kind(artifact_kind, "paper_summary")
-                summary = self._summaries.get_summary(
-                    version_id=version_id, session_id=session_id
+                summary = (
+                    await self._summaries.get_summary(
+                        version_id=version_id, session_id=session_id
+                    )
                 ).summary
                 if summary.summary_id != target_id:
                     raise _invalid_target()
             elif target_type is FeedbackTargetType.claim:
                 self._require_kind(artifact_kind, "literature_claims")
-                self._literature.get_claim(
+                await self._literature.get_claim(
                     version_id=version_id,
                     claim_id=target_id,
                     session_id=session_id,
                 )
             elif target_type is FeedbackTargetType.relation:
                 self._require_kind(artifact_kind, "literature_relations")
-                self._literature.get_relation(
+                await self._literature.get_relation(
                     version_id=version_id,
                     relation_id=target_id,
                     session_id=session_id,
                 )
             elif target_type is FeedbackTargetType.trace:
                 self._require_kind(artifact_kind, "literature_relations")
-                self._literature.get_reasoning_trace(
+                await self._literature.get_reasoning_trace(
                     version_id=version_id,
                     trace_id=target_id,
                     session_id=session_id,
@@ -127,7 +138,7 @@ class FeedbackTargetAuthority:
                 )
             else:
                 self._require_kind(artifact_kind, "graph")
-                self._graph.get_edge(
+                await self._graph.get_edge(
                     version_id=version_id,
                     edge_id=target_id,
                     session_id=session_id,
