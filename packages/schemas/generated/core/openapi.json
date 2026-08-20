@@ -10992,6 +10992,7 @@
             "items": {
               "$ref": "#/components/schemas/PaperSummaryDocumentParseReference"
             },
+            "maxItems": 1,
             "title": "Document Parses",
             "type": "array"
           },

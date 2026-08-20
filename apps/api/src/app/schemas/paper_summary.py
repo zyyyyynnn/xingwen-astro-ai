@@ -132,10 +132,18 @@ class PaperSummaryModelOutput(BaseModel):
             "summary statement id",
         )
         expected_evidence_ids = tuple(
-            sorted({evidence_id for item in statements for evidence_id in item.evidence_ids})
+            sorted(
+                {
+                    evidence_id
+                    for item in statements
+                    for evidence_id in item.evidence_ids
+                }
+            )
         )
         if self.evidence_ids != expected_evidence_ids:
-            raise ValueError("evidence_ids must equal the sorted statement Evidence union")
+            raise ValueError(
+                "evidence_ids must equal the sorted statement Evidence union"
+            )
         return self
 
     def statements(self) -> tuple[PaperSummaryStatementCandidate, ...]:
@@ -173,7 +181,10 @@ class PaperSummaryEvidenceLocator(BaseModel):
             self.document_locator,
         )
         has_document_locator = all(value is not None for value in document_fields)
-        if any(value is not None for value in document_fields) and not has_document_locator:
+        if (
+            any(value is not None for value in document_fields)
+            and not has_document_locator
+        ):
             raise ValueError("document locator fields must be provided together")
         if self.kind == "paper_text":
             if not self.section or not self.text_range or self.metadata_field:
@@ -192,7 +203,12 @@ class PaperSummaryEvidenceLocator(BaseModel):
             or self.source_url is None
             or any(
                 value is not None
-                for value in (self.section, self.paragraph, self.text_range, self.page_index)
+                for value in (
+                    self.section,
+                    self.paragraph,
+                    self.text_range,
+                    self.page_index,
+                )
             )
         ):
             raise ValueError(
@@ -217,8 +233,8 @@ class PaperSummaryEvidenceCandidate(BaseModel):
     claimed_source_version: ShortString | None = None
     locator: PaperSummaryEvidenceLocator
     quote_or_value: NonEmptyString
-    accessible_excerpt: Annotated[str, Field(min_length=1, max_length=16000)] | None = Field(
-        default=None, repr=False
+    accessible_excerpt: Annotated[str, Field(min_length=1, max_length=16000)] | None = (
+        Field(default=None, repr=False)
     )
 
 
@@ -251,7 +267,9 @@ class PaperSummaryInputVersions(BaseModel):
     paper_collection_version_id: PersistedUuid | None = None
     paper_collection_schema_version: SemanticVersion | None = None
     paper_collection_output_hash: ContentHash | None = None
-    document_parses: tuple[PaperSummaryDocumentParseReference, ...] = ()
+    document_parses: tuple[PaperSummaryDocumentParseReference, ...] = Field(
+        default=(), max_length=1
+    )
     source_snapshots: tuple[PaperSummarySourceSnapshotReference, ...]
 
     @model_validator(mode="after")
@@ -263,13 +281,16 @@ class PaperSummaryInputVersions(BaseModel):
         )
         has_collection = all(value is not None for value in collection_fields)
         if any(value is not None for value in collection_fields) and not has_collection:
-            raise ValueError(
-                "PaperCollection input fields must be provided together"
-            )
-        if has_collection == bool(self.document_parses):
+            raise ValueError("PaperCollection input fields must be provided together")
+        if has_collection and self.document_parses:
             raise ValueError(
                 "PaperSummary requires exactly one input family: "
                 "PaperCollection or DocumentParse"
+            )
+        if not has_collection and len(self.document_parses) != 1:
+            raise ValueError(
+                "PaperSummary requires exactly one DocumentParse when no "
+                "PaperCollection is referenced"
             )
         _require_unique(
             tuple(item.source_snapshot_id for item in self.source_snapshots),
@@ -339,7 +360,9 @@ class PaperSummaryModelUsage(BaseModel):
     @model_validator(mode="after")
     def validate_total(self) -> Self:
         if self.total_tokens < self.prompt_tokens + self.completion_tokens:
-            raise ValueError("total_tokens cannot be below prompt plus completion tokens")
+            raise ValueError(
+                "total_tokens cannot be below prompt plus completion tokens"
+            )
         return self
 
 
@@ -376,7 +399,9 @@ class PaperSummaryProducerExecution(BaseModel):
     def validate_terminal_state(self) -> Self:
         if self.status == "completed":
             if self.output_hash is None or self.error_code is not None:
-                raise ValueError("completed summary execution requires only output_hash")
+                raise ValueError(
+                    "completed summary execution requires only output_hash"
+                )
         elif self.output_hash is not None or self.error_code is None:
             raise ValueError("rejected summary execution requires only error_code")
         return self
@@ -425,11 +450,21 @@ class PaperSummaryArtifactContent(BaseModel):
             "summary statement id",
         )
         expected_evidence_ids = tuple(
-            sorted({evidence_id for item in statements for evidence_id in item.evidence_ids})
+            sorted(
+                {
+                    evidence_id
+                    for item in statements
+                    for evidence_id in item.evidence_ids
+                }
+            )
         )
         if self.evidence_ids != expected_evidence_ids:
-            raise ValueError("evidence_ids must equal the sorted statement Evidence union")
-        evidence_by_id = _unique_registry(self.evidence, "evidence_id", "summary Evidence")
+            raise ValueError(
+                "evidence_ids must equal the sorted statement Evidence union"
+            )
+        evidence_by_id = _unique_registry(
+            self.evidence, "evidence_id", "summary Evidence"
+        )
         conflict_by_id = _unique_registry(
             self.source_conflicts, "conflict_id", "source conflict"
         )
@@ -439,12 +474,15 @@ class PaperSummaryArtifactContent(BaseModel):
         ):
             raise ValueError("source conflict must reference retained Evidence")
         snapshots = {
-            item.source_snapshot_id: item for item in self.input_versions.source_snapshots
+            item.source_snapshot_id: item
+            for item in self.input_versions.source_snapshots
         }
         for evidence in self.evidence:
             snapshot = snapshots.get(evidence.source_snapshot_id)
             if snapshot is None:
-                raise ValueError("Evidence must reference an input SourceSnapshot version")
+                raise ValueError(
+                    "Evidence must reference an input SourceSnapshot version"
+                )
             if (
                 evidence.source_id != snapshot.source_id
                 or evidence.source_snapshot_version != snapshot.source_version
@@ -459,16 +497,22 @@ class PaperSummaryArtifactContent(BaseModel):
                 item is None or item.status is not PaperSummarySupportStatus.supported
                 for item in retained
             ):
-                raise ValueError("supported statement requires fully supported Evidence")
+                raise ValueError(
+                    "supported statement requires fully supported Evidence"
+                )
         if self.producer.status != "completed":
-            raise ValueError("published PaperSummary requires completed ProducerExecution")
+            raise ValueError(
+                "published PaperSummary requires completed ProducerExecution"
+            )
         if self.input_versions != self.producer.input_versions:
             raise ValueError("ProducerExecution input versions do not match summary")
         if self.input_hash != self.producer.input_hash:
             raise ValueError("ProducerExecution input_hash does not match summary")
         expected_output_hash = compute_paper_summary_output_hash(self)
         if self.output_hash != expected_output_hash:
-            raise ValueError(f"output_hash does not match PaperSummary: {expected_output_hash}")
+            raise ValueError(
+                f"output_hash does not match PaperSummary: {expected_output_hash}"
+            )
         if self.producer.output_hash != expected_output_hash:
             raise ValueError("ProducerExecution output_hash does not match summary")
         return self
@@ -653,9 +697,7 @@ def _model_or_dict(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
 def _drop_none(value: Any) -> Any:
     if isinstance(value, dict):
         return {
-            key: _drop_none(item)
-            for key, item in value.items()
-            if item is not None
+            key: _drop_none(item) for key, item in value.items() if item is not None
         }
     if isinstance(value, list):
         return [_drop_none(item) for item in value]

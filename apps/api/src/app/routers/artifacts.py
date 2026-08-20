@@ -34,6 +34,7 @@ from app.schemas.data_artifact_api import (
 )
 from app.schemas.enums import GraphEdgeType, GraphNodeType
 from app.schemas.research_input import ResearchInputType
+from app.schemas.scientific_document import SCIENTIFIC_DOCUMENT_IMAGE_MIME_TYPES
 from app.schemas.graph_artifact_api import (
     GraphArtifactRead,
     GraphEdgeRead,
@@ -71,7 +72,7 @@ from app.services.paper_candidate_inputs import (
     PaperCandidateInputService,
 )
 from app.services.paper_summaries import (
-    DocumentPdfSourceResolver,
+    DocumentSourceResolver,
     PaperSummaryReadService,
 )
 from app.services.research_input_store import (
@@ -133,8 +134,8 @@ def _summary_service(request: Request) -> PaperSummaryReadService:
 
 def _research_input_by_identity(
     store: ResearchInputRepository,
-) -> DocumentPdfSourceResolver:
-    """Authorize a DocumentParse summary PDF by immutable input identity."""
+) -> DocumentSourceResolver:
+    """Authorize a parsed PDF or document image by immutable input identity."""
 
     def resolve(
         *,
@@ -148,13 +149,17 @@ def _research_input_by_identity(
             record is None
             or record.project_id != project_id
             or record.content_hash != input_content_hash
-            or (
-                record.type is not ResearchInputType.pdf
-                and record.mime_type != "application/pdf"
-            )
         ):
             return None
-        return record
+        if record.type is ResearchInputType.pdf:
+            return record if record.mime_type == "application/pdf" else None
+        if record.type is ResearchInputType.image:
+            return (
+                record
+                if record.mime_type in SCIENTIFIC_DOCUMENT_IMAGE_MIME_TYPES
+                else None
+            )
+        return None
 
     return resolve
 

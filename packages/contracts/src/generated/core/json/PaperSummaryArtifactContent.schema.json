@@ -484,6 +484,7 @@
           "items": {
             "$ref": "#/$defs/PaperSummaryDocumentParseReference"
           },
+          "maxItems": 1,
           "title": "Document Parses",
           "type": "array"
         },

@@ -3771,7 +3771,10 @@ export interface PaperSummaryEvidenceLocator {
  * via the `definition` "PaperSummaryInputVersions".
  */
 export interface PaperSummaryInputVersions {
-  document_parses?: PaperSummaryDocumentParseReference[];
+  /**
+   * @maxItems 1
+   */
+  document_parses?: [] | [PaperSummaryDocumentParseReference];
   paper_collection_output_hash?: string | null;
   paper_collection_schema_version?: string | null;
   paper_collection_version_id?: string | null;

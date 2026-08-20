@@ -115,9 +115,10 @@ ArtifactVersion -> UserFeedback -> RevisionPlan -> revision Run
    `(paper_collection_version_id, canonical_paper_id)` 解析最新 `accepted` 桥接绑定，
    DocumentParse-backed 摘要按冻结 parse reference 的
    `(research_input_id, input_content_hash)` 解析原始 ResearchInput。两条路径都重新校验
-   ResearchInput 的 ownership、未过期、content hash 与 PDF 类型；
+   ResearchInput 的 ownership、未过期、content hash 与受支持的 PDF 或科研文档图片类型；
    任一环节缺失返回 `research_input: null`，禁止从标题、DOI、candidate 顺序或数组首项
-   推断 PDF URL。无绑定与未配置桥接运行时均返回 `research_input: null`，不返回 5xx。
+   推断 ResearchInput 或原文 URL。无绑定与未配置桥接运行时均返回
+   `research_input: null`，不返回 5xx。
 
 ## 6. Research Turn
 

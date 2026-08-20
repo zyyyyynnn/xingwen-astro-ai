@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.routers.artifacts import _research_input_by_identity
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import (
     ArtifactVersionDetail,
@@ -19,9 +20,11 @@ from app.schemas.core import (
 )
 from app.schemas.paper_summary import (
     PaperSummaryArtifactContent,
+    PaperSummaryInputVersions,
     PaperSummaryPaperMetadata,
     PaperSummarySourceSnapshotReference,
 )
+from app.schemas.research_input import ResearchInputStatus, ResearchInputType
 from app.schemas.scientific_document import (
     DocumentBBox,
     DocumentBlock,
@@ -42,6 +45,8 @@ from app.services.model_execution import (
 )
 from app.services.paper_summaries import PaperSummaryReadService
 from app.services.paper_summary_exports import PaperSummaryExportService
+from app.services.research_input_store import ResearchInputRecord
+from app.security import SecurityProblem
 from app.workflow.publisher import (
     ArtifactEvidenceBinding,
     ArtifactSourceSnapshotBinding,
@@ -302,6 +307,38 @@ class _PublishedSummaryArtifacts:
         )
 
 
+class _ResearchInputs:
+    def __init__(self, record: ResearchInputRecord) -> None:
+        self._record = record
+
+    def get(self, *, session_id: str, input_id: str) -> ResearchInputRecord | None:
+        if session_id != self._record.session_id or input_id != self._record.id:
+            return None
+        return self._record
+
+
+def _document_input_record(
+    *, input_type: ResearchInputType, mime_type: str, filename: str
+) -> ResearchInputRecord:
+    return ResearchInputRecord(
+        id=str(_parse_candidate().research_input_id),
+        session_id=_SESSION_ID,
+        project_id=_PROJECT_ID,
+        type=input_type,
+        source_type="upload",
+        content_hash=_CONTENT_HASH,
+        storage_ref="local:document-summary",
+        filename=filename,
+        mime_type=mime_type,
+        size_bytes=1024,
+        status=ResearchInputStatus.accepted,
+        source_snapshot_id="source-snapshot.document-summary",
+        url=None,
+        created_at=datetime(2026, 8, 14, tzinfo=timezone.utc),
+        expires_at=None,
+    )
+
+
 def test_document_summary_executes_real_model_port_and_records_metadata() -> None:
     model = _Model()
     pipeline = PaperSummaryPipeline(
@@ -345,6 +382,19 @@ def test_document_summary_rejects_model_hash_drift() -> None:
         DocumentSummaryService(_Model(tamper_hash=True)).execute(_request())
 
 
+def test_document_summary_requires_one_pinned_document_parse() -> None:
+    execution = DocumentSummaryService(_Model()).execute(_request())
+    summary = execution.admission.summary
+    assert summary is not None
+    payload = summary.input_versions.model_dump(mode="json")
+    second_parse = dict(payload["document_parses"][0])
+    second_parse["document_parse_id"] = "00000000-0000-4000-8000-0000000000dd"
+    payload["document_parses"].append(second_parse)
+
+    with pytest.raises(ValueError, match="at most 1 item"):
+        PaperSummaryInputVersions.model_validate(payload)
+
+
 def test_document_parse_summary_is_readable_and_exportable() -> None:
     execution = DocumentSummaryService(_Model()).execute(_request())
     summary = execution.admission.summary
@@ -365,6 +415,55 @@ def test_document_parse_summary_is_readable_and_exportable() -> None:
 
     assert read.paper == summary.paper
     assert b'"title": "Transit Study"' in download.content
+
+
+def test_document_image_summary_returns_its_authorized_source() -> None:
+    execution = DocumentSummaryService(_Model()).execute(_request())
+    summary = execution.admission.summary
+    assert summary is not None
+    version = _published_summary_version(summary)
+    image = _document_input_record(
+        input_type=ResearchInputType.image,
+        mime_type="image/tiff",
+        filename="transit-study.tiff",
+    )
+    read_service = PaperSummaryReadService(
+        _PublishedSummaryArtifacts(version),
+        research_input_resolver=_research_input_by_identity(_ResearchInputs(image)),
+    )
+
+    source = read_service.get_document_source(
+        version_id=_VERSION_ID,
+        session_id=_SESSION_ID,
+    )
+
+    assert source.research_input is not None
+    assert source.research_input.id == image.id
+    assert source.research_input.type is ResearchInputType.image
+
+
+def test_document_source_rejects_document_parse_provenance_drift() -> None:
+    execution = DocumentSummaryService(_Model()).execute(_request())
+    summary = execution.admission.summary
+    assert summary is not None
+    version = _published_summary_version(summary).model_copy(update={"evidence": ()})
+    pdf = _document_input_record(
+        input_type=ResearchInputType.pdf,
+        mime_type="application/pdf",
+        filename="transit-study.pdf",
+    )
+    read_service = PaperSummaryReadService(
+        _PublishedSummaryArtifacts(version),
+        research_input_resolver=_research_input_by_identity(_ResearchInputs(pdf)),
+    )
+
+    with pytest.raises(SecurityProblem) as exc_info:
+        read_service.get_document_source(
+            version_id=_VERSION_ID,
+            session_id=_SESSION_ID,
+        )
+
+    assert exc_info.value.code == "PROVENANCE_SCOPE_VIOLATION"
 
 
 def test_admitted_document_summary_closes_persisted_provenance_bindings() -> None:

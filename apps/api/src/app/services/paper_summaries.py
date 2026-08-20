@@ -36,8 +36,8 @@ class PdfSourceResolver(Protocol):
     ) -> ResearchInputRecord | None: ...
 
 
-class DocumentPdfSourceResolver(Protocol):
-    """Resolve a PDF ResearchInput from its immutable document-summary identity."""
+class DocumentSourceResolver(Protocol):
+    """Resolve a supported ResearchInput from its document-summary identity."""
 
     def __call__(
         self,
@@ -57,7 +57,7 @@ class PaperSummaryReadService:
         artifacts: ArtifactReadService,
         *,
         pdf_source_resolver: PdfSourceResolver | None = None,
-        research_input_resolver: DocumentPdfSourceResolver | None = None,
+        research_input_resolver: DocumentSourceResolver | None = None,
     ) -> None:
         self._artifacts = artifacts
         self._pdf_source_resolver = pdf_source_resolver
@@ -137,33 +137,19 @@ class PaperSummaryReadService:
     ) -> PaperSummaryDocumentSourceRead:
         """Resolve the authorized full-text ResearchInput for the summarized paper.
 
-        Reuses the full summary provenance validation to pin the exact
-        ``(paper_collection_version_id, paper_id)`` pair, then delegates to the
-        authorized PaperCandidateInput bridge. Never infers a PDF from title,
-        DOI or candidate order: a missing document binding yields ``None``.
+        Reuses the complete summary read boundary before resolving either the
+        PaperCollection bridge or the one pinned DocumentParse ResearchInput.
+        Never infers a document from title, DOI, candidate order, or list order.
         """
 
-        version = self._artifacts.get_version(
-            version_id=version_id, session_id=session_id
-        )
-        artifact = self._artifacts.get_artifact(
-            artifact_id=version.artifact_id, session_id=session_id
-        )
-        if artifact.kind.value != "paper_summary":
-            raise _problem(
-                409,
-                "ARTIFACT_KIND_MISMATCH",
-                "Artifact kind mismatch",
-                "The ArtifactVersion is not a paper_summary",
-            )
-        summary = self._validated_summary(version)
+        read = self.get_summary(version_id=version_id, session_id=session_id)
+        summary = read.summary
         if summary.input_versions.paper_collection_version_id is not None:
-            self._validate_input_collection(version, summary, session_id)
             if self._pdf_source_resolver is None:
                 return PaperSummaryDocumentSourceRead(research_input=None)
             record = self._pdf_source_resolver(
                 session_id=session_id,
-                project_id=str(version.project_id),
+                project_id=str(read.project_id),
                 paper_collection_version_id=str(
                     summary.input_versions.paper_collection_version_id
                 ),
@@ -172,16 +158,12 @@ class PaperSummaryReadService:
             if record is None:
                 return PaperSummaryDocumentSourceRead(research_input=None)
             return PaperSummaryDocumentSourceRead(research_input=record.to_ref())
-        parse_reference = (
-            summary.input_versions.document_parses[0]
-            if summary.input_versions.document_parses
-            else None
-        )
-        if parse_reference is None or self._research_input_resolver is None:
+        if self._research_input_resolver is None:
             return PaperSummaryDocumentSourceRead(research_input=None)
+        (parse_reference,) = summary.input_versions.document_parses
         record = self._research_input_resolver(
             session_id=session_id,
-            project_id=str(version.project_id),
+            project_id=str(read.project_id),
             research_input_id=str(parse_reference.research_input_id),
             input_content_hash=parse_reference.input_content_hash,
         )

@@ -763,6 +763,21 @@ def test_paper_summary_pdf_source_returns_authorized_research_input() -> None:
     ]
 
 
+def test_paper_summary_document_source_rejects_collection_provenance_drift() -> None:
+    version = _version(summary=_summary()).model_copy(update={"evidence": ()})
+    client = _client(_Artifacts(version))
+    service = _FakePaperInputService(_pdf_input_record())
+    client.app.state.paper_candidate_input_service = service
+
+    response = client.get(
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/document-source"
+    )
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "PROVENANCE_SCOPE_VIOLATION"
+    assert service.calls == []
+
+
 def test_paper_summary_pdf_source_is_null_without_authorized_binding() -> None:
     client = _client(_Artifacts(_version(summary=_summary())))
     client.app.state.paper_candidate_input_service = _FakePaperInputService(None)
@@ -798,7 +813,9 @@ def test_paper_summary_pdf_source_rejects_kind_mismatch_and_foreign_session() ->
     app.state.artifact_read_service = _Artifacts(_version(summary=_summary()))  # type: ignore[assignment]
     assert (
         TestClient(app)
-        .get(f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/document-source")
+        .get(
+            f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/document-source"
+        )
         .status_code
         == 401
     )

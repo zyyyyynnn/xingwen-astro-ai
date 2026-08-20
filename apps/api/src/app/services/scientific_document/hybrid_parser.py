@@ -22,6 +22,7 @@ from PIL import Image
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.scientific_document import (
+    SCIENTIFIC_DOCUMENT_IMAGE_MIME_TYPES,
     DocumentBBox,
     DocumentBlock,
     DocumentBlockKind,
@@ -45,7 +46,6 @@ _RESOURCE_POLICY_ID = "bounded-document-pages"
 _VISUAL_ENGINE = "PaddleOCR-VL layout-parsing service"
 _DEFAULT_VISUAL_MODEL_ID = "PaddleOCR-VL-1.6-0.9B"
 _MAX_DOCUMENT_BYTES = 64 * 1024 * 1024
-_IMAGE_MIME_TYPES = frozenset({"image/jpeg", "image/png", "image/tiff", "image/webp"})
 
 
 class VisualParseError(RuntimeError):
@@ -219,10 +219,12 @@ class HybridScientificDocumentParser:
             raise ValueError("document bytes do not match the immutable content hash")
         mime_type = input.mime_type.casefold().split(";", 1)[0].strip()
         profile = self.profile
-        if mime_type in _IMAGE_MIME_TYPES:
+        if mime_type in SCIENTIFIC_DOCUMENT_IMAGE_MIME_TYPES:
             return self._parse_image(input, content=content, profile=profile)
         if mime_type != "application/pdf":
-            raise ValueError("scientific document parser accepts PDF or document images")
+            raise ValueError(
+                "scientific document parser accepts PDF or document images"
+            )
         if not content.startswith(b"%PDF-"):
             raise ValueError("application/pdf input is not a PDF byte stream")
 
@@ -284,7 +286,9 @@ class HybridScientificDocumentParser:
         profile: DocumentParseProfile,
     ) -> DocumentParseCandidate:
         if self._visual is None:
-            raise ValueError("document image parsing requires the configured visual parser")
+            raise ValueError(
+                "document image parsing requires the configured visual parser"
+            )
         try:
             with Image.open(io.BytesIO(content)) as image:
                 image.verify()
