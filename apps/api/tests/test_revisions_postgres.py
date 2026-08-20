@@ -62,7 +62,6 @@ KINDS = (
     "paper_summary",
     "literature_claims",
     "literature_relations",
-    "reasoning_traces",
     "graph",
 )
 ARTIFACT_STEP = {
@@ -73,7 +72,6 @@ ARTIFACT_STEP = {
     "paper_summary": "summarizing_papers",
     "literature_claims": "reasoning_literature",
     "literature_relations": "reasoning_literature",
-    "reasoning_traces": "reasoning_literature",
     "graph": "building_graph",
 }
 CONTRACT_INPUT = ResearchContractInput.model_validate(
@@ -501,7 +499,6 @@ def test_revision_plan_impact_closures(runtime: dict[str, object]) -> None:
             "paper_summary",
             "literature_claims",
             "literature_relations",
-            "reasoning_traces",
             "graph",
         },
         "paper_collection": {
@@ -509,32 +506,22 @@ def test_revision_plan_impact_closures(runtime: dict[str, object]) -> None:
             "paper_summary",
             "literature_claims",
             "literature_relations",
-            "reasoning_traces",
             "graph",
         },
         "paper_summary": {
             "paper_summary",
             "literature_claims",
             "literature_relations",
-            "reasoning_traces",
             "graph",
         },
         "literature_claims": {
             "literature_claims",
             "literature_relations",
-            "reasoning_traces",
             "graph",
         },
         "literature_relations": {
             "literature_claims",
             "literature_relations",
-            "reasoning_traces",
-            "graph",
-        },
-        "reasoning_traces": {
-            "literature_claims",
-            "literature_relations",
-            "reasoning_traces",
             "graph",
         },
         "graph": {"graph"},

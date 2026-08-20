@@ -8,7 +8,6 @@ from pydantic import ValidationError
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import ArtifactKind, ExportArtifactContent
-from app.schemas.reasoning_traces import ReasoningTracesArtifactContent
 from app.schemas.revision import CreateUserFeedbackRequest, FeedbackTargetType
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
@@ -85,10 +84,6 @@ class ArtifactVersionTargetReadService:
                 cursor=None,
                 limit=1,
             )
-        elif kind is ArtifactKind.reasoning_traces:
-            self._validate_reasoning_traces(
-                version_id=version_id, session_id=session_id
-            )
         elif kind is ArtifactKind.graph:
             self._graph.get_graph(version_id=version_id, session_id=session_id)
         elif kind in {
@@ -102,8 +97,10 @@ class ArtifactVersionTargetReadService:
             self._scientific.get_scientific_artifact(
                 version_id=version_id, session_id=session_id
             )
-        else:
+        elif kind is ArtifactKind.export:
             self._validate_export(version_id=version_id, session_id=session_id)
+        else:
+            raise ValueError(f"unsupported ArtifactVersion target kind: {kind}")
 
     def _validate_export(self, *, version_id: str, session_id: str) -> None:
         version = self._artifacts.get_version(
@@ -130,33 +127,6 @@ class ArtifactVersionTargetReadService:
             )
             if referenced.project_id != version.project_id:
                 raise ValueError("cross-project Export reference")
-
-    def _validate_reasoning_traces(self, *, version_id: str, session_id: str) -> None:
-        version = self._artifacts.get_version(
-            version_id=version_id,
-            session_id=session_id,
-            full_content=True,
-        )
-        artifact = self._artifacts.get_artifact(
-            artifact_id=version.artifact_id, session_id=session_id
-        )
-        candidate = ReasoningTracesArtifactContent.model_validate(version.content)
-        runtime = version.producer_execution
-        if (
-            artifact.kind is not ArtifactKind.reasoning_traces
-            or version.schema_version != candidate.schema_version
-            or version.content_hash != compute_canonical_payload_hash(version.content)
-            or version.input_hash != candidate.input_hash
-            or version.source_snapshot_ids
-            or version.evidence_ids
-            or runtime.run_id != version.created_by_run_id
-            or runtime.input_hash != candidate.input_hash
-            or runtime.output_hash != version.content_hash
-            or runtime.status != "completed"
-            or version.producer != runtime.producer
-        ):
-            raise ValueError("invalid ReasoningTrace ArtifactVersion")
-
 
 class FeedbackTargetAuthority:
     """Resolve one Feedback target through its version-pinned read authority."""
