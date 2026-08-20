@@ -72,7 +72,7 @@ function axisEncoding(
  * Raw or user-provided Vega specs are never accepted; no expressions are
  * emitted, so the renderer cannot evaluate arbitrary code.
  */
-function buildVegaLiteSpec(chart: ChartVisualizationReview) {
+function buildVegaLiteSpec(chart: ChartVisualizationReview): TopLevelSpec {
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v6.json",
     width: "container",
@@ -124,7 +124,7 @@ export function ScientificChart({
       try {
         const [{ default: embed }, spec] = await Promise.all([
           import("vega-embed"),
-          Promise.resolve(buildVegaLiteSpec(chart) as unknown as TopLevelSpec),
+          Promise.resolve(buildVegaLiteSpec(chart)),
         ]);
         if (!active) return;
         container.textContent = "";
