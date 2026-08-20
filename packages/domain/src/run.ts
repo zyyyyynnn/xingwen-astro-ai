@@ -12,7 +12,11 @@ import type {
   RunStatus,
 } from "./enums";
 import type { DomainEntityId } from "./identifiers";
-import type { UtcIsoTimestamp } from "./value-types";
+import type {
+  ContentHash,
+  SemanticVersion,
+  UtcIsoTimestamp,
+} from "./value-types";
 
 export interface ResearchRun {
   readonly id: DomainEntityId;
@@ -66,19 +70,85 @@ export interface RunEvent {
 export interface RunCheckpoint {
   readonly id: DomainEntityId;
   readonly runId: DomainEntityId;
+  readonly runRevision: number;
   readonly stepKey: DomainEntityId;
   readonly question: string;
   readonly options: readonly string[];
+  readonly kind: "choice" | "scientific_repair";
+  readonly repairContext: RepairCheckpointContext | null;
   readonly createdAt: UtcIsoTimestamp;
   readonly selectedOption: string | null;
   readonly freeText: string | null;
+  readonly repairDecisions: readonly RepairDecisionInput[];
+  readonly repairOutcome: RepairOutcome | null;
   readonly decidedAt: UtcIsoTimestamp | null;
 }
 
-export interface RunCheckpointDecisionRequest {
+export type RepairAction = "accepted" | "rejected" | "keep_unresolved";
+
+export interface RepairEvidenceFact {
+  readonly evidenceId: DomainEntityId;
+  readonly leftCandidateId: DomainEntityId;
+  readonly rightCandidateId: DomainEntityId;
+  readonly confidence: number;
+  readonly summary: string;
+}
+
+export interface RepairDefect {
+  readonly defectId: DomainEntityId;
+  readonly logicalMatchKey: ContentHash;
+  readonly conflictCode: string;
+  readonly leftCandidateIds: readonly DomainEntityId[];
+  readonly rightCandidateIds: readonly DomainEntityId[];
+  readonly evidence: readonly RepairEvidenceFact[];
+}
+
+export interface RepairRuleSetReference {
+  readonly ruleSetId: DomainEntityId;
+  readonly ruleSetVersion: SemanticVersion;
+  readonly ruleSetContentHash: ContentHash;
+  readonly allowedActions: readonly RepairAction[];
+}
+
+export interface RepairCheckpointContext {
+  readonly ruleSet: RepairRuleSetReference;
+  readonly sourceInputHash: ContentHash;
+  readonly beforeOutputHash: ContentHash;
+  readonly defects: readonly RepairDefect[];
+}
+
+export interface RepairDecisionInput {
+  readonly defectId: DomainEntityId;
+  readonly action: RepairAction;
+  readonly rationale: string;
+}
+
+export interface RepairOutcome {
+  readonly afterOutputHash: ContentHash;
+  readonly qualityResultHash: ContentHash;
+  readonly beforeEvidenceIds: readonly DomainEntityId[];
+  readonly afterEvidenceIds: readonly DomainEntityId[];
+  readonly resolvedDefectIds: readonly DomainEntityId[];
+  readonly unresolvedDefectIds: readonly DomainEntityId[];
+  readonly status: "revalidated" | "false_repair";
+}
+
+export interface CheckpointDecisionIdentity {
+  readonly checkpointId: DomainEntityId;
+  readonly expectedRunRevision: number;
+}
+
+export interface ChoiceCheckpointDecisionRequest extends CheckpointDecisionIdentity {
   readonly selectedOption: string;
   readonly freeText?: string | null;
 }
+
+export interface RepairCheckpointDecisionRequest extends CheckpointDecisionIdentity {
+  readonly repairDecisions: readonly RepairDecisionInput[];
+}
+
+export type RunCheckpointDecisionRequest =
+  ChoiceCheckpointDecisionRequest | RepairCheckpointDecisionRequest;
 
 /**
  * Validate stable derivation and terminal-progress invariants of a run.

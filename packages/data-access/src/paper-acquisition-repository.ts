@@ -20,6 +20,7 @@ import type {
   PaperCollection as PaperCollectionDto,
   PaperCollectionCandidateRead as PaperCollectionCandidateReadDto,
   PaperCollectionRead as PaperCollectionReadDto,
+  PaperCandidateInputBinding as PaperCandidateInputBindingDto,
   PaperDuplicateGroup as PaperDuplicateGroupDto,
   PaperSourceExecution as PaperSourceExecutionDto,
   ProducerExecutionDetail as ProducerExecutionDetailDto,
@@ -47,6 +48,7 @@ import type {
 import { asEntityId } from "@xingwen/domain";
 
 import { HttpClient, seg } from "./http-client";
+import { computeCanonicalJsonHash } from "./contract-hash";
 import { ValidationError } from "./errors";
 import { mapEvidenceDetail } from "./mapping";
 import type { PaperAcquisitionRepository } from "./ports";
@@ -571,6 +573,33 @@ export function createPaperAcquisitionRepository(
       } while (cursor !== null);
 
       return assemblePaperAcquisitionReview(read, candidateReads);
+    },
+    async bindResearchInput(input) {
+      const resourceIdentityHash = await computeCanonicalJsonHash({
+        resource_type: "research_input",
+        research_input_id: input.researchInputId,
+        content_hash: input.researchInputContentHash,
+      });
+      const payload = await http.post<unknown>(
+        `/api/artifact-versions/${seg(input.artifactVersionId)}/paper-candidates/${seg(input.candidateId)}/research-input`,
+        {
+          mode: "existing_research_input",
+          research_input_id: input.researchInputId,
+          access_evidence: {
+            kind: "user_provided",
+            license: "user-provided document",
+            evidence_url: input.evidenceUrl,
+            canonical_paper_id: input.canonicalPaperId,
+            resource_type: "research_input",
+            resource_identity_hash: resourceIdentityHash,
+          },
+        },
+        { "Idempotency-Key": input.idempotencyKey },
+      );
+      parseContract<PaperCandidateInputBindingDto>(
+        "PaperCandidateInputBinding",
+        payload,
+      );
     },
   };
 }

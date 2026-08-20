@@ -10,6 +10,7 @@ dependencies = [
     "aiofiles>=24.1.0",
     "astropy>=8.0.0,<9",
     "astroquery>=0.4.11,<0.5",
+    "docling-parse==7.11.0",
     "fastapi>=0.139.0",
     "httpx>=0.28.0",
     "numpy>=2.2.0,<3",
@@ -36,11 +37,7 @@ dev = [
     "httpx2>=0.28.1",
     "pytest>=9.0.2",
 ]
-# Scientific Document Parsing benchmark-only tooling. Kept OUT of core API
-# runtime dependencies so API startup never requires docling. The native
-# baseline (benchmark-only) and fixture generation need exactly these versions.
 benchmark = [
-    "docling-parse==7.11.0",
     "fpdf2>=2.7.0",
 ]
 
@@ -55,5 +52,5 @@ module-name = "app"
 pythonpath = ["../.."]
 markers = [
     "live: opt-in tests that call a real external source",
-    "scientific_document_native: Scientific Document Parsing Contract native baseline tests requiring the benchmark dependency group (docling-parse)",
+    "scientific_document_native: Scientific Document Parsing native parser and Golden Set tests",
 ]

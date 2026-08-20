@@ -57,6 +57,7 @@ dependencies = [
     { name = "aiofiles" },
     { name = "astropy" },
     { name = "astroquery" },
+    { name = "docling-parse" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "numpy" },
@@ -80,7 +81,6 @@ dependencies = [
 
 [package.dev-dependencies]
 benchmark = [
-    { name = "docling-parse" },
     { name = "fpdf2" },
 ]
 dev = [
@@ -93,6 +93,7 @@ requires-dist = [
     { name = "aiofiles", specifier = ">=24.1.0" },
     { name = "astropy", specifier = ">=8.0.0,<9" },
     { name = "astroquery", specifier = ">=0.4.11,<0.5" },
+    { name = "docling-parse", specifier = "==7.11.0" },
     { name = "fastapi", specifier = ">=0.139.0" },
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "numpy", specifier = ">=2.2.0,<3" },
@@ -115,10 +116,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-benchmark = [
-    { name = "docling-parse", specifier = "==7.11.0" },
-    { name = "fpdf2", specifier = ">=2.7.0" },
-]
+benchmark = [{ name = "fpdf2", specifier = ">=2.7.0" }]
 dev = [
     { name = "httpx2", specifier = ">=0.28.1" },
     { name = "pytest", specifier = ">=9.0.2" },

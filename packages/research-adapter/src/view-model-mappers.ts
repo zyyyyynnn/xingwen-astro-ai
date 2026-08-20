@@ -286,15 +286,22 @@ export function toRunCheckpointViewModel(
   return {
     id: checkpoint.id,
     runId: checkpoint.runId,
+    runRevision: checkpoint.runRevision,
     stepKey: checkpoint.stepKey,
     question: checkpoint.question,
     options: [...checkpoint.options],
+    kind: checkpoint.kind,
+    repairContext: checkpoint.repairContext,
     createdAt: checkpoint.createdAt,
     selectedOption: checkpoint.selectedOption,
     freeText: checkpoint.freeText,
+    repairDecisions: checkpoint.repairDecisions,
+    repairOutcome: checkpoint.repairOutcome,
     decidedAt: checkpoint.decidedAt,
     isAnswered:
-      checkpoint.selectedOption !== null || checkpoint.decidedAt !== null,
+      checkpoint.selectedOption !== null ||
+      checkpoint.repairDecisions.length > 0 ||
+      checkpoint.decidedAt !== null,
   };
 }
 

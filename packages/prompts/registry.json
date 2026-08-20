@@ -26,9 +26,9 @@
       ]
     },
     "research_contract_planner": {
-      "version": "1.6.0",
+      "version": "1.7.0",
       "path": "research_contract_planner/prompt.md",
-      "content_hash": "sha256:dd373c08718332ce4069e9c0ea042e17e5ba8734c2bf80e0085dffa455b92b39",
+      "content_hash": "sha256:adb13c668cc4d8d3e042b19e1cbf8a97d7e7803bc4fac473ef698a64eb264f7f",
       "output_models": [
         "PlannerOutcome"
       ]

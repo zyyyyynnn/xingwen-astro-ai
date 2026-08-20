@@ -383,7 +383,7 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
         "confirmRevisionPlan",
         "getPaperCollection",
         "getPaperSummary",
-        "getPaperSummaryPdfSource",
+        "getPaperSummaryDocumentSource",
         "downloadPaperSummaryExport",
         "getScientificArtifact",
         "getScientificArtifactContent",

@@ -27,9 +27,7 @@ from .types import ScientificSkillRequest, ScientificSkillResult
 
 ScientificSkillHandler = Callable[[ScientificSkillRequest], dict[str, object]]
 WorkloadClass = Literal["cpu_light", "cpu_heavy", "memory_heavy", "network"]
-ParameterKind = Literal[
-    "string", "number", "integer", "boolean", "rows", "string_list"
-]
+ParameterKind = Literal["string", "number", "integer", "boolean", "rows", "string_list"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,13 +117,18 @@ def _parameter_descriptors(
 ) -> tuple[SkillParameterDescriptor, ...]:
     return tuple(
         SkillParameterDescriptor(
-            name=name, kind=kind, required=required, description=description  # type: ignore[arg-type]
+            name=name,
+            kind=kind,
+            required=required,
+            description=description,  # type: ignore[arg-type]
         )
         for name, kind, required, description in parameters
     )
 
 
-def build_scientific_skill_registry() -> ScientificSkillRegistry:
+def build_scientific_skill_registry(
+    *, gaia_handler: ScientificSkillHandler | None = None
+) -> ScientificSkillRegistry:
     """Build the production registry; imports stay lazy at this composition root."""
 
     from .astronomy import (
@@ -171,7 +174,7 @@ def build_scientific_skill_registry() -> ScientificSkillRegistry:
         ScientificSkillId.skyview_fits: retrieve_skyview_fits,
         ScientificSkillId.ephemeris: calculate_ephemeris,
         ScientificSkillId.celestial_events: find_celestial_events,
-        ScientificSkillId.gaia_cone_search: query_gaia_dr3,
+        ScientificSkillId.gaia_cone_search: gaia_handler or query_gaia_dr3,
         ScientificSkillId.vizier_tap: query_vizier_tap,
         ScientificSkillId.fits_image_analysis: analyze_fits_image,
         ScientificSkillId.spectrum_analysis: analyze_spectrum,
@@ -209,10 +212,12 @@ def build_scientific_skill_registry() -> ScientificSkillRegistry:
             label=str(descriptor["label"]),
             description=str(descriptor["description"]),
             accepted_input_kinds=tuple(
-                str(kind) for kind in descriptor["accepted_input_kinds"]  # type: ignore[union-attr]
+                str(kind)
+                for kind in descriptor["accepted_input_kinds"]  # type: ignore[union-attr]
             ),
             produced_artifact_kinds=tuple(
-                str(kind) for kind in descriptor["produced_artifact_kinds"]  # type: ignore[union-attr]
+                str(kind)
+                for kind in descriptor["produced_artifact_kinds"]  # type: ignore[union-attr]
             ),
             parameter_model=_parameter_descriptors(
                 descriptor["parameters"]  # type: ignore[arg-type]

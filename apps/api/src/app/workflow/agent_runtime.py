@@ -9,12 +9,12 @@ from uuid import UUID
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.services.model_execution import (
-    ModelExecutionPort,
     ModelExecutionRequest,
     ModelExecutionResponse,
     ModelToolCall,
 )
 from packages.prompts.registry import PromptRecord
+from app.workflow.store import WorkflowCheckpointRequested
 
 
 T = TypeVar("T")
@@ -157,7 +157,6 @@ PUBLIC_ANALYSIS_INSTRUCTION = (
     "尚未发生的执行结果；不得输出私有思维链，不得使用英文标题或分段，不得包含内部标识符、"
     "哈希或技术字段名。不可翻译的论文标题、模型字段、工具名与标准技术术语除外。"
 )
-
 
 
 class AgentAuditPort(Protocol):
@@ -344,6 +343,8 @@ class ResearchStepAgent:
         )
         try:
             prepared = execute_primary()
+        except WorkflowCheckpointRequested:
+            raise
         except Exception as error:
             raise AgentActivityError(
                 activity_id=call.id,
@@ -379,7 +380,6 @@ class ResearchStepAgent:
         )
 
 
-
 def _single_tool_call(response: ModelExecutionResponse) -> ModelToolCall:
     if len(response.tool_calls) != 1:
         raise ValueError("Agent must select exactly one registered tool per turn")
@@ -394,16 +394,12 @@ def _public_analysis(call: ModelToolCall) -> str:
     )
 
 
-
-
 def deterministic_assistant_narrative(
     activity_name: str, activity_result_summary: str
 ) -> str:
     """Fallback Assistant Message for a completed, non-model explanation."""
 
     return f"“{activity_name}”已完成。{activity_result_summary}"
-
-
 
 
 def _simplified_chinese_text(value: Any, tool_name: str, field: str) -> str:

@@ -33,6 +33,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -87,6 +88,7 @@ from app.workflow.publisher import (
     ProducerExecutionStore,
     admit_artifact_candidate,
 )
+from app.workflow.step_publication import step_uuid
 from app.workflow.store import PersistentWorkflowStore
 
 _NAMESPACE = "https://xingwen.example/test-only-bootstrap"
@@ -207,7 +209,7 @@ def bootstrap_fixture_artifacts(
     candidate = publication.candidate
     source_snapshot_bindings = publication.source_snapshot_bindings
     evidence_bindings = publication.evidence_bindings
-    artifact_id = _seed_uuid(run.id, "dataset-artifact")
+    artifact_id = step_uuid(str(project_id), "artifact:dataset")
 
     with factory() as session:
         existing_version = session.scalar(
@@ -407,18 +409,24 @@ def _publish_fixture_version(
     )
 
     with factory() as session, session.begin():
-        artifact = session.get(ResearchArtifactModel, artifact_id)
-        if artifact is None:
-            session.add(
-                ResearchArtifactModel(
-                    id=artifact_id,
-                    project_id=project_id,
-                    kind="dataset",
-                    title="Exoplanet host-star dataset",
-                    logical_key="dataset.primary",
-                )
+        session.execute(
+            insert(ResearchArtifactModel)
+            .values(
+                id=artifact_id,
+                project_id=project_id,
+                kind="dataset",
+                title="Exoplanet host-star dataset",
+                logical_key="dataset.primary",
             )
-        elif artifact.project_id != project_id or artifact.kind != "dataset":
+            .on_conflict_do_nothing(index_elements=("id",))
+        )
+        artifact = session.get(ResearchArtifactModel, artifact_id)
+        if (
+            artifact is None
+            or artifact.project_id != project_id
+            or artifact.kind != "dataset"
+            or artifact.logical_key != "dataset.primary"
+        ):
             raise RuntimeError("Bootstrap Dataset artifact identity is not consistent")
         for source in (
             data_input.left_acquisition.snapshot,

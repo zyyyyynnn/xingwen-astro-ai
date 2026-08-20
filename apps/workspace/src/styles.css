@@ -926,6 +926,125 @@ button:disabled {
   font-size: var(--oh-font-size-body);
 }
 
+.scientific-repair {
+  display: grid;
+  gap: var(--oh-space-3);
+  color: var(--oh-text);
+}
+
+.scientific-repair__title {
+  margin: 0;
+  font-size: var(--oh-font-size-heading);
+  font-weight: 650;
+}
+
+.scientific-repair__description {
+  margin: 0;
+  color: var(--oh-muted);
+  font-size: var(--oh-font-size-body);
+  line-height: var(--oh-line-height-body);
+}
+
+.scientific-repair__defects {
+  display: grid;
+  gap: var(--oh-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scientific-repair__defect {
+  display: grid;
+  gap: var(--oh-space-3);
+  padding: var(--oh-space-3);
+  border: 1px solid var(--oh-border);
+  border-radius: var(--oh-radius-md);
+  background: var(--oh-surface);
+}
+
+.scientific-repair__defect-heading,
+.scientific-repair__evidence li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--oh-space-4);
+}
+
+.scientific-repair__defect-heading {
+  font-size: var(--oh-font-size-body);
+  font-weight: 650;
+}
+
+.scientific-repair__defect-heading span:last-child,
+.scientific-repair__evidence li span:last-child {
+  color: var(--oh-muted);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.scientific-repair__candidates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--oh-space-2);
+  margin: 0;
+}
+
+.scientific-repair__candidates div {
+  min-width: 0;
+}
+
+.scientific-repair__candidates dt {
+  color: var(--oh-muted);
+  font-size: var(--oh-font-size-label);
+}
+
+.scientific-repair__candidates dd {
+  margin: var(--oh-space-1) 0 0;
+  overflow-wrap: anywhere;
+  font-size: var(--oh-font-size-body);
+}
+
+.scientific-repair__evidence {
+  display: grid;
+  gap: var(--oh-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--oh-font-size-body);
+  line-height: var(--oh-line-height-body);
+}
+
+.scientific-repair__actions {
+  display: grid;
+  gap: var(--oh-space-2);
+}
+
+.scientific-repair__actions label {
+  display: flex;
+  align-items: center;
+  gap: var(--oh-space-2);
+  width: fit-content;
+  cursor: pointer;
+  font-size: var(--oh-font-size-body);
+}
+
+.scientific-repair__submit {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .scientific-repair__candidates {
+    grid-template-columns: 1fr;
+  }
+
+  .scientific-repair__defect-heading,
+  .scientific-repair__evidence li {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--oh-space-1);
+  }
+}
+
 .agent-thinking__body p {
   margin: 0;
 }

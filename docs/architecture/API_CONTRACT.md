@@ -110,7 +110,7 @@ ArtifactVersion -> UserFeedback -> RevisionPlan -> revision Run
   相同并发请求最多只有一个 lease owner 执行摄取，完成 binding 时原子关闭 reservation。
    任何未证明访问、paywall、受限/部分元数据、非法 URL、
    SSRF、redirect、MIME、大小、超时或上游失败均 fail closed，且不执行 parser。
-   全文读取只通过 `GET /api/artifact-versions/{version_id}/paper-summary/pdf-source`：
+   全文读取只通过 `GET /api/artifact-versions/{version_id}/paper-summary/document-source`：
    服务端先完成该 PaperSummary 的完整 provenance 校验，再按
    `(paper_collection_version_id, canonical_paper_id)` 解析最新 `accepted` 桥接绑定，
    并重新校验其 ResearchInput 的 ownership、未过期、content hash 与 PDF 类型；

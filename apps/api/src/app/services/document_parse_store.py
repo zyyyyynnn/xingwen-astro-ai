@@ -93,6 +93,14 @@ class _DocumentParseMetadata:
 
 
 @dataclass(frozen=True, slots=True)
+class DocumentParseSourceSnapshot:
+    id: UUID
+    source_id: str
+    source_version: str
+    content_hash: str
+
+
+@dataclass(frozen=True, slots=True)
 class PersistedDocumentLocator:
     id: UUID
     project_id: UUID
@@ -114,7 +122,9 @@ class DocumentParseService:
         self._repository = repository
         self._content_storage = content_storage
 
-    async def persist(self, request: PersistDocumentParseRequest) -> DocumentParseRecord:
+    async def persist(
+        self, request: PersistDocumentParseRequest
+    ) -> DocumentParseRecord:
         self._repository.validate_context(request)
         # The stored CAS payload is the stable Canonical representation: it
         # excludes process-local parse_id / created_at so two equivalent
@@ -130,9 +140,7 @@ class DocumentParseService:
             allow_nan=False,
         ).encode("utf-8")
         payload_content_hash = sha256_content_hash(payload_bytes)
-        payload_semantic_hash = document_parse_payload_semantic_hash(
-            request.candidate
-        )
+        payload_semantic_hash = document_parse_payload_semantic_hash(request.candidate)
         storage_ref = await self._content_storage.store(
             payload_bytes, payload_content_hash
         )
@@ -200,6 +208,14 @@ class DocumentParseService:
             document_parse_id=document_parse_id,
             source_snapshot_id=source_snapshot_id,
             locator=locator,
+        )
+
+    def source_snapshot(
+        self, *, project_id: UUID, document_parse_id: UUID
+    ) -> DocumentParseSourceSnapshot:
+        return self._repository.source_snapshot(
+            project_id=project_id,
+            document_parse_id=document_parse_id,
         )
 
 
@@ -305,6 +321,35 @@ class DocumentParseRepository:
             if row is None:
                 raise DocumentParseNotFoundError("DocumentParse was not found")
             return _metadata(row)
+
+    def source_snapshot(
+        self, *, project_id: UUID, document_parse_id: UUID
+    ) -> DocumentParseSourceSnapshot:
+        with self._factory() as session:
+            row = session.scalar(
+                select(SourceSnapshotModel)
+                .join(
+                    DocumentParseModel,
+                    DocumentParseModel.source_snapshot_id == SourceSnapshotModel.id,
+                )
+                .where(
+                    DocumentParseModel.id == document_parse_id,
+                    DocumentParseModel.project_id == project_id,
+                    SourceSnapshotModel.project_id == project_id,
+                )
+            )
+            if row is None:
+                raise DocumentParseNotFoundError(
+                    "DocumentParse SourceSnapshot was not found"
+                )
+            return DocumentParseSourceSnapshot(
+                id=row.id,
+                source_id=row.source_id,
+                source_version=(
+                    row.source_version_or_etag or row.cache_version or row.content_hash
+                ),
+                content_hash=row.content_hash,
+            )
 
     def persist_locator(
         self,
@@ -623,8 +668,7 @@ def validate_document_locator(
     if page is None:
         raise DocumentParseIntegrityError("locator references a dangling page")
     if locator.bbox is not None and (
-        locator.bbox.x2 > page.width_points
-        or locator.bbox.y2 > page.height_points
+        locator.bbox.x2 > page.width_points or locator.bbox.y2 > page.height_points
     ):
         raise DocumentParseIntegrityError("locator bbox escapes its page geometry")
 
@@ -640,10 +684,14 @@ def validate_document_locator(
             locator.reading_order is not None
             and block.reading_order != locator.reading_order
         ):
-            raise DocumentParseIntegrityError("locator reading_order does not match block")
+            raise DocumentParseIntegrityError(
+                "locator reading_order does not match block"
+            )
         if locator.text_span is not None:
             if block.text is None or locator.text_span.end > len(block.text):
-                raise DocumentParseIntegrityError("locator text_span escapes block text")
+                raise DocumentParseIntegrityError(
+                    "locator text_span escapes block text"
+                )
 
     table_cell = None
     table_block = None
@@ -674,7 +722,9 @@ def validate_document_locator(
                 None,
             )
             if table_cell is None:
-                raise DocumentParseIntegrityError("locator references a dangling table cell")
+                raise DocumentParseIntegrityError(
+                    "locator references a dangling table cell"
+                )
 
     reference_bbox = (
         table_cell.bbox
@@ -782,6 +832,7 @@ __all__ = [
     "DocumentParseRecord",
     "DocumentParseRepository",
     "DocumentParseService",
+    "DocumentParseSourceSnapshot",
     "PersistDocumentParseRequest",
     "PersistedDocumentLocator",
     "document_parse_identity_hash",

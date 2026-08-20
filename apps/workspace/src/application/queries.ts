@@ -9,7 +9,7 @@ import type {
   GraphArtifactReview,
   LiteratureArtifactReview,
   PaperAcquisitionReview,
-  PaperSummaryPdfSourceReview,
+  PaperSummaryDocumentSourceReview,
   PaperSummaryReview,
   ScientificArtifactReview,
 } from "@xingwen/domain";
@@ -302,21 +302,21 @@ export function createWorkspaceQueries({
           return summary;
         },
       }),
-    paperSummaryPdfSource: (
+    paperSummaryDocumentSource: (
       projectId: DomainEntityId,
       artifactVersionId: DomainEntityId,
     ) =>
       queryOptions({
-        queryKey: workspaceQueryKeys.paperSummaryPdfSource(
+        queryKey: workspaceQueryKeys.paperSummaryDocumentSource(
           projectId,
           artifactVersionId,
         ),
-        queryFn: async (): Promise<PaperSummaryPdfSourceReview> =>
+        queryFn: async (): Promise<PaperSummaryDocumentSourceReview> =>
           // Ownership is enforced by the session-scoped backend read (it
           // validates the full summary provenance before resolving the
           // authorized PaperCandidate → ResearchInput binding); a foreign
           // version surfaces as a typed NotFound.
-          repositories.paperSummary.getPdfSource(artifactVersionId),
+          repositories.paperSummary.getDocumentSource(artifactVersionId),
       }),
     evidence: (projectId: DomainEntityId, evidenceId: DomainEntityId) =>
       queryOptions({

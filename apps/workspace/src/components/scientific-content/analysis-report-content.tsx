@@ -26,14 +26,6 @@ const FINDING_ALERT_STATUSES = new Set([
   "conflicted",
 ]);
 
-function displayValue(value: unknown): string {
-  if (value === null) return "null";
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean")
-    return String(value);
-  return JSON.stringify(value, null, 2);
-}
-
 const COLUMN_LABELS: Readonly<Record<string, string>> = {
   source_id: "源标识",
   object_id: "天体标识",
@@ -93,22 +85,24 @@ function isScalar(value: unknown): value is ScientificTableScalar {
 
 function recordRows(
   payload: unknown,
+  representation: ScientificResultBlockReview["representation"],
 ): readonly Record<string, unknown>[] | null {
   if (!payload || typeof payload !== "object") return null;
   const record = payload as Record<string, unknown>;
-  const candidate = ["rows", "records", "matches", "events", "forecast"]
-    .map((key) => record[key])
-    .find(
-      (value) =>
-        Array.isArray(value) &&
-        value.length > 0 &&
-        value.every(
-          (item) =>
-            item !== null && typeof item === "object" && !Array.isArray(item),
-        ),
-    );
-  if (Array.isArray(candidate))
-    return candidate as readonly Record<string, unknown>[];
+  if (representation !== "record") {
+    const rows = record.rows;
+    if (
+      Array.isArray(rows) &&
+      rows.length > 0 &&
+      rows.every(
+        (item) =>
+          item !== null && typeof item === "object" && !Array.isArray(item),
+      )
+    ) {
+      return rows as readonly Record<string, unknown>[];
+    }
+    return null;
+  }
   const scalarEntries = Object.entries(record).filter(([, value]) =>
     isScalar(value),
   );
@@ -146,7 +140,7 @@ function explicitColumns(
 function tableModel(
   block: ScientificResultBlockReview,
 ): { columns: ScientificTableColumn[]; rows: ScientificTableRow[] } | null {
-  const records = recordRows(block.payload);
+  const records = recordRows(block.payload, block.representation);
   if (!records) return null;
   const explicit = explicitColumns(block.payload);
   const keys = [
@@ -184,6 +178,38 @@ function tableModel(
   };
 }
 
+function StructuredValue({ value }: { readonly value: unknown }) {
+  if (isScalar(value))
+    return <span>{value === null ? "无" : String(value)}</span>;
+  if (Array.isArray(value)) {
+    if (value.length === 0) return <span>暂无数据</span>;
+    return (
+      <ol className="space-y-1 pl-5">
+        {value.map((item, index) => (
+          <li key={index}>
+            <StructuredValue value={item} />
+          </li>
+        ))}
+      </ol>
+    );
+  }
+  if (value && typeof value === "object") {
+    return (
+      <dl className="grid gap-2">
+        {Object.entries(value as Record<string, unknown>).map(([key, item]) => (
+          <div key={key}>
+            <dt className="font-medium">{humanColumnLabel(key)}</dt>
+            <dd className="text-[var(--oh-muted)]">
+              <StructuredValue value={item} />
+            </dd>
+          </div>
+        ))}
+      </dl>
+    );
+  }
+  return <span>暂无数据</span>;
+}
+
 function sourceDetails(payload: unknown): readonly [string, string][] {
   if (!payload || typeof payload !== "object") return [];
   const record = payload as Record<string, unknown>;
@@ -218,7 +244,6 @@ export function ResultBlock({
     <section className="scientific-result">
       <header>
         <h4>{block.label}</h4>
-        <span>{block.representation}</span>
       </header>
       {details.length > 0 ? (
         <dl className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--oh-muted)]">
@@ -247,7 +272,9 @@ export function ResultBlock({
           }
         />
       ) : (
-        <pre>{displayValue(block.payload)}</pre>
+        <div className="scientific-result__structured">
+          <StructuredValue value={block.payload} />
+        </div>
       )}
       <EvidenceLinks
         evidenceIds={block.evidenceIds}

@@ -198,8 +198,9 @@ export interface PaperSummaryReview {
  *
  * Resolved server-side through the recorded PaperCandidate → ResearchInput
  * provenance bridge; `null` means no authorized full-text relation exists and
- * the UI must show the plain unavailable state, never an inferred PDF URL.
+ * the UI must show the plain unavailable state, never an inferred source URL.
  */
-export interface PaperSummaryPdfSourceReview {
+export interface PaperSummaryDocumentSourceReview {
   readonly researchInputId: DomainEntityId | null;
+  readonly documentKind: "pdf" | "image" | null;
 }

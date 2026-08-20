@@ -935,16 +935,11 @@ export function WorkspaceHost({
         items={streamItems}
         onOpenArtifactVersion={onOpenArtifactVersion}
         onConfirmProtocol={confirmAndRun}
-        onCheckpointDecision={async (
-          runIdOfCheckpoint,
-          selectedOption,
-          freeText,
-        ) => {
+        onCheckpointDecision={async (runIdOfCheckpoint, decision) => {
           await checkpointDecision.mutateAsync({
             projectId,
             runId: parseEntityId(runIdOfCheckpoint) as DomainEntityId,
-            selectedOption,
-            freeText: freeText ?? null,
+            decision,
           });
         }}
         isSubmittingCheckpoint={checkpointDecision.isPending}

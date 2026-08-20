@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 
 import pytest
 
-from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import ProducerExecutionDetail, ProducerReference
 from app.schemas.paper_summary import (
     PaperSummaryArtifactContent,

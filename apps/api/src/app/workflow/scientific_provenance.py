@@ -4,14 +4,17 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import NAMESPACE_URL, UUID, uuid5
 
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.db.models import SourceSnapshotModel
+from app.db.models import GaiaTapResponseCacheModel, SourceSnapshotModel
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import ScientificSkillId, ScientificTaskInput
+from services.scientific_skills.astro_acquisition import GAIA_CACHE_VERSION
 from services.scientific_skills.types import (
     ScientificSkillRequest,
     ScientificSkillResult,
@@ -71,6 +74,8 @@ class _ProducedSource:
     query: dict[str, object]
     content_hash: str
     source_version_or_etag: str | None
+    retrieved_at: datetime
+    cache_version: str | None
     request_metadata: dict[str, object]
 
 
@@ -95,9 +100,12 @@ class DatabaseScientificSourceRecorder:
         with self._session_factory() as session, session.begin():
             for source in sources:
                 query_hash = compute_canonical_payload_hash(source.query)
-                snapshot_id = uuid5(
-                    NAMESPACE_URL,
-                    f"xingwen:{project_id}:{source.source_id}:{query_hash}:{source.content_hash}",
+                snapshot_id = _scientific_source_snapshot_id(
+                    project_id=project_id,
+                    source_id=source.source_id,
+                    query_hash=query_hash,
+                    content_hash=source.content_hash,
+                    retrieved_at=source.retrieved_at,
                 )
                 row = session.get(SourceSnapshotModel, snapshot_id)
                 if row is None:
@@ -106,13 +114,13 @@ class DatabaseScientificSourceRecorder:
                         project_id=project_uuid,
                         source_id=source.source_id,
                         source_type=source.source_type,
-                        retrieved_at=datetime.now(UTC),
+                        retrieved_at=source.retrieved_at,
                         query=source.query,
                         query_hash=query_hash,
                         source_version_or_etag=source.source_version_or_etag,
                         content_hash=source.content_hash,
                         license_note=source.license_note,
-                        cache_version=None,
+                        cache_version=source.cache_version,
                         request_metadata={
                             "run_id": run_id,
                             "request_id": request.request_id,
@@ -129,6 +137,7 @@ class DatabaseScientificSourceRecorder:
                     source_type=source.source_type,
                     query_hash=query_hash,
                     content_hash=source.content_hash,
+                    retrieved_at=source.retrieved_at,
                 )
                 references.append(
                     ScientificSourceReference(
@@ -139,6 +148,28 @@ class DatabaseScientificSourceRecorder:
         return tuple(references)
 
 
+def _scientific_source_snapshot_id(
+    *,
+    project_id: str,
+    source_id: str,
+    query_hash: str,
+    content_hash: str,
+    retrieved_at: datetime,
+) -> UUID:
+    """Identify one physical retrieval, even when its bytes match an older result."""
+
+    if retrieved_at.tzinfo is None:
+        raise ValueError("scientific SourceSnapshot retrieved_at must be timezone-aware")
+    retrieved_at_utc = retrieved_at.astimezone(UTC).isoformat()
+    return uuid5(
+        NAMESPACE_URL,
+        (
+            f"xingwen:{project_id}:{source_id}:{query_hash}:"
+            f"{content_hash}:{retrieved_at_utc}"
+        ),
+    )
+
+
 def _require_same_snapshot(
     row: SourceSnapshotModel,
     *,
@@ -147,6 +178,7 @@ def _require_same_snapshot(
     source_type: str,
     query_hash: str,
     content_hash: str,
+    retrieved_at: datetime,
 ) -> None:
     if (
         row.project_id != project_id
@@ -154,6 +186,7 @@ def _require_same_snapshot(
         or row.source_type != source_type
         or row.query_hash != query_hash
         or row.content_hash != content_hash
+        or row.retrieved_at != retrieved_at
     ):
         raise RuntimeError(
             "scientific SourceSnapshot identity was reused with different content"
@@ -214,6 +247,19 @@ def _produced_sources(
         response_hash = None
     if not isinstance(source_version, str):
         source_version = None
+    retrieved_at = datetime.now(UTC)
+    raw_retrieved_at = acquisition_metadata.get("retrieved_at")
+    if isinstance(raw_retrieved_at, str):
+        try:
+            retrieved_at = datetime.fromisoformat(raw_retrieved_at)
+        except ValueError as exc:
+            raise ValueError("scientific acquisition retrieved_at is invalid") from exc
+        if retrieved_at.tzinfo is None:
+            raise ValueError(
+                "scientific acquisition retrieved_at must be timezone-aware"
+            )
+    raw_cache_version = acquisition_metadata.get("cache_version")
+    cache_version = raw_cache_version if isinstance(raw_cache_version, str) else None
 
     sources: list[_ProducedSource] = []
     for source_id, source_type, license_note in metadata:
@@ -281,6 +327,11 @@ def _produced_sources(
                     "fiber",
                     "tic_id",
                     "sector",
+                    "cache_version",
+                    "query_hash",
+                    "retrieved_at",
+                    "schema_revision",
+                    "schema_response_content_hash",
                 }
             }
         sources.append(
@@ -291,10 +342,63 @@ def _produced_sources(
                 query=query,
                 content_hash=content_hash,
                 source_version_or_etag=source_version,
+                retrieved_at=retrieved_at,
+                cache_version=cache_version,
                 request_metadata=request_metadata,
             )
         )
     return tuple(sources)
 
 
-__all__ = ["DatabaseScientificSourceRecorder"]
+class DatabaseGaiaTapResponseCache:
+    """Persist validated Gaia responses for a short, project-scoped window."""
+
+    _TTL = timedelta(minutes=15)
+
+    def __init__(self, session_factory: Callable[[], Session]) -> None:
+        self._session_factory = session_factory
+
+    def get(self, *, project_id: str, query_hash: str) -> dict[str, object] | None:
+        now = datetime.now(UTC)
+        with self._session_factory() as session:
+            row = session.scalar(
+                select(GaiaTapResponseCacheModel).where(
+                    GaiaTapResponseCacheModel.project_id == UUID(project_id),
+                    GaiaTapResponseCacheModel.query_hash == query_hash,
+                    GaiaTapResponseCacheModel.cache_version == GAIA_CACHE_VERSION,
+                    GaiaTapResponseCacheModel.expires_at > now,
+                )
+            )
+        return None if row is None else dict(row.payload)
+
+    def put(
+        self,
+        *,
+        project_id: str,
+        query_hash: str,
+        payload: dict[str, object],
+        retrieved_at: datetime,
+    ) -> None:
+        expires_at = retrieved_at + self._TTL
+        statement = insert(GaiaTapResponseCacheModel).values(
+            project_id=UUID(project_id),
+            query_hash=query_hash,
+            cache_version=GAIA_CACHE_VERSION,
+            payload=payload,
+            retrieved_at=retrieved_at,
+            expires_at=expires_at,
+        )
+        statement = statement.on_conflict_do_update(
+            index_elements=("project_id", "query_hash", "cache_version"),
+            set_={
+                "payload": statement.excluded.payload,
+                "retrieved_at": statement.excluded.retrieved_at,
+                "expires_at": statement.excluded.expires_at,
+            },
+            where=GaiaTapResponseCacheModel.expires_at <= retrieved_at,
+        )
+        with self._session_factory() as session, session.begin():
+            session.execute(statement)
+
+
+__all__ = ["DatabaseGaiaTapResponseCache", "DatabaseScientificSourceRecorder"]

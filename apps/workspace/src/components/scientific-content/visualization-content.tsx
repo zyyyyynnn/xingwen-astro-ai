@@ -39,11 +39,9 @@ function ChartSummary({
 
 function FitsImageSummary({
   content,
-  versionNumber,
   loadContent,
 }: {
   readonly content: VisualizationReviewContent;
-  readonly versionNumber: number;
   readonly loadContent?: (contentHash: ContentHash) => Promise<ArrayBuffer>;
 }) {
   if (content.spec.mode !== "fits_image") return null;
@@ -64,13 +62,7 @@ function FitsImageSummary({
       </>
     );
   }
-  return (
-    <WwtViewport
-      spec={spec}
-      versionNumber={versionNumber}
-      loadContent={loadContent}
-    />
-  );
+  return <WwtViewport spec={spec} loadContent={loadContent} />;
 }
 
 function WwtSceneSummary({
@@ -120,7 +112,6 @@ function WwtSceneSummary({
       <WwtSceneControls
         key={`${content.visualizationId}:${versionNumber}`}
         spec={spec}
-        versionNumber={versionNumber}
         loadContent={loadContent}
       />
     </>
@@ -169,11 +160,7 @@ export function VisualizationContent({
         <p className="artifact-view__lead">{content.description}</p>
       ) : null}
       <ChartSummary content={content} />
-      <FitsImageSummary
-        content={content}
-        versionNumber={versionNumber}
-        loadContent={loadContent}
-      />
+      <FitsImageSummary content={content} loadContent={loadContent} />
       <WwtSceneSummary
         content={content}
         versionNumber={versionNumber}

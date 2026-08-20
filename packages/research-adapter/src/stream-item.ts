@@ -1,4 +1,9 @@
-import type { DomainEntityId } from "@xingwen/domain";
+import type {
+  DomainEntityId,
+  RepairCheckpointContext,
+  RepairDecisionInput,
+  RepairOutcome,
+} from "@xingwen/domain";
 
 import type { ActivityPresentationEvent } from "./activity";
 import { mergeActivityPresentationEvents } from "./activity";
@@ -52,11 +57,16 @@ export interface CheckpointPromptStreamItem {
   readonly kind: "checkpoint_prompt";
   readonly checkpointId: string;
   readonly runId: string;
+  readonly runRevision: number;
   readonly question: string;
   readonly options: readonly string[];
+  readonly checkpointKind: "choice" | "scientific_repair";
+  readonly repairContext: RepairCheckpointContext | null;
   readonly answered: boolean;
   readonly selectedOption: string | null;
   readonly freeText: string | null;
+  readonly repairDecisions: readonly RepairDecisionInput[];
+  readonly repairOutcome: RepairOutcome | null;
   readonly timestamp: string;
 }
 
@@ -383,11 +393,16 @@ export function buildUnifiedWorkspaceStream({
       kind: "checkpoint_prompt",
       checkpointId: checkpoint.id,
       runId: checkpoint.runId,
+      runRevision: checkpoint.runRevision,
       question: checkpoint.question,
       options: checkpoint.options,
+      checkpointKind: checkpoint.kind,
+      repairContext: checkpoint.repairContext,
       answered: checkpoint.isAnswered,
       selectedOption: checkpoint.selectedOption,
       freeText: checkpoint.freeText,
+      repairDecisions: checkpoint.repairDecisions,
+      repairOutcome: checkpoint.repairOutcome,
       timestamp: checkpoint.createdAt,
     };
     sortables.push({

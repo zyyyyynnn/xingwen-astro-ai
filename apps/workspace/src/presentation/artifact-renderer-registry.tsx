@@ -1,4 +1,8 @@
-import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  type UseQueryOptions,
+} from "@tanstack/react-query";
 import {
   ARTIFACT_KINDS,
   isArtifactKind,
@@ -15,9 +19,19 @@ import type {
   PaperAcquisitionReviewViewModel,
   ResearchArtifactViewModel,
 } from "@xingwen/research-adapter";
-import { Alert, AlertDescription, Button, Skeleton } from "@xingwen/ui";
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Skeleton,
+} from "@xingwen/ui";
 import { ArrowRight, FileText } from "@xingwen/ui/icons";
-import type { ComponentType, ReactNode } from "react";
+import { useMemo, useState, type ComponentType, type ReactNode } from "react";
 
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
 import { ArtifactExportActions } from "../components/artifact-export-actions";
@@ -307,12 +321,15 @@ function PaperSummaryFullscreen({
   viewModel,
   paperPageRequest,
 }: LoadedRendererProps<PaperSummaryReview>) {
-  const pdfSource = useQuery({
-    ...runtime.application.queries.paperSummaryPdfSource(projectId, version.id),
+  const documentSource = useQuery({
+    ...runtime.application.queries.paperSummaryDocumentSource(
+      projectId,
+      version.id,
+    ),
     retry: false,
   });
-  const inputId = pdfSource.data?.researchInputId ?? null;
-  const pdfUrl = inputId
+  const inputId = documentSource.data?.researchInputId ?? null;
+  const documentUrl = inputId
     ? runtime.repositories.researchInputs.getContentUrl(inputId)
     : null;
   return (
@@ -320,7 +337,8 @@ function PaperSummaryFullscreen({
       artifact={artifact}
       version={version}
       review={viewModel}
-      pdfUrl={pdfUrl}
+      documentUrl={documentUrl}
+      documentKind={documentSource.data?.documentKind ?? null}
       requestedPage={paperPageRequest}
       className="h-full w-full"
     />
@@ -340,6 +358,132 @@ const paperSummary = defineRenderer({
     `${viewModel.paper.title}，包含结构化论文摘要章节。`,
 });
 
+function PaperCollectionFullscreen({
+  runtime,
+  projectId,
+  artifact,
+  version,
+  viewModel,
+}: LoadedRendererProps<PaperAcquisitionReviewViewModel>) {
+  const inputs = useQuery(
+    runtime.application.queries.researchInputs(projectId),
+  );
+  const documentInputs = useMemo(
+    () =>
+      (inputs.data ?? []).filter(
+        (input) =>
+          input.type === "pdf" ||
+          input.type === "image" ||
+          input.mimeType === "application/pdf" ||
+          ["image/jpeg", "image/png", "image/tiff", "image/webp"].includes(
+            input.mimeType ?? "",
+          ),
+      ),
+    [inputs.data],
+  );
+  const selectedCandidate = viewModel.candidates.find(
+    (candidate) => candidate.selection.kind === "selected",
+  );
+  const [selectedInputId, setSelectedInputId] = useState<DomainEntityId | null>(
+    null,
+  );
+  const binding = useMutation({
+    mutationFn: async (researchInputId: DomainEntityId) => {
+      const input = documentInputs.find((item) => item.id === researchInputId);
+      if (!input || !selectedCandidate?.url) {
+        throw new Error("缺少可绑定的科研文档或论文来源地址");
+      }
+      await runtime.repositories.paperAcquisition.bindResearchInput({
+        artifactVersionId: version.id,
+        candidateId: selectedCandidate.candidateId,
+        canonicalPaperId: selectedCandidate.canonicalPaperId,
+        researchInputId: input.id,
+        researchInputContentHash: input.contentHash,
+        evidenceUrl: selectedCandidate.url,
+        idempotencyKey: globalThis.crypto.randomUUID(),
+      });
+    },
+  });
+
+  return (
+    <div className="space-y-4 p-5">
+      {selectedCandidate ? (
+        <section className="rounded-md border border-[var(--oh-border)] p-4">
+          <h3 className="text-sm font-medium">绑定已上传论文全文</h3>
+          <p className="mt-1 text-xs text-[var(--oh-muted)]">
+            将一个已上传 PDF 或论文图像明确绑定到《{selectedCandidate.title}
+            》，后续修订将基于固定全文版本生成可定位证据。
+          </p>
+          {documentInputs.length > 0 ? (
+            <div className="mt-3 flex flex-wrap items-end gap-2">
+              <label className="grid min-w-64 gap-1 text-xs">
+                已上传科研文档
+                <Select
+                  value={selectedInputId ?? ""}
+                  onValueChange={(value) =>
+                    setSelectedInputId(value as DomainEntityId)
+                  }
+                >
+                  <SelectTrigger aria-label="选择已上传科研文档">
+                    <SelectValue placeholder="选择一份科研文档" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {documentInputs.map((input) => (
+                      <SelectItem key={input.id} value={input.id}>
+                        {input.filename ?? input.id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+              <Button
+                type="button"
+                size="small"
+                disabled={selectedInputId === null || binding.isPending}
+                onClick={() => {
+                  if (selectedInputId)
+                    void binding.mutateAsync(selectedInputId);
+                }}
+              >
+                {binding.isPending ? "正在绑定" : "绑定到所选论文"}
+              </Button>
+            </div>
+          ) : (
+            <p className="mt-3 text-xs text-[var(--oh-muted)]">
+              当前项目尚未上传受支持的科研文档。请先在研究输入区上传 PDF
+              或论文图像。
+            </p>
+          )}
+          {binding.isSuccess ? (
+            <p
+              className="mt-2 text-xs text-[var(--oh-foreground)]"
+              role="status"
+            >
+              全文绑定已保存；可通过修订运行重新生成全文证据摘要。
+            </p>
+          ) : null}
+          {binding.isError ? (
+            <Alert className="mt-2" variant="destructive">
+              <AlertDescription>
+                {
+                  runtime.researchAdapter.toPublicApplicationError(
+                    binding.error,
+                  ).safeMessage
+                }
+              </AlertDescription>
+            </Alert>
+          ) : null}
+        </section>
+      ) : null}
+      <ScientificArtifactRenderer
+        review={{ ...viewModel, kind: "paper_collection" }}
+        title={artifact.title}
+        surface="fullscreen"
+      />
+    </div>
+  );
+}
+
 const paperCollection = defineRenderer({
   kind: "paper_collection",
   contentFamily: "paper_collection",
@@ -348,15 +492,7 @@ const paperCollection = defineRenderer({
   capabilities: commonCapabilities,
   load: ({ runtime, projectId, version }) =>
     runtime.application.queries.paperAcquisition(projectId, version.id),
-  fullscreen: ({ viewModel, artifact }) => (
-    <div className="p-5">
-      <ScientificArtifactRenderer
-        review={{ ...viewModel, kind: "paper_collection" }}
-        title={artifact.title}
-        surface="fullscreen"
-      />
-    </div>
-  ),
+  fullscreen: (props) => <PaperCollectionFullscreen {...props} />,
   textFallback: (viewModel: PaperAcquisitionReviewViewModel) =>
     `论文集合，候选 ${viewModel.candidates.length} 篇。`,
 });

@@ -18,6 +18,7 @@ from pydantic import (
 )
 
 from ._hashing import compute_canonical_payload_hash
+from .scientific_capabilities import skills_producing_artifact_kind
 from .core import (
     ArtifactKind,
     ContentHash,
@@ -299,10 +300,23 @@ class ChartVisualizationSpec(BaseModel):
     model_config = MODEL_CONFIG
 
     mode: Literal[VisualizationMode.chart] = VisualizationMode.chart
-    dataset_artifact_version_id: Identifier
+    dataset_artifact_version_id: Identifier | None = None
+    source_snapshot_id: Identifier | None = None
     x_axis: ChartAxis
     y_axis: ChartAxis
     series: tuple[ChartSeries, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def require_one_immutable_data_identity(self) -> Self:
+        identities = (
+            self.dataset_artifact_version_id,
+            self.source_snapshot_id,
+        )
+        if sum(value is not None for value in identities) != 1:
+            raise ValueError(
+                "chart requires exactly one Dataset ArtifactVersion or SourceSnapshot"
+            )
+        return self
 
 
 class FitsImageVisualizationSpec(BaseModel):
@@ -737,6 +751,9 @@ class VisualizationArtifactContent(BaseModel):
         spec_snapshots: set[str] = set()
         if isinstance(self.spec, FitsImageVisualizationSpec):
             spec_snapshots.add(self.spec.source_snapshot_id)
+        elif isinstance(self.spec, ChartVisualizationSpec):
+            if self.spec.source_snapshot_id is not None:
+                spec_snapshots.add(self.spec.source_snapshot_id)
         elif isinstance(self.spec, WwtSceneVisualizationSpec):
             spec_snapshots.update(
                 item.source_snapshot_id for item in self.spec.fits_layers
@@ -828,11 +845,12 @@ class SpectrumArtifactContent(BaseModel):
 
     @model_validator(mode="after")
     def validate_spectrum(self, info: ValidationInfo) -> Self:
+        spectrum_producers = frozenset(skills_producing_artifact_kind("spectrum"))
         if any(
-            execution.skill_id is not ScientificSkillId.spectrum_analysis
+            execution.skill_id.value not in spectrum_producers
             for execution in self.skill_executions
         ):
-            raise ValueError("spectrum Artifact requires spectrum_analysis execution")
+            raise ValueError("spectrum Artifact requires a declared spectrum producer")
         _require_unique(
             tuple(item.execution_id for item in self.skill_executions),
             "skill execution id",
@@ -936,12 +954,15 @@ class LightCurveArtifactContent(BaseModel):
     def validate_light_curve(self, info: ValidationInfo) -> Self:
         if self.accepted_sample_count + self.rejected_sample_count != self.sample_count:
             raise ValueError("light-curve quality counts must equal sample_count")
+        light_curve_producers = frozenset(
+            skills_producing_artifact_kind("light_curve")
+        )
         if any(
-            execution.skill_id is not ScientificSkillId.light_curve_analysis
+            execution.skill_id.value not in light_curve_producers
             for execution in self.skill_executions
         ):
             raise ValueError(
-                "light-curve Artifact requires light_curve_analysis execution"
+                "light-curve Artifact requires a declared light-curve producer"
             )
         _require_unique(
             tuple(item.execution_id for item in self.skill_executions),

@@ -1098,12 +1098,13 @@ export interface ChartSeries {
  * via the `definition` "ChartVisualizationSpec".
  */
 export interface ChartVisualizationSpec {
-  dataset_artifact_version_id: string;
+  dataset_artifact_version_id?: string | null;
   mode?: "chart";
   /**
    * @minItems 1
    */
   series: [ChartSeries, ...ChartSeries[]];
+  source_snapshot_id?: string | null;
   x_axis: ChartAxis;
   y_axis: ChartAxis;
 }
@@ -3435,10 +3436,10 @@ export interface SourceSnapshotRecord {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "Envelope_PaperSummaryPdfSourceRead_".
+ * via the `definition` "Envelope_PaperSummaryDocumentSourceRead_".
  */
-export interface Envelope_PaperSummaryPdfSourceRead_ {
-  data: PaperSummaryPdfSourceRead;
+export interface Envelope_PaperSummaryDocumentSourceRead_ {
+  data: PaperSummaryDocumentSourceRead;
   links: ResponseLinks;
   meta: ResponseMeta;
 }
@@ -3446,9 +3447,9 @@ export interface Envelope_PaperSummaryPdfSourceRead_ {
  * Authorized full-text ResearchInput bound to the summarized paper.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "PaperSummaryPdfSourceRead".
+ * via the `definition` "PaperSummaryDocumentSourceRead".
  */
-export interface PaperSummaryPdfSourceRead {
+export interface PaperSummaryDocumentSourceRead {
   research_input?: ResearchInputRef | null;
 }
 /**
@@ -4947,14 +4948,105 @@ export interface RunCheckpoint {
   decided_at?: string | null;
   free_text?: string | null;
   id: string;
+  kind?: "choice" | "scientific_repair";
   /**
    * @minItems 1
    */
   options: [string, ...string[]];
   question: string;
+  repair_context?: RepairCheckpointContext | null;
+  repair_decisions?: RepairDecisionInput[];
+  repair_outcome?: RepairOutcome | null;
   run_id: string;
+  run_revision: number;
   selected_option?: string | null;
   step_key: string;
+}
+/**
+ * Immutable defect and RuleSet facts shown at a scientific repair checkpoint.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RepairCheckpointContext".
+ */
+export interface RepairCheckpointContext {
+  before_output_hash: string;
+  /**
+   * @minItems 1
+   */
+  defects: [RepairDefect, ...RepairDefect[]];
+  rule_set: RepairRuleSetReference;
+  source_input_hash: string;
+}
+/**
+ * One cross-source conflict that cannot be resolved without human authority.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RepairDefect".
+ */
+export interface RepairDefect {
+  conflict_code: string;
+  defect_id: string;
+  defect_type?: "cross_source_conflict";
+  /**
+   * @minItems 1
+   */
+  evidence: [RepairEvidenceFact, ...RepairEvidenceFact[]];
+  /**
+   * @minItems 1
+   */
+  left_candidate_ids: [string, ...string[]];
+  logical_match_key: string;
+  /**
+   * @minItems 1
+   */
+  right_candidate_ids: [string, ...string[]];
+}
+/**
+ * User-readable evidence for one candidate pair at a repair checkpoint.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RepairEvidenceFact".
+ */
+export interface RepairEvidenceFact {
+  confidence: number;
+  evidence_id: string;
+  left_candidate_id: string;
+  right_candidate_id: string;
+  summary: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RepairRuleSetReference".
+ */
+export interface RepairRuleSetReference {
+  allowed_actions?: ("accepted" | "rejected" | "keep_unresolved")[];
+  rule_set_content_hash: string;
+  rule_set_id: string;
+  rule_set_version: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RepairDecisionInput".
+ */
+export interface RepairDecisionInput {
+  action: "accepted" | "rejected" | "keep_unresolved";
+  defect_id: string;
+  rationale: string;
+}
+/**
+ * Deterministic revalidation closure for one submitted repair batch.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RepairOutcome".
+ */
+export interface RepairOutcome {
+  after_evidence_ids: string[];
+  after_output_hash: string;
+  before_evidence_ids: string[];
+  quality_result_hash: string;
+  resolved_defect_ids: string[];
+  status: "revalidated" | "false_repair";
+  unresolved_defect_ids: string[];
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -5110,8 +5202,11 @@ export interface ResearchTurnRequest {
  * via the `definition` "RunCheckpointDecisionRequest".
  */
 export interface RunCheckpointDecisionRequest {
+  checkpoint_id: string;
+  expected_run_revision: number;
   free_text?: string | null;
-  selected_option: string;
+  repair_decisions?: RepairDecisionInput[];
+  selected_option?: string | null;
 }
 /**
  * JSON create for ``type=text``: the body carries the text itself.

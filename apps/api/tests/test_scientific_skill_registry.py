@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from base64 import b64decode, b64encode
 from collections.abc import Sequence
-from math import exp
+from math import exp, pi, sin
 from uuid import UUID, uuid4
 
 import pytest
@@ -15,11 +15,14 @@ from app.schemas.core import (
 )
 from app.schemas.scientific_skills import (
     AnalysisReportArtifactContent,
+    LightCurveArtifactContent,
     ModelArtifactContent,
     ModelEvaluationArtifactContent,
+    SpectrumArtifactContent,
     VisualizationArtifactContent,
 )
 from app.services.content_storage import sha256_content_hash
+from app.workflow.publisher import admit_artifact_candidate
 from services.scientific_skills import (
     ScientificInputBinding,
     ScientificSkillBudget,
@@ -612,12 +615,88 @@ async def test_step_adapter_resolves_dataset_input_and_builds_analysis_artifact(
     assert candidate.related_artifact_version_ids == (DATASET_VERSION_ID,)
     assert candidate.result_blocks[0].payload["row_count"] == 30
     assert set(candidate.evidence_ids) == {
-        EVIDENCE_ID,
-        candidate.scientific_evidence[0].evidence_id,
+        item.evidence_id for item in candidate.scientific_evidence
     }
     assert candidate.scientific_evidence[0].locator["upstream_evidence_ids"] == [
         EVIDENCE_ID
     ]
+    admitted = admit_artifact_candidate(
+        candidate,
+        schema_version=candidate.schema_version,
+        source_snapshot_ids=candidate.source_snapshot_ids,
+        evidence_ids=candidate.evidence_ids,
+        evidence_validator=lambda _context: None,
+        domain_validator=lambda _context: None,
+        quality_validator=lambda _context: None,
+    )
+    assert {
+        item.persisted_evidence_id for item in admitted.owned_evidence_materializations
+    } == set(candidate.evidence_ids)
+    assert {
+        item.persisted_source_snapshot_id
+        for item in admitted.owned_evidence_materializations
+    } == set(candidate.source_snapshot_ids)
+
+
+@pytest.mark.anyio
+async def test_analysis_assembly_exposes_each_structured_scientific_result() -> None:
+    async def resolve(_: ScientificTaskInput) -> Sequence[ScientificInputBinding]:
+        return (
+            ScientificInputBinding(
+                ref_id=DATASET_VERSION_ID,
+                kind="artifact_version",
+                parameters={"rows": _rows()},
+                source_references=(
+                    ScientificSourceReference(
+                        source_snapshot_id=SNAPSHOT_ID,
+                        content_hash=HASH,
+                    ),
+                ),
+            ),
+        )
+
+    cases = (
+        (ScientificSkillId.data_profile, {}, {"分析摘要", "字段概览"}),
+        (
+            ScientificSkillId.statistical_analysis,
+            {
+                "fields": ["x", "y"],
+                "hypothesis_tests": [
+                    {"kind": "one_sample_t", "field": "x", "expected_mean": 0}
+                ],
+            },
+            {"分析摘要", "描述统计", "假设检验"},
+        ),
+        (
+            ScientificSkillId.correlation_analysis,
+            {"fields": ["x", "y"]},
+            {"相关系数"},
+        ),
+    )
+    for skill_id, parameters, expected_labels in cases:
+        adapter = ScientificStepAdapter(
+            build_scientific_skill_registry(),
+            content_storage=_MemoryStorage(),
+            source_recorder=_SourceRecorder(),
+        )
+        output = await adapter.execute(
+            task_id="task.primary",
+            project_id=PROJECT_ID,
+            run_id=RUN_ID,
+            contract=_contract(
+                skill_id=skill_id,
+                output="analysis_report",
+                input_refs=[DATASET_VERSION_ID],
+                parameters=parameters,
+            ),
+            resolve_inputs=resolve,
+        )
+
+        report = output.artifact_candidates[0]
+        assert isinstance(report, AnalysisReportArtifactContent)
+        assert {block.label for block in report.result_blocks} == expected_labels
+        assert skill_id.value not in report.title
+        assert skill_id.value not in report.summary
 
 
 @pytest.mark.anyio
@@ -685,6 +764,180 @@ async def test_descriptor_drives_unsupervised_report_and_chart_candidates(
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("skill_id", "parameters"),
+    (
+        (
+            ScientificSkillId.clustering_analysis,
+            {"feature_fields": ["x", "y"], "cluster_count": 3},
+        ),
+        (
+            ScientificSkillId.anomaly_detection,
+            {"feature_fields": ["x", "y"], "contamination": 0.1},
+        ),
+    ),
+)
+async def test_direct_research_input_pins_chart_to_its_source_snapshot(
+    skill_id: ScientificSkillId,
+    parameters: dict[str, object],
+) -> None:
+    adapter = ScientificStepAdapter(
+        build_scientific_skill_registry(),
+        content_storage=_MemoryStorage(),
+        source_recorder=_SourceRecorder(),
+    )
+    contract = _contract(
+        skill_id=skill_id,
+        output=("analysis_report", "visualization"),
+        input_refs=[SECOND_SNAPSHOT_ID],
+        parameters=parameters,
+    )
+
+    async def resolve(_: ScientificTaskInput) -> Sequence[ScientificInputBinding]:
+        return (
+            ScientificInputBinding(
+                ref_id=SECOND_SNAPSHOT_ID,
+                kind="content_blob",
+                parameters={"rows": _rows(40)},
+                source_references=(
+                    ScientificSourceReference(
+                        source_snapshot_id=SNAPSHOT_ID,
+                        content_hash=HASH,
+                    ),
+                ),
+            ),
+        )
+
+    output = await adapter.execute(
+        task_id="task.primary",
+        project_id=PROJECT_ID,
+        run_id=RUN_ID,
+        contract=contract,
+        resolve_inputs=resolve,
+    )
+
+    visualization = output.artifact_candidates[1]
+    assert isinstance(visualization, VisualizationArtifactContent)
+    assert visualization.spec.dataset_artifact_version_id is None
+    assert visualization.spec.source_snapshot_id == SNAPSHOT_ID
+
+
+@pytest.mark.anyio
+async def test_acquisition_skills_publish_the_typed_artifacts_they_declare() -> None:
+    production = build_scientific_skill_registry()
+    spectrum_output = production.execute(
+        _request(
+            ScientificSkillId.spectrum_analysis,
+            {
+                "rows": [
+                    {
+                        "wavelength": 5000 + index,
+                        "flux": 1.5 if index == 16 else 1 + 0.01 * (index % 3),
+                    }
+                    for index in range(32)
+                ],
+                "wavelength_field": "wavelength",
+                "flux_field": "flux",
+                "object_name": "SDSS target",
+            },
+        )
+    ).output
+    light_curve_output = production.execute(
+        _request(
+            ScientificSkillId.light_curve_analysis,
+            {
+                "rows": [
+                    {
+                        "time": index * 0.1,
+                        "flux": 1 + 0.05 * sin(2 * pi * index / 10),
+                    }
+                    for index in range(40)
+                ],
+                "time_field": "time",
+                "value_field": "flux",
+                "object_name": "TIC target",
+            },
+        )
+    ).output
+
+    def acquire_spectrum(_: ScientificSkillRequest) -> dict[str, object]:
+        return {
+            **spectrum_output,
+            "acquisition": {"source_mode": "cached"},
+        }
+
+    def acquire_light_curve(_: ScientificSkillRequest) -> dict[str, object]:
+        return dict(light_curve_output)
+
+    registry = ScientificSkillRegistry(
+        [
+            ScientificSkillDefinition(
+                skill_id=ScientificSkillId.spectrum_acquisition,
+                revision="1.0.0",
+                phase="acquiring_observations",
+                accepted_input_kinds=("sky_coordinates",),
+                produced_artifact_kinds=("spectrum", "analysis_report"),
+                workload_class="network",
+                handler=acquire_spectrum,
+            ),
+            ScientificSkillDefinition(
+                skill_id=ScientificSkillId.light_curve_acquisition,
+                revision="1.0.0",
+                phase="acquiring_observations",
+                accepted_input_kinds=("target_name",),
+                produced_artifact_kinds=("light_curve", "analysis_report"),
+                workload_class="network",
+                handler=acquire_light_curve,
+            ),
+        ]
+    )
+
+    async def resolve(_: ScientificTaskInput) -> Sequence[ScientificInputBinding]:
+        return ()
+
+    cases = (
+        (
+            ScientificSkillId.spectrum_acquisition,
+            ("spectrum", "analysis_report"),
+            {"plate": 1234, "mjd": 59_000, "fiber": 42},
+            SpectrumArtifactContent,
+        ),
+        (
+            ScientificSkillId.light_curve_acquisition,
+            ("light_curve", "analysis_report"),
+            {"tic_id": "123", "product_filename": "tess-lightcurve.fits"},
+            LightCurveArtifactContent,
+        ),
+    )
+    for skill_id, outputs, parameters, expected_type in cases:
+        adapter = ScientificStepAdapter(
+            registry,
+            content_storage=_MemoryStorage(),
+            source_recorder=_SourceRecorder(),
+        )
+        output = await adapter.execute(
+            task_id="task.primary",
+            project_id=PROJECT_ID,
+            run_id=RUN_ID,
+            contract=_contract(
+                skill_id=skill_id,
+                output=outputs,
+                parameters=parameters,
+            ),
+            resolve_inputs=resolve,
+        )
+
+        typed_candidate = output.artifact_candidates[0]
+        assert isinstance(typed_candidate, expected_type)
+        assert typed_candidate.skill_executions[0].skill_id is skill_id
+        assert output.source_mode == (
+            "cached"
+            if skill_id is ScientificSkillId.spectrum_acquisition
+            else "live"
+        )
+
+
+@pytest.mark.anyio
 async def test_step_adapter_materializes_an_onnx_model_binary() -> None:
     storage = _MemoryStorage()
     adapter = ScientificStepAdapter(
@@ -746,7 +999,9 @@ async def test_step_adapter_materializes_an_onnx_model_binary() -> None:
     assert evaluation.split.field == "object_id"
     assert evaluation.split.cross_validation_folds == 5
     assert evaluation.split.train_cutoff is None
-    assert any("never cross the train/test boundary" in item for item in evaluation.limitations)
+    assert any(
+        "never cross the train/test boundary" in item for item in evaluation.limitations
+    )
     assert model.limitations == evaluation.limitations
     assert model.input_shape[0] is None
     assert model.opset_imports

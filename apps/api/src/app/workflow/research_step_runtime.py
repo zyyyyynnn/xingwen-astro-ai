@@ -8,11 +8,23 @@ from sqlalchemy.orm import Session
 
 from app.db.models import RunStepModel
 from app.schemas.manifest import ManifestBundle
+from app.schemas.scientific_capabilities import capability_for
 from app.services.content_storage import ContentStorage
+from app.services.document_parse_store import (
+    DocumentParseRepository,
+    DocumentParseService,
+)
 from app.services.model_execution import ModelExecutionPort
+from app.services.paper_candidate_inputs import (
+    PaperCandidateInputReadService,
+    PaperCandidateInputRepository,
+)
+from app.services.research_input_store import PersistentResearchInputStore
+from app.services.scientific_document.ports import DocumentParserPort
 from app.workflow.agent_runtime import AgentActivity, ResearchStepAgent, StepTool
 from app.workflow.step_publication import (
     PreparedStep,
+    ResumableStepModelExecutionPort,
     RunStepContext,
     StepModelCaller,
     StepPublicationFactory,
@@ -47,6 +59,7 @@ class ResearchStepRuntime:
         prompts: PromptRegistry | None = None,
         paper_collection_runner: LivePaperCollectionRunner | None = None,
         content_storage: ContentStorage | None = None,
+        document_parser: DocumentParserPort | None = None,
     ) -> None:
         self._factory = factory
         self._store = store
@@ -56,27 +69,40 @@ class ResearchStepRuntime:
         self._requested_model = requested_model
         self._explicit_revision = explicit_revision
         self._scientific_steps = (
-            ScientificStepService(
-                factory=factory, content_storage=content_storage
-            )
+            ScientificStepService(factory=factory, content_storage=content_storage)
             if content_storage is not None
             else None
         )
         self._scientific_skill_registry = (
-            build_scientific_skill_registry()
+            build_scientific_skill_registry() if content_storage is not None else None
+        )
+        self._data_steps = DataStepService(
+            manifests=manifests,
+            publications=self._publications,
+            store=store,
+        )
+        paper_inputs = (
+            PaperCandidateInputReadService(
+                research_inputs=PersistentResearchInputStore(factory),
+                repository=PaperCandidateInputRepository(factory),
+            )
             if content_storage is not None
             else None
         )
-        self._data_steps = DataStepService(
-            manifests=manifests, publications=self._publications
+        document_parses = (
+            DocumentParseService(DocumentParseRepository(factory), content_storage)
+            if content_storage is not None
+            else None
         )
         self._paper_steps = PaperStepService(
             publications=self._publications,
             collection_runner=paper_collection_runner,
+            paper_inputs=paper_inputs,
+            content_storage=content_storage,
+            document_parser=document_parser,
+            document_parses=document_parses,
         )
-        self._literature_steps = LiteratureStepService(
-            publications=self._publications
-        )
+        self._literature_steps = LiteratureStepService(publications=self._publications)
         self._graph_steps = GraphStepService(
             factory=factory, publications=self._publications
         )
@@ -141,7 +167,7 @@ class ResearchStepRuntime:
                 kind: str(version_id) for kind, version_id in context.versions.items()
             },
             execute_primary=lambda: self._execute_step_tool(
-                context, step_key, attempt, lease, model_caller
+                context, step_key, attempt, lease, model_caller, tracked_model
             ),
             describe_primary_result=lambda prepared: prepared.activity_result_summary,
             tool=scientific_tool,
@@ -167,9 +193,10 @@ class ResearchStepRuntime:
                 "scientific steps require the content-addressed storage runtime"
             )
         skill_revision = self._scientific_skill_registry.revision_for(skill_id)
+        capability = capability_for(skill_id)
         return StepTool(
             name=f"execute_science_skill_{skill_id}",
-            label=f"执行科学技能 {skill_id.replace('_', ' ')}",
+            label=f"执行{capability['label']}",
             tool_kind="scientific_skill",
             description=(
                 "执行当前冻结研究步骤唯一授权的科学技能，"
@@ -186,6 +213,7 @@ class ResearchStepRuntime:
         attempt: AttemptHandle,
         lease: LeaseGrant,
         model_caller: StepModelCaller,
+        model_execution: ModelExecutionPort,
     ) -> PreparedStep:
         if step_key == "planning":
             return PreparedStep((), "已按确认协议冻结本次研究执行路径。")
@@ -208,6 +236,7 @@ class ResearchStepRuntime:
                 attempt=attempt,
                 lease=lease,
                 model_caller=model_caller,
+                model_execution=ResumableStepModelExecutionPort(model_execution),
             )
         if step_key == "reasoning_literature":
             return self._literature_steps.reason(

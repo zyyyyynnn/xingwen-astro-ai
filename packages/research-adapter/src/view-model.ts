@@ -17,6 +17,9 @@ import type {
   ResearchThreadQuestionPayload,
   ResearchThreadSummary,
   ResearchThreadUserPayload,
+  RepairCheckpointContext,
+  RepairDecisionInput,
+  RepairOutcome,
   RunStatus,
   ScientificTask,
   SemanticVersion,
@@ -297,12 +300,17 @@ export interface EvidenceViewModel {
 export interface RunCheckpointViewModel {
   readonly id: DomainEntityId;
   readonly runId: DomainEntityId;
+  readonly runRevision: number;
   readonly stepKey: DomainEntityId;
   readonly question: string;
   readonly options: readonly string[];
+  readonly kind: "choice" | "scientific_repair";
+  readonly repairContext: RepairCheckpointContext | null;
   readonly createdAt: UtcIsoTimestamp;
   readonly selectedOption: string | null;
   readonly freeText: string | null;
+  readonly repairDecisions: readonly RepairDecisionInput[];
+  readonly repairOutcome: RepairOutcome | null;
   readonly decidedAt: UtcIsoTimestamp | null;
   readonly isAnswered: boolean;
 }

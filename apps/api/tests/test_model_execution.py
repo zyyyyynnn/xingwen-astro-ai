@@ -387,6 +387,28 @@ def test_planner_uses_the_registered_prompt_and_identified_output_contract() -> 
         capability["id"]: capability
         for capability in catalog["scientific_capabilities"]
     }
+    assert "planning_catalog.scientific_capabilities" in request_value.prompt
+    assert "planning_catalog.scientific_skills" not in request_value.prompt
+    resolver_owned_parameters = {
+        "crossmatch_input",
+        "dataset_artifact_version_id",
+        "ephemeris_base64",
+        "fits_base64",
+        "image",
+        "images",
+        "image_count",
+        "image_shape",
+        "label_schema",
+        "model",
+        "preprocessing",
+        "rows",
+        "source_total_pixels",
+    }
+    assert not {
+        parameter["name"]
+        for capability in capabilities.values()
+        for parameter in capability["parameters"]
+    } & resolver_owned_parameters
     assert capabilities["clustering_analysis"] == {
         "id": "clustering_analysis",
         "label": "聚类分析",
@@ -395,12 +417,6 @@ def test_planner_uses_the_registered_prompt_and_identified_output_contract() -> 
         "accepted_input_kinds": ["tabular_rows"],
         "produced_artifact_kinds": ["analysis_report", "visualization"],
         "parameters": [
-            {
-                "name": "rows",
-                "kind": "rows",
-                "required": True,
-                "description": "待聚类的数据行",
-            },
             {
                 "name": "feature_fields",
                 "kind": "string_list",

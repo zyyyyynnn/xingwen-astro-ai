@@ -32,6 +32,7 @@ from app.schemas.literature_relation import LiteratureRelationsCandidate
 from app.schemas.paper_collection import PaperCollection
 from app.schemas.paper_summary import PaperSummaryArtifactContent
 from app.services.model_execution import (
+    ModelToolCall,
     ModelExecutionError,
     ModelExecutionPort,
     ModelExecutionRequest,
@@ -42,6 +43,7 @@ from app.workflow.publisher import (
     ArtifactEvidenceBinding,
     ArtifactPublication,
     ArtifactSourceSnapshotBinding,
+    ProducerExecutionConflictError,
     ProducerExecutionRequest,
     ProducerExecutionSnapshot,
     ProducerExecutionStore,
@@ -85,9 +87,7 @@ class RunStepContext:
     contract: ResearchContract
     artifacts: dict[str, UUID]
     versions: dict[str, UUID]
-    data_acquisitions: (
-        tuple[CrossmatchSourceInput, CrossmatchSourceInput] | None
-    ) = None
+    data_acquisitions: tuple[CrossmatchSourceInput, CrossmatchSourceInput] | None = None
     data_result: DataArtifactBuildResult | None = None
     paper_collection: PaperCollection | None = None
     paper_summary: PaperSummaryArtifactContent | None = None
@@ -209,6 +209,58 @@ class StepPublicationFactory:
             rejected_arguments_hash=rejected_arguments_hash,
             error_hash=error_hash,
             public_message=public_message,
+            model_response=(
+                {
+                    "payload": dict(response.payload),
+                    "tool_calls": [
+                        {
+                            "id": item.id,
+                            "name": item.name,
+                            "arguments": dict(item.arguments),
+                        }
+                        for item in response.tool_calls
+                    ],
+                }
+                if response is not None
+                else None
+            ),
+        )
+
+    def find_completed_model(
+        self,
+        context: RunStepContext,
+        *,
+        step_key: str,
+        request: ModelExecutionRequest,
+        producer_name: str,
+        producer_version: str,
+        attempt: AttemptHandle,
+    ) -> ProducerExecutionSnapshot | None:
+        """Find an exact completed child call from an earlier step attempt."""
+
+        return self._executions.find_completed_model_execution(
+            ProducerExecutionRequest(
+                run_id=context.run_id,
+                step_key=step_key,
+                attempt_id=attempt.attempt_id,
+                idempotency_key="completed-model-replay-lookup",
+                producer_type="model",
+                producer_name=producer_name,
+                producer_version=producer_version,
+                input_hash=request.input_hash,
+                parameters={
+                    key: value
+                    for key, value in request.parameters.items()
+                    if isinstance(value, (str, int, float, bool))
+                },
+                parameters_hash=request.parameters_hash,
+                model_provider=request.provider,
+                requested_model=request.requested_model,
+                explicit_revision=request.explicit_revision,
+                prompt_name=request.prompt_name,
+                prompt_version=request.prompt_version,
+                prompt_hash=request.prompt_hash,
+            )
         )
 
     def publication(
@@ -283,12 +335,8 @@ class StepPublicationFactory:
                     )
                 )
 
-    def persisted_snapshot_id(
-        self, context: RunStepContext, pipeline_id: str
-    ) -> str:
-        return str(
-            step_uuid(str(context.project_id), f"source-snapshot:{pipeline_id}")
-        )
+    def persisted_snapshot_id(self, context: RunStepContext, pipeline_id: str) -> str:
+        return str(step_uuid(str(context.project_id), f"source-snapshot:{pipeline_id}"))
 
     def source_bindings(
         self,
@@ -298,9 +346,7 @@ class StepPublicationFactory:
         return tuple(
             ArtifactSourceSnapshotBinding(
                 pipeline_source_snapshot_id=item,
-                persisted_source_snapshot_id=self.persisted_snapshot_id(
-                    context, item
-                ),
+                persisted_source_snapshot_id=self.persisted_snapshot_id(context, item),
             )
             for item in pipeline_ids
         )
@@ -309,11 +355,23 @@ class StepPublicationFactory:
         self,
         context: RunStepContext,
         summary: PaperSummaryArtifactContent,
+        *,
+        source_snapshots_are_persisted: bool = False,
     ) -> tuple[
         tuple[ArtifactSourceSnapshotBinding, ...],
         tuple[ArtifactEvidenceBinding, ...],
     ]:
-        source_bindings = self.source_bindings(context, summary.source_snapshot_ids)
+        source_bindings = (
+            tuple(
+                ArtifactSourceSnapshotBinding(
+                    pipeline_source_snapshot_id=item,
+                    persisted_source_snapshot_id=item,
+                )
+                for item in summary.source_snapshot_ids
+            )
+            if source_snapshots_are_persisted
+            else self.source_bindings(context, summary.source_snapshot_ids)
+        )
         evidence_bindings = tuple(
             ArtifactEvidenceBinding(
                 target_type="evidence",
@@ -326,9 +384,10 @@ class StepPublicationFactory:
                         f"paper_summary:evidence:{item.evidence_id}",
                     )
                 ),
-                persisted_source_snapshot_id=self.persisted_snapshot_id(
-                    context,
-                    item.source_snapshot_id,
+                persisted_source_snapshot_id=(
+                    item.source_snapshot_id
+                    if source_snapshots_are_persisted
+                    else self.persisted_snapshot_id(context, item.source_snapshot_id)
                 ),
             )
             for item in summary.evidence
@@ -453,13 +512,41 @@ class TrackedStepModelExecutionPort:
     def start(
         self, request: ModelExecutionRequest
     ) -> tuple[ModelExecutionResponse, UUID]:
+        return self.start_named(
+            request,
+            producer_name=f"{request.provider}-chat-completions",
+            producer_version=request.explicit_revision or request.requested_model,
+        )
+
+    def start_named(
+        self,
+        request: ModelExecutionRequest,
+        *,
+        producer_name: str,
+        producer_version: str,
+        resume_completed: bool = False,
+    ) -> tuple[ModelExecutionResponse, UUID]:
+        if resume_completed:
+            completed = self._publications.find_completed_model(
+                self._context,
+                step_key=self._step_key,
+                request=request,
+                producer_name=producer_name,
+                producer_version=producer_version,
+                attempt=self._attempt,
+            )
+            if completed is not None:
+                return _replayed_model_response(completed), completed.id
         execution = self._publications.start_producer(
             self._context,
             step_key=self._step_key,
-            operation_key=f"model:{request.prompt_name}:{request.input_hash[-12:]}",
+            operation_key=(
+                f"model:{producer_name}:{request.prompt_name}:"
+                f"{request.input_hash[-12:]}"
+            ),
             producer_type="model",
-            producer_name=f"{request.provider}-chat-completions",
-            producer_version=request.explicit_revision or request.requested_model,
+            producer_name=producer_name,
+            producer_version=producer_version,
             input_hash=request.input_hash,
             parameters={
                 key: value
@@ -476,6 +563,8 @@ class TrackedStepModelExecutionPort:
             attempt=self._attempt,
             lease=self._lease,
         )
+        if execution.replayed:
+            return _replayed_model_response(execution), execution.id
         try:
             response = self._base.execute(request)
         except ModelExecutionError as error:
@@ -510,6 +599,25 @@ class TrackedStepModelExecutionPort:
 
     def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
         response, execution_id = self.start(request)
+        self._publications.finish_producer(
+            execution_id,
+            status="completed",
+            output_hash=response.output_hash,
+            response=response,
+        )
+        return response
+
+    def execute_resumable(
+        self, request: ModelExecutionRequest
+    ) -> ModelExecutionResponse:
+        """Replay exact completed child calls across step attempts."""
+
+        response, execution_id = self.start_named(
+            request,
+            producer_name=f"{request.provider}-chat-completions",
+            producer_version=request.explicit_revision or request.requested_model,
+            resume_completed=True,
+        )
         self._publications.finish_producer(
             execution_id,
             status="completed",
@@ -554,6 +662,8 @@ class TrackedStepModelExecutionPort:
             attempt=self._attempt,
             lease=self._lease,
         )
+        if execution.replayed:
+            return _replayed_model_response(execution), execution.id
         try:
             response = self._base.execute(request)
         except ModelExecutionError as error:
@@ -664,6 +774,66 @@ class TrackedStepModelExecutionPort:
         )
 
 
+def _replayed_model_response(
+    execution: ProducerExecutionSnapshot,
+) -> ModelExecutionResponse:
+    stored = execution.model_response
+    if (
+        execution.status != "completed"
+        or stored is None
+        or execution.output_hash is None
+        or execution.latency_ms is None
+    ):
+        raise ProducerExecutionConflictError(
+            "model execution cannot replay an incomplete provider response"
+        )
+    payload = stored.get("payload")
+    raw_tool_calls = stored.get("tool_calls")
+    if not isinstance(payload, dict) or not isinstance(raw_tool_calls, list):
+        raise ProducerExecutionConflictError(
+            "persisted model response does not match the replay contract"
+        )
+    tool_calls: list[ModelToolCall] = []
+    for raw in raw_tool_calls:
+        if not isinstance(raw, dict):
+            raise ProducerExecutionConflictError(
+                "persisted model tool call is malformed"
+            )
+        call_id = raw.get("id")
+        name = raw.get("name")
+        arguments = raw.get("arguments")
+        if (
+            not isinstance(call_id, str)
+            or not isinstance(name, str)
+            or not isinstance(arguments, dict)
+        ):
+            raise ProducerExecutionConflictError(
+                "persisted model tool call is incomplete"
+            )
+        tool_calls.append(ModelToolCall(call_id, name, dict(arguments)))
+    return ModelExecutionResponse(
+        payload=dict(payload),
+        output_hash=execution.output_hash,
+        token_usage=(
+            dict(execution.token_usage) if execution.token_usage is not None else None
+        ),
+        latency_ms=execution.latency_ms,
+        provider_request_id=execution.provider_request_id,
+        provider_returned_model=execution.provider_returned_model,
+        tool_calls=tuple(tool_calls),
+    )
+
+
+class ResumableStepModelExecutionPort:
+    """Model port that reuses exact completed child calls across attempts."""
+
+    def __init__(self, tracked: TrackedStepModelExecutionPort) -> None:
+        self._tracked = tracked
+
+    def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
+        return self._tracked.execute_resumable(request)
+
+
 class StepModelCaller:
     """Execute one governed artifact-producing model call for a Run step."""
 
@@ -686,6 +856,14 @@ class StepModelCaller:
     def requested_model(self) -> str:
         return self._requested_model
 
+    @property
+    def provider(self) -> str:
+        return self._provider
+
+    @property
+    def explicit_revision(self) -> str | None:
+        return self._explicit_revision
+
     def prompt(self, name: str) -> PromptRecord:
         return self._prompts.get(name)
 
@@ -695,22 +873,31 @@ class StepModelCaller:
         prompt_name: str,
         input_payload: dict[str, object],
         parameters: dict[str, float | int],
+        producer_name: str | None = None,
+        producer_version: str | None = None,
     ) -> tuple[str, ModelExecutionResponse, UUID]:
         prompt = self._prompts.get(prompt_name)
-        response, execution_id = self._model_port.start(
-            ModelExecutionRequest(
-                provider=self._provider,
-                requested_model=self._requested_model,
-                explicit_revision=self._explicit_revision,
-                prompt_name=prompt.name,
-                prompt_version=prompt.version,
-                prompt_hash=prompt.content_hash,
-                prompt=prompt.content,
-                input_payload=dict(input_payload),
-                parameters=dict(parameters),
-                response_mode="json",
-                enable_thinking=False,
+        request = ModelExecutionRequest(
+            provider=self._provider,
+            requested_model=self._requested_model,
+            explicit_revision=self._explicit_revision,
+            prompt_name=prompt.name,
+            prompt_version=prompt.version,
+            prompt_hash=prompt.content_hash,
+            prompt=prompt.content,
+            input_payload=dict(input_payload),
+            parameters=dict(parameters),
+            response_mode="json",
+            enable_thinking=False,
+        )
+        response, execution_id = (
+            self._model_port.start_named(
+                request,
+                producer_name=producer_name,
+                producer_version=producer_version,
             )
+            if producer_name is not None and producer_version is not None
+            else self._model_port.start(request)
         )
         model_response = json.dumps(
             response.payload,
@@ -753,6 +940,7 @@ class StepModelCaller:
 
 __all__ = [
     "PreparedStep",
+    "ResumableStepModelExecutionPort",
     "ReasoningTracesProducer",
     "RunStepContext",
     "StepModelCaller",

@@ -484,15 +484,70 @@ export function mapRunEvent(dto: RunEventDto): RunEvent {
 }
 
 export function mapRunCheckpoint(dto: RunCheckpointDto): RunCheckpoint {
+  const repairContext = dto.repair_context
+    ? {
+        ruleSet: {
+          ruleSetId: mapId(dto.repair_context.rule_set.rule_set_id),
+          ruleSetVersion: dto.repair_context.rule_set
+            .rule_set_version as SemanticVersion,
+          ruleSetContentHash: dto.repair_context.rule_set
+            .rule_set_content_hash as ContentHash,
+          allowedActions: [
+            ...(dto.repair_context.rule_set.allowed_actions ?? [
+              "accepted",
+              "rejected",
+              "keep_unresolved",
+            ]),
+          ],
+        },
+        sourceInputHash: dto.repair_context.source_input_hash as ContentHash,
+        beforeOutputHash: dto.repair_context.before_output_hash as ContentHash,
+        defects: dto.repair_context.defects.map((defect) => ({
+          defectId: mapId(defect.defect_id),
+          logicalMatchKey: defect.logical_match_key as ContentHash,
+          conflictCode: defect.conflict_code,
+          leftCandidateIds: mapIds(defect.left_candidate_ids),
+          rightCandidateIds: mapIds(defect.right_candidate_ids),
+          evidence: defect.evidence.map((evidence) => ({
+            evidenceId: mapId(evidence.evidence_id),
+            leftCandidateId: mapId(evidence.left_candidate_id),
+            rightCandidateId: mapId(evidence.right_candidate_id),
+            confidence: evidence.confidence,
+            summary: evidence.summary,
+          })),
+        })),
+      }
+    : null;
+  const repairOutcome = dto.repair_outcome
+    ? {
+        afterOutputHash: dto.repair_outcome.after_output_hash as ContentHash,
+        qualityResultHash: dto.repair_outcome
+          .quality_result_hash as ContentHash,
+        beforeEvidenceIds: mapIds(dto.repair_outcome.before_evidence_ids),
+        afterEvidenceIds: mapIds(dto.repair_outcome.after_evidence_ids),
+        resolvedDefectIds: mapIds(dto.repair_outcome.resolved_defect_ids),
+        unresolvedDefectIds: mapIds(dto.repair_outcome.unresolved_defect_ids),
+        status: dto.repair_outcome.status,
+      }
+    : null;
   return {
     id: mapId(dto.id),
     runId: mapId(dto.run_id),
+    runRevision: dto.run_revision,
     stepKey: mapId(dto.step_key),
     question: dto.question,
     options: [...dto.options],
+    kind: dto.kind ?? "choice",
+    repairContext,
     createdAt: dto.created_at as UtcIsoTimestamp,
     selectedOption: dto.selected_option ?? null,
     freeText: dto.free_text ?? null,
+    repairDecisions: (dto.repair_decisions ?? []).map((decision) => ({
+      defectId: mapId(decision.defect_id),
+      action: decision.action,
+      rationale: decision.rationale,
+    })),
+    repairOutcome,
     decidedAt: (dto.decided_at ?? null) as UtcIsoTimestamp | null,
   };
 }

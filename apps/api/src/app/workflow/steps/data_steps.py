@@ -4,8 +4,24 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.core import (
+    RepairCheckpointContext,
+    RepairDefect,
+    RepairEvidenceFact,
+    RepairOutcome,
+    RepairRuleSetReference,
+)
 from app.schemas.crossmatch import (
+    AdjudicationDecision,
+    ConflictGroup,
+    CrossmatchCondition,
     CrossmatchInput,
+    CrossmatchResult,
+    ManualReviewDecision,
+    MatchDecision,
+    PairedMatch,
+    ReviewerKind,
     compute_crossmatch_input_hash,
     compute_crossmatch_source_input_hash,
 )
@@ -26,9 +42,13 @@ from app.workflow.step_publication import (
     PreparedStep,
     RunStepContext,
     StepPublicationFactory,
-    step_uuid,
 )
-from app.workflow.store import AttemptHandle, LeaseGrant
+from app.workflow.store import (
+    AttemptHandle,
+    LeaseGrant,
+    PersistentWorkflowStore,
+    WorkflowCheckpointRequested,
+)
 from services.data_pipeline.crossmatch import align_cross_source_records
 from services.data_pipeline.crossmatch.policy import (
     load_crossmatch_rule_set,
@@ -61,9 +81,11 @@ class DataStepService:
         *,
         manifests: ManifestBundle,
         publications: StepPublicationFactory,
+        store: PersistentWorkflowStore,
     ) -> None:
         self._manifests = manifests
         self._publications = publications
+        self._store = store
 
     def fetch(
         self,
@@ -107,9 +129,7 @@ class DataStepService:
                 [item.model_dump(mode="json") for item in acquisitions]
             ),
         )
-        return PreparedStep(
-            (), activity_result_summary="已按研究协议获取所需数据材料"
-        )
+        return PreparedStep((), activity_result_summary="已按研究协议获取所需数据材料")
 
     def clean(
         self,
@@ -146,6 +166,63 @@ class DataStepService:
         )
         crossmatch_input = CrossmatchInput.model_validate(crossmatch_payload)
         crossmatch = align_cross_source_records(crossmatch_input)
+        defects = _repair_defects(crossmatch)
+        repair_state = self._store.repair_checkpoint_decision(
+            context.run_id, step_key=step_key
+        )
+        if defects and repair_state is None:
+            repair_context = RepairCheckpointContext(
+                rule_set=RepairRuleSetReference(
+                    rule_set_id=rules.rule_set_id,
+                    rule_set_version=rules.version,
+                    rule_set_content_hash=rules.content_hash,
+                ),
+                source_input_hash=crossmatch_input.source_input_hash,
+                before_output_hash=crossmatch.output_hash,
+                defects=defects,
+            )
+            self._store.request_checkpoint(
+                context.run_id,
+                step_key=step_key,
+                token=lease.token,
+                generation=lease.generation,
+                expected_status=attempt.run_status,
+                expected_revision=attempt.run_revision,
+                attempt_id=attempt.attempt_id,
+                question=(
+                    f"发现 {len(defects)} 项跨来源科学身份冲突，请逐项核对证据后决定。"
+                ),
+                options=("accepted", "rejected", "keep_unresolved"),
+                kind="scientific_repair",
+                repair_context=repair_context,
+            )
+            raise WorkflowCheckpointRequested()
+        if repair_state is not None:
+            _validate_repair_checkpoint(
+                repair_state.context,
+                defects=defects,
+                rules=rules,
+                source_input_hash=crossmatch_input.source_input_hash,
+                before_output_hash=crossmatch.output_hash,
+            )
+            crossmatch_payload["manual_review_decisions"] = tuple(
+                _manual_review_decision(
+                    decision,
+                    defect=next(
+                        item for item in defects if item.defect_id == decision.defect_id
+                    ),
+                    checkpoint_id=str(repair_state.checkpoint_id),
+                    decided_at=repair_state.decided_at,
+                    source_input_hash=crossmatch_input.source_input_hash,
+                    rules=rules,
+                )
+                for decision in repair_state.decisions
+            )
+            crossmatch_payload["input_hash"] = compute_crossmatch_input_hash(
+                crossmatch_payload
+            )
+            crossmatch_input = CrossmatchInput.model_validate(crossmatch_payload)
+            crossmatch = align_cross_source_records(crossmatch_input)
         mapping = load_mapping_rule_set()
         conversion = load_unit_conversion_catalog()
         pins = ManifestPins(
@@ -189,40 +266,68 @@ class DataStepService:
             )
             for kind in ("dataset", "field_dictionary", "source_collection")
         }
+        build_executions_closed = False
         try:
             build_result = build_data_artifact_candidates(data_input)
-        except Exception:
-            for execution in build_executions.values():
-                self._publications.finish_producer(
-                    execution.id,
-                    status="failed",
-                    error_code="DATA_ARTIFACT_BUILD_FAILED",
+            quality_payload: dict[str, Any] = {
+                "data_artifact_input": data_input,
+                "dataset_candidate": build_result.dataset,
+                "field_dictionary_candidate": build_result.field_dictionary,
+                "source_collection_candidate": build_result.source_collection,
+                "research_contract": context.contract,
+                "quality_rule_set": load_frozen_quality_rule_set(),
+            }
+            quality_unhashed = DataQualityEvaluationInput.model_construct(
+                **quality_payload,
+                input_hash="sha256:" + "0" * 64,
+            )
+            quality_payload["input_hash"] = compute_data_quality_input_hash(
+                quality_unhashed
+            )
+            quality_input = DataQualityEvaluationInput.model_validate(quality_payload)
+            quality_result = evaluate_data_quality(quality_input)
+            if not isinstance(quality_result, DataQualityEvaluationResult):
+                raise ValueError("实时数据未通过研究协议的数据质量约束")
+            quality = admit_data_artifact_quality(
+                build_result=build_result,
+                evaluation_input=quality_input,
+                evaluation_result=quality_result,
+            )
+            if repair_state is not None:
+                outcome = _repair_outcome(
+                    repair_state=repair_state,
+                    before_defects=defects,
+                    crossmatch=crossmatch,
+                    quality_result=quality_result,
                 )
+                self._store.complete_repair_checkpoint(
+                    context.run_id,
+                    step_key=step_key,
+                    checkpoint_id=repair_state.checkpoint_id,
+                    outcome=outcome,
+                    token=lease.token,
+                    generation=lease.generation,
+                    expected_status=attempt.run_status,
+                    expected_revision=attempt.run_revision,
+                )
+                if outcome.status == "false_repair":
+                    for execution in build_executions.values():
+                        self._publications.finish_producer(
+                            execution.id,
+                            status="rejected",
+                            error_code="REPAIR_REVALIDATION_FAILED",
+                        )
+                    build_executions_closed = True
+                    raise ValueError("人工修复决定未通过确定性重验证")
+        except Exception:
+            if not build_executions_closed:
+                for execution in build_executions.values():
+                    self._publications.finish_producer(
+                        execution.id,
+                        status="failed",
+                        error_code="DATA_ARTIFACT_BUILD_FAILED",
+                    )
             raise
-        quality_payload: dict[str, Any] = {
-            "data_artifact_input": data_input,
-            "dataset_candidate": build_result.dataset,
-            "field_dictionary_candidate": build_result.field_dictionary,
-            "source_collection_candidate": build_result.source_collection,
-            "research_contract": context.contract,
-            "quality_rule_set": load_frozen_quality_rule_set(),
-        }
-        quality_unhashed = DataQualityEvaluationInput.model_construct(
-            **quality_payload,
-            input_hash="sha256:" + "0" * 64,
-        )
-        quality_payload["input_hash"] = compute_data_quality_input_hash(
-            quality_unhashed
-        )
-        quality_input = DataQualityEvaluationInput.model_validate(quality_payload)
-        quality_result = evaluate_data_quality(quality_input)
-        if not isinstance(quality_result, DataQualityEvaluationResult):
-            raise ValueError("实时数据未通过研究协议的数据质量约束")
-        quality = admit_data_artifact_quality(
-            build_result=build_result,
-            evaluation_input=quality_input,
-            evaluation_result=quality_result,
-        )
         self._publications.ensure_source_snapshots(
             context, (left.snapshot, right.snapshot)
         )
@@ -277,6 +382,181 @@ class DataStepService:
                 f"{len(build_result.dataset.records)} 条规范化记录"
             ),
         )
+
+
+def _repair_defects(crossmatch: CrossmatchResult) -> tuple[RepairDefect, ...]:
+    defects: list[RepairDefect] = []
+    evidence_by_id = {item.evidence_id: item for item in crossmatch.evidence}
+    for record in crossmatch.records:
+        if isinstance(record, ConflictGroup):
+            conflict_code = record.conflict_code
+        elif (
+            isinstance(record, PairedMatch)
+            and record.decision is MatchDecision.review_required
+        ):
+            conflict_code = "low_confidence_match"
+        else:
+            continue
+        defects.append(
+            RepairDefect(
+                defect_id=f"repair-{record.logical_match_key[7:31]}",
+                logical_match_key=record.logical_match_key,
+                conflict_code=conflict_code,
+                left_candidate_ids=tuple(sorted(record.left_candidate_ids)),
+                right_candidate_ids=tuple(sorted(record.right_candidate_ids)),
+                evidence=tuple(
+                    RepairEvidenceFact(
+                        evidence_id=item.evidence_id,
+                        left_candidate_id=item.left_candidate_id,
+                        right_candidate_id=item.right_candidate_id,
+                        confidence=item.confidence,
+                        summary="；".join(
+                            _repair_condition_summary(condition)
+                            for condition in item.conditions
+                        ),
+                    )
+                    for item in sorted(
+                        (evidence_by_id[value] for value in record.evidence_ids),
+                        key=lambda value: value.evidence_id,
+                    )
+                ),
+            )
+        )
+    return tuple(sorted(defects, key=lambda item: item.defect_id))
+
+
+def _repair_condition_summary(condition: CrossmatchCondition) -> str:
+    if condition.separation_arcsec is not None:
+        return (
+            f"角距离 {condition.separation_arcsec:.3f} 角秒；"
+            f"自动接受阈值 {condition.strict_threshold_arcsec:.3f} 角秒；"
+            f"人工复核阈值 {condition.manual_review_threshold_arcsec:.3f} 角秒"
+        )
+    labels = {
+        "exact": "字段完全一致",
+        "curated_alias": "命中受控别名",
+        "contradicts": "字段值冲突",
+    }
+    operator = condition.operator.value
+    label = labels.get(operator, "候选匹配条件")
+    field = condition.field_id or "标识字段"
+    return f"{field}：{condition.left_value} / {condition.right_value}（{label}）"
+
+
+def _validate_repair_checkpoint(
+    repair_context: RepairCheckpointContext,
+    *,
+    defects: tuple[RepairDefect, ...],
+    rules: Any,
+    source_input_hash: str,
+    before_output_hash: str,
+) -> None:
+    if (
+        repair_context.defects != defects
+        or repair_context.source_input_hash != source_input_hash
+        or repair_context.before_output_hash != before_output_hash
+        or repair_context.rule_set.rule_set_id != rules.rule_set_id
+        or repair_context.rule_set.rule_set_version != rules.version
+        or repair_context.rule_set.rule_set_content_hash != rules.content_hash
+    ):
+        raise ValueError("科学修复检查点与当前不可变输入或 RuleSet 不一致")
+
+
+def _manual_review_decision(
+    decision: Any,
+    *,
+    defect: RepairDefect,
+    checkpoint_id: str,
+    decided_at: Any,
+    source_input_hash: str,
+    rules: Any,
+) -> ManualReviewDecision:
+    payload: dict[str, Any] = {
+        "schema_version": "1.0.0",
+        "decision_id": f"{checkpoint_id}:{defect.defect_id}",
+        "logical_match_key": defect.logical_match_key,
+        "adjudication": AdjudicationDecision(decision.action),
+        "adjudicated_by": "workspace_user",
+        "reviewer_kind": ReviewerKind.human,
+        "adjudication_rule_or_actor": (f"{rules.rule_set_id}@{rules.version}"),
+        "adjudicated_at": decided_at,
+        "rationale": decision.rationale,
+        "source_input_hash": source_input_hash,
+        "rule_set_id": rules.rule_set_id,
+        "rule_set_version": rules.version,
+        "rule_set_content_hash": rules.content_hash,
+        "left_candidate_ids": defect.left_candidate_ids,
+        "right_candidate_ids": defect.right_candidate_ids,
+        "evidence_ids": tuple(item.evidence_id for item in defect.evidence),
+    }
+    payload["content_hash"] = compute_canonical_payload_hash(
+        {
+            key: (
+                value.isoformat().replace("+00:00", "Z")
+                if key == "adjudicated_at"
+                else value.value
+                if hasattr(value, "value")
+                else value
+            )
+            for key, value in payload.items()
+        }
+    )
+    return ManualReviewDecision.model_validate(payload)
+
+
+def _repair_outcome(
+    *,
+    repair_state: Any,
+    before_defects: tuple[RepairDefect, ...],
+    crossmatch: Any,
+    quality_result: DataQualityEvaluationResult,
+) -> RepairOutcome:
+    remaining = {
+        item.logical_match_key
+        for item in crossmatch.records
+        if isinstance(item, ConflictGroup)
+        or (
+            isinstance(item, PairedMatch)
+            and item.decision is MatchDecision.review_required
+        )
+    }
+    defects_by_id = {item.defect_id: item for item in before_defects}
+    false_repair = False
+    resolved: list[str] = []
+    unresolved: list[str] = []
+    for decision in repair_state.decisions:
+        defect = defects_by_id[decision.defect_id]
+        remains = defect.logical_match_key in remaining
+        if remains:
+            unresolved.append(defect.defect_id)
+        else:
+            resolved.append(defect.defect_id)
+        if (decision.action == "keep_unresolved") != remains:
+            false_repair = True
+    after_evidence = sorted(
+        {
+            evidence_id
+            for record in crossmatch.records
+            for evidence_id in getattr(record, "evidence_ids", ())
+        }
+    )
+    return RepairOutcome(
+        after_output_hash=crossmatch.output_hash,
+        quality_result_hash=quality_result.content_hash,
+        before_evidence_ids=tuple(
+            sorted(
+                {
+                    evidence_id
+                    for defect in before_defects
+                    for evidence_id in (item.evidence_id for item in defect.evidence)
+                }
+            )
+        ),
+        after_evidence_ids=tuple(after_evidence),
+        resolved_defect_ids=tuple(sorted(resolved)),
+        unresolved_defect_ids=tuple(sorted(unresolved)),
+        status="false_repair" if false_repair else "revalidated",
+    )
 
 
 __all__ = ["DataStepService"]

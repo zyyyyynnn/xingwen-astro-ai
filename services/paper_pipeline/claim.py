@@ -21,7 +21,6 @@ from app.schemas.literature_claim import (
     LiteratureClaimFailureStage,
     LiteratureClaimInputVersions,
     LiteratureClaimModelCandidate,
-    LiteratureClaimProducerExecution,
     LiteratureClaimRejectionReason,
     LiteratureClaimsCandidate,
     LiteratureClaimStatus,

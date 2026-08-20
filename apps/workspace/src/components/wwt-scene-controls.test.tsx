@@ -165,11 +165,7 @@ function lastViewportSpec(): WwtSceneVisualizationReview {
 
 function renderControls() {
   return render(
-    <WwtSceneControls
-      spec={publishedSpec}
-      versionNumber={1}
-      loadContent={loadContent}
-    />,
+    <WwtSceneControls spec={publishedSpec} loadContent={loadContent} />,
   );
 }
 
@@ -234,11 +230,7 @@ describe("WwtSceneControls", () => {
 
   it("initializes drafts from a tracked-object spec with observer and time", () => {
     render(
-      <WwtSceneControls
-        spec={trackedObjectSpec}
-        versionNumber={2}
-        loadContent={loadContent}
-      />,
+      <WwtSceneControls spec={trackedObjectSpec} loadContent={loadContent} />,
     );
     expect(screen.getByLabelText("中心赤经（小时）")).toHaveValue("");
     expect(screen.getByLabelText("中心赤纬（度）")).toHaveValue("");
@@ -330,11 +322,7 @@ describe("WwtSceneControls", () => {
 
   it("prevents a tracked-object scene from selecting an invalid sky background", async () => {
     render(
-      <WwtSceneControls
-        spec={trackedObjectSpec}
-        versionNumber={2}
-        loadContent={loadContent}
-      />,
+      <WwtSceneControls spec={trackedObjectSpec} loadContent={loadContent} />,
     );
     fireEvent.click(screen.getByRole("combobox", { name: "背景天图" }));
     const gaia = await screen.findByRole("option", { name: "Gaia DR3" });

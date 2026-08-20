@@ -20,6 +20,7 @@ from app.db.models import (
 from app.schemas.core import ResearchContract
 from app.schemas.manifest import ManifestBundle
 from app.services.content_storage import ContentStorage
+from app.services.scientific_document.ports import DocumentParserPort
 from app.services.model_execution import (
     ModelExecutionError,
     ModelExecutionPort,
@@ -47,6 +48,7 @@ from app.workflow.store import (
     AttemptHandle,
     PersistentWorkflowStore,
     RunSnapshot,
+    WorkflowCheckpointRequested,
 )
 from app.services.research_thread import append_assistant_message
 from packages.prompts.registry import PromptRegistry
@@ -102,6 +104,7 @@ class ResearchRunWorker:
         prompts: PromptRegistry | None = None,
         paper_collection_runner: LivePaperCollectionRunner | None = None,
         content_storage: ContentStorage | None = None,
+        document_parser: DocumentParserPort | None = None,
     ) -> None:
         self._factory = factory
         self._store = store
@@ -123,6 +126,7 @@ class ResearchRunWorker:
             prompts=self._prompts,
             paper_collection_runner=paper_collection_runner,
             content_storage=content_storage,
+            document_parser=document_parser,
         )
         self._task: asyncio.Task[None] | None = None
         self._stop = asyncio.Event()
@@ -290,6 +294,8 @@ class ResearchRunWorker:
                         commit_success=commit,
                         classify_failure=self._classify_failure,
                     )
+                except WorkflowCheckpointRequested:
+                    return
                 except PersistentWorkflowExecutionError:
                     snapshot = self._store.load_snapshot(run_id)
                     failed_step = next(
@@ -343,9 +349,7 @@ class ResearchRunWorker:
                 idempotency_key=assistant_milestone_key,
             )
 
-    def _load_context(
-        self, run_id: UUID, snapshot: RunSnapshot
-    ) -> RunStepContext:
+    def _load_context(self, run_id: UUID, snapshot: RunSnapshot) -> RunStepContext:
         with self._factory() as session, session.begin():
             run = session.get(ResearchRunModel, run_id)
             if run is None:

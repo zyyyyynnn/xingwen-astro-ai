@@ -357,7 +357,8 @@ def _referenced_artifact_versions(candidate: ScientificCandidate) -> Iterable[st
             yield candidate.training_input.ref_id
     elif isinstance(candidate, VisualizationArtifactContent):
         if isinstance(candidate.spec, ChartVisualizationSpec):
-            yield candidate.spec.dataset_artifact_version_id
+            if candidate.spec.dataset_artifact_version_id is not None:
+                yield candidate.spec.dataset_artifact_version_id
         elif isinstance(candidate.spec, ModelDiagnosticVisualizationSpec):
             yield candidate.spec.model_evaluation_artifact_version_id
 

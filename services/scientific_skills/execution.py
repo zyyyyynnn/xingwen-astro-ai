@@ -23,6 +23,7 @@ from app.schemas.core import (
     ScientificSkillId,
     ScientificTaskInput,
 )
+from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.scientific_skills import (
     AnalysisReportArtifactContent,
     ChartVisualizationSpec,
@@ -43,11 +44,12 @@ from app.schemas.scientific_skills import (
     scientific_artifact_output_hash,
 )
 from app.schemas.scientific_capabilities import (
+    capability_for,
     produced_artifact_kinds as _capability_produced_kinds,
     produces_source_snapshot as _capability_produces_snapshot,
+    scientific_skill_phase,
 )
 from app.services.content_storage import ContentStorage
-from .planning import scientific_skill_phase
 from .registry import ScientificSkillRegistry
 from .types import (
     ScientificSkillBudget,
@@ -87,6 +89,7 @@ class ScientificTaskExecutionOutcome:
 class ScientificStepOutput:
     task_id: str
     skill_id: ScientificSkillId
+    source_mode: Literal["live", "cached"]
     artifact_candidates: tuple[
         AnalysisReportArtifactContent
         | VisualizationArtifactContent
@@ -96,6 +99,15 @@ class ScientificStepOutput:
         | ModelArtifactContent,
         ...,
     ]
+
+
+def _publication_source_mode(
+    outcome: ScientificTaskExecutionOutcome,
+) -> Literal["live", "cached"]:
+    acquisition = outcome.result.output.get("acquisition")
+    if isinstance(acquisition, Mapping) and acquisition.get("source_mode") == "cached":
+        return "cached"
+    return "live"
 
 
 class ScientificProducedSourceRecorder(Protocol):
@@ -135,8 +147,7 @@ def _produced_kinds(skill_id: ScientificSkillId) -> frozenset[ArtifactKind]:
     """Descriptor-driven Artifact kinds one skill may publish."""
 
     return frozenset(
-        ArtifactKind(kind)
-        for kind in _capability_produced_kinds(skill_id.value)
+        ArtifactKind(kind) for kind in _capability_produced_kinds(skill_id.value)
     )
 
 
@@ -190,7 +201,7 @@ class ScientificStepAdapter:
                 f"scientific Workflow step must resolve exactly one task: {task_id!r}"
             )
         task = tasks[0]
-        scientific_skill_phase(task.skill_id)
+        scientific_skill_phase(task.skill_id.value)
         outcome = await self._execute_task(
             task=task,
             project_id=project_id,
@@ -207,6 +218,7 @@ class ScientificStepAdapter:
         return ScientificStepOutput(
             task_id=task.task_id,
             skill_id=task.skill_id,
+            source_mode=_publication_source_mode(outcome),
             artifact_candidates=candidates,
         )
 
@@ -422,7 +434,7 @@ def _spectrum(outcome: ScientificTaskExecutionOutcome) -> SpectrumArtifactConten
         "kind": "spectrum",
         "schema_version": "1.0.0",
         "spectrum_id": spectrum_id,
-        "title": f"Spectrum of {raw['object_name']}",
+        "title": f"{raw['object_name']} 光谱",
         "object_name": raw["object_name"],
         "wavelength_unit": raw["wavelength_unit"],
         "flux_unit": raw["flux_unit"],
@@ -458,7 +470,7 @@ def _light_curve(
         "kind": "light_curve",
         "schema_version": "1.0.0",
         "light_curve_id": light_curve_id,
-        "title": f"Light curve of {raw['object_name']}",
+        "title": f"{raw['object_name']} 光变曲线",
         "object_name": raw["object_name"],
         "time_scale": raw["time_scale"],
         "time_unit": raw["time_unit"],
@@ -490,33 +502,17 @@ def _light_curve(
 def _analysis_report(
     outcome: ScientificTaskExecutionOutcome,
 ) -> AnalysisReportArtifactContent:
-    result_block_id = _stable_id("result", outcome.task.task_id)
-    scientific_evidence, evidence_ids = _evidence_for_target(
-        outcome,
-        target_type="result_block",
-        target_id=result_block_id,
-    )
+    descriptor = capability_for(outcome.task.skill_id.value)
+    result_blocks, scientific_evidence, evidence_ids = _result_blocks(outcome)
     metrics = _metrics_from_output(outcome, evidence_ids=evidence_ids)
     payload: dict[str, object] = {
         "kind": "analysis_report",
         "schema_version": "1.0.0",
         "report_id": _stable_id("report", outcome.task.task_id),
-        "title": f"{outcome.task.skill_id.value.replace('_', ' ').title()} report",
-        "summary": (
-            f"The registered {outcome.task.skill_id.value} skill completed with "
-            f"{len(outcome.materialized_output)} bounded output fields."
-        ),
+        "title": str(descriptor["label"]),
+        "summary": str(descriptor["description"]),
         "skill_executions": [_skill_execution(outcome).model_dump(mode="json")],
-        "result_blocks": [
-            ScientificResultBlock(
-                block_id=result_block_id,
-                label=f"{outcome.task.skill_id.value.replace('_', ' ').title()} output",
-                representation=_result_representation(outcome.materialized_output),
-                payload=dict(outcome.materialized_output),
-                content_hash=outcome.result.output_hash,
-                evidence_ids=evidence_ids,
-            ).model_dump(mode="json")
-        ],
+        "result_blocks": [item.model_dump(mode="json") for item in result_blocks],
         "metrics": [item.model_dump(mode="json") for item in metrics],
         "findings": [],
         "limitations": list(outcome.result.warnings),
@@ -536,7 +532,7 @@ def _analysis_report(
 def _chart_visualization(
     outcome: ScientificTaskExecutionOutcome,
 ) -> VisualizationArtifactContent:
-    dataset_id = _require_dataset_version(outcome)
+    data_identity = _chart_data_identity(outcome)
     output = outcome.materialized_output
     x_field = _text(output, "x_field")
     y_field = _text(output, "y_field")
@@ -547,7 +543,7 @@ def _chart_visualization(
     spec = ChartVisualizationSpec.model_validate(
         {
             "mode": "chart",
-            "dataset_artifact_version_id": dataset_id,
+            **data_identity,
             "x_axis": {"field": x_field, "label": x_field},
             "y_axis": {"field": y_field, "label": y_field},
             "series": [
@@ -578,7 +574,7 @@ def _projection_visualization(
     existing declarative chart contract instead of a renderer-specific
     Artifact."""
 
-    dataset_id = _require_dataset_version(outcome)
+    data_identity = _chart_data_identity(outcome)
     output = outcome.materialized_output
     algorithm = _text(output, "algorithm")
     series_payloads: list[dict[str, object]] = []
@@ -639,7 +635,7 @@ def _projection_visualization(
     spec = ChartVisualizationSpec.model_validate(
         {
             "mode": "chart",
-            "dataset_artifact_version_id": dataset_id,
+            **data_identity,
             "x_axis": {"field": "pca_x", "label": "PCA 第一主成分"},
             "y_axis": {"field": "pca_y", "label": "PCA 第二主成分"},
             "series": [
@@ -667,7 +663,7 @@ def _wwt_visualization(
     return _visualization(
         outcome,
         spec=spec,
-        title=f"WWT scene: {outcome.task.task_id}",
+        title="WWT 天图场景",
     )
 
 
@@ -690,7 +686,7 @@ def _fits_visualizations(
                     "content_hash": _text(document, "content_hash"),
                 }
             ),
-            title=f"{outcome.materialized_output.get('survey', 'SkyView')} FITS image",
+            title=f"{outcome.materialized_output.get('survey', 'SkyView')} FITS 图像",
             suffix=str(index + 1),
         )
         for index, document in enumerate(documents)
@@ -1001,8 +997,7 @@ def _model_dependency_revisions(
     if outcome.task.skill_id is ScientificSkillId.image_classification:
         distributions.append("pillow")
     return [
-        f"{distribution}=={version(distribution)}"
-        for distribution in distributions
+        f"{distribution}=={version(distribution)}" for distribution in distributions
     ]
 
 
@@ -1121,23 +1116,155 @@ def _evidence_for_target(
         )
         for source_id in sources
     )
-    return evidence, tuple(
-        sorted({*outcome.evidence_ids, *(item.evidence_id for item in evidence)})
+    return evidence, tuple(sorted(item.evidence_id for item in evidence))
+
+
+_RESULT_METADATA_FIELDS = frozenset(
+    {
+        "catalog",
+        "column_metadata",
+        "coordinate_frame",
+        "data_release",
+        "ephemeris",
+        "frame",
+        "provider_uri",
+        "qualified_table",
+        "service",
+        "time_scale",
+    }
+)
+
+_RESULT_PRESENTATIONS: dict[str, tuple[str, str]] = {
+    "acquisition": ("数据来源", "record"),
+    "assignments": ("聚类分组", "table"),
+    "center": ("检索中心", "record"),
+    "correlations": ("相关系数", "matrix"),
+    "detected_lines": ("谱线检测", "table"),
+    "documents": ("数据产品", "catalog"),
+    "events": ("天象事件", "timeseries"),
+    "fields": ("字段概览", "table"),
+    "forecast": ("预测结果", "timeseries"),
+    "hypothesis_tests": ("假设检验", "statistics"),
+    "matches": ("交叉匹配结果", "catalog"),
+    "period_peaks": ("周期候选", "timeseries"),
+    "points": ("观测序列", "timeseries"),
+    "predictions": ("推理结果", "table"),
+    "parameters": ("分析参数", "record"),
+    "ranked_observations": ("异常排序", "table"),
+    "records": ("检索结果", "catalog"),
+    "resolved_location": ("观测地点", "record"),
+    "rows": ("数据记录", "catalog"),
+    "sources": ("检测源", "catalog"),
+    "statistics": ("描述统计", "statistics"),
+}
+
+_PRESENTATION_HIDDEN_FIELDS = frozenset(
+    {
+        "algorithm_version",
+        "dataset_artifact_version_id",
+        "model_artifact_version_id",
+        "model_content_hash",
+        "raw_content_hash",
+        "response_content_hash",
+    }
+)
+
+
+def _result_blocks(
+    outcome: ScientificTaskExecutionOutcome,
+) -> tuple[
+    tuple[ScientificResultBlock, ...],
+    tuple[ScientificEvidence, ...],
+    tuple[str, ...],
+]:
+    """Turn one typed handler result into explicit presentation-owned blocks."""
+
+    output = dict(outcome.materialized_output)
+    metadata = {
+        key: value for key, value in output.items() if key in _RESULT_METADATA_FIELDS
+    }
+    scalar_values: dict[str, object] = {}
+    block_values: list[tuple[str, str, str, object]] = []
+    for key, value in output.items():
+        if key in _RESULT_METADATA_FIELDS:
+            continue
+        if isinstance(value, list):
+            label, representation = _RESULT_PRESENTATIONS.get(
+                key, ("结构化结果", "table")
+            )
+            block_values.append(
+                (
+                    key,
+                    label,
+                    representation,
+                    {**metadata, "rows": _presentation_rows(value)},
+                )
+            )
+        elif isinstance(value, dict):
+            label, _representation = _RESULT_PRESENTATIONS.get(
+                key, ("结果明细", "record")
+            )
+            block_values.append((key, label, "record", _presentation_mapping(value)))
+        else:
+            if key not in _PRESENTATION_HIDDEN_FIELDS:
+                scalar_values[key] = value
+    if scalar_values or not block_values:
+        block_values.insert(
+            0,
+            (
+                "summary",
+                "分析摘要",
+                "record",
+                {**metadata, **scalar_values},
+            ),
+        )
+
+    blocks: list[ScientificResultBlock] = []
+    all_scientific_evidence: list[ScientificEvidence] = []
+    all_evidence_ids: set[str] = set()
+    for key, label, representation, payload in block_values:
+        block_id = _stable_id("result", outcome.task.task_id, key)
+        scientific_evidence, evidence_ids = _evidence_for_target(
+            outcome,
+            target_type="result_block",
+            target_id=block_id,
+        )
+        blocks.append(
+            ScientificResultBlock(
+                block_id=block_id,
+                label=label,
+                representation=representation,  # type: ignore[arg-type]
+                payload=payload,  # type: ignore[arg-type]
+                content_hash=compute_canonical_payload_hash(payload),
+                evidence_ids=evidence_ids,
+            )
+        )
+        all_scientific_evidence.extend(scientific_evidence)
+        all_evidence_ids.update(evidence_ids)
+    return (
+        tuple(blocks),
+        tuple(all_scientific_evidence),
+        tuple(sorted(all_evidence_ids)),
     )
 
 
-def _result_representation(value: Mapping[str, object]) -> str:
-    if isinstance(value.get("rows"), list):
-        return "catalog"
-    if isinstance(value.get("statistics"), list):
-        return "statistics"
-    if isinstance(value.get("correlations"), list):
-        return "matrix"
-    if isinstance(value.get("events"), list) or isinstance(value.get("forecast"), list):
-        return "timeseries"
-    if any(isinstance(item, list) for item in value.values()):
-        return "table"
-    return "record"
+def _presentation_rows(values: Sequence[object]) -> list[object]:
+    if all(isinstance(value, Mapping) for value in values):
+        return [_presentation_mapping(value) for value in values]  # type: ignore[arg-type]
+    if all(isinstance(value, (list, tuple)) for value in values):
+        return [
+            {f"column_{index + 1}": cell for index, cell in enumerate(value)}
+            for value in values  # type: ignore[union-attr]
+        ]
+    return [{"value": value} for value in values]
+
+
+def _presentation_mapping(value: Mapping[str, object]) -> dict[str, object]:
+    return {
+        key: nested
+        for key, nested in value.items()
+        if key not in _PRESENTATION_HIDDEN_FIELDS
+    }
 
 
 def _validate_bindings(
@@ -1206,12 +1333,14 @@ def _positive_int(value: Mapping[str, object], key: str) -> int:
     return raw
 
 
-def _require_dataset_version(outcome: ScientificTaskExecutionOutcome) -> str:
-    if not outcome.artifact_version_ids:
-        raise ValueError(
-            f"{outcome.task.skill_id.value} requires a Dataset ArtifactVersion input"
-        )
-    return outcome.artifact_version_ids[0]
+def _chart_data_identity(outcome: ScientificTaskExecutionOutcome) -> dict[str, str]:
+    if len(outcome.artifact_version_ids) == 1:
+        return {"dataset_artifact_version_id": outcome.artifact_version_ids[0]}
+    if len(outcome.artifact_version_ids) > 1:
+        raise ValueError("chart requires exactly one Dataset ArtifactVersion input")
+    if len(outcome.source_snapshot_ids) == 1:
+        return {"source_snapshot_id": outcome.source_snapshot_ids[0]}
+    raise ValueError("chart requires exactly one immutable data source identity")
 
 
 __all__ = [

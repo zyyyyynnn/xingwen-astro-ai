@@ -119,11 +119,9 @@ export function transitionToTrackedObject(
 
 export function WwtSceneControls({
   spec,
-  versionNumber,
   loadContent,
 }: {
   readonly spec: WwtSceneVisualizationReview;
-  readonly versionNumber: number;
   readonly loadContent: (contentHash: ContentHash) => Promise<ArrayBuffer>;
 }) {
   const [base, setBase] = useState(spec);
@@ -668,11 +666,7 @@ export function WwtSceneControls({
           恢复发布场景
         </Button>
       </div>
-      <WwtViewport
-        spec={effective}
-        versionNumber={versionNumber}
-        loadContent={loadContent}
-      />
+      <WwtViewport spec={effective} loadContent={loadContent} />
     </div>
   );
 }

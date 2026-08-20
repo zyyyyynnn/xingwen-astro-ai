@@ -744,7 +744,7 @@ def test_paper_summary_pdf_source_returns_authorized_research_input() -> None:
     client.app.state.paper_candidate_input_service = service
 
     response = client.get(
-        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/pdf-source"
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/document-source"
     )
 
     assert response.status_code == 200
@@ -768,7 +768,7 @@ def test_paper_summary_pdf_source_is_null_without_authorized_binding() -> None:
     client.app.state.paper_candidate_input_service = _FakePaperInputService(None)
 
     response = client.get(
-        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/pdf-source"
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/document-source"
     )
 
     assert response.status_code == 200
@@ -780,7 +780,7 @@ def test_paper_summary_pdf_source_is_null_when_bridge_is_unconfigured() -> None:
     assert client.app.state.paper_candidate_input_service is None
 
     response = client.get(
-        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/pdf-source"
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/document-source"
     )
 
     assert response.status_code == 200
@@ -789,7 +789,7 @@ def test_paper_summary_pdf_source_is_null_when_bridge_is_unconfigured() -> None:
 
 def test_paper_summary_pdf_source_rejects_kind_mismatch_and_foreign_session() -> None:
     response = _client(_Artifacts(_version(summary=_summary(), kind="dataset"))).get(
-        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/pdf-source"
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/document-source"
     )
     assert response.status_code == 409
     assert response.json()["code"] == "ARTIFACT_KIND_MISMATCH"
@@ -798,7 +798,7 @@ def test_paper_summary_pdf_source_rejects_kind_mismatch_and_foreign_session() ->
     app.state.artifact_read_service = _Artifacts(_version(summary=_summary()))  # type: ignore[assignment]
     assert (
         TestClient(app)
-        .get(f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/pdf-source")
+        .get(f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/document-source")
         .status_code
         == 401
     )

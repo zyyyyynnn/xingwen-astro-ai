@@ -20,7 +20,7 @@
       "release_tag": "7.11.0",
       "license": "MIT",
       "model_weight_license": "n/a",
-      "official_interface_used": "docling_parse.pdf_parser.DoclingPdfParser.load(path_or_stream=BytesIO(bytes), decode_config=DecodeConfig(do_sanitization=True, keep_glyphs=False), content_config=ContentConfig(char_cells_content_level=SKIP, word_cells_content_level=COMPUTE_AND_MATERIALIZE, line_cells_content_level=COMPUTE_AND_MATERIALIZE, shapes_content_level=SKIP, bitmaps_content_level=SKIP)); iterate_pages(); page.iterate_cells(unit_type='word')",
+      "official_interface_used": "docling_parse.pdf_parser.DoclingPdfParser.load(path_or_stream=BytesIO(bytes), decode_config=DecodeConfig(do_sanitization=True, keep_glyphs=False), content_config=ContentConfig(char_cells_content_level=SKIP, word_cells_content_level=COMPUTE_AND_MATERIALIZE, line_cells_content_level=COMPUTE_AND_MATERIALIZE, shapes_content_level=COMPUTE_AND_MATERIALIZE, bitmaps_content_level=COMPUTE_AND_MATERIALIZE)); iterate_pages(); page.iterate_cells(unit_type='word')",
       "explicitly_unused_scope": "scanned pages, bitmap OCR, layout detection, table/figure recognition, formula recognition",
       "cpu_behavior": "CPU-capable; pure Rust/C++ parser, no model inference",
       "gpu_behavior": "not applicable",
@@ -29,7 +29,7 @@
       "cache_behavior": "no model cache",
       "offline_behavior": "fully offline once installed",
       "known_risks": "only born-digital/programmatic PDFs; scanned pages get weak/no text layer and require a visual adapter",
-      "upgrade_strategy": "pin exact version in benchmark/optional dependency; re-run native baseline + hash on bump",
+      "upgrade_strategy": "pin the exact production dependency; rerun parser contract, Golden Set, and production path tests on bump",
       "evidence_source": "https://pypi.org/project/docling-parse/7.11.0/ (MIT, requires-python >=3.10, classifiers include 3.13)"
     },
     {

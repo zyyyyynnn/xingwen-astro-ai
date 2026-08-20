@@ -67,6 +67,7 @@ class ChunkEvidenceViolationError(ValueError):
 @dataclass(frozen=True, slots=True)
 class ChunkedDocumentSummaryExecution:
     admission: PaperSummaryAdmissionResult
+    model_response: ModelExecutionResponse
     chunk_count: int
     chunk_provider_request_ids: tuple[str | None, ...]
     token_usage: PaperSummaryModelUsage | None
@@ -95,9 +96,7 @@ class ChunkedDocumentSummaryService:
     ) -> None:
         self._models = model_execution
         self._prompts = prompt_registry or PromptRegistry()
-        self._pipeline = pipeline or PaperSummaryPipeline(
-            prompt_registry=self._prompts
-        )
+        self._pipeline = pipeline or PaperSummaryPipeline(prompt_registry=self._prompts)
         self._single = DocumentSummaryService(
             model_execution,
             prompt_registry=self._prompts,
@@ -178,8 +177,16 @@ class ChunkedDocumentSummaryService:
             run_id=request.run_id,
             execution_id=request.producer_execution_id,
         )
+        aggregate_response = ModelExecutionResponse(
+            payload=merged_payload,
+            output_hash=compute_canonical_payload_hash(merged_payload),
+            token_usage=usage_totals if usage_complete else None,
+            latency_ms=latency_total,
+            provider_request_id=request_ids[0] if request_ids else None,
+        )
         return ChunkedDocumentSummaryExecution(
             admission=admission,
+            model_response=aggregate_response,
             chunk_count=len(chunks),
             chunk_provider_request_ids=tuple(request_ids),
             token_usage=(
@@ -296,9 +303,7 @@ def _enforce_chunk_evidence_allowlist(
     allowed = set(chunk.evidence_ids)
     for statement in output.statements():
         if len(statement.evidence_ids) > _MAX_STATEMENTS_PER_FIELD_PER_CHUNK:
-            raise ValueError(
-                f"{chunk.chunk_id} statement exceeds the evidence budget"
-            )
+            raise ValueError(f"{chunk.chunk_id} statement exceeds the evidence budget")
         unknown = set(statement.evidence_ids) - allowed
         if unknown:
             raise ChunkEvidenceViolationError(
@@ -334,18 +339,14 @@ def _reduce_chunk_outputs(
             for chunk, output in zip(chunks, chunk_outputs, strict=True)
         )
     )
-    payload: dict[str, Any] = {
-        section.section: [] for section in reduced
-    }
+    payload: dict[str, Any] = {section.section: [] for section in reduced}
     all_evidence: set[str] = set()
     for section in reduced:
         for index, statement in enumerate(section.statements, start=1):
             all_evidence.update(statement.evidence_ids)
             payload[section.section].append(
                 {
-                    "statement_id": (
-                        f"summary.document.{section.section}.{index:02d}"
-                    ),
+                    "statement_id": (f"summary.document.{section.section}.{index:02d}"),
                     "text": statement.text,
                     "evidence_ids": list(statement.evidence_ids),
                 }

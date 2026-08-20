@@ -98,7 +98,8 @@ export interface ChartPointReview {
 
 export interface ChartVisualizationReview {
   readonly mode: "chart";
-  readonly datasetArtifactVersionId: DomainEntityId;
+  readonly datasetArtifactVersionId: DomainEntityId | null;
+  readonly sourceSnapshotId: DomainEntityId | null;
   readonly xAxis: ChartAxisReview;
   readonly yAxis: ChartAxisReview;
   readonly series: readonly ChartSeriesReview[];

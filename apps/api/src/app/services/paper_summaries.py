@@ -14,7 +14,7 @@ from app.schemas.paper_collection import PaperCollection
 from app.schemas.paper_summary_api import (
     PaperSummaryCacheAudit,
     PaperSummaryPaperMetadata,
-    PaperSummaryPdfSourceRead,
+    PaperSummaryDocumentSourceRead,
     PaperSummaryRead,
 )
 from app.schemas.core import ArtifactVersionDetail, SourceMode, SourceSnapshotDetail
@@ -61,7 +61,7 @@ class PaperSummaryReadService:
         if summary.input_versions.paper_collection_version_id is not None:
             collection = self._validate_input_collection(version, summary, session_id)
             expected_snapshot_keys = _collection_snapshot_keys(collection, summary)
-            paper = _paper_metadata(collection, summary.paper_id)
+            _paper_metadata(collection, summary.paper_id)
             snapshot_ids = self._validate_snapshots_and_evidence(
                 version,
                 summary,
@@ -78,7 +78,6 @@ class PaperSummaryReadService:
                 raise _schema_problem()
             if version.source_mode is SourceMode.cached:
                 raise _provenance_problem()
-            paper = summary.paper
             expected_snapshot_keys = {
                 reference.source_snapshot_id: (
                     reference.source_id,
@@ -111,15 +110,15 @@ class PaperSummaryReadService:
             evidence=version.evidence,
         )
 
-    def get_pdf_source(
+    def get_document_source(
         self, *, version_id: str, session_id: str
-    ) -> PaperSummaryPdfSourceRead:
+    ) -> PaperSummaryDocumentSourceRead:
         """Resolve the authorized full-text ResearchInput for the summarized paper.
 
         Reuses the full summary provenance validation to pin the exact
         ``(paper_collection_version_id, paper_id)`` pair, then delegates to the
         authorized PaperCandidateInput bridge. Never infers a PDF from title,
-        DOI or candidate order: a missing or non-PDF binding yields ``None``.
+        DOI or candidate order: a missing document binding yields ``None``.
         """
 
         version = self._artifacts.get_version(
@@ -139,7 +138,7 @@ class PaperSummaryReadService:
         if summary.input_versions.paper_collection_version_id is not None:
             self._validate_input_collection(version, summary, session_id)
             if self._pdf_source_resolver is None:
-                return PaperSummaryPdfSourceRead(research_input=None)
+                return PaperSummaryDocumentSourceRead(research_input=None)
             record = self._pdf_source_resolver(
                 session_id=session_id,
                 project_id=str(version.project_id),
@@ -149,15 +148,15 @@ class PaperSummaryReadService:
                 canonical_paper_id=summary.paper_id,
             )
             if record is None:
-                return PaperSummaryPdfSourceRead(research_input=None)
-            return PaperSummaryPdfSourceRead(research_input=record.to_ref())
+                return PaperSummaryDocumentSourceRead(research_input=None)
+            return PaperSummaryDocumentSourceRead(research_input=record.to_ref())
         parse_reference = (
             summary.input_versions.document_parses[0]
             if summary.input_versions.document_parses
             else None
         )
         if parse_reference is None or self._research_input_resolver is None:
-            return PaperSummaryPdfSourceRead(research_input=None)
+            return PaperSummaryDocumentSourceRead(research_input=None)
         record = self._research_input_resolver(
             session_id=session_id,
             project_id=str(version.project_id),
@@ -165,8 +164,8 @@ class PaperSummaryReadService:
             input_content_hash=parse_reference.input_content_hash,
         )
         if record is None:
-            return PaperSummaryPdfSourceRead(research_input=None)
-        return PaperSummaryPdfSourceRead(research_input=record.to_ref())
+            return PaperSummaryDocumentSourceRead(research_input=None)
+        return PaperSummaryDocumentSourceRead(research_input=record.to_ref())
 
     def _validated_summary(
         self, version: ArtifactVersionDetail

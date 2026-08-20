@@ -57,7 +57,7 @@ CORE_MODELS: tuple[str, ...] = (
     "ArtifactVersionDetail",
     "PaperSummaryArtifactContent",
     "PaperSummaryRead",
-    "PaperSummaryPdfSourceRead",
+    "PaperSummaryDocumentSourceRead",
     "PaperCollectionRead",
     "PaperCollectionCandidateRead",
     "PaperCandidateInputBinding",

@@ -12,10 +12,14 @@ from app.schemas.core import project_research_contract_input
 from app.services.content_storage import ContentStorage
 from app.workflow.scientific_admission import ScientificStepAdmission
 from app.workflow.scientific_inputs import DatabaseScientificInputResolver
-from app.workflow.scientific_provenance import DatabaseScientificSourceRecorder
+from app.workflow.scientific_provenance import (
+    DatabaseGaiaTapResponseCache,
+    DatabaseScientificSourceRecorder,
+)
 from app.workflow.step_publication import PreparedStep, RunStepContext
 from app.workflow.store import AttemptHandle, LeaseGrant
 from services.scientific_skills.execution import ScientificStepAdapter
+from services.scientific_skills.astro_acquisition import GaiaTapAdapter
 from services.scientific_skills.registry import (
     ScientificSkillRegistry,
     build_scientific_skill_registry,
@@ -34,7 +38,11 @@ class ScientificStepService:
     ) -> None:
         self._factory = factory
         self._content_storage = content_storage
-        self._registry = registry or build_scientific_skill_registry()
+        self._registry = registry or build_scientific_skill_registry(
+            gaia_handler=GaiaTapAdapter(
+                cache=DatabaseGaiaTapResponseCache(factory)
+            ).acquire
+        )
         self._admission = ScientificStepAdmission(factory)
 
     def execute(
@@ -73,7 +81,7 @@ class ScientificStepService:
             step_key=step_key,
             contract=contract_input,
             output=output,
-            source_mode="live",
+            source_mode=output.source_mode,
         )
         summary = (
             f"科学技能 {skill_id} 完成任务 {task_id}，"

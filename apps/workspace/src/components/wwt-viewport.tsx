@@ -12,8 +12,6 @@ import {
 
 interface WwtViewportProps {
   readonly spec: WwtSpec;
-  /** Kept for renderer-registry compatibility; not user-visible. */
-  readonly versionNumber: number;
   readonly loadContent: (contentHash: ContentHash) => Promise<ArrayBuffer>;
 }
 

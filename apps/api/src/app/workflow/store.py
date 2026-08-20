@@ -24,6 +24,11 @@ from app.db.models import (
     RunStepModel,
     StepAttemptModel,
 )
+from app.schemas.core import (
+    RepairCheckpointContext,
+    RepairDecisionInput,
+    RepairOutcome,
+)
 
 TERMINAL_RUN_STATUSES = frozenset({"completed", "failed", "cancelled"})
 INCOMPLETE_STEP_STATUSES = frozenset({"pending", "running", "waiting"})
@@ -78,6 +83,19 @@ class CheckpointOptionInvalidError(WorkflowStoreError):
 
 class StepNotFoundError(WorkflowStoreError):
     code = "RUN_STEP_NOT_FOUND"
+
+
+class WorkflowCheckpointRequested(RuntimeError):
+    """Control signal: the current attempt parked the Run for typed user input."""
+
+
+@dataclass(frozen=True, slots=True)
+class RepairCheckpointDecisionState:
+    checkpoint_id: UUID
+    context: RepairCheckpointContext
+    decisions: tuple[RepairDecisionInput, ...]
+    decided_at: datetime
+    outcome: RepairOutcome | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -515,7 +533,9 @@ class PersistentWorkflowStore:
             if attempt_number > step.max_attempts:
                 raise RetryBudgetExhaustedError("step retry budget is exhausted")
             required_run_status = (
-                "queued" if step.position == 0 and attempt_number == 1 else step.enter_status
+                "queued"
+                if step.position == 0 and attempt_number == 1
+                else step.enter_status
             )
             if expected_status != required_run_status:
                 raise WorkflowConflictError(
@@ -904,11 +924,23 @@ class PersistentWorkflowStore:
         generation: int,
         expected_status: str,
         expected_revision: int,
+        attempt_id: UUID,
         question: str,
         options: Sequence[str],
+        kind: str = "choice",
+        repair_context: RepairCheckpointContext | None = None,
     ) -> MutationResult:
         """Persist a human-input checkpoint and park the Run at waiting_for_input."""
 
+        if kind not in {"choice", "scientific_repair"}:
+            raise ValueError("unsupported checkpoint kind")
+        if (kind == "scientific_repair") != (repair_context is not None):
+            raise ValueError("scientific repair checkpoint requires typed context")
+        context_payload = (
+            repair_context.model_dump(mode="json")
+            if repair_context is not None
+            else None
+        )
         with self._factory() as session, session.begin():
             run = self._lock_run(session, run_id)
             self._require_lease(
@@ -940,11 +972,36 @@ class PersistentWorkflowStore:
                     step_key=step_key,
                     question=question,
                     options=list(options),
+                    kind=kind,
+                    repair_context=context_payload,
                 )
                 session.add(checkpoint)
                 session.flush()
+            elif (
+                checkpoint.question != question
+                or checkpoint.options != list(options)
+                or checkpoint.kind != kind
+                or checkpoint.repair_context != context_payload
+            ):
+                raise WorkflowConflictError(
+                    "checkpoint identity was reused with different immutable context"
+                )
+            attempt = session.scalar(
+                select(StepAttemptModel)
+                .where(
+                    StepAttemptModel.id == attempt_id,
+                    StepAttemptModel.run_step_id == step.id,
+                )
+                .with_for_update()
+            )
+            if attempt is None or attempt.status != "running":
+                raise WorkflowConflictError(
+                    "checkpoint requires the active running StepAttempt"
+                )
             step.status = "waiting"
             now_value = session.scalar(select(func.clock_timestamp()))
+            attempt.status = "completed"
+            attempt.finished_at = now_value
             sequence = run.latest_event_sequence + 1
             self._conditional_run_update(
                 session,
@@ -974,7 +1031,10 @@ class PersistentWorkflowStore:
                 step_key=step_key,
                 progress=run.progress,
                 content=question,
-                details={"checkpoint_id": str(checkpoint.id)},
+                details={
+                    "checkpoint_id": str(checkpoint.id),
+                    "checkpoint_kind": kind,
+                },
             )
             return MutationResult(
                 run_id, "waiting_for_input", expected_revision + 1, sequence
@@ -985,8 +1045,9 @@ class PersistentWorkflowStore:
         run_id: UUID,
         *,
         checkpoint_id: UUID,
-        selected_option: str,
+        selected_option: str | None,
         free_text: str | None,
+        repair_decisions: Sequence[dict[str, object]] = (),
         expected_status: str,
         expected_revision: int,
     ) -> MutationResult:
@@ -1006,19 +1067,40 @@ class PersistentWorkflowStore:
                 raise RunNotFoundError(
                     f"checkpoint {checkpoint_id} was not found for run {run_id}"
                 )
+            parsed_repairs = tuple(
+                RepairDecisionInput.model_validate(item) for item in repair_decisions
+            )
+            if checkpoint.kind == "scientific_repair":
+                context = RepairCheckpointContext.model_validate(
+                    checkpoint.repair_context
+                )
+                expected_defects = {item.defect_id for item in context.defects}
+                decided_defects = {item.defect_id for item in parsed_repairs}
+                if (
+                    selected_option is not None
+                    or decided_defects != expected_defects
+                    or any(
+                        item.action not in context.rule_set.allowed_actions
+                        for item in parsed_repairs
+                    )
+                ):
+                    raise CheckpointOptionInvalidError(
+                        "repair decisions must exactly cover the authorized defects"
+                    )
+            elif selected_option is None or parsed_repairs:
+                raise CheckpointOptionInvalidError(
+                    "choice checkpoint requires exactly one selected option"
+                )
+            repair_payload = [item.model_dump(mode="json") for item in parsed_repairs]
             existing = session.get(RunCheckpointDecisionModel, checkpoint_id)
             if existing is not None:
-                if (
-                    existing.selected_option == selected_option
-                    and existing.free_text == free_text
-                ):
-                    return MutationResult(
-                        run.id, run.status, run.revision, run.latest_event_sequence
-                    )
                 raise CheckpointDecisionConflictError(
                     "checkpoint decision already recorded"
                 )
-            if selected_option not in checkpoint.options:
+            if (
+                checkpoint.kind == "choice"
+                and selected_option not in checkpoint.options
+            ):
                 raise CheckpointOptionInvalidError(
                     "selected option is not part of the checkpoint"
                 )
@@ -1031,6 +1113,7 @@ class PersistentWorkflowStore:
                     checkpoint_id=checkpoint_id,
                     selected_option=selected_option,
                     free_text=free_text,
+                    repair_decisions=repair_payload,
                 )
             )
             step = session.scalar(
@@ -1041,9 +1124,13 @@ class PersistentWorkflowStore:
                 )
                 .with_for_update()
             )
-            if step is not None and step.status == "waiting":
-                step.status = "pending"
-                step.started_at = None
+            if step is None or step.status != "waiting":
+                raise WorkflowConflictError(
+                    "checkpoint step is not waiting for a decision"
+                )
+            step.status = "pending"
+            step.started_at = None
+            resume_status = step.enter_status
             now_value = session.scalar(select(func.clock_timestamp()))
             sequence = run.latest_event_sequence + 1
             result = session.execute(
@@ -1054,7 +1141,7 @@ class PersistentWorkflowStore:
                     ResearchRunModel.revision == expected_revision,
                 )
                 .values(
-                    status="queued",
+                    status=resume_status,
                     revision=ResearchRunModel.revision + 1,
                     latest_event_sequence=sequence,
                     updated_at=now_value,
@@ -1075,13 +1162,96 @@ class PersistentWorkflowStore:
                 activity_name="等待用户决定",
                 step_key=checkpoint.step_key,
                 progress=run.progress,
-                content=f"用户已作出选择：{selected_option}",
+                content=(
+                    f"用户已作出选择：{selected_option}"
+                    if selected_option is not None
+                    else f"用户已提交 {len(parsed_repairs)} 项科学修复决定"
+                ),
                 details={
                     "checkpoint_id": str(checkpoint_id),
                     "selected_option": selected_option,
+                    "repair_decision_count": len(parsed_repairs),
                 },
             )
-            return MutationResult(run_id, "queued", expected_revision + 1, sequence)
+            return MutationResult(
+                run_id, resume_status, expected_revision + 1, sequence
+            )
+
+    def repair_checkpoint_decision(
+        self, run_id: UUID, *, step_key: str
+    ) -> RepairCheckpointDecisionState | None:
+        with self._factory() as session:
+            checkpoint = session.scalar(
+                select(RunCheckpointModel).where(
+                    RunCheckpointModel.run_id == run_id,
+                    RunCheckpointModel.step_key == step_key,
+                    RunCheckpointModel.kind == "scientific_repair",
+                )
+            )
+            if checkpoint is None:
+                return None
+            decision = session.get(RunCheckpointDecisionModel, checkpoint.id)
+            if decision is None:
+                return None
+            context = RepairCheckpointContext.model_validate(checkpoint.repair_context)
+            decisions = tuple(
+                RepairDecisionInput.model_validate(item)
+                for item in decision.repair_decisions
+            )
+            outcome = (
+                RepairOutcome.model_validate(decision.repair_outcome)
+                if decision.repair_outcome is not None
+                else None
+            )
+            return RepairCheckpointDecisionState(
+                checkpoint_id=checkpoint.id,
+                context=context,
+                decisions=decisions,
+                decided_at=decision.decided_at,
+                outcome=outcome,
+            )
+
+    def complete_repair_checkpoint(
+        self,
+        run_id: UUID,
+        *,
+        step_key: str,
+        checkpoint_id: UUID,
+        outcome: RepairOutcome,
+        token: UUID,
+        generation: int,
+        expected_status: str,
+        expected_revision: int,
+    ) -> None:
+        payload = outcome.model_dump(mode="json")
+        with self._factory() as session, session.begin():
+            run = self._lock_run(session, run_id)
+            self._require_lease(
+                session,
+                run,
+                token=token,
+                generation=generation,
+                expected_status=expected_status,
+                expected_revision=expected_revision,
+            )
+            checkpoint = session.scalar(
+                select(RunCheckpointModel).where(
+                    RunCheckpointModel.id == checkpoint_id,
+                    RunCheckpointModel.run_id == run_id,
+                    RunCheckpointModel.step_key == step_key,
+                    RunCheckpointModel.kind == "scientific_repair",
+                )
+            )
+            decision = session.get(RunCheckpointDecisionModel, checkpoint_id)
+            if checkpoint is None or decision is None:
+                raise RunNotFoundError("scientific repair checkpoint was not found")
+            if decision.repair_outcome is not None:
+                if decision.repair_outcome == payload:
+                    return
+                raise CheckpointDecisionConflictError(
+                    "scientific repair outcome already recorded"
+                )
+            decision.repair_outcome = payload
 
     def load_snapshot(
         self, run_id: UUID, *, after_event_sequence: int = 0, event_limit: int = 100
@@ -1217,11 +1387,18 @@ class PersistentWorkflowStore:
             raise ValueError("max_attempts must be positive")
         if steps[0].enter_status != "planning":
             raise ValueError("frozen run step chain must start at 'planning'")
-        order = {status: position for position, status in enumerate(RUN_STEP_STATUS_ORDER)}
+        order = {
+            status: position for position, status in enumerate(RUN_STEP_STATUS_ORDER)
+        }
         for position, step in enumerate(steps):
             if step.key != step.enter_status or step.enter_status not in order:
-                raise ValueError("run step key must identify a declared workflow status")
-            if position > 0 and order[step.enter_status] <= order[steps[position - 1].enter_status]:
+                raise ValueError(
+                    "run step key must identify a declared workflow status"
+                )
+            if (
+                position > 0
+                and order[step.enter_status] <= order[steps[position - 1].enter_status]
+            ):
                 raise ValueError(
                     "run step statuses must follow canonical order without duplication"
                 )

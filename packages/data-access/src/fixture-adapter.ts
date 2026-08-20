@@ -33,7 +33,12 @@ import {
 } from "@xingwen/domain";
 
 import { FixtureSemanticError, FixtureValidationError } from "./errors";
-import { ConflictError, NotFoundError, UnexpectedHttpError } from "./errors";
+import {
+  ConflictError,
+  NotFoundError,
+  UnexpectedHttpError,
+  ValidationError,
+} from "./errors";
 import {
   buildFixtureProvenance,
   mapArtifactVersionMetadata,
@@ -1054,6 +1059,13 @@ export function createFixtureRepositories(
           ...entry.candidates,
         ]);
       },
+      bindResearchInput: async () => {
+        throw new ValidationError(
+          "Demo Replay does not persist paper input bindings",
+          "DEMO_REPLAY_READ_ONLY",
+          [],
+        );
+      },
     },
     paperSummary: {
       getSummary: async (artifactVersionId) => {
@@ -1072,7 +1084,7 @@ export function createFixtureRepositories(
         // exact same domain shape for the same contract payloads.
         return assemblePaperSummaryReview(entry.summary);
       },
-      getPdfSource: async (artifactVersionId) => {
+      getDocumentSource: async (artifactVersionId) => {
         const entry = bundle.data.paperSummaries.find(
           (item) => item.summary.artifact_version_id === artifactVersionId,
         );
@@ -1087,7 +1099,7 @@ export function createFixtureRepositories(
         // Fixture bundles carry no authorized PaperCandidate → ResearchInput
         // full-text binding, so the authorized relation is always absent and
         // the UI must show the plain unavailable state.
-        return { researchInputId: null };
+        return { researchInputId: null, documentKind: null };
       },
     },
     dataArtifacts: createFixtureDataArtifactRepository([

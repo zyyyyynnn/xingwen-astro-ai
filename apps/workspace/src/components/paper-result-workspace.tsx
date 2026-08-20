@@ -19,7 +19,8 @@ export interface PaperResultWorkspaceProps {
   readonly artifact: ResearchArtifactViewModel;
   readonly version: ArtifactVersionMetadataViewModel;
   readonly review: PaperSummaryReview;
-  readonly pdfUrl?: string | null;
+  readonly documentUrl?: string | null;
+  readonly documentKind?: "pdf" | "image" | null;
   readonly requestedPage?: {
     readonly pageIndex: number;
     readonly nonce: number;
@@ -27,13 +28,14 @@ export interface PaperResultWorkspaceProps {
   readonly className?: string;
 }
 
-type PaperResultPane = "report" | "pdf";
+type PaperResultPane = "report" | "document";
 
 export function PaperResultWorkspace({
   artifact,
   version,
   review,
-  pdfUrl = null,
+  documentUrl = null,
+  documentKind = null,
   requestedPage = null,
   className = "",
 }: PaperResultWorkspaceProps) {
@@ -45,14 +47,14 @@ export function PaperResultWorkspace({
 
   if (requestedPageNonce !== null && requestedPageNonce !== prevNonce) {
     setPrevNonce(requestedPageNonce);
-    setActivePane("pdf");
+    setActivePane("document");
   }
 
   const widePdfRef = useRef<PaperPdfViewerHandle>(null);
   const narrowPdfRef = useRef<PaperPdfViewerHandle>(null);
 
   const jumpToPage = (pageIndex: number) => {
-    setActivePane("pdf");
+    setActivePane("document");
     // Both viewers stay mounted. Calling both keeps the visible viewer exact
     // across the desktop/narrow breakpoint without coupling scroll positions.
     widePdfRef.current?.jumpToPage(pageIndex);
@@ -89,8 +91,8 @@ export function PaperResultWorkspace({
             <TabsTrigger value="report" className="flex-1">
               研究报告
             </TabsTrigger>
-            <TabsTrigger value="pdf" className="flex-1">
-              论文原文
+            <TabsTrigger value="document" className="flex-1">
+              原始文档
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -117,11 +119,19 @@ export function PaperResultWorkspace({
             minSize="25%"
             className="h-full overflow-hidden border-l border-border bg-muted/10"
           >
-            <PaperPdfViewer
-              src={pdfUrl}
-              className="h-full w-full"
-              ref={widePdfRef}
-            />
+            {documentKind === "image" && documentUrl ? (
+              <img
+                src={documentUrl}
+                alt="论文原始文档"
+                className="h-full w-full object-contain"
+              />
+            ) : (
+              <PaperPdfViewer
+                src={documentKind === "pdf" ? documentUrl : null}
+                className="h-full w-full"
+                ref={widePdfRef}
+              />
+            )}
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
@@ -136,14 +146,22 @@ export function PaperResultWorkspace({
         </section>
         <section
           className="h-full overflow-hidden"
-          hidden={activePane !== "pdf"}
-          aria-label="论文原文"
+          hidden={activePane !== "document"}
+          aria-label="原始文档"
         >
-          <PaperPdfViewer
-            src={pdfUrl}
-            className="h-full w-full"
-            ref={narrowPdfRef}
-          />
+          {documentKind === "image" && documentUrl ? (
+            <img
+              src={documentUrl}
+              alt="论文原始文档"
+              className="h-full w-full object-contain"
+            />
+          ) : (
+            <PaperPdfViewer
+              src={documentKind === "pdf" ? documentUrl : null}
+              className="h-full w-full"
+              ref={narrowPdfRef}
+            />
+          )}
         </section>
       </div>
     </div>

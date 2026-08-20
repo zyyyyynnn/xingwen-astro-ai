@@ -875,10 +875,17 @@
         "additionalProperties": false,
         "properties": {
           "dataset_artifact_version_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Dataset Artifact Version Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Artifact Version Id"
           },
           "mode": {
             "const": "chart",
@@ -894,6 +901,19 @@
             "title": "Series",
             "type": "array"
           },
+          "source_snapshot_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Snapshot Id"
+          },
           "x_axis": {
             "$ref": "#/components/schemas/ChartAxis"
           },
@@ -902,7 +922,6 @@
           }
         },
         "required": [
-          "dataset_artifact_version_id",
           "x_axis",
           "y_axis",
           "series"
@@ -3244,11 +3263,11 @@
         "title": "Envelope[PaperCollectionRead]",
         "type": "object"
       },
-      "Envelope_PaperSummaryPdfSourceRead_": {
+      "Envelope_PaperSummaryDocumentSourceRead_": {
         "additionalProperties": false,
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/PaperSummaryPdfSourceRead"
+            "$ref": "#/components/schemas/PaperSummaryDocumentSourceRead"
           },
           "links": {
             "$ref": "#/components/schemas/ResponseLinks"
@@ -3262,7 +3281,7 @@
           "meta",
           "links"
         ],
-        "title": "Envelope[PaperSummaryPdfSourceRead]",
+        "title": "Envelope[PaperSummaryDocumentSourceRead]",
         "type": "object"
       },
       "Envelope_PaperSummaryRead_": {
@@ -10709,6 +10728,24 @@
         "title": "PaperSummaryDocumentParseReference",
         "type": "object"
       },
+      "PaperSummaryDocumentSourceRead": {
+        "additionalProperties": false,
+        "description": "Authorized full-text ResearchInput bound to the summarized paper.",
+        "properties": {
+          "research_input": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResearchInputRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "PaperSummaryDocumentSourceRead",
+        "type": "object"
+      },
       "PaperSummaryEvidence": {
         "additionalProperties": false,
         "properties": {
@@ -11072,24 +11109,6 @@
           "title"
         ],
         "title": "PaperSummaryPaperMetadata",
-        "type": "object"
-      },
-      "PaperSummaryPdfSourceRead": {
-        "additionalProperties": false,
-        "description": "Authorized full-text ResearchInput bound to the summarized paper.",
-        "properties": {
-          "research_input": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ResearchInputRef"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "title": "PaperSummaryPdfSourceRead",
         "type": "object"
       },
       "PaperSummaryProducerExecution": {
@@ -12444,6 +12463,301 @@
           "raw_record_content_hash"
         ],
         "title": "RawSourceRecordReference",
+        "type": "object"
+      },
+      "RepairCheckpointContext": {
+        "additionalProperties": false,
+        "description": "Immutable defect and RuleSet facts shown at a scientific repair checkpoint.",
+        "properties": {
+          "before_output_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Before Output Hash",
+            "type": "string"
+          },
+          "defects": {
+            "items": {
+              "$ref": "#/components/schemas/RepairDefect"
+            },
+            "minItems": 1,
+            "title": "Defects",
+            "type": "array"
+          },
+          "rule_set": {
+            "$ref": "#/components/schemas/RepairRuleSetReference"
+          },
+          "source_input_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Source Input Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rule_set",
+          "source_input_hash",
+          "before_output_hash",
+          "defects"
+        ],
+        "title": "RepairCheckpointContext",
+        "type": "object"
+      },
+      "RepairDecisionInput": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "accepted",
+              "rejected",
+              "keep_unresolved"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "defect_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Defect Id",
+            "type": "string"
+          },
+          "rationale": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Rationale",
+            "type": "string"
+          }
+        },
+        "required": [
+          "defect_id",
+          "action",
+          "rationale"
+        ],
+        "title": "RepairDecisionInput",
+        "type": "object"
+      },
+      "RepairDefect": {
+        "additionalProperties": false,
+        "description": "One cross-source conflict that cannot be resolved without human authority.",
+        "properties": {
+          "conflict_code": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Conflict Code",
+            "type": "string"
+          },
+          "defect_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Defect Id",
+            "type": "string"
+          },
+          "defect_type": {
+            "const": "cross_source_conflict",
+            "default": "cross_source_conflict",
+            "title": "Defect Type",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/RepairEvidenceFact"
+            },
+            "minItems": 1,
+            "title": "Evidence",
+            "type": "array"
+          },
+          "left_candidate_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Left Candidate Ids",
+            "type": "array"
+          },
+          "logical_match_key": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Logical Match Key",
+            "type": "string"
+          },
+          "right_candidate_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Right Candidate Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "defect_id",
+          "logical_match_key",
+          "conflict_code",
+          "left_candidate_ids",
+          "right_candidate_ids",
+          "evidence"
+        ],
+        "title": "RepairDefect",
+        "type": "object"
+      },
+      "RepairEvidenceFact": {
+        "additionalProperties": false,
+        "description": "User-readable evidence for one candidate pair at a repair checkpoint.",
+        "properties": {
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "evidence_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Evidence Id",
+            "type": "string"
+          },
+          "left_candidate_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Left Candidate Id",
+            "type": "string"
+          },
+          "right_candidate_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Right Candidate Id",
+            "type": "string"
+          },
+          "summary": {
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "evidence_id",
+          "left_candidate_id",
+          "right_candidate_id",
+          "confidence",
+          "summary"
+        ],
+        "title": "RepairEvidenceFact",
+        "type": "object"
+      },
+      "RepairOutcome": {
+        "additionalProperties": false,
+        "description": "Deterministic revalidation closure for one submitted repair batch.",
+        "properties": {
+          "after_evidence_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "After Evidence Ids",
+            "type": "array"
+          },
+          "after_output_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "After Output Hash",
+            "type": "string"
+          },
+          "before_evidence_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Before Evidence Ids",
+            "type": "array"
+          },
+          "quality_result_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Quality Result Hash",
+            "type": "string"
+          },
+          "resolved_defect_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Resolved Defect Ids",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "revalidated",
+              "false_repair"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "unresolved_defect_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Unresolved Defect Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "after_output_hash",
+          "quality_result_hash",
+          "before_evidence_ids",
+          "after_evidence_ids",
+          "resolved_defect_ids",
+          "unresolved_defect_ids",
+          "status"
+        ],
+        "title": "RepairOutcome",
+        "type": "object"
+      },
+      "RepairRuleSetReference": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_actions": {
+            "default": [
+              "accepted",
+              "rejected",
+              "keep_unresolved"
+            ],
+            "items": {
+              "enum": [
+                "accepted",
+                "rejected",
+                "keep_unresolved"
+              ],
+              "type": "string"
+            },
+            "title": "Allowed Actions",
+            "type": "array"
+          },
+          "rule_set_content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Rule Set Content Hash",
+            "type": "string"
+          },
+          "rule_set_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Rule Set Id",
+            "type": "string"
+          },
+          "rule_set_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Rule Set Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rule_set_id",
+          "rule_set_version",
+          "rule_set_content_hash"
+        ],
+        "title": "RepairRuleSetReference",
         "type": "object"
       },
       "ResearchArtifact": {
@@ -14157,6 +14471,15 @@
             "title": "Id",
             "type": "string"
           },
+          "kind": {
+            "default": "choice",
+            "enum": [
+              "choice",
+              "scientific_repair"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
           "options": {
             "items": {
               "minLength": 1,
@@ -14171,11 +14494,44 @@
             "title": "Question",
             "type": "string"
           },
+          "repair_context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RepairCheckpointContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "repair_decisions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RepairDecisionInput"
+            },
+            "title": "Repair Decisions",
+            "type": "array"
+          },
+          "repair_outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RepairOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "run_id": {
             "maxLength": 128,
             "minLength": 1,
             "title": "Run Id",
             "type": "string"
+          },
+          "run_revision": {
+            "minimum": 1.0,
+            "title": "Run Revision",
+            "type": "integer"
           },
           "selected_option": {
             "anyOf": [
@@ -14198,6 +14554,7 @@
         "required": [
           "id",
           "run_id",
+          "run_revision",
           "step_key",
           "question",
           "options",
@@ -14210,6 +14567,17 @@
         "additionalProperties": false,
         "description": "Immutable decision payload for one pending Run checkpoint.",
         "properties": {
+          "checkpoint_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Checkpoint Id",
+            "type": "string"
+          },
+          "expected_run_revision": {
+            "minimum": 1.0,
+            "title": "Expected Run Revision",
+            "type": "integer"
+          },
           "free_text": {
             "anyOf": [
               {
@@ -14222,14 +14590,30 @@
             ],
             "title": "Free Text"
           },
+          "repair_decisions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RepairDecisionInput"
+            },
+            "title": "Repair Decisions",
+            "type": "array"
+          },
           "selected_option": {
-            "minLength": 1,
-            "title": "Selected Option",
-            "type": "string"
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Option"
           }
         },
         "required": [
-          "selected_option"
+          "checkpoint_id",
+          "expected_run_revision"
         ],
         "title": "RunCheckpointDecisionRequest",
         "type": "object"
@@ -21484,6 +21868,126 @@
         "summary": "Get Paper Summary"
       }
     },
+    "/api/artifact-versions/{version_id}/paper-summary/document-source": {
+      "get": {
+        "operationId": "getPaperSummaryDocumentSource",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_PaperSummaryDocumentSourceRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get Paper Summary Document Source"
+      }
+    },
     "/api/artifact-versions/{version_id}/paper-summary/export": {
       "get": {
         "operationId": "downloadPaperSummaryExport",
@@ -21623,126 +22127,6 @@
           }
         },
         "summary": "Download Paper Summary Export"
-      }
-    },
-    "/api/artifact-versions/{version_id}/paper-summary/pdf-source": {
-      "get": {
-        "operationId": "getPaperSummaryPdfSource",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "version_id",
-            "required": true,
-            "schema": {
-              "minLength": 1,
-              "title": "Version Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_PaperSummaryPdfSourceRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "413": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            },
-            "description": "Content Too Large"
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            },
-            "description": "Unprocessable Content"
-          },
-          "429": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            },
-            "description": "Too Many Requests"
-          },
-          "502": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Get Paper Summary Pdf Source"
       }
     },
     "/api/artifact-versions/{version_id}/reasoning-traces": {

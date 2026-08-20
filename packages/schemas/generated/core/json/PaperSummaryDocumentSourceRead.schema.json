@@ -129,6 +129,6 @@
       "default": null
     }
   },
-  "title": "PaperSummaryPdfSourceRead",
+  "title": "PaperSummaryDocumentSourceRead",
   "type": "object"
 }

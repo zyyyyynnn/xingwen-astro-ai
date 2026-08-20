@@ -124,6 +124,13 @@ class Settings(BaseSettings):
     RESEARCH_INPUT_RATE_LIMIT: int = Field(default=30, gt=0)
     RESEARCH_INPUT_IDEMPOTENCY_LEASE_SECONDS: int = Field(default=300, gt=0)
 
+    # Scientific PDF parsing is native-first. A configured PaddleOCR-VL
+    # service is used only for pages that need visual layout recognition.
+    PADDLEOCR_VL_BASE_URL: str | None = None
+    PADDLEOCR_VL_MODEL_REVISION: str | None = None
+    PADDLEOCR_VL_TIMEOUT_SECONDS: float = Field(default=60.0, gt=0)
+    DOCUMENT_PARSE_MAX_PAGES: int = Field(default=200, gt=0, le=1000)
+
     # URL fetch is part of Research Input ingestion. Defaults are fail-closed:
     # HTTPS only and no external host until an allowlist is configured.
     URL_FETCH_ALLOWED_PROTOCOLS: tuple[str, ...] | str = Field(
@@ -215,6 +222,17 @@ class Settings(BaseSettings):
                 "DASHSCOPE_EXPLICIT_MODEL_REVISION must equal the explicit "
                 "DASHSCOPE_MODEL identity"
             )
+        paddle_url = (self.PADDLEOCR_VL_BASE_URL or "").strip().rstrip("/")
+        paddle_revision = (self.PADDLEOCR_VL_MODEL_REVISION or "").strip()
+        self.PADDLEOCR_VL_BASE_URL = paddle_url or None
+        self.PADDLEOCR_VL_MODEL_REVISION = paddle_revision or None
+        if bool(paddle_url) != bool(paddle_revision):
+            raise ValueError(
+                "PADDLEOCR_VL_BASE_URL and PADDLEOCR_VL_MODEL_REVISION "
+                "must be configured together"
+            )
+        if paddle_url and not paddle_url.startswith(("http://", "https://")):
+            raise ValueError("PADDLEOCR_VL_BASE_URL must use HTTP or HTTPS")
         if self.URL_FETCH_MAX_RESPONSE_BYTES > self.RESEARCH_INPUT_MAX_SIZE_BYTES:
             raise ValueError(
                 "URL_FETCH_MAX_RESPONSE_BYTES must not exceed RESEARCH_INPUT_MAX_SIZE_BYTES"

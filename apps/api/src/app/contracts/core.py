@@ -70,7 +70,7 @@ from app.schemas.paper_collection_api import (
     PaperCollectionCandidateRead,
     PaperCollectionRead,
 )
-from app.schemas.paper_summary_api import PaperSummaryPdfSourceRead, PaperSummaryRead
+from app.schemas.paper_summary_api import PaperSummaryDocumentSourceRead, PaperSummaryRead
 from app.schemas.scientific_artifact_api import ScientificArtifactRead
 from app.schemas.research_input import (
     BindResearchInputRequest,
@@ -510,12 +510,12 @@ def create_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/artifact-versions/{version_id}/paper-summary/pdf-source",
-        operation_id="getPaperSummaryPdfSource",
-        response_model=Envelope[PaperSummaryPdfSourceRead],
+        "/api/artifact-versions/{version_id}/paper-summary/document-source",
+        operation_id="getPaperSummaryDocumentSource",
+        response_model=Envelope[PaperSummaryDocumentSourceRead],
         responses=PROBLEM_RESPONSES,
     )
-    def get_paper_summary_pdf_source(
+    def get_paper_summary_document_source(
         version_id: Annotated[str, Path(min_length=1)],
     ) -> NoReturn:
         _ = version_id

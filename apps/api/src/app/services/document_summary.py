@@ -46,7 +46,7 @@ class ExecuteDocumentSummaryRequest:
     research_goal: str
     provider: str
     model: str
-    model_revision: str
+    model_revision: str | None
     parameters: dict[str, Any]
     run_id: str | None = None
     producer_execution_id: str | None = None
@@ -55,6 +55,7 @@ class ExecuteDocumentSummaryRequest:
 @dataclass(frozen=True, slots=True)
 class DocumentSummaryExecution:
     admission: PaperSummaryAdmissionResult
+    model_response: ModelExecutionResponse
     provider_request_id: str | None
     token_usage: PaperSummaryModelUsage | None
     latency_ms: int
@@ -83,9 +84,7 @@ class DocumentSummaryService:
     ) -> None:
         self._models = model_execution
         self._prompts = prompt_registry or PromptRegistry()
-        self._pipeline = pipeline or PaperSummaryPipeline(
-            prompt_registry=self._prompts
-        )
+        self._pipeline = pipeline or PaperSummaryPipeline(prompt_registry=self._prompts)
 
     def execute(
         self, request: ExecuteDocumentSummaryRequest
@@ -211,6 +210,7 @@ class DocumentSummaryService:
             raise ValueError("prepared summary input identity drifted during admission")
         return DocumentSummaryExecution(
             admission=admission,
+            model_response=response,
             provider_request_id=response.provider_request_id,
             token_usage=usage,
             latency_ms=response.latency_ms,
@@ -230,7 +230,10 @@ def _model_usage(payload: dict[str, Any] | None) -> PaperSummaryModelUsage | Non
         return None
     keys = ("prompt_tokens", "completion_tokens", "total_tokens")
     values = {key: payload.get(key) for key in keys}
-    if any(not isinstance(value, int) or isinstance(value, bool) for value in values.values()):
+    if any(
+        not isinstance(value, int) or isinstance(value, bool)
+        for value in values.values()
+    ):
         raise ValueError("model token usage is incomplete or invalid")
     return PaperSummaryModelUsage.model_validate(values)
 

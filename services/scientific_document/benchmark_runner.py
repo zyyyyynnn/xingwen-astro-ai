@@ -1,8 +1,9 @@
 """Reproducible Scientific Document Parsing benchmark runner.
 
-Runs the benchmark-only native baseline (docling-parse) over the committed
-Golden Set fixtures and emits a hashed ``BenchmarkReport``. The report contract
-also carries hybrid provenance; this runner never claims a hybrid execution.
+Runs the production native parser profile (without a configured visual service)
+over the committed Golden Set fixtures and emits a ``BenchmarkReport``. The
+report contract also carries hybrid provenance; this runner never claims a
+visual execution.
 
 Fail-closed rules:
 - a committed fixture that is missing is a benchmark error, never a skip;
@@ -39,9 +40,9 @@ from app.schemas.scientific_document_benchmark import (
     GoldenSetManifest,
     compute_benchmark_report_hash,
 )
-from app.services.scientific_document.native_baseline import (
+from app.services.scientific_document.hybrid_parser import (
+    HybridScientificDocumentParser,
     native_engine_identity,
-    parse_native_baseline,
 )
 
 HERE = Path(__file__).resolve().parent
@@ -117,8 +118,10 @@ def _normalized_text(candidate: DocumentParseCandidate) -> str:
     return " ".join(text.casefold().split())
 
 
-def _block_recovery(candidate: DocumentParseCandidate, entry: GoldenSetEntry) -> float | None:
-    """Recover manually selected textual block anchors for the native baseline.
+def _block_recovery(
+    candidate: DocumentParseCandidate, entry: GoldenSetEntry
+) -> float | None:
+    """Recover manually selected textual block anchors for the native parser.
 
     Scientific Document Parsing Contract does not pretend the word-level native probe performs semantic layout
     classification. For native-only, the defensible block metric is therefore
@@ -129,7 +132,10 @@ def _block_recovery(candidate: DocumentParseCandidate, entry: GoldenSetEntry) ->
     if entry.expected is None or not entry.expected.critical_headings:
         return None
     observed = _normalized_text(candidate)
-    anchors = [" ".join(anchor.casefold().split()) for anchor in entry.expected.critical_headings]
+    anchors = [
+        " ".join(anchor.casefold().split())
+        for anchor in entry.expected.critical_headings
+    ]
     recovered = sum(1 for anchor in anchors if anchor in observed)
     return recovered / len(anchors)
 
@@ -142,7 +148,9 @@ def _locator_validity(candidate: DocumentParseCandidate) -> float | None:
     return valid / len(candidate.blocks)
 
 
-def _mean_measured(values: list[float | None]) -> tuple[BenchmarkMetricStatus, float, float]:
+def _mean_measured(
+    values: list[float | None],
+) -> tuple[BenchmarkMetricStatus, float, float]:
     measured = [value for value in values if value is not None]
     if not measured:
         return BenchmarkMetricStatus.not_run, 0.0, 0.0
@@ -189,7 +197,7 @@ def run_native_only() -> BenchmarkReport:
             filename=pdf.name,
             input_bytes=content,
         )
-        candidate = parse_native_baseline(request, config_hash=config_hash)
+        candidate = HybridScientificDocumentParser().parse_document(request)
 
         quality = candidate.overall_quality.value
         case_accepted = sum(
@@ -304,7 +312,9 @@ def run_native_only() -> BenchmarkReport:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run the Scientific Document Parsing Contract native benchmark.")
+    parser = argparse.ArgumentParser(
+        description="Run the Scientific Document Parsing Contract native benchmark."
+    )
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     report = run_native_only()

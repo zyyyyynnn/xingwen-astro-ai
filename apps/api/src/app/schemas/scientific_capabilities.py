@@ -10,6 +10,10 @@ allowlist of each skill implementation together with the parameters the
 ``ScientificInputResolver`` injects for bound inputs. ``produced_artifact_kinds``
 uses the public ``ArtifactKind`` values the skill publishes; internal content
 shapes stay inside the handler output contract.
+
+``resolved_input_parameters`` is part of the same descriptor and marks the
+handler parameters owned by the server-side input resolver. They remain on the
+runtime surface but are never exposed to a Planner or accepted from a Contract.
 """
 
 from __future__ import annotations
@@ -27,6 +31,7 @@ CAPABILITY_DESCRIPTORS: dict[str, dict[str, object]] = {
         "parameters": (
             ("crossmatch_input", "rows", True, "两个来源星表的记录集合"),
         ),
+        "resolved_input_parameters": ("crossmatch_input",),
         "workload_class": "cpu_heavy",
         "requires_dataset_prerequisite": True,
         "produces_source_snapshot": False,
@@ -40,6 +45,7 @@ CAPABILITY_DESCRIPTORS: dict[str, dict[str, object]] = {
         "parameters": (
             ("rows", "rows", True, "待画像的数据行"),
         ),
+        "resolved_input_parameters": ("rows",),
         "workload_class": "cpu_light",
         "requires_dataset_prerequisite": True,
         "produces_source_snapshot": False,
@@ -56,6 +62,7 @@ CAPABILITY_DESCRIPTORS: dict[str, dict[str, object]] = {
             ("hypothesis_tests", "rows", False, "假设检验配置"),
             ("alpha", "number", False, "显著性水平"),
         ),
+        "resolved_input_parameters": ("rows",),
         "workload_class": "cpu_light",
         "requires_dataset_prerequisite": True,
         "produces_source_snapshot": False,
@@ -71,6 +78,7 @@ CAPABILITY_DESCRIPTORS: dict[str, dict[str, object]] = {
             ("fields", "string_list", True, "参与相关分析的字段"),
             ("method", "string", False, "相关方法"),
         ),
+        "resolved_input_parameters": ("rows",),
         "workload_class": "cpu_light",
         "requires_dataset_prerequisite": True,
         "produces_source_snapshot": False,
@@ -90,6 +98,7 @@ CAPABILITY_DESCRIPTORS: dict[str, dict[str, object]] = {
             ("min_samples", "integer", False, "DBSCAN 最小样本数"),
             ("random_seed", "integer", False, "随机种子"),
         ),
+        "resolved_input_parameters": ("rows",),
         "workload_class": "cpu_heavy",
         "requires_dataset_prerequisite": True,
         "produces_source_snapshot": False,
@@ -108,6 +117,7 @@ CAPABILITY_DESCRIPTORS: dict[str, dict[str, object]] = {
             ("z_threshold", "number", False, "稳健 Z 分数阈值"),
             ("random_seed", "integer", False, "随机种子"),
         ),
+        "resolved_input_parameters": ("rows",),
         "workload_class": "cpu_heavy",
         "requires_dataset_prerequisite": True,
         "produces_source_snapshot": False,
@@ -126,6 +136,7 @@ CAPABILITY_DESCRIPTORS: dict[str, dict[str, object]] = {
             ("title", "string", False, "图表标题"),
             ("series_label", "string", False, "序列标签"),
         ),
+        "resolved_input_parameters": ("rows",),
         "workload_class": "cpu_light",
         "requires_dataset_prerequisite": True,
         "produces_source_snapshot": False,
@@ -176,6 +187,7 @@ CAPABILITY_DESCRIPTORS: dict[str, dict[str, object]] = {
             ("elevation_meters", "number", False, "观测点海拔"),
             ("location_name", "string", False, "观测地名称"),
         ),
+        "resolved_input_parameters": ("ephemeris_base64",),
         "workload_class": "cpu_light",
         "requires_dataset_prerequisite": False,
         "produces_source_snapshot": True,
@@ -197,6 +209,7 @@ CAPABILITY_DESCRIPTORS: dict[str, dict[str, object]] = {
             ("elevation_meters", "number", False, "观测点海拔"),
             ("location_name", "string", False, "观测地名称"),
         ),
+        "resolved_input_parameters": ("ephemeris_base64",),
         "workload_class": "cpu_light",
         "requires_dataset_prerequisite": False,
         "produces_source_snapshot": True,
@@ -259,6 +272,7 @@ CAPABILITY_DESCRIPTORS: dict[str, dict[str, object]] = {
             ("max_sources", "integer", False, "最大源数"),
             ("npixels", "integer", False, "分割最小像素数"),
         ),
+        "resolved_input_parameters": ("fits_base64", "image"),
         "workload_class": "memory_heavy",
         "requires_dataset_prerequisite": False,
         "produces_source_snapshot": False,
@@ -280,6 +294,7 @@ CAPABILITY_DESCRIPTORS: dict[str, dict[str, object]] = {
             ("rest_wavelength", "number", False, "静止波长"),
             ("line_sigma", "number", False, "谱线宽度"),
         ),
+        "resolved_input_parameters": ("rows",),
         "workload_class": "cpu_light",
         "requires_dataset_prerequisite": True,
         "produces_source_snapshot": False,
@@ -321,6 +336,7 @@ CAPABILITY_DESCRIPTORS: dict[str, dict[str, object]] = {
             ("minimum_period", "number", False, "最小周期"),
             ("maximum_period", "number", False, "最大周期"),
         ),
+        "resolved_input_parameters": ("rows",),
         "workload_class": "cpu_light",
         "requires_dataset_prerequisite": True,
         "produces_source_snapshot": False,
@@ -364,6 +380,7 @@ CAPABILITY_DESCRIPTORS: dict[str, dict[str, object]] = {
             ("random_seed", "integer", False, "随机种子"),
             ("cv_folds", "integer", False, "交叉验证折数"),
         ),
+        "resolved_input_parameters": ("rows",),
         "workload_class": "cpu_heavy",
         "requires_dataset_prerequisite": True,
         "produces_source_snapshot": False,
@@ -383,6 +400,7 @@ CAPABILITY_DESCRIPTORS: dict[str, dict[str, object]] = {
             ("random_seed", "integer", False, "随机种子"),
             ("cv_folds", "integer", False, "交叉验证折数"),
         ),
+        "resolved_input_parameters": ("rows",),
         "workload_class": "cpu_heavy",
         "requires_dataset_prerequisite": True,
         "produces_source_snapshot": False,
@@ -402,6 +420,7 @@ CAPABILITY_DESCRIPTORS: dict[str, dict[str, object]] = {
             ("test_fraction", "number", False, "测试比例"),
             ("random_seed", "integer", False, "随机种子"),
         ),
+        "resolved_input_parameters": ("rows",),
         "workload_class": "cpu_heavy",
         "requires_dataset_prerequisite": True,
         "produces_source_snapshot": False,
@@ -422,6 +441,14 @@ CAPABILITY_DESCRIPTORS: dict[str, dict[str, object]] = {
             ("test_fraction", "number", False, "测试比例"),
             ("random_seed", "integer", False, "随机种子"),
         ),
+        "resolved_input_parameters": (
+            "images",
+            "image_count",
+            "source_total_pixels",
+            "image_shape",
+            "preprocessing",
+            "label_schema",
+        ),
         "workload_class": "memory_heavy",
         "requires_dataset_prerequisite": True,
         "produces_source_snapshot": False,
@@ -436,6 +463,11 @@ CAPABILITY_DESCRIPTORS: dict[str, dict[str, object]] = {
             ("model", "rows", True, "模型契约（由输入解析注入）"),
             ("rows", "rows", True, "推理数据行"),
             ("dataset_artifact_version_id", "string", False, "数据集版本（注入）"),
+        ),
+        "resolved_input_parameters": (
+            "model",
+            "rows",
+            "dataset_artifact_version_id",
         ),
         "workload_class": "cpu_light",
         "requires_dataset_prerequisite": True,
@@ -500,6 +532,44 @@ def capability_parameters(skill_id: str) -> tuple[CapabilityParameter, ...]:
     )
 
 
+def resolved_input_parameter_names(skill_id: str) -> frozenset[str]:
+    """Return handler parameters injected exclusively by the input resolver."""
+
+    descriptor = capability_for(skill_id)
+    resolved = frozenset(
+        str(name) for name in descriptor.get("resolved_input_parameters", ())
+    )
+    parameter_names = frozenset(
+        name for name, _kind, _required, _description in capability_parameters(skill_id)
+    )
+    if not resolved.issubset(parameter_names):
+        raise ValueError(
+            f"{skill_id} resolved_input_parameters must belong to parameters"
+        )
+    return resolved
+
+
+def contract_parameters(skill_id: str) -> tuple[CapabilityParameter, ...]:
+    """Return only parameters a Planner and confirmed Contract may author."""
+
+    resolved = resolved_input_parameter_names(skill_id)
+    return tuple(
+        parameter
+        for parameter in capability_parameters(skill_id)
+        if parameter[0] not in resolved
+    )
+
+
+def skills_producing_artifact_kind(artifact_kind: str) -> tuple[str, ...]:
+    """Return registered producers from the single capability Authority."""
+
+    return tuple(
+        skill_id
+        for skill_id in CAPABILITY_DESCRIPTORS
+        if artifact_kind in produced_artifact_kinds(skill_id)
+    )
+
+
 def requires_dataset_prerequisite(skill_id: str) -> bool:
     """Whether planning must freeze dataset-producing steps for this skill."""
 
@@ -539,7 +609,7 @@ def planning_capabilities() -> tuple[dict[str, object], ...]:
                     "required": required,
                     "description": description,
                 }
-                for name, kind, required, description in descriptor["parameters"]
+                for name, kind, required, description in contract_parameters(skill_id)
             ],
         }
         for skill_id, descriptor in CAPABILITY_DESCRIPTORS.items()
@@ -552,9 +622,12 @@ __all__ = [
     "accepts_artifact_version",
     "capability_for",
     "capability_parameters",
+    "contract_parameters",
     "produced_artifact_kinds",
     "produces_source_snapshot",
     "planning_capabilities",
+    "resolved_input_parameter_names",
     "requires_dataset_prerequisite",
     "scientific_skill_phase",
+    "skills_producing_artifact_kind",
 ]

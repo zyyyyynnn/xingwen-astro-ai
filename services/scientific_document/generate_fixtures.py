@@ -2,7 +2,7 @@
 
 Every file here is a SYNTHETIC exoplanet_host_star-style document generated
 from scratch — none is a copyrighted paper. These fixtures cover the Scientific Document Parsing Contract
-Golden Set dimensions and are committed so CI can run the native baseline and
+Golden Set dimensions and are committed so CI can run the native parser and
 golden annotations without network access or restricted content.
 
 Coverage dimensions defined by the Scientific Document Parsing Contract:

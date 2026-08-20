@@ -85,3 +85,17 @@ export async function computeContractContentHash(
   }
   return `sha256:${hex}`;
 }
+
+/** Compute the backend-compatible canonical hash for a JSON identity payload. */
+export async function computeCanonicalJsonHash(
+  input: unknown,
+): Promise<string> {
+  const data = new TextEncoder().encode(canonicalize(input));
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", data);
+  const bytes = new Uint8Array(digest);
+  let hex = "";
+  for (const byte of bytes) {
+    hex += byte.toString(16).padStart(2, "0");
+  }
+  return `sha256:${hex}`;
+}

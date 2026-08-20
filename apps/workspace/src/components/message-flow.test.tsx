@@ -216,4 +216,80 @@ describe("OpenHands-derived research message flow", () => {
     fireEvent.click(editButton);
     expect(onOpenEditor).toHaveBeenCalled();
   });
+
+  it("submits one typed repair decision for every frozen defect", () => {
+    const onCheckpointDecision = vi.fn();
+    const items: WorkspaceStreamItem[] = [
+      {
+        id: "checkpoint:repair-1",
+        kind: "checkpoint_prompt",
+        checkpointId: "repair-1",
+        runId: "run-1",
+        runRevision: 3,
+        question: "发现 1 项跨来源科学身份冲突，请逐项核对证据后决定。",
+        options: ["accepted", "rejected", "keep_unresolved"],
+        checkpointKind: "scientific_repair",
+        repairContext: {
+          ruleSet: {
+            ruleSetId: asEntityId("crossmatch-rules"),
+            ruleSetVersion: "1.0.0",
+            ruleSetContentHash: "sha256:rules",
+            allowedActions: ["accepted", "rejected", "keep_unresolved"],
+          },
+          sourceInputHash: "sha256:input",
+          beforeOutputHash: "sha256:before",
+          defects: [
+            {
+              defectId: asEntityId("repair-defect-1"),
+              logicalMatchKey: "sha256:match",
+              conflictCode: "low_confidence_match",
+              leftCandidateIds: [asEntityId("gaia-source")],
+              rightCandidateIds: [asEntityId("simbad-source")],
+              evidence: [
+                {
+                  evidenceId: asEntityId("evidence-1"),
+                  leftCandidateId: asEntityId("gaia-source"),
+                  rightCandidateId: asEntityId("simbad-source"),
+                  confidence: 0.82,
+                  summary: "角距离 0.320 角秒",
+                },
+              ],
+            },
+          ],
+        },
+        answered: false,
+        selectedOption: null,
+        freeText: null,
+        repairDecisions: [],
+        repairOutcome: null,
+        timestamp: "2026-08-14T08:00:00Z",
+      },
+    ];
+
+    render(
+      <ResearchMessageStream
+        items={items}
+        onCheckpointDecision={onCheckpointDecision}
+      />,
+    );
+
+    expect(screen.getByText("角距离 0.320 角秒")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("接受候选匹配"));
+    fireEvent.change(screen.getByLabelText("冲突 1 的决定理由"), {
+      target: { value: "坐标距离与来源字段均满足规则" },
+    });
+    fireEvent.click(screen.getByText("提交全部修复决定"));
+
+    expect(onCheckpointDecision).toHaveBeenCalledWith("run-1", {
+      checkpointId: "repair-1",
+      expectedRunRevision: 3,
+      repairDecisions: [
+        {
+          defectId: "repair-defect-1",
+          action: "accepted",
+          rationale: "坐标距离与来源字段均满足规则",
+        },
+      ],
+    });
+  });
 });

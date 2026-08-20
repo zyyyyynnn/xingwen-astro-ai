@@ -75,11 +75,7 @@ describe("WwtViewport", () => {
     openSession.mockReturnValue({ render: renderScene, close });
 
     const { unmount } = render(
-      <WwtViewport
-        spec={sceneSpec}
-        versionNumber={1}
-        loadContent={loadContent}
-      />,
+      <WwtViewport spec={sceneSpec} loadContent={loadContent} />,
     );
     expect(openSession).toHaveBeenCalledTimes(1);
     await screen.findByText(/实际中心/);
@@ -99,18 +95,10 @@ describe("WwtViewport", () => {
     openSession.mockReturnValue({ render: renderScene, close });
 
     const first = render(
-      <WwtViewport
-        spec={sceneSpec}
-        versionNumber={1}
-        loadContent={loadContent}
-      />,
+      <WwtViewport spec={sceneSpec} loadContent={loadContent} />,
     );
     const second = render(
-      <WwtViewport
-        spec={sceneSpec}
-        versionNumber={1}
-        loadContent={loadContent}
-      />,
+      <WwtViewport spec={sceneSpec} loadContent={loadContent} />,
     );
     expect(openSession).toHaveBeenCalledTimes(2);
 
@@ -131,13 +119,7 @@ describe("WwtViewport", () => {
       close: vi.fn(),
     }));
 
-    render(
-      <WwtViewport
-        spec={sceneSpec}
-        versionNumber={1}
-        loadContent={loadContent}
-      />,
-    );
+    render(<WwtViewport spec={sceneSpec} loadContent={loadContent} />);
     expect(
       await screen.findByText("WorldWide Telescope 初始化失败"),
     ).toBeInTheDocument();
@@ -152,13 +134,7 @@ describe("WwtViewport", () => {
       render: () => new Promise(() => undefined),
       close: vi.fn(),
     });
-    render(
-      <WwtViewport
-        spec={sceneSpec}
-        versionNumber={1}
-        loadContent={loadContent}
-      />,
-    );
+    render(<WwtViewport spec={sceneSpec} loadContent={loadContent} />);
     expect(screen.getByText("查看文本与表格替代视图")).toBeInTheDocument();
     expect(screen.getByText("昴星团天区场景。")).toBeInTheDocument();
     expect(screen.getByText(/RA 6.0000h · Dec 24.0000°/)).toBeInTheDocument();
@@ -176,13 +152,7 @@ describe("WwtViewport", () => {
         callback(new Blob(["scene"], { type: "image/png" }));
       });
     try {
-      render(
-        <WwtViewport
-          spec={sceneSpec}
-          versionNumber={1}
-          loadContent={loadContent}
-        />,
-      );
+      render(<WwtViewport spec={sceneSpec} loadContent={loadContent} />);
       await screen.findByText(/交互场景已加载/);
       const host = screen.getByRole("region", {
         name: "WorldWide Telescope 交互场景",
@@ -215,13 +185,7 @@ describe("WwtViewport", () => {
         callback(null);
       });
     try {
-      render(
-        <WwtViewport
-          spec={sceneSpec}
-          versionNumber={1}
-          loadContent={loadContent}
-        />,
-      );
+      render(<WwtViewport spec={sceneSpec} loadContent={loadContent} />);
       await screen.findByText(/交互场景已加载/);
       const host = screen.getByRole("region", {
         name: "WorldWide Telescope 交互场景",

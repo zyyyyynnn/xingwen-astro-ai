@@ -314,10 +314,18 @@
       "additionalProperties": false,
       "properties": {
         "dataset_artifact_version_id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Dataset Artifact Version Id",
-          "type": "string"
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dataset Artifact Version Id"
         },
         "mode": {
           "const": "chart",
@@ -333,6 +341,20 @@
           "title": "Series",
           "type": "array"
         },
+        "source_snapshot_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Snapshot Id"
+        },
         "x_axis": {
           "$ref": "#/$defs/ChartAxis"
         },
@@ -341,7 +363,6 @@
         }
       },
       "required": [
-        "dataset_artifact_version_id",
         "x_axis",
         "y_axis",
         "series"

@@ -25,6 +25,7 @@ afterEach(() => {
 const chart: ChartVisualizationReview = {
   mode: "chart",
   datasetArtifactVersionId: asEntityId("dataset-version-1"),
+  sourceSnapshotId: null,
   xAxis: {
     field: asEntityId("teff"),
     label: "有效温度",

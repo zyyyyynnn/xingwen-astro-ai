@@ -29,7 +29,7 @@ import type {
   GraphArtifactReview,
   LiteratureArtifactReview,
   PaperAcquisitionReview,
-  PaperSummaryPdfSourceReview,
+  PaperSummaryDocumentSourceReview,
   PaperSummaryReview,
   PublicShareSnapshot,
   ResearchArtifact,
@@ -274,6 +274,15 @@ export interface CreateResearchInputInput {
  */
 export interface PaperAcquisitionRepository {
   getReview(artifactVersionId: DomainEntityId): Promise<PaperAcquisitionReview>;
+  bindResearchInput(input: {
+    readonly artifactVersionId: DomainEntityId;
+    readonly candidateId: DomainEntityId;
+    readonly canonicalPaperId: DomainEntityId;
+    readonly researchInputId: DomainEntityId;
+    readonly researchInputContentHash: string;
+    readonly evidenceUrl: string;
+    readonly idempotencyKey: string;
+  }): Promise<void>;
 }
 
 /**
@@ -285,16 +294,16 @@ export interface PaperAcquisitionRepository {
  * Callers never see URLs, DTOs or envelopes. Failures surface as typed
  * errors (NotFound/RateLimited/Upstream/Validation/Network), never as `null`.
  *
- * `getPdfSource` resolves the authorized full-text ResearchInput through the
+ * `getDocumentSource` resolves the authorized full-text ResearchInput through the
  * server-recorded PaperCandidate → ResearchInput provenance bridge. A
  * `null` research input id means no authorized full-text relation exists;
- * callers must never infer a PDF URL from paper metadata.
+ * callers must never infer a document URL from paper metadata.
  */
 export interface PaperSummaryRepository {
   getSummary(artifactVersionId: DomainEntityId): Promise<PaperSummaryReview>;
-  getPdfSource(
+  getDocumentSource(
     artifactVersionId: DomainEntityId,
-  ): Promise<PaperSummaryPdfSourceReview>;
+  ): Promise<PaperSummaryDocumentSourceReview>;
 }
 
 /** Deep, version-pinned reads for the three typed data Artifact kinds. */

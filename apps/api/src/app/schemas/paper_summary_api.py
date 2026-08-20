@@ -73,7 +73,7 @@ class PaperSummaryRead(BaseModel):
     evidence: tuple[EvidenceDetail, ...]
 
 
-class PaperSummaryPdfSourceRead(BaseModel):
+class PaperSummaryDocumentSourceRead(BaseModel):
     """Authorized full-text ResearchInput bound to the summarized paper."""
 
     model_config = MODEL_CONFIG
@@ -84,6 +84,6 @@ class PaperSummaryPdfSourceRead(BaseModel):
 __all__ = [
     "PaperSummaryCacheAudit",
     "PaperSummaryPaperMetadata",
-    "PaperSummaryPdfSourceRead",
+    "PaperSummaryDocumentSourceRead",
     "PaperSummaryRead",
 ]

@@ -1,5 +1,8 @@
 import { memo, useMemo, type ReactNode } from "react";
-import type { DomainEntityId } from "@xingwen/domain";
+import type {
+  DomainEntityId,
+  RunCheckpointDecisionRequest,
+} from "@xingwen/domain";
 import type {
   ResearchContractDraftViewModel,
   ResearchContractViewModel,
@@ -13,6 +16,7 @@ import {
 } from "../../upstream/openhands/src/root";
 import { ClarificationPrompt } from "./clarification-prompt";
 import { ChoicePrompt } from "./choice-prompt";
+import { ScientificRepairPrompt } from "./scientific-repair-prompt";
 import { resolveArtifactRenderer } from "../presentation/artifact-renderer-registry";
 
 interface ResearchMessageStreamProps {
@@ -29,8 +33,7 @@ interface ResearchMessageStreamProps {
   ) => void;
   readonly onCheckpointDecision?: (
     runId: string,
-    option: string,
-    freeText?: string,
+    decision: RunCheckpointDecisionRequest,
   ) => void;
   readonly isSubmittingCheckpoint?: boolean;
   readonly renderProtocolDraft?: (props: {
@@ -194,19 +197,44 @@ export const ResearchMessageStream = memo(function ResearchMessageStream({
         if (item.kind === "checkpoint_prompt") {
           return (
             <ChatMessage key={item.id} type="agent" message="">
-              <ChoicePrompt
-                id={item.id}
-                question={item.question}
-                options={item.options}
-                answered={item.answered}
-                selectedOption={item.selectedOption}
-                freeText={item.freeText}
-                allowFreeText={true}
-                isSubmitting={isSubmittingCheckpoint}
-                onSelect={(opt, free) =>
-                  onCheckpointDecision?.(item.runId, opt, free)
-                }
-              />
+              {item.checkpointKind === "scientific_repair" &&
+              item.repairContext ? (
+                <ScientificRepairPrompt
+                  id={item.id}
+                  question={item.question}
+                  context={item.repairContext}
+                  decisions={item.repairDecisions}
+                  outcome={item.repairOutcome}
+                  answered={item.answered}
+                  isSubmitting={isSubmittingCheckpoint}
+                  onSubmit={(repairDecisions) =>
+                    onCheckpointDecision?.(item.runId, {
+                      checkpointId: item.checkpointId as DomainEntityId,
+                      expectedRunRevision: item.runRevision,
+                      repairDecisions,
+                    })
+                  }
+                />
+              ) : (
+                <ChoicePrompt
+                  id={item.id}
+                  question={item.question}
+                  options={item.options}
+                  answered={item.answered}
+                  selectedOption={item.selectedOption}
+                  freeText={item.freeText}
+                  allowFreeText={true}
+                  isSubmitting={isSubmittingCheckpoint}
+                  onSelect={(selectedOption, freeText) =>
+                    onCheckpointDecision?.(item.runId, {
+                      checkpointId: item.checkpointId as DomainEntityId,
+                      expectedRunRevision: item.runRevision,
+                      selectedOption,
+                      freeText,
+                    })
+                  }
+                />
+              )}
             </ChatMessage>
           );
         }

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from enum import StrEnum
-from typing import Annotated, Any, ClassVar, Generic, Literal, TypeVar
+from typing import Annotated, Any, ClassVar, Generic, Literal, Self, TypeVar
 from uuid import UUID
 
 from pydantic import (
@@ -19,7 +19,7 @@ from pydantic import (
 )
 
 from ._hashing import compute_canonical_payload_hash
-from .scientific_capabilities import produced_artifact_kinds
+from .scientific_capabilities import contract_parameters, produced_artifact_kinds
 
 
 CORE_MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
@@ -315,6 +315,30 @@ class ResearchContractInput(BaseModel):
                     f"{artifact_kind.value} requires an explicitly authorized scientific skill"
                 )
         for task in self.scientific_tasks:
+            allowed_parameters = {
+                name
+                for name, _kind, _required, _description in contract_parameters(
+                    task.skill_id.value
+                )
+            }
+            unknown_parameters = set(task.parameters) - allowed_parameters
+            if unknown_parameters:
+                raise ValueError(
+                    f"scientific task {task.task_id} contains server-owned or unknown parameters: "
+                    + ", ".join(sorted(unknown_parameters))
+                )
+            missing_parameters = {
+                name
+                for name, _kind, required, _description in contract_parameters(
+                    task.skill_id.value
+                )
+                if required and name not in task.parameters
+            }
+            if missing_parameters:
+                raise ValueError(
+                    f"scientific task {task.task_id} is missing required parameters: "
+                    + ", ".join(sorted(missing_parameters))
+                )
             if not _skill_produced_kinds(task.skill_id) & selected_outputs:
                 raise ValueError(
                     f"scientific task {task.task_id} has no requested output"
@@ -806,6 +830,78 @@ class RunEvent(BaseModel):
     occurred_at: UtcDateTime
 
 
+class RepairEvidenceFact(BaseModel):
+    """User-readable evidence for one candidate pair at a repair checkpoint."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    evidence_id: Identifier
+    left_candidate_id: Identifier
+    right_candidate_id: Identifier
+    confidence: float = Field(ge=0, le=1)
+    summary: NonEmptyString
+
+
+class RepairDefect(BaseModel):
+    """One cross-source conflict that cannot be resolved without human authority."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    defect_id: Identifier
+    defect_type: Literal["cross_source_conflict"] = "cross_source_conflict"
+    logical_match_key: ContentHash
+    conflict_code: Identifier
+    left_candidate_ids: tuple[Identifier, ...] = Field(min_length=1)
+    right_candidate_ids: tuple[Identifier, ...] = Field(min_length=1)
+    evidence: tuple[RepairEvidenceFact, ...] = Field(min_length=1)
+
+
+class RepairRuleSetReference(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    rule_set_id: Identifier
+    rule_set_version: SemanticVersion
+    rule_set_content_hash: ContentHash
+    allowed_actions: tuple[Literal["accepted", "rejected", "keep_unresolved"], ...] = (
+        "accepted",
+        "rejected",
+        "keep_unresolved",
+    )
+
+
+class RepairCheckpointContext(BaseModel):
+    """Immutable defect and RuleSet facts shown at a scientific repair checkpoint."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    rule_set: RepairRuleSetReference
+    source_input_hash: ContentHash
+    before_output_hash: ContentHash
+    defects: tuple[RepairDefect, ...] = Field(min_length=1)
+
+
+class RepairDecisionInput(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    defect_id: Identifier
+    action: Literal["accepted", "rejected", "keep_unresolved"]
+    rationale: NonEmptyString = Field(max_length=2000)
+
+
+class RepairOutcome(BaseModel):
+    """Deterministic revalidation closure for one submitted repair batch."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    after_output_hash: ContentHash
+    quality_result_hash: ContentHash
+    before_evidence_ids: tuple[Identifier, ...]
+    after_evidence_ids: tuple[Identifier, ...]
+    resolved_defect_ids: tuple[Identifier, ...]
+    unresolved_defect_ids: tuple[Identifier, ...]
+    status: Literal["revalidated", "false_repair"]
+
+
 class RunCheckpoint(BaseModel):
     """One human-input request on a Run's ``waiting_for_input`` boundary."""
 
@@ -813,13 +909,37 @@ class RunCheckpoint(BaseModel):
 
     id: Identifier
     run_id: Identifier
+    run_revision: int = Field(ge=1)
     step_key: Identifier
     question: NonEmptyString
     options: tuple[NonEmptyString, ...] = Field(min_length=1)
+    kind: Literal["choice", "scientific_repair"] = "choice"
+    repair_context: RepairCheckpointContext | None = None
     created_at: UtcDateTime
     selected_option: str | None = None
     free_text: str | None = None
+    repair_decisions: tuple[RepairDecisionInput, ...] = ()
+    repair_outcome: RepairOutcome | None = None
     decided_at: UtcDateTime | None = None
+
+    @model_validator(mode="after")
+    def validate_checkpoint_shape(self) -> Self:
+        if self.kind == "scientific_repair":
+            if self.repair_context is None or self.selected_option is not None:
+                raise ValueError("scientific repair checkpoint requires typed context")
+            expected = {item.defect_id for item in self.repair_context.defects}
+            decided = {item.defect_id for item in self.repair_decisions}
+            if self.repair_decisions and decided != expected:
+                raise ValueError(
+                    "repair decisions must exactly cover checkpoint defects"
+                )
+        elif (
+            self.repair_context is not None
+            or self.repair_decisions
+            or self.repair_outcome is not None
+        ):
+            raise ValueError("choice checkpoint cannot carry scientific repair state")
+        return self
 
 
 class RunCheckpointDecisionRequest(BaseModel):
@@ -827,8 +947,19 @@ class RunCheckpointDecisionRequest(BaseModel):
 
     model_config = CORE_MODEL_CONFIG
 
-    selected_option: NonEmptyString
+    checkpoint_id: Identifier
+    expected_run_revision: int = Field(ge=1)
+    selected_option: NonEmptyString | None = None
     free_text: str | None = Field(default=None, max_length=10000)
+    repair_decisions: tuple[RepairDecisionInput, ...] = ()
+
+    @model_validator(mode="after")
+    def require_one_decision_shape(self) -> Self:
+        if (self.selected_option is None) == (not self.repair_decisions):
+            raise ValueError(
+                "submit either one selected option or typed repair decisions"
+            )
+        return self
 
 
 class ResearchArtifact(BaseModel):

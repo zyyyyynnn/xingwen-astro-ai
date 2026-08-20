@@ -133,8 +133,8 @@
     },
     {
       "module": "app.schemas.paper_summary_api",
-      "name": "PaperSummaryPdfSourceRead",
-      "path": "json/PaperSummaryPdfSourceRead.schema.json"
+      "name": "PaperSummaryDocumentSourceRead",
+      "path": "json/PaperSummaryDocumentSourceRead.schema.json"
     },
     {
       "module": "app.schemas.paper_summary_api",

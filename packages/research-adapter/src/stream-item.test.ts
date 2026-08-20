@@ -197,9 +197,13 @@ describe("buildUnifiedWorkspaceStream", () => {
       stepKey: "step_data" as any,
       question: "请确认是否继续交叉证认",
       options: ["继续证认", "跳过证认"],
+      kind: "choice",
+      repairContext: null,
       createdAt: "2026-08-14T00:01:40Z" as any,
       selectedOption: null,
       freeText: null,
+      repairDecisions: [],
+      repairOutcome: null,
       decidedAt: null,
       isAnswered: false,
     };

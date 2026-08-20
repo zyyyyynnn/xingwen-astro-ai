@@ -259,6 +259,86 @@ describe("ScientificArtifactRenderer scientific content", () => {
     expect(screen.queryByText(/column_metadata/)).toBeNull();
   });
 
+  it("renders every typed analysis result block without exposing transport tokens", () => {
+    const content: AnalysisReportReviewContent = {
+      kind: "analysis_report",
+      schemaVersion: "1.0.0",
+      reportId: asEntityId("report-statistics"),
+      title: "统计分析",
+      summary: "已完成描述统计与假设检验。",
+      skillExecutions: [],
+      resultBlocks: [
+        {
+          blockId: asEntityId("result-fields"),
+          label: "字段概览",
+          representation: "table",
+          payload: {
+            rows: [{ field: "mass", missing_count: 0 }],
+          },
+          contentHash: "sha256:fields",
+          evidenceIds: [],
+        },
+        {
+          blockId: asEntityId("result-statistics"),
+          label: "描述统计",
+          representation: "statistics",
+          payload: {
+            rows: [{ field: "mass", mean: 1.1 }],
+          },
+          contentHash: "sha256:statistics",
+          evidenceIds: [],
+        },
+        {
+          blockId: asEntityId("result-hypothesis"),
+          label: "假设检验",
+          representation: "statistics",
+          payload: {
+            rows: [{ test: "welch_t", p_value: 0.03 }],
+          },
+          contentHash: "sha256:hypothesis",
+          evidenceIds: [],
+        },
+        {
+          blockId: asEntityId("result-correlations"),
+          label: "相关系数",
+          representation: "matrix",
+          payload: {
+            rows: [{ left: "mass", right: "radius", value: 0.8 }],
+          },
+          contentHash: "sha256:correlations",
+          evidenceIds: [],
+        },
+      ],
+      metrics: [],
+      findings: [],
+      limitations: [],
+      humanRequired: [],
+      relatedArtifactVersionIds: [],
+      sourceSnapshotIds: [],
+      evidenceIds: [],
+      inputHash: "sha256:input",
+      outputHash: "sha256:output",
+    };
+
+    const { container } = render(
+      <ScientificArtifactRenderer
+        review={makeReview(content)}
+        title="分析报告"
+        surface="fullscreen"
+      />,
+    );
+
+    expect(screen.getByText("字段概览")).toBeInTheDocument();
+    expect(screen.getByText("描述统计")).toBeInTheDocument();
+    expect(screen.getByText("假设检验")).toBeInTheDocument();
+    expect(screen.getByText("相关系数")).toBeInTheDocument();
+    expect(screen.getByText("welch_t")).toBeInTheDocument();
+    expect(screen.getByText("0.8")).toBeInTheDocument();
+    expect(container.querySelector("pre")).toBeNull();
+    expect(screen.queryByText("statistics")).toBeNull();
+    expect(screen.queryByText("matrix")).toBeNull();
+  });
+
   it("keeps light-curve time-scale identity visible", () => {
     const content: LightCurveArtifactReviewContent = {
       kind: "light_curve",
@@ -317,6 +397,7 @@ describe("ScientificArtifactRenderer scientific content", () => {
       spec: {
         mode: "chart",
         datasetArtifactVersionId: asEntityId("dataset-version-1"),
+        sourceSnapshotId: null,
         xAxis: {
           field: asEntityId("teff"),
           label: "有效温度",

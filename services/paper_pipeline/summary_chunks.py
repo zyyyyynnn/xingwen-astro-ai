@@ -155,7 +155,6 @@ def build_summary_chunks(
         current_characters = 0
 
     for block in ordered:
-        section = block.section or current_section
         section_boundary = (
             block.section is not None and block.section != current_section
         )

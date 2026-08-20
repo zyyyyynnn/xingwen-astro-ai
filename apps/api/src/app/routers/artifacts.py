@@ -53,7 +53,7 @@ from app.schemas.paper_collection_api import (
     PaperCollectionCandidateRead,
     PaperCollectionRead,
 )
-from app.schemas.paper_summary_api import PaperSummaryPdfSourceRead, PaperSummaryRead
+from app.schemas.paper_summary_api import PaperSummaryDocumentSourceRead, PaperSummaryRead
 from app.services.paper_summary_exports import PaperSummaryExportService
 from app.schemas.scientific_artifact_api import ScientificArtifactRead
 from app.security import SecurityProblem
@@ -317,20 +317,20 @@ def get_paper_summary(
 
 
 @router.get(
-    "/artifact-versions/{version_id}/paper-summary/pdf-source",
-    operation_id="getPaperSummaryPdfSource",
-    response_model=Envelope[PaperSummaryPdfSourceRead],
+    "/artifact-versions/{version_id}/paper-summary/document-source",
+    operation_id="getPaperSummaryDocumentSource",
+    response_model=Envelope[PaperSummaryDocumentSourceRead],
 )
-def get_paper_summary_pdf_source(
+def get_paper_summary_document_source(
     version_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
-) -> Envelope[PaperSummaryPdfSourceRead]:
-    data = _summary_service(request).get_pdf_source(
+) -> Envelope[PaperSummaryDocumentSourceRead]:
+    data = _summary_service(request).get_document_source(
         version_id=version_id, session_id=_session_id(request)
     )
     _no_store(response)
-    path = f"/api/artifact-versions/{version_id}/paper-summary/pdf-source"
+    path = f"/api/artifact-versions/{version_id}/paper-summary/document-source"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 

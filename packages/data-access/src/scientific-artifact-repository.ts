@@ -332,7 +332,12 @@ function mapSpec(
     const chart = dto as ChartSpecDto;
     return {
       mode: "chart",
-      datasetArtifactVersionId: id(chart.dataset_artifact_version_id),
+      datasetArtifactVersionId: chart.dataset_artifact_version_id
+        ? id(chart.dataset_artifact_version_id)
+        : null,
+      sourceSnapshotId: chart.source_snapshot_id
+        ? id(chart.source_snapshot_id)
+        : null,
       xAxis: mapAxis(chart.x_axis),
       yAxis: mapAxis(chart.y_axis),
       series: chart.series.map(mapSeries),

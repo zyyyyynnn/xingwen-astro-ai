@@ -100,8 +100,7 @@ def _configure_database_runtime(
     app.state.cache_record_store = CacheRecordStore(factory)
     app.state.cache_selector = CacheSelector(factory)
     integration_without_provider = (
-        settings.APP_ENV.lower() == "integration"
-        and settings.DASHSCOPE_API_KEY is None
+        settings.APP_ENV.lower() == "integration" and settings.DASHSCOPE_API_KEY is None
     )
     if integration_without_provider:
         from app.test_support.integration_model import (
@@ -132,6 +131,25 @@ def _configure_database_runtime(
 
     content_storage = LocalContentStorage(settings.RESEARCH_INPUT_UPLOAD_DIR)
     app.state.content_storage = content_storage
+    from app.services.scientific_document.hybrid_parser import (
+        HybridScientificDocumentParser,
+        PaddleOcrVlClient,
+    )
+
+    visual_parser = (
+        PaddleOcrVlClient(
+            base_url=settings.PADDLEOCR_VL_BASE_URL,
+            model_revision=settings.PADDLEOCR_VL_MODEL_REVISION,
+            timeout_seconds=settings.PADDLEOCR_VL_TIMEOUT_SECONDS,
+        )
+        if settings.PADDLEOCR_VL_BASE_URL is not None
+        and settings.PADDLEOCR_VL_MODEL_REVISION is not None
+        else None
+    )
+    app.state.document_parser = HybridScientificDocumentParser(
+        visual_parser=visual_parser,
+        max_pages=settings.DOCUMENT_PARSE_MAX_PAGES,
+    )
     app.state.research_planner = ResearchContractPlanner(
         model_port=model_port,
         provider=planner_provider,
@@ -166,6 +184,7 @@ def _configure_database_runtime(
             requested_model=settings.DASHSCOPE_MODEL,
             explicit_revision=settings.DASHSCOPE_EXPLICIT_MODEL_REVISION,
             content_storage=content_storage,
+            document_parser=app.state.document_parser,
         )
 
         async def _start_research_run_worker() -> None:
@@ -291,7 +310,10 @@ def create_app() -> FastAPI:
             max_response_bytes=settings.URL_FETCH_MAX_RESPONSE_BYTES,
         ),
     )
-    if database_session_factory is not None and app.state.artifact_read_service is not None:
+    if (
+        database_session_factory is not None
+        and app.state.artifact_read_service is not None
+    ):
         from app.services.paper_candidate_inputs import (
             PaperCandidateInputRepository,
             PaperCandidateInputService,

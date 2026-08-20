@@ -68,7 +68,6 @@ from app.schemas.core import (
     RunEvent,
     PlannerOutcome,
     PlannerOutcomeKind,
-    ScientificSkillId,
     UpdateResearchContractDraftRequest,
     UpdateResearchProjectRequest,
     compute_research_contract_content_hash,
@@ -659,7 +658,9 @@ class ResearchApplicationService:
                 # clients poll this read for every owned run.
                 return None
             decision = session.get(RunCheckpointDecisionModel, checkpoint.id)
-            return _run_checkpoint(checkpoint, decision)
+            return _run_checkpoint(
+                checkpoint, decision, run_revision=snapshot.revision
+            )
 
     def submit_run_checkpoint_decision(
         self,
@@ -685,6 +686,13 @@ class ResearchApplicationService:
             )
             if checkpoint is None:
                 raise _not_found("RUN_CHECKPOINT_NOT_FOUND")
+            if str(checkpoint.id) != request.checkpoint_id:
+                raise SecurityProblem(
+                    status=409,
+                    code="RUN_CHECKPOINT_CONFLICT",
+                    title="Run checkpoint conflict",
+                    detail="The checkpoint changed; reload before submitting a decision.",
+                )
             checkpoint_id = checkpoint.id
         try:
             self._workflow.submit_checkpoint_decision(
@@ -692,8 +700,11 @@ class ResearchApplicationService:
                 checkpoint_id=checkpoint_id,
                 selected_option=request.selected_option,
                 free_text=request.free_text,
-                expected_status=snapshot.status,
-                expected_revision=snapshot.revision,
+                repair_decisions=tuple(
+                    item.model_dump(mode="json") for item in request.repair_decisions
+                ),
+                expected_status="waiting_for_input",
+                expected_revision=request.expected_run_revision,
             )
         except CheckpointDecisionConflictError as exc:
             raise SecurityProblem(
@@ -1835,17 +1846,27 @@ def _run_step(row: RunStepModel, *, run_id: str) -> RunStepRead:
 
 
 def _run_checkpoint(
-    row: RunCheckpointModel, decision: RunCheckpointDecisionModel | None
+    row: RunCheckpointModel,
+    decision: RunCheckpointDecisionModel | None,
+    *,
+    run_revision: int,
 ) -> RunCheckpoint:
     return RunCheckpoint(
         id=str(row.id),
         run_id=str(row.run_id),
+        run_revision=run_revision,
         step_key=row.step_key,
         question=row.question,
         options=tuple(row.options),
+        kind=row.kind,
+        repair_context=row.repair_context,
         created_at=_utc(row.created_at),
         selected_option=decision.selected_option if decision else None,
         free_text=decision.free_text if decision else None,
+        repair_decisions=(
+            tuple(decision.repair_decisions) if decision is not None else ()
+        ),
+        repair_outcome=(decision.repair_outcome if decision is not None else None),
         decided_at=_utc(decision.decided_at) if decision else None,
     )
 
@@ -1928,6 +1949,7 @@ _OUTPUT_PRESENTATION = {
         "advanced",
     ),
 }
+
 
 def _research_planning_catalog(
     *,

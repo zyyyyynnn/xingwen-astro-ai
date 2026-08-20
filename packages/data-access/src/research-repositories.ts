@@ -311,10 +311,23 @@ export function createResearchRepositories(
       runId,
       input: RunCheckpointDecisionRequest,
     ): Promise<ResearchRun> {
-      const body: RunCheckpointDecisionRequestDto = {
-        selected_option: input.selectedOption,
-        free_text: input.freeText ?? null,
-      };
+      const body: RunCheckpointDecisionRequestDto =
+        "repairDecisions" in input
+          ? {
+              checkpoint_id: input.checkpointId,
+              expected_run_revision: input.expectedRunRevision,
+              repair_decisions: input.repairDecisions.map((decision) => ({
+                defect_id: decision.defectId,
+                action: decision.action,
+                rationale: decision.rationale,
+              })),
+            }
+          : {
+              checkpoint_id: input.checkpointId,
+              expected_run_revision: input.expectedRunRevision,
+              selected_option: input.selectedOption,
+              free_text: input.freeText ?? null,
+            };
       const payload = await http.post<unknown>(
         `/api/runs/${seg(runId)}/checkpoint-decision`,
         body,

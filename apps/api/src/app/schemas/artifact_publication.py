@@ -33,6 +33,14 @@ def canonical_artifact_content_model(kind: object) -> type[BaseModel] | None:
     from app.schemas.paper_collection import PaperCollection
     from app.schemas.paper_summary import PaperSummaryArtifactContent
     from app.schemas.reasoning_traces import ReasoningTracesArtifactContent
+    from app.schemas.scientific_skills import (
+        AnalysisReportArtifactContent,
+        LightCurveArtifactContent,
+        ModelArtifactContent,
+        ModelEvaluationArtifactContent,
+        SpectrumArtifactContent,
+        VisualizationArtifactContent,
+    )
 
     canonical_types: dict[str, type[BaseModel]] = {
         "dataset": DatasetArtifactCandidate,
@@ -44,6 +52,12 @@ def canonical_artifact_content_model(kind: object) -> type[BaseModel] | None:
         "literature_relations": LiteratureRelationsCandidate,
         "reasoning_traces": ReasoningTracesArtifactContent,
         "graph": GraphArtifactCandidate,
+        "analysis_report": AnalysisReportArtifactContent,
+        "visualization": VisualizationArtifactContent,
+        "spectrum": SpectrumArtifactContent,
+        "light_curve": LightCurveArtifactContent,
+        "model_evaluation": ModelEvaluationArtifactContent,
+        "model_artifact": ModelArtifactContent,
         "export": ExportArtifactContent,
     }
     normalized = normalize_artifact_kind(kind)

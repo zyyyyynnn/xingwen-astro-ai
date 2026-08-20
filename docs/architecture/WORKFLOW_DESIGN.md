@@ -23,15 +23,18 @@ Application Service 从已确认 Contract 的 `output_requirements` 确定性编
 [*] -> queued -> planning
                    <-> waiting_for_input
     -> [fetching_data -> cleaning_data]
+    -> [acquiring_observations -> analyzing_data -> training_models -> building_visualizations]
     -> [searching_papers -> summarizing_papers -> reasoning_literature]
     -> [building_graph] -> completed
 
-queued / planning / fetching_data / cleaning_data / searching_papers /
+queued / planning / fetching_data / cleaning_data / acquiring_observations /
+analyzing_data / training_models / building_visualizations / searching_papers /
 summarizing_papers / reasoning_literature / building_graph -> failed
 
 queued / planning / waiting_for_input / fetching_data / cleaning_data /
-searching_papers / summarizing_papers / reasoning_literature /
-building_graph -> cancelled
+acquiring_observations / analyzing_data / training_models /
+building_visualizations / searching_papers / summarizing_papers /
+reasoning_literature / building_graph -> cancelled
 ```
 
 `waiting_for_input` 表示执行已停在明确的人工输入边界；`cancelled` 表示取消已持久化。`completed`、`failed` 与 `cancelled` 是终态。RunStep 的稳定状态为 `pending | running | waiting | completed | failed | cancelled | skipped`，StepAttempt 为 `running | completed | failed | cancelled`。没有真实状态写入时不得投影这些状态。
@@ -41,7 +44,7 @@ Planner 只有在持久化明确的输入请求后才能从 `planning` 进入 `w
 ## 3. 顺序、重试与失败
 
 - `planning` 始终是首 Step；其后只冻结 Contract 产物闭包需要的 canonical steps，并保持 canonical 相对顺序。每个 Step 的 `success_status` 必须精确指向冻结 Plan 的下一 Step，末 Step 指向 `completed`。
-- `dataset | field_dictionary | source_collection` 引入 `fetching_data -> cleaning_data`；`paper_collection` 引入 `searching_papers`；`paper_summary` 追加 `summarizing_papers`；Literature Claim/Relation/ReasoningTrace 追加完整文献检索、总结与 `reasoning_literature` 闭包；`graph` 追加完整文献闭包与 `building_graph`，仅当 Contract 同时请求数据产物时才包含数据闭包。
+- `dataset | field_dictionary | source_collection` 引入 `fetching_data -> cleaning_data`；每个 scientific task 由能力表唯一映射到 `acquiring_observations | analyzing_data | training_models | building_visualizations` 之一，需要 Dataset 前置条件的任务同时引入数据闭包；`paper_collection` 引入 `searching_papers`；`paper_summary` 追加 `summarizing_papers`；Literature Claim/Relation/ReasoningTrace 追加完整文献检索、总结与 `reasoning_literature` 闭包；`graph` 追加完整文献闭包与 `building_graph`，仅当 Contract 同时请求数据产物时才包含数据闭包。
 - 可执行 requested output 由 `SUPPORTED_RUN_OUTPUTS` 显式 allowlist 声明；新增 ArtifactKind 在获得明确 RunPlan mapping 前必须 fail closed，且不得创建 Run。不得使用枚举全集减例外的方式自动授予执行能力。
 - RunStep 数据库约束只守住 status domain、唯一性与 position 等局部不变量；Contract-driven 子集链的冻结顺序与 next-step transition 由 Workflow Store 按唯一 `RUN_STEP_STATUS_ORDER` 验证，不在数据库枚举所有 transition pair。前序 Step 未完成时不得启动后序 Step。
 - StepAttempt 使用递增 `attempt_number`、稳定 idempotency key、错误分类与 retryable 标记记录实际尝试。

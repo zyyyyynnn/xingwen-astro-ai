@@ -23,7 +23,6 @@ from __future__ import annotations
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 import os
-from pathlib import Path
 from uuid import uuid4
 
 from fastapi.testclient import TestClient

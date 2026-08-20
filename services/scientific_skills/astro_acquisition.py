@@ -11,17 +11,20 @@ from __future__ import annotations
 from collections.abc import Mapping
 import csv
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from io import BytesIO, StringIO
 from hashlib import sha256
 from math import isfinite, sqrt
 import re
+from time import monotonic
 from types import MappingProxyType
-from typing import Literal
+from typing import Literal, Protocol
 from urllib.parse import urljoin, urlsplit
 
 import httpx
 import numpy as np
 
+from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.enums import UpstreamFailureClass
 from services.data_pipeline.sources.base import SourceFailure
 
@@ -49,6 +52,8 @@ MAST_DOWNLOAD_ENDPOINT = "https://mast.stsci.edu/api/v0.1/Download/file"
 MAST_TESS_STORAGE_ORIGIN = "https://stpubdata.s3.us-east-1.amazonaws.com"
 
 GAIA_ADAPTER_VERSION = "1.0.0"
+GAIA_SCHEMA_REVISION = "gaiadr3.gaia_source:1"
+GAIA_CACHE_VERSION = f"gaia-tap:{GAIA_ADAPTER_VERSION}:{GAIA_SCHEMA_REVISION}"
 VIZIER_TAP_ADAPTER_VERSION = "1.0.0"
 SDSS_SPECTRUM_ADAPTER_VERSION = "1.0.0"
 MAST_LIGHT_CURVE_ADAPTER_VERSION = "1.0.0"
@@ -92,8 +97,28 @@ _GAIA_FIELD_UNITS: Mapping[str, str] = MappingProxyType(
         "phot_g_mean_mag": "mag",
         "phot_bp_mean_mag": "mag",
         "phot_rp_mean_mag": "mag",
+        "bp_rp": "mag",
         "distance_gspphot": "pc",
         "teff_gspphot": "K",
+    }
+)
+
+_GAIA_SCHEMA_DATATYPES: Mapping[str, frozenset[str]] = MappingProxyType(
+    {
+        field: (
+            frozenset({"long", "bigint"})
+            if value_kind == "identifier"
+            else frozenset({"double", "float", "real"})
+        )
+        for field, value_kind in _GAIA_FIELD_TYPES.items()
+    }
+)
+_GAIA_SCHEMA_UNITS: Mapping[str, str] = MappingProxyType(
+    {
+        **_GAIA_FIELD_UNITS,
+        "pmra": "mas.yr**-1",
+        "pmdec": "mas.yr**-1",
+        "radial_velocity": "km.s**-1",
     }
 )
 
@@ -148,9 +173,7 @@ VIZIER_CATALOG_MANIFEST: Mapping[str, VizierCatalogManifest] = MappingProxyType(
                 {
                     "source_id": VizierFieldManifest("Source", "identifier"),
                     "ra_degrees": VizierFieldManifest("RA_ICRS", "number", "deg"),
-                    "dec_degrees": VizierFieldManifest(
-                        "DE_ICRS", "number", "deg"
-                    ),
+                    "dec_degrees": VizierFieldManifest("DE_ICRS", "number", "deg"),
                     "parallax_mas": VizierFieldManifest("Plx", "number", "mas"),
                     "pm_ra_mas_per_year": VizierFieldManifest(
                         "pmRA", "number", "mas/yr"
@@ -182,9 +205,7 @@ VIZIER_CATALOG_MANIFEST: Mapping[str, VizierCatalogManifest] = MappingProxyType(
                 {
                     "source_id": VizierFieldManifest("2MASS", "text"),
                     "ra_degrees": VizierFieldManifest("RAJ2000", "number", "deg"),
-                    "dec_degrees": VizierFieldManifest(
-                        "DEJ2000", "number", "deg"
-                    ),
+                    "dec_degrees": VizierFieldManifest("DEJ2000", "number", "deg"),
                     "j_mag": VizierFieldManifest("Jmag", "number", "mag"),
                     "h_mag": VizierFieldManifest("Hmag", "number", "mag"),
                     "k_mag": VizierFieldManifest("Kmag", "number", "mag"),
@@ -351,6 +372,21 @@ class BoundedHttpClient:
             ) from exc
 
 
+class GaiaTapResponseCache(Protocol):
+    """Project-scoped cache for one validated Gaia response payload."""
+
+    def get(self, *, project_id: str, query_hash: str) -> dict[str, object] | None: ...
+
+    def put(
+        self,
+        *,
+        project_id: str,
+        query_hash: str,
+        payload: dict[str, object],
+        retrieved_at: datetime,
+    ) -> None: ...
+
+
 class GaiaTapAdapter:
     """Controlled Gaia DR3 cone search; callers cannot submit ADQL."""
 
@@ -359,12 +395,14 @@ class GaiaTapAdapter:
         *,
         transport: httpx.BaseTransport | None = None,
         mode: AcquisitionMode = "live",
+        cache: GaiaTapResponseCache | None = None,
     ) -> None:
         self._client = BoundedHttpClient(
             origin="https://gea.esac.esa.int",
             transport=transport,
         )
         self._mode = mode
+        self._cache = cache
 
     def acquire(self, request: ScientificSkillRequest) -> dict[str, object]:
         reject_unknown(
@@ -410,9 +448,50 @@ class GaiaTapAdapter:
             dec=dec,
             radius=radius,
             fields=fields,
-            max_results=max_results,
+            max_results=max_results + 1,
         )
         upstream_format = "csv" if response_format == "csv" else "votable"
+        query_hash = compute_canonical_payload_hash(
+            {
+                "query": query,
+                "response_format": response_format,
+                "cache_version": GAIA_CACHE_VERSION,
+            }
+        )
+        cached = (
+            self._cache.get(project_id=request.project_id, query_hash=query_hash)
+            if self._cache is not None
+            else None
+        )
+        if cached is not None:
+            return _cached_gaia_output(
+                cached,
+                fields=fields,
+                response_format=response_format,
+                query_hash=query_hash,
+            )
+
+        started = monotonic()
+        schema_response = self._client.request(
+            "POST",
+            "/tap-server/tap/sync",
+            data={
+                "REQUEST": "doQuery",
+                "LANG": "ADQL",
+                "FORMAT": "csv",
+                "QUERY": _gaia_schema_query(fields),
+            },
+            timeout_seconds=request.budget.timeout_seconds,
+            max_bytes=min(request.budget.max_output_bytes, 1024 * 1024),
+        )
+        _validate_gaia_schema(schema_response.body, fields=fields)
+        remaining_seconds = request.budget.timeout_seconds - (monotonic() - started)
+        if remaining_seconds <= 0:
+            raise _failure(
+                UpstreamFailureClass.timeout,
+                "GAIA_TAP_TIMEOUT_BUDGET_EXHAUSTED",
+                retryable=True,
+            )
         response = self._client.request(
             "POST",
             "/tap-server/tap/sync",
@@ -422,15 +501,20 @@ class GaiaTapAdapter:
                 "FORMAT": upstream_format,
                 "QUERY": query,
             },
-            timeout_seconds=request.budget.timeout_seconds,
+            timeout_seconds=remaining_seconds,
             max_bytes=request.budget.max_output_bytes,
         )
-        rows = (
-            _parse_gaia_csv(response.body, fields=fields, max_rows=max_results)
+        fetched_rows = (
+            _parse_gaia_csv(response.body, fields=fields, max_rows=max_results + 1)
             if response_format == "csv"
-            else _parse_gaia_votable(response.body, fields=fields, max_rows=max_results)
+            else _parse_gaia_votable(
+                response.body, fields=fields, max_rows=max_results + 1
+            )
         )
-        return {
+        truncated = len(fetched_rows) > max_results
+        rows = fetched_rows[:max_results]
+        retrieved_at = datetime.now(UTC)
+        output = {
             "service": "gaia_archive",
             "data_release": "gaiadr3",
             "coordinate_frame": "ICRS",
@@ -441,6 +525,10 @@ class GaiaTapAdapter:
             "column_metadata": _column_metadata(fields, _GAIA_FIELD_UNITS),
             "row_count": len(rows),
             "rows": rows,
+            "truncated": truncated,
+            "result_status": (
+                "empty" if not rows else "truncated" if truncated else "complete"
+            ),
             "response_format": response_format,
             "acquisition": _acquisition_metadata(
                 mode=self._mode,
@@ -448,8 +536,25 @@ class GaiaTapAdapter:
                 version=GAIA_ADAPTER_VERSION,
                 endpoint=GAIA_TAP_ENDPOINT,
                 response=response,
-            ),
+            )
+            | {
+                "cache_version": GAIA_CACHE_VERSION,
+                "query_hash": query_hash,
+                "retrieved_at": retrieved_at.isoformat(),
+                "schema_revision": GAIA_SCHEMA_REVISION,
+                "schema_response_content_hash": (
+                    f"sha256:{sha256(schema_response.body).hexdigest()}"
+                ),
+            },
         }
+        if self._cache is not None:
+            self._cache.put(
+                project_id=request.project_id,
+                query_hash=query_hash,
+                payload=output,
+                retrieved_at=retrieved_at,
+            )
+        return output
 
 
 class VizierTapAdapter:
@@ -785,6 +890,63 @@ def _gaia_cone_query(
     )
 
 
+def _gaia_schema_query(fields: tuple[str, ...]) -> str:
+    selected = ",".join(f"'{field}'" for field in sorted(fields))
+    return (
+        "SELECT column_name,datatype,unit FROM TAP_SCHEMA.columns "
+        "WHERE schema_name='gaiadr3' AND table_name='gaiadr3.gaia_source' "
+        f"AND column_name IN ({selected}) ORDER BY column_name"
+    )
+
+
+def _validate_gaia_schema(content: bytes, *, fields: tuple[str, ...]) -> None:
+    try:
+        text = content.decode("utf-8-sig", errors="strict")
+        reader = csv.DictReader(StringIO(text, newline=""), strict=True)
+        if reader.fieldnames != ["column_name", "datatype", "unit"]:
+            raise _invalid_response("GAIA_TAP_SCHEMA_DRIFT")
+        rows = tuple(reader)
+    except (UnicodeDecodeError, csv.Error) as exc:
+        raise _invalid_response("GAIA_TAP_SCHEMA_DRIFT") from exc
+    by_name = {str(row.get("column_name", "")): row for row in rows}
+    if len(by_name) != len(rows) or set(by_name) != set(fields):
+        raise _invalid_response("GAIA_TAP_SCHEMA_DRIFT")
+    for field in fields:
+        datatype = str(by_name[field].get("datatype", "")).strip().casefold()
+        if datatype not in _GAIA_SCHEMA_DATATYPES[field]:
+            raise _invalid_response("GAIA_TAP_SCHEMA_DRIFT")
+        expected_unit = _GAIA_SCHEMA_UNITS.get(field)
+        actual_unit = str(by_name[field].get("unit", "") or "").strip()
+        if expected_unit is not None and actual_unit != expected_unit:
+            raise _invalid_response("GAIA_TAP_SCHEMA_DRIFT")
+
+
+def _cached_gaia_output(
+    payload: dict[str, object],
+    *,
+    fields: tuple[str, ...],
+    response_format: str,
+    query_hash: str,
+) -> dict[str, object]:
+    if (
+        payload.get("fields") != list(fields)
+        or payload.get("response_format") != response_format
+    ):
+        raise _invalid_response("GAIA_TAP_CACHE_IDENTITY_MISMATCH")
+    acquisition = payload.get("acquisition")
+    if not isinstance(acquisition, dict):
+        raise _invalid_response("GAIA_TAP_CACHE_PAYLOAD_INVALID")
+    if (
+        acquisition.get("cache_version") != GAIA_CACHE_VERSION
+        or acquisition.get("query_hash") != query_hash
+    ):
+        raise _invalid_response("GAIA_TAP_CACHE_IDENTITY_MISMATCH")
+    return {
+        **payload,
+        "acquisition": {**acquisition, "source_mode": "cached"},
+    }
+
+
 def _vizier_cone_query(
     *,
     manifest: VizierCatalogManifest,
@@ -796,13 +958,11 @@ def _vizier_cone_query(
 ) -> str:
     """Build the one supported VizieR cone query from manifest values."""
 
-    columns = ",".join(
-        f'"{manifest.fields[field].column}"' for field in fields
-    )
+    columns = ",".join(f'"{manifest.fields[field].column}"' for field in fields)
     return (
-        f'SELECT TOP {max_results} {columns} '
+        f"SELECT TOP {max_results} {columns} "
         f'FROM "{manifest.qualified_table}" '
-        f'WHERE 1=CONTAINS(POINT(\'ICRS\',"{manifest.ra_column}",'
+        f"WHERE 1=CONTAINS(POINT('ICRS',\"{manifest.ra_column}\","
         f'"{manifest.dec_column}"),'
         f"CIRCLE('ICRS',{ra:.12g},{dec:.12g},{radius:.12g})) "
         f'ORDER BY "{manifest.order_column}"'
@@ -1208,7 +1368,10 @@ def _failure(
 
 __all__ = [
     "BoundedHttpClient",
+    "GAIA_CACHE_VERSION",
+    "GAIA_SCHEMA_REVISION",
     "GaiaTapAdapter",
+    "GaiaTapResponseCache",
     "MastLightCurveAdapter",
     "SdssSpectrumAdapter",
     "VIZIER_CATALOG_MANIFEST",
