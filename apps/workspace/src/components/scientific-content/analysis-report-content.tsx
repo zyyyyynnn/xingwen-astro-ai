@@ -315,7 +315,7 @@ export function ResultBlock({
         <h4>{block.label}</h4>
       </header>
       {details.length > 0 ? (
-        <dl className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--oh-muted)]">
+        <dl className="ui-text-label flex flex-wrap gap-x-4 gap-y-1 text-[var(--oh-muted)]">
           {details.map(([label, value]) => (
             <div key={label}>
               <dt className="inline font-medium">{label}：</dt>

@@ -28,6 +28,11 @@ from app.schemas.core import (
     compute_research_contract_content_hash,
 )
 from app.security import InMemoryRateLimiter
+from app.services.feedback_targets import (
+    ArtifactVersionTargetReadPort,
+    FeedbackTargetAuthority,
+)
+from app.services.revisions import RevisionApplicationService
 from app.workflow.run_plan import compile_run_plan
 from artifact_publication_test_support import publish_reference_dataset
 from authoring_test_support import (
@@ -86,6 +91,27 @@ CONTRACT_INPUT = ResearchContractInput.model_validate(
 )
 CONTRACT_CONTENT = CONTRACT_INPUT.model_dump(mode="json")
 CONTRACT_HASH = compute_research_contract_content_hash(CONTRACT_INPUT)
+
+
+class _FrozenRevisionArtifactVersions(ArtifactVersionTargetReadPort):
+    """Keep revision-closure fixtures focused on their frozen Run graph."""
+
+    def __init__(
+        self,
+        *,
+        version_ids: dict[str, UUID],
+        owner_session_id: str,
+    ) -> None:
+        self._version_ids = version_ids
+        self._owner_session_id = owner_session_id
+
+    async def validate_version(
+        self, *, version_id: str, artifact_kind: str, session_id: str
+    ) -> None:
+        if session_id != self._owner_session_id or self._version_ids.get(
+            artifact_kind
+        ) != UUID(version_id):
+            raise AssertionError("revision fixture received an unknown ArtifactVersion")
 
 
 def _seed_completed_steps(
@@ -258,6 +284,19 @@ def runtime(monkeypatch: pytest.MonkeyPatch):
             session.add(version)
             session.flush()
             artifact.latest_version_id = version.id
+
+    app.state.revision_service = RevisionApplicationService(
+        factory=factory,
+        workflow_store=app.state.workflow_store,
+        target_authority=FeedbackTargetAuthority(
+            app.state.artifact_read_service,
+            paper_summary_reader=app.state.paper_summary_read_service,
+            artifact_version_reader=_FrozenRevisionArtifactVersions(
+                version_ids=version_ids,
+                owner_session_id=owner.id,
+            ),
+        ),
+    )
 
     client = TestClient(app, base_url="https://testserver")
     client.cookies.set(settings.SESSION_COOKIE_NAME, owner_credential)

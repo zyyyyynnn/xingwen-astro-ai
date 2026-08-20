@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
@@ -18,8 +17,6 @@ from app.db.models import (
     EvidenceModel,
     ProducerExecutionModel,
     ResearchArtifactModel,
-    ResearchContractModel,
-    ResearchProjectModel,
     ResearchRunModel,
     RunStepModel,
     SourceSnapshotModel,
@@ -191,12 +188,8 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
     factory = session_factory(postgres_engine)
     app = create_app()
     artifact_reads = ArtifactReadService(factory)
-    setattr(
-        artifact_reads,
-        "paper_summary_reader",
-        FixturePaperSummaryReads(artifact_reads),
-    )
     app.state.artifact_read_service = artifact_reads
+    app.state.paper_summary_read_service = FixturePaperSummaryReads(artifact_reads)
     session_now = datetime.now(UTC)
     owner, owner_credential, _ = app.state.session_service.create(
         now=session_now

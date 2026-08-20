@@ -81,7 +81,10 @@ export function createRevisionRepository(http: HttpClient): RevisionRepository {
         expected_version_number: input.expectedVersionNumber,
         target_type: "artifact_version",
         target_id: input.artifactVersionId,
-        target_locator: {},
+        target_locator: {
+          artifact_id: input.artifactId,
+          artifact_version_id: input.artifactVersionId,
+        },
         category: "correction",
         summary: input.summary,
         requested_change: input.requestedChange,

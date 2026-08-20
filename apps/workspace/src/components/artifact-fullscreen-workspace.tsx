@@ -114,6 +114,7 @@ function VersionSelector({
 function RevisionSheet({
   runtime,
   projectId,
+  artifactId,
   artifactVersionId,
   versionNumber,
   parentRunRevision,
@@ -122,6 +123,7 @@ function RevisionSheet({
 }: {
   readonly runtime: WorkspaceRuntimeBoundaries;
   readonly projectId: DomainEntityId;
+  readonly artifactId: DomainEntityId;
   readonly artifactVersionId: DomainEntityId;
   readonly versionNumber: number;
   readonly parentRunRevision: number;
@@ -145,6 +147,7 @@ function RevisionSheet({
     if (!change) return;
     const feedback = await feedbackMutation.mutateAsync({
       projectId,
+      artifactId,
       artifactVersionId,
       expectedVersionNumber: versionNumber,
       summary: change.slice(0, 200),
@@ -428,6 +431,7 @@ export function ArtifactFullscreenWorkspace({
         <RevisionSheet
           runtime={runtime}
           projectId={projectId}
+          artifactId={version.artifactId}
           artifactVersionId={version.id}
           versionNumber={version.versionNumber}
           parentRunRevision={parentRunQuery.data.revision}

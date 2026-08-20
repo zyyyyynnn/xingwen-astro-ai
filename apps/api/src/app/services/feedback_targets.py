@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Protocol
+
+from pydantic import ValidationError
+
+from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.core import ArtifactKind, ExportArtifactContent
+from app.schemas.reasoning_traces import ReasoningTracesArtifactContent
 from app.schemas.revision import CreateUserFeedbackRequest, FeedbackTargetType
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
@@ -10,6 +17,145 @@ from app.services.graph_artifacts import GraphArtifactReadService
 from app.services.literature_artifacts import LiteratureArtifactReadService
 from app.services.paper_collections import PaperCollectionReadService
 from app.services.paper_summaries import PaperSummaryReadPort, PaperSummaryReadService
+from app.services.scientific_artifacts import ScientificArtifactReadService
+
+
+class ArtifactVersionTargetReadPort(Protocol):
+    """Validate one exact ArtifactVersion through its domain read boundary."""
+
+    async def validate_version(
+        self, *, version_id: str, artifact_kind: str, session_id: str
+    ) -> None: ...
+
+
+class ArtifactVersionTargetReadService:
+    """Dispatch whole-version Feedback targets to the existing typed readers."""
+
+    def __init__(
+        self,
+        artifacts: ArtifactReadService,
+        *,
+        paper_summary_reader: PaperSummaryReadPort,
+    ) -> None:
+        self._artifacts = artifacts
+        self._data = DataArtifactReadService(artifacts)
+        self._papers = PaperCollectionReadService(artifacts)
+        self._summaries = paper_summary_reader
+        self._literature = LiteratureArtifactReadService(
+            artifacts, paper_summary_reader=paper_summary_reader
+        )
+        self._graph = GraphArtifactReadService(
+            artifacts, literature_reader=self._literature
+        )
+        self._scientific = ScientificArtifactReadService(artifacts)
+
+    async def validate_version(
+        self, *, version_id: str, artifact_kind: str, session_id: str
+    ) -> None:
+        kind = ArtifactKind(artifact_kind)
+        if kind is ArtifactKind.dataset:
+            self._data.get_dataset(version_id=version_id, session_id=session_id)
+        elif kind is ArtifactKind.field_dictionary:
+            self._data.get_field_dictionary(
+                version_id=version_id, session_id=session_id
+            )
+        elif kind is ArtifactKind.source_collection:
+            self._data.get_source_collection(
+                version_id=version_id, session_id=session_id
+            )
+        elif kind is ArtifactKind.paper_collection:
+            self._papers.get_collection(version_id=version_id, session_id=session_id)
+        elif kind is ArtifactKind.paper_summary:
+            await self._summaries.get_summary(
+                version_id=version_id, session_id=session_id
+            )
+        elif kind is ArtifactKind.literature_claims:
+            await self._literature.list_claims(
+                version_id=version_id,
+                session_id=session_id,
+                status=None,
+                cursor=None,
+                limit=1,
+            )
+        elif kind is ArtifactKind.literature_relations:
+            await self._literature.list_relations(
+                version_id=version_id,
+                session_id=session_id,
+                status=None,
+                cursor=None,
+                limit=1,
+            )
+        elif kind is ArtifactKind.reasoning_traces:
+            self._validate_reasoning_traces(
+                version_id=version_id, session_id=session_id
+            )
+        elif kind is ArtifactKind.graph:
+            self._graph.get_graph(version_id=version_id, session_id=session_id)
+        elif kind in {
+            ArtifactKind.analysis_report,
+            ArtifactKind.visualization,
+            ArtifactKind.spectrum,
+            ArtifactKind.light_curve,
+            ArtifactKind.model_evaluation,
+            ArtifactKind.model_artifact,
+        }:
+            self._scientific.get_scientific_artifact(
+                version_id=version_id, session_id=session_id
+            )
+        else:
+            self._validate_export(version_id=version_id, session_id=session_id)
+
+    def _validate_export(self, *, version_id: str, session_id: str) -> None:
+        version = self._artifacts.get_version(
+            version_id=version_id,
+            session_id=session_id,
+            full_content=True,
+        )
+        artifact = self._artifacts.get_artifact(
+            artifact_id=version.artifact_id, session_id=session_id
+        )
+        candidate = ExportArtifactContent.model_validate(version.content)
+        if (
+            artifact.kind is not ArtifactKind.export
+            or version.schema_version != candidate.schema_version
+            or version.content_hash != compute_canonical_payload_hash(version.content)
+            or version.source_snapshot_ids
+            or version.evidence_ids
+        ):
+            raise ValueError("invalid Export ArtifactVersion")
+        for referenced_version_id in candidate.artifact_version_ids:
+            referenced = self._artifacts.get_version(
+                version_id=referenced_version_id,
+                session_id=session_id,
+            )
+            if referenced.project_id != version.project_id:
+                raise ValueError("cross-project Export reference")
+
+    def _validate_reasoning_traces(self, *, version_id: str, session_id: str) -> None:
+        version = self._artifacts.get_version(
+            version_id=version_id,
+            session_id=session_id,
+            full_content=True,
+        )
+        artifact = self._artifacts.get_artifact(
+            artifact_id=version.artifact_id, session_id=session_id
+        )
+        candidate = ReasoningTracesArtifactContent.model_validate(version.content)
+        runtime = version.producer_execution
+        if (
+            artifact.kind is not ArtifactKind.reasoning_traces
+            or version.schema_version != candidate.schema_version
+            or version.content_hash != compute_canonical_payload_hash(version.content)
+            or version.input_hash != candidate.input_hash
+            or version.source_snapshot_ids
+            or version.evidence_ids
+            or runtime.run_id != version.created_by_run_id
+            or runtime.input_hash != candidate.input_hash
+            or runtime.output_hash != version.content_hash
+            or runtime.status != "completed"
+            or version.producer != runtime.producer
+        ):
+            raise ValueError("invalid ReasoningTrace ArtifactVersion")
 
 
 class FeedbackTargetAuthority:
@@ -20,6 +166,7 @@ class FeedbackTargetAuthority:
         artifacts: ArtifactReadService,
         *,
         paper_summary_reader: PaperSummaryReadPort | None = None,
+        artifact_version_reader: ArtifactVersionTargetReadPort | None = None,
     ) -> None:
         self._data = DataArtifactReadService(artifacts)
         self._papers = PaperCollectionReadService(artifacts)
@@ -29,6 +176,13 @@ class FeedbackTargetAuthority:
         )
         self._graph = GraphArtifactReadService(
             artifacts, literature_reader=self._literature
+        )
+        self._artifact_versions = (
+            artifact_version_reader
+            or ArtifactVersionTargetReadService(
+                artifacts,
+                paper_summary_reader=self._summaries,
+            )
         )
 
     async def validate(
@@ -47,6 +201,11 @@ class FeedbackTargetAuthority:
             self._require_locator(request, {"artifact_id": artifact_id})
             if target_id != artifact_id:
                 raise _invalid_target()
+            await self._validate_artifact_version(
+                version_id=version_id,
+                artifact_kind=artifact_kind,
+                session_id=session_id,
+            )
             return
         if target_type is FeedbackTargetType.artifact_version:
             self._require_locator(
@@ -58,6 +217,11 @@ class FeedbackTargetAuthority:
             )
             if target_id != version_id:
                 raise _invalid_target()
+            await self._validate_artifact_version(
+                version_id=version_id,
+                artifact_kind=artifact_kind,
+                session_id=session_id,
+            )
             return
 
         locator_key = {
@@ -148,6 +312,18 @@ class FeedbackTargetAuthority:
                 raise
             raise _invalid_target() from exc
 
+    async def _validate_artifact_version(
+        self, *, version_id: str, artifact_kind: str, session_id: str
+    ) -> None:
+        try:
+            await self._artifact_versions.validate_version(
+                version_id=version_id,
+                artifact_kind=artifact_kind,
+                session_id=session_id,
+            )
+        except (SecurityProblem, ValidationError, ValueError) as exc:
+            raise _invalid_target() from exc
+
     @staticmethod
     def _require_locator(
         request: CreateUserFeedbackRequest, expected: dict[str, str]
@@ -172,4 +348,8 @@ def _invalid_target() -> SecurityProblem:
     )
 
 
-__all__ = ["FeedbackTargetAuthority"]
+__all__ = [
+    "ArtifactVersionTargetReadPort",
+    "ArtifactVersionTargetReadService",
+    "FeedbackTargetAuthority",
+]

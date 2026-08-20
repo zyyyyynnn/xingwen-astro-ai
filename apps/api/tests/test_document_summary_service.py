@@ -27,6 +27,11 @@ from app.schemas.paper_summary import (
     compute_paper_summary_output_hash,
 )
 from app.schemas.research_input import ResearchInputStatus, ResearchInputType
+from app.schemas.revision import (
+    CreateUserFeedbackRequest,
+    FeedbackCategory,
+    FeedbackTargetType,
+)
 from app.schemas.scientific_document import (
     DocumentBBox,
     DocumentBlock,
@@ -41,6 +46,7 @@ from app.services.document_summary import (
     DocumentSummaryService,
     ExecuteDocumentSummaryRequest,
 )
+from app.services.feedback_targets import FeedbackTargetAuthority
 from app.services.document_parse_store import DocumentParseSourceSnapshot
 from app.services.model_execution import (
     ModelExecutionRequest,
@@ -465,6 +471,83 @@ def test_document_parse_summary_fails_closed_without_persisted_parse_reader() ->
         )
 
     assert exc_info.value.code == "PROVENANCE_SCOPE_VIOLATION"
+
+
+def _whole_summary_feedback(
+    *, target_type: FeedbackTargetType
+) -> CreateUserFeedbackRequest:
+    target_id = (
+        _ARTIFACT_ID if target_type is FeedbackTargetType.artifact else _VERSION_ID
+    )
+    locator = (
+        {"artifact_id": _ARTIFACT_ID}
+        if target_type is FeedbackTargetType.artifact
+        else {
+            "artifact_id": _ARTIFACT_ID,
+            "artifact_version_id": _VERSION_ID,
+        }
+    )
+    return CreateUserFeedbackRequest(
+        expected_version_number=1,
+        target_type=target_type,
+        target_id=target_id,
+        target_locator=locator,
+        category=FeedbackCategory.correction,
+        summary="Correct this summary",
+        requested_change="Recompute from the pinned document parse",
+    )
+
+
+def test_whole_summary_feedback_reuses_complete_document_provenance_read() -> None:
+    execution = DocumentSummaryService(_Model()).execute(_request())
+    summary = execution.admission.summary
+    assert summary is not None
+    artifacts = _PublishedSummaryArtifacts(_published_summary_version(summary))
+    summaries = PaperSummaryReadService(artifacts, document_parses=_DocumentParses())
+    authority = FeedbackTargetAuthority(
+        artifacts,
+        paper_summary_reader=summaries,
+    )
+
+    for target_type in (
+        FeedbackTargetType.artifact,
+        FeedbackTargetType.artifact_version,
+    ):
+        asyncio.run(
+            authority.validate(
+                version_id=_VERSION_ID,
+                artifact_id=_ARTIFACT_ID,
+                artifact_kind="paper_summary",
+                session_id=_SESSION_ID,
+                request=_whole_summary_feedback(target_type=target_type),
+            )
+        )
+
+
+def test_whole_summary_feedback_fails_closed_without_document_parse_reader() -> None:
+    execution = DocumentSummaryService(_Model()).execute(_request())
+    summary = execution.admission.summary
+    assert summary is not None
+    artifacts = _PublishedSummaryArtifacts(_published_summary_version(summary))
+    authority = FeedbackTargetAuthority(
+        artifacts,
+        paper_summary_reader=PaperSummaryReadService(artifacts),
+    )
+
+    with pytest.raises(SecurityProblem) as exc_info:
+        asyncio.run(
+            authority.validate(
+                version_id=_VERSION_ID,
+                artifact_id=_ARTIFACT_ID,
+                artifact_kind="paper_summary",
+                session_id=_SESSION_ID,
+                request=_whole_summary_feedback(
+                    target_type=FeedbackTargetType.artifact_version
+                ),
+            )
+        )
+
+    assert exc_info.value.code == "FEEDBACK_TARGET_INVALID"
 
 
 def test_document_image_summary_returns_its_authorized_source() -> None:

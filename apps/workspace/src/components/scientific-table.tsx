@@ -45,7 +45,7 @@ function Cell({ cell }: { readonly cell: ScientificTableCell | undefined }) {
       <span className="inline-flex items-center gap-1">
         <Badge variant="destructive">未解析</Badge>
         {cell.reason ? (
-          <small className="text-xs text-[var(--oh-muted)]">
+          <small className="ui-text-label text-[var(--oh-muted)]">
             {cell.reason}
           </small>
         ) : null}
@@ -56,7 +56,10 @@ function Cell({ cell }: { readonly cell: ScientificTableCell | undefined }) {
     <span>
       {displayValue(cell.value)}
       {cell.unit ? (
-        <small className="text-xs text-[var(--oh-muted)]"> {cell.unit}</small>
+        <small className="ui-text-label text-[var(--oh-muted)]">
+          {" "}
+          {cell.unit}
+        </small>
       ) : null}
     </span>
   );
@@ -208,7 +211,7 @@ export function ScientificTable({
         </tbody>
       </table>
       {suppliedRows.length > rows.length ? (
-        <p className="p-2 text-xs text-[var(--oh-muted)] bg-[var(--oh-surface-subtle)] border-t border-[var(--oh-border)]">
+        <p className="ui-text-label p-2 text-[var(--oh-muted)] bg-[var(--oh-surface-subtle)] border-t border-[var(--oh-border)]">
           当前显示前 {rows.length} / {suppliedRows.length} 行。
         </p>
       ) : null}

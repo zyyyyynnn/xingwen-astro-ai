@@ -304,7 +304,9 @@ function SummarySection({
   return (
     <section className="paper-summary__section">
       <div className="flex items-center justify-between pb-1">
-        <h3 className="text-xs font-semibold text-[var(--oh-text)]">{title}</h3>
+        <h3 className="ui-text-body font-semibold text-[var(--oh-text)]">
+          {title}
+        </h3>
       </div>
       {statements.length > 0 ? (
         <div className="paper-summary__statements">

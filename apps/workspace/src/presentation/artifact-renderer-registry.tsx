@@ -405,14 +405,14 @@ function PaperCollectionFullscreen({
     <div className="space-y-4 p-5">
       {selectedCandidate ? (
         <section className="rounded-md border border-[var(--oh-border)] p-4">
-          <h3 className="text-sm font-medium">绑定已上传论文全文</h3>
-          <p className="mt-1 text-xs text-[var(--oh-muted)]">
+          <h3 className="ui-text-heading font-medium">绑定已上传论文全文</h3>
+          <p className="ui-text-label mt-1 text-[var(--oh-muted)]">
             将一个已上传 PDF 或论文图像明确绑定到《{selectedCandidate.title}
             》，后续修订将基于固定全文版本生成可定位证据。
           </p>
           {documentInputs.length > 0 ? (
             <div className="mt-3 flex flex-wrap items-end gap-2">
-              <label className="grid min-w-64 gap-1 text-xs">
+              <label className="ui-text-label grid min-w-64 gap-1">
                 已上传科研文档
                 <Select
                   value={selectedInputId ?? ""}
@@ -445,14 +445,14 @@ function PaperCollectionFullscreen({
               </Button>
             </div>
           ) : (
-            <p className="mt-3 text-xs text-[var(--oh-muted)]">
+            <p className="ui-text-label mt-3 text-[var(--oh-muted)]">
               当前项目尚未上传受支持的科研文档。请先在研究输入区上传 PDF
               或论文图像。
             </p>
           )}
           {binding.isSuccess ? (
             <p
-              className="mt-2 text-xs text-[var(--oh-foreground)]"
+              className="ui-text-label mt-2 text-[var(--oh-foreground)]"
               role="status"
             >
               全文绑定已保存；可通过修订运行重新生成全文证据摘要。

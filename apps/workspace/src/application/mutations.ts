@@ -152,6 +152,7 @@ export interface BindResearchInputToDraftVariables {
 
 export interface CreateRevisionFeedbackVariables {
   readonly projectId: DomainEntityId;
+  readonly artifactId: DomainEntityId;
   readonly artifactVersionId: DomainEntityId;
   readonly expectedVersionNumber: number;
   readonly summary: string;
@@ -254,6 +255,7 @@ export function createWorkspaceMutations({
         retry: false,
         mutationFn: (variables: CreateRevisionFeedbackVariables) =>
           repositories.revisions.createFeedback({
+            artifactId: variables.artifactId,
             artifactVersionId: variables.artifactVersionId,
             expectedVersionNumber: variables.expectedVersionNumber,
             summary: variables.summary,

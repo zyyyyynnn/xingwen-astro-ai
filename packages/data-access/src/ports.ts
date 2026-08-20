@@ -363,6 +363,7 @@ export interface ScientificArtifactRepository {
 }
 
 export interface CreateRevisionInput {
+  readonly artifactId: DomainEntityId;
   readonly artifactVersionId: DomainEntityId;
   readonly expectedVersionNumber: number;
   readonly summary: string;
