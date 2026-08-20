@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Header, Path, Query, Request, Response
 from fastapi.responses import Response as RawResponse
@@ -53,7 +53,10 @@ from app.schemas.paper_collection_api import (
     PaperCollectionCandidateRead,
     PaperCollectionRead,
 )
-from app.schemas.paper_summary_api import PaperSummaryDocumentSourceRead, PaperSummaryRead
+from app.schemas.paper_summary_api import (
+    PaperSummaryDocumentSourceRead,
+    PaperSummaryRead,
+)
 from app.services.paper_summary_exports import PaperSummaryExportService
 from app.schemas.scientific_artifact_api import ScientificArtifactRead
 from app.security import SecurityProblem
@@ -67,7 +70,14 @@ from app.services.paper_candidate_inputs import (
     CreatePaperCandidateInputCommand,
     PaperCandidateInputService,
 )
-from app.services.paper_summaries import PaperSummaryReadService
+from app.services.paper_summaries import (
+    DocumentPdfSourceResolver,
+    PaperSummaryReadService,
+)
+from app.services.research_input_store import (
+    ResearchInputRecord,
+    ResearchInputRepository,
+)
 from app.services.scientific_artifacts import ScientificArtifactReadService
 
 router = APIRouter(prefix="/api", tags=["artifacts"])
@@ -121,7 +131,9 @@ def _summary_service(request: Request) -> PaperSummaryReadService:
     )
 
 
-def _research_input_by_identity(store: Any):
+def _research_input_by_identity(
+    store: ResearchInputRepository,
+) -> DocumentPdfSourceResolver:
     """Authorize a DocumentParse summary PDF by immutable input identity."""
 
     def resolve(
@@ -130,7 +142,7 @@ def _research_input_by_identity(store: Any):
         project_id: str,
         research_input_id: str,
         input_content_hash: str,
-    ):
+    ) -> ResearchInputRecord | None:
         record = store.get(session_id=session_id, input_id=research_input_id)
         if (
             record is None
@@ -342,12 +354,8 @@ def get_paper_summary_document_source(
     responses={
         200: {
             "content": {
-                "application/json": {
-                    "schema": {"type": "string", "format": "binary"}
-                },
-                "text/markdown": {
-                    "schema": {"type": "string", "format": "binary"}
-                },
+                "application/json": {"schema": {"type": "string", "format": "binary"}},
+                "text/markdown": {"schema": {"type": "string", "format": "binary"}},
             }
         },
         400: {"model": ProblemDetails},

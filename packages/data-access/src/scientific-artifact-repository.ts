@@ -27,7 +27,6 @@ import type {
   AnalysisReportReviewContent,
   ChartAxisReview,
   ChartSeriesReview,
-  ContentHash,
   DomainEntityId,
   ModelArtifactReviewContent,
   ModelBinaryReview,
@@ -38,9 +37,7 @@ import type {
   ScientificResultBlockReview,
   ScientificSkillExecutionReview,
   ScientificVisualizationSpecReview,
-  SemanticVersion,
   SpectrumArtifactReviewContent,
-  UtcIsoTimestamp,
   VisualizationReviewContent,
   WwtAnnotationReview,
   WwtCoordinateReview,
@@ -71,10 +68,10 @@ function mapExecution(
   return {
     executionId: id(dto.execution_id),
     skillId: dto.skill_id,
-    skillRevision: dto.skill_revision as SemanticVersion,
-    status: dto.status as ScientificSkillExecutionReview["status"],
-    inputHash: dto.input_hash as ContentHash,
-    outputHash: (dto.output_hash ?? null) as ContentHash | null,
+    skillRevision: dto.skill_revision,
+    status: dto.status,
+    inputHash: dto.input_hash,
+    outputHash: dto.output_hash ?? null,
     durationMs: dto.duration_ms,
     warnings: [...(dto.warnings ?? [])],
   };
@@ -98,7 +95,7 @@ function mapResultBlock(
     label: dto.label,
     representation: dto.representation,
     payload: dto.payload,
-    contentHash: dto.content_hash as ContentHash,
+    contentHash: dto.content_hash,
     evidenceIds: (dto.evidence_ids ?? []).map(id),
   };
 }
@@ -129,8 +126,8 @@ function mapAnalysis(dto: AnalysisReportDto): AnalysisReportReviewContent {
     relatedArtifactVersionIds: (dto.related_artifact_version_ids ?? []).map(id),
     sourceSnapshotIds: dto.source_snapshot_ids.map(id),
     evidenceIds: dto.evidence_ids.map(id),
-    inputHash: dto.input_hash as ContentHash,
-    outputHash: dto.output_hash as ContentHash,
+    inputHash: dto.input_hash,
+    outputHash: dto.output_hash,
   };
 }
 
@@ -178,7 +175,7 @@ function mapFitsLayer(dto: WwtFitsLayerDto): WwtFitsLayerReview {
     layerId: id(dto.layer_id),
     sourceSnapshotId: id(dto.source_snapshot_id),
     contentRef: dto.content_ref,
-    contentHash: dto.content_hash as ContentHash,
+    contentHash: dto.content_hash,
     opacity: dto.opacity ?? 1,
     stretch: dto.stretch ?? "sqrt",
     colorMap: dto.color_map ?? "gray",
@@ -231,7 +228,7 @@ function mapTableLayer(dto: WwtTableLayerDto): WwtTableLayerReview {
     layerId: id(dto.layer_id),
     sourceSnapshotId: id(dto.source_snapshot_id),
     contentRef: dto.content_ref,
-    contentHash: dto.content_hash as ContentHash,
+    contentHash: dto.content_hash,
     mediaType: dto.media_type,
     coordinates,
     timeSeries:
@@ -256,7 +253,7 @@ function mapWwtScene(scene: WwtSpecDto): WwtSceneVisualizationReview {
     view: mapWwtView(scene.view),
     time: {
       mode: scene.time?.mode ?? "system_clock",
-      observedAt: (scene.time?.observed_at ?? null) as UtcIsoTimestamp | null,
+      observedAt: scene.time?.observed_at ?? null,
       rate: scene.time?.rate ?? null,
     },
     observer:
@@ -309,7 +306,7 @@ function mapWwtScene(scene: WwtSpecDto): WwtSceneVisualizationReview {
     tourSteps: (scene.tour_steps ?? []).map((step) => ({
       stepId: id(step.step_id),
       view: mapWwtView(step.view),
-      observedAt: (step.observed_at ?? null) as UtcIsoTimestamp | null,
+      observedAt: step.observed_at ?? null,
       holdSeconds: step.hold_seconds ?? 0,
     })),
     tourAutoplay: scene.tour_autoplay ?? false,
@@ -349,7 +346,7 @@ function mapSpec(
       mode: "fits_image",
       sourceSnapshotId: id(fits.source_snapshot_id),
       contentRef: fits.content_ref,
-      contentHash: fits.content_hash as ContentHash,
+      contentHash: fits.content_hash,
       stretch: fits.stretch ?? "sqrt",
       colorMap: fits.color_map ?? "gray",
     };
@@ -384,8 +381,8 @@ function mapVisualization(dto: VisualizationDto): VisualizationReviewContent {
     skillExecutions: dto.skill_executions.map(mapExecution),
     sourceSnapshotIds: dto.source_snapshot_ids.map(id),
     evidenceIds: dto.evidence_ids.map(id),
-    inputHash: dto.input_hash as ContentHash,
-    outputHash: dto.output_hash as ContentHash,
+    inputHash: dto.input_hash,
+    outputHash: dto.output_hash,
   };
 }
 
@@ -427,15 +424,15 @@ function mapModel(dto: ModelEvaluationDto): ModelEvaluationReviewContent {
     limitations: [...(dto.limitations ?? [])],
     sourceSnapshotIds: dto.source_snapshot_ids.map(id),
     evidenceIds: dto.evidence_ids.map(id),
-    inputHash: dto.input_hash as ContentHash,
-    outputHash: dto.output_hash as ContentHash,
+    inputHash: dto.input_hash,
+    outputHash: dto.output_hash,
   };
 }
 
 function mapModelBinary(dto: ModelBinaryDto): ModelBinaryReview {
   return {
     contentRef: dto.content_ref,
-    contentHash: dto.content_hash as ContentHash,
+    contentHash: dto.content_hash,
     mediaType: dto.media_type,
   };
 }
@@ -477,8 +474,8 @@ function mapModelArtifact(dto: ModelArtifactDto): ModelArtifactReviewContent {
     limitations: [...(dto.limitations ?? [])],
     sourceSnapshotIds: dto.source_snapshot_ids.map(id),
     evidenceIds: dto.evidence_ids.map(id),
-    inputHash: dto.input_hash as ContentHash,
-    outputHash: dto.output_hash as ContentHash,
+    inputHash: dto.input_hash,
+    outputHash: dto.output_hash,
   };
 }
 
@@ -516,8 +513,8 @@ function mapSpectrum(dto: SpectrumDto): SpectrumArtifactReviewContent {
     skillExecutions: dto.skill_executions.map(mapExecution),
     sourceSnapshotIds: dto.source_snapshot_ids.map(id),
     evidenceIds: dto.evidence_ids.map(id),
-    inputHash: dto.input_hash as ContentHash,
-    outputHash: dto.output_hash as ContentHash,
+    inputHash: dto.input_hash,
+    outputHash: dto.output_hash,
   };
 }
 
@@ -559,8 +556,8 @@ function mapLightCurve(dto: LightCurveDto): LightCurveArtifactReviewContent {
     skillExecutions: dto.skill_executions.map(mapExecution),
     sourceSnapshotIds: dto.source_snapshot_ids.map(id),
     evidenceIds: dto.evidence_ids.map(id),
-    inputHash: dto.input_hash as ContentHash,
-    outputHash: dto.output_hash as ContentHash,
+    inputHash: dto.input_hash,
+    outputHash: dto.output_hash,
   };
 }
 
@@ -591,9 +588,9 @@ export function mapScientificArtifactRead(
       ? id(dto.supersedes_version_id)
       : null,
     sourceMode: dto.source_mode,
-    contentHash: dto.content_hash as ContentHash,
-    inputHash: dto.input_hash as ContentHash,
-    createdAt: dto.created_at as UtcIsoTimestamp,
+    contentHash: dto.content_hash,
+    inputHash: dto.input_hash,
+    createdAt: dto.created_at,
     content,
     producerExecution: mapProducerExecutionSummary(dto.producer_execution),
     sourceSnapshots: dto.source_snapshots.map(mapSnapshotSummary),

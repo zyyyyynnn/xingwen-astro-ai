@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from math import isfinite
-from typing import Any
 
 
 def require_string(parameters: dict[str, object], key: str) -> str:
@@ -65,13 +64,13 @@ def optional_integer(
 
 def require_rows(
     parameters: dict[str, object], *, max_rows: int
-) -> tuple[dict[str, Any], ...]:
+) -> tuple[dict[str, object], ...]:
     value = parameters.get("rows")
     if not isinstance(value, list) or not value:
         raise ValueError("rows must be a non-empty array")
     if len(value) > max_rows:
         raise ValueError(f"rows exceed the {max_rows} row budget")
-    result: list[dict[str, Any]] = []
+    result: list[dict[str, object]] = []
     for row in value:
         if not isinstance(row, dict) or not all(
             isinstance(key, str) and key for key in row

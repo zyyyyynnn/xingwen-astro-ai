@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
-from typing import Any
+from collections.abc import Mapping
+from typing import Protocol
 
 from pydantic import ValidationError
 
@@ -20,12 +20,33 @@ from app.schemas.paper_summary_api import (
 from app.schemas.core import ArtifactVersionDetail, SourceMode, SourceSnapshotDetail
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
+from app.services.research_input_store import ResearchInputRecord
 
-#: Resolves the authorized full-text ResearchInput for one summarized paper.
-PdfSourceResolver = Callable[..., Any]
 
-#: Resolves a ResearchInput by its immutable identity for document summaries.
-DocumentPdfSourceResolver = Callable[..., Any]
+class PdfSourceResolver(Protocol):
+    """Resolve the authorized full-text ResearchInput for one summarized paper."""
+
+    def __call__(
+        self,
+        *,
+        session_id: str,
+        project_id: str,
+        paper_collection_version_id: str,
+        canonical_paper_id: str,
+    ) -> ResearchInputRecord | None: ...
+
+
+class DocumentPdfSourceResolver(Protocol):
+    """Resolve a PDF ResearchInput from its immutable document-summary identity."""
+
+    def __call__(
+        self,
+        *,
+        session_id: str,
+        project_id: str,
+        research_input_id: str,
+        input_content_hash: str,
+    ) -> ResearchInputRecord | None: ...
 
 
 class PaperSummaryReadService:
@@ -198,7 +219,8 @@ class PaperSummaryReadService:
             or version.producer != runtime_producer.producer
             or (
                 producer.model_revision is not None
-                and runtime_producer.producer.explicit_revision != producer.model_revision
+                and runtime_producer.producer.explicit_revision
+                != producer.model_revision
             )
             or (
                 producer.provider is not None
@@ -334,7 +356,9 @@ def _collection_snapshot_keys(
     }
     references = summary.input_versions.source_snapshots
     reference_ids = {reference.source_snapshot_id for reference in references}
-    if len(references) != len(collection_by_id) or reference_ids != set(collection_by_id):
+    if len(references) != len(collection_by_id) or reference_ids != set(
+        collection_by_id
+    ):
         raise _provenance_problem()
 
     result: dict[str, tuple[str, str, str]] = {}
@@ -379,12 +403,12 @@ def _snapshot_map(
     return result
 
 
-def _locator_source_record_id(locator: Mapping[str, Any]) -> str | None:
+def _locator_source_record_id(locator: Mapping[str, object]) -> str | None:
     value = locator.get("source_record_id")
     return value if isinstance(value, str) else None
 
 
-def _locator_summary_evidence_id(locator: Mapping[str, Any]) -> str | None:
+def _locator_summary_evidence_id(locator: Mapping[str, object]) -> str | None:
     value = locator.get("summary_evidence_id")
     return value if isinstance(value, str) else None
 
