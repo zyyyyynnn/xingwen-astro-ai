@@ -42,7 +42,6 @@ from app.schemas.paper_summary import (
     PaperSummarySourceSnapshotReference,
     PaperSummarySupportStatus,
 )
-from app.schemas.reasoning_traces import build_reasoning_traces_artifact
 from app.workflow.publisher import (
     ArtifactEvidenceBinding,
     ArtifactSourceSnapshotBinding,
@@ -1144,7 +1143,7 @@ def test_record_level_gates_use_stable_stage_and_reason(
     assert result.publisher_candidate.relations == result.records
 
 
-def test_all_rejected_relations_publish_a_truthful_empty_trace_projection() -> None:
+def test_all_rejected_relations_keep_a_truthful_empty_embedded_trace_set() -> None:
     relation = _relation()
     relation["trace"] = None
 
@@ -1159,11 +1158,6 @@ def test_all_rejected_relations_publish_a_truthful_empty_trace_projection() -> N
         "candidate": 0,
         "rejected": 1,
     }
-    traces = build_reasoning_traces_artifact(result.publisher_candidate)
-    assert traces.reasoning_traces == ()
-    assert traces.__artifact_publication_is_admitted__()
-
-
 def test_multiple_failures_obey_global_gate_priority() -> None:
     relation = _relation()
     relation["evidence_ids"] = []

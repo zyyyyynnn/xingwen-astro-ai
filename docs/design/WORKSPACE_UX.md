@@ -105,7 +105,7 @@ Thread 不是运行日志。它是：
 1. **Assistant Message**：自然语言科研叙事，是视觉主线；
 2. **Public Analysis**：可公开、简短、可展开的步骤分析，不是 private chain-of-thought；
 3. **Tool Activity**：从真实 RunEvent 投影的次级执行记录；
-4. **ReasoningTrace**：Evidence-bound 的正式 Scientific Artifact，不是普通聊天思考；
+4. **ReasoningTrace**：`LiteratureRelations` 内嵌、Evidence-bound 的 typed domain record，随关系读取展示，不是独立 Artifact 或普通聊天思考；
 5. **Provider private reasoning**：永不保存、展示或导出。
 
 AI 正常消息必须贯穿研究全程。至少在以下语义节点有正常 Assistant Message：

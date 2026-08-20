@@ -1,4 +1,4 @@
-import { useState, type ComponentType } from "react";
+import { useState } from "react";
 import type {
   PaperSummaryEvidenceReview,
   PaperSummaryReview,
@@ -25,16 +25,10 @@ import {
 } from "@xingwen/ui";
 import {
   AlertCircle,
-  BrainCircuit,
   CheckCircle2,
   ChevronDown,
-  Database,
   ExternalLink,
-  Lightbulb,
   Quote,
-  ScanSearch,
-  Target,
-  TriangleAlert,
 } from "@xingwen/ui/icons";
 
 import {
@@ -62,8 +56,8 @@ function SupportBadge({
       data-support-status={status}
       className={
         isSupported
-          ? "gap-1 border-transparent bg-[var(--oh-surface-raised)] text-[11px] text-[var(--oh-status-success)]"
-          : "gap-1 text-[11px] text-[var(--oh-warning)]"
+          ? "ui-text-label gap-1 border-transparent bg-[var(--oh-surface-raised)] text-[var(--oh-status-success)]"
+          : "ui-text-label gap-1 text-[var(--oh-warning)]"
       }
     >
       {isSupported ? (
@@ -94,9 +88,9 @@ export function PaperSummaryThreadRenderer({
           <p className="m-0 text-xs text-[var(--oh-muted)]">
             {ARTIFACT_CARD_COPY.keyFinding}
           </p>
-          {review.findings[0] ? (
+          {review.experiments[0] ? (
             <p className="mb-0 mt-[var(--oh-space-1)] line-clamp-3 text-sm leading-6 text-[var(--oh-muted)]">
-              {review.findings[0].text}
+              {review.experiments[0].text}
             </p>
           ) : (
             <p className="mb-0 mt-[var(--oh-space-1)] text-sm text-[var(--oh-muted)]">
@@ -132,26 +126,28 @@ function EvidenceLocator({
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--oh-muted)]">
-      <span className="text-[11px]">{locationString}</span>
+      <span className="ui-text-label">{locationString}</span>
       {pageIndex !== null && onJumpToPage ? (
         <Button
           variant="ghost"
           size="small"
-          className="px-0 text-[11px] font-medium text-[var(--oh-accent)] hover:underline"
+          className="ui-text-label px-0 font-medium text-[var(--oh-accent)] hover:underline"
           onClick={() => onJumpToPage(pageIndex)}
           aria-label={`跳转到论文第 ${pageIndex + 1} 页`}
         >
           跳转到对应页码
         </Button>
       ) : null}
-      <Link
-        href={locator.sourceUrl}
-        external
-        className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--oh-accent)] hover:underline"
-      >
-        <span>打开来源</span>
-        <ExternalLink className="size-3" aria-hidden="true" />
-      </Link>
+      {locator.sourceUrl !== null ? (
+        <Link
+          href={locator.sourceUrl}
+          external
+          className="ui-text-label inline-flex items-center gap-1 font-medium text-[var(--oh-accent)] hover:underline"
+        >
+          <span>打开来源</span>
+          <ExternalLink className="size-3" aria-hidden="true" />
+        </Link>
+      ) : null}
     </div>
   );
 }
@@ -172,7 +168,7 @@ function SourceSnapshot({
     );
   }
   return (
-    <div className="mt-2 text-[11px] text-[var(--oh-muted)]">
+    <div className="ui-text-label mt-2 text-[var(--oh-muted)]">
       <span>获取时间：{snapshot.retrievedAt}</span>
     </div>
   );
@@ -294,17 +290,12 @@ function Statement({
 
 function SummarySection({
   title,
-  icon: Icon,
   statements,
   review,
   forceOpen,
   onJumpToPage,
 }: {
   readonly title: string;
-  readonly icon: ComponentType<{
-    className?: string;
-    "aria-hidden"?: boolean | "true" | "false";
-  }>;
   readonly statements: readonly PaperSummaryStatementReview[];
   readonly review: PaperSummaryReview;
   readonly forceOpen?: boolean | null;
@@ -313,8 +304,7 @@ function SummarySection({
   return (
     <section className="paper-summary__section">
       <div className="flex items-center justify-between pb-1">
-        <h3 className="flex items-center gap-1.5 text-xs font-semibold text-[var(--oh-text)]">
-          <Icon className="size-4 text-[var(--oh-muted)]" aria-hidden="true" />
+        <h3 className="ui-text-body font-semibold text-[var(--oh-text)]">
           {title}
         </h3>
       </div>
@@ -335,12 +325,6 @@ function SummarySection({
       )}
     </section>
   );
-}
-
-function singleton(
-  statement: PaperSummaryStatementReview | null,
-): readonly PaperSummaryStatementReview[] {
-  return statement === null ? [] : [statement];
 }
 
 export function PaperSummaryFullscreenRenderer({
@@ -381,49 +365,50 @@ export function PaperSummaryFullscreenRenderer({
       <Separator />
 
       <SummarySection
-        title="研究目标"
-        icon={Target}
-        statements={singleton(review.researchGoal)}
+        title="研究背景"
+        statements={review.background}
         review={review}
         forceOpen={expandAll}
         onJumpToPage={onJumpToPage}
       />
       <SummarySection
         title="研究方法"
-        icon={BrainCircuit}
-        statements={singleton(review.method)}
+        statements={review.methodology}
         review={review}
         forceOpen={expandAll}
         onJumpToPage={onJumpToPage}
       />
       <SummarySection
         title="数据集"
-        icon={Database}
-        statements={singleton(review.dataset)}
+        statements={review.dataset}
         review={review}
         forceOpen={expandAll}
         onJumpToPage={onJumpToPage}
       />
       <SummarySection
-        title="核心发现"
-        icon={Lightbulb}
-        statements={review.findings}
+        title="实验与结果"
+        statements={review.experiments}
+        review={review}
+        forceOpen={expandAll}
+        onJumpToPage={onJumpToPage}
+      />
+      <SummarySection
+        title="讨论"
+        statements={review.discussion}
         review={review}
         forceOpen={expandAll}
         onJumpToPage={onJumpToPage}
       />
       <SummarySection
         title="局限性"
-        icon={TriangleAlert}
         statements={review.limitations}
         review={review}
         forceOpen={expandAll}
         onJumpToPage={onJumpToPage}
       />
       <SummarySection
-        title="后续研究"
-        icon={ScanSearch}
-        statements={review.futureWork}
+        title="研究问题"
+        statements={review.researchQuestions}
         review={review}
         forceOpen={expandAll}
         onJumpToPage={onJumpToPage}

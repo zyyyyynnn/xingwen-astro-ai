@@ -29,7 +29,7 @@ import type {
   GraphArtifactReview,
   LiteratureArtifactReview,
   PaperAcquisitionReview,
-  PaperSummaryPdfSourceReview,
+  PaperSummaryDocumentSourceReview,
   PaperSummaryReview,
   PublicShareSnapshot,
   ResearchArtifact,
@@ -40,6 +40,7 @@ import type {
   ResearchPlanningCatalog,
   ResearchRun,
   RevisionPlan,
+  ScientificArtifactReview,
   UserFeedback,
   RunCheckpoint,
   RunCheckpointDecisionRequest,
@@ -222,7 +223,16 @@ export interface ResearchInputRepository {
 
 /** Domain input types accepted by the controlled ResearchInput endpoint. */
 export type ResearchInputType =
-  "pdf" | "csv" | "fits" | "json" | "image" | "url" | "text";
+  | "pdf"
+  | "csv"
+  | "xlsx"
+  | "parquet"
+  | "fits"
+  | "json"
+  | "image"
+  | "image_dataset"
+  | "url"
+  | "text";
 
 export type ResearchInputStatus =
   "accepted" | "unsupported_processing" | "failed_ingestion";
@@ -264,6 +274,15 @@ export interface CreateResearchInputInput {
  */
 export interface PaperAcquisitionRepository {
   getReview(artifactVersionId: DomainEntityId): Promise<PaperAcquisitionReview>;
+  bindResearchInput(input: {
+    readonly artifactVersionId: DomainEntityId;
+    readonly candidateId: DomainEntityId;
+    readonly canonicalPaperId: DomainEntityId;
+    readonly researchInputId: DomainEntityId;
+    readonly researchInputContentHash: string;
+    readonly evidenceUrl: string;
+    readonly idempotencyKey: string;
+  }): Promise<void>;
 }
 
 /**
@@ -275,16 +294,16 @@ export interface PaperAcquisitionRepository {
  * Callers never see URLs, DTOs or envelopes. Failures surface as typed
  * errors (NotFound/RateLimited/Upstream/Validation/Network), never as `null`.
  *
- * `getPdfSource` resolves the authorized full-text ResearchInput through the
+ * `getDocumentSource` resolves the authorized full-text ResearchInput through the
  * server-recorded PaperCandidate → ResearchInput provenance bridge. A
  * `null` research input id means no authorized full-text relation exists;
- * callers must never infer a PDF URL from paper metadata.
+ * callers must never infer a document URL from paper metadata.
  */
 export interface PaperSummaryRepository {
   getSummary(artifactVersionId: DomainEntityId): Promise<PaperSummaryReview>;
-  getPdfSource(
+  getDocumentSource(
     artifactVersionId: DomainEntityId,
-  ): Promise<PaperSummaryPdfSourceReview>;
+  ): Promise<PaperSummaryDocumentSourceReview>;
 }
 
 /** Deep, version-pinned reads for the three typed data Artifact kinds. */
@@ -308,7 +327,7 @@ export interface ArtifactExportRepository {
   download(exportRecord: ArtifactExport): Promise<ArtifactExportDownload>;
 }
 
-/** Deep reads for the public LiteratureClaim/Relation/Trace projections. */
+/** Deep reads for public Literature artifacts and their embedded traces. */
 export interface LiteratureArtifactRepository {
   getClaims(
     artifactVersionId: DomainEntityId,
@@ -320,11 +339,6 @@ export interface LiteratureArtifactRepository {
   ): Promise<
     Extract<LiteratureArtifactReview, { readonly kind: "literature_relations" }>
   >;
-  getReasoningTraces(
-    artifactVersionId: DomainEntityId,
-  ): Promise<
-    Extract<LiteratureArtifactReview, { readonly kind: "reasoning_traces" }>
-  >;
 }
 
 /** Deep, version-pinned reads for the governed Evidence Graph. */
@@ -332,7 +346,19 @@ export interface GraphArtifactRepository {
   getReview(artifactVersionId: DomainEntityId): Promise<GraphArtifactReview>;
 }
 
+/** Deep read and immutable binary boundary for scientific Artifacts. */
+export interface ScientificArtifactRepository {
+  getReview(
+    artifactVersionId: DomainEntityId,
+  ): Promise<ScientificArtifactReview>;
+  getContent(
+    artifactVersionId: DomainEntityId,
+    contentHash: string,
+  ): Promise<ArrayBuffer>;
+}
+
 export interface CreateRevisionInput {
+  readonly artifactId: DomainEntityId;
   readonly artifactVersionId: DomainEntityId;
   readonly expectedVersionNumber: number;
   readonly summary: string;
@@ -391,6 +417,7 @@ export interface RepositorySet {
   readonly dataArtifacts: DataArtifactRepository;
   readonly literatureArtifacts: LiteratureArtifactRepository;
   readonly graphArtifacts: GraphArtifactRepository;
+  readonly scientificArtifacts: ScientificArtifactRepository;
   readonly artifactExports: ArtifactExportRepository;
   readonly revisions: RevisionRepository;
   readonly workspaces: WorkspaceSnapshotRepository;

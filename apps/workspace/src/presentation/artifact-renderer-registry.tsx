@@ -1,4 +1,8 @@
-import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  type UseQueryOptions,
+} from "@tanstack/react-query";
 import {
   ARTIFACT_KINDS,
   isArtifactKind,
@@ -6,6 +10,7 @@ import {
   type DataArtifactKind,
   type DomainEntityId,
   type PaperSummaryReview,
+  type ScientificArtifactReview,
 } from "@xingwen/domain";
 import type {
   ArtifactVersionMetadataViewModel,
@@ -14,9 +19,19 @@ import type {
   PaperAcquisitionReviewViewModel,
   ResearchArtifactViewModel,
 } from "@xingwen/research-adapter";
-import { Alert, AlertDescription, Button, Skeleton } from "@xingwen/ui";
-import { ArrowRight, FileText } from "@xingwen/ui/icons";
-import type { ComponentType, ReactNode } from "react";
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Skeleton,
+} from "@xingwen/ui";
+import { ArrowRight } from "@xingwen/ui/icons";
+import { useMemo, useState, type ComponentType, type ReactNode } from "react";
 
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
 import { ArtifactExportActions } from "../components/artifact-export-actions";
@@ -24,9 +39,15 @@ import { DataArtifactRenderer } from "../components/data-artifact-renderer";
 import { PaperResultWorkspace } from "../components/paper-result-workspace";
 import { ScientificArtifactRenderer } from "../components/scientific-artifact-renderer";
 import { artifactKindLabel } from "./artifact-presentation-labels";
+import { workspaceQueryKeys } from "../application/query-keys";
 
 export type ArtifactContentFamily =
-  "data" | "paper_summary" | "paper_collection" | "literature" | "graph";
+  | "data"
+  | "paper_summary"
+  | "paper_collection"
+  | "literature"
+  | "graph"
+  | "scientific";
 export type ArtifactLayoutMode = "reading" | "wide" | "immersive";
 
 export interface ArtifactRendererCapabilities {
@@ -86,7 +107,7 @@ export interface ArtifactRendererDescriptor {
   readonly kind: ArtifactKind;
   readonly label: string;
   readonly capability: "supported" | "unsupported";
-  readonly contentFamily: ArtifactContentFamily | "export";
+  readonly contentFamily: ArtifactContentFamily | "export" | "scientific";
   readonly displayPriority: number;
   readonly layoutMode: ArtifactLayoutMode;
   readonly capabilities: ArtifactRendererCapabilities;
@@ -124,10 +145,6 @@ function ThreadResultBlock({
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">
-          <FileText
-            className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-            aria-hidden="true"
-          />
           <div className="min-w-0">
             <h3 className="truncate text-sm font-medium text-foreground">
               {artifact.title}
@@ -300,12 +317,15 @@ function PaperSummaryFullscreen({
   viewModel,
   paperPageRequest,
 }: LoadedRendererProps<PaperSummaryReview>) {
-  const pdfSource = useQuery({
-    ...runtime.application.queries.paperSummaryPdfSource(projectId, version.id),
+  const documentSource = useQuery({
+    ...runtime.application.queries.paperSummaryDocumentSource(
+      projectId,
+      version.id,
+    ),
     retry: false,
   });
-  const inputId = pdfSource.data?.researchInputId ?? null;
-  const pdfUrl = inputId
+  const inputId = documentSource.data?.researchInputId ?? null;
+  const documentUrl = inputId
     ? runtime.repositories.researchInputs.getContentUrl(inputId)
     : null;
   return (
@@ -313,7 +333,8 @@ function PaperSummaryFullscreen({
       artifact={artifact}
       version={version}
       review={viewModel}
-      pdfUrl={pdfUrl}
+      documentUrl={documentUrl}
+      documentKind={documentSource.data?.documentKind ?? null}
       requestedPage={paperPageRequest}
       className="h-full w-full"
     />
@@ -333,6 +354,131 @@ const paperSummary = defineRenderer({
     `${viewModel.paper.title}，包含结构化论文摘要章节。`,
 });
 
+function PaperCollectionFullscreen({
+  runtime,
+  projectId,
+  artifact,
+  version,
+  viewModel,
+}: LoadedRendererProps<PaperAcquisitionReviewViewModel>) {
+  const inputs = useQuery(
+    runtime.application.queries.researchInputs(projectId),
+  );
+  const documentInputs = useMemo(
+    () =>
+      (inputs.data ?? []).filter(
+        (input) =>
+          input.type === "pdf" ||
+          input.type === "image" ||
+          input.mimeType === "application/pdf" ||
+          ["image/jpeg", "image/png", "image/tiff", "image/webp"].includes(
+            input.mimeType ?? "",
+          ),
+      ),
+    [inputs.data],
+  );
+  const selectedCandidate = viewModel.candidates.find(
+    (candidate) => candidate.selection.kind === "selected",
+  );
+  const [selectedInputId, setSelectedInputId] = useState<DomainEntityId | null>(
+    null,
+  );
+  const binding = useMutation({
+    mutationFn: async (researchInputId: DomainEntityId) => {
+      const input = documentInputs.find((item) => item.id === researchInputId);
+      if (!input || !selectedCandidate?.url) {
+        throw new Error("缺少可绑定的科研文档或论文来源地址");
+      }
+      await runtime.repositories.paperAcquisition.bindResearchInput({
+        artifactVersionId: version.id,
+        candidateId: selectedCandidate.candidateId,
+        canonicalPaperId: selectedCandidate.canonicalPaperId,
+        researchInputId: input.id,
+        researchInputContentHash: input.contentHash,
+        evidenceUrl: selectedCandidate.url,
+        idempotencyKey: globalThis.crypto.randomUUID(),
+      });
+    },
+  });
+
+  return (
+    <div className="space-y-4 p-5">
+      {selectedCandidate ? (
+        <section className="rounded-md border border-[var(--oh-border)] p-4">
+          <h3 className="ui-text-heading font-medium">绑定已上传论文全文</h3>
+          <p className="ui-text-label mt-1 text-[var(--oh-muted)]">
+            将一个已上传 PDF 或论文图像明确绑定到《{selectedCandidate.title}
+            》，后续修订将基于固定全文版本生成可定位证据。
+          </p>
+          {documentInputs.length > 0 ? (
+            <div className="mt-3 flex flex-wrap items-end gap-2">
+              <label className="ui-text-label grid min-w-64 gap-1">
+                已上传科研文档
+                <Select
+                  value={selectedInputId ?? ""}
+                  onValueChange={(value) =>
+                    setSelectedInputId(value as DomainEntityId)
+                  }
+                >
+                  <SelectTrigger aria-label="选择已上传科研文档">
+                    <SelectValue placeholder="选择一份科研文档" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {documentInputs.map((input) => (
+                      <SelectItem key={input.id} value={input.id}>
+                        {input.filename ?? "未命名科研文档"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+              <Button
+                type="button"
+                size="small"
+                disabled={selectedInputId === null || binding.isPending}
+                onClick={() => {
+                  if (selectedInputId) binding.mutate(selectedInputId);
+                }}
+              >
+                {binding.isPending ? "正在绑定" : "绑定到所选论文"}
+              </Button>
+            </div>
+          ) : (
+            <p className="ui-text-label mt-3 text-[var(--oh-muted)]">
+              当前项目尚未上传受支持的科研文档。请先在研究输入区上传 PDF
+              或论文图像。
+            </p>
+          )}
+          {binding.isSuccess ? (
+            <p
+              className="ui-text-label mt-2 text-[var(--oh-foreground)]"
+              role="status"
+            >
+              全文绑定已保存；可通过修订运行重新生成全文证据摘要。
+            </p>
+          ) : null}
+          {binding.isError ? (
+            <Alert className="mt-2" variant="destructive">
+              <AlertDescription>
+                {
+                  runtime.researchAdapter.toPublicApplicationError(
+                    binding.error,
+                  ).safeMessage
+                }
+              </AlertDescription>
+            </Alert>
+          ) : null}
+        </section>
+      ) : null}
+      <ScientificArtifactRenderer
+        review={{ ...viewModel, kind: "paper_collection" }}
+        title={artifact.title}
+        surface="fullscreen"
+      />
+    </div>
+  );
+}
+
 const paperCollection = defineRenderer({
   kind: "paper_collection",
   contentFamily: "paper_collection",
@@ -341,21 +487,12 @@ const paperCollection = defineRenderer({
   capabilities: commonCapabilities,
   load: ({ runtime, projectId, version }) =>
     runtime.application.queries.paperAcquisition(projectId, version.id),
-  fullscreen: ({ viewModel, artifact }) => (
-    <div className="p-5">
-      <ScientificArtifactRenderer
-        review={{ ...viewModel, kind: "paper_collection" }}
-        title={artifact.title}
-        surface="fullscreen"
-      />
-    </div>
-  ),
+  fullscreen: (props) => <PaperCollectionFullscreen {...props} />,
   textFallback: (viewModel: PaperAcquisitionReviewViewModel) =>
     `论文集合，候选 ${viewModel.candidates.length} 篇。`,
 });
 
-type LiteratureKind =
-  "literature_claims" | "literature_relations" | "reasoning_traces";
+type LiteratureKind = "literature_claims" | "literature_relations";
 
 function literature(kind: LiteratureKind, displayPriority: number) {
   return defineRenderer({
@@ -430,15 +567,96 @@ const exportUnsupported: ArtifactRendererDescriptor = {
   TextFallback: () => <p>导出数据暂无专属读取契约。</p>,
 };
 
+type ScientificKind =
+  | "analysis_report"
+  | "visualization"
+  | "spectrum"
+  | "light_curve"
+  | "model_evaluation"
+  | "model_artifact";
+
+function scientificTextFallback(viewModel: ScientificArtifactReview): string {
+  const content = viewModel.content;
+  switch (content.kind) {
+    case "analysis_report":
+      return `${content.title}，证据 ${content.evidenceIds.length} 条。`;
+    case "visualization":
+      return `${content.title}，可视化说明：${content.description || "未提供"}。`;
+    case "spectrum":
+      return `${content.title}，采样 ${content.sampleCount} 点，检测谱线 ${content.detectedLines.length} 条。`;
+    case "light_curve":
+      return `${content.title}，采样 ${content.sampleCount} 点，最佳周期 ${content.bestPeriod} ${content.timeUnit}。`;
+    case "model_evaluation":
+      return `${content.title}，算法 ${content.algorithm}。`;
+    case "model_artifact":
+      return `${content.title}，ONNX 模型，算法 ${content.algorithm}。`;
+  }
+}
+
+function scientific(
+  kind: ScientificKind,
+  displayPriority: number,
+  layoutMode: ArtifactLayoutMode,
+) {
+  return defineRenderer<
+    ScientificKind,
+    ScientificArtifactReview,
+    ReturnType<typeof workspaceQueryKeys.scientificArtifact>
+  >({
+    kind,
+    contentFamily: "scientific",
+    displayPriority,
+    layoutMode,
+    capabilities: {
+      ...commonCapabilities,
+      download: kind === "model_artifact",
+    },
+    load: ({ runtime, projectId, version }) =>
+      runtime.application.queries.scientificArtifact(
+        projectId,
+        version.id,
+        kind,
+      ),
+    fullscreen: ({
+      viewModel,
+      artifact,
+      runtime,
+      version,
+      onSelectEvidence,
+    }) => (
+      <div className="p-5">
+        <ScientificArtifactRenderer
+          review={viewModel}
+          title={artifact.title}
+          surface="fullscreen"
+          onSelectEvidence={onSelectEvidence}
+          loadContent={(contentHash) =>
+            runtime.repositories.scientificArtifacts.getContent(
+              version.id,
+              contentHash,
+            )
+          }
+        />
+      </div>
+    ),
+    textFallback: scientificTextFallback,
+  });
+}
+
 const ARTIFACT_RENDERER_DESCRIPTORS = [
   paperSummary,
   paperCollection,
   data("dataset", 30),
   data("field_dictionary", 40),
   data("source_collection", 50),
+  scientific("analysis_report", 52, "reading"),
+  scientific("visualization", 54, "wide"),
+  scientific("spectrum", 56, "wide"),
+  scientific("light_curve", 58, "wide"),
+  scientific("model_evaluation", 62, "wide"),
+  scientific("model_artifact", 64, "reading"),
   literature("literature_claims", 70),
   literature("literature_relations", 80),
-  literature("reasoning_traces", 90),
   graph,
   exportUnsupported,
 ] satisfies readonly ArtifactRendererDescriptor[];

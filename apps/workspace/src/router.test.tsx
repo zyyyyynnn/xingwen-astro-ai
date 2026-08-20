@@ -125,11 +125,11 @@ describe("Workspace routes", () => {
       within(resultBlock).queryByText("已加入研究结果"),
     ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("未支持的研究产物")).not.toBeInTheDocument();
-    fireEvent.click(
-      within(resultBlock).getByRole("button", {
-        name: "查看完整结果",
-      }),
-    );
+    const openButton = within(resultBlock).getByRole("button", {
+      name: "查看完整结果",
+    });
+    openButton.focus();
+    fireEvent.click(openButton);
 
     await waitFor(() =>
       expect(history.location.search).toBe("?artifactVersionId=artv_papsum_01"),
@@ -145,16 +145,21 @@ describe("Workspace routes", () => {
     expect(
       fullscreenReport.querySelector("[data-artifact-version-id]"),
     ).toHaveAttribute("data-artifact-version-id", "artv_papsum_01");
+    expect(fullscreenReport).toHaveAttribute("role", "dialog");
+    expect(fullscreenReport).toHaveAttribute("aria-modal", "true");
+    const returnButton = within(fullscreenReport).getByRole("button", {
+      name: "返回研究",
+    });
+    await waitFor(() => expect(returnButton).toHaveFocus());
 
-    fireEvent.click(
-      within(fullscreenReport).getByRole("button", { name: "返回研究" }),
-    );
+    fireEvent.click(returnButton);
     await waitFor(() =>
       expect(
         screen.queryByTestId("artifact-fullscreen-workspace"),
       ).not.toBeInTheDocument(),
     );
     await waitFor(() => expect(history.location.search).toBe(""));
+    await waitFor(() => expect(openButton).toHaveFocus());
     expect(screen.getByLabelText("右侧研究栏")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "关闭右侧研究栏" }));
@@ -504,6 +509,7 @@ describe("Workspace routes", () => {
           group: "common",
         },
       ],
+      scientificSkills: [],
     } satisfies ResearchPlanningCatalog;
     vi.spyOn(
       runtime.repositories.researchCatalog,
@@ -675,6 +681,7 @@ describe("Workspace routes", () => {
         description: "",
         group: "common" as const,
       })),
+      scientificSkills: [],
     } satisfies ResearchPlanningCatalog;
 
     let projectRead: ResearchProject = {

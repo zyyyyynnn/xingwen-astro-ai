@@ -35,6 +35,11 @@ from app.schemas.core import (
     SourceSnapshotDetail,
 )
 from app.security import SecurityProblem
+from app.services.paper_candidate_inputs import (
+    AcceptedPaperInput,
+    PaperCandidateInputReadService,
+)
+from app.services.research_input_store import ResearchInputRecord
 from app.config import settings
 from services.paper_pipeline.demo_fixture import build_demo_collection
 
@@ -129,7 +134,7 @@ def _summary(
         producer_version="1.0.0",
         model_name="fixture-model",
         prompt_name="paper_summary",
-        prompt_version="2.0.0",
+        prompt_version="3.0.0",
         prompt_hash=HASH_A,
         parameters_version="1.0.0",
         parameters_hash=HASH_B,
@@ -143,7 +148,7 @@ def _summary(
         latency_ms=1,
     )
     evidence = ()
-    findings = ()
+    experiments = ()
     if with_evidence:
         evidence = (
             PaperSummaryEvidence(
@@ -169,7 +174,7 @@ def _summary(
                 validation_code="evidence.supported",
             ),
         )
-        findings = (
+        experiments = (
             PaperSummaryStatement(
                 statement_id="finding-1",
                 text=TEST_CANDIDATE.title,
@@ -180,19 +185,20 @@ def _summary(
         )
     normalized = PaperSummaryArtifactContent.model_construct(
         kind="paper_summary",
-        schema_version="1.0.0",
+        schema_version="2.0.0",
         summary_id="summary-1",
         paper_id=TEST_CANDIDATE.canonical_paper_id,
         benchmark=PaperBenchmarkReference.model_validate(
             collection.benchmark.model_dump(mode="json")
         ),
         input_versions=input_versions,
-        research_goal=None,
-        method=None,
-        dataset=None,
-        findings=findings,
+        background=(),
+        methodology=(),
+        dataset=(),
+        experiments=experiments,
+        discussion=(),
         limitations=(),
-        future_work=(),
+        research_questions=(),
         evidence_ids=tuple(item.evidence_id for item in evidence),
         evidence=evidence,
         source_conflicts=(),
@@ -212,7 +218,7 @@ def _summary_with_two_evidence() -> PaperSummaryArtifactContent:
     second_evidence = summary.evidence[0].model_copy(
         update={"evidence_id": "pipeline-evidence-2"}
     )
-    second_finding = summary.findings[0].model_copy(
+    second_finding = summary.experiments[0].model_copy(
         update={
             "statement_id": "finding-2",
             "evidence_ids": (second_evidence.evidence_id,),
@@ -221,7 +227,7 @@ def _summary_with_two_evidence() -> PaperSummaryArtifactContent:
     payload = summary.model_dump(mode="json")
     payload["evidence"].append(second_evidence.model_dump(mode="json"))
     payload["evidence_ids"].append(second_evidence.evidence_id)
-    payload["findings"].append(second_finding.model_dump(mode="json"))
+    payload["experiments"].append(second_finding.model_dump(mode="json"))
     output_hash = compute_paper_summary_output_hash(payload)
     payload["output_hash"] = output_hash
     payload["producer"]["output_hash"] = output_hash
@@ -257,7 +263,7 @@ def _version(
         ),
         requested_model="fixture-model" if kind == "paper_summary" else None,
         prompt_name="paper_summary" if kind == "paper_summary" else None,
-        prompt_version="2.0.0" if kind == "paper_summary" else None,
+        prompt_version="3.0.0" if kind == "paper_summary" else None,
         prompt_hash=HASH_A if kind == "paper_summary" else None,
         parameters_hash=(
             HASH_B if kind == "paper_summary" else collection.producer.parameters_hash
@@ -350,7 +356,7 @@ def _version(
         created_by_run_id="run-1",
         version_number=1,
         schema_version=(
-            collection.schema_version if kind == "paper_collection" else "1.0.0"
+            collection.schema_version if kind == "paper_collection" else "2.0.0"
         ),
         content=content,
         content_hash=content_hash,
@@ -702,14 +708,14 @@ def test_paper_summary_rejects_cached_execution_attributed_to_another_source() -
     assert response.json()["code"] == "PROVENANCE_SCOPE_VIOLATION"
 
 
-class _FakePaperInputService:
+class _FakePaperInputReader:
     """Stands in for the authorized PaperCandidate input bridge read seam."""
 
-    def __init__(self, record: object | None) -> None:
+    def __init__(self, record: ResearchInputRecord | None) -> None:
         self.record = record
         self.calls: list[dict[str, str]] = []
 
-    def accepted_research_input(self, **kwargs: str) -> object | None:
+    def accepted_research_input(self, **kwargs: str) -> ResearchInputRecord | None:
         self.calls.append(kwargs)
         return self.record
 
@@ -739,11 +745,11 @@ def _pdf_input_record():
 
 def test_paper_summary_pdf_source_returns_authorized_research_input() -> None:
     client = _client(_Artifacts(_version(summary=_summary())))
-    service = _FakePaperInputService(_pdf_input_record())
-    client.app.state.paper_candidate_input_service = service
+    service = _FakePaperInputReader(_pdf_input_record())
+    client.app.state.paper_candidate_input_reader = service
 
     response = client.get(
-        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/pdf-source"
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/document-source"
     )
 
     assert response.status_code == 200
@@ -762,12 +768,103 @@ def test_paper_summary_pdf_source_returns_authorized_research_input() -> None:
     ]
 
 
-def test_paper_summary_pdf_source_is_null_without_authorized_binding() -> None:
-    client = _client(_Artifacts(_version(summary=_summary())))
-    client.app.state.paper_candidate_input_service = _FakePaperInputService(None)
+class _AcceptedInputRepository:
+    def accepted_input_for_paper(self, **_kwargs: str) -> AcceptedPaperInput:
+        return AcceptedPaperInput(
+            research_input_id="input-document-1",
+            research_input_content_hash=HASH_A,
+        )
+
+
+class _BoundResearchInputs:
+    def __init__(self, record: ResearchInputRecord) -> None:
+        self._record = record
+
+    def get(self, *, session_id: str, input_id: str) -> ResearchInputRecord | None:
+        assert session_id == "owner"
+        assert input_id == "input-document-1"
+        return self._record
+
+
+@pytest.mark.parametrize(
+    ("input_type", "mime_type"),
+    (
+        ("pdf", "text/plain"),
+        ("image", "image/gif"),
+        ("text", "application/pdf"),
+    ),
+)
+def test_paper_candidate_reader_rejects_type_mime_mismatch(
+    input_type: str, mime_type: str
+) -> None:
+    from app.schemas.research_input import ResearchInputStatus, ResearchInputType
+    from app.services.research_input_store import ResearchInputRecord
+
+    record = ResearchInputRecord(
+        id="input-document-1",
+        session_id="owner",
+        project_id=PROJECT_ID,
+        type=ResearchInputType(input_type),
+        source_type="upload",
+        content_hash=HASH_A,
+        storage_ref="local:input-document-1",
+        filename="paper.bin",
+        mime_type=mime_type,
+        size_bytes=1024,
+        status=ResearchInputStatus.accepted,
+        source_snapshot_id=None,
+        url=None,
+        created_at=NOW,
+        expires_at=None,
+    )
+    reader = PaperCandidateInputReadService(
+        research_inputs=_BoundResearchInputs(record),
+        repository=_AcceptedInputRepository(),
+    )
+
+    resolved = reader.accepted_research_input(
+        session_id="owner",
+        project_id=PROJECT_ID,
+        paper_collection_version_id=COLLECTION_VERSION_ID,
+        canonical_paper_id=TEST_CANDIDATE.canonical_paper_id,
+    )
+
+    assert resolved is None
+
+
+def test_paper_summary_hash_uses_current_document_parse_family() -> None:
+    summary = _summary()
+    current = summary.model_dump(mode="json")
+    without_document_family = deepcopy(current)
+    without_document_family["input_versions"].pop("document_parses")
+    without_document_family["producer"]["input_versions"].pop("document_parses")
+
+    assert compute_paper_summary_output_hash(
+        current
+    ) != compute_paper_summary_output_hash(without_document_family)
+
+
+def test_paper_summary_document_source_rejects_collection_provenance_drift() -> None:
+    version = _version(summary=_summary()).model_copy(update={"evidence": ()})
+    client = _client(_Artifacts(version))
+    service = _FakePaperInputReader(_pdf_input_record())
+    client.app.state.paper_candidate_input_reader = service
 
     response = client.get(
-        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/pdf-source"
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/document-source"
+    )
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "PROVENANCE_SCOPE_VIOLATION"
+    assert service.calls == []
+
+
+def test_paper_summary_pdf_source_is_null_without_authorized_binding() -> None:
+    client = _client(_Artifacts(_version(summary=_summary())))
+    client.app.state.paper_candidate_input_reader = _FakePaperInputReader(None)
+
+    response = client.get(
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/document-source"
     )
 
     assert response.status_code == 200
@@ -776,10 +873,10 @@ def test_paper_summary_pdf_source_is_null_without_authorized_binding() -> None:
 
 def test_paper_summary_pdf_source_is_null_when_bridge_is_unconfigured() -> None:
     client = _client(_Artifacts(_version(summary=_summary())))
-    assert client.app.state.paper_candidate_input_service is None
+    assert client.app.state.paper_candidate_input_reader is None
 
     response = client.get(
-        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/pdf-source"
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/document-source"
     )
 
     assert response.status_code == 200
@@ -788,7 +885,7 @@ def test_paper_summary_pdf_source_is_null_when_bridge_is_unconfigured() -> None:
 
 def test_paper_summary_pdf_source_rejects_kind_mismatch_and_foreign_session() -> None:
     response = _client(_Artifacts(_version(summary=_summary(), kind="dataset"))).get(
-        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/pdf-source"
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/document-source"
     )
     assert response.status_code == 409
     assert response.json()["code"] == "ARTIFACT_KIND_MISMATCH"
@@ -797,7 +894,9 @@ def test_paper_summary_pdf_source_rejects_kind_mismatch_and_foreign_session() ->
     app.state.artifact_read_service = _Artifacts(_version(summary=_summary()))  # type: ignore[assignment]
     assert (
         TestClient(app)
-        .get(f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/pdf-source")
+        .get(
+            f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/document-source"
+        )
         .status_code
         == 401
     )

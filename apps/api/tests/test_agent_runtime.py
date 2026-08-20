@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import UUID, uuid4
+
 from app.services.model_execution import (
     ModelExecutionRequest,
     ModelExecutionResponse,
@@ -61,11 +63,72 @@ class ScriptedModel:
         )
 
 
+class ScriptedAuditPort:
+    """AgentAuditPort double recording the governed function-call lifecycle."""
+
+    def __init__(self, model: ScriptedModel) -> None:
+        self._model = model
+        self.authorization: dict[str, str] | None = None
+        self.completed: dict[str, object] | None = None
+        self.rejected: dict[str, object] | None = None
+        self.execution_id = uuid4()
+
+    def start_agent_call(
+        self,
+        request: ModelExecutionRequest,
+        *,
+        authorized_tool_name: str,
+        authorized_skill_id: str,
+        registry_revision: str,
+    ) -> tuple[ModelExecutionResponse, UUID]:
+        self.authorization = {
+            "authorized_tool_name": authorized_tool_name,
+            "authorized_skill_id": authorized_skill_id,
+            "registry_revision": registry_revision,
+        }
+        return self._model.execute(request), self.execution_id
+
+    def complete_agent_call(
+        self,
+        execution_id: UUID,
+        *,
+        response: ModelExecutionResponse,
+        tool_call_id: str,
+        validated_arguments_hash: str,
+        public_message: str,
+    ) -> None:
+        assert execution_id == self.execution_id
+        self.completed = {
+            "tool_call_id": tool_call_id,
+            "validated_arguments_hash": validated_arguments_hash,
+            "public_message": public_message,
+        }
+
+    def reject_agent_call(
+        self,
+        execution_id: UUID,
+        *,
+        error_code: str,
+        error_hash: str,
+        response: ModelExecutionResponse | None = None,
+        tool_call_id: str | None = None,
+        rejected_arguments_hash: str | None = None,
+    ) -> None:
+        assert execution_id == self.execution_id
+        self.rejected = {
+            "error_code": error_code,
+            "error_hash": error_hash,
+            "tool_call_id": tool_call_id,
+            "rejected_arguments_hash": rejected_arguments_hash,
+        }
+
+
 def test_agent_emits_reasoning_and_one_tool_lifecycle() -> None:
     emitted: list[AgentActivity] = []
     model = ScriptedModel()
+    audit = ScriptedAuditPort(model)
     agent = ResearchStepAgent(
-        model_port=model,
+        model_port=audit,
         provider="qwen",
         requested_model="qwen3.8-max",
         explicit_revision="",
@@ -113,6 +176,16 @@ def test_agent_emits_reasoning_and_one_tool_lifecycle() -> None:
     tool_parameters = request.tools[0]["function"]["parameters"]
     assert tool_parameters["required"] == ["public_analysis"]
     assert set(tool_parameters["properties"]) == {"public_analysis"}
+    assert audit.authorization == {
+        "authorized_tool_name": "query_astronomy_data",
+        "authorized_skill_id": "fetching_data",
+        "registry_revision": "research_step_tools.initial",
+    }
+    assert audit.completed is not None
+    assert audit.completed["tool_call_id"] == "tool-1"
+    assert audit.completed["validated_arguments_hash"].startswith("sha256:")
+    assert audit.completed["public_message"].startswith("研究协议已限定")
+    assert audit.rejected is None
 
 
 def test_agent_does_not_require_a_second_model_call_after_tool_success() -> None:
@@ -124,7 +197,7 @@ def test_agent_does_not_require_a_second_model_call_after_tool_success() -> None
 
     model = SingleDecisionModel()
     agent = ResearchStepAgent(
-        model_port=model,
+        model_port=ScriptedAuditPort(model),
         provider="qwen",
         requested_model="qwen3.8-max",
         explicit_revision="",
@@ -168,8 +241,9 @@ def test_agent_rejects_an_unregistered_tool() -> None:
                 ),
             )
 
+    audit = ScriptedAuditPort(InvalidModel())
     agent = ResearchStepAgent(
-        model_port=InvalidModel(),
+        model_port=audit,
         provider="qwen",
         requested_model="qwen3.8-max",
         explicit_revision="",
@@ -193,12 +267,18 @@ def test_agent_rejects_an_unregistered_tool() -> None:
         assert exc.activity_name == "分析"
     else:  # pragma: no cover - assertion guard
         raise AssertionError("unregistered tool must be rejected")
+    assert audit.completed is None
+    assert audit.rejected is not None
+    assert audit.rejected["error_code"] == "AGENT_TOOL_CALL_REJECTED"
+    assert audit.rejected["tool_call_id"] == "tool-invalid"
+    assert audit.rejected["rejected_arguments_hash"].startswith("sha256:")
+    assert audit.rejected["error_hash"].startswith("sha256:")
 
 
 def test_agent_preserves_tool_activity_identity_when_execution_fails() -> None:
     emitted: list[AgentActivity] = []
     agent = ResearchStepAgent(
-        model_port=ScriptedModel(),
+        model_port=ScriptedAuditPort(ScriptedModel()),
         provider="qwen",
         requested_model="qwen3.8-max",
         explicit_revision="",

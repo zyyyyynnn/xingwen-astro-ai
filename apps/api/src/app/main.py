@@ -100,8 +100,7 @@ def _configure_database_runtime(
     app.state.cache_record_store = CacheRecordStore(factory)
     app.state.cache_selector = CacheSelector(factory)
     integration_without_provider = (
-        settings.APP_ENV.lower() == "integration"
-        and settings.DASHSCOPE_API_KEY is None
+        settings.APP_ENV.lower() == "integration" and settings.DASHSCOPE_API_KEY is None
     )
     if integration_without_provider:
         from app.test_support.integration_model import (
@@ -128,6 +127,29 @@ def _configure_database_runtime(
         planner_revision = settings.DASHSCOPE_EXPLICIT_MODEL_REVISION
     app.state.model_execution_port = model_port
     manifests = _load_case_manifests()
+    from app.services.content_storage import LocalContentStorage
+
+    content_storage = LocalContentStorage(settings.RESEARCH_INPUT_UPLOAD_DIR)
+    app.state.content_storage = content_storage
+    from app.services.scientific_document.hybrid_parser import (
+        HybridScientificDocumentParser,
+        PaddleOcrVlClient,
+    )
+
+    visual_parser = (
+        PaddleOcrVlClient(
+            base_url=settings.PADDLEOCR_VL_BASE_URL,
+            model_revision=settings.PADDLEOCR_VL_MODEL_REVISION,
+            timeout_seconds=settings.PADDLEOCR_VL_TIMEOUT_SECONDS,
+        )
+        if settings.PADDLEOCR_VL_BASE_URL is not None
+        and settings.PADDLEOCR_VL_MODEL_REVISION is not None
+        else None
+    )
+    app.state.document_parser = HybridScientificDocumentParser(
+        visual_parser=visual_parser,
+        max_pages=settings.DOCUMENT_PARSE_MAX_PAGES,
+    )
     app.state.research_planner = ResearchContractPlanner(
         model_port=model_port,
         provider=planner_provider,
@@ -146,11 +168,6 @@ def _configure_database_runtime(
             grace_seconds=settings.MODEL_EXECUTION_LEASE_GRACE_SECONDS,
         ),
     )
-    app.state.revision_service = RevisionApplicationService(
-        factory=factory,
-        workflow_store=workflow_store,
-        target_authority=FeedbackTargetAuthority(artifact_read_service),
-    )
     app.state.research_run_worker = None
     if settings.APP_ENV.lower() not in {"test", "integration"}:
         app.state.research_run_worker = ResearchRunWorker(
@@ -161,6 +178,8 @@ def _configure_database_runtime(
             model_port=model_port,
             requested_model=settings.DASHSCOPE_MODEL,
             explicit_revision=settings.DASHSCOPE_EXPLICIT_MODEL_REVISION,
+            content_storage=content_storage,
+            document_parser=app.state.document_parser,
         )
 
         async def _start_research_run_worker() -> None:
@@ -194,6 +213,9 @@ def create_app() -> FastAPI:
     app.state.research_planner = None
     app.state.research_run_worker = None
     app.state.db_session_factory = None
+    app.state.content_storage = None
+    app.state.document_parse_service = None
+    app.state.paper_summary_read_service = None
     _, database_session_factory, resource_authority = _configure_database_runtime(app)
 
     if database_session_factory is not None:
@@ -230,10 +252,10 @@ def create_app() -> FastAPI:
         app.state.snapshot_service = SnapshotService(snapshot_store)
 
     app.state.research_input_store = None
-    app.state.content_storage = None
     app.state.research_input_idempotency = None
     app.state.research_input_ingestion = None
     app.state.paper_candidate_input_service = None
+    app.state.paper_candidate_input_reader = None
     app.state.research_input_rate_limiter = InMemoryRateLimiter(
         limit=settings.RESEARCH_INPUT_RATE_LIMIT
     )
@@ -248,7 +270,10 @@ def create_app() -> FastAPI:
     )
     from app.services.url_fetcher import UrlFetchConfig
 
-    app.state.content_storage = LocalContentStorage(settings.RESEARCH_INPUT_UPLOAD_DIR)
+    if app.state.content_storage is None:
+        app.state.content_storage = LocalContentStorage(
+            settings.RESEARCH_INPUT_UPLOAD_DIR
+        )
     lease_ttl = timedelta(seconds=settings.RESEARCH_INPUT_IDEMPOTENCY_LEASE_SECONDS)
     if database_session_factory is not None:
         app.state.research_input_store = PersistentResearchInputStore(
@@ -283,21 +308,51 @@ def create_app() -> FastAPI:
             max_response_bytes=settings.URL_FETCH_MAX_RESPONSE_BYTES,
         ),
     )
-    if database_session_factory is not None and app.state.artifact_read_service is not None:
+    if (
+        database_session_factory is not None
+        and app.state.artifact_read_service is not None
+    ):
         from app.services.paper_candidate_inputs import (
             PaperCandidateInputRepository,
+            PaperCandidateInputReadService,
             PaperCandidateInputService,
         )
+        from app.services.document_parse_store import (
+            DocumentParseRepository,
+            DocumentParseService,
+        )
         from app.services.paper_collections import PaperCollectionReadService
+        from app.services.paper_summaries import PaperSummaryReadService
 
+        candidate_repository = PaperCandidateInputRepository(
+            database_session_factory, lease_ttl=lease_ttl
+        )
+        app.state.paper_candidate_input_reader = PaperCandidateInputReadService(
+            research_inputs=app.state.research_input_store,
+            repository=candidate_repository,
+        )
         app.state.paper_candidate_input_service = PaperCandidateInputService(
             paper_collections=PaperCollectionReadService(
                 app.state.artifact_read_service
             ),
             ingestion=app.state.research_input_ingestion,
             research_inputs=app.state.research_input_store,
-            repository=PaperCandidateInputRepository(
-                database_session_factory, lease_ttl=lease_ttl
+            repository=candidate_repository,
+        )
+        app.state.document_parse_service = DocumentParseService(
+            DocumentParseRepository(database_session_factory),
+            app.state.content_storage,
+        )
+        app.state.paper_summary_read_service = PaperSummaryReadService(
+            app.state.artifact_read_service,
+            document_parses=app.state.document_parse_service,
+        )
+        app.state.revision_service = RevisionApplicationService(
+            factory=database_session_factory,
+            workflow_store=app.state.workflow_store,
+            target_authority=FeedbackTargetAuthority(
+                app.state.artifact_read_service,
+                paper_summary_reader=app.state.paper_summary_read_service,
             ),
         )
 

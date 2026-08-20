@@ -163,6 +163,7 @@ describe("OpenHands-derived research message flow", () => {
           sourceIds: ["ads" as any],
           maxCandidates: 10,
         },
+        scientificTasks: [],
         outputRequirements: ["paper_summary" as any],
         evidenceRequirements: {
           requireLocator: true,
@@ -214,5 +215,103 @@ describe("OpenHands-derived research message flow", () => {
     const editButton = screen.getByText("调整");
     fireEvent.click(editButton);
     expect(onOpenEditor).toHaveBeenCalled();
+  });
+
+  it("submits one typed repair decision for every frozen defect", () => {
+    const onCheckpointDecision = vi.fn();
+    const items: WorkspaceStreamItem[] = [
+      {
+        id: "checkpoint:repair-1",
+        kind: "checkpoint_prompt",
+        checkpointId: "repair-1",
+        runId: "run-1",
+        runRevision: 3,
+        question: "发现 1 项跨来源科学身份冲突，请逐项核对证据后决定。",
+        options: ["accepted", "rejected", "keep_unresolved"],
+        checkpointKind: "scientific_repair",
+        repairContext: {
+          ruleSet: {
+            ruleSetId: asEntityId("crossmatch-rules"),
+            ruleSetVersion: "1.0.0",
+            ruleSetContentHash: "sha256:rules",
+            allowedActions: ["accepted", "rejected", "keep_unresolved"],
+          },
+          sourceInputHash: "sha256:input",
+          beforeOutputHash: "sha256:before",
+          defects: [
+            {
+              defectId: asEntityId("repair-defect-1"),
+              logicalMatchKey: "sha256:match",
+              conflictCode: "low_confidence_match",
+              leftCandidates: [
+                {
+                  candidateId: asEntityId("gaia-source"),
+                  sourceLabel: "Gaia DR3",
+                  entityLabel: "宿主恒星",
+                  identities: [{ label: "Gaia DR3 标识", value: "123" }],
+                  coordinate: {
+                    frame: "ICRS",
+                    rightAscensionDegrees: 12.345,
+                    declinationDegrees: -6.789,
+                  },
+                },
+              ],
+              rightCandidates: [
+                {
+                  candidateId: asEntityId("simbad-source"),
+                  sourceLabel: "SIMBAD",
+                  entityLabel: "宿主恒星",
+                  identities: [{ label: "天体名称", value: "HD 123" }],
+                  coordinate: null,
+                },
+              ],
+              evidence: [
+                {
+                  evidenceId: asEntityId("evidence-1"),
+                  leftCandidateId: asEntityId("gaia-source"),
+                  rightCandidateId: asEntityId("simbad-source"),
+                  confidence: 0.82,
+                  summary: "角距离 0.320 角秒",
+                },
+              ],
+            },
+          ],
+        },
+        answered: false,
+        selectedOption: null,
+        freeText: null,
+        repairDecisions: [],
+        repairOutcome: null,
+        timestamp: "2026-08-14T08:00:00Z",
+      },
+    ];
+
+    render(
+      <ResearchMessageStream
+        items={items}
+        onCheckpointDecision={onCheckpointDecision}
+      />,
+    );
+
+    expect(screen.getByText("角距离 0.320 角秒")).toBeInTheDocument();
+    expect(screen.getByText("Gaia DR3 标识")).toBeInTheDocument();
+    expect(screen.queryByText("gaia-source")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("接受候选匹配"));
+    fireEvent.change(screen.getByLabelText("冲突 1 的决定理由"), {
+      target: { value: "坐标距离与来源字段均满足规则" },
+    });
+    fireEvent.click(screen.getByText("提交全部修复决定"));
+
+    expect(onCheckpointDecision).toHaveBeenCalledWith("run-1", {
+      checkpointId: "repair-1",
+      expectedRunRevision: 3,
+      repairDecisions: [
+        {
+          defectId: "repair-defect-1",
+          action: "accepted",
+          rationale: "坐标距离与来源字段均满足规则",
+        },
+      ],
+    });
   });
 });

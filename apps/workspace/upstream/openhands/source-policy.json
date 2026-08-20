@@ -49,6 +49,6 @@
       "terminal completion or safe error"
     ],
     "lifecycle": "one logical operation evolves in place by activity_id; started/completed duplicates are forbidden",
-    "reasoning_trace": "ReasoningTrace remains a formal evidence-linked Artifact and is distinct from step-level public_analysis."
+    "reasoning_trace": "ReasoningTrace remains an evidence-linked typed record embedded in LiteratureRelations, never an independent Artifact, and is distinct from step-level public_analysis."
   }
 }

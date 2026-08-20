@@ -6,7 +6,6 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 import json
 import os
-from pathlib import Path
 from threading import Barrier
 from uuid import UUID, uuid4
 
@@ -69,7 +68,6 @@ ARTIFACT_KINDS = (
     "paper_collection",
     "paper_summary",
     "literature_relations",
-    "reasoning_traces",
     "graph",
 )
 DATA_ARTIFACT_KINDS = frozenset(
@@ -895,7 +893,7 @@ def test_selector_revalidates_origin_provenance_before_hit(
     postgres_engine: Engine,
 ) -> None:
     _, failed_run_id, _, version_id, producer_id = _seed_case(
-        postgres_engine, "reasoning_traces"
+        postgres_engine, "literature_relations"
     )
     factory = session_factory(postgres_engine)
     CacheRecordStore(factory).register(
@@ -911,7 +909,7 @@ def test_selector_revalidates_origin_provenance_before_hit(
     result = CacheSelector(factory).select_for_failed_run(
         failed_run_id,
         step_key="planning",
-        artifact_kind="reasoning_traces",
+        artifact_kind="literature_relations",
         failed_producer_execution_id=producer_id,
     )
 
@@ -922,9 +920,9 @@ def test_selector_revalidates_origin_provenance_before_hit(
 @pytest.mark.parametrize(
     ("artifact_kind", "corruption"),
     (
-        ("reasoning_traces", "artifact_content"),
+        ("literature_relations", "artifact_content"),
         ("dataset", "source_query"),
-        ("reasoning_traces", "source_query"),
+        ("graph", "source_query"),
     ),
 )
 def test_selector_rejects_noncanonical_origin_identity_after_registration(

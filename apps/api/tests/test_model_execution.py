@@ -20,7 +20,9 @@ from app.services.model_execution import (
     qwen_execution_lease_duration,
 )
 from app.services.research_planner import ResearchContractPlanner
-from app.test_support.integration_model import DeterministicIntegrationModelExecutionPort
+from app.test_support.integration_model import (
+    DeterministicIntegrationModelExecutionPort,
+)
 from packages.prompts.registry import PromptRegistry
 
 
@@ -210,7 +212,9 @@ def test_qwen_adapter_maps_provider_failures_without_leaking_body(
     assert captured.value.latency_ms is not None
 
 
-@pytest.mark.parametrize("provider_code", ["access_denied", "AllocationQuota.FreeTierOnly"])
+@pytest.mark.parametrize(
+    "provider_code", ["access_denied", "AllocationQuota.FreeTierOnly"]
+)
 def test_qwen_adapter_explains_model_access_failures_without_leaking_body(
     provider_code: str,
 ) -> None:
@@ -377,12 +381,88 @@ def test_planner_uses_the_registered_prompt_and_identified_output_contract() -> 
         {"id": "host_star", "object_type": "star"},
     ]
     assert catalog["allowed_sources"] == [
-        {"id": "nasa_exoplanet_archive", "scope": "provider"}
+        {"id": "nasa_exoplanet_archive", "scope": "provider"},
+        {"id": "esa_gaia_dr3", "scope": "provider"},
     ]
     assert [field["id"] for field in catalog["requested_fields"]] == catalog[
         "default_requested_field_ids"
     ]
     assert catalog["requested_fields"][0]["label"]
+    capabilities = {
+        capability["id"]: capability
+        for capability in catalog["scientific_capabilities"]
+    }
+    assert "planning_catalog.scientific_capabilities" in request_value.prompt
+    assert "planning_catalog.scientific_skills" not in request_value.prompt
+    resolver_owned_parameters = {
+        "crossmatch_input",
+        "dataset_artifact_version_id",
+        "ephemeris_base64",
+        "fits_base64",
+        "image",
+        "images",
+        "image_count",
+        "image_shape",
+        "label_schema",
+        "model",
+        "preprocessing",
+        "rows",
+        "source_total_pixels",
+    }
+    assert (
+        not {
+            parameter["name"]
+            for capability in capabilities.values()
+            for parameter in capability["parameters"]
+        }
+        & resolver_owned_parameters
+    )
+    assert capabilities["clustering_analysis"] == {
+        "id": "clustering_analysis",
+        "label": "聚类分析",
+        "description": "KMeans / DBSCAN 聚类、轮廓系数与 PCA 投影。",
+        "phase": "analyzing_data",
+        "accepted_input_kinds": ["tabular_rows"],
+        "produced_artifact_kinds": ["analysis_report", "visualization"],
+        "parameters": [
+            {
+                "name": "feature_fields",
+                "kind": "string_list",
+                "required": True,
+                "description": "聚类特征字段",
+            },
+            {
+                "name": "algorithm",
+                "kind": "string",
+                "required": False,
+                "description": "聚类算法",
+            },
+            {
+                "name": "cluster_count",
+                "kind": "integer",
+                "required": False,
+                "description": "KMeans 簇数",
+            },
+            {
+                "name": "eps",
+                "kind": "number",
+                "required": False,
+                "description": "DBSCAN 邻域半径",
+            },
+            {
+                "name": "min_samples",
+                "kind": "integer",
+                "required": False,
+                "description": "DBSCAN 最小样本数",
+            },
+            {
+                "name": "random_seed",
+                "kind": "integer",
+                "required": False,
+                "description": "随机种子",
+            },
+        ],
+    }
     assert catalog["output_requirement_ids"] == [kind.value for kind in ArtifactKind]
     assert catalog["executable_output_requirement_ids"] == [
         kind.value for kind in ArtifactKind if kind is not ArtifactKind.export
@@ -394,7 +474,9 @@ def test_planner_uses_the_registered_prompt_and_identified_output_contract() -> 
     )
 
 
-def test_integration_model_exercises_the_real_planner_contract_without_claiming_qwen() -> None:
+def test_integration_model_exercises_the_real_planner_contract_without_claiming_qwen() -> (
+    None
+):
     port = DeterministicIntegrationModelExecutionPort()
     planner = ResearchContractPlanner(
         model_port=port,
@@ -414,7 +496,9 @@ def test_integration_model_exercises_the_real_planner_contract_without_claiming_
 
     assert result.output.outcome == "draft_ready"
     assert result.output.contract.research_goal == "比较公开系外行星候选体的宿主星参数"
-    assert result.response.provider_returned_model == "deterministic-integration-planner"
+    assert (
+        result.response.provider_returned_model == "deterministic-integration-planner"
+    )
     assert result.response.provider_request_id == "integration-deterministic-planner"
     assert "qwen" not in result.response.provider_returned_model.lower()
     assert result.response.output_hash.startswith("sha256:")

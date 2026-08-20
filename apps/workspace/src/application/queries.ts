@@ -9,8 +9,9 @@ import type {
   GraphArtifactReview,
   LiteratureArtifactReview,
   PaperAcquisitionReview,
-  PaperSummaryPdfSourceReview,
+  PaperSummaryDocumentSourceReview,
   PaperSummaryReview,
+  ScientificArtifactReview,
 } from "@xingwen/domain";
 import type {
   ActivityPresentationEvent,
@@ -49,6 +50,7 @@ interface WorkspaceQueriesDependencies {
     | "dataArtifacts"
     | "literatureArtifacts"
     | "graphArtifacts"
+    | "scientificArtifacts"
   >;
   readonly researchAdapter: ResearchAdapter;
 }
@@ -300,21 +302,21 @@ export function createWorkspaceQueries({
           return summary;
         },
       }),
-    paperSummaryPdfSource: (
+    paperSummaryDocumentSource: (
       projectId: DomainEntityId,
       artifactVersionId: DomainEntityId,
     ) =>
       queryOptions({
-        queryKey: workspaceQueryKeys.paperSummaryPdfSource(
+        queryKey: workspaceQueryKeys.paperSummaryDocumentSource(
           projectId,
           artifactVersionId,
         ),
-        queryFn: async (): Promise<PaperSummaryPdfSourceReview> =>
+        queryFn: async (): Promise<PaperSummaryDocumentSourceReview> =>
           // Ownership is enforced by the session-scoped backend read (it
           // validates the full summary provenance before resolving the
           // authorized PaperCandidate → ResearchInput binding); a foreign
           // version surfaces as a typed NotFound.
-          repositories.paperSummary.getPdfSource(artifactVersionId),
+          repositories.paperSummary.getDocumentSource(artifactVersionId),
       }),
     evidence: (projectId: DomainEntityId, evidenceId: DomainEntityId) =>
       queryOptions({
@@ -392,7 +394,7 @@ export function createWorkspaceQueries({
     literatureArtifact: (
       projectId: DomainEntityId,
       artifactVersionId: DomainEntityId,
-      kind: "literature_claims" | "literature_relations" | "reasoning_traces",
+      kind: "literature_claims" | "literature_relations",
     ) =>
       queryOptions({
         queryKey: workspaceQueryKeys.literatureArtifact(
@@ -406,13 +408,9 @@ export function createWorkspaceQueries({
               ? await repositories.literatureArtifacts.getClaims(
                   artifactVersionId,
                 )
-              : kind === "literature_relations"
-                ? await repositories.literatureArtifacts.getRelations(
-                    artifactVersionId,
-                  )
-                : await repositories.literatureArtifacts.getReasoningTraces(
-                    artifactVersionId,
-                  );
+              : await repositories.literatureArtifacts.getRelations(
+                  artifactVersionId,
+                );
           requireProjectOwnership(
             "LiteratureArtifact",
             projectId,
@@ -450,6 +448,43 @@ export function createWorkspaceQueries({
             throw new EntityNotFoundError("GraphArtifact", artifactVersionId);
           }
           return researchAdapter.toGraphArtifactViewModel(review);
+        },
+      }),
+    scientificArtifact: (
+      projectId: DomainEntityId,
+      artifactVersionId: DomainEntityId,
+      kind:
+        | "analysis_report"
+        | "visualization"
+        | "spectrum"
+        | "light_curve"
+        | "model_evaluation"
+        | "model_artifact",
+    ) =>
+      queryOptions({
+        queryKey: workspaceQueryKeys.scientificArtifact(
+          projectId,
+          artifactVersionId,
+          kind,
+        ),
+        queryFn: async (): Promise<ScientificArtifactReview> => {
+          const review: ScientificArtifactReview =
+            await repositories.scientificArtifacts.getReview(artifactVersionId);
+          requireProjectOwnership(
+            "ScientificArtifact",
+            projectId,
+            review.projectId,
+          );
+          if (
+            review.artifactVersionId !== artifactVersionId ||
+            review.content.kind !== kind
+          ) {
+            throw new EntityNotFoundError(
+              "ScientificArtifact",
+              artifactVersionId,
+            );
+          }
+          return review;
         },
       }),
   });

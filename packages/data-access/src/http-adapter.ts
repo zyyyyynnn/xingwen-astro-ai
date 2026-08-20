@@ -19,6 +19,7 @@ import { createArtifactExportRepository } from "./artifact-export-repository";
 import { createArtifactRepository } from "./artifact-repository";
 import { createDataArtifactRepository } from "./data-artifact-repository";
 import { createGraphArtifactRepository } from "./graph-artifact-repository";
+import { createScientificArtifactRepository } from "./scientific-artifact-repository";
 import { createLiteratureArtifactRepository } from "./literature-artifact-repository";
 import { createPaperAcquisitionRepository } from "./paper-acquisition-repository";
 import { createPaperSummaryRepository } from "./paper-summary-repository";
@@ -54,6 +55,7 @@ export function createHttpRepositories(
   const dataArtifacts = createDataArtifactRepository(http);
   const literatureArtifacts = createLiteratureArtifactRepository(http);
   const graphArtifacts = createGraphArtifactRepository(http);
+  const scientificArtifacts = createScientificArtifactRepository(http);
   const artifactExports = createArtifactExportRepository(http);
   const revisions = createRevisionRepository(http);
   const { workspaces, shares } = createSnapshotShareRepositories(http);
@@ -70,6 +72,7 @@ export function createHttpRepositories(
     dataArtifacts,
     literatureArtifacts,
     graphArtifacts,
+    scientificArtifacts,
     artifactExports,
     revisions,
     workspaces,

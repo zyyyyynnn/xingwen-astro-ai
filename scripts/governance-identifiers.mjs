@@ -25,40 +25,44 @@ const repositoryProgressWordingPattern =
   /(?:\b(?:client|cache|module|package|boundary|integration)\s+placeholders?\b|\bplaceholders?\s+for\s+(?:later|future)\b|\b(?:later|future)[,\s]+(?:the\s+)?(?:[A-Za-z][\w-]*\s+){0,3}(?:apis?|adapters?|owners?|controls?|runtimes?|services?|clients?|ports?|pipelines?|modules?|tasks?|issues?|integrations?|publishers?|baselines?)\b|\b(?:later|future)\s+(?:quality|source|workspace)\b|\bnot implemented in\b|\bretained for future\b|\bcontract[- ]freeze(?:\s+change)?\b|\bparser contract change\b|\b[A-D]-(?:module|pipeline)\b|\b[A-D]\s+mapping changes?\b|未来.{0,24}(?:边界|消费端|适配器|接口|实现|启用|任务|模块)|后续.{0,16}(?:边界|持久化))/iu;
 const repositoryTextPathPattern =
   /\.(?:astro|bat|cmd|conf|csv|css|env|example|html|ini|js|json|md|mjs|ps1|py|sh|sql|svg|toml|ts|tsx|txt|xml|ya?ml)$/iu;
-const externalTechnicalIdentifierPattern = new RegExp(
-  ["\\bcall_deepseek_v", "3_2\\b"].join(""),
-  "giu",
-);
 const taskCodePathTokenPattern = /^(?:[a-d]\d+|x(?!(?:64|86)$)\d+)$/iu;
 const phasePathTokenPattern = /^phase(?:[_-]?\d+)$/iu;
 
 function withoutAllowedDomainIdentifiers(value) {
-  return value
-    .replace(/https?:\/\/[^\s)\]}>]+/giu, "")
-    .replace(
-      /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/giu,
-      "",
-    )
-    .replace(/\bd="[^"]*"/giu, "")
-    .replace(/(?:\\|%)x[0-9a-f]{2}/giu, "")
-    .replace(/\bx(?:64|86)(?:_64)?\b/giu, "")
-    .replace(/\bIAU\s+2015\s+Resolution\s+B3\b/giu, "")
-    .replace(/\b(?:Messier|梅西耶)\s+M\d+\b/giu, "")
-    .replace(/\bCygnus\s+X-\d+\b/giu, "")
-    .replace(/\b(?:carbon(?:\s+isotope)?|radiocarbon)\s+C-14\b/giu, "")
-    .replace(/\bC-14\s+(?:isotope|dating)\b/giu, "")
-    .replace(/碳(?:同位素)?\s*C-14/gu, "")
-    .replace(/\bA4\b(?=\s*(?:paper|@))/giu, "")
-    .replace(/\bPydantic\s+v\d+\b/giu, "")
-    .replace(/\bPP-[A-Za-z]+[Vv]\d+(?:\.\d+)*\b/giu, "")
-    .replace(/\b(?:actions|astral-sh)\/[A-Za-z0-9_.-]+@v\d+(?:\.\d+)*\b/giu, "")
-    .replace(/\b[A-Za-z0-9_.-]+@v\d+(?:\.\d+)+\b/giu, "")
-    .replace(/\bv\d+\.\d+(?:\.\d+)*(?:[-+][0-9A-Za-z.-]+)?\b/giu, "")
-    .replace(
-      /\bfailure[\s_-]+stage\s*[-:]?\s*(?:\d+|[IVXLCDM]+|[A-Z])\b/giu,
-      "",
-    )
-    .replace(/失败阶段\s*[一二三四五六七八九十0-9]+/gu, "");
+  return (
+    value
+      .replace(/https?:\/\/[^\s)\]}>]+/giu, "")
+      .replace(
+        /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/giu,
+        "",
+      )
+      .replace(/\bd="[^"]*"/giu, "")
+      .replace(/(?:\\|%)x[0-9a-f]{2}/giu, "")
+      .replace(/\bx(?:64|86)(?:_64)?\b/giu, "")
+      .replace(/\bIAU\s+2015\s+Resolution\s+B3\b/giu, "")
+      .replace(/\b(?:Messier|梅西耶)\s+M\d+\b/giu, "")
+      // Astronomy light-curve domain: `phase: <number>` is an orbital-phase
+      // data field, not a repository work-phase marker.
+      .replace(/\bphase\s*:\s*-?\d+(?:\.\d+)?\s*[,}]/giu, "")
+      .replace(/\bCygnus\s+X-\d+\b/giu, "")
+      .replace(/\b(?:carbon(?:\s+isotope)?|radiocarbon)\s+C-14\b/giu, "")
+      .replace(/\bC-14\s+(?:isotope|dating)\b/giu, "")
+      .replace(/碳(?:同位素)?\s*C-14/gu, "")
+      .replace(/\bA4\b(?=\s*(?:paper|@))/giu, "")
+      .replace(/\bPydantic\s+v\d+\b/giu, "")
+      .replace(/\bPP-[A-Za-z]+[Vv]\d+(?:\.\d+)*\b/giu, "")
+      .replace(
+        /\b(?:actions|astral-sh)\/[A-Za-z0-9_.-]+@v\d+(?:\.\d+)*\b/giu,
+        "",
+      )
+      .replace(/\b[A-Za-z0-9_.-]+@v\d+(?:\.\d+)+\b/giu, "")
+      .replace(/\bv\d+\.\d+(?:\.\d+)*(?:[-+][0-9A-Za-z.-]+)?\b/giu, "")
+      .replace(
+        /\bfailure[\s_-]+stage\s*[-:]?\s*(?:\d+|[IVXLCDM]+|[A-Z])\b/giu,
+        "",
+      )
+      .replace(/失败阶段\s*[一二三四五六七八九十0-9]+/gu, "")
+  );
 }
 
 export function containsTaskCode(value) {
@@ -105,15 +109,6 @@ export function containsRepositoryVersionLabel(value) {
     camelPseudoVersionPattern.test(normalized) ||
     versionedDomainIdentityPattern.test(normalized)
   );
-}
-
-export function containsRepositoryVersionLabelForPath(value, path) {
-  const normalizedPath = path.replaceAll("\\", "/");
-  const scopedValue =
-    normalizedPath === "docs/references/inosum/code/paper_summary.py"
-      ? value.replace(externalTechnicalIdentifierPattern, "")
-      : value;
-  return containsRepositoryVersionLabel(scopedValue);
 }
 
 export function containsRepositoryVersionLabelPath(value) {

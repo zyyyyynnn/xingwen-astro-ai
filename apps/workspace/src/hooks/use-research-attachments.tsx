@@ -48,12 +48,20 @@ const MIME_TO_TYPE: readonly [
 ][] = [
   [/^application\/pdf$/iu, "pdf"],
   [/^(?:text\/csv|application\/csv)$/iu, "csv"],
+  [
+    /^application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet$/iu,
+    "xlsx",
+  ],
+  [/^application\/vnd\.apache\.parquet$/iu, "parquet"],
   [/^(?:application\/fits|image\/fits)$/iu, "fits"],
   [/^application\/json$/iu, "json"],
+  // ZIP only enters the dedicated image_dataset validation boundary; arbitrary
+  // archives are never advertised as supported.
+  [/^application\/zip$/iu, "image_dataset"],
   [/^image\//iu, "image"],
 ];
 
-function inferInputType(
+export function inferInputType(
   file: File,
 ): Exclude<ResearchInputType, "url" | "text"> | null {
   const byMime = MIME_TO_TYPE.find(([pattern]) => pattern.test(file.type));
@@ -64,15 +72,24 @@ function inferInputType(
       return "pdf";
     case "csv":
       return "csv";
+    case "xlsx":
+      return "xlsx";
+    case "parquet":
+      return "parquet";
     case "fits":
     case "fit":
+    case "fts":
       return "fits";
     case "json":
       return "json";
+    case "zip":
+      return "image_dataset";
     case "png":
     case "jpg":
     case "jpeg":
     case "gif":
+    case "tif":
+    case "tiff":
     case "webp":
       return "image";
     default:
@@ -258,7 +275,10 @@ export function useResearchAttachments({
     async (recordId: string, file: File) => {
       const type = inferInputType(file);
       if (!type) {
-        markFailure(recordId, "支持 PDF、CSV、FITS、JSON 或图片文件。");
+        markFailure(
+          recordId,
+          "支持 PDF、CSV、XLSX、Parquet、FITS、JSON、图片，以及带 labels.json 的图像数据集 ZIP。",
+        );
         return;
       }
 
@@ -479,7 +499,7 @@ export function useResearchAttachments({
         ref={inputRef}
         type="file"
         className="sr-only"
-        accept=".pdf,.csv,.fits,.fit,.json,image/*"
+        accept=".pdf,.csv,.xlsx,.parquet,.fits,.fit,.fts,.json,.zip,image/*"
         multiple
         onChange={(event) => {
           handleFilesSelected(Array.from(event.target.files ?? []));

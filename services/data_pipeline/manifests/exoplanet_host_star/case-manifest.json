@@ -53,11 +53,11 @@
     "star.radius",
     "star.mass"
   ],
-  "allowed_source_ids": ["nasa_exoplanet_archive"],
+  "allowed_source_ids": ["nasa_exoplanet_archive", "esa_gaia_dr3"],
   "field_manifest": {
     "manifest_id": "exoplanet_host_star.fields",
     "manifest_version": "2.0.0",
-    "content_hash": "sha256:b0ce150bebbfa9549273ecbb5e26ed302f64b9925d768bb42f944554d011a86f"
+    "content_hash": "sha256:d74d01950e7171aacce8cf660582d5245a2fa84e8bf6948224695740cd3c334e"
   },
   "minimum_evidence_locator_components": [
     "source_snapshot_id",
@@ -65,5 +65,5 @@
     "row_key",
     "raw_field"
   ],
-  "content_hash": "sha256:efbee5ec7d9e9e450a1b08685eb27e0a600f58faec5524d37dc05a9b1f28276c"
+  "content_hash": "sha256:baa4d6c24ff46d25172074fd26c8c692c50e006e643dc7c72b4bc18c90be52bf"
 }

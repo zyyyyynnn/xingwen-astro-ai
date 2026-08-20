@@ -33,7 +33,12 @@ import {
 } from "@xingwen/domain";
 
 import { FixtureSemanticError, FixtureValidationError } from "./errors";
-import { ConflictError, NotFoundError, UnexpectedHttpError } from "./errors";
+import {
+  ConflictError,
+  NotFoundError,
+  UnexpectedHttpError,
+  ValidationError,
+} from "./errors";
 import {
   buildFixtureProvenance,
   mapArtifactVersionMetadata,
@@ -1054,6 +1059,13 @@ export function createFixtureRepositories(
           ...entry.candidates,
         ]);
       },
+      bindResearchInput: async () => {
+        throw new ValidationError(
+          "Demo Replay does not persist paper input bindings",
+          "DEMO_REPLAY_READ_ONLY",
+          [],
+        );
+      },
     },
     paperSummary: {
       getSummary: async (artifactVersionId) => {
@@ -1072,7 +1084,7 @@ export function createFixtureRepositories(
         // exact same domain shape for the same contract payloads.
         return assemblePaperSummaryReview(entry.summary);
       },
-      getPdfSource: async (artifactVersionId) => {
+      getDocumentSource: async (artifactVersionId) => {
         const entry = bundle.data.paperSummaries.find(
           (item) => item.summary.artifact_version_id === artifactVersionId,
         );
@@ -1087,7 +1099,7 @@ export function createFixtureRepositories(
         // Fixture bundles carry no authorized PaperCandidate → ResearchInput
         // full-text binding, so the authorized relation is always absent and
         // the UI must show the plain unavailable state.
-        return { researchInputId: null };
+        return { researchInputId: null, documentKind: null };
       },
     },
     dataArtifacts: createFixtureDataArtifactRepository([
@@ -1098,13 +1110,29 @@ export function createFixtureRepositories(
     literatureArtifacts: createFixtureLiteratureArtifactRepository(
       bundle.data.literatureClaimReads ?? [],
       bundle.data.literatureRelationReads ?? [],
-      bundle.data.literatureReasoningTraceReads ?? [],
     ),
     graphArtifacts: createFixtureGraphArtifactRepository(
       bundle.data.graphArtifactReads ?? [],
       bundle.data.graphNodeReads ?? [],
       bundle.data.graphEdgeReads ?? [],
     ),
+    scientificArtifacts: {
+      // Fixture bundles carry no scientific Artifact deep reads; the demo
+      // replay surface reports the honest absent state instead of inventing
+      // scientific content.
+      getReview: async (artifactVersionId) => {
+        throw new NotFoundError(
+          `Scientific artifact ${artifactVersionId} is not available in the fixture`,
+          "SCIENTIFIC_ARTIFACT_NOT_FOUND",
+        );
+      },
+      getContent: async (artifactVersionId) => {
+        throw new NotFoundError(
+          `Scientific content for ${artifactVersionId} is not available in the fixture`,
+          "SCIENTIFIC_ARTIFACT_NOT_FOUND",
+        );
+      },
+    },
     artifactExports: createFixtureArtifactExportRepository(
       bundle.data.projects[0]?.id
         ? asEntityId(bundle.data.projects[0].id)

@@ -16,6 +16,7 @@ from app.schemas.core import (
     ResearchThreadEntry,
 )
 from app.schemas.manifest import ManifestBundle
+from app.schemas.scientific_capabilities import planning_capabilities
 from app.services.model_execution import (
     ModelExecutionError,
     ModelExecutionPort,
@@ -189,6 +190,7 @@ def _planning_catalog(manifests: ManifestBundle) -> dict[str, Any]:
             for source_id in case.allowed_source_ids
         ],
         "default_requested_field_ids": list(case.default_requested_fields),
+        "scientific_capabilities": list(planning_capabilities()),
         "output_requirement_ids": [kind.value for kind in ArtifactKind],
         "executable_output_requirement_ids": [
             kind.value for kind in ArtifactKind if kind in SUPPORTED_RUN_OUTPUTS

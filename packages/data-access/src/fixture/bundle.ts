@@ -16,7 +16,6 @@ import type {
   GraphEdgeRead,
   GraphNodeRead,
   LiteratureClaimRead,
-  LiteratureReasoningTraceRead,
   LiteratureRelationRead,
   PaperCollectionCandidateRead as PaperCollectionCandidateReadDto,
   PaperCollectionRead as PaperCollectionReadDto,
@@ -73,7 +72,6 @@ export interface FixtureBundleData {
   /** Formal typed Literature reads shared by fixture and HTTP mappers. */
   readonly literatureClaimReads: readonly LiteratureClaimRead[];
   readonly literatureRelationReads: readonly LiteratureRelationRead[];
-  readonly literatureReasoningTraceReads: readonly LiteratureReasoningTraceRead[];
   /** Formal typed Graph reads shared by fixture and HTTP mappers. */
   readonly graphArtifactReads: readonly GraphArtifactRead[];
   readonly graphNodeReads: readonly GraphNodeRead[];

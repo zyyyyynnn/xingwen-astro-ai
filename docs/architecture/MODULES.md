@@ -72,7 +72,7 @@ transport、session、query/cache、polling、server state 或 renderer 生命�
 
 ### 2.3 数据 Pipeline
 
-- **职责**：基于 Case/Field Manifest 抓取主/补充数据，生成 SourceSnapshot、跨源实体对齐、字段清洗、单位统一、数据质量评估及 Dataset / FieldDictionary typed candidates。
+- **职责**：基于 Case/Field Manifest 抓取主/补充数据，生成 SourceSnapshot、跨源实体对齐、字段清洗、单位统一、数据质量评估及 Dataset / FieldDictionary typed candidates；天文科学技能的 Gaia 单源结果也必须在本层复用既有标识与坐标规范化能力，完成字段映射、单位声明和行质量准入后，才能交给科学 Publisher。
 - **不负责**：推进 Run 主状态、选择 Cache 或发布 HTTP DTO。
 
 ### 2.4 文献、推理与图谱 Pipeline

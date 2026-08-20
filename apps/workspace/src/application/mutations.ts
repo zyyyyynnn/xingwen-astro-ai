@@ -8,7 +8,11 @@ import type {
   UpdateResearchProjectInput,
   UpdateResearchContractDraftInput,
 } from "@xingwen/data-access/ports";
-import type { DomainEntityId, ExecutionMode } from "@xingwen/domain";
+import type {
+  DomainEntityId,
+  ExecutionMode,
+  RunCheckpointDecisionRequest,
+} from "@xingwen/domain";
 import type {
   ProjectViewModel,
   ResearchAdapter,
@@ -126,8 +130,7 @@ export interface RunLifecycleVariables {
 }
 
 export interface CheckpointDecisionVariables extends RunLifecycleVariables {
-  readonly selectedOption: string;
-  readonly freeText?: string | null;
+  readonly decision: RunCheckpointDecisionRequest;
 }
 
 export interface CreateRunVariables {
@@ -149,6 +152,7 @@ export interface BindResearchInputToDraftVariables {
 
 export interface CreateRevisionFeedbackVariables {
   readonly projectId: DomainEntityId;
+  readonly artifactId: DomainEntityId;
   readonly artifactVersionId: DomainEntityId;
   readonly expectedVersionNumber: number;
   readonly summary: string;
@@ -251,6 +255,7 @@ export function createWorkspaceMutations({
         retry: false,
         mutationFn: (variables: CreateRevisionFeedbackVariables) =>
           repositories.revisions.createFeedback({
+            artifactId: variables.artifactId,
             artifactVersionId: variables.artifactVersionId,
             expectedVersionNumber: variables.expectedVersionNumber,
             summary: variables.summary,
@@ -377,8 +382,7 @@ export function createWorkspaceMutations({
         ): Promise<ResearchRunViewModel> =>
           researchAdapter.toRunViewModel(
             await repositories.runs.submitCheckpointDecision(variables.runId, {
-              selectedOption: variables.selectedOption,
-              freeText: variables.freeText ?? null,
+              ...variables.decision,
             }),
           ),
         onSuccess: (run, variables) => {

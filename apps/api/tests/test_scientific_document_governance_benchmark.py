@@ -42,7 +42,11 @@ def test_committed_golden_manifest_has_no_unverified_page_counts() -> None:
 
     manifest = GoldenSetManifest.model_validate_json(GOLDEN.read_text(encoding="utf-8"))
     for entry in manifest.entries:
-        if entry.local_only and entry.content_hash is None and entry.expected is not None:
+        if (
+            entry.local_only
+            and entry.content_hash is None
+            and entry.expected is not None
+        ):
             assert entry.expected.expected_page_count is None
 
 
@@ -50,7 +54,9 @@ def test_golden_builder_and_committed_manifest_are_semantically_aligned() -> Non
     from app.schemas.scientific_document_benchmark import GoldenSetManifest
     from services.scientific_document.build_golden_manifest import build_manifest
 
-    committed = GoldenSetManifest.model_validate_json(GOLDEN.read_text(encoding="utf-8"))
+    committed = GoldenSetManifest.model_validate_json(
+        GOLDEN.read_text(encoding="utf-8")
+    )
     rebuilt = build_manifest()
     assert rebuilt.manifest_id == committed.manifest_id
     assert rebuilt.version == committed.version
@@ -184,17 +190,19 @@ def test_adoption_contract_validates_and_only_approved_is_consumable() -> None:
     assert manifest.schema_version
     assert manifest.consumable_statuses == (AdoptionStatus.approved,)
     assert set(manifest.allowed_statuses) == set(AdoptionStatus)
-    assert all(entry.adoption_status == AdoptionStatus.approved for entry in manifest.entries)
+    assert all(
+        entry.adoption_status == AdoptionStatus.approved for entry in manifest.entries
+    )
 
 
-def test_native_baseline_identity_matches_adoption_manifest() -> None:
+def test_native_parser_identity_matches_adoption_manifest() -> None:
     data = json.loads(ADOPTION.read_text(encoding="utf-8"))
     native = next(
         entry
         for entry in data["entries"]
         if entry["capability"] == "native_born_digital_pdf"
     )
-    from app.services.scientific_document.native_baseline import native_engine_identity
+    from app.services.scientific_document.hybrid_parser import native_engine_identity
 
     engine, version = native_engine_identity()
     assert version == native["package_version"]
@@ -231,14 +239,21 @@ def test_golden_manifest_hash_covers_entries() -> None:
     manifest = GoldenSetManifest.model_validate_json(GOLDEN.read_text(encoding="utf-8"))
     original = _manifest_content_hash(manifest)
     first = manifest.entries[0]
-    changed_first = first.model_copy(update={"license_note": first.license_note + " changed"})
-    changed = manifest.model_copy(update={"entries": (changed_first, *manifest.entries[1:])})
+    changed_first = first.model_copy(
+        update={"license_note": first.license_note + " changed"}
+    )
+    changed = manifest.model_copy(
+        update={"entries": (changed_first, *manifest.entries[1:])}
+    )
     assert _manifest_content_hash(changed) != original
 
 
 def test_governance_gate_passes_on_clean_tree() -> None:
     result = subprocess.run(
-        [sys.executable, str(ROOT / "scripts" / "check_scientific_document_governance.py")],
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "check_scientific_document_governance.py"),
+        ],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -406,13 +421,21 @@ def test_native_benchmark_reports_truthful_metric_statuses() -> None:
 
 
 @pytest.mark.scientific_document_native
-def test_native_baseline_real_parse_of_fixture() -> None:
-    fixture = ROOT / "services" / "scientific_document" / "fixtures" / "golden_born_digital.pdf"
+def test_native_parser_real_parse_of_fixture() -> None:
+    fixture = (
+        ROOT
+        / "services"
+        / "scientific_document"
+        / "fixtures"
+        / "golden_born_digital.pdf"
+    )
     assert fixture.is_file(), "fixture not generated"
     import hashlib
 
     from app.schemas.scientific_document import DocumentParseInput
-    from app.services.scientific_document.native_baseline import parse_native_baseline
+    from app.services.scientific_document.hybrid_parser import (
+        HybridScientificDocumentParser,
+    )
 
     content = fixture.read_bytes()
     content_hash = "sha256:" + hashlib.sha256(content).hexdigest()
@@ -424,23 +447,28 @@ def test_native_baseline_real_parse_of_fixture() -> None:
         filename=fixture.name,
         input_bytes=content,
     )
-    candidate = parse_native_baseline(
-        request,
-        config_hash="sha256:" + "e" * 64,
-    )
-    assert candidate.blocks, "native baseline must extract real blocks"
+    candidate = HybridScientificDocumentParser().parse_document(request)
+    assert candidate.blocks, "native parser must extract real blocks"
     assert candidate.overall_quality.value in {"accepted", "partial"}
     assert candidate.native_engine.startswith("docling-parse")
 
 
 @pytest.mark.scientific_document_native
-def test_native_baseline_scanned_fixture_has_no_text_layer() -> None:
-    fixture = ROOT / "services" / "scientific_document" / "fixtures" / "golden_scanned_like.pdf"
+def test_native_parser_scanned_fixture_has_no_text_layer() -> None:
+    fixture = (
+        ROOT
+        / "services"
+        / "scientific_document"
+        / "fixtures"
+        / "golden_scanned_like.pdf"
+    )
     assert fixture.is_file(), "scanned fixture not generated"
     import hashlib
 
     from app.schemas.scientific_document import DocumentParseInput
-    from app.services.scientific_document.native_baseline import parse_native_baseline
+    from app.services.scientific_document.hybrid_parser import (
+        HybridScientificDocumentParser,
+    )
 
     content = fixture.read_bytes()
     content_hash = "sha256:" + hashlib.sha256(content).hexdigest()
@@ -452,9 +480,6 @@ def test_native_baseline_scanned_fixture_has_no_text_layer() -> None:
         filename=fixture.name,
         input_bytes=content,
     )
-    candidate = parse_native_baseline(
-        request,
-        config_hash="sha256:" + "e" * 64,
-    )
+    candidate = HybridScientificDocumentParser().parse_document(request)
     assert len(candidate.blocks) == 0
     assert candidate.overall_quality.value == "unsupported"

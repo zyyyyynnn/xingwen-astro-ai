@@ -6,11 +6,25 @@ from typing import Callable
 
 from sqlalchemy.orm import Session
 
+from app.db.models import RunStepModel
 from app.schemas.manifest import ManifestBundle
+from app.schemas.scientific_capabilities import capability_for
+from app.services.content_storage import ContentStorage
+from app.services.document_parse_store import (
+    DocumentParseRepository,
+    DocumentParseService,
+)
 from app.services.model_execution import ModelExecutionPort
-from app.workflow.agent_runtime import AgentActivity, ResearchStepAgent
+from app.services.paper_candidate_inputs import (
+    PaperCandidateInputReadService,
+    PaperCandidateInputRepository,
+)
+from app.services.research_input_store import PersistentResearchInputStore
+from app.services.scientific_document.ports import DocumentParserPort
+from app.workflow.agent_runtime import AgentActivity, ResearchStepAgent, StepTool
 from app.workflow.step_publication import (
     PreparedStep,
+    ResumableStepModelExecutionPort,
     RunStepContext,
     StepModelCaller,
     StepPublicationFactory,
@@ -21,9 +35,11 @@ from app.workflow.steps.data_steps import DataStepService
 from app.workflow.steps.graph_steps import GraphStepService
 from app.workflow.steps.literature_steps import LiteratureStepService
 from app.workflow.steps.paper_steps import PaperStepService
+from app.workflow.steps.scientific_steps import ScientificStepService
 from app.workflow.store import AttemptHandle, LeaseGrant, PersistentWorkflowStore
 from packages.prompts.registry import PromptRegistry
 from services.paper_pipeline.live_collection import LivePaperCollectionRunner
+from services.scientific_skills.registry import build_scientific_skill_registry
 
 __all__ = ["PreparedStep", "ResearchStepRuntime", "RunStepContext", "step_uuid"]
 
@@ -42,23 +58,51 @@ class ResearchStepRuntime:
         explicit_revision: str | None,
         prompts: PromptRegistry | None = None,
         paper_collection_runner: LivePaperCollectionRunner | None = None,
+        content_storage: ContentStorage | None = None,
+        document_parser: DocumentParserPort | None = None,
     ) -> None:
+        self._factory = factory
         self._store = store
         self._prompts = prompts or PromptRegistry()
         self._publications = StepPublicationFactory(factory=factory)
         self._model_port = model_port
         self._requested_model = requested_model
         self._explicit_revision = explicit_revision
+        self._scientific_steps = (
+            ScientificStepService(factory=factory, content_storage=content_storage)
+            if content_storage is not None
+            else None
+        )
+        self._scientific_skill_registry = (
+            build_scientific_skill_registry() if content_storage is not None else None
+        )
         self._data_steps = DataStepService(
-            manifests=manifests, publications=self._publications
+            manifests=manifests,
+            publications=self._publications,
+            store=store,
+        )
+        paper_inputs = (
+            PaperCandidateInputReadService(
+                research_inputs=PersistentResearchInputStore(factory),
+                repository=PaperCandidateInputRepository(factory),
+            )
+            if content_storage is not None
+            else None
+        )
+        document_parses = (
+            DocumentParseService(DocumentParseRepository(factory), content_storage)
+            if content_storage is not None
+            else None
         )
         self._paper_steps = PaperStepService(
             publications=self._publications,
             collection_runner=paper_collection_runner,
+            paper_inputs=paper_inputs,
+            content_storage=content_storage,
+            document_parser=document_parser,
+            document_parses=document_parses,
         )
-        self._literature_steps = LiteratureStepService(
-            publications=self._publications
-        )
+        self._literature_steps = LiteratureStepService(publications=self._publications)
         self._graph_steps = GraphStepService(
             factory=factory, publications=self._publications
         )
@@ -70,6 +114,12 @@ class ResearchStepRuntime:
         attempt: AttemptHandle,
         lease: LeaseGrant,
     ) -> PreparedStep:
+        scientific_tool = (
+            self._scientific_step_tool(attempt.run_step_id)
+            if step_key.startswith("scientific.")
+            else None
+        )
+
         def emit(activity: AgentActivity) -> None:
             self._store.append_activity_event(
                 context.run_id,
@@ -117,9 +167,10 @@ class ResearchStepRuntime:
                 kind: str(version_id) for kind, version_id in context.versions.items()
             },
             execute_primary=lambda: self._execute_step_tool(
-                context, step_key, attempt, lease, model_caller
+                context, step_key, attempt, lease, model_caller, tracked_model
             ),
             describe_primary_result=lambda prepared: prepared.activity_result_summary,
+            tool=scientific_tool,
         )
         return PreparedStep(
             publications=result.value.publications,
@@ -129,6 +180,32 @@ class ResearchStepRuntime:
             activity_name=result.activity_name,
         )
 
+    def _scientific_step_tool(self, run_step_id: object) -> StepTool:
+        """Bind the step's single authorized tool to its exact frozen skill."""
+
+        with self._factory() as session:
+            step = session.get(RunStepModel, run_step_id)
+        if step is None or step.skill_id is None:
+            raise ValueError(f"scientific RunStep {run_step_id} has no skill binding")
+        skill_id = step.skill_id
+        if self._scientific_skill_registry is None:
+            raise ValueError(
+                "scientific steps require the content-addressed storage runtime"
+            )
+        skill_revision = self._scientific_skill_registry.revision_for(skill_id)
+        capability = capability_for(skill_id)
+        return StepTool(
+            name=f"execute_science_skill_{skill_id}",
+            label=f"执行{capability['label']}",
+            tool_kind="scientific_skill",
+            description=(
+                "执行当前冻结研究步骤唯一授权的科学技能，"
+                "技能、参数与输入均由已确认研究协议冻结。"
+            ),
+            authorized_skill_id=skill_id,
+            registry_revision=skill_revision,
+        )
+
     def _execute_step_tool(
         self,
         context: RunStepContext,
@@ -136,6 +213,7 @@ class ResearchStepRuntime:
         attempt: AttemptHandle,
         lease: LeaseGrant,
         model_caller: StepModelCaller,
+        model_execution: ModelExecutionPort,
     ) -> PreparedStep:
         if step_key == "planning":
             return PreparedStep((), "已按确认协议冻结本次研究执行路径。")
@@ -158,6 +236,7 @@ class ResearchStepRuntime:
                 attempt=attempt,
                 lease=lease,
                 model_caller=model_caller,
+                model_execution=ResumableStepModelExecutionPort(model_execution),
             )
         if step_key == "reasoning_literature":
             return self._literature_steps.reason(
@@ -169,6 +248,14 @@ class ResearchStepRuntime:
             )
         if step_key == "building_graph":
             return self._graph_steps.build(
+                context, step_key=step_key, attempt=attempt, lease=lease
+            )
+        if step_key.startswith("scientific."):
+            if self._scientific_steps is None:
+                raise ValueError(
+                    "scientific steps require the content-addressed storage runtime"
+                )
+            return self._scientific_steps.execute(
                 context, step_key=step_key, attempt=attempt, lease=lease
             )
         raise ValueError(f"Unsupported RunStep: {step_key}")

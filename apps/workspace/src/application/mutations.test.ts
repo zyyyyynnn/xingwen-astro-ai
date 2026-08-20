@@ -34,6 +34,7 @@ const contractInput: ResearchContractInput = {
     sourceIds: [],
     maxCandidates: 20,
   },
+  scientificTasks: [],
   outputRequirements: ["dataset", "paper_collection"],
   evidenceRequirements: {
     requireLocator: true,

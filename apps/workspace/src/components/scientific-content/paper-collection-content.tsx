@@ -23,7 +23,7 @@ function PaperCandidateTable({
   const candidates = review.candidates.slice(0, SURFACE_LIMITS[surface]);
   return (
     <div className="scientific-artifact__table-scroll my-3 overflow-x-auto rounded border border-[var(--oh-border)]">
-      <table className="w-full border-collapse text-left text-[13px]">
+      <table className="ui-text-body w-full border-collapse text-left">
         <caption className="sr-only">论文候选与筛选结果</caption>
         <thead>
           <tr className="border-b border-[var(--oh-border)] bg-[var(--oh-surface-subtle)]">
@@ -60,12 +60,12 @@ function PaperCandidateTable({
                     <Link
                       href={safeUrl}
                       external
-                      className="font-serif text-[14px] font-medium leading-5 text-inherit hover:underline"
+                      className="ui-text-body font-serif font-medium text-inherit hover:underline"
                     >
                       {candidate.title || "未提供标题"}
                     </Link>
                   ) : (
-                    <span className="font-serif text-[14px] font-medium leading-5">
+                    <span className="ui-text-body font-serif font-medium">
                       {candidate.title || "未提供标题"}
                     </span>
                   )}
@@ -140,7 +140,7 @@ export function PaperCollectionContent({
         }
       />
       <div
-        className="scientific-artifact__summary my-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-[var(--oh-muted)]"
+        className="scientific-artifact__summary ui-text-body my-2 flex flex-wrap gap-x-4 gap-y-1 text-[var(--oh-muted)]"
         aria-label="论文集合摘要"
       >
         <span>检索词：{review.query.normalizedQuery}</span>
@@ -150,7 +150,7 @@ export function PaperCollectionContent({
       {review.candidates.length > 0 ? (
         <PaperCandidateTable review={review} surface={surface} />
       ) : (
-        <p className="py-6 text-center text-[13px] text-[var(--oh-muted)]">
+        <p className="ui-text-body py-6 text-center text-[var(--oh-muted)]">
           当前结果没有可展示的论文候选。
         </p>
       )}

@@ -152,8 +152,12 @@ def test_sniff_mime_recognizes_magic_bytes() -> None:
     assert sniff_mime_type((FIXTURES / "sample.png").read_bytes()) == "image/png"
     assert sniff_mime_type(b"\xff\xd8\xff\xe0test") == "image/jpeg"
     assert sniff_mime_type(b"GIF89a...") == "image/gif"
+    assert sniff_mime_type(b"II\x2a\x00\x08\x00\x00\x00") == "image/tiff"
+    assert sniff_mime_type(b"MM\x00\x2a\x00\x00\x00\x08") == "image/tiff"
     assert sniff_mime_type(b"RIFF\x00\x00\x00\x00WEBPVP8 ") == "image/webp"
-    assert sniff_mime_type((FIXTURES / "sample.json").read_bytes()) == "application/json"
+    assert (
+        sniff_mime_type((FIXTURES / "sample.json").read_bytes()) == "application/json"
+    )
     assert sniff_mime_type((FIXTURES / "sample.csv").read_bytes()) == "text/csv"
     assert sniff_mime_type(b"just some plain words\n") == "text/plain"
 
@@ -168,12 +172,15 @@ def test_validate_declared_mime_requires_type_and_client_agreement() -> None:
     sniffed = sniff_mime_type(csv)
     allowed = frozenset({"text/csv", "text/plain", "application/pdf"})
     assert sniffed == "text/csv"
-    assert validate_declared_mime(
-        declared_type=ResearchInputType.csv,
-        sniffed_mime=sniffed,
-        client_mime=None,
-        allowed_mimes=allowed,
-    ) == "text/csv"
+    assert (
+        validate_declared_mime(
+            declared_type=ResearchInputType.csv,
+            sniffed_mime=sniffed,
+            client_mime=None,
+            allowed_mimes=allowed,
+        )
+        == "text/csv"
+    )
     assert (
         validate_declared_mime(
             declared_type=ResearchInputType.pdf,
@@ -228,6 +235,8 @@ def test_filename_extension_matches_mime() -> None:
     assert filename_extension_matches("planets.csv", "application/pdf") is False
     assert filename_extension_matches("notes", "text/csv") is True
     assert filename_extension_matches("photo.jpg", "image/jpeg") is True
+    assert filename_extension_matches("figure.tif", "image/tiff") is True
+    assert filename_extension_matches("figure.tiff", "image/tiff") is True
 
 
 # ---- in-memory store -------------------------------------------------------
@@ -266,7 +275,9 @@ def test_in_memory_store_scopes_records_to_session_and_project() -> None:
     assert store.get(session_id="session_a", input_id=created.id) is not None
     assert store.get(session_id="session_b", input_id=created.id) is None
 
-    refs, _, _ = store.list(session_id="session_a", project_id="proj_01", cursor=None, limit=20)
+    refs, _, _ = store.list(
+        session_id="session_a", project_id="proj_01", cursor=None, limit=20
+    )
     assert [ref.id for ref in refs] == [created.id]
     refs_other_project, _, _ = store.list(
         session_id="session_a", project_id="proj_02", cursor=None, limit=20
@@ -309,7 +320,9 @@ def test_in_memory_store_same_content_makes_distinct_ingestions() -> None:
     )
     assert second.id != first.id
     assert second.content_hash == first.content_hash
-    refs, _, _ = store.list(session_id="session_a", project_id="proj_01", cursor=None, limit=20)
+    refs, _, _ = store.list(
+        session_id="session_a", project_id="proj_01", cursor=None, limit=20
+    )
     assert {ref.id for ref in refs} == {first.id, second.id}
 
 
@@ -327,7 +340,9 @@ def test_in_memory_store_soft_delete_creates_new_ingestion_on_replay() -> None:
     )
     store.delete(session_id="session_a", input_id=created.id)
     assert store.get(session_id="session_a", input_id=created.id) is None
-    refs, _, _ = store.list(session_id="session_a", project_id="proj_01", cursor=None, limit=20)
+    refs, _, _ = store.list(
+        session_id="session_a", project_id="proj_01", cursor=None, limit=20
+    )
     assert refs == ()
     with pytest.raises(SecurityProblem) as exc:
         store.delete(session_id="session_a", input_id=created.id)
@@ -399,7 +414,9 @@ def test_in_memory_store_bind_requires_owned_targets() -> None:
 # ---- idempotency lease state machine --------------------------------------
 
 
-def _owned_store_and_idempotency() -> tuple[InMemoryResearchInputStore, InMemoryIdempotencyRepository]:
+def _owned_store_and_idempotency() -> tuple[
+    InMemoryResearchInputStore, InMemoryIdempotencyRepository
+]:
     store = InMemoryResearchInputStore()
     idem = InMemoryIdempotencyRepository(lease_ttl=timedelta(seconds=300))
     store.bind_idempotency(idem)
@@ -410,7 +427,10 @@ def _owned_store_and_idempotency() -> tuple[InMemoryResearchInputStore, InMemory
 def test_pending_reservation_blocks_distinct_request_under_same_key() -> None:
     store, idem = _owned_store_and_idempotency()
     first = idem.resolve(
-        session_id="session_a", project_id="proj_01", idempotency_key="k1", request_hash="h1"
+        session_id="session_a",
+        project_id="proj_01",
+        idempotency_key="k1",
+        request_hash="h1",
     )
     assert first.reserved is True and first.lease_token is not None
 
@@ -418,7 +438,10 @@ def test_pending_reservation_blocks_distinct_request_under_same_key() -> None:
     # duplicate the side effect -- it is told to wait (409), not handed a lease.
     with pytest.raises(SecurityProblem) as exc:
         idem.resolve(
-            session_id="session_a", project_id="proj_01", idempotency_key="k1", request_hash="h1"
+            session_id="session_a",
+            project_id="proj_01",
+            idempotency_key="k1",
+            request_hash="h1",
         )
     assert exc.value.code == "IDEMPOTENCY_IN_PROGRESS"
 
@@ -428,7 +451,10 @@ def test_stale_pending_reservation_is_reclaimed_by_another_request() -> None:
 
     store, idem = _owned_store_and_idempotency()
     old = idem.resolve(
-        session_id="session_a", project_id="proj_01", idempotency_key="k1", request_hash="h1"
+        session_id="session_a",
+        project_id="proj_01",
+        idempotency_key="k1",
+        request_hash="h1",
     )
     assert old.reserved is True and old.lease_token is not None
 
@@ -442,7 +468,10 @@ def test_stale_pending_reservation_is_reclaimed_by_another_request() -> None:
 
     idem._clock = FrozenClock(old.lease_expires_at + timedelta(seconds=1))  # type: ignore[attr-defined]
     reclaimed = idem.resolve(
-        session_id="session_a", project_id="proj_01", idempotency_key="k1", request_hash="h1"
+        session_id="session_a",
+        project_id="proj_01",
+        idempotency_key="k1",
+        request_hash="h1",
     )
     assert reclaimed.reserved is True
     assert reclaimed.lease_token is not None
@@ -452,7 +481,10 @@ def test_stale_pending_reservation_is_reclaimed_by_another_request() -> None:
 def test_lease_commit_is_token_bound() -> None:
     store, idem = _owned_store_and_idempotency()
     res = idem.resolve(
-        session_id="session_a", project_id="proj_01", idempotency_key="k1", request_hash="h1"
+        session_id="session_a",
+        project_id="proj_01",
+        idempotency_key="k1",
+        request_hash="h1",
     )
     # A stale/foreign token cannot complete or release the reservation.
     with pytest.raises(SecurityProblem):
@@ -479,7 +511,10 @@ def test_lease_commit_is_token_bound() -> None:
         input_id="input_x",
     )
     replay = idem.resolve(
-        session_id="session_a", project_id="proj_01", idempotency_key="k1", request_hash="h1"
+        session_id="session_a",
+        project_id="proj_01",
+        idempotency_key="k1",
+        request_hash="h1",
     )
     assert replay.replayed_input_id == "input_x"
 
@@ -491,9 +526,15 @@ def test_ownership_gate_runs_before_any_idempotency_side_effect() -> None:
     with pytest.raises(SecurityProblem) as exc:
         store.require_owned_project(session_id="session_a", project_id="foreign")
     assert exc.value.code == "PROJECT_NOT_FOUND"
-    assert idem.resolve(
-        session_id="session_a", project_id="foreign", idempotency_key="probe", request_hash="h"
-    ).reserved is True
+    assert (
+        idem.resolve(
+            session_id="session_a",
+            project_id="foreign",
+            idempotency_key="probe",
+            request_hash="h",
+        ).reserved
+        is True
+    )
 
 
 def test_cross_source_ingestion_separation_text_and_upload_share_content() -> None:
@@ -503,7 +544,9 @@ def test_cross_source_ingestion_separation_text_and_upload_share_content() -> No
     # the bytes.
     store, _idem = _owned_store_and_idempotency()
     payload = b"identical research bytes"
-    content_facts = dict(content=payload, mime_type="application/pdf", filename="note.pdf")
+    content_facts = dict(
+        content=payload, mime_type="application/pdf", filename="note.pdf"
+    )
     text_ing = store.commit_ingestion(
         session_id="session_a",
         project_id="proj_01",
@@ -528,7 +571,6 @@ def test_cross_source_ingestion_separation_text_and_upload_share_content() -> No
     assert upload_ing.source_type == "upload"
 
 
-
 def test_local_content_storage_is_content_addressed_and_immutable(
     tmp_path: Path,
 ) -> None:
@@ -548,9 +590,7 @@ def test_local_content_storage_is_content_addressed_and_immutable(
     assert again == stored
 
     with pytest.raises(ValueError, match="does not match"):
-        asyncio.run(
-            storage.store(b"different", sha256_content_hash(b"something else"))
-        )
+        asyncio.run(storage.store(b"different", sha256_content_hash(b"something else")))
 
 
 def test_sha256_content_hash_has_canonical_shape() -> None:
@@ -650,9 +690,7 @@ def test_storage_leaves_no_temp_files_when_publication_fails(
     def boom(temp: Path, final: Path) -> bool:
         raise OSError("publish failed")
 
-    monkeypatch.setattr(
-        "app.services.content_storage._publish_no_replace", boom
-    )
+    monkeypatch.setattr("app.services.content_storage._publish_no_replace", boom)
     with pytest.raises(OSError, match="publish failed"):
         asyncio.run(storage.store(content, content_hash))
 

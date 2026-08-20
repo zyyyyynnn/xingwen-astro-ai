@@ -3,16 +3,23 @@ from __future__ import annotations
 from types import SimpleNamespace
 from uuid import UUID
 
-from app.schemas.core import PlannerDraftReady, ResearchContract
-from app.services.model_execution import (
-    ModelExecutionError,
-    ModelExecutionRequest,
-    ModelExecutionResponse,
-)
+from app.schemas.core import ResearchContract
+from app.services.model_execution import ModelExecutionError
 from app.workflow.agent_runtime import AgentActivityError
-from app.workflow.research_run_worker import ResearchRunWorker
+from app.workflow.research_run_worker import ResearchRunWorker, _step_started_message
 from app.workflow.research_step_runtime import RunStepContext
 from app.workflow.step_publication import StepPublicationFactory
+
+
+def test_scientific_step_has_a_public_start_message() -> None:
+    step_key = "scientific.0123456789abcdef01234567"
+
+    message = _step_started_message(
+        step_key=step_key,
+        skill_id="clustering_analysis",
+    )
+
+    assert message == "正在执行聚类分析。"
 
 
 def test_internal_run_failure_is_not_exposed_as_public_message() -> None:
@@ -92,7 +99,6 @@ def test_literature_bindings_materialize_shared_evidence_per_domain_target() -> 
                 "output_requirements": [
                     "dataset",
                     "literature_claims",
-                    "reasoning_traces",
                     "graph",
                     "paper_summary",
                 ],
@@ -119,6 +125,7 @@ def test_literature_bindings_materialize_shared_evidence_per_domain_target() -> 
             source_snapshot_id="snapshot.shared",
         ),
     )
+
     def unused_factory() -> None:
         raise AssertionError("literature bindings must not open a session")
 

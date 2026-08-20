@@ -13,7 +13,7 @@ import {
   containsRepositoryProgressWording,
   containsRepositoryTaskCode,
   containsRepositoryTaskCodePath,
-  containsRepositoryVersionLabelForPath,
+  containsRepositoryVersionLabel,
   containsRepositoryVersionLabelPath,
   isIssueOrPullRequestBodyTemplatePath,
   isRepositoryTextPath,
@@ -169,7 +169,7 @@ for (const file of repositoryTextFiles) {
         `${file}: line ${index + 1}: phase identifier is not allowed in repository prose`,
       );
     }
-    if (containsRepositoryVersionLabelForPath(line, file)) {
+    if (containsRepositoryVersionLabel(line)) {
       errors.push(
         `${file}: line ${index + 1}: pseudo-version label is not allowed in repository prose`,
       );

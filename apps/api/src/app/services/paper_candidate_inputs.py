@@ -34,13 +34,17 @@ from app.schemas.paper_collection_api import (
     PaperCollectionCandidateRead,
 )
 from app.schemas.research_input import ResearchInputCreate, ResearchInputType
+from app.schemas.scientific_document import is_supported_scientific_document_input
 from app.security import SecurityProblem
 from app.services.paper_collections import PaperCollectionReadService
 from app.services.research_input_ingestion import (
     ResearchInputIngestionCommand,
     ResearchInputIngestionService,
 )
-from app.services.research_input_store import ResearchInputRecord, ResearchInputRepository
+from app.services.research_input_store import (
+    ResearchInputRecord,
+    ResearchInputRepository,
+)
 from app.services.url_fetcher import sanitize_url_for_persistence
 
 
@@ -128,9 +132,7 @@ class PaperCandidateInputService:
             canonical_paper_id=candidate.candidate.canonical_paper_id,
         )
         access_evidence_hash = (
-            compute_canonical_payload_hash(
-                normalized_evidence.model_dump(mode="json")
-            )
+            compute_canonical_payload_hash(normalized_evidence.model_dump(mode="json"))
             if normalized_evidence is not None
             else None
         )
@@ -158,7 +160,9 @@ class PaperCandidateInputService:
                 ),
                 "metadata_reason": (
                     command.request.reason.value
-                    if isinstance(command.request, MetadataOnlyPaperCandidateInputRequest)
+                    if isinstance(
+                        command.request, MetadataOnlyPaperCandidateInputRequest
+                    )
                     else None
                 ),
             }
@@ -237,37 +241,6 @@ class PaperCandidateInputService:
             )
         )
 
-    def accepted_research_input(
-        self,
-        *,
-        session_id: str,
-        project_id: str,
-        paper_collection_version_id: str,
-        canonical_paper_id: str,
-    ) -> ResearchInputRecord | None:
-        """Resolve the newest accepted full-text ResearchInput bound to one paper."""
-        accepted = self._repository.accepted_input_for_paper(
-            project_id=project_id,
-            paper_collection_version_id=paper_collection_version_id,
-            canonical_paper_id=canonical_paper_id,
-        )
-        if accepted is None:
-            return None
-        record = self._research_inputs.get(
-            session_id=session_id, input_id=accepted.research_input_id
-        )
-        if (
-            record is None
-            or record.project_id != project_id
-            or record.content_hash != accepted.research_input_content_hash
-            or (
-                record.type is not ResearchInputType.pdf
-                and record.mime_type != "application/pdf"
-            )
-        ):
-            return None
-        return record
-
     def _project(
         self,
         row: _BindingRecord,
@@ -305,6 +278,51 @@ class PaperCandidateInputService:
             created_at=row.created_at,
             reused=reused,
         )
+
+
+class PaperCandidateInputReadService:
+    """Resolve an immutable accepted research-document binding."""
+
+    def __init__(
+        self,
+        *,
+        research_inputs: ResearchInputRepository,
+        repository: PaperCandidateInputRepository,
+    ) -> None:
+        self._research_inputs = research_inputs
+        self._repository = repository
+
+    def accepted_research_input(
+        self,
+        *,
+        session_id: str,
+        project_id: str,
+        paper_collection_version_id: str,
+        canonical_paper_id: str,
+    ) -> ResearchInputRecord | None:
+        """Resolve the newest accepted full-text ResearchInput bound to one paper."""
+
+        accepted = self._repository.accepted_input_for_paper(
+            project_id=project_id,
+            paper_collection_version_id=paper_collection_version_id,
+            canonical_paper_id=canonical_paper_id,
+        )
+        if accepted is None:
+            return None
+        record = self._research_inputs.get(
+            session_id=session_id, input_id=accepted.research_input_id
+        )
+        if (
+            record is None
+            or record.project_id != project_id
+            or record.content_hash != accepted.research_input_content_hash
+            or not is_supported_scientific_document_input(
+                input_type=record.type,
+                mime_type=record.mime_type,
+            )
+        ):
+            return None
+        return record
 
 
 @dataclass(frozen=True, slots=True)
@@ -469,8 +487,7 @@ class PaperCandidateInputRepository:
             row = session.scalar(
                 select(PaperCandidateInputBindingModel)
                 .where(
-                    PaperCandidateInputBindingModel.project_id
-                    == _uuid(project_id),
+                    PaperCandidateInputBindingModel.project_id == _uuid(project_id),
                     PaperCandidateInputBindingModel.paper_collection_version_id
                     == _uuid(paper_collection_version_id),
                     PaperCandidateInputBindingModel.canonical_paper_id
@@ -544,7 +561,9 @@ class PaperCandidateInputRepository:
             )
             if not candidate_evidence_options:
                 raise _integrity_problem()
-            candidate_evidence = min(candidate_evidence_options, key=lambda item: item.id)
+            candidate_evidence = min(
+                candidate_evidence_options, key=lambda item: item.id
+            )
             evidence_uuid = _uuid(candidate_evidence.id)
             evidence_row = session.scalar(
                 select(EvidenceModel).where(
@@ -619,7 +638,8 @@ class PaperCandidateInputRepository:
                 by_key = session.scalar(
                     select(PaperCandidateInputBindingModel).where(
                         PaperCandidateInputBindingModel.project_id == project_uuid,
-                        PaperCandidateInputBindingModel.idempotency_key == idempotency_key,
+                        PaperCandidateInputBindingModel.idempotency_key
+                        == idempotency_key,
                     )
                 )
                 if by_key is None or by_key.request_hash != request_hash:
@@ -840,5 +860,6 @@ __all__ = [
     "AcceptedPaperInput",
     "CreatePaperCandidateInputCommand",
     "PaperCandidateInputRepository",
+    "PaperCandidateInputReadService",
     "PaperCandidateInputService",
 ]

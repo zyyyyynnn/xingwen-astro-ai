@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
-from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
@@ -29,6 +28,12 @@ from app.schemas.core import (
     compute_research_contract_content_hash,
 )
 from app.security import InMemoryRateLimiter
+from app.services.feedback_targets import (
+    ArtifactVersionTargetReadPort,
+    FeedbackTargetAuthority,
+)
+from app.services.revisions import RevisionApplicationService
+from app.workflow.run_plan import compile_run_plan
 from artifact_publication_test_support import publish_reference_dataset
 from authoring_test_support import (
     build_contract_draft,
@@ -57,9 +62,18 @@ KINDS = (
     "paper_summary",
     "literature_claims",
     "literature_relations",
-    "reasoning_traces",
     "graph",
 )
+ARTIFACT_STEP = {
+    "dataset": "cleaning_data",
+    "field_dictionary": "cleaning_data",
+    "source_collection": "fetching_data",
+    "paper_collection": "searching_papers",
+    "paper_summary": "summarizing_papers",
+    "literature_claims": "reasoning_literature",
+    "literature_relations": "reasoning_literature",
+    "graph": "building_graph",
+}
 CONTRACT_INPUT = ResearchContractInput.model_validate(
     {
         "research_goal": "Validate immutable feedback revision orchestration",
@@ -77,6 +91,99 @@ CONTRACT_CONTENT = CONTRACT_INPUT.model_dump(mode="json")
 CONTRACT_HASH = compute_research_contract_content_hash(CONTRACT_INPUT)
 
 
+class _FrozenRevisionArtifactVersions(ArtifactVersionTargetReadPort):
+    """Keep revision-closure fixtures focused on their frozen Run graph."""
+
+    def __init__(
+        self,
+        *,
+        version_ids: dict[str, UUID],
+        owner_session_id: str,
+    ) -> None:
+        self._version_ids = {
+            kind: {version_id} for kind, version_id in version_ids.items()
+        }
+        self._owner_session_id = owner_session_id
+
+    def allow(self, version_ids: dict[str, UUID]) -> None:
+        for kind, version_id in version_ids.items():
+            self._version_ids.setdefault(kind, set()).add(version_id)
+
+    async def validate_version(
+        self, *, version_id: str, artifact_kind: str, session_id: str
+    ) -> None:
+        allowed = self._version_ids.get(artifact_kind, set())
+        if session_id != self._owner_session_id or UUID(version_id) not in allowed:
+            raise AssertionError("revision fixture received an unknown ArtifactVersion")
+
+
+def _seed_completed_steps(
+    session,
+    *,
+    run: ResearchRunModel,
+    contract_input: ResearchContractInput,
+    producer_name: str,
+) -> dict[str, tuple[UUID, UUID, UUID]]:
+    executions: dict[str, tuple[UUID, UUID, UUID]] = {}
+    for position, definition in enumerate(compile_run_plan(contract_input)):
+        step = RunStepModel(
+            id=uuid4(),
+            run_id=run.id,
+            position=position,
+            key=definition.key,
+            label=definition.label,
+            enter_status=definition.enter_status,
+            success_status=definition.success_status,
+            max_attempts=definition.max_attempts,
+            task_id=definition.task_id,
+            skill_id=definition.skill_id,
+            depends_on_step_keys=list(definition.depends_on_step_keys),
+            status="completed",
+            progress=100,
+            public_message="Completed",
+            created_at=NOW,
+        )
+        session.add(step)
+        session.flush()
+        attempt = StepAttemptModel(
+            id=uuid4(),
+            run_step_id=step.id,
+            attempt_number=1,
+            idempotency_key=f"{producer_name}-attempt-{step.id}",
+            status="completed",
+            retryable=False,
+            started_at=NOW,
+            finished_at=NOW,
+            created_at=NOW,
+        )
+        session.add(attempt)
+        session.flush()
+        producer = ProducerExecutionModel(
+            id=uuid4(),
+            run_id=run.id,
+            run_step_id=step.id,
+            step_attempt_id=attempt.id,
+            step_key=step.key,
+            idempotency_key=f"{producer_name}-producer-{step.id}",
+            lease_generation=0,
+            producer_type="pipeline",
+            producer_name=producer_name,
+            producer_version="1.0.0",
+            parameters={},
+            parameters_hash=HASH_A,
+            input_hash=HASH_B,
+            output_hash=HASH_C,
+            status="completed",
+            started_at=NOW,
+            finished_at=NOW,
+            created_at=NOW,
+        )
+        session.add(producer)
+        session.flush()
+        executions[step.key] = (step.id, attempt.id, producer.id)
+    return executions
+
+
 @pytest.fixture()
 def runtime(monkeypatch: pytest.MonkeyPatch):
     assert TEST_DATABASE_URL is not None
@@ -92,10 +199,7 @@ def runtime(monkeypatch: pytest.MonkeyPatch):
     )
     factory = app.state.db_session_factory
 
-    ids = {
-        name: uuid4()
-        for name in ("project", "contract", "run", "step", "attempt", "producer")
-    }
+    ids = {name: uuid4() for name in ("project", "contract", "run")}
     artifact_ids = {kind: uuid4() for kind in KINDS}
     version_ids = {kind: uuid4() for kind in KINDS}
     with factory() as session, session.begin():
@@ -142,58 +246,14 @@ def runtime(monkeypatch: pytest.MonkeyPatch):
         )
         session.add(run)
         session.flush()
-        step = RunStepModel(
-            id=ids["step"],
-            run_id=run.id,
-            position=0,
-            key="planning",
-            label="Planning",
-            enter_status="planning",
-            success_status="completed",
-            max_attempts=1,
-            status="completed",
-            progress=100,
-            public_message="Completed",
-            created_at=NOW,
-        )
-        session.add(step)
-        session.flush()
-        attempt = StepAttemptModel(
-            id=ids["attempt"],
-            run_step_id=step.id,
-            attempt_number=1,
-            idempotency_key="parent-attempt",
-            status="completed",
-            retryable=False,
-            started_at=NOW,
-            finished_at=NOW,
-            created_at=NOW,
-        )
-        session.add(attempt)
-        session.flush()
-        producer = ProducerExecutionModel(
-            id=ids["producer"],
-            run_id=run.id,
-            run_step_id=step.id,
-            step_attempt_id=attempt.id,
-            step_key=step.key,
-            idempotency_key="parent-producer",
-            lease_generation=0,
-            producer_type="pipeline",
+        executions = _seed_completed_steps(
+            session,
+            run=run,
+            contract_input=CONTRACT_INPUT,
             producer_name="revision-test-seed",
-            producer_version="1.0.0",
-            parameters={},
-            parameters_hash=HASH_A,
-            input_hash=HASH_B,
-            output_hash=HASH_C,
-            status="completed",
-            started_at=NOW,
-            finished_at=NOW,
-            created_at=NOW,
         )
-        session.add(producer)
-        session.flush()
         for kind in KINDS:
+            step_id, attempt_id, producer_id = executions[ARTIFACT_STEP[kind]]
             artifact = ResearchArtifactModel(
                 id=artifact_ids[kind],
                 project_id=project.id,
@@ -209,9 +269,9 @@ def runtime(monkeypatch: pytest.MonkeyPatch):
                 artifact_id=artifact.id,
                 project_id=project.id,
                 created_by_run_id=run.id,
-                run_step_id=step.id,
-                step_attempt_id=attempt.id,
-                producer_execution_id=producer.id,
+                run_step_id=step_id,
+                step_attempt_id=attempt_id,
+                producer_execution_id=producer_id,
                 version_number=1,
                 publication_key=f"revision-{kind}-initial",
                 schema_version="2.0.0",
@@ -227,6 +287,20 @@ def runtime(monkeypatch: pytest.MonkeyPatch):
             session.add(version)
             session.flush()
             artifact.latest_version_id = version.id
+
+    artifact_version_reader = _FrozenRevisionArtifactVersions(
+        version_ids=version_ids,
+        owner_session_id=owner.id,
+    )
+    app.state.revision_service = RevisionApplicationService(
+        factory=factory,
+        workflow_store=app.state.workflow_store,
+        target_authority=FeedbackTargetAuthority(
+            app.state.artifact_read_service,
+            paper_summary_reader=app.state.paper_summary_read_service,
+            artifact_version_reader=artifact_version_reader,
+        ),
+    )
 
     client = TestClient(app, base_url="https://testserver")
     client.cookies.set(settings.SESSION_COOKIE_NAME, owner_credential)
@@ -246,6 +320,7 @@ def runtime(monkeypatch: pytest.MonkeyPatch):
             "other_csrf": other_csrf,
             "artifact_ids": artifact_ids,
             "version_ids": version_ids,
+            "artifact_version_reader": artifact_version_reader,
         }
     finally:
         client.__exit__(None, None, None)
@@ -280,21 +355,7 @@ def _seed_partial_revision_parent(
         {**CONTRACT_CONTENT, "output_requirements": list(outputs)}
     )
     content = contract_input.model_dump(mode="json")
-    ids = {
-        name: uuid4()
-        for name in (
-            "project",
-            "contract",
-            "parent_run",
-            "parent_step",
-            "parent_attempt",
-            "parent_producer",
-            "other_run",
-            "other_step",
-            "other_attempt",
-            "other_producer",
-        )
-    }
+    ids = {name: uuid4() for name in ("project", "contract", "parent_run", "other_run")}
     artifact_ids = {kind: uuid4() for kind in (*parent_kinds, *unrelated_kinds)}
     version_ids = {kind: uuid4() for kind in (*parent_kinds, *unrelated_kinds)}
     factory = runtime["factory"]
@@ -322,11 +383,13 @@ def _seed_partial_revision_parent(
             session, project=project, draft=draft, contract=contract
         )
 
-        def seed_run(prefix: str, *, revision: int) -> tuple[UUID, UUID, UUID, UUID]:
+        def seed_run(
+            prefix: str,
+            *,
+            revision: int,
+            run_contract: ResearchContractInput,
+        ) -> tuple[UUID, dict[str, tuple[UUID, UUID, UUID]]]:
             run_id = ids[f"{prefix}_run"]
-            step_id = ids[f"{prefix}_step"]
-            attempt_id = ids[f"{prefix}_attempt"]
-            producer_id = ids[f"{prefix}_producer"]
             run = ResearchRunModel(
                 id=run_id,
                 project_id=project.id,
@@ -344,63 +407,18 @@ def _seed_partial_revision_parent(
             )
             session.add(run)
             session.flush()
-            step = RunStepModel(
-                id=step_id,
-                run_id=run_id,
-                position=0,
-                key="planning",
-                label="Planning",
-                enter_status="planning",
-                success_status="completed",
-                max_attempts=1,
-                status="completed",
-                progress=100,
-                public_message="Completed",
-                created_at=NOW,
+            return run_id, _seed_completed_steps(
+                session,
+                run=run,
+                contract_input=run_contract,
+                producer_name=f"revision-{prefix}-seed",
             )
-            session.add(step)
-            session.flush()
-            attempt = StepAttemptModel(
-                id=attempt_id,
-                run_step_id=step_id,
-                attempt_number=1,
-                idempotency_key=f"{prefix}-attempt-{attempt_id}",
-                status="completed",
-                retryable=False,
-                started_at=NOW,
-                finished_at=NOW,
-                created_at=NOW,
-            )
-            session.add(attempt)
-            session.flush()
-            producer = ProducerExecutionModel(
-                id=producer_id,
-                run_id=run_id,
-                run_step_id=step_id,
-                step_attempt_id=attempt_id,
-                step_key="planning",
-                idempotency_key=f"{prefix}-producer-{producer_id}",
-                lease_generation=0,
-                producer_type="pipeline",
-                producer_name="revision-partial-seed",
-                producer_version="1.0.0",
-                parameters={},
-                parameters_hash=HASH_A,
-                input_hash=HASH_B,
-                output_hash=HASH_C,
-                status="completed",
-                started_at=NOW,
-                finished_at=NOW,
-                created_at=NOW,
-            )
-            session.add(producer)
-            session.flush()
-            return run_id, step_id, attempt_id, producer_id
 
-        parent_execution = seed_run("parent", revision=7)
-        other_execution = seed_run("other", revision=1)
+        parent_execution = seed_run("parent", revision=7, run_contract=contract_input)
+        other_execution = seed_run("other", revision=1, run_contract=CONTRACT_INPUT)
         for kind in (*parent_kinds, *unrelated_kinds):
             execution = parent_execution if kind in parent_kinds else other_execution
+            step_id, attempt_id, producer_id = execution[1][ARTIFACT_STEP[kind]]
             artifact = ResearchArtifactModel(
                 id=artifact_ids[kind],
                 project_id=project.id,
@@ -416,9 +434,9 @@ def _seed_partial_revision_parent(
                 artifact_id=artifact.id,
                 project_id=project.id,
                 created_by_run_id=execution[0],
-                run_step_id=execution[1],
-                step_attempt_id=execution[2],
-                producer_execution_id=execution[3],
+                run_step_id=step_id,
+                step_attempt_id=attempt_id,
+                producer_execution_id=producer_id,
                 version_number=1,
                 publication_key=f"partial-{kind}-initial",
                 schema_version="2.0.0",
@@ -434,6 +452,9 @@ def _seed_partial_revision_parent(
             session.add(version)
             session.flush()
             artifact.latest_version_id = version.id
+    artifact_version_reader = runtime["artifact_version_reader"]
+    assert isinstance(artifact_version_reader, _FrozenRevisionArtifactVersions)
+    artifact_version_reader.allow(version_ids)
     return {
         **runtime,
         "project_id": str(ids["project"]),
@@ -471,30 +492,38 @@ def _create_plan(runtime: dict[str, object], feedback_id: str, *, key: str):
 
 def test_revision_plan_impact_closures(runtime: dict[str, object]) -> None:
     expected = {
-        "dataset": {"dataset", "field_dictionary", "source_collection", "graph"},
+        "dataset": {
+            "dataset",
+            "field_dictionary",
+            "paper_collection",
+            "paper_summary",
+            "literature_claims",
+            "literature_relations",
+            "graph",
+        },
         "paper_collection": {
             "paper_collection",
             "paper_summary",
             "literature_claims",
             "literature_relations",
-            "reasoning_traces",
             "graph",
         },
         "paper_summary": {
             "paper_summary",
             "literature_claims",
             "literature_relations",
-            "reasoning_traces",
             "graph",
         },
         "literature_claims": {
             "literature_claims",
             "literature_relations",
-            "reasoning_traces",
             "graph",
         },
-        "literature_relations": {"literature_relations", "reasoning_traces", "graph"},
-        "reasoning_traces": {"reasoning_traces", "graph"},
+        "literature_relations": {
+            "literature_claims",
+            "literature_relations",
+            "graph",
+        },
         "graph": {"graph"},
     }
     for kind, affected_kinds in expected.items():
@@ -514,20 +543,29 @@ def test_revision_plan_impact_closures(runtime: dict[str, object]) -> None:
 
 
 @pytest.mark.parametrize(
-    ("outputs", "parent_kinds", "unrelated_kinds", "feedback_kind", "steps"),
+    (
+        "outputs",
+        "parent_kinds",
+        "unrelated_kinds",
+        "feedback_kind",
+        "recomputed_kinds",
+        "steps",
+    ),
     (
         (
             ("dataset", "field_dictionary", "source_collection"),
             ("dataset", "field_dictionary", "source_collection"),
             ("graph",),
             "dataset",
-            ("planning", "fetching_data", "cleaning_data"),
+            ("dataset", "field_dictionary"),
+            ("planning", "cleaning_data"),
         ),
         (
             ("paper_collection", "paper_summary"),
             ("paper_collection", "paper_summary"),
             ("literature_relations", "graph"),
             "paper_collection",
+            ("paper_collection", "paper_summary"),
             ("planning", "searching_papers", "summarizing_papers"),
         ),
     ),
@@ -538,6 +576,7 @@ def test_revision_steps_only_follow_actual_parent_contract_publications(
     parent_kinds: tuple[str, ...],
     unrelated_kinds: tuple[str, ...],
     feedback_kind: str,
+    recomputed_kinds: tuple[str, ...],
     steps: tuple[str, ...],
 ) -> None:
     scoped = _seed_partial_revision_parent(
@@ -556,13 +595,14 @@ def test_revision_steps_only_follow_actual_parent_contract_publications(
         for item in data["version_decisions"]
         if item["decision"] == "recompute"
     }
-    assert set(recompute) == set(parent_kinds)
+    assert set(recompute) == set(recomputed_kinds)
     assert tuple(data["recompute_steps"]) == steps
     assert set(steps) - {"planning"} == set(recompute.values())
     assert all(
         item["decision"] == "reuse"
         for item in data["version_decisions"]
-        if item["artifact_kind"] in unrelated_kinds
+        if item["artifact_kind"] in set(parent_kinds) - set(recomputed_kinds)
+        or item["artifact_kind"] in unrelated_kinds
     )
 
 
@@ -714,15 +754,24 @@ def test_confirm_is_idempotent_restart_safe_and_preserves_parent(
         if item["kind"] == "assistant_message"
         and item.get("structured_payload", {}).get("revision_stage")
     ]
-    assert revision_messages.count(
-        "已记录这项正式修改要求。接下来会基于当前结果生成可确认的修订计划。"
-    ) == 1
-    assert revision_messages.count(
-        f"修订计划已生成：将重新执行 {len(plan_data['recompute_steps'])} 个研究步骤。确认后会创建派生研究，当前结果保持不变。"
-    ) == 1
-    assert revision_messages.count(
-        "修订计划已确认，派生研究已创建。原研究与已发布结果会继续保留。"
-    ) == 1
+    assert (
+        revision_messages.count(
+            "已记录这项正式修改要求。接下来会基于当前结果生成可确认的修订计划。"
+        )
+        == 1
+    )
+    assert (
+        revision_messages.count(
+            f"修订计划已生成：将重新执行 {len(plan_data['recompute_steps'])} 个研究步骤。确认后会创建派生研究，当前结果保持不变。"
+        )
+        == 1
+    )
+    assert (
+        revision_messages.count(
+            "修订计划已确认，派生研究已创建。原研究与已发布结果会继续保留。"
+        )
+        == 1
+    )
 
     factory = runtime["factory"]
     with factory() as session:

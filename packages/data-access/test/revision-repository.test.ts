@@ -138,6 +138,7 @@ describe("RevisionRepository", () => {
     );
 
     const feedback = await repository.createFeedback({
+      artifactId: ARTIFACT_ID,
       artifactVersionId: VERSION_ID,
       expectedVersionNumber: 3,
       summary: "修正当前结果",
@@ -169,7 +170,18 @@ describe("RevisionRepository", () => {
         (item) => item.headers.get("X-CSRF-Token") === "csrf-revision",
       ),
     ).toBe(true);
-    expect(requests[0]?.body).toMatchObject({ expected_version_number: 3 });
+    expect(requests[0]?.body).toEqual({
+      expected_version_number: 3,
+      target_type: "artifact_version",
+      target_id: VERSION_ID,
+      target_locator: {
+        artifact_id: ARTIFACT_ID,
+        artifact_version_id: VERSION_ID,
+      },
+      category: "correction",
+      summary: "修正当前结果",
+      requested_change: "使用新增的正式约束重新计算",
+    });
     expect(requests[1]?.body).toEqual({
       feedback_ids: [FEEDBACK_ID],
       expected_parent_run_revision: 12,

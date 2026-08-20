@@ -134,6 +134,47 @@ def test_config_loads_from_env_example(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.URL_FETCH_ALLOWED_HOSTS is None
 
 
+def test_default_mime_allowlist_covers_production_research_inputs() -> None:
+    settings = Settings(_env_file=None)
+    allowed = settings.RESEARCH_INPUT_ALLOWED_MIME_TYPES
+    for mime in (
+        "application/pdf",
+        "text/csv",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.apache.parquet",
+        "application/fits",
+        "image/fits",
+        "application/json",
+        "application/zip",
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "image/tiff",
+        "image/webp",
+        "text/plain",
+        "text/markdown",
+        "text/x-markdown",
+    ):
+        assert mime in allowed
+
+
+def test_env_example_mime_allowlist_matches_production_coverage() -> None:
+    env_example = Path(__file__).parents[3] / ".env.example"
+    settings = Settings(_env_file=env_example)
+    allowed = settings.RESEARCH_INPUT_ALLOWED_MIME_TYPES
+    for mime in (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.apache.parquet",
+        "application/fits",
+        "image/fits",
+        "application/zip",
+        "image/tiff",
+        "text/markdown",
+        "text/x-markdown",
+    ):
+        assert mime in allowed
+
+
 def test_config_parses_csv_list_and_empty_hosts() -> None:
     settings = Settings(
         _env_file=None,

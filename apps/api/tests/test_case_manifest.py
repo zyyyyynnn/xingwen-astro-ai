@@ -25,13 +25,14 @@ MANIFEST_DIRECTORY = (
 CASE_MANIFEST_PATH = MANIFEST_DIRECTORY / "case-manifest.json"
 FIELD_MANIFEST_PATH = MANIFEST_DIRECTORY / "field-manifest.json"
 SOURCE_EVIDENCE_DIRECTORY = (
+    MANIFEST_DIRECTORY / "source-evidence" / "nasa-exoplanet-archive" / "2026-07-19"
+)
+SOURCE_ADJUDICATION_PATH = SOURCE_EVIDENCE_DIRECTORY / "column-adjudications.json"
+GAIA_SOURCE_CONTRACT_PATH = (
     MANIFEST_DIRECTORY
     / "source-evidence"
-    / "nasa-exoplanet-archive"
-    / "2026-07-19"
-)
-SOURCE_ADJUDICATION_PATH = (
-    SOURCE_EVIDENCE_DIRECTORY / "column-adjudications.json"
+    / "esa-gaia-dr3"
+    / "gaia-column-contract.json"
 )
 
 SOURCE_COLUMN_ROLES = (
@@ -72,9 +73,13 @@ def _rehash(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _adjudicated_source_contracts() -> dict[str, dict[str, Any]]:
-    adjudication = _read_json(SOURCE_ADJUDICATION_PATH)
+    adjudications = (
+        _read_json(SOURCE_ADJUDICATION_PATH),
+        _read_json(GAIA_SOURCE_CONTRACT_PATH),
+    )
     return {
         contract["source_id"]: contract
+        for adjudication in adjudications
         for contract in adjudication["table_contracts"]
     }
 
@@ -97,7 +102,9 @@ def test_manifest_bundle_is_valid_and_freezes_the_approved_fields() -> None:
 
     assert bundle.case_manifest.case_id == "exoplanet_host_star"
     assert bundle.field_manifest.case_id == "exoplanet_host_star"
-    assert {field.field_id for field in bundle.field_manifest.fields} == APPROVED_FIELD_IDS
+    assert {
+        field.field_id for field in bundle.field_manifest.fields
+    } == APPROVED_FIELD_IDS
     assert set(bundle.case_manifest.default_requested_fields) == APPROVED_FIELD_IDS
     assert len(bundle.field_manifest.fields) == 15
 
@@ -155,7 +162,9 @@ def test_case_manifest_rejects_missing_audit_metadata(required_field: str) -> No
 
 
 def test_each_field_contains_the_case_manifest_metadata_contract() -> None:
-    manifest = load_manifest_bundle(CASE_MANIFEST_PATH, FIELD_MANIFEST_PATH).field_manifest
+    manifest = load_manifest_bundle(
+        CASE_MANIFEST_PATH, FIELD_MANIFEST_PATH
+    ).field_manifest
 
     for field in manifest.fields:
         assert field.meaning_zh.strip()
@@ -179,18 +188,21 @@ def test_each_field_contains_the_case_manifest_metadata_contract() -> None:
 
 
 def test_canonical_ids_are_separate_from_nasa_source_aliases() -> None:
-    manifest = load_manifest_bundle(CASE_MANIFEST_PATH, FIELD_MANIFEST_PATH).field_manifest
+    manifest = load_manifest_bundle(
+        CASE_MANIFEST_PATH, FIELD_MANIFEST_PATH
+    ).field_manifest
     aliases = {
-        alias.raw_field
-        for field in manifest.fields
-        for alias in field.source_aliases
+        alias.raw_field for field in manifest.fields for alias in field.source_aliases
     }
 
     assert APPROVED_FIELD_IDS.isdisjoint(aliases)
     assert "pl_rade" in aliases
-    assert manifest.field_by_id("planet.radius").source_aliases_for(
-        "nasa_exoplanet_archive.toi"
-    )[0].raw_field == "pl_rade"
+    assert (
+        manifest.field_by_id("planet.radius")
+        .source_aliases_for("nasa_exoplanet_archive.toi")[0]
+        .raw_field
+        == "pl_rade"
+    )
 
 
 def test_source_alias_cannot_reuse_a_canonical_field_id() -> None:
@@ -200,7 +212,9 @@ def test_source_alias_cannot_reuse_a_canonical_field_id() -> None:
     )
     radius_field["source_aliases"][0]["raw_field"] = "planet.radius"
 
-    with pytest.raises(ValidationError, match="source alias must not use canonical field id"):
+    with pytest.raises(
+        ValidationError, match="source alias must not use canonical field id"
+    ):
         FieldManifest.model_validate(_rehash(payload))
 
 
@@ -222,7 +236,9 @@ def test_duplicate_aliases_within_one_source_table_are_rejected() -> None:
 
 
 def test_the_same_raw_alias_is_allowed_for_distinct_source_tables() -> None:
-    manifest = load_manifest_bundle(CASE_MANIFEST_PATH, FIELD_MANIFEST_PATH).field_manifest
+    manifest = load_manifest_bundle(
+        CASE_MANIFEST_PATH, FIELD_MANIFEST_PATH
+    ).field_manifest
     radius_aliases = manifest.field_by_id("planet.radius").source_aliases
     pl_rade_scopes = {
         (alias.source_id, alias.source_table)
@@ -270,7 +286,9 @@ def test_non_numeric_fields_cannot_declare_measurement_uncertainty() -> None:
 
 
 def test_nasa_companion_columns_are_pinned_to_the_correct_source_tables() -> None:
-    manifest = load_manifest_bundle(CASE_MANIFEST_PATH, FIELD_MANIFEST_PATH).field_manifest
+    manifest = load_manifest_bundle(
+        CASE_MANIFEST_PATH, FIELD_MANIFEST_PATH
+    ).field_manifest
     period = manifest.field_by_id("planet.orbital_period")
     period_aliases = {alias.source_id: alias for alias in period.source_aliases}
 
@@ -400,22 +418,28 @@ def test_provider_source_ids_resolve_to_the_existing_table_source_definitions() 
     case_payload = _read_json(CASE_MANIFEST_PATH)
     field_payload = _read_json(FIELD_MANIFEST_PATH)
 
-    assert case_payload["allowed_source_ids"] == ["nasa_exoplanet_archive"]
+    assert case_payload["allowed_source_ids"] == [
+        "nasa_exoplanet_archive",
+        "esa_gaia_dr3",
+    ]
     assert all("provider_source_id" in source for source in field_payload["sources"])
-    assert {
-        source["provider_source_id"] for source in field_payload["sources"]
-    } == set(case_payload["allowed_source_ids"])
+    assert {source["provider_source_id"] for source in field_payload["sources"]} == set(
+        case_payload["allowed_source_ids"]
+    )
     assert all(
         source["source_id"]
-        == f'{source["provider_source_id"]}.{source["source_table"]}'
+        == f"{source['provider_source_id']}.{source['source_table']}"
         for source in field_payload["sources"]
     )
 
     bundle = load_manifest_bundle(CASE_MANIFEST_PATH, FIELD_MANIFEST_PATH)
-    expected_table_ids = tuple(
-        source["source_id"] for source in field_payload["sources"]
-    )
-    assert bundle.resolve_source_scope(["nasa_exoplanet_archive"]) == expected_table_ids
+    for provider_source_id in case_payload["allowed_source_ids"]:
+        expected_table_ids = tuple(
+            source["source_id"]
+            for source in field_payload["sources"]
+            if source["provider_source_id"] == provider_source_id
+        )
+        assert bundle.resolve_source_scope([provider_source_id]) == expected_table_ids
 
     with pytest.raises(ValueError, match="unsupported provider source"):
         bundle.resolve_source_scope(["unsupported_provider"])
@@ -423,16 +447,15 @@ def test_provider_source_ids_resolve_to_the_existing_table_source_definitions() 
 
 def test_source_definitions_pin_the_versioned_adjudication_record() -> None:
     payload = _read_json(FIELD_MANIFEST_PATH)
-    adjudication = _read_json(SOURCE_ADJUDICATION_PATH)
-    expected_hash = _file_sha256(SOURCE_ADJUDICATION_PATH)
 
     for source in payload["sources"]:
         assert "column_contract" in source
         reference = source["column_contract"]
+        contract_path = REPOSITORY_ROOT / reference["path"]
+        adjudication = _read_json(contract_path)
         assert reference["snapshot_id"] == adjudication["snapshot_id"]
         assert reference["snapshot_version"] == adjudication["snapshot_version"]
-        assert reference["content_hash"] == expected_hash
-        assert REPOSITORY_ROOT / reference["path"] == SOURCE_ADJUDICATION_PATH
+        assert reference["content_hash"] == _file_sha256(contract_path)
 
 
 @pytest.mark.parametrize(
@@ -455,7 +478,7 @@ def test_content_hash_is_stable_and_detects_tampering() -> None:
     assert compute_content_hash(payload) == expected_hash
     assert compute_content_hash(reversed_payload) == expected_hash
 
-    payload["description"] = f'{payload["description"]} changed'
+    payload["description"] = f"{payload['description']} changed"
     with pytest.raises(ValidationError, match="content_hash does not match"):
         FieldManifest.model_validate(payload)
 
@@ -463,10 +486,7 @@ def test_content_hash_is_stable_and_detects_tampering() -> None:
 def test_content_hash_normalizes_explicit_and_omitted_defaults() -> None:
     explicit_default = _read_json(FIELD_MANIFEST_PATH)
     omitted_default = deepcopy(explicit_default)
-    assert (
-        omitted_default["sources"][0].pop("declaration_mode")
-        == "metadata_only"
-    )
+    assert omitted_default["sources"][0].pop("declaration_mode") == "metadata_only"
 
     published_manifest = FieldManifest.model_validate(explicit_default)
     expected_hash = compute_content_hash(explicit_default)

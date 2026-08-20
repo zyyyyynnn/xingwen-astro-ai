@@ -8,6 +8,10 @@ import {
   Alert,
   AlertDescription,
   Button,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -79,7 +83,7 @@ function VersionSelector({
           variant="ghost"
           size="small"
           aria-haspopup="listbox"
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          className="ui-text-label flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
           data-testid="artifact-version-selector"
         >
           <span>{isCurrent ? "当前结果" : "历史结果"}</span>
@@ -100,7 +104,7 @@ function VersionSelector({
               className={active ? "font-medium" : undefined}
             >
               <span>{current ? "当前结果" : "历史结果"}</span>
-              <span className="ml-auto pl-4 text-xs text-muted-foreground">
+              <span className="ui-text-label ml-auto pl-4 text-muted-foreground">
                 {versionTimestamp(version.createdAt)}
               </span>
             </DropdownMenuItem>
@@ -114,6 +118,7 @@ function VersionSelector({
 function RevisionSheet({
   runtime,
   projectId,
+  artifactId,
   artifactVersionId,
   versionNumber,
   parentRunRevision,
@@ -122,6 +127,7 @@ function RevisionSheet({
 }: {
   readonly runtime: WorkspaceRuntimeBoundaries;
   readonly projectId: DomainEntityId;
+  readonly artifactId: DomainEntityId;
   readonly artifactVersionId: DomainEntityId;
   readonly versionNumber: number;
   readonly parentRunRevision: number;
@@ -145,6 +151,7 @@ function RevisionSheet({
     if (!change) return;
     const feedback = await feedbackMutation.mutateAsync({
       projectId,
+      artifactId,
       artifactVersionId,
       expectedVersionNumber: versionNumber,
       summary: change.slice(0, 200),
@@ -194,7 +201,7 @@ function RevisionSheet({
         <div className="space-y-4 px-4 pb-6">
           {plan === null ? (
             <>
-              <label className="block space-y-2 text-sm font-medium">
+              <label className="ui-text-body block space-y-2 font-medium">
                 <span>希望调整什么？</span>
                 <Textarea
                   value={requestedChange}
@@ -216,7 +223,7 @@ function RevisionSheet({
               </Button>
             </>
           ) : (
-            <section className="space-y-4 text-sm">
+            <section className="ui-text-body space-y-4">
               <div>
                 <h3 className="font-medium">修订计划</h3>
                 <p className="mt-1 text-muted-foreground">
@@ -258,7 +265,6 @@ export function ArtifactFullscreenWorkspace({
   onOpenArtifactVersion = null,
 }: ArtifactFullscreenWorkspaceProps) {
   const openerRef = useRef<HTMLElement | null>(null);
-  const childOverlayOpenRef = useRef(false);
   const [selectedEvidenceId, setSelectedEvidenceId] =
     useState<DomainEntityId | null>(null);
   const [revisionOpen, setRevisionOpen] = useState(false);
@@ -267,23 +273,12 @@ export function ArtifactFullscreenWorkspace({
     readonly nonce: number;
   } | null>(null);
 
-  useEffect(() => {
-    childOverlayOpenRef.current = selectedEvidenceId !== null || revisionOpen;
-  }, [revisionOpen, selectedEvidenceId]);
-
-  useEffect(() => {
-    openerRef.current = document.activeElement as HTMLElement | null;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !childOverlayOpenRef.current) {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
+  useEffect(
+    () => () => {
       openerRef.current?.focus();
-    };
-  }, [onClose]);
+    },
+    [],
+  );
 
   const versionQuery = useQuery(
     runtime.application.queries.artifactVersion(projectId, artifactVersionId),
@@ -324,117 +319,131 @@ export function ArtifactFullscreenWorkspace({
   const evidenceIds = version?.provenance.evidenceIds ?? [];
 
   return (
-    <div
-      className="xw-artifact-fullscreen-workspace fixed inset-0 z-50 flex flex-col bg-background"
-      data-testid="artifact-fullscreen-workspace"
-    >
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background px-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <Button
-            variant="ghost"
-            size="small"
-            onClick={onClose}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            <span>返回研究</span>
-          </Button>
-          <div className="h-4 w-px bg-border" />
-          <h2 className="max-w-md truncate font-serif text-base font-semibold text-foreground">
-            {artifact?.title ?? "研究结果"}
-          </h2>
-          {artifactId !== null && versions.length > 1 ? (
-            <VersionSelector
-              versions={versions}
-              selectedVersionId={artifactVersionId}
-              onSelect={(nextVersionId) =>
-                onOpenArtifactVersion?.(nextVersionId)
-              }
-            />
-          ) : null}
-        </div>
-        <div className="flex items-center gap-2">
-          {descriptor?.capabilities.evidence && evidenceIds.length > 0 ? (
-            <Button
-              size="small"
-              variant="ghost"
-              onClick={() => setSelectedEvidenceId(evidenceIds[0] ?? null)}
-            >
-              证据
-            </Button>
-          ) : null}
-          {descriptor?.capabilities.revision &&
-          version &&
-          parentRunQuery.data ? (
-            <Button
-              size="small"
-              variant="ghost"
-              onClick={() => setRevisionOpen(true)}
-            >
-              基于此结果重新分析
-            </Button>
-          ) : null}
-        </div>
-      </header>
-
-      <main className="min-h-0 flex-1 overflow-hidden">
-        {isLoading ? (
-          <div className="flex h-full flex-col items-center justify-center p-8">
-            <Skeleton className="mb-4 h-8 w-1/3" />
-            <Skeleton className="h-64 w-2/3" />
-            <p className="mt-4 text-sm text-muted-foreground">
-              正在载入研究结果…
-            </p>
-          </div>
-        ) : null}
-        {error ? (
-          <div className="p-8">
-            <Alert variant="destructive">
-              <AlertDescription>{safeError(runtime, error)}</AlertDescription>
-            </Alert>
-          </div>
-        ) : null}
-        {!isLoading && !error && artifact && version ? (
-          FullscreenRenderer ? (
-            <FullscreenRenderer
-              runtime={runtime}
-              projectId={projectId}
-              artifact={artifact}
-              version={version}
-              onSelectEvidence={setSelectedEvidenceId}
-              paperPageRequest={paperPageRequest}
-            />
-          ) : (
-            <Alert className="m-6">
-              <AlertDescription>当前结果类型暂时无法显示。</AlertDescription>
-            </Alert>
-          )
-        ) : null}
-      </main>
-
-      <ArtifactEvidenceSheet
-        runtime={runtime}
-        projectId={projectId}
-        evidenceId={selectedEvidenceId}
-        open={selectedEvidenceId !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelectedEvidenceId(null);
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        aria-describedby={undefined}
+        aria-modal="true"
+        className="xw-artifact-fullscreen-workspace"
+        data-testid="artifact-fullscreen-workspace"
+        onOpenAutoFocus={() => {
+          openerRef.current = document.activeElement as HTMLElement | null;
         }}
-        onJumpToPaperPage={(pageIndex) =>
-          setPaperPageRequest({ pageIndex, nonce: Date.now() })
-        }
-      />
-      {version && parentRunQuery.data ? (
-        <RevisionSheet
+        showCloseButton={false}
+      >
+        <header
+          className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-4 py-2"
+          data-testid="artifact-fullscreen-header"
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <DialogClose asChild>
+              <Button
+                variant="ghost"
+                size="small"
+                className="ui-text-label flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="size-4" aria-hidden="true" />
+                <span>返回研究</span>
+              </Button>
+            </DialogClose>
+            <div className="h-4 w-px bg-border" />
+            <DialogTitle className="min-w-0 max-w-md truncate font-serif text-[length:var(--font-size-ui-heading)] font-semibold leading-[var(--line-height-ui-heading)] text-foreground">
+              {artifact?.title ?? "研究结果"}
+            </DialogTitle>
+            {artifactId !== null && versions.length > 1 ? (
+              <VersionSelector
+                versions={versions}
+                selectedVersionId={artifactVersionId}
+                onSelect={(nextVersionId) =>
+                  onOpenArtifactVersion?.(nextVersionId)
+                }
+              />
+            ) : null}
+          </div>
+          <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2">
+            {descriptor?.capabilities.evidence && evidenceIds.length > 0 ? (
+              <Button
+                size="small"
+                variant="ghost"
+                onClick={() => setSelectedEvidenceId(evidenceIds[0] ?? null)}
+              >
+                证据
+              </Button>
+            ) : null}
+            {descriptor?.capabilities.revision &&
+            version &&
+            parentRunQuery.data ? (
+              <Button
+                size="small"
+                variant="ghost"
+                onClick={() => setRevisionOpen(true)}
+              >
+                基于此结果重新分析
+              </Button>
+            ) : null}
+          </div>
+        </header>
+
+        <main className="min-h-0 flex-1 overflow-hidden">
+          {isLoading ? (
+            <div className="flex h-full flex-col items-center justify-center p-8">
+              <Skeleton className="mb-4 h-8 w-1/3" />
+              <Skeleton className="h-64 w-2/3" />
+              <p className="ui-text-body mt-4 text-muted-foreground">
+                正在载入研究结果…
+              </p>
+            </div>
+          ) : null}
+          {error ? (
+            <div className="p-8">
+              <Alert variant="destructive">
+                <AlertDescription>{safeError(runtime, error)}</AlertDescription>
+              </Alert>
+            </div>
+          ) : null}
+          {!isLoading && !error && artifact && version ? (
+            FullscreenRenderer ? (
+              <FullscreenRenderer
+                key={version.id}
+                runtime={runtime}
+                projectId={projectId}
+                artifact={artifact}
+                version={version}
+                onSelectEvidence={setSelectedEvidenceId}
+                paperPageRequest={paperPageRequest}
+              />
+            ) : (
+              <Alert className="m-6">
+                <AlertDescription>当前结果类型暂时无法显示。</AlertDescription>
+              </Alert>
+            )
+          ) : null}
+        </main>
+
+        <ArtifactEvidenceSheet
           runtime={runtime}
           projectId={projectId}
-          artifactVersionId={version.id}
-          versionNumber={version.versionNumber}
-          parentRunRevision={parentRunQuery.data.revision}
-          open={revisionOpen}
-          onOpenChange={setRevisionOpen}
+          evidenceId={selectedEvidenceId}
+          open={selectedEvidenceId !== null}
+          onOpenChange={(open) => {
+            if (!open) setSelectedEvidenceId(null);
+          }}
+          onJumpToPaperPage={(pageIndex) =>
+            setPaperPageRequest({ pageIndex, nonce: Date.now() })
+          }
         />
-      ) : null}
-    </div>
+        {version && parentRunQuery.data ? (
+          <RevisionSheet
+            runtime={runtime}
+            projectId={projectId}
+            artifactId={version.artifactId}
+            artifactVersionId={version.id}
+            versionNumber={version.versionNumber}
+            parentRunRevision={parentRunQuery.data.revision}
+            open={revisionOpen}
+            onOpenChange={setRevisionOpen}
+          />
+        ) : null}
+      </DialogContent>
+    </Dialog>
   );
 }

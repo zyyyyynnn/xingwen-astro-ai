@@ -91,7 +91,15 @@ accepted pair/adjudication 只合并同一 row grain 的 members。review-requir
 
 领域投影是 deterministic、不可变的构建结果。candidate 的 `input_hash`、`output_hash`、content hash 必须覆盖实际影响科学内容的输入、策略、规则与 provenance；wall-clock 等运行观察值只在其明确合同中出现，不能造成同内容 hash 漂移。
 
-## 7. Candidate、replay 与 Publisher handoff
+## 7. 单源科学表准入
+
+不需要跨源对齐的科学采集表先形成 `SourceTableAdmission`，再进入科学 Artifact 组装；它不是第四种 Data Artifact，也不引入第二套 Dataset、Crossmatch、字段注册表或质量引擎。
+
+Gaia TAP adapter 只负责受控查询、速率/超时、缓存、Schema drift 和原始行解析。单源准入必须从现有 Field Manifest 解析 source/column alias，使用同一 `UnitConversionCatalog` 完成 canonical value 转换，并通过同一 Quality RuleSet、metric interpreter 与 Contract threshold gate 计算来源完整性、单位一致性和 Evidence 覆盖率。
+
+`SourceTableAdmission` 必须绑定完整 `ResearchContract` identity、SourceSnapshot/query/content/retrieved-at、Manifest/mapping/conversion/quality pins、canonical rows、原始结果状态以及逐单元格 locator。科学发布准入必须从 attestation 的 raw cell 重放当前冻结策略并逐字段比较，不能信任自报的 pass 或 policy pin；缓存 payload 也不能携带可信准入结论。`empty` 与 `truncated` 必须保留各自 typed 状态，非法来源标识、坐标字段不成对、证据分母为空或任一 Contract gate 非 pass 时，科学 Publisher 必须在创建 ArtifactVersion 前按该状态 fail closed。公开结果表必须复用同一投影，逐单元格 Evidence identity 使用可持久化 UUID，并同时绑定稳定 locator 与本次 task execution scope；同 Run 重试保持幂等，不同 Run 复用同一缓存 Snapshot 时不得争用 Evidence 主键。
+
+## 8. Candidate、replay 与 Publisher handoff
 
 三个 candidate 都必须经过其 schema、domain seal 与 data-quality gate。Publisher 是创建 `ArtifactVersion`、更新 latest pointer、持久化 quality projection 与绑定 Evidence 的唯一事务边界。
 
@@ -99,7 +107,7 @@ Publisher admission 只接受 persistence-ready candidate：candidate 声明的�
 
 replay 必须对 exact input/content/producer/provenance 进行等值校验；相同 idempotency/publication identity 被用于不同内容时稳定冲突。不能使用 DTO wrapper、任意 dict、read projection 或自定义 Pydantic model 绕过 typed candidate admission。
 
-## 8. 维护规则
+## 9. 维护规则
 
 1. 字段事实改动先更新 source evidence/canonical Manifest，再更新 mapping/unit/quality machine assets 与 hash。
 2. `ResearchContract.requested_fields` 只接受 Case Manifest 的 canonical Field IDs。

@@ -472,7 +472,7 @@ export const defaultHandlers = [
   // carries no authorized PaperCandidate → ResearchInput binding, so the
   // authorized relation is always absent.
   http.get(
-    `${BASE_URL}/api/artifact-versions/:versionId/paper-summary/pdf-source`,
+    `${BASE_URL}/api/artifact-versions/:versionId/paper-summary/document-source`,
     ({ params }) => {
       if (params.versionId !== paperSummaryReadFixture.artifact_version_id) {
         return HttpResponse.json(

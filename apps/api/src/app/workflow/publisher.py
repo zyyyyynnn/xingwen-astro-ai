@@ -87,6 +87,16 @@ _PRODUCER_TERMINAL_STATUSES = frozenset(
     {"completed", "failed", "rejected", "cancelled"}
 )
 _SOURCE_MODES = frozenset({"fixture", "live", "cached"})
+_SCIENTIFIC_ARTIFACT_KINDS = frozenset(
+    {
+        "analysis_report",
+        "visualization",
+        "spectrum",
+        "light_curve",
+        "model_evaluation",
+        "model_artifact",
+    }
+)
 _ADMISSION_SEAL = object()
 _QUALITY_ATTESTATION_SEAL = object()
 _SEMANTIC_VERSION_PATTERN = re.compile(r"^[1-9]\d*\.\d+\.\d+$")
@@ -145,6 +155,9 @@ class ProducerExecutionRequest:
     prompt_name: str | None = None
     prompt_version: str | None = None
     prompt_hash: str | None = None
+    authorized_tool_name: str | None = None
+    authorized_skill_id: str | None = None
+    registry_revision: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,6 +190,8 @@ class ProducerExecutionSnapshot:
     token_usage: Mapping[str, int] | None
     latency_ms: int | None
     error_code: str | None
+    model_response: Mapping[str, object] | None
+    replayed: bool
 
 
 @dataclass(frozen=True, slots=True, init=False, weakref_slot=True)
@@ -195,7 +210,7 @@ class AdmittedArtifactCandidate:
     _graph_source_snapshot_materializations: tuple[_CanonicalMaterialization, ...]
     _graph_evidence_materializations: tuple[_CanonicalMaterialization, ...]
     _data_source_snapshot_materializations: tuple[_CanonicalMaterialization, ...]
-    _data_evidence_materializations: tuple[_CanonicalMaterialization, ...]
+    _owned_evidence_materializations: tuple[_CanonicalMaterialization, ...]
 
     def __init__(
         self,
@@ -219,7 +234,7 @@ class AdmittedArtifactCandidate:
         data_source_snapshot_materializations: Sequence[
             _DataSourceSnapshotMaterialization
         ] = (),
-        data_evidence_materializations: Sequence[_DataEvidenceMaterialization] = (),
+        owned_evidence_materializations: Sequence[_OwnedEvidenceMaterialization] = (),
         _seal: object,
     ) -> None:
         if _seal is not _ADMISSION_SEAL:
@@ -289,10 +304,10 @@ class AdmittedArtifactCandidate:
         )
         object.__setattr__(
             self,
-            "_data_evidence_materializations",
+            "_owned_evidence_materializations",
             _canonicalize_materializations(
-                data_evidence_materializations,
-                _DataEvidenceMaterialization,
+                owned_evidence_materializations,
+                _OwnedEvidenceMaterialization,
             ),
         )
         _register_admitted_candidate(self)
@@ -353,12 +368,12 @@ class AdmittedArtifactCandidate:
         )
 
     @property
-    def data_evidence_materializations(
+    def owned_evidence_materializations(
         self,
-    ) -> tuple[_DataEvidenceMaterialization, ...]:
+    ) -> tuple[_OwnedEvidenceMaterialization, ...]:
         return _rebuild_materializations(
-            self._data_evidence_materializations,
-            _DataEvidenceMaterialization,
+            self._owned_evidence_materializations,
+            _OwnedEvidenceMaterialization,
         )
 
 
@@ -536,7 +551,7 @@ class _DataSourceSnapshotMaterialization:
 
 
 @dataclass(frozen=True, slots=True)
-class _DataEvidenceMaterialization:
+class _OwnedEvidenceMaterialization:
     target_type: str
     target_id: str
     pipeline_evidence_id: str
@@ -622,7 +637,7 @@ def admit_artifact_candidate(
         graph_source_snapshot_materializations,
         graph_evidence_materializations,
         data_source_snapshot_materializations,
-        data_evidence_materializations,
+        owned_evidence_materializations,
     ) = _publication_references(
         candidate,
         source_snapshot_ids=snapshots,
@@ -696,7 +711,7 @@ def admit_artifact_candidate(
         graph_source_snapshot_materializations=(graph_source_snapshot_materializations),
         graph_evidence_materializations=graph_evidence_materializations,
         data_source_snapshot_materializations=data_source_snapshot_materializations,
-        data_evidence_materializations=data_evidence_materializations,
+        owned_evidence_materializations=owned_evidence_materializations,
         _seal=_ADMISSION_SEAL,
     )
 
@@ -736,7 +751,7 @@ def _build_admitted_candidate_authority(
             tuple(value._graph_source_snapshot_materializations),
             tuple(value._graph_evidence_materializations),
             tuple(value._data_source_snapshot_materializations),
-            tuple(value._data_evidence_materializations),
+            tuple(value._owned_evidence_materializations),
         )
 
     def register(value: AdmittedArtifactCandidate) -> None:
@@ -833,6 +848,11 @@ class ProducerExecutionStore:
     ) -> ProducerExecutionSnapshot:
         parameters = _validated_parameters(request.parameters)
         _validate_execution_request(request)
+        authorization = _validated_function_call_authorization(
+            authorized_tool_name=request.authorized_tool_name,
+            authorized_skill_id=request.authorized_skill_id,
+            registry_revision=request.registry_revision,
+        )
         parameters_hash = (
             request.parameters_hash
             if request.parameters_hash is not None
@@ -882,7 +902,17 @@ class ProducerExecutionStore:
                     parameters_hash=parameters_hash,
                     generation=generation,
                 )
-                return _execution_snapshot(existing)
+                resumable_parent = (
+                    existing.status == "running"
+                    and existing.producer_type == "model"
+                    and existing.producer_name == "xingwen.paper_summary"
+                    and parameters.get("resume_from_completed_children") is True
+                )
+                if resumable_parent:
+                    existing.lease_generation = generation
+                    session.flush()
+                    return _execution_snapshot(existing)
+                return _execution_snapshot(existing, replayed=True)
             row = ProducerExecutionModel(
                 id=uuid4(),
                 run_id=request.run_id,
@@ -907,10 +937,57 @@ class ProducerExecutionStore:
                 input_hash=request.input_hash,
                 status="running",
                 started_at=session.scalar(select(func.clock_timestamp())),
+                authorized_tool_name=authorization["authorized_tool_name"],
+                authorized_skill_id=authorization["authorized_skill_id"],
+                registry_revision=authorization["registry_revision"],
             )
             session.add(row)
             session.flush()
             return _execution_snapshot(row)
+
+    def find_completed_model_execution(
+        self,
+        request: ProducerExecutionRequest,
+    ) -> ProducerExecutionSnapshot | None:
+        """Return an exact completed model response for resumable child work."""
+
+        parameters = _validated_parameters(request.parameters)
+        _validate_execution_request(request)
+        parameters_hash = request.parameters_hash or compute_canonical_payload_hash(
+            parameters
+        )
+        with self._factory() as session:
+            row = session.scalar(
+                select(ProducerExecutionModel)
+                .where(
+                    ProducerExecutionModel.run_id == request.run_id,
+                    ProducerExecutionModel.step_key == request.step_key,
+                    ProducerExecutionModel.producer_type == "model",
+                    ProducerExecutionModel.producer_name
+                    == request.producer_name.strip(),
+                    ProducerExecutionModel.producer_version
+                    == request.producer_version.strip(),
+                    ProducerExecutionModel.input_hash == request.input_hash,
+                    ProducerExecutionModel.parameters_hash == parameters_hash,
+                    ProducerExecutionModel.model_provider
+                    == _optional_text(request.model_provider),
+                    ProducerExecutionModel.requested_model
+                    == _optional_text(request.requested_model),
+                    ProducerExecutionModel.explicit_revision
+                    == _optional_text(request.explicit_revision),
+                    ProducerExecutionModel.prompt_name
+                    == _optional_text(request.prompt_name),
+                    ProducerExecutionModel.prompt_version
+                    == _optional_text(request.prompt_version),
+                    ProducerExecutionModel.prompt_hash == request.prompt_hash,
+                    ProducerExecutionModel.status == "completed",
+                    ProducerExecutionModel.model_response.is_not(None),
+                )
+                .order_by(ProducerExecutionModel.finished_at.desc())
+            )
+        if row is None or row.parameters != parameters:
+            return None
+        return _execution_snapshot(row, replayed=True)
 
     def finish_producer_execution(
         self,
@@ -924,6 +1001,12 @@ class ProducerExecutionStore:
         provider_returned_model: str | None = None,
         provider_request_id: str | None = None,
         error_code: str | None = None,
+        tool_call_id: str | None = None,
+        validated_arguments_hash: str | None = None,
+        rejected_arguments_hash: str | None = None,
+        error_hash: str | None = None,
+        public_message: str | None = None,
+        model_response: Mapping[str, object] | None = None,
     ) -> ProducerExecutionSnapshot:
         _validate_execution_outcome(
             status=status,
@@ -932,12 +1015,27 @@ class ProducerExecutionStore:
             latency_ms=latency_ms,
             error_code=error_code,
         )
+        audit = _validated_function_call_audit(
+            status=status,
+            tool_call_id=tool_call_id,
+            validated_arguments_hash=validated_arguments_hash,
+            rejected_arguments_hash=rejected_arguments_hash,
+            error_hash=error_hash,
+            public_message=public_message,
+        )
         usage = _validated_usage(token_usage)
         normalized_error = _optional_text(error_code)
-        if input_hash is not None and (len(input_hash) != 71 or not input_hash.startswith("sha256:")):
-            raise ValueError("ProducerExecution input_hash must be a sha256 content hash")
+        if input_hash is not None and (
+            len(input_hash) != 71 or not input_hash.startswith("sha256:")
+        ):
+            raise ValueError(
+                "ProducerExecution input_hash must be a sha256 content hash"
+            )
         normalized_provider_model = _optional_text(provider_returned_model)
         normalized_provider_request_id = _optional_text(provider_request_id)
+        normalized_model_response = (
+            dict(model_response) if model_response is not None else None
+        )
         with self._factory() as session, session.begin():
             row = session.scalar(
                 select(ProducerExecutionModel)
@@ -958,6 +1056,13 @@ class ProducerExecutionStore:
                     and row.provider_returned_model == normalized_provider_model
                     and row.provider_request_id == normalized_provider_request_id
                     and row.error_code == normalized_error
+                    and row.tool_call_id == audit["tool_call_id"]
+                    and row.validated_arguments_hash
+                    == audit["validated_arguments_hash"]
+                    and row.rejected_arguments_hash == audit["rejected_arguments_hash"]
+                    and row.error_hash == audit["error_hash"]
+                    and row.public_message == audit["public_message"]
+                    and row.model_response == normalized_model_response
                 ):
                     return _execution_snapshot(row)
                 raise ProducerExecutionConflictError(
@@ -972,6 +1077,12 @@ class ProducerExecutionStore:
             row.provider_returned_model = normalized_provider_model
             row.provider_request_id = normalized_provider_request_id
             row.error_code = normalized_error
+            row.tool_call_id = audit["tool_call_id"]
+            row.validated_arguments_hash = audit["validated_arguments_hash"]
+            row.rejected_arguments_hash = audit["rejected_arguments_hash"]
+            row.error_hash = audit["error_hash"]
+            row.public_message = audit["public_message"]
+            row.model_response = normalized_model_response
             row.finished_at = session.scalar(select(func.clock_timestamp()))
             session.flush()
             return _execution_snapshot(row)
@@ -1114,7 +1225,10 @@ class ArtifactPublisher:
                     output.candidate,
                     project_id=run.project_id,
                 )
-                _require_unused_data_evidence_ids(session, output.candidate)
+                _validate_owned_evidence_sources(
+                    session, output.candidate, project_id=run.project_id
+                )
+                _require_unused_owned_evidence_ids(session, output.candidate)
                 version_id = output.version_id or uuid4()
                 version = ArtifactVersionModel(
                     id=version_id,
@@ -1146,7 +1260,7 @@ class ArtifactPublisher:
                 session.flush()
                 _materialize_literature_evidence(session, version, output.candidate)
                 _materialize_graph_evidence(session, version, output.candidate)
-                _materialize_data_evidence(session, version, output.candidate)
+                _materialize_owned_evidence(session, version, output.candidate)
                 if output.candidate.content.get("kind") == "dataset":
                     for row in output.candidate.content.get("rows", []):
                         if isinstance(row, dict) and isinstance(row.get("row_id"), str):
@@ -1224,8 +1338,7 @@ class ArtifactPublisher:
                         entry
                         for entry in session.scalars(
                             select(ResearchThreadEntryModel).where(
-                                ResearchThreadEntryModel.project_id
-                                == run.project_id,
+                                ResearchThreadEntryModel.project_id == run.project_id,
                                 ResearchThreadEntryModel.kind == "assistant_message",
                             )
                         )
@@ -1321,6 +1434,7 @@ class ArtifactPublisher:
             )
             _validate_materialized_graph_provenance(session, version, output.candidate)
             _validate_materialized_data_provenance(session, version, output.candidate)
+            _validate_materialized_owned_evidence(session, version, output.candidate)
             versions.append(version)
         completed_event = session.scalar(
             select(RunEventModel)
@@ -1495,6 +1609,139 @@ def _validate_execution_outcome(
     _validated_usage(token_usage)
 
 
+def _validated_function_call_authorization(
+    *,
+    authorized_tool_name: str | None,
+    authorized_skill_id: str | None,
+    registry_revision: str | None,
+) -> dict[str, str | None]:
+    """Authorization identity for one governed function-calling producer.
+
+    The trio is all-or-nothing: either the complete authorization identity is
+    recorded, or none of it is. Partial authorization cannot masquerade as a
+    governed tool call.
+    """
+
+    values = (authorized_tool_name, authorized_skill_id, registry_revision)
+    if all(value is None for value in values):
+        return {
+            "authorized_tool_name": None,
+            "authorized_skill_id": None,
+            "registry_revision": None,
+        }
+    if any(value is None for value in values):
+        raise ValueError(
+            "function-call authorization requires tool, skill and registry identity"
+        )
+    tool = _optional_text(authorized_tool_name)
+    skill = _optional_text(authorized_skill_id)
+    revision = _optional_text(registry_revision)
+    if tool is None or skill is None or revision is None:
+        raise ValueError("function-call authorization fields must be non-blank")
+    if len(tool) > 128 or len(skill) > 128 or len(revision) > 71:
+        raise ValueError("function-call authorization field is too long")
+    return {
+        "authorized_tool_name": tool,
+        "authorized_skill_id": skill,
+        "registry_revision": revision,
+    }
+
+
+def _validated_function_call_audit(
+    *,
+    status: str,
+    tool_call_id: str | None,
+    validated_arguments_hash: str | None,
+    rejected_arguments_hash: str | None,
+    error_hash: str | None,
+    public_message: str | None,
+) -> dict[str, str | None]:
+    """Validate the terminal audit facts against the closure invariants.
+
+    Producers that do not use function calling leave the audit fields empty;
+    once any audit fact is supplied the full closure is enforced.
+    """
+
+    if all(
+        value is None
+        for value in (
+            tool_call_id,
+            validated_arguments_hash,
+            rejected_arguments_hash,
+            error_hash,
+            public_message,
+        )
+    ):
+        return {
+            "tool_call_id": None,
+            "validated_arguments_hash": None,
+            "rejected_arguments_hash": None,
+            "error_hash": None,
+            "public_message": None,
+        }
+    for label, value in (
+        ("validated_arguments_hash", validated_arguments_hash),
+        ("rejected_arguments_hash", rejected_arguments_hash),
+        ("error_hash", error_hash),
+    ):
+        if value is not None:
+            _require_hash(value, label)
+    normalized_call_id = _optional_text(tool_call_id)
+    if normalized_call_id is not None and len(normalized_call_id) > 256:
+        raise ValueError("tool_call_id is too long")
+    normalized_message = public_message.strip() if public_message else None
+    if status == "completed":
+        if (
+            normalized_call_id is None
+            or validated_arguments_hash is None
+            or not normalized_message
+        ):
+            raise ValueError(
+                "completed function-call producer requires tool_call_id, "
+                "validated arguments hash and public message"
+            )
+        if rejected_arguments_hash is not None or error_hash is not None:
+            raise ValueError(
+                "completed function-call producer cannot carry rejection facts"
+            )
+        return {
+            "tool_call_id": normalized_call_id,
+            "validated_arguments_hash": validated_arguments_hash,
+            "rejected_arguments_hash": None,
+            "error_hash": None,
+            "public_message": normalized_message,
+        }
+    if status == "rejected":
+        if error_hash is None:
+            raise ValueError("rejected function-call producer requires error_hash")
+        if validated_arguments_hash is not None or public_message:
+            raise ValueError(
+                "rejected function-call producer cannot carry validated facts"
+            )
+        return {
+            "tool_call_id": normalized_call_id,
+            "validated_arguments_hash": None,
+            "rejected_arguments_hash": rejected_arguments_hash,
+            "error_hash": error_hash,
+            "public_message": None,
+        }
+    if normalized_call_id is not None or validated_arguments_hash is not None:
+        raise ValueError(
+            "failed or cancelled function-call producer cannot carry tool facts"
+        )
+    if rejected_arguments_hash is not None:
+        raise ValueError(
+            "failed or cancelled function-call producer cannot carry rejection facts"
+        )
+    return {
+        "tool_call_id": None,
+        "validated_arguments_hash": None,
+        "rejected_arguments_hash": None,
+        "error_hash": error_hash,
+        "public_message": None,
+    }
+
+
 def _require_same_execution(
     row: ProducerExecutionModel,
     *,
@@ -1509,7 +1756,6 @@ def _require_same_execution(
         step_id,
         request.attempt_id,
         request.step_key,
-        generation,
         request.producer_type,
         request.producer_name.strip(),
         request.producer_version.strip(),
@@ -1521,13 +1767,15 @@ def _require_same_execution(
         request.prompt_hash,
         dict(parameters),
         parameters_hash,
+        _optional_text(request.authorized_tool_name),
+        _optional_text(request.authorized_skill_id),
+        _optional_text(request.registry_revision),
     )
     actual = (
         row.run_id,
         row.run_step_id,
         row.step_attempt_id,
         row.step_key,
-        row.lease_generation,
         row.producer_type,
         row.producer_name,
         row.producer_version,
@@ -1539,8 +1787,19 @@ def _require_same_execution(
         row.prompt_hash,
         row.parameters,
         row.parameters_hash,
+        row.authorized_tool_name,
+        row.authorized_skill_id,
+        row.registry_revision,
     )
-    if row.status == "running" and row.input_hash != request.input_hash:
+    resumable_parent = (
+        row.producer_type == "model"
+        and row.producer_name == "xingwen.paper_summary"
+        and parameters.get("resume_from_completed_children") is True
+    )
+    if row.status == "running" and (
+        row.input_hash != request.input_hash
+        or (row.lease_generation != generation and not resumable_parent)
+    ):
         raise ProducerExecutionConflictError(
             "ProducerExecution idempotency key was reused with different input"
         )
@@ -1550,7 +1809,9 @@ def _require_same_execution(
         )
 
 
-def _execution_snapshot(row: ProducerExecutionModel) -> ProducerExecutionSnapshot:
+def _execution_snapshot(
+    row: ProducerExecutionModel, *, replayed: bool = False
+) -> ProducerExecutionSnapshot:
     return ProducerExecutionSnapshot(
         id=row.id,
         run_id=row.run_id,
@@ -1580,6 +1841,10 @@ def _execution_snapshot(row: ProducerExecutionModel) -> ProducerExecutionSnapsho
         token_usage=dict(row.token_usage) if row.token_usage is not None else None,
         latency_ms=row.latency_ms,
         error_code=row.error_code,
+        model_response=(
+            dict(row.model_response) if row.model_response is not None else None
+        ),
+        replayed=replayed,
     )
 
 
@@ -1684,7 +1949,7 @@ def _publication_references(
     tuple[_GraphSourceSnapshotMaterialization, ...],
     tuple[_GraphEvidenceMaterialization, ...],
     tuple[_DataSourceSnapshotMaterialization, ...],
-    tuple[_DataEvidenceMaterialization, ...],
+    tuple[_OwnedEvidenceMaterialization, ...],
 ]:
     candidate_kind = getattr(candidate, "kind", None)
     if hasattr(candidate_kind, "value"):
@@ -1716,6 +1981,14 @@ def _publication_references(
         )
     if candidate_kind == "paper_summary":
         return _paper_summary_publication_references(
+            candidate,
+            source_snapshot_ids=source_snapshot_ids,
+            evidence_ids=evidence_ids,
+            source_snapshot_bindings=source_snapshot_bindings,
+            evidence_bindings=evidence_bindings,
+        )
+    if candidate_kind in _SCIENTIFIC_ARTIFACT_KINDS:
+        return _scientific_publication_references(
             candidate,
             source_snapshot_ids=source_snapshot_ids,
             evidence_ids=evidence_ids,
@@ -1956,15 +2229,13 @@ def _data_publication_references(
     tuple[_GraphSourceSnapshotMaterialization, ...],
     tuple[_GraphEvidenceMaterialization, ...],
     tuple[_DataSourceSnapshotMaterialization, ...],
-    tuple[_DataEvidenceMaterialization, ...],
+    tuple[_OwnedEvidenceMaterialization, ...],
 ]:
     candidate_kind = normalize_artifact_kind(getattr(candidate, "kind", None))
     semantic_candidate = candidate
     if candidate_kind != "dataset":
         if (
-            normalize_artifact_kind(
-                getattr(data_provenance_candidate, "kind", None)
-            )
+            normalize_artifact_kind(getattr(data_provenance_candidate, "kind", None))
             != "dataset"
             or getattr(data_provenance_candidate, "input_hash", None)
             != getattr(candidate, "input_hash", None)
@@ -2081,7 +2352,7 @@ def _data_publication_references(
             "Data Artifact Evidence registry must exactly cover the candidate"
         )
 
-    data_evidence_materializations: list[_DataEvidenceMaterialization] = []
+    owned_evidence_materializations: list[_OwnedEvidenceMaterialization] = []
     for pipeline_id in evidence_ids:
         binding = evidence_by_pipeline[pipeline_id]
         if binding.pipeline_source_snapshot_id not in snapshot_by_pipeline:
@@ -2181,8 +2452,8 @@ def _data_publication_references(
             raise PublicationAdmissionError(
                 "Data Artifact Evidence binding target disagrees with the candidate"
             )
-        data_evidence_materializations.append(
-            _DataEvidenceMaterialization(
+        owned_evidence_materializations.append(
+            _OwnedEvidenceMaterialization(
                 target_type=target_type,
                 target_id=target_id,
                 pipeline_evidence_id=pipeline_id,
@@ -2204,9 +2475,7 @@ def _data_publication_references(
                 ),
                 extraction_method=extraction_method,
                 confidence=(
-                    str(evidence.confidence)
-                    if transformation is None
-                    else "1.0"
+                    str(evidence.confidence) if transformation is None else "1.0"
                 ),
             )
         )
@@ -2218,7 +2487,7 @@ def _data_publication_references(
         (),
         (),
         tuple(data_snapshot_materializations),
-        tuple(data_evidence_materializations),
+        tuple(owned_evidence_materializations),
     )
 
 
@@ -2270,7 +2539,7 @@ def _paper_collection_publication_references(
     tuple[_GraphSourceSnapshotMaterialization, ...],
     tuple[_GraphEvidenceMaterialization, ...],
     tuple[_DataSourceSnapshotMaterialization, ...],
-    tuple[_DataEvidenceMaterialization, ...],
+    tuple[_OwnedEvidenceMaterialization, ...],
 ]:
     if evidence_ids or tuple(evidence_bindings or ()):
         raise PublicationAdmissionError(
@@ -2293,7 +2562,9 @@ def _paper_collection_publication_references(
         item.pipeline_source_snapshot_id: item.persisted_source_snapshot_id
         for item in bindings
     }
-    if len(by_pipeline) != len(bindings) or set(by_pipeline) != set(source_snapshot_ids):
+    if len(by_pipeline) != len(bindings) or set(by_pipeline) != set(
+        source_snapshot_ids
+    ):
         raise PublicationAdmissionError(
             "PaperCollection SourceSnapshot bindings must exactly cover the candidate"
         )
@@ -2344,7 +2615,7 @@ def _paper_summary_publication_references(
     tuple[_GraphSourceSnapshotMaterialization, ...],
     tuple[_GraphEvidenceMaterialization, ...],
     tuple[_DataSourceSnapshotMaterialization, ...],
-    tuple[_DataEvidenceMaterialization, ...],
+    tuple[_OwnedEvidenceMaterialization, ...],
 ]:
     references = _literature_snapshot_references(candidate)
     if set(references) != set(source_snapshot_ids):
@@ -2362,13 +2633,9 @@ def _paper_summary_publication_references(
         raise PublicationAdmissionError(
             "PaperSummary SourceSnapshot bindings must exactly cover the candidate"
         )
-    evidence = {
-        item.evidence_id: item for item in getattr(candidate, "evidence", ())
-    }
+    evidence = {item.evidence_id: item for item in getattr(candidate, "evidence", ())}
     bindings = tuple(evidence_bindings or ())
-    binding_by_pipeline = {
-        item.pipeline_evidence_id: item for item in bindings
-    }
+    binding_by_pipeline = {item.pipeline_evidence_id: item for item in bindings}
     if (
         len(binding_by_pipeline) != len(bindings)
         or set(binding_by_pipeline) != set(evidence_ids)
@@ -2473,6 +2740,88 @@ def _paper_summary_publication_references(
     )
 
 
+def _scientific_publication_references(
+    candidate: BaseModel,
+    *,
+    source_snapshot_ids: tuple[str, ...],
+    evidence_ids: tuple[str, ...],
+    source_snapshot_bindings: Sequence[ArtifactSourceSnapshotBinding] | None,
+    evidence_bindings: Sequence[ArtifactEvidenceBinding] | None,
+) -> tuple[
+    tuple[str, ...],
+    tuple[str, ...],
+    tuple[_LiteratureSourceSnapshotMaterialization, ...],
+    tuple[_LiteratureEvidenceMaterialization, ...],
+    tuple[_GraphSourceSnapshotMaterialization, ...],
+    tuple[_GraphEvidenceMaterialization, ...],
+    tuple[_DataSourceSnapshotMaterialization, ...],
+    tuple[_OwnedEvidenceMaterialization, ...],
+]:
+    if source_snapshot_bindings is not None or evidence_bindings is not None:
+        raise PublicationAdmissionError(
+            "Scientific artifacts use already-persisted SourceSnapshot identities"
+        )
+    declared = {
+        item.evidence_id: item for item in getattr(candidate, "scientific_evidence", ())
+    }
+    if len(declared) != len(getattr(candidate, "scientific_evidence", ())):
+        raise PublicationAdmissionError("Scientific Evidence ids must be unique")
+    if set(declared) != set(evidence_ids):
+        raise PublicationAdmissionError(
+            "Scientific Evidence must exactly cover the candidate registry"
+        )
+    source_ids = set(source_snapshot_ids)
+    try:
+        tuple(UUID(item) for item in source_snapshot_ids)
+        tuple(UUID(item) for item in evidence_ids)
+    except ValueError as exc:
+        raise PublicationAdmissionError(
+            "Scientific provenance must use persisted UUID identities"
+        ) from exc
+    materializations: list[_OwnedEvidenceMaterialization] = []
+    for evidence_id in evidence_ids:
+        item = declared[evidence_id]
+        if item.source_snapshot_id not in source_ids:
+            raise PublicationAdmissionError(
+                "Scientific Evidence references an undeclared SourceSnapshot"
+            )
+        materializations.append(
+            _OwnedEvidenceMaterialization(
+                target_type=item.target_type,
+                target_id=item.target_id,
+                pipeline_evidence_id=item.evidence_id,
+                pipeline_source_snapshot_id=item.source_snapshot_id,
+                persisted_evidence_id=item.evidence_id,
+                persisted_source_snapshot_id=item.source_snapshot_id,
+                evidence_type=item.evidence_type,
+                locator_json=json.dumps(
+                    item.locator,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                quote_or_value_json=json.dumps(
+                    item.quote_or_value,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                extraction_method=item.extraction_method,
+                confidence=str(item.confidence),
+            )
+        )
+    return (
+        source_snapshot_ids,
+        evidence_ids,
+        (),
+        (),
+        (),
+        (),
+        (),
+        tuple(materializations),
+    )
+
+
 def _graph_publication_references(
     candidate: BaseModel,
     *,
@@ -2488,7 +2837,7 @@ def _graph_publication_references(
     tuple[_GraphSourceSnapshotMaterialization, ...],
     tuple[_GraphEvidenceMaterialization, ...],
     tuple[_DataSourceSnapshotMaterialization, ...],
-    tuple[_DataEvidenceMaterialization, ...],
+    tuple[_OwnedEvidenceMaterialization, ...],
 ]:
     if source_snapshot_bindings is None or evidence_bindings is None:
         raise PublicationAdmissionError(
@@ -2720,11 +3069,11 @@ def _validate_data_source_snapshots(
             )
 
 
-def _require_unused_data_evidence_ids(
+def _require_unused_owned_evidence_ids(
     session: Session,
     candidate: AdmittedArtifactCandidate,
 ) -> None:
-    materializations = candidate.data_evidence_materializations
+    materializations = candidate.owned_evidence_materializations
     if not materializations:
         return
     ids = tuple(UUID(item.persisted_evidence_id) for item in materializations)
@@ -2733,16 +3082,40 @@ def _require_unused_data_evidence_ids(
     )
     if existing:
         raise PublicationConflictError(
-            "A Data Artifact persisted Evidence id is already bound to another publication"
+            "An owned Evidence id is already bound to another publication"
         )
 
 
-def _materialize_data_evidence(
+def _validate_owned_evidence_sources(
+    session: Session,
+    candidate: AdmittedArtifactCandidate,
+    *,
+    project_id: UUID,
+) -> None:
+    materializations = candidate.owned_evidence_materializations
+    if not materializations:
+        return
+    ids = {UUID(item.persisted_source_snapshot_id) for item in materializations}
+    persisted = set(
+        session.scalars(
+            select(SourceSnapshotModel.id).where(
+                SourceSnapshotModel.id.in_(ids),
+                SourceSnapshotModel.project_id == project_id,
+            )
+        )
+    )
+    if persisted != ids:
+        raise PublicationAdmissionError(
+            "Owned Evidence must reference SourceSnapshots in the Run Project"
+        )
+
+
+def _materialize_owned_evidence(
     session: Session,
     version: ArtifactVersionModel,
     candidate: AdmittedArtifactCandidate,
 ) -> None:
-    for item in candidate.data_evidence_materializations:
+    for item in candidate.owned_evidence_materializations:
         session.add(
             EvidenceModel(
                 id=UUID(item.persisted_evidence_id),
@@ -2777,7 +3150,14 @@ def _validate_materialized_data_provenance(
         raise PublicationConflictError(
             "The idempotent Data Artifact publication source provenance has drifted"
         ) from exc
-    materializations = candidate.data_evidence_materializations
+
+
+def _validate_materialized_owned_evidence(
+    session: Session,
+    version: ArtifactVersionModel,
+    candidate: AdmittedArtifactCandidate,
+) -> None:
+    materializations = candidate.owned_evidence_materializations
     if not materializations:
         return
     ids = tuple(UUID(item.persisted_evidence_id) for item in materializations)
@@ -2792,7 +3172,7 @@ def _validate_materialized_data_provenance(
     by_id = {row.id: row for row in rows}
     if set(by_id) != set(ids):
         raise PublicationConflictError(
-            "The idempotent Data Artifact publication has a non-exact Evidence registry"
+            "The idempotent publication has a non-exact owned Evidence registry"
         )
     for item in materializations:
         row = by_id[UUID(item.persisted_evidence_id)]
@@ -2809,7 +3189,7 @@ def _validate_materialized_data_provenance(
             or row.is_restricted
         ):
             raise PublicationConflictError(
-                "The idempotent Data Artifact publication provenance differs from admission"
+                "The idempotent owned Evidence differs from admission"
             )
 
 
@@ -3123,7 +3503,9 @@ def _validated_publications(
         raise PublicationAdmissionError(
             "A Step output set may publish each ResearchArtifact only once"
         )
-    version_ids = [output.version_id for output in outputs if output.version_id is not None]
+    version_ids = [
+        output.version_id for output in outputs if output.version_id is not None
+    ]
     if len(version_ids) != len(set(version_ids)):
         raise PublicationAdmissionError(
             "A Step output set may reserve each ArtifactVersion id only once"

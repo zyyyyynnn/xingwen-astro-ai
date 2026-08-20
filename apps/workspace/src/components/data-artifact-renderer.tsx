@@ -3,19 +3,11 @@ import type {
   DataArtifactFieldDefinitionViewModel,
   DataArtifactReviewViewModel,
   DatasetArtifactReviewViewModel,
-  DatasetCellReviewViewModel,
   FieldDictionaryArtifactReviewViewModel,
   SourceCollectionArtifactReviewViewModel,
 } from "@xingwen/research-adapter";
-import {
-  Badge,
-  Button,
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@xingwen/ui";
-import { useMemo, useState } from "react";
+
+import { ScientificTable } from "./scientific-table";
 
 export type DataArtifactSurface = "fullscreen";
 
@@ -32,10 +24,6 @@ const SURFACE_LIMITS: Record<
 > = {
   fullscreen: { rows: 100, columns: 24, fields: 100 },
 };
-
-function displayValue(value: string | null): string {
-  return value === null || value.trim() === "" ? "—" : value;
-}
 
 function sourceModeLabel(mode: string): string {
   if (mode === "live") return "实时数据";
@@ -95,31 +83,6 @@ function ArtifactMetadata({
   );
 }
 
-function CellValue({ cell }: { readonly cell: DatasetCellReviewViewModel }) {
-  if (cell.status === "mapped") {
-    return (
-      <span>
-        {displayValue(cell.value)}
-        {cell.unit ? (
-          <small className="text-xs text-[var(--oh-muted)]"> {cell.unit}</small>
-        ) : null}
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1">
-      <Badge variant={cell.status === "unresolved" ? "destructive" : "outline"}>
-        {cell.status === "unresolved" ? "未解析" : "空值"}
-      </Badge>
-      {cell.reason ? (
-        <small className="text-xs text-[var(--oh-muted)]">{cell.reason}</small>
-      ) : null}
-    </span>
-  );
-}
-
-type SortDirection = "asc" | "desc";
-
 function DatasetTable({
   review,
   surface,
@@ -130,165 +93,35 @@ function DatasetTable({
   readonly onSelectEvidence?: (evidenceIds: readonly DomainEntityId[]) => void;
 }) {
   const limits = SURFACE_LIMITS[surface];
-  const allColumns = review.columns.slice(0, limits.columns);
-  const [hiddenFields, setHiddenFields] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
-  const [sort, setSort] = useState<{
-    field: string;
-    direction: SortDirection;
-  } | null>(null);
-
-  const columns = allColumns.filter(
-    (column) => !hiddenFields.has(String(column.fieldId)),
-  );
-
-  const rows = useMemo(() => {
-    const base = review.rows.slice(0, limits.rows);
-    if (sort === null) return base;
-    const cellValue = (row: (typeof base)[number]) => {
-      const cell = row.cells.find(
-        (item) => String(item.canonicalFieldId) === sort.field,
-      );
-      return cell?.value ?? "";
-    };
-    return [...base].sort((left, right) => {
-      const a = cellValue(left);
-      const b = cellValue(right);
-      const numeric = Number(a) - Number(b);
-      const outcome =
-        Number.isNaN(numeric) || a.trim() === "" || b.trim() === ""
-          ? a.localeCompare(b, "zh-Hans")
-          : numeric;
-      return sort.direction === "asc" ? outcome : -outcome;
-    });
-  }, [review.rows, limits.rows, sort]);
-
-  const toggleSort = (fieldId: string) => {
-    setSort((current) => {
-      if (current?.field !== fieldId)
-        return { field: fieldId, direction: "asc" };
-      if (current.direction === "asc")
-        return { field: fieldId, direction: "desc" };
-      return null;
-    });
-  };
-
-  const toggleColumn = (fieldId: string) => {
-    setHiddenFields((current) => {
-      const next = new Set(current);
-      if (next.has(fieldId)) {
-        next.delete(fieldId);
-      } else if (next.size < allColumns.length - 1) {
-        next.add(fieldId);
-      }
-      return next;
-    });
-  };
-
   return (
-    <div className="data-artifact__table-scroll overflow-x-auto my-2 border rounded border-[var(--oh-border)]">
-      <div className="flex justify-end border-b border-[var(--oh-border)] bg-[var(--oh-surface-subtle)] p-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="small" variant="ghost">
-              选择列
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="max-h-72 overflow-y-auto">
-            {allColumns.map((column) => {
-              const fieldId = String(column.fieldId);
-              return (
-                <DropdownMenuCheckboxItem
-                  key={column.fieldId}
-                  checked={!hiddenFields.has(fieldId)}
-                  onCheckedChange={() => toggleColumn(fieldId)}
-                >
-                  {fieldLabel(column)}
-                </DropdownMenuCheckboxItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      <table className="w-full text-[13px] text-left border-collapse">
-        <caption className="sr-only">研究数据集中的规范化字段与数据行</caption>
-        <thead>
-          <tr className="border-b bg-[var(--oh-surface-subtle)] border-[var(--oh-border)]">
-            <th scope="col" className="p-2 font-medium">
-              标识 / 主体
-            </th>
-            {columns.map((column) => (
-              <th scope="col" key={column.fieldId} className="p-2 font-medium">
-                <Button
-                  variant="ghost"
-                  size="small"
-                  className="h-auto p-0 font-medium text-[13px] text-inherit"
-                  onClick={() => toggleSort(String(column.fieldId))}
-                >
-                  {fieldLabel(column)}
-                  {sort?.field === String(column.fieldId)
-                    ? sort.direction === "asc"
-                      ? " ↑"
-                      : " ↓"
-                    : ""}
-                </Button>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[var(--oh-border)]">
-          {rows.map((row) => {
-            const cells = new Map(
-              row.cells.map((cell) => [String(cell.canonicalFieldId), cell]),
-            );
-            return (
-              <tr
-                key={row.rowId}
-                className="hover:bg-[var(--oh-surface-subtle)]"
-              >
-                <th
-                  scope="row"
-                  className="p-2 font-normal text-[var(--oh-muted)]"
-                  title={row.identity || undefined}
-                >
-                  {row.identity || "未命名记录"}
-                </th>
-                {columns.map((column) => {
-                  const cell = cells.get(String(column.fieldId));
-                  return (
-                    <td key={column.fieldId} className="p-2">
-                      {cell ? (
-                        cell.evidenceIds.length > 0 && onSelectEvidence ? (
-                          <Button
-                            variant="ghost"
-                            size="small"
-                            className="h-auto p-0 text-inherit text-[13px]"
-                            title="查看该数值的证据"
-                            onClick={() => onSelectEvidence(cell.evidenceIds)}
-                          >
-                            <CellValue cell={cell} />
-                          </Button>
-                        ) : (
-                          <CellValue cell={cell} />
-                        )
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      {review.rows.length > rows.length ? (
-        <p className="p-2 text-xs text-[var(--oh-muted)] bg-[var(--oh-surface-subtle)] border-t border-[var(--oh-border)]">
-          当前显示前 {rows.length} / {review.rowCount} 行。
-        </p>
-      ) : null}
-    </div>
+    <ScientificTable
+      caption="研究数据集中的规范化字段与数据行"
+      columns={review.columns.map((column) => ({
+        key: String(column.fieldId),
+        label: fieldLabel(column),
+        unit: column.canonicalUnit || null,
+      }))}
+      rows={review.rows.map((row) => ({
+        id: String(row.rowId),
+        identity: row.identity,
+        cells: Object.fromEntries(
+          row.cells.map((cell) => [
+            String(cell.canonicalFieldId),
+            {
+              value: cell.value,
+              unit: cell.unit,
+              status: cell.status === "declared_null" ? "missing" : cell.status,
+              reason: cell.reason,
+              evidenceIds: cell.evidenceIds,
+            },
+          ]),
+        ),
+      }))}
+      maxRows={limits.rows}
+      maxColumns={limits.columns}
+      showIdentity
+      onSelectEvidence={onSelectEvidence}
+    />
   );
 }
 
@@ -352,7 +185,7 @@ function FieldDictionaryTable({
   );
   return (
     <div className="data-artifact__table-scroll overflow-x-auto my-2 border rounded border-[var(--oh-border)]">
-      <table className="w-full text-[13px] text-left border-collapse">
+      <table className="ui-text-body w-full text-left border-collapse">
         <caption className="sr-only">规范字段定义、单位与来源映射</caption>
         <thead>
           <tr className="border-b bg-[var(--oh-surface-subtle)] border-[var(--oh-border)]">
@@ -388,7 +221,7 @@ function FieldDictionaryTable({
               <td className="p-2">
                 {field.dataType}
                 {field.canonicalUnit ? ` · ${field.canonicalUnit}` : ""}
-                <div className="text-[10px] text-[var(--oh-muted)] mt-0.5">
+                <div className="ui-text-label mt-0.5 text-[var(--oh-muted)]">
                   {field.required ? "必填" : "可选"} ·{" "}
                   {field.nullable ? "可为空" : "不可为空"}
                 </div>
@@ -453,7 +286,7 @@ function SourceCollectionTable({
   const members = review.members.slice(0, SURFACE_LIMITS[surface].fields);
   return (
     <div className="data-artifact__table-scroll overflow-x-auto my-2 border rounded border-[var(--oh-border)]">
-      <table className="w-full text-[13px] text-left border-collapse">
+      <table className="ui-text-body w-full text-left border-collapse">
         <caption className="sr-only">数据产物使用的来源与记录数量</caption>
         <thead>
           <tr className="border-b bg-[var(--oh-surface-subtle)] border-[var(--oh-border)]">

@@ -97,6 +97,9 @@ function ContractFacts({
   const minimumCoverage = Math.round(
     contract.evidenceRequirements.minimumCoverage * 100,
   );
+  const scientificTaskLabels = contract.scientificTasks.map((task) =>
+    optionLabel(catalog.scientificSkills, task.skillId),
+  );
 
   return (
     <div className="research-contract-facts">
@@ -159,6 +162,19 @@ function ContractFacts({
           </p>
         </section>
       </div>
+
+      {scientificTaskLabels.length > 0 ? (
+        <>
+          <Separator />
+          <section className="research-contract-facts__section">
+            <FactLabel icon={ListChecks}>计划执行</FactLabel>
+            <p>
+              {scientificTaskLabels.length} 项科学任务：
+              {scientificTaskLabels.join("、")}
+            </p>
+          </section>
+        </>
+      ) : null}
     </div>
   );
 }

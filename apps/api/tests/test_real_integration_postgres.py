@@ -23,7 +23,6 @@ from __future__ import annotations
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 import os
-from pathlib import Path
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -59,6 +58,7 @@ def _contract_input() -> dict[str, object]:
         "requested_fields": ["planet.toi_id", "star.tic_id"],
         "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
         "paper_search_scope": {"year_from": 2015, "max_candidates": 20},
+        "scientific_tasks": [],
         "output_requirements": ["dataset", "field_dictionary", "graph"],
         "evidence_requirements": {"require_locator": True},
         "quality_constraints": {"source_completeness_min": 1.0},

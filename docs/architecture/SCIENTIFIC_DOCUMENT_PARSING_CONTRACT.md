@@ -10,13 +10,13 @@ pipeline, plot digitizer, or second Evidence/Workflow/Version system.
 
 ## 1. Ownership boundary
 
-| Xingwen owns                 | Upstream owns                                |
-| ---------------------------- | -------------------------------------------- |
-| Canonical Contract           | Born-digital PDF text layer and word geometry |
-| Evidence / locator semantics | Visual OCR/layout/table/formula recognition  |
-| Parse quality semantics      | PDF decoding and model inference             |
-| Identity / hashes            |                                              |
-| Golden Set / Benchmark       |                                              |
+| Xingwen owns                 | Upstream owns                                      |
+| ---------------------------- | -------------------------------------------------- |
+| Canonical Contract           | Born-digital PDF text layer and word geometry       |
+| Evidence / locator semantics | Visual OCR/layout/table/formula/figure recognition |
+| Parse quality semantics      | PDF/image decoding and model inference              |
+| Identity / hashes            |                                                    |
+| Golden Set / Benchmark       |                                                    |
 
 The implementation rule is **adopt → adapt → normalize → validate → benchmark →
 govern**. `docs/references/**` is never production implementation Authority;
@@ -55,9 +55,10 @@ DocumentParserPort.parse_document(
 
 There is no parallel `ParseRequest`/`ParseResult` DTO and no output→input
 reconstruction. `source_type` and `mime_type` are caller-supplied facts; they are
-never guessed. Any native or visual adapter maps upstream output into this Contract.
-The source tree includes a native benchmark adapter; no HTTP route invokes a
-visual adapter, so requests must not claim visual execution without one.
+never guessed. The production hybrid adapter maps both native and visual upstream
+output into this Contract. It accepts PDF plus JPEG/PNG/TIFF/WebP document images;
+image documents require the configured visual service and fail closed when it is
+absent or fails.
 
 ## 4. Quality semantics
 
@@ -177,7 +178,12 @@ Manifest authority:
 - intended scope: born-digital text layer + word geometry;
 - excluded: scanned OCR, semantic layout/table/formula/figure recognition.
 
-`native_baseline.py` is benchmark-only and does not enter API startup.
+`hybrid_parser.py` is the production parser adapter. For PDF it runs native
+parsing first, then routes every page containing bitmap/vector structure or an
+insufficient text layer to the configured PaddleOCR-VL service. This preserves
+tables, formulas and figures that a sufficiently long text layer alone cannot
+represent. Document images go directly through the same visual boundary.
+Unresolved pages remain explicitly `partial` or `unsupported`.
 
 The same manifest records the accepted visual adapter boundary:
 
@@ -313,9 +319,16 @@ blocker regardless of CI status.
 
 ## 14. Runtime boundary
 
-This contract defines scanned-page and visual provenance without claiming an
-executing visual adapter. It does not define DocumentParse PostgreSQL
-persistence, SourceSnapshot materialization, paper-summary or data-pipeline
-integration, HTTP endpoints, frontend behavior, HTML parsing, or plot
-digitization. Missing adapters fail closed and cannot emit accepted visual
-content, ArtifactVersion, benchmark measurements or model-call proof.
+The API composition owns one `HybridScientificDocumentParser`: native
+`docling-parse` is always available for PDF text/geometry, while a configured
+PaddleOCR-VL endpoint supplies visual page parsing. The parser result enters the
+single DocumentParse persistence and paper-summary path; it does not introduce a
+second workflow, Publisher or Evidence model. Missing visual configuration or a
+failed visual request fails closed for image documents and remains explicit on
+routed PDF pages. The single asynchronous paper-summary read boundary reloads
+the canonical candidate from CAS, checks the persisted SourceSnapshot and
+frozen parser identity, and validates every locator and quoted text span before
+any summary, export, downstream Literature/Graph projection, Feedback target or
+document-source result is returned. The document-source endpoint only resolves
+the ResearchInput after that shared read succeeds. HTML parsing and plot
+digitization remain outside this contract.

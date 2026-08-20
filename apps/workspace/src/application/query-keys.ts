@@ -69,13 +69,13 @@ export const workspaceQueryKeys = Object.freeze({
       ...workspaceQueryKeys.artifactVersion(projectId, artifactVersionId),
       "paper-summary",
     ] as const,
-  paperSummaryPdfSource: (
+  paperSummaryDocumentSource: (
     projectId: DomainEntityId,
     artifactVersionId: DomainEntityId,
   ) =>
     [
       ...workspaceQueryKeys.paperSummary(projectId, artifactVersionId),
-      "pdf-source",
+      "document-source",
     ] as const,
   dataArtifact: (
     projectId: DomainEntityId,
@@ -115,6 +115,17 @@ export const workspaceQueryKeys = Object.freeze({
     [
       ...workspaceQueryKeys.projectScope(projectId),
       "graph-artifact",
+      artifactVersionId,
+    ] as const,
+  scientificArtifact: (
+    projectId: DomainEntityId,
+    artifactVersionId: DomainEntityId,
+    kind: string,
+  ) =>
+    [
+      ...workspaceQueryKeys.projectScope(projectId),
+      "scientific-artifact",
+      kind,
       artifactVersionId,
     ] as const,
 });

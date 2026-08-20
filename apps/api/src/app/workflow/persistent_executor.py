@@ -18,6 +18,7 @@ from .store import (
     LeaseGrant,
     PersistentWorkflowStore,
     RetryBudgetExhaustedError,
+    WorkflowCheckpointRequested,
 )
 
 StepResultT = TypeVar("StepResultT")
@@ -39,7 +40,9 @@ class PersistentWorkflowExecutionError(RuntimeError):
     """Wrap an adapter failure after durable workflow bookkeeping."""
 
     def __init__(self, run_id: UUID, step_key: str, cause: Exception) -> None:
-        super().__init__(f"persistent workflow step failed: run={run_id} step={step_key}")
+        super().__init__(
+            f"persistent workflow step failed: run={run_id} step={step_key}"
+        )
         self.run_id = run_id
         self.step_key = step_key
         self.__cause__ = cause
@@ -80,6 +83,8 @@ class PersistentWorkflowExecutor(Generic[StepResultT, CommitResultT]):
 
         try:
             result = await runner(attempt)
+        except WorkflowCheckpointRequested:
+            raise
         except Exception as cause:
             self._record_failure(
                 cause=cause,

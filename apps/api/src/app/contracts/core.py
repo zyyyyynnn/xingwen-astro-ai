@@ -8,7 +8,7 @@ single generated operation and transport-schema document.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Annotated, Any, NoReturn, cast
+from typing import Annotated, Any, Literal, NoReturn, cast
 
 from fastapi import Body, FastAPI, Header, Path, Query, Response
 from pydantic import TypeAdapter
@@ -70,7 +70,8 @@ from app.schemas.paper_collection_api import (
     PaperCollectionCandidateRead,
     PaperCollectionRead,
 )
-from app.schemas.paper_summary_api import PaperSummaryPdfSourceRead, PaperSummaryRead
+from app.schemas.paper_summary_api import PaperSummaryDocumentSourceRead, PaperSummaryRead
+from app.schemas.scientific_artifact_api import ScientificArtifactRead
 from app.schemas.research_input import (
     BindResearchInputRequest,
     CreateResearchInputMultipartRequest,
@@ -509,15 +510,87 @@ def create_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/artifact-versions/{version_id}/paper-summary/pdf-source",
-        operation_id="getPaperSummaryPdfSource",
-        response_model=Envelope[PaperSummaryPdfSourceRead],
+        "/api/artifact-versions/{version_id}/paper-summary/document-source",
+        operation_id="getPaperSummaryDocumentSource",
+        response_model=Envelope[PaperSummaryDocumentSourceRead],
         responses=PROBLEM_RESPONSES,
     )
-    def get_paper_summary_pdf_source(
+    def get_paper_summary_document_source(
         version_id: Annotated[str, Path(min_length=1)],
     ) -> NoReturn:
         _ = version_id
+        return _contract_only()
+
+    @app.get(
+        "/api/artifact-versions/{version_id}/paper-summary/export",
+        operation_id="downloadPaperSummaryExport",
+        response_class=Response,
+        response_model=None,
+        responses={
+            **PROBLEM_RESPONSES,
+            200: {
+                "content": {
+                    "application/json": {
+                        "schema": {"type": "string", "format": "binary"}
+                    },
+                    "text/markdown": {
+                        "schema": {"type": "string", "format": "binary"}
+                    },
+                }
+            },
+        },
+    )
+    def download_paper_summary_export(
+        version_id: Annotated[str, Path(min_length=1)],
+        export_format: Annotated[
+            Literal["json", "markdown"], Query(alias="format")
+        ] = "json",
+    ) -> Response:
+        _ = (version_id, export_format)
+        return _contract_only()
+
+    @app.get(
+        "/api/artifact-versions/{version_id}/scientific",
+        operation_id="getScientificArtifact",
+        response_model=Envelope[ScientificArtifactRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_scientific_artifact(
+        version_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
+        _ = version_id
+        return _contract_only()
+
+    @app.get(
+        "/api/artifact-versions/{version_id}/scientific/content/{content_hash}",
+        operation_id="getScientificArtifactContent",
+        response_class=Response,
+        response_model=None,
+        responses={
+            **PROBLEM_RESPONSES,
+            200: {
+                "content": {
+                    "application/octet-stream": {
+                        "schema": {"type": "string", "format": "binary"}
+                    }
+                }
+            },
+            206: {
+                "content": {
+                    "application/octet-stream": {
+                        "schema": {"type": "string", "format": "binary"}
+                    }
+                }
+            },
+            416: {"model": ProblemDetails},
+        },
+    )
+    def get_scientific_artifact_content(
+        version_id: Annotated[str, Path(min_length=1)],
+        content_hash: Annotated[str, Path(pattern=r"^sha256:[0-9a-f]{64}$")],
+        range_header: Annotated[str | None, Header(alias="Range")] = None,
+    ) -> Response:
+        _ = (version_id, content_hash, range_header)
         return _contract_only()
 
     @app.get(

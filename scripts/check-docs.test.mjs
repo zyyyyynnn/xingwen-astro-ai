@@ -10,7 +10,6 @@ import {
   containsRepositoryTaskCode,
   containsRepositoryTaskCodePath,
   containsRepositoryVersionLabel,
-  containsRepositoryVersionLabelForPath,
   containsRepositoryVersionLabelPath,
   isIssueOrPullRequestBodyTemplatePath,
   isRepositoryTextPath,
@@ -149,6 +148,18 @@ test("rejects work phase identities but allows failure-stage semantics", () => {
     containsRepositoryPhaseIdentifier(["Parser failure Sta", "ge 2"].join("")),
     false,
   );
+  assert.equal(
+    containsRepositoryPhaseIdentifier(["phase: ", "0.45,"].join("")),
+    false,
+  );
+  assert.equal(
+    containsRepositoryPhaseIdentifier(["phase: ", "1}"].join("")),
+    false,
+  );
+  assert.equal(
+    containsRepositoryPhaseIdentifier(["Phase: ", "2 is ongoing"].join("")),
+    true,
+  );
 });
 
 test("rejects repository pseudo-version identities", () => {
@@ -176,20 +187,6 @@ test("retains legitimate technical and external versions", () => {
   assert.equal(containsRepositoryVersionLabel("Pydantic v2"), false);
   const externalIdentity = ["call_deepseek_v", "3_2"].join("");
   assert.equal(containsRepositoryVersionLabel(externalIdentity), true);
-  assert.equal(
-    containsRepositoryVersionLabelForPath(
-      externalIdentity,
-      "apps/api/src/app/services/model.py",
-    ),
-    true,
-  );
-  assert.equal(
-    containsRepositoryVersionLabelForPath(
-      externalIdentity,
-      "docs/references/inosum/code/paper_summary.py",
-    ),
-    false,
-  );
   assert.equal(containsRepositoryVersionLabel('tag: "v1.10.0"'), false);
   assert.equal(containsRepositoryVersionLabel("schema_version: 2.0.0"), false);
   assert.equal(containsRepositoryVersionLabel("actions/checkout@v4"), false);

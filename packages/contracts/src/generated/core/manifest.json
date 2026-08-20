@@ -17,6 +17,11 @@
       "path": "json/ArtifactVersionDetail.schema.json"
     },
     {
+      "module": "app.schemas.core",
+      "name": "ArtifactVersionSummary",
+      "path": "json/ArtifactVersionSummary.schema.json"
+    },
+    {
       "module": "app.schemas.revision",
       "name": "ConfirmRevisionPlanRequest",
       "path": "json/ConfirmRevisionPlanRequest.schema.json"
@@ -133,8 +138,8 @@
     },
     {
       "module": "app.schemas.paper_summary_api",
-      "name": "PaperSummaryPdfSourceRead",
-      "path": "json/PaperSummaryPdfSourceRead.schema.json"
+      "name": "PaperSummaryDocumentSourceRead",
+      "path": "json/PaperSummaryDocumentSourceRead.schema.json"
     },
     {
       "module": "app.schemas.paper_summary_api",
@@ -263,6 +268,11 @@
     },
     {
       "module": "app.schemas.core",
+      "name": "RunCheckpoint",
+      "path": "json/RunCheckpoint.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
       "name": "RunEvent",
       "path": "json/RunEvent.schema.json"
     },
@@ -270,6 +280,11 @@
       "module": "app.schemas.core",
       "name": "RunStepRead",
       "path": "json/RunStepRead.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_artifact_api",
+      "name": "ScientificArtifactRead",
+      "path": "json/ScientificArtifactRead.schema.json"
     },
     {
       "module": "app.schemas.core",

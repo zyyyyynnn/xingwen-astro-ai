@@ -19,7 +19,7 @@ import type {
   PaperSummaryEvidence as PaperSummaryEvidenceDto,
   PaperSummaryEvidenceLocator as PaperSummaryEvidenceLocatorDto,
   PaperSummaryInputVersions as PaperSummaryInputVersionsDto,
-  PaperSummaryPdfSourceRead as PaperSummaryPdfSourceReadDto,
+  PaperSummaryDocumentSourceRead as PaperSummaryDocumentSourceReadDto,
   PaperSummaryProducerExecution as PaperSummaryProducerExecutionDto,
   PaperSummaryRead as PaperSummaryReadDto,
   PaperSummarySourceConflict as PaperSummarySourceConflictDto,
@@ -31,7 +31,7 @@ import type {
   PaperSummaryEvidenceLocator,
   PaperSummaryEvidenceReview,
   PaperSummaryInputVersionsReview,
-  PaperSummaryPdfSourceReview,
+  PaperSummaryDocumentSourceReview,
   PaperSummaryProducerReview,
   PaperSummaryReview,
   PaperSummarySourceConflictReview,
@@ -68,12 +68,6 @@ function mapStatement(
   };
 }
 
-function mapStatementOrNull(
-  dto: PaperSummaryStatementDto | null,
-): PaperSummaryStatementReview | null {
-  return dto === null ? null : mapStatement(dto);
-}
-
 /** Narrow the wire locator to the domain discriminated union. */
 function mapLocator(
   dto: PaperSummaryEvidenceLocatorDto,
@@ -81,7 +75,7 @@ function mapLocator(
   if (dto.kind === "paper_text") {
     return {
       kind: "paper_text",
-      sourceUrl: dto.source_url,
+      sourceUrl: dto.source_url ?? null,
       section: dto.section ?? "",
       paragraph: dto.paragraph ?? null,
       textRange: dto.text_range ?? "",
@@ -90,7 +84,8 @@ function mapLocator(
   }
   return {
     kind: "paper_metadata",
-    sourceUrl: dto.source_url,
+    // The backend contract requires a source URL for metadata locators.
+    sourceUrl: dto.source_url ?? "",
     metadataField: dto.metadata_field ?? "",
   };
 }
@@ -132,9 +127,15 @@ function mapInputVersions(
   dto: PaperSummaryInputVersionsDto,
 ): PaperSummaryInputVersionsReview {
   return {
-    paperCollectionVersionId: mapId(dto.paper_collection_version_id),
-    paperCollectionSchemaVersion: dto.paper_collection_schema_version,
-    paperCollectionOutputHash: dto.paper_collection_output_hash as ContentHash,
+    paperCollectionVersionId:
+      dto.paper_collection_version_id === null ||
+      dto.paper_collection_version_id === undefined
+        ? null
+        : mapId(dto.paper_collection_version_id),
+    paperCollectionSchemaVersion: dto.paper_collection_schema_version ?? null,
+    paperCollectionOutputHash:
+      (dto.paper_collection_output_hash as ContentHash | null | undefined) ??
+      null,
     sourceSnapshots: dto.source_snapshots.map((snapshot) => ({
       sourceSnapshotId: mapId(snapshot.source_snapshot_id),
       sourceId: mapId(snapshot.source_id),
@@ -185,26 +186,35 @@ function summaryContractViolation(detail: string): ValidationError {
 }
 
 /**
- * Assemble the pdf-source review from a validated transport payload.
+ * Assemble the document-source review from a validated transport payload.
  *
  * Shared by the HTTP and fixture adapters. The authorized full-text input is
  * exactly what the server recorded through the PaperCandidate → ResearchInput
  * bridge; `null` means no authorized relation exists and must never be
- * replaced by a client-inferred PDF URL.
+ * replaced by a client-inferred source URL.
  */
-export function assemblePaperSummaryPdfSource(
-  read: PaperSummaryPdfSourceReadDto,
-): PaperSummaryPdfSourceReview {
+export function assemblePaperSummaryDocumentSource(
+  read: PaperSummaryDocumentSourceReadDto,
+): PaperSummaryDocumentSourceReview {
   const input = read.research_input ?? null;
   if (input === null) {
-    return { researchInputId: null };
+    return { researchInputId: null, documentKind: null };
   }
-  if (input.type !== "pdf" && input.mime_type !== "application/pdf") {
+  const isPdf = input.type === "pdf" || input.mime_type === "application/pdf";
+  const isImage =
+    input.type === "image" ||
+    ["image/jpeg", "image/png", "image/tiff", "image/webp"].includes(
+      input.mime_type ?? "",
+    );
+  if (!isPdf && !isImage) {
     throw summaryContractViolation(
-      "pdf source must reference a PDF research input",
+      "document source must reference a supported research document",
     );
   }
-  return { researchInputId: mapId(input.id) };
+  return {
+    researchInputId: mapId(input.id),
+    documentKind: isPdf ? "pdf" : "image",
+  };
 }
 
 /**
@@ -281,20 +291,23 @@ export function assemblePaperSummaryReview(
       year: read.paper.year ?? null,
     },
     schemaVersion: summary.schema_version,
-    benchmark: {
-      benchmarkId: mapId(summary.benchmark.benchmark_id),
-      benchmarkVersion: summary.benchmark.benchmark_version,
-      scenarioId: mapId(summary.benchmark.scenario_id),
-      schemaVersion: summary.benchmark.schema_version,
-      contentHash: summary.benchmark.content_hash as ContentHash,
-    },
+    benchmark: summary.benchmark
+      ? {
+          benchmarkId: mapId(summary.benchmark.benchmark_id),
+          benchmarkVersion: summary.benchmark.benchmark_version,
+          scenarioId: mapId(summary.benchmark.scenario_id),
+          schemaVersion: summary.benchmark.schema_version,
+          contentHash: summary.benchmark.content_hash as ContentHash,
+        }
+      : null,
     inputVersions: mapInputVersions(summary.input_versions),
-    researchGoal: mapStatementOrNull(summary.research_goal),
-    method: mapStatementOrNull(summary.method),
-    dataset: mapStatementOrNull(summary.dataset),
-    findings: summary.findings.map(mapStatement),
+    background: summary.background.map(mapStatement),
+    methodology: summary.methodology.map(mapStatement),
+    dataset: summary.dataset.map(mapStatement),
+    experiments: summary.experiments.map(mapStatement),
+    discussion: summary.discussion.map(mapStatement),
     limitations: summary.limitations.map(mapStatement),
-    futureWork: summary.future_work.map(mapStatement),
+    researchQuestions: summary.research_questions.map(mapStatement),
     summaryEvidence: summary.evidence.map(mapSummaryEvidence),
     sourceConflicts: summary.source_conflicts.map(mapSourceConflict),
     producer: mapProducer(summary.producer),
@@ -321,15 +334,15 @@ export function createPaperSummaryRepository(
       );
       return assemblePaperSummaryReview(read);
     },
-    async getPdfSource(artifactVersionId) {
+    async getDocumentSource(artifactVersionId) {
       const payload = await http.getRequired<unknown>(
-        `/api/artifact-versions/${seg(artifactVersionId)}/paper-summary/pdf-source`,
+        `/api/artifact-versions/${seg(artifactVersionId)}/paper-summary/document-source`,
       );
-      const read = parseContract<PaperSummaryPdfSourceReadDto>(
-        "PaperSummaryPdfSourceRead",
+      const read = parseContract<PaperSummaryDocumentSourceReadDto>(
+        "PaperSummaryDocumentSourceRead",
         payload,
       );
-      return assemblePaperSummaryPdfSource(read);
+      return assemblePaperSummaryDocumentSource(read);
     },
   };
 }

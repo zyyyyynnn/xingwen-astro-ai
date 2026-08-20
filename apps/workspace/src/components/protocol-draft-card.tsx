@@ -62,7 +62,7 @@ export function ProtocolDraftCard({
       </CardHeader>
 
       <CardContent className="pt-1">
-        <p className="font-serif text-[14px] leading-6 text-[var(--oh-text)]">
+        <p className="ui-text-body font-serif text-[var(--oh-text)]">
           {active.researchGoal}
         </p>
       </CardContent>

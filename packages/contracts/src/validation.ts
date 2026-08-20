@@ -26,7 +26,8 @@ import modelExecutionRecordSchema from "./generated/core/json/ModelExecutionReco
 import researchPlanningCatalogSchema from "./generated/core/json/ResearchPlanningCatalog.schema.json";
 import paperCollectionCandidateReadSchema from "./generated/core/json/PaperCollectionCandidateRead.schema.json";
 import paperCollectionReadSchema from "./generated/core/json/PaperCollectionRead.schema.json";
-import paperSummaryPdfSourceReadSchema from "./generated/core/json/PaperSummaryPdfSourceRead.schema.json";
+import paperCandidateInputBindingSchema from "./generated/core/json/PaperCandidateInputBinding.schema.json";
+import paperSummaryDocumentSourceReadSchema from "./generated/core/json/PaperSummaryDocumentSourceRead.schema.json";
 import paperSummaryReadSchema from "./generated/core/json/PaperSummaryRead.schema.json";
 import publicShareSnapshotSchema from "./generated/core/json/PublicShareSnapshot.schema.json";
 import researchThreadEntrySchema from "./generated/core/json/ResearchThreadEntry.schema.json";
@@ -41,6 +42,7 @@ import researchRunSchema from "./generated/core/json/ResearchRun.schema.json";
 import runCheckpointSchema from "./generated/core/json/RunCheckpoint.schema.json";
 import runEventSchema from "./generated/core/json/RunEvent.schema.json";
 import runStepReadSchema from "./generated/core/json/RunStepRead.schema.json";
+import scientificArtifactReadSchema from "./generated/core/json/ScientificArtifactRead.schema.json";
 import sessionCreatedSchema from "./generated/core/json/SessionCreated.schema.json";
 import shareSnapshotSchema from "./generated/core/json/ShareSnapshot.schema.json";
 import shareSnapshotCreatedSchema from "./generated/core/json/ShareSnapshotCreated.schema.json";
@@ -79,8 +81,9 @@ export const CORE_MODEL_NAMES = [
   "SourceSnapshotDetail",
   "PaperCollectionRead",
   "PaperCollectionCandidateRead",
+  "PaperCandidateInputBinding",
   "PaperSummaryRead",
-  "PaperSummaryPdfSourceRead",
+  "PaperSummaryDocumentSourceRead",
   "ArtifactExportRead",
   "DatasetArtifactRead",
   "FieldDictionaryArtifactRead",
@@ -89,6 +92,7 @@ export const CORE_MODEL_NAMES = [
   "LiteratureRelationRead",
   "LiteratureReasoningTraceRead",
   "GraphArtifactRead",
+  "ScientificArtifactRead",
   "SessionCreated",
   "WorkspaceSnapshot",
   "ShareSnapshot",
@@ -142,8 +146,9 @@ const schemas: SchemaMap = {
   SourceSnapshotDetail: sourceSnapshotDetailSchema,
   PaperCollectionRead: paperCollectionReadSchema,
   PaperCollectionCandidateRead: paperCollectionCandidateReadSchema,
+  PaperCandidateInputBinding: paperCandidateInputBindingSchema,
   PaperSummaryRead: paperSummaryReadSchema,
-  PaperSummaryPdfSourceRead: paperSummaryPdfSourceReadSchema,
+  PaperSummaryDocumentSourceRead: paperSummaryDocumentSourceReadSchema,
   ArtifactExportRead: artifactExportReadSchema,
   DatasetArtifactRead: datasetArtifactReadSchema,
   FieldDictionaryArtifactRead: fieldDictionaryArtifactReadSchema,
@@ -152,6 +157,7 @@ const schemas: SchemaMap = {
   LiteratureRelationRead: literatureRelationReadSchema,
   LiteratureReasoningTraceRead: literatureReasoningTraceReadSchema,
   GraphArtifactRead: graphArtifactReadSchema,
+  ScientificArtifactRead: scientificArtifactReadSchema,
   SessionCreated: sessionCreatedSchema,
   WorkspaceSnapshot: workspaceSnapshotSchema,
   ShareSnapshot: shareSnapshotSchema,

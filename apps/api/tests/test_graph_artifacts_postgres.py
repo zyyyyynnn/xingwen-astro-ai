@@ -102,8 +102,8 @@ def graph_context(postgres_engine: Engine) -> dict[str, Any]:  # noqa: F811
     factory = session_factory(postgres_engine)
     app = create_app()
     reads = ArtifactReadService(factory)
-    setattr(reads, "paper_summary_reader", FixturePaperSummaryReads(reads))
     app.state.artifact_read_service = reads
+    app.state.paper_summary_read_service = FixturePaperSummaryReads(reads)
     session_now = datetime.now(UTC)
     owner, owner_credential, _ = app.state.session_service.create(now=session_now)
     _, other_credential, _ = app.state.session_service.create(now=session_now)

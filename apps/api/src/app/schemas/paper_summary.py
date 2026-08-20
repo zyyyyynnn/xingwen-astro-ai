@@ -22,6 +22,7 @@ from ._hashing import compute_canonical_payload_hash
 from .manifest import ContentHash, Identifier, SemanticVersion
 from .paper_collection import PaperBenchmarkReference
 from .persistence import PersistedUuid
+from .scientific_document import DocumentLocator
 
 
 MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
@@ -54,6 +55,21 @@ PaperMetadataField = Literal[
 ]
 
 
+class PaperSummaryPaperMetadata(BaseModel):
+    """Bibliographic identity of the summarized paper.
+
+    Collection-backed summaries project it from the pinned PaperCollection;
+    DocumentParse-backed summaries carry it explicitly.
+    """
+
+    model_config = MODEL_CONFIG
+
+    paper_id: Identifier
+    title: NonEmptyString
+    authors: tuple[NonEmptyString, ...] = ()
+    year: int | None = Field(default=None, ge=1900, le=2100)
+
+
 class PaperSummarySupportStatus(StrEnum):
     supported = "supported"
     unsupported = "unsupported"
@@ -68,6 +84,16 @@ class PaperSummaryAdmissionStatus(StrEnum):
 class PaperSummaryFailureStage(StrEnum):
     json = "json"
     schema = "schema"
+
+
+class PaperSummarySectionKind(StrEnum):
+    background = "background"
+    methodology = "methodology"
+    dataset = "dataset"
+    experiments = "experiments"
+    discussion = "discussion"
+    limitations = "limitations"
+    research_questions = "research_questions"
 
 
 class PaperSummaryStatementCandidate(BaseModel):
@@ -89,12 +115,13 @@ class PaperSummaryModelOutput(BaseModel):
     model_config = MODEL_CONFIG
     __artifact_publication_requires_admission__: ClassVar[bool] = True
 
-    research_goal: PaperSummaryStatementCandidate | None
-    method: PaperSummaryStatementCandidate | None
-    dataset: PaperSummaryStatementCandidate | None
-    findings: tuple[PaperSummaryStatementCandidate, ...]
+    background: tuple[PaperSummaryStatementCandidate, ...]
+    methodology: tuple[PaperSummaryStatementCandidate, ...]
+    dataset: tuple[PaperSummaryStatementCandidate, ...]
+    experiments: tuple[PaperSummaryStatementCandidate, ...]
+    discussion: tuple[PaperSummaryStatementCandidate, ...]
     limitations: tuple[PaperSummaryStatementCandidate, ...]
-    future_work: tuple[PaperSummaryStatementCandidate, ...]
+    research_questions: tuple[PaperSummaryStatementCandidate, ...]
     evidence_ids: tuple[Identifier, ...]
 
     @model_validator(mode="after")
@@ -105,30 +132,42 @@ class PaperSummaryModelOutput(BaseModel):
             "summary statement id",
         )
         expected_evidence_ids = tuple(
-            sorted({evidence_id for item in statements for evidence_id in item.evidence_ids})
+            sorted(
+                {
+                    evidence_id
+                    for item in statements
+                    for evidence_id in item.evidence_ids
+                }
+            )
         )
         if self.evidence_ids != expected_evidence_ids:
-            raise ValueError("evidence_ids must equal the sorted statement Evidence union")
+            raise ValueError(
+                "evidence_ids must equal the sorted statement Evidence union"
+            )
         return self
 
     def statements(self) -> tuple[PaperSummaryStatementCandidate, ...]:
-        singular = tuple(
-            item
-            for item in (self.research_goal, self.method, self.dataset)
-            if item is not None
+        return tuple(
+            statement
+            for section in PaperSummarySectionKind
+            for statement in getattr(self, section.value)
         )
-        return singular + self.findings + self.limitations + self.future_work
 
 
 class PaperSummaryEvidenceLocator(BaseModel):
     model_config = MODEL_CONFIG
 
     kind: Literal["paper_text", "paper_metadata"]
-    source_url: HttpUrl
+    source_url: HttpUrl | None = None
     section: ShortString | None = None
     paragraph: int | None = Field(default=None, ge=1)
     text_range: ShortString | None = None
     metadata_field: PaperMetadataField | None = None
+    # DocumentParse-backed provenance: present exactly when the Evidence comes
+    # from a parsed ResearchInput document rather than a source URL.
+    document_parse_id: Identifier | PersistedUuid | None = None
+    document_parse_output_hash: ContentHash | None = None
+    document_locator: DocumentLocator | None = None
     # Preserves the canonical DocumentLocator.page_index (0-based) when a
     # reliable DocumentParse relationship exists. It is never inferred here and
     # stays null when only a source-level location is known.
@@ -136,14 +175,45 @@ class PaperSummaryEvidenceLocator(BaseModel):
 
     @model_validator(mode="after")
     def validate_locator_shape(self) -> Self:
+        document_fields = (
+            self.document_parse_id,
+            self.document_parse_output_hash,
+            self.document_locator,
+        )
+        has_document_locator = all(value is not None for value in document_fields)
+        if (
+            any(value is not None for value in document_fields)
+            and not has_document_locator
+        ):
+            raise ValueError("document locator fields must be provided together")
         if self.kind == "paper_text":
             if not self.section or not self.text_range or self.metadata_field:
                 raise ValueError("paper_text locator requires section and text_range")
-        elif not self.metadata_field or any(
-            value is not None
-            for value in (self.section, self.paragraph, self.text_range, self.page_index)
+            if self.source_url is None and not has_document_locator:
+                raise ValueError(
+                    "paper_text locator requires source_url or a DocumentParse locator"
+                )
+            if self.source_url is not None and has_document_locator:
+                raise ValueError(
+                    "paper_text locator accepts only one provenance family"
+                )
+        elif (
+            not self.metadata_field
+            or has_document_locator
+            or self.source_url is None
+            or any(
+                value is not None
+                for value in (
+                    self.section,
+                    self.paragraph,
+                    self.text_range,
+                    self.page_index,
+                )
+            )
         ):
-            raise ValueError("paper_metadata locator requires only metadata_field")
+            raise ValueError(
+                "paper_metadata locator requires only source_url and metadata_field"
+            )
         return self
 
 
@@ -154,40 +224,83 @@ class PaperSummaryEvidenceCandidate(BaseModel):
 
     evidence_id: Identifier
     paper_id: Identifier
-    candidate_id: Identifier
-    source_id: Identifier
+    # Collection-backed Evidence pins a PaperCollection candidate; DocumentParse
+    # evidence pins the ResearchInput identity (a persisted UUID).
+    candidate_id: Identifier | PersistedUuid
+    source_id: ShortString
     source_record_id: ShortString
-    source_snapshot_id: Identifier
+    source_snapshot_id: Identifier | PersistedUuid
     claimed_source_version: ShortString | None = None
     locator: PaperSummaryEvidenceLocator
     quote_or_value: NonEmptyString
-    accessible_excerpt: Annotated[str, Field(min_length=1, max_length=16000)] | None = Field(
-        default=None, repr=False
+    accessible_excerpt: Annotated[str, Field(min_length=1, max_length=16000)] | None = (
+        Field(default=None, repr=False)
     )
 
 
 class PaperSummarySourceSnapshotReference(BaseModel):
     model_config = MODEL_CONFIG
 
-    source_snapshot_id: Identifier
-    source_id: Identifier
+    # Collection snapshots use their pipeline identity; DocumentParse snapshots
+    # pin the persisted database UUID from the parse record.
+    source_snapshot_id: Identifier | PersistedUuid
+    source_id: ShortString
     source_version: ShortString
     content_hash: ContentHash
+
+
+class PaperSummaryDocumentParseReference(BaseModel):
+    model_config = MODEL_CONFIG
+
+    document_parse_id: PersistedUuid
+    candidate_parse_id: Identifier
+    research_input_id: PersistedUuid
+    source_snapshot_id: PersistedUuid
+    input_content_hash: ContentHash
+    canonical_output_hash: ContentHash
+    parser_profile_id: Identifier
+    parser_profile_version: SemanticVersion
+    config_hash: ContentHash
 
 
 class PaperSummaryInputVersions(BaseModel):
     model_config = MODEL_CONFIG
 
-    paper_collection_version_id: PersistedUuid
-    paper_collection_schema_version: SemanticVersion
-    paper_collection_output_hash: ContentHash
+    paper_collection_version_id: PersistedUuid | None = None
+    paper_collection_schema_version: SemanticVersion | None = None
+    paper_collection_output_hash: ContentHash | None = None
+    document_parses: tuple[PaperSummaryDocumentParseReference, ...] = Field(
+        default=(), max_length=1
+    )
     source_snapshots: tuple[PaperSummarySourceSnapshotReference, ...]
 
     @model_validator(mode="after")
     def validate_snapshot_versions(self) -> Self:
+        collection_fields = (
+            self.paper_collection_version_id,
+            self.paper_collection_schema_version,
+            self.paper_collection_output_hash,
+        )
+        has_collection = all(value is not None for value in collection_fields)
+        if any(value is not None for value in collection_fields) and not has_collection:
+            raise ValueError("PaperCollection input fields must be provided together")
+        if has_collection and self.document_parses:
+            raise ValueError(
+                "PaperSummary requires exactly one input family: "
+                "PaperCollection or DocumentParse"
+            )
+        if not has_collection and len(self.document_parses) != 1:
+            raise ValueError(
+                "PaperSummary requires exactly one DocumentParse when no "
+                "PaperCollection is referenced"
+            )
         _require_unique(
             tuple(item.source_snapshot_id for item in self.source_snapshots),
             "input SourceSnapshot version",
+        )
+        _require_unique(
+            tuple(item.document_parse_id for item in self.document_parses),
+            "input DocumentParse version",
         )
         return self
 
@@ -197,10 +310,10 @@ class PaperSummaryEvidence(BaseModel):
 
     evidence_id: Identifier
     paper_id: Identifier
-    candidate_id: Identifier
-    source_id: Identifier
+    candidate_id: Identifier | PersistedUuid
+    source_id: ShortString
     source_record_id: ShortString
-    source_snapshot_id: Identifier
+    source_snapshot_id: Identifier | PersistedUuid
     source_snapshot_version: ShortString
     source_snapshot_content_hash: ContentHash
     locator: PaperSummaryEvidenceLocator
@@ -214,7 +327,7 @@ class PaperSummarySourceConflict(BaseModel):
 
     conflict_id: Identifier
     evidence_id: Identifier
-    source_snapshot_id: Identifier
+    source_snapshot_id: Identifier | PersistedUuid
     claimed_source_version: ShortString
     source_snapshot_version: ShortString
     resolution: Literal["source_snapshot_version_retained"] = (
@@ -239,6 +352,22 @@ class PaperSummaryStatement(BaseModel):
         return self
 
 
+class PaperSummaryModelUsage(BaseModel):
+    model_config = MODEL_CONFIG
+
+    prompt_tokens: int = Field(ge=0)
+    completion_tokens: int = Field(ge=0)
+    total_tokens: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_total(self) -> Self:
+        if self.total_tokens < self.prompt_tokens + self.completion_tokens:
+            raise ValueError(
+                "total_tokens cannot be below prompt plus completion tokens"
+            )
+        return self
+
+
 class PaperSummaryProducerExecution(BaseModel):
     model_config = MODEL_CONFIG
 
@@ -249,6 +378,10 @@ class PaperSummaryProducerExecution(BaseModel):
     producer_name: NonEmptyString
     producer_version: SemanticVersion
     model_name: ShortString
+    model_revision: ShortString | None = None
+    provider: ShortString | None = None
+    provider_request_id: ShortString | None = None
+    usage: PaperSummaryModelUsage | None = None
     prompt_name: Identifier
     prompt_version: ShortString
     prompt_hash: ContentHash
@@ -268,7 +401,9 @@ class PaperSummaryProducerExecution(BaseModel):
     def validate_terminal_state(self) -> Self:
         if self.status == "completed":
             if self.output_hash is None or self.error_code is not None:
-                raise ValueError("completed summary execution requires only output_hash")
+                raise ValueError(
+                    "completed summary execution requires only output_hash"
+                )
         elif self.output_hash is not None or self.error_code is None:
             raise ValueError("rejected summary execution requires only error_code")
         return self
@@ -282,17 +417,19 @@ class PaperSummaryArtifactContent(BaseModel):
     _artifact_publication_seal: object | None = PrivateAttr(default=None)
 
     kind: Literal["paper_summary"]
-    schema_version: Literal["1.0.0"]
+    schema_version: Literal["2.0.0"]
     summary_id: Identifier
     paper_id: Identifier
-    benchmark: PaperBenchmarkReference
+    paper: PaperSummaryPaperMetadata | None = None
+    benchmark: PaperBenchmarkReference | None = None
     input_versions: PaperSummaryInputVersions
-    research_goal: PaperSummaryStatement | None
-    method: PaperSummaryStatement | None
-    dataset: PaperSummaryStatement | None
-    findings: tuple[PaperSummaryStatement, ...]
+    background: tuple[PaperSummaryStatement, ...]
+    methodology: tuple[PaperSummaryStatement, ...]
+    dataset: tuple[PaperSummaryStatement, ...]
+    experiments: tuple[PaperSummaryStatement, ...]
+    discussion: tuple[PaperSummaryStatement, ...]
     limitations: tuple[PaperSummaryStatement, ...]
-    future_work: tuple[PaperSummaryStatement, ...]
+    research_questions: tuple[PaperSummaryStatement, ...]
     evidence_ids: tuple[Identifier, ...]
     evidence: tuple[PaperSummaryEvidence, ...]
     source_conflicts: tuple[PaperSummarySourceConflict, ...]
@@ -302,17 +439,34 @@ class PaperSummaryArtifactContent(BaseModel):
 
     @model_validator(mode="after")
     def validate_summary_integrity(self) -> Self:
+        if self.input_versions.paper_collection_version_id is None:
+            if self.paper is None:
+                raise ValueError("DocumentParse summary requires paper metadata")
+            if self.paper.paper_id != self.paper_id:
+                raise ValueError(
+                    "PaperSummary paper metadata identity does not match paper_id"
+                )
         statements = self.statements()
         _require_unique(
             tuple(statement.statement_id for statement in statements),
             "summary statement id",
         )
         expected_evidence_ids = tuple(
-            sorted({evidence_id for item in statements for evidence_id in item.evidence_ids})
+            sorted(
+                {
+                    evidence_id
+                    for item in statements
+                    for evidence_id in item.evidence_ids
+                }
+            )
         )
         if self.evidence_ids != expected_evidence_ids:
-            raise ValueError("evidence_ids must equal the sorted statement Evidence union")
-        evidence_by_id = _unique_registry(self.evidence, "evidence_id", "summary Evidence")
+            raise ValueError(
+                "evidence_ids must equal the sorted statement Evidence union"
+            )
+        evidence_by_id = _unique_registry(
+            self.evidence, "evidence_id", "summary Evidence"
+        )
         conflict_by_id = _unique_registry(
             self.source_conflicts, "conflict_id", "source conflict"
         )
@@ -322,12 +476,15 @@ class PaperSummaryArtifactContent(BaseModel):
         ):
             raise ValueError("source conflict must reference retained Evidence")
         snapshots = {
-            item.source_snapshot_id: item for item in self.input_versions.source_snapshots
+            item.source_snapshot_id: item
+            for item in self.input_versions.source_snapshots
         }
         for evidence in self.evidence:
             snapshot = snapshots.get(evidence.source_snapshot_id)
             if snapshot is None:
-                raise ValueError("Evidence must reference an input SourceSnapshot version")
+                raise ValueError(
+                    "Evidence must reference an input SourceSnapshot version"
+                )
             if (
                 evidence.source_id != snapshot.source_id
                 or evidence.source_snapshot_version != snapshot.source_version
@@ -342,27 +499,32 @@ class PaperSummaryArtifactContent(BaseModel):
                 item is None or item.status is not PaperSummarySupportStatus.supported
                 for item in retained
             ):
-                raise ValueError("supported statement requires fully supported Evidence")
+                raise ValueError(
+                    "supported statement requires fully supported Evidence"
+                )
         if self.producer.status != "completed":
-            raise ValueError("published PaperSummary requires completed ProducerExecution")
+            raise ValueError(
+                "published PaperSummary requires completed ProducerExecution"
+            )
         if self.input_versions != self.producer.input_versions:
             raise ValueError("ProducerExecution input versions do not match summary")
         if self.input_hash != self.producer.input_hash:
             raise ValueError("ProducerExecution input_hash does not match summary")
         expected_output_hash = compute_paper_summary_output_hash(self)
         if self.output_hash != expected_output_hash:
-            raise ValueError(f"output_hash does not match PaperSummary: {expected_output_hash}")
+            raise ValueError(
+                f"output_hash does not match PaperSummary: {expected_output_hash}"
+            )
         if self.producer.output_hash != expected_output_hash:
             raise ValueError("ProducerExecution output_hash does not match summary")
         return self
 
     def statements(self) -> tuple[PaperSummaryStatement, ...]:
-        singular = tuple(
-            item
-            for item in (self.research_goal, self.method, self.dataset)
-            if item is not None
+        return tuple(
+            statement
+            for section in PaperSummarySectionKind
+            for statement in getattr(self, section.value)
         )
-        return singular + self.findings + self.limitations + self.future_work
 
     def __artifact_publication_is_admitted__(self) -> bool:
         return self._artifact_publication_seal is _ARTIFACT_PUBLICATION_SEAL
@@ -479,6 +641,14 @@ def compute_paper_summary_output_hash(
     return compute_canonical_payload_hash(payload)
 
 
+def dump_paper_summary_input_versions(
+    value: PaperSummaryInputVersions,
+) -> dict[str, Any]:
+    """Canonical identity dump for the current tagged input family."""
+
+    return value.model_dump(mode="json", exclude_none=True)
+
+
 def _seal_paper_summary_for_publication(
     value: PaperSummaryArtifactContent,
 ) -> PaperSummaryArtifactContent:
@@ -507,9 +677,7 @@ def _model_or_dict(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
 def _drop_none(value: Any) -> Any:
     if isinstance(value, dict):
         return {
-            key: _drop_none(item)
-            for key, item in value.items()
-            if item is not None
+            key: _drop_none(item) for key, item in value.items() if item is not None
         }
     if isinstance(value, list):
         return [_drop_none(item) for item in value]

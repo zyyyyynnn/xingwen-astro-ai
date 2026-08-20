@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { paperSummaryReadFixture } from "../src/fixture/paper-summary";
 import { ValidationError } from "../src/errors";
-import { assemblePaperSummaryReview } from "../src/paper-summary-repository";
+import {
+  assemblePaperSummaryDocumentSource,
+  assemblePaperSummaryReview,
+} from "../src/paper-summary-repository";
 
 function cachedRead() {
   const read = structuredClone(paperSummaryReadFixture);
@@ -67,5 +70,48 @@ describe("assemblePaperSummaryReview — cache audit integrity", () => {
     expect(() => assemblePaperSummaryReview(read)).toThrowError(
       ValidationError,
     );
+  });
+});
+
+describe("assemblePaperSummaryDocumentSource", () => {
+  it("preserves an authorized document image as an image source", () => {
+    expect(
+      assemblePaperSummaryDocumentSource({
+        research_input: {
+          id: "document-image-1",
+          type: "image",
+          source_type: "upload",
+          content_hash: `sha256:${"1".repeat(64)}`,
+          filename: "paper-page.png",
+          mime_type: "image/png",
+          size_bytes: 128,
+          created_at: "2026-08-20T10:00:00Z",
+          source_snapshot_id: null,
+          status: "accepted",
+        },
+      }),
+    ).toEqual({
+      researchInputId: "document-image-1",
+      documentKind: "image",
+    });
+  });
+
+  it("rejects a non-document ResearchInput at the document-source boundary", () => {
+    expect(() =>
+      assemblePaperSummaryDocumentSource({
+        research_input: {
+          id: "dataset-1",
+          type: "csv",
+          source_type: "upload",
+          content_hash: `sha256:${"2".repeat(64)}`,
+          filename: "measurements.csv",
+          mime_type: "text/csv",
+          size_bytes: 128,
+          created_at: "2026-08-20T10:00:00Z",
+          source_snapshot_id: null,
+          status: "accepted",
+        },
+      }),
+    ).toThrowError(ValidationError);
   });
 });

@@ -1,0 +1,134 @@
+{
+  "$defs": {
+    "ResearchInputRef": {
+      "additionalProperties": false,
+      "description": "Immutable reference to one ingested input; never carries binary content.",
+      "properties": {
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "filename": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Filename"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "mime_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mime Type"
+        },
+        "size_bytes": {
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        },
+        "source_snapshot_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Snapshot Id"
+        },
+        "source_type": {
+          "minLength": 1,
+          "title": "Source Type",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ResearchInputStatus",
+          "default": "accepted"
+        },
+        "type": {
+          "$ref": "#/$defs/ResearchInputType"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "source_type",
+        "content_hash",
+        "size_bytes",
+        "created_at"
+      ],
+      "title": "ResearchInputRef",
+      "type": "object"
+    },
+    "ResearchInputStatus": {
+      "description": "Stable lifecycle states for a controlled research input.\n\nThe ingestion writer produces ``accepted`` only. The other states preserve\nthe domain distinction between unsupported processing and failed ingestion;\nthey must be recorded only by a writer that has observed that outcome.",
+      "enum": [
+        "accepted",
+        "unsupported_processing",
+        "failed_ingestion"
+      ],
+      "title": "ResearchInputStatus",
+      "type": "string"
+    },
+    "ResearchInputType": {
+      "enum": [
+        "url",
+        "pdf",
+        "csv",
+        "xlsx",
+        "parquet",
+        "fits",
+        "json",
+        "image",
+        "image_dataset",
+        "text"
+      ],
+      "title": "ResearchInputType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Authorized full-text ResearchInput bound to the summarized paper.",
+  "properties": {
+    "research_input": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ResearchInputRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "title": "PaperSummaryDocumentSourceRead",
+  "type": "object"
+}

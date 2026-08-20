@@ -40,13 +40,14 @@ describe("PaperResultWorkspace narrow reading state", () => {
     return element;
   }
 
-  it("keeps report and PDF panes mounted while switching tabs", () => {
+  it("keeps report and document panes mounted while switching tabs", () => {
     render(
       <PaperResultWorkspace
         artifact={artifact}
         version={version}
         review={review}
-        pdfUrl="/api/research-inputs/source"
+        documentUrl="/api/research-inputs/source"
+        documentKind="pdf"
       />,
     );
 
@@ -54,14 +55,14 @@ describe("PaperResultWorkspace narrow reading state", () => {
     expect(screen.getAllByTestId("mock-pdf-viewer")).toHaveLength(2);
 
     const reportSection = pane("研究报告");
-    const pdfSection = pane("论文原文");
+    const documentSection = pane("原始文档");
     expect(reportSection).not.toHaveAttribute("hidden");
-    expect(pdfSection).toHaveAttribute("hidden");
+    expect(documentSection).toHaveAttribute("hidden");
 
     // Radix tabs select on mousedown, not click.
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "论文原文" }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "原始文档" }));
     expect(reportSection).toHaveAttribute("hidden");
-    expect(pdfSection).not.toHaveAttribute("hidden");
+    expect(documentSection).not.toHaveAttribute("hidden");
     expect(screen.getAllByTestId("mock-paper-report")).toHaveLength(2);
     expect(screen.getAllByTestId("mock-pdf-viewer")).toHaveLength(2);
   });
@@ -72,7 +73,8 @@ describe("PaperResultWorkspace narrow reading state", () => {
         artifact={artifact}
         version={version}
         review={review}
-        pdfUrl="/api/research-inputs/source"
+        documentUrl="/api/research-inputs/source"
+        documentKind="pdf"
       />,
     );
     jumpToPage.mockClear();
@@ -82,7 +84,8 @@ describe("PaperResultWorkspace narrow reading state", () => {
         artifact={artifact}
         version={version}
         review={review}
-        pdfUrl="/api/research-inputs/source"
+        documentUrl="/api/research-inputs/source"
+        documentKind="pdf"
         requestedPage={{ pageIndex: 4, nonce: 1 }}
       />,
     );
@@ -90,6 +93,21 @@ describe("PaperResultWorkspace narrow reading state", () => {
     expect(jumpToPage).toHaveBeenCalledTimes(2);
     expect(jumpToPage).toHaveBeenNthCalledWith(1, 4);
     expect(jumpToPage).toHaveBeenNthCalledWith(2, 4);
-    expect(pane("论文原文")).not.toHaveAttribute("hidden");
+    expect(pane("原始文档")).not.toHaveAttribute("hidden");
+  });
+
+  it("renders image documents without passing them to the PDF viewer", () => {
+    render(
+      <PaperResultWorkspace
+        artifact={artifact}
+        version={version}
+        review={review}
+        documentUrl="/api/research-inputs/image"
+        documentKind="image"
+      />,
+    );
+
+    expect(screen.getAllByAltText("论文原始文档")).toHaveLength(2);
+    expect(screen.queryByTestId("mock-pdf-viewer")).not.toBeInTheDocument();
   });
 });

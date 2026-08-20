@@ -68,7 +68,11 @@ def evaluate_paper_summaries(
         summary = case.admission.summary
         schema_valid = summary is not None
         schema_valid_count += int(schema_valid)
-        core_statements = () if summary is None else summary.findings + summary.limitations
+        core_statements = (
+            ()
+            if summary is None
+            else summary.experiments + summary.discussion + summary.limitations
+        )
         core_by_id = {item.statement_id: item for item in core_statements}
         if len(core_by_id) != len(core_statements):
             raise ValueError("benchmark Summary contains duplicate core statement ids")

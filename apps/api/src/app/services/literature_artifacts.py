@@ -40,7 +40,7 @@ from app.schemas.literature_relation import (
 )
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
-from app.services.paper_summaries import PaperSummaryReadService
+from app.services.paper_summaries import PaperSummaryReadPort, PaperSummaryReadService
 
 _MAX_PAGE_SIZE = 100
 _MAX_CONTENT_BYTES = 10 * 1024 * 1024
@@ -75,16 +75,14 @@ class LiteratureArtifactReadService:
         self,
         artifacts: ArtifactReadService,
         *,
-        paper_summary_reader: object | None = None,
+        paper_summary_reader: PaperSummaryReadPort | None = None,
     ) -> None:
         self._artifacts = artifacts
-        self._paper_summaries = (
-            paper_summary_reader
-            or getattr(artifacts, "paper_summary_reader", None)
-            or PaperSummaryReadService(artifacts)
+        self._paper_summaries = paper_summary_reader or PaperSummaryReadService(
+            artifacts
         )
 
-    def list_claims(
+    async def list_claims(
         self,
         *,
         version_id: str,
@@ -93,7 +91,9 @@ class LiteratureArtifactReadService:
         cursor: str | None,
         limit: int,
     ) -> tuple[tuple[LiteratureClaimRead, ...], str | None, bool]:
-        context = self._claims_context(version_id=version_id, session_id=session_id)
+        context = await self._claims_context(
+            version_id=version_id, session_id=session_id
+        )
         items = tuple(
             item
             for item in context.reads.values()
@@ -109,16 +109,18 @@ class LiteratureArtifactReadService:
             limit=limit,
         )
 
-    def get_claim(
+    async def get_claim(
         self, *, version_id: str, claim_id: str, session_id: str
     ) -> LiteratureClaimRead:
-        context = self._claims_context(version_id=version_id, session_id=session_id)
+        context = await self._claims_context(
+            version_id=version_id, session_id=session_id
+        )
         item = context.reads.get(claim_id)
         if item is None:
             raise _not_found("LITERATURE_CLAIM_NOT_FOUND")
         return item
 
-    def list_relations(
+    async def list_relations(
         self,
         *,
         version_id: str,
@@ -127,7 +129,9 @@ class LiteratureArtifactReadService:
         cursor: str | None,
         limit: int,
     ) -> tuple[tuple[LiteratureRelationRead, ...], str | None, bool]:
-        context = self._relations_context(version_id=version_id, session_id=session_id)
+        context = await self._relations_context(
+            version_id=version_id, session_id=session_id
+        )
         items = tuple(
             self._relation_read(context, relation)
             for relation in context.candidate.relations
@@ -143,10 +147,12 @@ class LiteratureArtifactReadService:
             limit=limit,
         )
 
-    def get_relation(
+    async def get_relation(
         self, *, version_id: str, relation_id: str, session_id: str
     ) -> LiteratureRelationRead:
-        context = self._relations_context(version_id=version_id, session_id=session_id)
+        context = await self._relations_context(
+            version_id=version_id, session_id=session_id
+        )
         relation = next(
             (
                 item
@@ -159,7 +165,7 @@ class LiteratureArtifactReadService:
             raise _not_found("LITERATURE_RELATION_NOT_FOUND")
         return self._relation_read(context, relation)
 
-    def get_relations(
+    async def get_relations(
         self,
         *,
         version_id: str,
@@ -168,8 +174,12 @@ class LiteratureArtifactReadService:
     ) -> dict[str, LiteratureRelationRead]:
         if not relation_ids:
             return {}
-        context = self._relations_context(version_id=version_id, session_id=session_id)
-        relations_by_id = {item.relation_id: item for item in context.candidate.relations}
+        context = await self._relations_context(
+            version_id=version_id, session_id=session_id
+        )
+        relations_by_id = {
+            item.relation_id: item for item in context.candidate.relations
+        }
         result: dict[str, LiteratureRelationRead] = {}
         for relation_id in set(relation_ids):
             relation = relations_by_id.get(relation_id)
@@ -178,7 +188,7 @@ class LiteratureArtifactReadService:
             result[relation_id] = self._relation_read(context, relation)
         return result
 
-    def list_reasoning_traces(
+    async def list_reasoning_traces(
         self,
         *,
         version_id: str,
@@ -187,7 +197,9 @@ class LiteratureArtifactReadService:
         cursor: str | None,
         limit: int,
     ) -> tuple[tuple[LiteratureReasoningTraceRead, ...], str | None, bool]:
-        context = self._relations_context(version_id=version_id, session_id=session_id)
+        context = await self._relations_context(
+            version_id=version_id, session_id=session_id
+        )
         relations = {item.relation_id: item for item in context.candidate.relations}
         items = tuple(
             self._trace_read(context, trace, relations[trace.relation_id])
@@ -204,10 +216,12 @@ class LiteratureArtifactReadService:
             limit=limit,
         )
 
-    def get_reasoning_trace(
+    async def get_reasoning_trace(
         self, *, version_id: str, trace_id: str, session_id: str
     ) -> LiteratureReasoningTraceRead:
-        context = self._relations_context(version_id=version_id, session_id=session_id)
+        context = await self._relations_context(
+            version_id=version_id, session_id=session_id
+        )
         trace = next(
             (
                 item
@@ -225,7 +239,9 @@ class LiteratureArtifactReadService:
         )
         return self._trace_read(context, trace, relation)
 
-    def _claims_context(self, *, version_id: str, session_id: str) -> _ClaimsContext:
+    async def _claims_context(
+        self, *, version_id: str, session_id: str
+    ) -> _ClaimsContext:
         version = self._version(version_id=version_id, session_id=session_id)
         self._require_kind(version, "literature_claims", session_id=session_id)
         candidate = _validated_candidate(
@@ -237,7 +253,7 @@ class LiteratureArtifactReadService:
 
         reference = candidate.input_versions
         try:
-            summary_read = self._paper_summaries.get_summary(
+            summary_read = await self._paper_summaries.get_summary(
                 version_id=reference.paper_summary_artifact_version_id,
                 session_id=session_id,
             )
@@ -368,7 +384,7 @@ class LiteratureArtifactReadService:
             reads=dict(sorted(reads.items())),
         )
 
-    def _relations_context(
+    async def _relations_context(
         self, *, version_id: str, session_id: str
     ) -> _RelationsContext:
         version = self._version(version_id=version_id, session_id=session_id)
@@ -391,7 +407,7 @@ class LiteratureArtifactReadService:
         summary_version_by_claim_id: dict[str, str] = {}
         for reference in candidate.input_versions.claim_artifact_versions:
             try:
-                context = self._claims_context(
+                context = await self._claims_context(
                     version_id=reference.artifact_version_id,
                     session_id=session_id,
                 )
@@ -720,7 +736,6 @@ def _snapshot_projection_map(
     if {item.id for item in result.values()} != set(version.source_snapshot_ids):
         raise _provenance_problem()
     return result
-
 
 
 def _validate_relation_endpoint_versions(

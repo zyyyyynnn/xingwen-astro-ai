@@ -75,6 +75,7 @@ from app.schemas.core import (
 )
 from app.services.research_thread import append_thread_entry
 from app.schemas.manifest import ManifestBundle
+from app.schemas.scientific_capabilities import planning_capabilities
 from app.security import SecurityProblem, canonical_request_hash, require_revision
 from app.services.model_execution import ModelExecutionError, ModelExecutionResponse
 from app.services.research_planner import PlannerResult, ResearchContractPlanner
@@ -657,7 +658,9 @@ class ResearchApplicationService:
                 # clients poll this read for every owned run.
                 return None
             decision = session.get(RunCheckpointDecisionModel, checkpoint.id)
-            return _run_checkpoint(checkpoint, decision)
+            return _run_checkpoint(
+                checkpoint, decision, run_revision=snapshot.revision
+            )
 
     def submit_run_checkpoint_decision(
         self,
@@ -683,6 +686,13 @@ class ResearchApplicationService:
             )
             if checkpoint is None:
                 raise _not_found("RUN_CHECKPOINT_NOT_FOUND")
+            if str(checkpoint.id) != request.checkpoint_id:
+                raise SecurityProblem(
+                    status=409,
+                    code="RUN_CHECKPOINT_CONFLICT",
+                    title="Run checkpoint conflict",
+                    detail="The checkpoint changed; reload before submitting a decision.",
+                )
             checkpoint_id = checkpoint.id
         try:
             self._workflow.submit_checkpoint_decision(
@@ -690,8 +700,11 @@ class ResearchApplicationService:
                 checkpoint_id=checkpoint_id,
                 selected_option=request.selected_option,
                 free_text=request.free_text,
-                expected_status=snapshot.status,
-                expected_revision=snapshot.revision,
+                repair_decisions=tuple(
+                    item.model_dump(mode="json") for item in request.repair_decisions
+                ),
+                expected_status="waiting_for_input",
+                expected_revision=request.expected_run_revision,
             )
         except CheckpointDecisionConflictError as exc:
             raise SecurityProblem(
@@ -1819,6 +1832,10 @@ def _run_step(row: RunStepModel, *, run_id: str) -> RunStepRead:
         position=row.position,
         key=row.key,
         label=row.label,
+        phase=row.enter_status,
+        task_id=row.task_id,
+        skill_id=row.skill_id,
+        depends_on_step_keys=tuple(row.depends_on_step_keys),
         status=row.status,
         progress=row.progress,
         public_message=row.public_message,
@@ -1829,17 +1846,27 @@ def _run_step(row: RunStepModel, *, run_id: str) -> RunStepRead:
 
 
 def _run_checkpoint(
-    row: RunCheckpointModel, decision: RunCheckpointDecisionModel | None
+    row: RunCheckpointModel,
+    decision: RunCheckpointDecisionModel | None,
+    *,
+    run_revision: int,
 ) -> RunCheckpoint:
     return RunCheckpoint(
         id=str(row.id),
         run_id=str(row.run_id),
+        run_revision=run_revision,
         step_key=row.step_key,
         question=row.question,
         options=tuple(row.options),
+        kind=row.kind,
+        repair_context=row.repair_context,
         created_at=_utc(row.created_at),
         selected_option=decision.selected_option if decision else None,
         free_text=decision.free_text if decision else None,
+        repair_decisions=(
+            tuple(decision.repair_decisions) if decision is not None else ()
+        ),
+        repair_outcome=(decision.repair_outcome if decision is not None else None),
         decided_at=_utc(decision.decided_at) if decision else None,
     )
 
@@ -1893,12 +1920,29 @@ _OUTPUT_PRESENTATION = {
         "整理文献、主张和对象关系。",
         "advanced",
     ),
-    ArtifactKind.reasoning_traces: (
-        "推理轨迹",
-        "保存可公开、可审计的推理摘要。",
+    ArtifactKind.export: ("导出结果", "生成可下载的研究结果包。", "advanced"),
+    ArtifactKind.analysis_report: (
+        "分析报告",
+        "呈现科学技能产出的指标、结果与结论。",
+        "common",
+    ),
+    ArtifactKind.visualization: (
+        "科学可视化",
+        "呈现图表、天图与影像等可视化结果。",
+        "common",
+    ),
+    ArtifactKind.spectrum: ("光谱", "保存光谱数据与谱线测量。", "common"),
+    ArtifactKind.light_curve: ("光变曲线", "保存光变数据与周期分析。", "common"),
+    ArtifactKind.model_evaluation: (
+        "模型评估",
+        "记录模型训练、评估指标与诊断。",
         "advanced",
     ),
-    ArtifactKind.export: ("导出结果", "生成可下载的研究结果包。", "advanced"),
+    ArtifactKind.model_artifact: (
+        "模型产物",
+        "保存可复用的 ONNX 模型与训练说明。",
+        "advanced",
+    ),
 }
 
 
@@ -1941,6 +1985,14 @@ def _research_planning_catalog(
                 description="当前研究案例批准使用的公开数据来源。",
             )
             for source_id in case.allowed_source_ids
+        ),
+        scientific_skills=tuple(
+            ResearchCatalogOption(
+                value=str(capability["id"]),
+                label=str(capability["label"]),
+                description=str(capability["description"]),
+            )
+            for capability in planning_capabilities()
         ),
         output_requirements=tuple(
             ResearchCatalogOption(

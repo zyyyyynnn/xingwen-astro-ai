@@ -338,7 +338,7 @@ def _build_summary(
     statement_fields = _statement_fields(claim.claim_type, statement)
     payload = {
         "kind": "paper_summary",
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "summary_id": claim.summary_id,
         "paper_id": claim.paper_id,
         "benchmark": PaperBenchmarkReference(
@@ -371,26 +371,27 @@ def _statement_fields(
     statement: PaperSummaryStatement,
 ) -> dict[str, object]:
     fields: dict[str, object] = {
-        "research_goal": None,
-        "method": None,
-        "dataset": None,
-        "findings": [],
+        "background": [],
+        "methodology": [],
+        "dataset": [],
+        "experiments": [],
+        "discussion": [],
         "limitations": [],
-        "future_work": [],
+        "research_questions": [],
     }
     dumped = statement.model_dump(mode="json")
     if claim_type is ClaimType.goal:
-        fields["research_goal"] = dumped
+        fields["background"] = [dumped]
     elif claim_type is ClaimType.method:
-        fields["method"] = dumped
+        fields["methodology"] = [dumped]
     elif claim_type is ClaimType.dataset:
-        fields["dataset"] = dumped
+        fields["dataset"] = [dumped]
     elif claim_type is ClaimType.limitation:
         fields["limitations"] = [dumped]
     elif claim_type is ClaimType.future_work:
-        fields["future_work"] = [dumped]
+        fields["research_questions"] = [dumped]
     else:
-        fields["findings"] = [dumped]
+        fields["experiments"] = [dumped]
     return fields
 
 

@@ -12,7 +12,7 @@ export default defineConfig({
   use: {
     baseURL:
       process.env.REAL_INTEGRATION_WORKSPACE_BASE_URL ??
-      "http://127.0.0.1:5173",
+      "http://localhost:5173",
     trace: "on-first-retry",
   },
   projects: [

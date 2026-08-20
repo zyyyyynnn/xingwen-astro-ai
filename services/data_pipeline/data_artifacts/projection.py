@@ -48,7 +48,10 @@ from app.schemas.data_artifacts import (
     compute_raw_record_reference_registry_hash,
 )
 from app.schemas.manifest import DataType, FieldDefinition, NullReason, QuantityKind
-from app.schemas.source_acquisition import RawDataSourceRecord, compute_raw_data_record_hash
+from app.schemas.source_acquisition import (
+    RawDataSourceRecord,
+    compute_raw_data_record_hash,
+)
 from services.data_pipeline.crossmatch.policy import (
     load_crossmatch_rule_set,
     load_crossmatch_source_policy,
@@ -148,11 +151,20 @@ def validate_policy_bindings(input_value: DataArtifactBuildInput):
         )
     capacity = input_value.mapping_rule_set.capacity
     if len(requested) > capacity.max_requested_fields:
-        raise DataArtifactError(DataArtifactErrorCode.capacity_exceeded, "field capacity exceeded")
+        raise DataArtifactError(
+            DataArtifactErrorCode.capacity_exceeded, "field capacity exceeded"
+        )
     if len(input_value.crossmatch_result.records) > capacity.max_rows:
-        raise DataArtifactError(DataArtifactErrorCode.capacity_exceeded, "row capacity exceeded")
-    if len(requested) * len(input_value.crossmatch_result.records) > capacity.max_total_cell_outcomes:
-        raise DataArtifactError(DataArtifactErrorCode.capacity_exceeded, "cell capacity exceeded")
+        raise DataArtifactError(
+            DataArtifactErrorCode.capacity_exceeded, "row capacity exceeded"
+        )
+    if (
+        len(requested) * len(input_value.crossmatch_result.records)
+        > capacity.max_total_cell_outcomes
+    ):
+        raise DataArtifactError(
+            DataArtifactErrorCode.capacity_exceeded, "cell capacity exceeded"
+        )
     if input_value.producer_version != input_value.mapping_rule_set.producer_version:
         raise DataArtifactError(
             DataArtifactErrorCode.mapping_rule_mismatch,
@@ -160,7 +172,9 @@ def validate_policy_bindings(input_value: DataArtifactBuildInput):
         )
 
     declarations = {rule.rule_id: rule for rule in manifest.conversion_rules}
-    implementations = {rule.rule_id: rule for rule in input_value.conversion_catalog.rules}
+    implementations = {
+        rule.rule_id: rule for rule in input_value.conversion_catalog.rules
+    }
     if implementations.keys() != declarations.keys():
         raise DataArtifactError(
             DataArtifactErrorCode.conversion_catalog_mismatch,
@@ -198,7 +212,9 @@ def validate_policy_bindings(input_value: DataArtifactBuildInput):
                     DataArtifactErrorCode.conversion_catalog_mismatch,
                     "conversion declaration and implementation unit pairs disagree",
                 )
-    return bundle, tuple(field for field in manifest.fields if field.field_id in requested)
+    return bundle, tuple(
+        field for field in manifest.fields if field.field_id in requested
+    )
 
 
 def validate_runtime_input_integrity(input_value: DataArtifactBuildInput) -> None:
@@ -222,22 +238,39 @@ def validate_runtime_input_integrity(input_value: DataArtifactBuildInput) -> Non
     if (
         result.content_hash != compute_crossmatch_content_hash(result)
         or result.output_hash != result.content_hash
-        or result.result_id != f"crossmatch.{result.content_hash.removeprefix('sha256:')[:24]}"
+        or result.result_id
+        != f"crossmatch.{result.content_hash.removeprefix('sha256:')[:24]}"
     ):
         raise DataArtifactError(
             DataArtifactErrorCode.crossmatch_result_mismatch,
             "CrossmatchResult hash or stable identity is invalid",
         )
     for acquisition, snapshot, mode, level, completion in (
-        (input_value.left_acquisition, result.left_source_snapshot, result.left_source_mode, result.left_data_level, result.left_completion),
-        (input_value.right_acquisition, result.right_source_snapshot, result.right_source_mode, result.right_data_level, result.right_completion),
+        (
+            input_value.left_acquisition,
+            result.left_source_snapshot,
+            result.left_source_mode,
+            result.left_data_level,
+            result.left_completion,
+        ),
+        (
+            input_value.right_acquisition,
+            result.right_source_snapshot,
+            result.right_source_mode,
+            result.right_data_level,
+            result.right_completion,
+        ),
     ):
         if acquisition.snapshot != snapshot:
             raise DataArtifactError(
                 DataArtifactErrorCode.snapshot_mismatch,
                 "acquisition SourceSnapshot disagrees with CrossmatchResult",
             )
-        if acquisition.source_mode is not mode or acquisition.data_level is not level or acquisition.completion != completion:
+        if (
+            acquisition.source_mode is not mode
+            or acquisition.data_level is not level
+            or acquisition.completion != completion
+        ):
             raise DataArtifactError(
                 DataArtifactErrorCode.crossmatch_result_mismatch,
                 "acquisition execution scope disagrees with CrossmatchResult",
@@ -248,7 +281,8 @@ def validate_runtime_input_integrity(input_value: DataArtifactBuildInput) -> Non
         for record in acquisition.records
     }
     if any(
-        record.content_hash != compute_raw_data_record_hash(
+        record.content_hash
+        != compute_raw_data_record_hash(
             source_id=record.source_id, row_key=record.row_key, payload=record.payload
         )
         for record in acquired.values()
@@ -357,7 +391,7 @@ def _alignment_status(record: CrossmatchRecord) -> AlignmentStatus:
 def _locator(candidate: EntityCandidate, raw_field: str) -> SourceCellLocator:
     reference = candidate.source_record
     return SourceCellLocator(
-        side=candidate.side,
+        source_role=candidate.side.value,
         source_snapshot_id=reference.source_snapshot_id,
         source_snapshot_content_hash=reference.source_snapshot_content_hash,
         source_id=reference.source_id,
@@ -368,11 +402,11 @@ def _locator(candidate: EntityCandidate, raw_field: str) -> SourceCellLocator:
     )
 
 
-def _canonical_value(
+def canonicalize_source_value(
     raw: object,
     field: FieldDefinition,
     alias,
-    input_value: DataArtifactBuildInput,
+    conversion_catalog,
     bundle,
     conversion_versions: dict[str, str],
 ) -> str:
@@ -390,14 +424,14 @@ def _canonical_value(
         source_unit=alias.source_unit,
         target_unit=field.canonical_unit,
         quantity_kind=_quantity_kind(field, bundle),
-        catalog=input_value.conversion_catalog,
+        catalog=conversion_catalog,
     )
     if field.data_type is DataType.integer and numeric != numeric.to_integral_value():
         raise DataArtifactError(
             DataArtifactErrorCode.invalid_numeric_value,
             f"{field.field_id} requires an integral canonical value",
         )
-    return serialize_decimal(numeric, capacity=input_value.conversion_catalog.decimal_capacity)
+    return serialize_decimal(numeric, capacity=conversion_catalog.decimal_capacity)
 
 
 def _uncertainty(
@@ -536,8 +570,13 @@ def _source_value(
     )
     canonical = None
     if raw_value is not None:
-        canonical = normalized_identity or _canonical_value(
-            raw_value, field, alias, input_value, bundle, conversion_versions
+        canonical = normalized_identity or canonicalize_source_value(
+            raw_value,
+            field,
+            alias,
+            input_value.conversion_catalog,
+            bundle,
+            conversion_versions,
         )
     if field.data_type is DataType.string and canonical == "":
         canonical = None
@@ -588,7 +627,9 @@ def _source_value(
             bundle,
             conversion_versions,
         ).model_dump(mode="json"),
-        "limit": _limit(raw_record, candidate, alias, raw_value).model_dump(mode="json"),
+        "limit": _limit(raw_record, candidate, alias, raw_value).model_dump(
+            mode="json"
+        ),
         "null_status": NullReason.not_measured if raw_value is None else None,
         "evidence_locator": locator.model_dump(mode="json"),
     }
@@ -675,9 +716,7 @@ def numeric_values_agree(left: Decimal, right: Decimal, rule_set) -> bool:
     if difference == 0:
         return True
     comparison = rule_set.numeric_comparison
-    denominator = max(
-        abs(left), abs(right), comparison.relative_denominator_floor
-    )
+    denominator = max(abs(left), abs(right), comparison.relative_denominator_floor)
     relative = difference / denominator
     compare = (
         (lambda value, threshold: value <= threshold)
@@ -734,11 +773,15 @@ def derive_field_conflicts(
         else "cross_source",
         "reason": "distinct canonical values are retained; source priority selects display only",
         "comparison_policy_version": rule_set.conflict_comparison_policy_version,
-        "absolute_difference": serialize_decimal(absolute) if absolute is not None else None,
+        "absolute_difference": serialize_decimal(absolute)
+        if absolute is not None
+        else None,
         "relative_denominator": serialize_decimal(denominator)
         if denominator is not None
         else None,
-        "relative_difference": serialize_decimal(relative) if relative is not None else None,
+        "relative_difference": serialize_decimal(relative)
+        if relative is not None
+        else None,
     }
     # Decimal inputs must be normalized through the persisted model before the
     # canonical hash is computed. Hashing the pre-validation strings makes
@@ -758,7 +801,9 @@ def derive_field_conflicts(
     return (FieldConflictRecord.model_validate(normalized),)
 
 
-def _source_members(input_value: DataArtifactBuildInput) -> tuple[SourceCollectionMember, ...]:
+def _source_members(
+    input_value: DataArtifactBuildInput,
+) -> tuple[SourceCollectionMember, ...]:
     members: list[SourceCollectionMember] = []
     for side, acquisition in (
         ("left", input_value.left_acquisition),
@@ -778,7 +823,11 @@ def _source_members(input_value: DataArtifactBuildInput) -> tuple[SourceCollecti
                     )
                     for record in acquisition.records
                 ),
-                key=lambda item: (item.source_id, item.row_key, item.raw_record_content_hash),
+                key=lambda item: (
+                    item.source_id,
+                    item.row_key,
+                    item.raw_record_content_hash,
+                ),
             )
         )
         members.append(
@@ -813,7 +862,8 @@ def derive_data_artifact_domain_projection(
     bundle, fields = validate_policy_bindings(input_value)
     result = input_value.crossmatch_result
     conversion_versions = {
-        rule.rule_id: rule.rule_version for rule in bundle.field_manifest.conversion_rules
+        rule.rule_id: rule.rule_version
+        for rule in bundle.field_manifest.conversion_rules
     }
     source_priorities = {
         field.field_id: {
@@ -822,7 +872,9 @@ def derive_data_artifact_domain_projection(
         }
         for field in fields
     }
-    candidate_by_id = {candidate.candidate_id: candidate for candidate in result.candidates}
+    candidate_by_id = {
+        candidate.candidate_id: candidate for candidate in result.candidates
+    }
     raw_by_reference = {
         (record.source_id, record.row_key): record
         for acquisition in (input_value.left_acquisition, input_value.right_acquisition)
@@ -843,8 +895,10 @@ def derive_data_artifact_domain_projection(
         outcomes = []
         row_conflict_ids: list[str] = []
         row_evidence_ids: list[str] = []
-        allowed_object_types = input_value.mapping_rule_set.entity_projection_policy.allowed_for(
-            record.entity_level
+        allowed_object_types = (
+            input_value.mapping_rule_set.entity_projection_policy.allowed_for(
+                record.entity_level
+            )
         )
         for field in fields:
             if field.object_type not in allowed_object_types:
@@ -860,7 +914,10 @@ def derive_data_artifact_domain_projection(
             for member in applicable_members:
                 source_id = member.source_record.source_id
                 raw = raw_by_reference.get((source_id, member.source_record.row_key))
-                if raw is None or raw.content_hash != member.source_record.record_content_hash:
+                if (
+                    raw is None
+                    or raw.content_hash != member.source_record.record_content_hash
+                ):
                     raise DataArtifactError(
                         DataArtifactErrorCode.source_record_reference_not_found,
                         "Cross-source Entity Alignment source record reference is unavailable",
@@ -875,7 +932,9 @@ def derive_data_artifact_domain_projection(
                             raw_record=raw,
                             field=field,
                             alias=alias,
-                            source_priority=source_priorities[field.field_id][source_id],
+                            source_priority=source_priorities[field.field_id][
+                                source_id
+                            ],
                             input_value=input_value,
                             bundle=bundle,
                             conversion_versions=conversion_versions,
@@ -888,12 +947,17 @@ def derive_data_artifact_domain_projection(
                     item.source_value_id,
                 )
             )
-            if len(source_values) > input_value.mapping_rule_set.capacity.max_source_values_per_field:
+            if (
+                len(source_values)
+                > input_value.mapping_rule_set.capacity.max_source_values_per_field
+            ):
                 raise DataArtifactError(
                     DataArtifactErrorCode.capacity_exceeded,
                     "source-value capacity exceeded",
                 )
-            non_null = [item for item in source_values if item.canonical_value is not None]
+            non_null = [
+                item for item in source_values if item.canonical_value is not None
+            ]
             conflicts = derive_field_conflicts(
                 field,
                 non_null,
@@ -935,7 +999,10 @@ def derive_data_artifact_domain_projection(
             for value in source_values:
                 if identity_unresolved or conflicts:
                     status = SelectionStatus.conflict
-                elif selected is not None and value.source_value_id == selected.source_value_id:
+                elif (
+                    selected is not None
+                    and value.source_value_id == selected.source_value_id
+                ):
                     status = SelectionStatus.selected
                 else:
                     status = SelectionStatus.unselected
@@ -975,7 +1042,9 @@ def derive_data_artifact_domain_projection(
             elif field.nullable:
                 outcome = DeclaredNullValue(
                     canonical_field_id=field.field_id,
-                    reason=NullReason.not_measured if source_values else NullReason.not_in_source,
+                    reason=NullReason.not_measured
+                    if source_values
+                    else NullReason.not_in_source,
                     candidate_source_value_ids=source_value_ids,
                     transformation_evidence_ids=evidence_ids,
                 )
@@ -985,7 +1054,10 @@ def derive_data_artifact_domain_projection(
                     f"non-nullable field {field.field_id} has no mapped source value",
                 )
             outcomes.append(outcome)
-            if len(all_evidence) + len(evidences) > input_value.mapping_rule_set.capacity.max_transformation_evidence:
+            if (
+                len(all_evidence) + len(evidences)
+                > input_value.mapping_rule_set.capacity.max_transformation_evidence
+            ):
                 raise DataArtifactError(
                     DataArtifactErrorCode.capacity_exceeded,
                     "Evidence capacity exceeded",
@@ -1058,9 +1130,7 @@ def derive_data_artifact_domain_projection(
             }
         )
     )
-    crossmatch_evidence_by_id = {
-        item.evidence_id: item for item in result.evidence
-    }
+    crossmatch_evidence_by_id = {item.evidence_id: item for item in result.evidence}
     crossmatch_evidence = tuple(
         crossmatch_evidence_by_id[item] for item in crossmatch_evidence_ids
     )

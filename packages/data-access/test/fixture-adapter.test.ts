@@ -19,7 +19,7 @@ const RUN_ID = "run_01JEXAMPLE" as never;
 // `rcd_01JTOUR` carries the same input as the pre-seeded contract
 // `rc_01JEXAMPLE`, so confirming it must reproduce this exact hash.
 const EXPECTED_CONTRACT_HASH =
-  "sha256:d43c90e165cbe6b068f2c95247703ff5bfed6e371a4826831afa17ee733b9986";
+  "sha256:7b810e492de26672a8f2cc4c70179a754e4a82ed3bd72461bcc9e9c2abbd983f";
 const ALL_ZERO_HASH = "sha256:" + "0".repeat(64);
 
 describe("Fixture adapter — provenance and semantics", () => {
@@ -71,7 +71,7 @@ describe("Fixture adapter — reads map DTO to domain", () => {
 
   it("lists artifacts produced by a run and reads detail projections", async () => {
     const artifacts = await repos.artifacts.listByRun(RUN_ID);
-    expect(artifacts).toHaveLength(9);
+    expect(artifacts).toHaveLength(8);
     const artifact = await repos.artifacts.getArtifact("art_graph_01" as never);
     expect(artifact!.kind).toBe("graph");
     const version = await repos.artifacts.getVersion(

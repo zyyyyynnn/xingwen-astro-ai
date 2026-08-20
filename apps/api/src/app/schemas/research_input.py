@@ -1,8 +1,9 @@
 """Contracts for research-input attachments and URL ingestion.
 
-Controlled ingestion boundary for the Research Composer: URL, PDF, CSV, JSON,
-image and plain-text inputs. This contract only *receives* inputs into an
-immutable, content-addressed boundary and records provenance; it never
+Controlled ingestion boundary for the Research Composer: URL, PDF, CSV, XLSX,
+Parquet, JSON, FITS, image datasets, images and plain-text inputs. This contract
+only *receives* inputs into an immutable, content-addressed boundary and records
+provenance; it never
 promises PDF/image comprehension, OCR, cleaning or model inference. Controlled
 ingestion persists only accepted input; failures use Problem Details without
 manufacturing a failed resource.
@@ -52,9 +53,12 @@ class ResearchInputType(StrEnum):
     url = "url"
     pdf = "pdf"
     csv = "csv"
+    xlsx = "xlsx"
+    parquet = "parquet"
     fits = "fits"
     json = "json"
     image = "image"
+    image_dataset = "image_dataset"
     text = "text"
 
 
@@ -88,9 +92,12 @@ FILE_INPUT_TYPES = frozenset(
     {
         ResearchInputType.pdf,
         ResearchInputType.csv,
+        ResearchInputType.xlsx,
+        ResearchInputType.parquet,
         ResearchInputType.fits,
         ResearchInputType.json,
         ResearchInputType.image,
+        ResearchInputType.image_dataset,
     }
 )
 
@@ -104,8 +111,9 @@ class ResearchInputCreate(BaseModel):
     """Client payload describing one input to ingest.
 
     ``type=url`` requires ``url``; ``type=text`` requires ``text_content``;
-    the file types (pdf/csv/json/image) always arrive through the multipart
-    transport and never carry ``url`` or ``text_content``.
+    the file types (pdf/csv/xlsx/parquet/json/image/image_dataset/fits) always
+    arrive through the multipart transport and never carry ``url`` or
+    ``text_content``.
     """
 
     model_config = CORE_MODEL_CONFIG
@@ -167,7 +175,8 @@ class TextResearchInputRequest(BaseModel):
 
 
 #: The JSON create contract. Only ``url`` and ``text`` are reachable over
-#: ``application/json``; pdf/csv/json/image are multipart-only. The public name
+#: ``application/json``; pdf/csv/xlsx/parquet/json/image/image_dataset/fits are
+#: multipart-only. The public name
 #: *is* the union -- there is exactly one authority for the JSON body, with no
 #: second mega-model or second JSON alias to drift from.
 CreateResearchInputRequest = Annotated[
@@ -189,9 +198,12 @@ class CreateResearchInputMultipartRequest(BaseModel):
     type: Literal[
         ResearchInputType.pdf,
         ResearchInputType.csv,
+        ResearchInputType.xlsx,
+        ResearchInputType.parquet,
         ResearchInputType.fits,
         ResearchInputType.json,
         ResearchInputType.image,
+        ResearchInputType.image_dataset,
     ]
     filename: Annotated[str | None, Field(default=None, min_length=1, max_length=255)]
     mime_type: Annotated[str | None, Field(default=None, max_length=127)]

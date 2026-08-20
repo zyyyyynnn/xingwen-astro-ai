@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Header, Path, Query, Request, Response
 from fastapi.responses import Response as RawResponse
+from fastapi.responses import StreamingResponse
 
 from app.schemas.core import (
     ArtifactKind,
@@ -16,6 +17,7 @@ from app.schemas.core import (
     CursorPage,
     Envelope,
     EvidenceRead,
+    ProblemDetails,
     ResearchArtifact,
     ResearchArtifactDetail,
     ResponseLinks,
@@ -31,6 +33,7 @@ from app.schemas.data_artifact_api import (
     SourceCollectionArtifactRead,
 )
 from app.schemas.enums import GraphEdgeType, GraphNodeType
+from app.schemas.scientific_document import is_supported_scientific_document_input
 from app.schemas.graph_artifact_api import (
     GraphArtifactRead,
     GraphEdgeRead,
@@ -50,18 +53,33 @@ from app.schemas.paper_collection_api import (
     PaperCollectionCandidateRead,
     PaperCollectionRead,
 )
-from app.schemas.paper_summary_api import PaperSummaryPdfSourceRead, PaperSummaryRead
+from app.schemas.paper_summary_api import (
+    PaperSummaryDocumentSourceRead,
+    PaperSummaryRead,
+)
+from app.services.paper_summary_exports import PaperSummaryExportService
+from app.schemas.scientific_artifact_api import ScientificArtifactRead
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
+from app.services.content_storage import ContentRangeNotSatisfiable
 from app.services.data_artifacts import DataArtifactReadService
 from app.services.graph_artifacts import GraphArtifactReadService
 from app.services.literature_artifacts import LiteratureArtifactReadService
 from app.services.paper_collections import PaperCollectionReadService
 from app.services.paper_candidate_inputs import (
     CreatePaperCandidateInputCommand,
+    PaperCandidateInputReadService,
     PaperCandidateInputService,
 )
-from app.services.paper_summaries import PaperSummaryReadService
+from app.services.paper_summaries import (
+    DocumentSourceResolver,
+    PaperSummaryReadService,
+)
+from app.services.research_input_store import (
+    ResearchInputRecord,
+    ResearchInputRepository,
+)
+from app.services.scientific_artifacts import ScientificArtifactReadService
 
 router = APIRouter(prefix="/api", tags=["artifacts"])
 
@@ -100,11 +118,57 @@ def _paper_input_service(request: Request) -> PaperCandidateInputService:
 
 def _summary_service(request: Request) -> PaperSummaryReadService:
     pdf_source_resolver = None
-    input_service = request.app.state.paper_candidate_input_service
-    if input_service is not None:
-        pdf_source_resolver = input_service.accepted_research_input
+    input_reader: PaperCandidateInputReadService | None = (
+        request.app.state.paper_candidate_input_reader
+    )
+    if input_reader is not None:
+        pdf_source_resolver = input_reader.accepted_research_input
+    research_input_resolver = None
+    input_store = request.app.state.research_input_store
+    if input_store is not None:
+        research_input_resolver = _research_input_by_identity(input_store)
     return PaperSummaryReadService(
-        _service(request), pdf_source_resolver=pdf_source_resolver
+        _service(request),
+        pdf_source_resolver=pdf_source_resolver,
+        research_input_resolver=research_input_resolver,
+        document_parses=request.app.state.document_parse_service,
+    )
+
+
+def _research_input_by_identity(
+    store: ResearchInputRepository,
+) -> DocumentSourceResolver:
+    """Authorize a parsed PDF or document image by immutable input identity."""
+
+    def resolve(
+        *,
+        session_id: str,
+        project_id: str,
+        research_input_id: str,
+        input_content_hash: str,
+    ) -> ResearchInputRecord | None:
+        record = store.get(session_id=session_id, input_id=research_input_id)
+        if (
+            record is None
+            or record.project_id != project_id
+            or record.content_hash != input_content_hash
+        ):
+            return None
+        return (
+            record
+            if is_supported_scientific_document_input(
+                input_type=record.type,
+                mime_type=record.mime_type,
+            )
+            else None
+        )
+
+    return resolve
+
+
+def _scientific_service(request: Request) -> ScientificArtifactReadService:
+    return ScientificArtifactReadService(
+        _service(request), request.app.state.content_storage
     )
 
 
@@ -124,11 +188,19 @@ def _data_service(request: Request) -> DataArtifactReadService:
 
 
 def _literature_service(request: Request) -> LiteratureArtifactReadService:
-    return LiteratureArtifactReadService(_service(request))
+    artifacts = _service(request)
+    return LiteratureArtifactReadService(
+        artifacts,
+        paper_summary_reader=(
+            request.app.state.paper_summary_read_service or _summary_service(request)
+        ),
+    )
 
 
 def _graph_service(request: Request) -> GraphArtifactReadService:
-    return GraphArtifactReadService(_service(request))
+    return GraphArtifactReadService(
+        _service(request), literature_reader=_literature_service(request)
+    )
 
 
 def _meta(request: Request) -> ResponseMeta:
@@ -258,12 +330,12 @@ def get_paper_collection(
     operation_id="getPaperSummary",
     response_model=Envelope[PaperSummaryRead],
 )
-def get_paper_summary(
+async def get_paper_summary(
     version_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
 ) -> Envelope[PaperSummaryRead]:
-    data = _summary_service(request).get_summary(
+    data = await _summary_service(request).get_summary(
         version_id=version_id, session_id=_session_id(request)
     )
     _no_store(response)
@@ -272,21 +344,151 @@ def get_paper_summary(
 
 
 @router.get(
-    "/artifact-versions/{version_id}/paper-summary/pdf-source",
-    operation_id="getPaperSummaryPdfSource",
-    response_model=Envelope[PaperSummaryPdfSourceRead],
+    "/artifact-versions/{version_id}/paper-summary/document-source",
+    operation_id="getPaperSummaryDocumentSource",
+    response_model=Envelope[PaperSummaryDocumentSourceRead],
 )
-def get_paper_summary_pdf_source(
+async def get_paper_summary_document_source(
     version_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
-) -> Envelope[PaperSummaryPdfSourceRead]:
-    data = _summary_service(request).get_pdf_source(
+) -> Envelope[PaperSummaryDocumentSourceRead]:
+    data = await _summary_service(request).get_document_source(
         version_id=version_id, session_id=_session_id(request)
     )
     _no_store(response)
-    path = f"/api/artifact-versions/{version_id}/paper-summary/pdf-source"
+    path = f"/api/artifact-versions/{version_id}/paper-summary/document-source"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/artifact-versions/{version_id}/paper-summary/export",
+    operation_id="downloadPaperSummaryExport",
+    response_class=RawResponse,
+    response_model=None,
+    responses={
+        200: {
+            "content": {
+                "application/json": {"schema": {"type": "string", "format": "binary"}},
+                "text/markdown": {"schema": {"type": "string", "format": "binary"}},
+            }
+        },
+        400: {"model": ProblemDetails},
+        401: {"model": ProblemDetails},
+        403: {"model": ProblemDetails},
+        404: {"model": ProblemDetails},
+        409: {"model": ProblemDetails},
+        413: {"model": ProblemDetails},
+        422: {"model": ProblemDetails},
+        429: {"model": ProblemDetails},
+    },
+)
+async def download_paper_summary_export(
+    version_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    export_format: Annotated[
+        Literal["json", "markdown"], Query(alias="format")
+    ] = "json",
+) -> RawResponse:
+    """Download one exact PaperSummary ArtifactVersion as JSON or Markdown."""
+
+    download = await PaperSummaryExportService(_summary_service(request)).export(
+        version_id=version_id,
+        session_id=_session_id(request),
+        export_format=export_format,
+    )
+    response = RawResponse(
+        content=download.content,
+        media_type=download.media_type,
+        headers={"Content-Disposition": f'attachment; filename="{download.filename}"'},
+    )
+    _no_store(response)
+    return response
+
+
+@router.get(
+    "/artifact-versions/{version_id}/scientific",
+    operation_id="getScientificArtifact",
+    response_model=Envelope[ScientificArtifactRead],
+)
+def get_scientific_artifact(
+    version_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+) -> Envelope[ScientificArtifactRead]:
+    data = _scientific_service(request).get_scientific_artifact(
+        version_id=version_id,
+        session_id=_session_id(request),
+    )
+    _no_store(response)
+    path = f"/api/artifact-versions/{version_id}/scientific"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/artifact-versions/{version_id}/scientific/content/{content_hash}",
+    operation_id="getScientificArtifactContent",
+    response_class=StreamingResponse,
+    responses={
+        200: {
+            "content": {
+                "application/octet-stream": {
+                    "schema": {"type": "string", "format": "binary"}
+                }
+            }
+        },
+        206: {
+            "content": {
+                "application/octet-stream": {
+                    "schema": {"type": "string", "format": "binary"}
+                }
+            }
+        },
+        416: {"model": ProblemDetails},
+    },
+)
+async def get_scientific_artifact_content(
+    version_id: Annotated[str, Path(min_length=1)],
+    content_hash: Annotated[str, Path(pattern=r"^sha256:[0-9a-f]{64}$")],
+    request: Request,
+    range_header: Annotated[str | None, Header(alias="Range")] = None,
+) -> StreamingResponse:
+    try:
+        content, media_type = await _scientific_service(request).get_content(
+            version_id=version_id,
+            content_hash=content_hash,
+            session_id=_session_id(request),
+            range_header=range_header,
+        )
+    except ContentRangeNotSatisfiable as exc:
+        raise SecurityProblem(
+            status=416,
+            code="SCIENTIFIC_CONTENT_RANGE_NOT_SATISFIABLE",
+            title="Content range not satisfiable",
+            detail="The requested byte range cannot be served for this content",
+            headers={
+                "Accept-Ranges": "bytes",
+                "Content-Range": f"bytes */{exc.total_size}",
+            },
+        ) from exc
+
+    headers = {
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "private, immutable, max-age=31536000",
+        "Content-Length": str(content.content_length),
+    }
+    status_code = 200
+    if range_header is not None:
+        status_code = 206
+        headers["Content-Range"] = (
+            f"bytes {content.start}-{content.end}/{content.total_size}"
+        )
+    return StreamingResponse(
+        content=content.chunks,
+        status_code=status_code,
+        media_type=media_type,
+        headers=headers,
+    )
 
 
 @router.get(
@@ -361,7 +563,7 @@ def get_graph_node(
     operation_id="listGraphEdges",
     response_model=CollectionEnvelope[GraphEdgeRead],
 )
-def list_graph_edges(
+async def list_graph_edges(
     version_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
@@ -370,7 +572,7 @@ def list_graph_edges(
     cursor: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> CollectionEnvelope[GraphEdgeRead]:
-    items, next_cursor, has_more = _graph_service(request).list_edges(
+    items, next_cursor, has_more = await _graph_service(request).list_edges(
         version_id=version_id,
         session_id=_session_id(request),
         edge_type=edge_type,
@@ -393,13 +595,13 @@ def list_graph_edges(
     operation_id="getGraphEdge",
     response_model=Envelope[GraphEdgeRead],
 )
-def get_graph_edge(
+async def get_graph_edge(
     version_id: Annotated[str, Path(min_length=1)],
     edge_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
 ) -> Envelope[GraphEdgeRead]:
-    data = _graph_service(request).get_edge(
+    data = await _graph_service(request).get_edge(
         version_id=version_id, edge_id=edge_id, session_id=_session_id(request)
     )
     _no_store(response)
@@ -412,7 +614,7 @@ def get_graph_edge(
     operation_id="listLiteratureClaims",
     response_model=CollectionEnvelope[LiteratureClaimRead],
 )
-def list_literature_claims(
+async def list_literature_claims(
     version_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
@@ -420,7 +622,7 @@ def list_literature_claims(
     cursor: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> CollectionEnvelope[LiteratureClaimRead]:
-    items, next_cursor, has_more = _literature_service(request).list_claims(
+    items, next_cursor, has_more = await _literature_service(request).list_claims(
         version_id=version_id,
         session_id=_session_id(request),
         status=status,
@@ -442,13 +644,13 @@ def list_literature_claims(
     operation_id="getLiteratureClaim",
     response_model=Envelope[LiteratureClaimRead],
 )
-def get_literature_claim(
+async def get_literature_claim(
     version_id: Annotated[str, Path(min_length=1)],
     claim_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
 ) -> Envelope[LiteratureClaimRead]:
-    data = _literature_service(request).get_claim(
+    data = await _literature_service(request).get_claim(
         version_id=version_id,
         claim_id=claim_id,
         session_id=_session_id(request),
@@ -463,7 +665,7 @@ def get_literature_claim(
     operation_id="listLiteratureRelations",
     response_model=CollectionEnvelope[LiteratureRelationRead],
 )
-def list_literature_relations(
+async def list_literature_relations(
     version_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
@@ -471,7 +673,7 @@ def list_literature_relations(
     cursor: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> CollectionEnvelope[LiteratureRelationRead]:
-    items, next_cursor, has_more = _literature_service(request).list_relations(
+    items, next_cursor, has_more = await _literature_service(request).list_relations(
         version_id=version_id,
         session_id=_session_id(request),
         status=status,
@@ -493,13 +695,13 @@ def list_literature_relations(
     operation_id="getLiteratureRelation",
     response_model=Envelope[LiteratureRelationRead],
 )
-def get_literature_relation(
+async def get_literature_relation(
     version_id: Annotated[str, Path(min_length=1)],
     relation_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
 ) -> Envelope[LiteratureRelationRead]:
-    data = _literature_service(request).get_relation(
+    data = await _literature_service(request).get_relation(
         version_id=version_id,
         relation_id=relation_id,
         session_id=_session_id(request),
@@ -514,7 +716,7 @@ def get_literature_relation(
     operation_id="listReasoningTraces",
     response_model=CollectionEnvelope[LiteratureReasoningTraceRead],
 )
-def list_reasoning_traces(
+async def list_reasoning_traces(
     version_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
@@ -522,7 +724,9 @@ def list_reasoning_traces(
     cursor: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> CollectionEnvelope[LiteratureReasoningTraceRead]:
-    items, next_cursor, has_more = _literature_service(request).list_reasoning_traces(
+    items, next_cursor, has_more = await _literature_service(
+        request
+    ).list_reasoning_traces(
         version_id=version_id,
         session_id=_session_id(request),
         status=status,
@@ -544,13 +748,13 @@ def list_reasoning_traces(
     operation_id="getReasoningTrace",
     response_model=Envelope[LiteratureReasoningTraceRead],
 )
-def get_reasoning_trace(
+async def get_reasoning_trace(
     version_id: Annotated[str, Path(min_length=1)],
     trace_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
 ) -> Envelope[LiteratureReasoningTraceRead]:
-    data = _literature_service(request).get_reasoning_trace(
+    data = await _literature_service(request).get_reasoning_trace(
         version_id=version_id,
         trace_id=trace_id,
         session_id=_session_id(request),

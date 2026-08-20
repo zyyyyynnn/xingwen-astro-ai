@@ -67,6 +67,12 @@ function toContractInputViewModel(
       sourceIds: [...input.paperSearchScope.sourceIds],
       maxCandidates: input.paperSearchScope.maxCandidates,
     },
+    scientificTasks: input.scientificTasks.map((task) => ({
+      taskId: task.taskId,
+      skillId: task.skillId,
+      parameters: { ...task.parameters },
+      inputRefs: [...task.inputRefs],
+    })),
     outputRequirements: [...input.outputRequirements],
     evidenceRequirements: {
       requireLocator: input.evidenceRequirements.requireLocator,
@@ -149,6 +155,10 @@ export function toRunStepViewModel(step: RunStepSnapshot): RunStepViewModel {
     position: step.position,
     key: step.key,
     label: step.label,
+    phase: step.phase,
+    taskId: step.taskId,
+    skillId: step.skillId,
+    dependsOnStepKeys: step.dependsOnStepKeys,
     status: step.status,
     progress: step.progress,
     publicMessage: step.publicMessage,
@@ -280,15 +290,22 @@ export function toRunCheckpointViewModel(
   return {
     id: checkpoint.id,
     runId: checkpoint.runId,
+    runRevision: checkpoint.runRevision,
     stepKey: checkpoint.stepKey,
     question: checkpoint.question,
     options: [...checkpoint.options],
+    kind: checkpoint.kind,
+    repairContext: checkpoint.repairContext,
     createdAt: checkpoint.createdAt,
     selectedOption: checkpoint.selectedOption,
     freeText: checkpoint.freeText,
+    repairDecisions: checkpoint.repairDecisions,
+    repairOutcome: checkpoint.repairOutcome,
     decidedAt: checkpoint.decidedAt,
     isAnswered:
-      checkpoint.selectedOption !== null || checkpoint.decidedAt !== null,
+      checkpoint.selectedOption !== null ||
+      checkpoint.repairDecisions.length > 0 ||
+      checkpoint.decidedAt !== null,
   };
 }
 
@@ -583,15 +600,6 @@ export function toLiteratureArtifactViewModel(
         sourceSnapshotIds: [...claim.sourceSnapshotIds],
         evidenceIds: [...claim.evidenceIds],
       })),
-    };
-  }
-  if (review.kind === "reasoning_traces") {
-    return {
-      ...base,
-      kind: review.kind,
-      traces: review.traces
-        .map(toTraceViewModel)
-        .filter((trace): trace is NonNullable<typeof trace> => trace !== null),
     };
   }
   return {

@@ -4,7 +4,7 @@
 | --- | --- |
 | Authority | 权威规范地图、文档治理规则与 Agent 默认读取规范 |
 
-本文件是星文智析仓库规范 Authority 的唯一地图。列入下表的文档是 normative Authority；`docs/references/**` 仅是 non-normative Reference。Git 保存规范演进，GitHub Issues/PRs 保存工作状态，代码、测试与真实运行保存实现事实。
+本文件是星文智析仓库规范 Authority 的唯一地图。列入下表的文档是 normative Authority；`docs/references/` 仅保存需要长期随仓库维护的外部规范/赛题资料，不构成规范体系。Git 保存规范演进，GitHub Issues/PRs 保存工作状态，代码、测试与真实运行保存实现事实。
 
 ## 1. Authority Map
 
@@ -46,7 +46,7 @@
 | Agent 执行协议 | [AGENTS](../AGENTS.md) | Agent 执行协议与工作区安全约束 |
 | 协作与 PR 流程 | [Contributing](../CONTRIBUTING.md) | GitHub 分支、提交、PR、Review 与 Squash Merge |
 
-第三方参考资料位于 [docs/references/](references/README.md)，仅作参考，不具有规范约束力。
+第三方实现源码与参考迁移的阶段性材料不进入当前树；外部规范/赛题资料位于 [docs/references/](references/README.md)，仅作参考，不具有规范约束力。
 
 ## 2. Agent 默认读取规则
 

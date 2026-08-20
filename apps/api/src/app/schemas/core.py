@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from enum import StrEnum
-from typing import Annotated, Any, ClassVar, Generic, Literal, TypeVar
+from typing import Annotated, Any, ClassVar, Generic, Literal, Self, TypeVar
 from uuid import UUID
 
 from pydantic import (
@@ -19,6 +19,7 @@ from pydantic import (
 )
 
 from ._hashing import compute_canonical_payload_hash
+from .scientific_capabilities import contract_parameters, produced_artifact_kinds
 
 
 CORE_MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
@@ -79,6 +80,10 @@ class RunStatus(StrEnum):
     planning = "planning"
     fetching_data = "fetching_data"
     cleaning_data = "cleaning_data"
+    acquiring_observations = "acquiring_observations"
+    analyzing_data = "analyzing_data"
+    training_models = "training_models"
+    building_visualizations = "building_visualizations"
     searching_papers = "searching_papers"
     summarizing_papers = "summarizing_papers"
     reasoning_literature = "reasoning_literature"
@@ -93,13 +98,71 @@ class ArtifactKind(StrEnum):
     dataset = "dataset"
     field_dictionary = "field_dictionary"
     source_collection = "source_collection"
+    analysis_report = "analysis_report"
+    visualization = "visualization"
+    spectrum = "spectrum"
+    light_curve = "light_curve"
+    model_evaluation = "model_evaluation"
+    model_artifact = "model_artifact"
     paper_collection = "paper_collection"
     paper_summary = "paper_summary"
     literature_claims = "literature_claims"
     literature_relations = "literature_relations"
-    reasoning_traces = "reasoning_traces"
     graph = "graph"
     export = "export"
+
+
+class ScientificSkillId(StrEnum):
+    catalog_crossmatch = "catalog_crossmatch"
+    data_profile = "data_profile"
+    statistical_analysis = "statistical_analysis"
+    correlation_analysis = "correlation_analysis"
+    clustering_analysis = "clustering_analysis"
+    anomaly_detection = "anomaly_detection"
+    chart_visualization = "chart_visualization"
+    simbad_lookup = "simbad_lookup"
+    skyview_fits = "skyview_fits"
+    ephemeris = "ephemeris"
+    celestial_events = "celestial_events"
+    gaia_cone_search = "gaia_cone_search"
+    vizier_tap = "vizier_tap"
+    fits_image_analysis = "fits_image_analysis"
+    spectrum_analysis = "spectrum_analysis"
+    spectrum_acquisition = "spectrum_acquisition"
+    light_curve_analysis = "light_curve_analysis"
+    light_curve_acquisition = "light_curve_acquisition"
+    tabular_machine_learning = "tabular_machine_learning"
+    time_series_classification = "time_series_classification"
+    time_series_forecast = "time_series_forecast"
+    image_classification = "image_classification"
+    model_inference = "model_inference"
+    wwt_scene = "wwt_scene"
+
+
+# Scientific output admission derives from the single capability authoring
+# source (app.schemas.scientific_capabilities); this module must not re-list
+# skill ids in a second capability table.
+def _skill_produced_kinds(skill_id: ScientificSkillId) -> frozenset[ArtifactKind]:
+    """Artifact kinds one registered skill is authorized to publish."""
+
+    return frozenset(
+        ArtifactKind(kind) for kind in produced_artifact_kinds(skill_id.value)
+    )
+
+
+#: Output kinds that require an explicitly authorized scientific skill in the
+#: same contract. Data / literature / graph kinds are owned by their own
+#: pipeline phases and stay outside this admission.
+_SCIENTIFIC_OUTPUT_KINDS = frozenset(
+    {
+        ArtifactKind.analysis_report,
+        ArtifactKind.visualization,
+        ArtifactKind.spectrum,
+        ArtifactKind.light_curve,
+        ArtifactKind.model_evaluation,
+        ArtifactKind.model_artifact,
+    }
+)
 
 
 class ContractDraftStatus(StrEnum):
@@ -190,6 +253,25 @@ class QualityConstraints(BaseModel):
     unit_consistency_min: float = Field(default=1.0, ge=0, le=1)
 
 
+class ScientificTaskInput(BaseModel):
+    """One bounded invocation of a registered scientific skill."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    task_id: Identifier
+    skill_id: ScientificSkillId
+    parameters: dict[Identifier, JsonValue] = Field(default_factory=dict)
+    input_refs: tuple[Identifier, ...] = ()
+
+    @model_validator(mode="after")
+    def require_bounded_unique_inputs(self) -> ScientificTaskInput:
+        if len(self.parameters) > 64:
+            raise ValueError("parameters must contain at most 64 entries")
+        if len(self.input_refs) != len(set(self.input_refs)):
+            raise ValueError("input_refs must not contain duplicates")
+        return self
+
+
 class ResearchContractInput(BaseModel):
     """Shared scientific payload for an editable draft and immutable contract."""
 
@@ -201,16 +283,65 @@ class ResearchContractInput(BaseModel):
     requested_fields: tuple[Identifier, ...] = Field(min_length=1)
     source_scope: SourceScope
     paper_search_scope: PaperSearchScope
+    scientific_tasks: tuple[ScientificTaskInput, ...] = ()
     output_requirements: tuple[ArtifactKind, ...] = Field(min_length=1)
     evidence_requirements: EvidenceRequirements
     quality_constraints: QualityConstraints
 
     @model_validator(mode="after")
     def require_unique_contract_values(self) -> ResearchContractInput:
-        for field_name in ("target_objects", "requested_fields", "output_requirements"):
+        for field_name in (
+            "target_objects",
+            "requested_fields",
+            "output_requirements",
+        ):
             values = getattr(self, field_name)
             if len(values) != len(set(values)):
                 raise ValueError(f"{field_name} must not contain duplicates")
+        task_ids = tuple(task.task_id for task in self.scientific_tasks)
+        if len(task_ids) != len(set(task_ids)):
+            raise ValueError("scientific_tasks must use unique task_id values")
+        selected_outputs = frozenset(self.output_requirements)
+        for artifact_kind in _SCIENTIFIC_OUTPUT_KINDS:
+            if artifact_kind not in selected_outputs:
+                continue
+            capable = any(
+                artifact_kind in _skill_produced_kinds(task.skill_id)
+                for task in self.scientific_tasks
+            )
+            if not capable:
+                raise ValueError(
+                    f"{artifact_kind.value} requires an explicitly authorized scientific skill"
+                )
+        for task in self.scientific_tasks:
+            allowed_parameters = {
+                name
+                for name, _kind, _required, _description in contract_parameters(
+                    task.skill_id.value
+                )
+            }
+            unknown_parameters = set(task.parameters) - allowed_parameters
+            if unknown_parameters:
+                raise ValueError(
+                    f"scientific task {task.task_id} contains server-owned or unknown parameters: "
+                    + ", ".join(sorted(unknown_parameters))
+                )
+            missing_parameters = {
+                name
+                for name, _kind, required, _description in contract_parameters(
+                    task.skill_id.value
+                )
+                if required and name not in task.parameters
+            }
+            if missing_parameters:
+                raise ValueError(
+                    f"scientific task {task.task_id} is missing required parameters: "
+                    + ", ".join(sorted(missing_parameters))
+                )
+            if not _skill_produced_kinds(task.skill_id) & selected_outputs:
+                raise ValueError(
+                    f"scientific task {task.task_id} has no requested output"
+                )
         return self
 
 
@@ -412,6 +543,7 @@ class ResearchPlanningCatalog(BaseModel):
     target_objects: tuple[ResearchCatalogOption, ...]
     requested_fields: tuple[ResearchCatalogOption, ...]
     allowed_sources: tuple[ResearchCatalogOption, ...]
+    scientific_skills: tuple[ResearchCatalogOption, ...]
     output_requirements: tuple[ResearchCatalogOption, ...]
 
 
@@ -513,6 +645,10 @@ class RunStepRead(BaseModel):
     position: int = Field(ge=0)
     key: Identifier
     label: NonEmptyString
+    phase: Identifier
+    task_id: Identifier | None = None
+    skill_id: ScientificSkillId | None = None
+    depends_on_step_keys: tuple[Identifier, ...] = ()
     status: RunStepStatus
     progress: int = Field(ge=0, le=100)
     public_message: str
@@ -532,6 +668,7 @@ def project_research_contract_input(
     input_payload = {
         field_name: payload[field_name]
         for field_name in ResearchContractInput.model_fields
+        if field_name in payload
     }
     return ResearchContractInput.model_validate(input_payload)
 
@@ -692,6 +829,107 @@ class RunEvent(BaseModel):
     occurred_at: UtcDateTime
 
 
+class RepairEvidenceFact(BaseModel):
+    """User-readable evidence for one candidate pair at a repair checkpoint."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    evidence_id: Identifier
+    left_candidate_id: Identifier
+    right_candidate_id: Identifier
+    confidence: float = Field(ge=0, le=1)
+    summary: NonEmptyString
+
+
+class RepairCandidateIdentity(BaseModel):
+    """One user-readable canonical identity carried by a repair candidate."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    label: NonEmptyString
+    value: NonEmptyString
+
+
+class RepairCandidateCoordinate(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    frame: Literal["ICRS"] = "ICRS"
+    right_ascension_degrees: float = Field(ge=0, lt=360)
+    declination_degrees: float = Field(ge=-90, le=90)
+
+
+class RepairCandidateSummary(BaseModel):
+    """Domain facts needed to judge a candidate without exposing opaque IDs."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    candidate_id: Identifier
+    source_label: NonEmptyString
+    entity_label: NonEmptyString
+    identities: tuple[RepairCandidateIdentity, ...] = Field(min_length=1)
+    coordinate: RepairCandidateCoordinate | None = None
+
+
+class RepairDefect(BaseModel):
+    """One cross-source conflict that cannot be resolved without human authority."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    defect_id: Identifier
+    defect_type: Literal["cross_source_conflict"] = "cross_source_conflict"
+    logical_match_key: ContentHash
+    conflict_code: Identifier
+    left_candidates: tuple[RepairCandidateSummary, ...] = Field(min_length=1)
+    right_candidates: tuple[RepairCandidateSummary, ...] = Field(min_length=1)
+    evidence: tuple[RepairEvidenceFact, ...] = Field(min_length=1)
+
+
+class RepairRuleSetReference(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    rule_set_id: Identifier
+    rule_set_version: SemanticVersion
+    rule_set_content_hash: ContentHash
+    allowed_actions: tuple[Literal["accepted", "rejected", "keep_unresolved"], ...] = (
+        "accepted",
+        "rejected",
+        "keep_unresolved",
+    )
+
+
+class RepairCheckpointContext(BaseModel):
+    """Immutable defect and RuleSet facts shown at a scientific repair checkpoint."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    rule_set: RepairRuleSetReference
+    source_input_hash: ContentHash
+    before_output_hash: ContentHash
+    defects: tuple[RepairDefect, ...] = Field(min_length=1)
+
+
+class RepairDecisionInput(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    defect_id: Identifier
+    action: Literal["accepted", "rejected", "keep_unresolved"]
+    rationale: NonEmptyString = Field(max_length=2000)
+
+
+class RepairOutcome(BaseModel):
+    """Deterministic revalidation closure for one submitted repair batch."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    after_output_hash: ContentHash
+    quality_result_hash: ContentHash
+    before_evidence_ids: tuple[Identifier, ...]
+    after_evidence_ids: tuple[Identifier, ...]
+    resolved_defect_ids: tuple[Identifier, ...]
+    unresolved_defect_ids: tuple[Identifier, ...]
+    status: Literal["revalidated", "false_repair"]
+
+
 class RunCheckpoint(BaseModel):
     """One human-input request on a Run's ``waiting_for_input`` boundary."""
 
@@ -699,13 +937,37 @@ class RunCheckpoint(BaseModel):
 
     id: Identifier
     run_id: Identifier
+    run_revision: int = Field(ge=1)
     step_key: Identifier
     question: NonEmptyString
     options: tuple[NonEmptyString, ...] = Field(min_length=1)
+    kind: Literal["choice", "scientific_repair"] = "choice"
+    repair_context: RepairCheckpointContext | None = None
     created_at: UtcDateTime
     selected_option: str | None = None
     free_text: str | None = None
+    repair_decisions: tuple[RepairDecisionInput, ...] = ()
+    repair_outcome: RepairOutcome | None = None
     decided_at: UtcDateTime | None = None
+
+    @model_validator(mode="after")
+    def validate_checkpoint_shape(self) -> Self:
+        if self.kind == "scientific_repair":
+            if self.repair_context is None or self.selected_option is not None:
+                raise ValueError("scientific repair checkpoint requires typed context")
+            expected = {item.defect_id for item in self.repair_context.defects}
+            decided = {item.defect_id for item in self.repair_decisions}
+            if self.repair_decisions and decided != expected:
+                raise ValueError(
+                    "repair decisions must exactly cover checkpoint defects"
+                )
+        elif (
+            self.repair_context is not None
+            or self.repair_decisions
+            or self.repair_outcome is not None
+        ):
+            raise ValueError("choice checkpoint cannot carry scientific repair state")
+        return self
 
 
 class RunCheckpointDecisionRequest(BaseModel):
@@ -713,8 +975,19 @@ class RunCheckpointDecisionRequest(BaseModel):
 
     model_config = CORE_MODEL_CONFIG
 
-    selected_option: NonEmptyString
+    checkpoint_id: Identifier
+    expected_run_revision: int = Field(ge=1)
+    selected_option: NonEmptyString | None = None
     free_text: str | None = Field(default=None, max_length=10000)
+    repair_decisions: tuple[RepairDecisionInput, ...] = ()
+
+    @model_validator(mode="after")
+    def require_one_decision_shape(self) -> Self:
+        if (self.selected_option is None) == (not self.repair_decisions):
+            raise ValueError(
+                "submit either one selected option or typed repair decisions"
+            )
+        return self
 
 
 class ResearchArtifact(BaseModel):

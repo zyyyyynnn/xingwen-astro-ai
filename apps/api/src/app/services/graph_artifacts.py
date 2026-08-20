@@ -57,8 +57,14 @@ class _GraphContext:
 class GraphArtifactReadService:
     """Read Graph content without rebuilding it or consulting dynamic latest."""
 
-    def __init__(self, artifacts: ArtifactReadService) -> None:
+    def __init__(
+        self,
+        artifacts: ArtifactReadService,
+        *,
+        literature_reader: LiteratureArtifactReadService | None = None,
+    ) -> None:
         self._artifacts = artifacts
+        self._literature = literature_reader or LiteratureArtifactReadService(artifacts)
 
     def get_graph(self, *, version_id: str, session_id: str) -> GraphArtifactRead:
         context = self._context(version_id=version_id, session_id=session_id)
@@ -111,7 +117,7 @@ class GraphArtifactReadService:
             has_more,
         )
 
-    def list_edges(
+    async def list_edges(
         self,
         *,
         version_id: str,
@@ -143,7 +149,7 @@ class GraphArtifactReadService:
             cursor=cursor,
             limit=limit,
         )
-        reads = self._edge_reads(context, page, session_id=session_id)
+        reads = await self._edge_reads(context, page, session_id=session_id)
         return reads, next_cursor, has_more
 
     def get_node(
@@ -158,7 +164,7 @@ class GraphArtifactReadService:
             raise _not_found("GRAPH_NODE_NOT_FOUND")
         return GraphNodeRead(version=context.version_context, node=node)
 
-    def get_edge(
+    async def get_edge(
         self, *, version_id: str, edge_id: str, session_id: str
     ) -> GraphEdgeRead:
         context = self._context(version_id=version_id, session_id=session_id)
@@ -168,9 +174,9 @@ class GraphArtifactReadService:
         )
         if edge is None:
             raise _not_found("GRAPH_EDGE_NOT_FOUND")
-        return self._edge_reads(context, (edge,), session_id=session_id)[0]
+        return (await self._edge_reads(context, (edge,), session_id=session_id))[0]
 
-    def _edge_reads(
+    async def _edge_reads(
         self,
         context: _GraphContext,
         edges: Sequence[GraphArtifactEdge],
@@ -187,13 +193,10 @@ class GraphArtifactReadService:
                     edge.relation_trace.relation_artifact_version_id, set()
                 ).add(edge.relation_trace.relation_id)
 
-        relations_by_version_and_id: dict[
-            tuple[str, str], LiteratureRelationRead
-        ] = {}
-        literature_service = LiteratureArtifactReadService(self._artifacts)
+        relations_by_version_and_id: dict[tuple[str, str], LiteratureRelationRead] = {}
         for rel_version_id, rel_ids in relation_requests.items():
             try:
-                rel_map = literature_service.get_relations(
+                rel_map = await self._literature.get_relations(
                     version_id=rel_version_id,
                     relation_ids=rel_ids,
                     session_id=session_id,
@@ -454,9 +457,7 @@ class GraphArtifactReadService:
                 raise _provenance_problem()
             resolved[reference.artifact_version_id] = reference
             bindable.add(reference.artifact_version_id)
-            bindable.update(
-                _transitive_binding_versions(reference, upstream.content)
-            )
+            bindable.update(_transitive_binding_versions(reference, upstream.content))
         if len(resolved) != len(candidate.input_versions.versions):
             raise _provenance_problem()
         return resolved, frozenset(bindable)

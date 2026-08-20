@@ -40,6 +40,10 @@ export const RUN_STATUSES = [
   "planning",
   "fetching_data",
   "cleaning_data",
+  "acquiring_observations",
+  "analyzing_data",
+  "training_models",
+  "building_visualizations",
   "searching_papers",
   "summarizing_papers",
   "reasoning_literature",
@@ -72,11 +76,16 @@ export const ARTIFACT_KINDS = [
   "dataset",
   "field_dictionary",
   "source_collection",
+  "analysis_report",
+  "visualization",
+  "spectrum",
+  "light_curve",
+  "model_evaluation",
+  "model_artifact",
   "paper_collection",
   "paper_summary",
   "literature_claims",
   "literature_relations",
-  "reasoning_traces",
   "graph",
   "export",
 ] as const;
@@ -122,3 +131,40 @@ export type ShareRedactionPolicy = (typeof SHARE_REDACTION_POLICIES)[number];
  */
 export const EXPORT_FORMATS = ["csv", "json", "provenance_report"] as const;
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];
+
+export const SCIENTIFIC_SKILL_IDS = [
+  "catalog_crossmatch",
+  "data_profile",
+  "statistical_analysis",
+  "correlation_analysis",
+  "clustering_analysis",
+  "anomaly_detection",
+  "chart_visualization",
+  "simbad_lookup",
+  "skyview_fits",
+  "ephemeris",
+  "celestial_events",
+  "gaia_cone_search",
+  "vizier_tap",
+  "fits_image_analysis",
+  "spectrum_analysis",
+  "spectrum_acquisition",
+  "light_curve_analysis",
+  "light_curve_acquisition",
+  "tabular_machine_learning",
+  "time_series_classification",
+  "time_series_forecast",
+  "image_classification",
+  "model_inference",
+  "wwt_scene",
+] as const;
+export type ScientificSkillId = (typeof SCIENTIFIC_SKILL_IDS)[number];
+
+export function isScientificSkillId(
+  value: unknown,
+): value is ScientificSkillId {
+  return (
+    typeof value === "string" &&
+    (SCIENTIFIC_SKILL_IDS as readonly string[]).includes(value)
+  );
+}

@@ -2,8 +2,8 @@
  * Paper summary review domain model (Literature Summary Workspace).
  *
  * A read-only projection of the PaperSummary API `PaperSummaryRead` transport contract into
- * the frontend domain: structured summary statements (goal, method, dataset,
- * findings, limitations, future work), per-item evidence with locators and
+ * the frontend domain: seven structured sections (background, methodology,
+ * dataset, experiments, discussion, limitations, research questions),
  * support status, source-version conflicts, the model/prompt provenance and the
  * persisted SourceSnapshots. It carries no DOM, React or transport dependency.
  *
@@ -40,7 +40,8 @@ export type PaperSummarySupportStatus =
 /** Evidence locator for a short in-text quote inside a paper. */
 export interface PaperSummaryTextLocator {
   readonly kind: "paper_text";
-  readonly sourceUrl: string;
+  /** Null when the Evidence is DocumentParse-backed (no source URL). */
+  readonly sourceUrl: string | null;
   readonly section: string;
   readonly paragraph: number | null;
   readonly textRange: string;
@@ -106,9 +107,10 @@ export interface PaperSummarySnapshotVersionReview {
 }
 
 export interface PaperSummaryInputVersionsReview {
-  readonly paperCollectionVersionId: DomainEntityId;
-  readonly paperCollectionSchemaVersion: SemanticVersion;
-  readonly paperCollectionOutputHash: ContentHash;
+  /** Null for DocumentParse-backed summaries. */
+  readonly paperCollectionVersionId: DomainEntityId | null;
+  readonly paperCollectionSchemaVersion: SemanticVersion | null;
+  readonly paperCollectionOutputHash: ContentHash | null;
   readonly sourceSnapshots: readonly PaperSummarySnapshotVersionReview[];
 }
 
@@ -171,14 +173,16 @@ export interface PaperSummaryReview {
   readonly paperId: DomainEntityId;
   readonly paper: PaperSummaryPaperReview;
   readonly schemaVersion: SemanticVersion;
-  readonly benchmark: PaperBenchmarkReview;
+  /** Null for DocumentParse-backed summaries. */
+  readonly benchmark: PaperBenchmarkReview | null;
   readonly inputVersions: PaperSummaryInputVersionsReview;
-  readonly researchGoal: PaperSummaryStatementReview | null;
-  readonly method: PaperSummaryStatementReview | null;
-  readonly dataset: PaperSummaryStatementReview | null;
-  readonly findings: readonly PaperSummaryStatementReview[];
+  readonly background: readonly PaperSummaryStatementReview[];
+  readonly methodology: readonly PaperSummaryStatementReview[];
+  readonly dataset: readonly PaperSummaryStatementReview[];
+  readonly experiments: readonly PaperSummaryStatementReview[];
+  readonly discussion: readonly PaperSummaryStatementReview[];
   readonly limitations: readonly PaperSummaryStatementReview[];
-  readonly futureWork: readonly PaperSummaryStatementReview[];
+  readonly researchQuestions: readonly PaperSummaryStatementReview[];
   readonly summaryEvidence: readonly PaperSummaryEvidenceReview[];
   readonly sourceConflicts: readonly PaperSummarySourceConflictReview[];
   readonly producer: PaperSummaryProducerReview;
@@ -194,8 +198,9 @@ export interface PaperSummaryReview {
  *
  * Resolved server-side through the recorded PaperCandidate → ResearchInput
  * provenance bridge; `null` means no authorized full-text relation exists and
- * the UI must show the plain unavailable state, never an inferred PDF URL.
+ * the UI must show the plain unavailable state, never an inferred source URL.
  */
-export interface PaperSummaryPdfSourceReview {
+export interface PaperSummaryDocumentSourceReview {
   readonly researchInputId: DomainEntityId | null;
+  readonly documentKind: "pdf" | "image" | null;
 }

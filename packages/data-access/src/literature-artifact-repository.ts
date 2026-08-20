@@ -11,7 +11,6 @@
 import type {
   ArtifactVersionDetailDto,
   LiteratureClaimRead,
-  LiteratureReasoningTraceRead,
   LiteratureRelationRead,
   SourceSnapshotDetail as SourceSnapshotDetailDto,
 } from "@xingwen/contracts";
@@ -26,7 +25,6 @@ import type {
   LiteratureRelationsArtifactReview,
   LiteratureReasoningTraceReview,
   LiteratureReasoningTraceStepReview,
-  ReasoningTracesArtifactReview,
   SourceMode,
   UtcIsoTimestamp,
 } from "@xingwen/domain";
@@ -252,33 +250,6 @@ export function mapLiteratureRelationRead(
   return mapRelation(read);
 }
 
-function mapReasoningTraceRead(
-  read: LiteratureReasoningTraceRead,
-): LiteratureReasoningTraceReview {
-  const trace = read.trace;
-  return {
-    traceId: id(trace.trace_id),
-    relationId: trace.relation_id ? id(trace.relation_id) : null,
-    relationStatus: trace.relation_status,
-    conclusion: trace.conclusion,
-    premiseClaimIds: trace.premise_claim_ids
-      .filter((item): item is string => typeof item === "string")
-      .map(id),
-    conditions: [...trace.conditions],
-    conflicts: [...trace.conflicts],
-    limitations: [...trace.limitations],
-    steps: trace.steps.map((step): LiteratureReasoningTraceStepReview => ({
-      order: step.order,
-      operation: step.operation,
-      statement: step.statement,
-      claimIds: step.claim_ids.map(id),
-      evidenceIds: step.evidence_ids.map(id),
-    })),
-    evidenceIds: trace.evidence_ids.map(id),
-    protocolVersion: trace.trace_protocol_version,
-  };
-}
-
 function claimRead(value: unknown): LiteratureClaimRead {
   const root = requiredRead(value, "LiteratureClaim");
   if (!record(root.claim) || !record(root.paper_summary)) {
@@ -293,19 +264,6 @@ function relationRead(value: unknown): LiteratureRelationRead {
     throw invalid("LiteratureRelation read lacks relation payload");
   }
   return value as LiteratureRelationRead;
-}
-
-function traceRead(value: unknown): LiteratureReasoningTraceRead {
-  const root = requiredRead(value, "LiteratureReasoningTrace");
-  if (
-    !record(root.trace) ||
-    !record(root.relation) ||
-    !record(root.source_claim) ||
-    !record(root.target_claim)
-  ) {
-    throw invalid("LiteratureReasoningTrace read lacks public trace links");
-  }
-  return value as LiteratureReasoningTraceRead;
 }
 
 function sameVersion(
@@ -358,24 +316,6 @@ function assembleRelations(
     ...version,
     kind: "literature_relations",
     relations: reads.map(mapRelation),
-  };
-}
-
-function assembleTraces(
-  reads: readonly LiteratureReasoningTraceRead[],
-): ReasoningTracesArtifactReview {
-  const versions = reads.map((read) =>
-    versionOf(
-      read.version,
-      snapshotList(read.source_snapshots),
-      evidenceIds(read.evidence),
-    ),
-  );
-  const version = sameVersion(versions);
-  return {
-    ...version,
-    kind: "reasoning_traces",
-    traces: reads.map(mapReasoningTraceRead),
   };
 }
 
@@ -446,28 +386,12 @@ export function createLiteratureArtifactRepository(
       }
       return assembleRelations(rows);
     },
-    async getReasoningTraces(artifactVersionId) {
-      const rows = (
-        await http.list<unknown>(
-          `/api/artifact-versions/${seg(artifactVersionId)}/reasoning-traces`,
-        )
-      ).map(traceRead);
-      if (rows.length === 0) {
-        return {
-          ...(await emptyVersion(http, artifactVersionId)),
-          kind: "reasoning_traces" as const,
-          traces: [],
-        };
-      }
-      return assembleTraces(rows);
-    },
   };
 }
 
 function fixtureRepository(
   claims: readonly LiteratureClaimRead[],
   relations: readonly LiteratureRelationRead[],
-  traces: readonly LiteratureReasoningTraceRead[],
 ): LiteratureArtifactRepository {
   const requireRows = <
     Read extends { readonly version: { readonly artifact_version_id: string } },
@@ -499,18 +423,12 @@ function fixtureRepository(
         requireRows(relations, artifactVersionId, "Literature relations"),
       );
     },
-    getReasoningTraces: async (artifactVersionId) => {
-      return assembleTraces(
-        requireRows(traces, artifactVersionId, "Reasoning traces"),
-      );
-    },
   };
 }
 
 export function createFixtureLiteratureArtifactRepository(
   claims: readonly LiteratureClaimRead[],
   relations: readonly LiteratureRelationRead[],
-  traces: readonly LiteratureReasoningTraceRead[],
 ): LiteratureArtifactRepository {
-  return fixtureRepository(claims, relations, traces);
+  return fixtureRepository(claims, relations);
 }

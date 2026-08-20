@@ -1,6 +1,6 @@
 ---
 name: research_contract_planner
-version: 1.5.0
+version: 1.7.0
 output_model: PlannerOutcome
 input_schema_version: 2.0.0
 output_schema_version: 2.2.0
@@ -47,3 +47,13 @@ evidence_required: false
 自行扩写为额外成果。用户明确要求的成果若位于
 `planning_catalog.unsupported_output_requirement_ids`，返回 `unsupported` 或 `partial`，不得生成
 表面可确认、实际无法创建 Run 的协议。
+
+`contract.scientific_tasks` 只在用户明确要求对应科学能力时填写：每项必须包含唯一
+`task_id`、位于 `planning_catalog.scientific_capabilities` 的 `skill_id`、受约束的 `parameters`
+与显式 `input_refs`。不得根据模糊的“分析一下”自动授权训练模型、图像处理或外部观测；
+`parameters` 只能填写该 capability 目录中公开的参数；数据行、FITS/星历二进制、模型契约、
+图像张量与预处理结果等运行时输入由服务端根据 `input_refs` 解析，绝不能由 Planner 生成。
+参数或输入引用不足以形成可执行任务时返回 `clarification_required`。请求
+`analysis_report`、`visualization`、`spectrum`、`light_curve`、`model_evaluation` 或
+`model_artifact` 时，必须同时选择至少一个能够生成该成果的技能；不得生成模型自由代码
+执行、任意网络访问或未注册工具。

@@ -23,15 +23,18 @@ Application Service 从已确认 Contract 的 `output_requirements` 确定性编
 [*] -> queued -> planning
                    <-> waiting_for_input
     -> [fetching_data -> cleaning_data]
+    -> [acquiring_observations -> analyzing_data -> training_models -> building_visualizations]
     -> [searching_papers -> summarizing_papers -> reasoning_literature]
     -> [building_graph] -> completed
 
-queued / planning / fetching_data / cleaning_data / searching_papers /
+queued / planning / fetching_data / cleaning_data / acquiring_observations /
+analyzing_data / training_models / building_visualizations / searching_papers /
 summarizing_papers / reasoning_literature / building_graph -> failed
 
 queued / planning / waiting_for_input / fetching_data / cleaning_data /
-searching_papers / summarizing_papers / reasoning_literature /
-building_graph -> cancelled
+acquiring_observations / analyzing_data / training_models /
+building_visualizations / searching_papers / summarizing_papers /
+reasoning_literature / building_graph -> cancelled
 ```
 
 `waiting_for_input` 表示执行已停在明确的人工输入边界；`cancelled` 表示取消已持久化。`completed`、`failed` 与 `cancelled` 是终态。RunStep 的稳定状态为 `pending | running | waiting | completed | failed | cancelled | skipped`，StepAttempt 为 `running | completed | failed | cancelled`。没有真实状态写入时不得投影这些状态。
@@ -40,10 +43,10 @@ Planner 只有在持久化明确的输入请求后才能从 `planning` 进入 `w
 
 ## 3. 顺序、重试与失败
 
-- `planning` 始终是首 Step；其后只冻结 Contract 产物闭包需要的 canonical steps，并保持 canonical 相对顺序。每个 Step 的 `success_status` 必须精确指向冻结 Plan 的下一 Step，末 Step 指向 `completed`。
-- `dataset | field_dictionary | source_collection` 引入 `fetching_data -> cleaning_data`；`paper_collection` 引入 `searching_papers`；`paper_summary` 追加 `summarizing_papers`；Literature Claim/Relation/ReasoningTrace 追加完整文献检索、总结与 `reasoning_literature` 闭包；`graph` 追加完整文献闭包与 `building_graph`，仅当 Contract 同时请求数据产物时才包含数据闭包。
+- `planning` 始终是首 Step；其后只冻结 Contract 产物闭包需要的 canonical steps，并保持 canonical 相对顺序。canonical Step 的 key 等于状态名；每个 scientific task 使用独立稳定 key，同时保留 `task_id`、`skill_id` 与所属状态，同一科学阶段可顺序执行多个 task。每个 Step 的 `success_status` 必须精确指向冻结 Plan 的下一 Step 状态，末 Step 指向 `completed`。
+- `dataset | field_dictionary | source_collection` 引入 `fetching_data -> cleaning_data`；每个 scientific task 由能力表唯一映射到 `acquiring_observations | analyzing_data | training_models | building_visualizations` 之一，需要 Dataset 前置条件且没有显式 `input_refs` 的任务同时引入数据闭包，已冻结显式输入的任务直接消费该输入，不重复抓取无关数据；`paper_collection` 引入 `searching_papers`；`paper_summary` 追加 `summarizing_papers`；Literature Claim/Relation/ReasoningTrace 追加完整文献检索、总结与 `reasoning_literature` 闭包；`graph` 追加完整文献闭包与 `building_graph`，仅当 Contract 同时请求数据产物时才包含数据闭包。
 - 可执行 requested output 由 `SUPPORTED_RUN_OUTPUTS` 显式 allowlist 声明；新增 ArtifactKind 在获得明确 RunPlan mapping 前必须 fail closed，且不得创建 Run。不得使用枚举全集减例外的方式自动授予执行能力。
-- RunStep 数据库约束只守住 status domain、唯一性与 position 等局部不变量；Contract-driven 子集链的冻结顺序与 next-step transition 由 Workflow Store 按唯一 `RUN_STEP_STATUS_ORDER` 验证，不在数据库枚举所有 transition pair。前序 Step 未完成时不得启动后序 Step。
+- RunStep 数据库约束只守住 status domain、唯一性与 position 等局部不变量；Contract-driven 子集链的冻结顺序与 next-step transition 由 Workflow Store 按唯一 `RUN_STEP_STATUS_ORDER` 验证，状态顺序只允许前进或在多个 scientific task 间保持同一阶段，不在数据库枚举所有 transition pair。前序 Step 未完成时不得启动后序 Step。
 - StepAttempt 使用递增 `attempt_number`、稳定 idempotency key、错误分类与 retryable 标记记录实际尝试。
 - 外部超时、限流或临时网络故障可在该 Step 的 `max_attempts` 内重试；Schema、权限与状态冲突等确定性失败不得重试。
 - Artifact 级 Candidate 未通过 Schema、Evidence、质量或领域准入时不得发布 ArtifactVersion。Claim/Relation 的记录级 `candidate | rejected` 是已完成准入计算的事实，可保存在通过聚合完整性校验的 ArtifactVersion 中；这不等于将记录提升为 `accepted`，下游仍必须按记录状态执行自己的准入门禁。
@@ -68,7 +71,7 @@ Planner 只有在持久化明确的输入请求后才能从 `planning` 进入 `w
 | Assistant Message   | 面向用户的正常研究叙事，写入 Thread    |
 | Reasoning Activity  | 公开的简短步骤分析（`public_analysis`）|
 | Tool Activity       | 执行事实                               |
-| ReasoningTrace      | Evidence-bound 正式科学推导 Artifact   |
+| ReasoningTrace      | `LiteratureRelations` 内嵌的 Evidence-bound typed domain record |
 
 Provider private chain-of-thought 永不进入上述任一路径。
 
@@ -85,7 +88,7 @@ Assistant Message 由服务端基于真实已验证完成结果（`result.public
 ## 4.2 waiting_for_input、取消、重试与修订闭环
 
 - `waiting_for_input` 使用同一 Run 等待人工输入。Checkpoint 由 `RunCheckpoint`（run、step_key、question、options、created_at）与 `RunCheckpointDecision`（selected_option、可空 free_text、decided_at）持久化；Decision 不可变，提交后原子恢复同一 Run 到合法可执行状态，不创建新 Run、新 Contract 或第二套 review runtime。Checkpoint 的通用生命周期属于 Workspace 基础：等待表现、持久化读取、不可变决策、同 Run 恢复与共享 Choice 交互原语由通用运行时唯一提供；具体科学触发时机、科学问题与选项内容以及决策对科学执行的影响由科学能力集成通过同一机制接入，不得另建第二套 checkpoint 运行时。
-- 同一 Project 同时最多一个 non-terminal ResearchRun（服务端规则，不由前端按钮保证）：Application Service 返回用户友好 `409`，PostgreSQL partial unique index 是权威并发围栏。Retry / Revision 派生创建时，父 Run 必须已处于允许派生的稳定状态。
+- 同一 Project 同时最多一个 non-terminal ResearchRun（服务端规则，不由前端按钮保证）：唯一 Workflow Store writer 先锁定对应 Project 聚合根行，在同一事务中重放幂等请求并完成 active Run 准入；Application Service 返回用户友好 `409`，PostgreSQL partial unique index 保留为最终并发围栏。Retry / Revision 派生创建时，父 Run 必须已处于允许派生的稳定状态。
 - 取消必须以条件写入将 Run、未完成 Step 与运行中的 Attempt 一致推进为 `cancelled`，追加单调 Event，并拒绝取消后的晚到产物。重复取消终态 Run 保持幂等。已发布 ArtifactVersion、Thread、Event 与 Evidence 保留。
 - 自动 retry 只处理受治理的瞬时失败（bounded retry），耗尽后才对用户可见；人工 retry 沿用 retry derivation（`parent_run_id`、`derivation_kind=retry`、`retry_from_step`），只从真实 retryable failed step 建立，保留历史 Attempt，不原地覆盖失败尝试，不修改原 Run history。
 - Revision 由 UserFeedback 与已确认 RevisionPlan 驱动，确认后才产生 revision Run；运行中修改请求不静默修改当前 Run。

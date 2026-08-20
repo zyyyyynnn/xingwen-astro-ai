@@ -22,6 +22,7 @@ from typing import Protocol
 from app.schemas.scientific_document import (
     DocumentParseCandidate,
     DocumentParseInput,
+    DocumentParseProfile,
 )
 
 
@@ -34,6 +35,11 @@ class DocumentParserPort(Protocol):
     ``mime_type``) MUST be supplied explicitly by the caller; an implementation
     MUST NOT guess or default them.
     """
+
+    @property
+    def profile(self) -> DocumentParseProfile:
+        """Return the immutable parser configuration used for input identity."""
+        ...
 
     def parse_document(self, input: DocumentParseInput) -> DocumentParseCandidate:
         """Parse ``input`` into a Canonical ``DocumentParseCandidate``.

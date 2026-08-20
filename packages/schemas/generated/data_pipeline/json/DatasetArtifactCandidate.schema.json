@@ -1498,12 +1498,18 @@
           "title": "Row Key",
           "type": "array"
         },
-        "side": {
-          "$ref": "#/$defs/CrossmatchSide"
-        },
         "source_id": {
           "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
           "title": "Source Id",
+          "type": "string"
+        },
+        "source_role": {
+          "enum": [
+            "left",
+            "right",
+            "single"
+          ],
+          "title": "Source Role",
           "type": "string"
         },
         "source_snapshot_content_hash": {
@@ -1512,13 +1518,14 @@
           "type": "string"
         },
         "source_snapshot_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "maxLength": 128,
+          "minLength": 1,
           "title": "Source Snapshot Id",
           "type": "string"
         }
       },
       "required": [
-        "side",
+        "source_role",
         "source_snapshot_id",
         "source_snapshot_content_hash",
         "source_id",

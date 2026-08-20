@@ -11,7 +11,6 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 import asyncio
 import os
-from pathlib import Path
 from threading import Barrier
 from uuid import uuid4
 
@@ -25,7 +24,17 @@ from app.db.models import (
     ResearchContractModel,
     ResearchProjectModel,
     ResearchRunModel,
+    RunCheckpointModel,
     RunStepModel,
+)
+from app.schemas.core import (
+    RepairCheckpointContext,
+    RepairCandidateIdentity,
+    RepairCandidateSummary,
+    RepairDefect,
+    RepairEvidenceFact,
+    RepairOutcome,
+    RepairRuleSetReference,
 )
 from app.db.repositories import UnitOfWork
 from app.db.session import create_engine_from_url, session_factory
@@ -36,6 +45,7 @@ from authoring_test_support import (
     persist_authoring_models,
 )
 from app.workflow.store import (
+    CheckpointDecisionConflictError,
     LeaseGrant,
     LeaseUnavailableError,
     PersistentWorkflowStore,
@@ -214,6 +224,173 @@ def test_queued_and_step_events_carry_activity_protocol_fields(
     assert events[1].activity_kind == "status"
     assert events[1].activity_phase == "running"
     assert events[1].step_key == "planning"
+
+
+def test_scientific_repair_checkpoint_resumes_same_run_and_freezes_outcome(
+    postgres_engine: Engine,
+) -> None:
+    store, snapshot = _create_run(postgres_engine)
+    lease = store.acquire_lease(
+        snapshot.id,
+        owner="repair-executor",
+        lease_duration=timedelta(seconds=30),
+        expected_status="queued",
+        expected_revision=snapshot.revision,
+    )
+    attempt = store.begin_step(
+        snapshot.id,
+        step_key="planning",
+        attempt_idempotency_key="repair-attempt-1",
+        token=lease.token,
+        generation=lease.generation,
+        expected_status="queued",
+        expected_revision=lease.revision,
+        public_message="Crossmatch",
+    )
+    context = RepairCheckpointContext(
+        rule_set=RepairRuleSetReference(
+            rule_set_id="crossmatch.rules",
+            rule_set_version="1.0.0",
+            rule_set_content_hash="sha256:" + "c" * 64,
+        ),
+        source_input_hash="sha256:" + "d" * 64,
+        before_output_hash="sha256:" + "e" * 64,
+        defects=(
+            RepairDefect(
+                defect_id="repair.defect_1",
+                logical_match_key="sha256:" + "f" * 64,
+                conflict_code="low_confidence_match",
+                left_candidates=(
+                    RepairCandidateSummary(
+                        candidate_id="candidate.left_1",
+                        source_label="TOI 候选表",
+                        entity_label="宿主恒星",
+                        identities=(
+                            RepairCandidateIdentity(label="TIC 标识", value="TIC 1"),
+                        ),
+                    ),
+                ),
+                right_candidates=(
+                    RepairCandidateSummary(
+                        candidate_id="candidate.right_1",
+                        source_label="NASA 行星系统表",
+                        entity_label="宿主恒星",
+                        identities=(
+                            RepairCandidateIdentity(label="TIC 标识", value="TIC 1"),
+                        ),
+                    ),
+                ),
+                evidence=(
+                    RepairEvidenceFact(
+                        evidence_id="evidence.crossmatch_1",
+                        left_candidate_id="candidate.left_1",
+                        right_candidate_id="candidate.right_1",
+                        confidence=0.82,
+                        summary="角距离 0.320 角秒",
+                    ),
+                ),
+            ),
+        ),
+    )
+    waiting = store.request_checkpoint(
+        snapshot.id,
+        step_key="planning",
+        token=lease.token,
+        generation=lease.generation,
+        expected_status=attempt.run_status,
+        expected_revision=attempt.run_revision,
+        attempt_id=attempt.attempt_id,
+        question="请核对科学身份冲突",
+        options=("accepted", "rejected", "keep_unresolved"),
+        kind="scientific_repair",
+        repair_context=context,
+    )
+    factory = session_factory(postgres_engine)
+    with factory() as session:
+        checkpoint_id = session.scalar(
+            select(RunCheckpointModel.id).where(
+                RunCheckpointModel.run_id == snapshot.id
+            )
+        )
+    assert checkpoint_id is not None
+
+    resumed = store.submit_checkpoint_decision(
+        snapshot.id,
+        checkpoint_id=checkpoint_id,
+        selected_option=None,
+        free_text=None,
+        repair_decisions=(
+            {
+                "defect_id": "repair.defect_1",
+                "action": "accepted",
+                "rationale": "候选坐标与受控字段满足规则",
+            },
+        ),
+        expected_status=waiting.status,
+        expected_revision=waiting.revision,
+    )
+    assert resumed.run_id == snapshot.id
+    assert resumed.status == "planning"
+
+    with pytest.raises(CheckpointDecisionConflictError):
+        store.submit_checkpoint_decision(
+            snapshot.id,
+            checkpoint_id=checkpoint_id,
+            selected_option=None,
+            free_text=None,
+            repair_decisions=(
+                {
+                    "defect_id": "repair.defect_1",
+                    "action": "accepted",
+                    "rationale": "候选坐标与受控字段满足规则",
+                },
+            ),
+            expected_status=waiting.status,
+            expected_revision=waiting.revision,
+        )
+
+    resumed_lease = store.acquire_lease(
+        snapshot.id,
+        owner="repair-executor",
+        lease_duration=timedelta(seconds=30),
+        expected_status=resumed.status,
+        expected_revision=resumed.revision,
+    )
+    resumed_attempt = store.begin_step(
+        snapshot.id,
+        step_key="planning",
+        attempt_idempotency_key="repair-attempt-2",
+        token=resumed_lease.token,
+        generation=resumed_lease.generation,
+        expected_status="planning",
+        expected_revision=resumed_lease.revision,
+        public_message="Revalidate crossmatch",
+    )
+    outcome = RepairOutcome(
+        after_output_hash="sha256:" + "1" * 64,
+        quality_result_hash="sha256:" + "2" * 64,
+        before_evidence_ids=("evidence.crossmatch_1",),
+        after_evidence_ids=("evidence.crossmatch_1",),
+        resolved_defect_ids=("repair.defect_1",),
+        unresolved_defect_ids=(),
+        status="revalidated",
+    )
+    store.complete_repair_checkpoint(
+        snapshot.id,
+        step_key="planning",
+        checkpoint_id=checkpoint_id,
+        outcome=outcome,
+        token=resumed_lease.token,
+        generation=resumed_lease.generation,
+        expected_status=resumed_attempt.run_status,
+        expected_revision=resumed_attempt.run_revision,
+    )
+
+    decision = store.repair_checkpoint_decision(snapshot.id, step_key="planning")
+    assert decision is not None
+    assert decision.context == context
+    assert decision.outcome == outcome
+    assert decision.decisions[0].action == "accepted"
 
 
 def test_concurrent_lease_acquisition_has_one_winner(postgres_engine: Engine) -> None:

@@ -6,7 +6,7 @@ import {
 } from "@xingwen/data-access";
 
 const API_ORIGIN =
-  process.env.REAL_INTEGRATION_API_ORIGIN ?? "http://127.0.0.1:8000";
+  process.env.REAL_INTEGRATION_API_ORIGIN ?? "http://localhost:8000";
 
 function cookieFetch(): typeof fetch {
   let cookie = "";
@@ -98,7 +98,9 @@ test("mandatory browser path establishes a Project, exposes public analysis, con
   await composer.fill(goal);
   await page.getByRole("button", { name: "发送研究消息" }).click();
 
-  await expect(page.getByText(goal, { exact: true })).toBeVisible();
+  await expect(
+    page.getByTestId("user-message").getByText(goal, { exact: true }),
+  ).toBeVisible();
   await expect(page).toHaveURL(/\/workspace\/[^/]+$/);
   await expect(page.getByTestId("collapsible-thinking")).toBeVisible();
   await expect(
@@ -244,9 +246,32 @@ test("mandatory real HTTP fixture path publishes one result, opens Fullscreen, a
     page.getByRole("heading", { name: "Exoplanet host-star dataset" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "查看完整结果" }).first().click();
-  await expect(page.getByTestId("artifact-fullscreen-workspace")).toBeVisible();
+  const fullscreen = page.getByTestId("artifact-fullscreen-workspace");
+  const returnButton = fullscreen.getByRole("button", { name: "返回研究" });
+  const evidenceButton = fullscreen.getByRole("button", {
+    name: "证据",
+    exact: true,
+  });
+  await expect(fullscreen).toBeVisible();
+  await expect(fullscreen).toHaveAttribute("aria-modal", "true");
+  await expect(returnButton).toBeFocused();
   await expect(page.getByText("演示数据", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "证据" }).click();
+
+  await page.setViewportSize({ width: 1024, height: 768 });
+  expect(
+    await fullscreen.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+  ).toBe(true);
+  expect(
+    await fullscreen
+      .getByTestId("artifact-fullscreen-header")
+      .evaluate((element) => element.scrollWidth <= element.clientWidth),
+  ).toBe(true);
+
+  await expect(fullscreen).not.toHaveAttribute("aria-hidden", "true");
+  await expect(evidenceButton).toBeVisible();
+  await evidenceButton.click();
   await expect(page.getByRole("heading", { name: "研究证据" })).toBeVisible();
   await expect(page.getByText("来源内容", { exact: true })).toBeVisible();
   await expect(page.getByText("来源", { exact: true })).toBeVisible();

@@ -255,6 +255,10 @@ function navigationStatus(
     case "planning":
     case "fetching_data":
     case "cleaning_data":
+    case "acquiring_observations":
+    case "analyzing_data":
+    case "training_models":
+    case "building_visualizations":
     case "searching_papers":
     case "summarizing_papers":
     case "reasoning_literature":
@@ -812,6 +816,7 @@ export function WorkspaceHost({
     onOpenArtifactVersion,
     onReturnToOverview,
   });
+  const isArtifactFullscreen = artifactVersionId !== null;
 
   const dockedWorkspace = researchPresentation ? (
     <DockedWorkspacePanel
@@ -931,16 +936,11 @@ export function WorkspaceHost({
         items={streamItems}
         onOpenArtifactVersion={onOpenArtifactVersion}
         onConfirmProtocol={confirmAndRun}
-        onCheckpointDecision={async (
-          runIdOfCheckpoint,
-          selectedOption,
-          freeText,
-        ) => {
+        onCheckpointDecision={async (runIdOfCheckpoint, decision) => {
           await checkpointDecision.mutateAsync({
             projectId,
             runId: parseEntityId(runIdOfCheckpoint) as DomainEntityId,
-            selectedOption,
-            freeText: freeText ?? null,
+            decision,
           });
         }}
         isSubmittingCheckpoint={checkpointDecision.isPending}
@@ -1044,23 +1044,25 @@ export function WorkspaceHost({
     threadPanel,
     threadItemCount: streamItems.length,
     inspectorPanel:
-      hasPersistedConversation ||
-      currentDraft !== null ||
-      currentContract !== null ||
-      currentRun !== null ||
-      stepsData.length > 0 ||
-      streamItems.length > 0 ||
-      artifactPresentation.hasArtifacts
+      !isArtifactFullscreen &&
+      (hasPersistedConversation ||
+        currentDraft !== null ||
+        currentContract !== null ||
+        currentRun !== null ||
+        stepsData.length > 0 ||
+        streamItems.length > 0 ||
+        artifactPresentation.hasArtifacts)
         ? dockedWorkspace
         : null,
-    inspectorDockedPanel: dockedWorkspace,
-    inspectorDockedToolbar: dockedWorkspace ? (
-      <ResearchInspectorTabs
-        activeTab={dockedTab}
-        onTabChange={setDockedTab}
-        resultCount={artifactPresentation.artifactCount}
-      />
-    ) : null,
+    inspectorDockedPanel: isArtifactFullscreen ? null : dockedWorkspace,
+    inspectorDockedToolbar:
+      !isArtifactFullscreen && dockedWorkspace ? (
+        <ResearchInspectorTabs
+          activeTab={dockedTab}
+          onTabChange={setDockedTab}
+          resultCount={artifactPresentation.artifactCount}
+        />
+      ) : null,
     inspectorDockedLabel: undefined,
     inspectorRequest:
       inspectorRequestOverride ?? artifactPresentation.inspectorRequest,

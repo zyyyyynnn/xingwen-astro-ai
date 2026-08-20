@@ -17,7 +17,11 @@ import type {
   ResearchThreadQuestionPayload,
   ResearchThreadSummary,
   ResearchThreadUserPayload,
+  RepairCheckpointContext,
+  RepairDecisionInput,
+  RepairOutcome,
   RunStatus,
+  ScientificTask,
   SemanticVersion,
   SourceMode,
   UnitPolicy,
@@ -101,6 +105,10 @@ export interface RunStepViewModel {
   readonly position: number;
   readonly key: DomainEntityId;
   readonly label: string;
+  readonly phase: string;
+  readonly taskId: DomainEntityId | null;
+  readonly skillId: import("@xingwen/domain").ScientificSkillId | null;
+  readonly dependsOnStepKeys: readonly DomainEntityId[];
   readonly status:
     | "pending"
     | "running"
@@ -133,6 +141,7 @@ export interface ContractInputViewModel {
     readonly sourceIds: readonly DomainEntityId[];
     readonly maxCandidates: number;
   };
+  readonly scientificTasks: readonly ScientificTask[];
   readonly outputRequirements: readonly ArtifactKind[];
   readonly evidenceRequirements: {
     readonly requireLocator: boolean;
@@ -295,12 +304,17 @@ export interface EvidenceViewModel {
 export interface RunCheckpointViewModel {
   readonly id: DomainEntityId;
   readonly runId: DomainEntityId;
+  readonly runRevision: number;
   readonly stepKey: DomainEntityId;
   readonly question: string;
   readonly options: readonly string[];
+  readonly kind: "choice" | "scientific_repair";
+  readonly repairContext: RepairCheckpointContext | null;
   readonly createdAt: UtcIsoTimestamp;
   readonly selectedOption: string | null;
   readonly freeText: string | null;
+  readonly repairDecisions: readonly RepairDecisionInput[];
+  readonly repairOutcome: RepairOutcome | null;
   readonly decidedAt: UtcIsoTimestamp | null;
   readonly isAnswered: boolean;
 }
@@ -316,10 +330,6 @@ export type LiteratureClaimsArtifactReviewViewModel = Extract<
 export type LiteratureRelationsArtifactReviewViewModel = Extract<
   LiteratureArtifactReview,
   { readonly kind: "literature_relations" }
->;
-export type ReasoningTracesArtifactReviewViewModel = Extract<
-  LiteratureArtifactReview,
-  { readonly kind: "reasoning_traces" }
 >;
 export type GraphArtifactReviewViewModel = GraphArtifactReview;
 export type DatasetArtifactReviewViewModel = Extract<

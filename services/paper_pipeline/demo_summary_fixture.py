@@ -169,28 +169,28 @@ def build_demo_model_response(candidate: PaperCollectionCandidate) -> str:
     """Deterministic PaperSummaryModelOutput JSON for the selected paper."""
 
     payload = {
-        "research_goal": {
+        "background": [{
             "statement_id": "stmt.research_goal",
             "text": (
                 f"The paper delivers {candidate.raw.title} to prioritize "
                 "TESS targets."
             ),
             "evidence_ids": ["ev.goal_title"],
-        },
-        "method": {
+        }],
+        "methodology": [{
             "statement_id": "stmt.method",
             "text": (
                 "The catalog compiles stellar parameters from photometric "
                 "catalogs and parallax measurements."
             ),
             "evidence_ids": ["ev.method_text"],
-        },
-        "dataset": {
+        }],
+        "dataset": [{
             "statement_id": "stmt.dataset",
             "text": f"The catalog release analyzed here dates to {candidate.raw.year}.",
             "evidence_ids": ["ev.dataset_year"],
-        },
-        "findings": [
+        }],
+        "experiments": [
             {
                 "statement_id": "stmt.finding_doi",
                 "text": (
@@ -200,6 +200,7 @@ def build_demo_model_response(candidate: PaperCollectionCandidate) -> str:
                 "evidence_ids": ["ev.finding_doi"],
             }
         ],
+        "discussion": [],
         "limitations": [
             {
                 "statement_id": "stmt.limitation_unsupported",
@@ -210,7 +211,7 @@ def build_demo_model_response(candidate: PaperCollectionCandidate) -> str:
                 "evidence_ids": [],
             }
         ],
-        "future_work": [],
+        "research_questions": [],
         "evidence_ids": [
             "ev.dataset_year",
             "ev.finding_doi",

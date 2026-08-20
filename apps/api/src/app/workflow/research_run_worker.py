@@ -19,11 +19,15 @@ from app.db.models import (
 )
 from app.schemas.core import ResearchContract
 from app.schemas.manifest import ManifestBundle
+from app.schemas.scientific_capabilities import capability_for
+from app.services.content_storage import ContentStorage
+from app.services.scientific_document.ports import DocumentParserPort
 from app.services.model_execution import (
     ModelExecutionError,
     ModelExecutionPort,
 )
 from app.workflow.agent_runtime import AgentActivityError
+from app.workflow.capacity import PersistentWorkerRegistry
 from app.workflow.persistent_executor import (
     FailureDecision,
     PersistentWorkflowExecutionError,
@@ -45,6 +49,7 @@ from app.workflow.store import (
     AttemptHandle,
     PersistentWorkflowStore,
     RunSnapshot,
+    WorkflowCheckpointRequested,
 )
 from app.services.research_thread import append_assistant_message
 from packages.prompts.registry import PromptRegistry
@@ -60,7 +65,6 @@ _ARTIFACT_TITLES: dict[str, str] = {
     "paper_summary": "论文结构化精读摘要",
     "literature_claims": "论文事实论点",
     "literature_relations": "论文论点关系",
-    "reasoning_traces": "推理链证据追踪",
     "graph": "证据与实体图谱",
 }
 
@@ -73,6 +77,16 @@ _STEP_STARTED_MESSAGES = {
     "reasoning_literature": "正在提取并核验文献论点、关系与支持证据。",
     "building_graph": "正在把已验证的研究事实组织为证据图谱。",
 }
+
+
+def _step_started_message(*, step_key: str, skill_id: str | None) -> str:
+    """Render one public start message from the frozen RunStep identity."""
+
+    if skill_id is not None:
+        label = str(capability_for(skill_id)["label"])
+        return f"正在执行{label}。"
+    return _STEP_STARTED_MESSAGES[step_key]
+
 
 _RETRYABLE_MODEL_FAILURE_CODES: frozenset[str] = frozenset(
     {
@@ -99,6 +113,8 @@ class ResearchRunWorker:
         explicit_revision: str | None,
         prompts: PromptRegistry | None = None,
         paper_collection_runner: LivePaperCollectionRunner | None = None,
+        content_storage: ContentStorage | None = None,
+        document_parser: DocumentParserPort | None = None,
     ) -> None:
         self._factory = factory
         self._store = store
@@ -119,9 +135,13 @@ class ResearchRunWorker:
             explicit_revision=explicit_revision,
             prompts=self._prompts,
             paper_collection_runner=paper_collection_runner,
+            content_storage=content_storage,
+            document_parser=document_parser,
         )
         self._task: asyncio.Task[None] | None = None
         self._stop = asyncio.Event()
+        self._workers = PersistentWorkerRegistry(factory)
+        self._worker_id = "api-research-run-worker"
 
     def start(self) -> None:
         if self._task is None:
@@ -134,20 +154,38 @@ class ResearchRunWorker:
             self._task = None
 
     async def _serve(self) -> None:
+        worker_state = await asyncio.to_thread(
+            self._workers.register,
+            self._worker_id,
+            configured_capacity=1,
+        )
+        draining = worker_state.state == "draining"
         while not self._stop.is_set():
-            run_ids = await asyncio.to_thread(self._queued_run_ids)
-            for run_id in run_ids:
-                try:
-                    await self.execute_run(run_id)
-                except Exception:
-                    LOGGER.exception(
-                        "ResearchRun execution failed",
-                        extra={"run_id": str(run_id)},
-                    )
+            if not draining:
+                run_ids = await asyncio.to_thread(self._queued_run_ids)
+                for run_id in run_ids:
+                    try:
+                        await self.execute_run(run_id)
+                    except Exception:
+                        LOGGER.exception(
+                            "ResearchRun execution failed",
+                            extra={"run_id": str(run_id)},
+                        )
+            try:
+                snapshot = await asyncio.to_thread(
+                    self._workers.heartbeat, self._worker_id
+                )
+                draining = snapshot.state == "draining"
+            except RuntimeError:
+                draining = True
             try:
                 await asyncio.wait_for(self._stop.wait(), timeout=0.5)
             except TimeoutError:
                 pass
+        try:
+            await asyncio.to_thread(self._workers.mark_stopped, self._worker_id)
+        except RuntimeError:
+            LOGGER.warning("worker lifecycle record missing on shutdown")
 
     def _queued_run_ids(self) -> tuple[UUID, ...]:
         with self._factory() as session:
@@ -165,7 +203,7 @@ class ResearchRunWorker:
         context = await asyncio.to_thread(self._load_context, run_id, snapshot)
         lease = self._store.acquire_lease(
             run_id,
-            owner="api-research-run-worker",
+            owner=self._worker_id,
             lease_duration=timedelta(minutes=30),
             expected_status=snapshot.status,
             expected_revision=snapshot.revision,
@@ -234,11 +272,15 @@ class ResearchRunWorker:
                     )
                     for version in result.versions:
                         kind = next(
-                            name
-                            for name, artifact_id in context.artifacts.items()
-                            if artifact_id == version.artifact_id
+                            (
+                                name
+                                for name, artifact_id in context.artifacts.items()
+                                if artifact_id == version.artifact_id
+                            ),
+                            None,
                         )
-                        context.versions[kind] = version.id
+                        if kind is not None:
+                            context.versions[kind] = version.id
                     await asyncio.to_thread(
                         self._append_run_assistant_message,
                         context,
@@ -261,11 +303,16 @@ class ResearchRunWorker:
                         lease=lease,
                         expected_status=snapshot.status,
                         expected_revision=snapshot.revision,
-                        public_message=_STEP_STARTED_MESSAGES[current_step.key],
+                        public_message=_step_started_message(
+                            step_key=current_step.key,
+                            skill_id=current_step.skill_id,
+                        ),
                         runner=runner,
                         commit_success=commit,
                         classify_failure=self._classify_failure,
                     )
+                except WorkflowCheckpointRequested:
+                    return
                 except PersistentWorkflowExecutionError:
                     snapshot = self._store.load_snapshot(run_id)
                     failed_step = next(
@@ -319,9 +366,7 @@ class ResearchRunWorker:
                 idempotency_key=assistant_milestone_key,
             )
 
-    def _load_context(
-        self, run_id: UUID, snapshot: RunSnapshot
-    ) -> RunStepContext:
+    def _load_context(self, run_id: UUID, snapshot: RunSnapshot) -> RunStepContext:
         with self._factory() as session, session.begin():
             run = session.get(ResearchRunModel, run_id)
             if run is None:
@@ -339,17 +384,15 @@ class ResearchRunWorker:
                 created_at=contract.created_at,
                 **contract.content,
             )
-            # Authoritative artifact derivation: the frozen RunStep chain is the
-            # sole owner of the dependency closure. The Worker never recomputes
-            # the plan from the contract; it only maps the frozen step keys onto
-            # the Artifact kinds each step publishes.
-            required_kinds = {kind.value for kind in contract_value.output_requirements}
-            required_kinds.update(
+            # Fixed pipeline steps need their stable primary Artifact targets
+            # before execution. Scientific steps create exact candidate-owned
+            # targets in ScientificStepAdmission after candidate assembly.
+            required_kinds = {
                 kind.value
                 for kind in artifact_kinds_for_steps(
-                    [step.key for step in snapshot.steps]
+                    tuple(step for step in snapshot.steps if step.skill_id is None)
                 )
-            )
+            }
 
             artifacts: dict[str, UUID] = {}
             versions: dict[str, UUID] = {}

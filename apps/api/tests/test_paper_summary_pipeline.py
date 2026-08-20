@@ -158,20 +158,21 @@ def _model_output(
     limitation_evidence_ids: tuple[str, ...] = (),
 ) -> str:
     payload = {
-        "research_goal": {
+        "background": [{
             "statement_id": "summary_statement.goal",
             "text": "Establish the TESS mission scope for nearby bright stars.",
             "evidence_ids": [evidence_id],
-        },
-        "method": None,
-        "dataset": None,
-        "findings": [
+        }],
+        "methodology": [],
+        "dataset": [],
+        "experiments": [
             {
                 "statement_id": "summary_statement.finding",
                 "text": "TESS targets nearby bright stars for transit observations.",
                 "evidence_ids": [evidence_id],
             }
         ],
+        "discussion": [],
         "limitations": [
             {
                 "statement_id": "summary_statement.limitation",
@@ -179,7 +180,7 @@ def _model_output(
                 "evidence_ids": list(limitation_evidence_ids),
             }
         ],
-        "future_work": [],
+        "research_questions": [],
         "evidence_ids": sorted({evidence_id, *limitation_evidence_ids}),
     }
     return json.dumps(payload, ensure_ascii=False, sort_keys=True)
@@ -206,10 +207,10 @@ def test_prompt_registry_resolves_one_hash_pinned_current_definition() -> None:
 
     current = registry.get("paper_summary")
 
-    assert current.version == "2.0.2"
+    assert current.version == "3.0.0"
     assert current.output_models == ("PaperSummaryModelOutput",)
     assert current.content_hash == (
-        "sha256:dde151d161caec0e5c737adbed4ad65b9c2f9412591797c773d52782f8bc4f95"
+        "sha256:758c9277003b9597514721ce359738219b7ba154ab0a924cb5b9600cef0b6323"
     )
 
 
@@ -282,8 +283,8 @@ def test_model_output_schema_requires_all_core_fields_without_defaults() -> None
     with pytest.raises(ValidationError):
         PaperSummaryModelOutput.model_validate(
             {
-                "research_goal": None,
-                "findings": [],
+                "background": [],
+                "experiments": [],
                 "limitations": [],
                 "evidence_ids": [],
             }
@@ -305,7 +306,7 @@ def test_valid_output_becomes_publisher_ready_summary_with_per_item_evidence() -
     assert summary.input_versions.source_snapshots[0].source_snapshot_id == (
         collection.source_snapshots[0].snapshot_id
     )
-    assert summary.findings[0].status is PaperSummarySupportStatus.supported
+    assert summary.experiments[0].status is PaperSummarySupportStatus.supported
     assert summary.limitations[0].status is PaperSummarySupportStatus.unsupported
     assert summary.limitations[0].validation_code == "evidence.not_provided"
     assert summary.evidence[0].locator.text_range == "sentence 1"
@@ -425,12 +426,13 @@ def test_schema_failure_is_rejected_after_json_parse() -> None:
     collection = _collection()
     schema_invalid = json.dumps(
         {
-            "research_goal": None,
-            "method": None,
-            "dataset": None,
-            "findings": [],
+            "background": [],
+            "methodology": [],
+            "dataset": [],
+            "experiments": [],
+            "discussion": [],
             "limitations": [],
-            "future_work": [],
+            "research_questions": [],
         }
     )
 
@@ -451,8 +453,8 @@ def test_quote_mismatch_marks_finding_unsupported_instead_of_fact() -> None:
     result = _admit(collection, _model_output(), (evidence,))
 
     assert result.summary is not None
-    assert result.summary.findings[0].status is PaperSummarySupportStatus.unsupported
-    assert result.summary.findings[0].validation_code == "evidence.quote_not_found"
+    assert result.summary.experiments[0].status is PaperSummarySupportStatus.unsupported
+    assert result.summary.experiments[0].validation_code == "evidence.quote_not_found"
     assert result.summary.evidence[0].status is PaperSummarySupportStatus.unsupported
 
 
@@ -463,7 +465,7 @@ def test_unavailable_source_text_marks_finding_unverifiable() -> None:
     result = _admit(collection, _model_output(), (evidence,))
 
     assert result.summary is not None
-    assert result.summary.findings[0].status is PaperSummarySupportStatus.unverifiable
+    assert result.summary.experiments[0].status is PaperSummarySupportStatus.unverifiable
     assert (
         result.summary.evidence[0].validation_code == "evidence.source_text_unavailable"
     )
@@ -477,8 +479,8 @@ def test_unknown_evidence_reference_is_unverifiable_and_not_published_as_evidenc
     result = _admit(collection, _model_output(), ())
 
     assert result.summary is not None
-    assert result.summary.findings[0].status is PaperSummarySupportStatus.unverifiable
-    assert result.summary.findings[0].evidence_ids == ()
+    assert result.summary.experiments[0].status is PaperSummarySupportStatus.unverifiable
+    assert result.summary.experiments[0].evidence_ids == ()
     assert result.summary.evidence == ()
 
 
@@ -495,7 +497,7 @@ def test_source_version_conflict_retains_snapshot_version_without_auto_adjudicat
 
     assert result.summary is not None
     summary = result.summary
-    assert summary.findings[0].status is PaperSummarySupportStatus.supported
+    assert summary.experiments[0].status is PaperSummarySupportStatus.supported
     assert len(summary.source_conflicts) == 1
     conflict = summary.source_conflicts[0]
     assert conflict.claimed_source_version == "crossref.fixture.stale"
@@ -515,7 +517,7 @@ def test_evidence_cannot_cross_candidate_or_snapshot_provenance() -> None:
     result = _admit(collection, _model_output(), (invalid_evidence,))
 
     assert result.summary is not None
-    assert result.summary.findings[0].status is PaperSummarySupportStatus.unverifiable
+    assert result.summary.experiments[0].status is PaperSummarySupportStatus.unverifiable
     assert result.summary.evidence == ()
 
 
@@ -530,7 +532,7 @@ def test_evidence_locator_source_url_must_match_the_paper_acquisition_candidate(
     result = _admit(collection, _model_output(), (evidence,))
 
     assert result.summary is not None
-    assert result.summary.findings[0].status is PaperSummarySupportStatus.unverifiable
+    assert result.summary.experiments[0].status is PaperSummarySupportStatus.unverifiable
     assert result.summary.evidence[0].validation_code == (
         "evidence.source_url_unverifiable"
     )
@@ -576,7 +578,7 @@ def test_metadata_evidence_value_is_checked_against_the_paper_acquisition_record
     result = _admit(collection, _model_output(), (evidence,))
 
     assert result.summary is not None
-    assert result.summary.findings[0].status is expected_status
+    assert result.summary.experiments[0].status is expected_status
     assert result.summary.evidence[0].validation_code == expected_code
 
 
@@ -671,8 +673,8 @@ def test_paper_benchmark_report_is_reproducible_and_reports_required_metrics() -
 def test_paper_benchmark_reports_not_available_for_empty_evidence_denominator() -> None:
     collection = _collection()
     payload = json.loads(_model_output())
-    payload["research_goal"] = None
-    payload["findings"] = []
+    payload["background"] = []
+    payload["experiments"] = []
     payload["limitations"] = []
     payload["evidence_ids"] = []
     admission = _admit(collection, json.dumps(payload), ())
@@ -700,7 +702,7 @@ def test_paper_benchmark_reports_not_available_for_empty_evidence_denominator() 
 
 def test_unsafe_markup_is_rejected_by_the_model_output_schema() -> None:
     payload = json.loads(_model_output())
-    payload["findings"][0]["text"] = "<script>alert(1)</script>"
+    payload["experiments"][0]["text"] = "<script>alert(1)</script>"
 
     with pytest.raises(ValidationError, match="unsafe markup"):
         PaperSummaryModelOutput.model_validate(payload)
@@ -724,9 +726,9 @@ def test_summary_canonical_persisted_payload_preserves_required_nulls() -> None:
 
     payload = canonical_artifact_content_payload(result.summary)
 
-    assert payload["research_goal"] is not None
-    assert "method" in payload and payload["method"] is None
-    assert "dataset" in payload and payload["dataset"] is None
+    assert payload["background"]
+    assert "methodology" in payload and payload["methodology"] == []
+    assert "dataset" in payload and payload["dataset"] == []
     assert PaperSummaryArtifactContent.model_validate(payload) == result.summary
 
     with pytest.raises(

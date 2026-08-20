@@ -17,6 +17,7 @@ import type {
   Evidence,
   EvidenceLocator,
   ExecutionMode,
+  JsonValue,
   NonEmptyString,
   ProducerReference,
   ProvenanceState,
@@ -36,6 +37,8 @@ import type {
   RunStepSnapshot,
   RunEvent,
   RunStatus,
+  ScientificSkillId,
+  ScientificTask,
   ShareSnapshot,
   ShareSnapshotCreated,
   CreateShareSnapshotRequest,
@@ -49,6 +52,7 @@ import {
   asEntityId,
   isEvidenceTargetType,
   isEvidenceType,
+  isScientificSkillId,
   parseEntityId,
 } from "@xingwen/domain";
 
@@ -74,6 +78,7 @@ import type {
   ResearchTurnResult as ResearchTurnResultDto,
   RunStepRead as RunStepReadDto,
   RunEvent as RunEventDto,
+  ScientificTaskInput as ScientificTaskInputDto,
   WorkspaceSnapshot as WorkspaceSnapshotDto,
   WorkspaceSnapshotInput as WorkspaceSnapshotInputDto,
   ShareSnapshot as ShareSnapshotDto,
@@ -112,6 +117,52 @@ function mapPaperSearchScope(
   };
 }
 
+function isJsonValue(value: unknown): value is JsonValue {
+  if (value === null) return true;
+  switch (typeof value) {
+    case "boolean":
+    case "number":
+    case "string":
+      return true;
+    case "object":
+      if (Array.isArray(value)) return value.every(isJsonValue);
+      return Object.values(value).every(isJsonValue);
+    default:
+      return false;
+  }
+}
+
+function mapScientificTaskParameters(
+  parameters: ScientificTaskInputDto["parameters"],
+): Readonly<Record<string, JsonValue>> {
+  const mapped: Record<string, JsonValue> = {};
+  for (const [key, value] of Object.entries(parameters ?? {})) {
+    if (!isJsonValue(value)) {
+      throw new TypeError(
+        `Scientific task parameter ${key} is not JSON-compatible`,
+      );
+    }
+    mapped[key] = value;
+  }
+  return mapped;
+}
+
+function mapScientificTask(
+  dto: NonNullable<ResearchContractInputDto["scientific_tasks"]>[number],
+): ScientificTask {
+  if (!isScientificSkillId(dto.skill_id)) {
+    throw new TypeError(
+      `Scientific task ${dto.task_id} references an unknown skill_id: ${dto.skill_id}`,
+    );
+  }
+  return {
+    taskId: mapId(dto.task_id),
+    skillId: dto.skill_id,
+    parameters: mapScientificTaskParameters(dto.parameters),
+    inputRefs: mapIds(dto.input_refs),
+  };
+}
+
 function mapContractInput(
   dto: ResearchContractInputDto,
 ): ResearchContractInput {
@@ -124,6 +175,7 @@ function mapContractInput(
       allowedSources: mapIds(dto.source_scope.allowed_sources),
     },
     paperSearchScope: mapPaperSearchScope(dto.paper_search_scope),
+    scientificTasks: (dto.scientific_tasks ?? []).map(mapScientificTask),
     outputRequirements: [
       ...(dto.output_requirements ?? []),
     ] as readonly ArtifactKind[],
@@ -195,6 +247,7 @@ export function mapResearchPlanningCatalog(
     targetObjects: mapOptions<DomainEntityId>(dto.target_objects),
     requestedFields: mapOptions<DomainEntityId>(dto.requested_fields),
     allowedSources: mapOptions<DomainEntityId>(dto.allowed_sources),
+    scientificSkills: mapOptions<ScientificSkillId>(dto.scientific_skills),
     outputRequirements: mapOptions<ArtifactKind>(dto.output_requirements),
   };
 }
@@ -342,6 +395,10 @@ export function mapRunStep(dto: RunStepReadDto): RunStepSnapshot {
     position: dto.position,
     key: mapId(dto.key),
     label: dto.label,
+    phase: dto.phase,
+    taskId: dto.task_id ? mapId(dto.task_id) : null,
+    skillId: dto.skill_id ?? null,
+    dependsOnStepKeys: mapIds(dto.depends_on_step_keys ?? []),
     status: dto.status as RunStepSnapshot["status"],
     progress: dto.progress,
     publicMessage: dto.public_message,
@@ -431,15 +488,102 @@ export function mapRunEvent(dto: RunEventDto): RunEvent {
 }
 
 export function mapRunCheckpoint(dto: RunCheckpointDto): RunCheckpoint {
+  const repairContext = dto.repair_context
+    ? {
+        ruleSet: {
+          ruleSetId: mapId(dto.repair_context.rule_set.rule_set_id),
+          ruleSetVersion: dto.repair_context.rule_set
+            .rule_set_version as SemanticVersion,
+          ruleSetContentHash: dto.repair_context.rule_set
+            .rule_set_content_hash as ContentHash,
+          allowedActions: [
+            ...(dto.repair_context.rule_set.allowed_actions ?? [
+              "accepted",
+              "rejected",
+              "keep_unresolved",
+            ]),
+          ],
+        },
+        sourceInputHash: dto.repair_context.source_input_hash as ContentHash,
+        beforeOutputHash: dto.repair_context.before_output_hash as ContentHash,
+        defects: dto.repair_context.defects.map((defect) => ({
+          defectId: mapId(defect.defect_id),
+          logicalMatchKey: defect.logical_match_key as ContentHash,
+          conflictCode: defect.conflict_code,
+          leftCandidates: defect.left_candidates.map((candidate) => ({
+            candidateId: mapId(candidate.candidate_id),
+            sourceLabel: candidate.source_label,
+            entityLabel: candidate.entity_label,
+            identities: candidate.identities.map((identity) => ({
+              label: identity.label,
+              value: identity.value,
+            })),
+            coordinate: candidate.coordinate
+              ? {
+                  frame: "ICRS" as const,
+                  rightAscensionDegrees:
+                    candidate.coordinate.right_ascension_degrees,
+                  declinationDegrees: candidate.coordinate.declination_degrees,
+                }
+              : null,
+          })),
+          rightCandidates: defect.right_candidates.map((candidate) => ({
+            candidateId: mapId(candidate.candidate_id),
+            sourceLabel: candidate.source_label,
+            entityLabel: candidate.entity_label,
+            identities: candidate.identities.map((identity) => ({
+              label: identity.label,
+              value: identity.value,
+            })),
+            coordinate: candidate.coordinate
+              ? {
+                  frame: "ICRS" as const,
+                  rightAscensionDegrees:
+                    candidate.coordinate.right_ascension_degrees,
+                  declinationDegrees: candidate.coordinate.declination_degrees,
+                }
+              : null,
+          })),
+          evidence: defect.evidence.map((evidence) => ({
+            evidenceId: mapId(evidence.evidence_id),
+            leftCandidateId: mapId(evidence.left_candidate_id),
+            rightCandidateId: mapId(evidence.right_candidate_id),
+            confidence: evidence.confidence,
+            summary: evidence.summary,
+          })),
+        })),
+      }
+    : null;
+  const repairOutcome = dto.repair_outcome
+    ? {
+        afterOutputHash: dto.repair_outcome.after_output_hash as ContentHash,
+        qualityResultHash: dto.repair_outcome
+          .quality_result_hash as ContentHash,
+        beforeEvidenceIds: mapIds(dto.repair_outcome.before_evidence_ids),
+        afterEvidenceIds: mapIds(dto.repair_outcome.after_evidence_ids),
+        resolvedDefectIds: mapIds(dto.repair_outcome.resolved_defect_ids),
+        unresolvedDefectIds: mapIds(dto.repair_outcome.unresolved_defect_ids),
+        status: dto.repair_outcome.status,
+      }
+    : null;
   return {
     id: mapId(dto.id),
     runId: mapId(dto.run_id),
+    runRevision: dto.run_revision,
     stepKey: mapId(dto.step_key),
     question: dto.question,
     options: [...dto.options],
+    kind: dto.kind ?? "choice",
+    repairContext,
     createdAt: dto.created_at as UtcIsoTimestamp,
     selectedOption: dto.selected_option ?? null,
     freeText: dto.free_text ?? null,
+    repairDecisions: (dto.repair_decisions ?? []).map((decision) => ({
+      defectId: mapId(decision.defect_id),
+      action: decision.action,
+      rationale: decision.rationale,
+    })),
+    repairOutcome,
     decidedAt: (dto.decided_at ?? null) as UtcIsoTimestamp | null,
   };
 }
@@ -884,6 +1028,12 @@ export function mapDomainContractInputToDto(
       source_ids: [...input.paperSearchScope.sourceIds],
       max_candidates: input.paperSearchScope.maxCandidates,
     },
+    scientific_tasks: input.scientificTasks.map((task) => ({
+      task_id: String(task.taskId),
+      skill_id: task.skillId,
+      parameters: { ...task.parameters },
+      input_refs: [...task.inputRefs].map(String),
+    })),
     output_requirements: [...input.outputRequirements] as unknown as [
       ArtifactKind,
       ...ArtifactKind[],
