@@ -124,6 +124,28 @@ const publishedSpec: WwtSceneVisualizationReview = {
 
 const loadContent = vi.fn(async () => new ArrayBuffer(0));
 
+const trackedObjectSpec: WwtSceneVisualizationReview = {
+  ...publishedSpec,
+  view: {
+    kind: "tracked_object",
+    target: "jupiter",
+    fieldOfViewDegrees: 2.5,
+    rollDegrees: 15,
+    transitionSeconds: 0,
+  },
+  time: {
+    mode: "playback",
+    observedAt: "2026-08-19T03:04:00.000Z",
+    rate: 42,
+  },
+  observer: {
+    latitudeDegrees: 26.6,
+    longitudeDegrees: 106.7,
+    elevationMeters: 1070,
+    localHorizonMode: true,
+  },
+};
+
 function lastViewportSpec(): WwtSceneVisualizationReview {
   const latest = viewportSpecs[viewportSpecs.length - 1];
   if (!latest) throw new Error("viewport was not rendered");
@@ -141,6 +163,35 @@ function renderControls() {
 }
 
 describe("WwtSceneControls", () => {
+  it("initializes control drafts from the published coordinates spec", () => {
+    renderControls();
+    expect(screen.getByLabelText("中心赤经（小时）")).toHaveValue("6");
+    expect(screen.getByLabelText("中心赤纬（度）")).toHaveValue("24");
+    expect(screen.getByLabelText("视场（度）")).toHaveValue("1.5");
+    expect(screen.getByLabelText("相机滚转（度）")).toHaveValue("0");
+  });
+
+  it("initializes drafts from a tracked-object spec with observer and time", () => {
+    render(
+      <WwtSceneControls
+        spec={trackedObjectSpec}
+        versionNumber={2}
+        loadContent={loadContent}
+      />,
+    );
+    expect(screen.getByLabelText("中心赤经（小时）")).toHaveValue("");
+    expect(screen.getByLabelText("中心赤纬（度）")).toHaveValue("");
+    expect(screen.getByLabelText("视场（度）")).toHaveValue("2.5");
+    expect(screen.getByLabelText("相机滚转（度）")).toHaveValue("15");
+    expect(screen.getByLabelText("时间倍率")).toHaveValue("42");
+    expect(screen.getByLabelText("观测时间（UTC）")).toHaveValue(
+      "2026-08-19T03:04",
+    );
+    expect(
+      screen.getByRole("combobox", { name: "跟踪天体" }),
+    ).toHaveTextContent("木星");
+  });
+
   it("keeps every control on the fullscreen presentation state only", () => {
     renderControls();
     fireEvent.change(screen.getByLabelText("中心赤经（小时）"), {
@@ -216,14 +267,26 @@ describe("WwtSceneControls", () => {
     });
   });
 
-  it("restores the published scene exactly", async () => {
+  it("restores the published scene and control drafts exactly", async () => {
     renderControls();
     fireEvent.click(screen.getByRole("combobox", { name: "背景天图" }));
     fireEvent.click(await screen.findByRole("option", { name: "Gaia DR3" }));
     await waitFor(() => expect(lastViewportSpec().background).toBe("gaia"));
 
+    fireEvent.change(screen.getByLabelText("中心赤经（小时）"), {
+      target: { value: "5.6" },
+    });
+    fireEvent.change(screen.getByLabelText("视场（度）"), {
+      target: { value: "3" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "前往坐标" }));
+
     fireEvent.click(screen.getByRole("button", { name: "恢复发布场景" }));
     await waitFor(() => expect(lastViewportSpec()).toEqual(publishedSpec));
+    expect(screen.getByLabelText("中心赤经（小时）")).toHaveValue("6");
+    expect(screen.getByLabelText("中心赤纬（度）")).toHaveValue("24");
+    expect(screen.getByLabelText("视场（度）")).toHaveValue("1.5");
+    expect(screen.getByLabelText("相机滚转（度）")).toHaveValue("0");
   });
 
   it("toggles layer visibility without touching the published spec", async () => {

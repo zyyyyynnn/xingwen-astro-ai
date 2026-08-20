@@ -17,6 +17,7 @@ import type {
   Evidence,
   EvidenceLocator,
   ExecutionMode,
+  JsonValue,
   NonEmptyString,
   ProducerReference,
   ProvenanceState,
@@ -77,6 +78,7 @@ import type {
   ResearchTurnResult as ResearchTurnResultDto,
   RunStepRead as RunStepReadDto,
   RunEvent as RunEventDto,
+  ScientificTaskInput as ScientificTaskInputDto,
   WorkspaceSnapshot as WorkspaceSnapshotDto,
   WorkspaceSnapshotInput as WorkspaceSnapshotInputDto,
   ShareSnapshot as ShareSnapshotDto,
@@ -115,6 +117,36 @@ function mapPaperSearchScope(
   };
 }
 
+function isJsonValue(value: unknown): value is JsonValue {
+  if (value === null) return true;
+  switch (typeof value) {
+    case "boolean":
+    case "number":
+    case "string":
+      return true;
+    case "object":
+      if (Array.isArray(value)) return value.every(isJsonValue);
+      return Object.values(value).every(isJsonValue);
+    default:
+      return false;
+  }
+}
+
+function mapScientificTaskParameters(
+  parameters: ScientificTaskInputDto["parameters"],
+): Readonly<Record<string, JsonValue>> {
+  const mapped: Record<string, JsonValue> = {};
+  for (const [key, value] of Object.entries(parameters ?? {})) {
+    if (!isJsonValue(value)) {
+      throw new TypeError(
+        `Scientific task parameter ${key} is not JSON-compatible`,
+      );
+    }
+    mapped[key] = value;
+  }
+  return mapped;
+}
+
 function mapScientificTask(
   dto: NonNullable<ResearchContractInputDto["scientific_tasks"]>[number],
 ): ScientificTask {
@@ -126,7 +158,7 @@ function mapScientificTask(
   return {
     taskId: mapId(dto.task_id),
     skillId: dto.skill_id,
-    parameters: { ...(dto.parameters ?? {}) },
+    parameters: mapScientificTaskParameters(dto.parameters),
     inputRefs: mapIds(dto.input_refs),
   };
 }

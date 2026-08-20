@@ -103,13 +103,24 @@ export function WwtSceneControls({
     };
   }, [base, hiddenLayers, annotationsHidden]);
 
-  const [raInput, setRaInput] = useState("");
-  const [decInput, setDecInput] = useState("");
-  const [fovInput, setFovInput] = useState("");
-  const [rollInput, setRollInput] = useState("");
-  const [rateInput, setRateInput] = useState("");
-  const [trackedTarget, setTrackedTarget] =
-    useState<WwtTrackedObjectViewReview["target"]>("mars");
+  // Local control drafts start from the published immutable spec so the
+  // controls describe the scene the user is actually viewing.
+  const [raInput, setRaInput] = useState(
+    spec.view.kind === "coordinates" ? String(spec.view.center.raHours) : "",
+  );
+  const [decInput, setDecInput] = useState(
+    spec.view.kind === "coordinates" ? String(spec.view.center.decDegrees) : "",
+  );
+  const [fovInput, setFovInput] = useState(
+    String(spec.view.fieldOfViewDegrees),
+  );
+  const [rollInput, setRollInput] = useState(String(spec.view.rollDegrees));
+  const [rateInput, setRateInput] = useState(
+    spec.time.rate === null ? "" : String(spec.time.rate),
+  );
+  const [trackedTarget, setTrackedTarget] = useState<
+    WwtTrackedObjectViewReview["target"]
+  >(spec.view.kind === "tracked_object" ? spec.view.target : "mars");
   const [latitudeInput, setLatitudeInput] = useState(
     () => spec.observer?.latitudeDegrees.toString() ?? "0",
   );
@@ -122,7 +133,9 @@ export function WwtSceneControls({
   const [localHorizonMode, setLocalHorizonMode] = useState(
     () => spec.observer?.localHorizonMode ?? false,
   );
-  const [observedAtInput, setObservedAtInput] = useState("");
+  const [observedAtInput, setObservedAtInput] = useState(
+    spec.time.observedAt?.slice(0, 16) ?? "",
+  );
   const [controlError, setControlError] = useState<string | null>(null);
 
   const gotoCoordinates = () => {
@@ -295,11 +308,33 @@ export function WwtSceneControls({
     setBase({ ...base, tourAutoplay: !base.tourAutoplay });
   };
 
+  // “恢复发布场景” must return both the rendered WWT scene and every control
+  // draft to the published ArtifactVersion spec, so no exploration state from
+  // the previous scene leaks into the reset view.
   const resetScene = () => {
     setBase(spec);
     setHiddenLayers([]);
     setAnnotationsHidden(false);
     setControlError(null);
+    setRaInput(
+      spec.view.kind === "coordinates" ? String(spec.view.center.raHours) : "",
+    );
+    setDecInput(
+      spec.view.kind === "coordinates"
+        ? String(spec.view.center.decDegrees)
+        : "",
+    );
+    setFovInput(String(spec.view.fieldOfViewDegrees));
+    setRollInput(String(spec.view.rollDegrees));
+    setRateInput(spec.time.rate === null ? "" : String(spec.time.rate));
+    setTrackedTarget(
+      spec.view.kind === "tracked_object" ? spec.view.target : "mars",
+    );
+    setLatitudeInput(spec.observer?.latitudeDegrees.toString() ?? "0");
+    setLongitudeInput(spec.observer?.longitudeDegrees.toString() ?? "0");
+    setElevationInput(spec.observer?.elevationMeters.toString() ?? "0");
+    setLocalHorizonMode(spec.observer?.localHorizonMode ?? false);
+    setObservedAtInput(spec.time.observedAt?.slice(0, 16) ?? "");
   };
 
   return (

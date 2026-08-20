@@ -118,7 +118,7 @@ function WwtSceneSummary({
         <span>注释 {spec.annotations.length} 个</span>
       </div>
       <WwtSceneControls
-        key={content.visualizationId}
+        key={`${content.visualizationId}:${versionNumber}`}
         spec={spec}
         versionNumber={versionNumber}
         loadContent={loadContent}

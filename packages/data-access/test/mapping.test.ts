@@ -145,4 +145,69 @@ describe("scientific task contract mapping", () => {
 
     expect(() => mapResearchContractDraft(dto)).toThrow(TypeError);
   });
+
+  it("preserves nested JSON-compatible parameters across the round trip", () => {
+    const contract = contractInputDto();
+    contract.scientific_tasks = [
+      {
+        task_id: "task-nested",
+        skill_id: "light_curve_analysis",
+        parameters: {
+          window: { period_days: 3.5, harmonics: [1, 2, 4] },
+          notes: null,
+          active: true,
+        },
+        input_refs: [],
+      },
+    ];
+    const draft = mapResearchContractDraft({
+      id: "rcd_01",
+      session_id: "sess_01",
+      project_id: "proj_01",
+      version: 1,
+      intent: "宿主星参数比较",
+      status: "draft",
+      contract,
+      warnings: [],
+      created_at: "2026-08-18T00:00:00Z",
+      updated_at: "2026-08-18T00:00:00Z",
+      expires_at: "2026-08-19T00:00:00Z",
+    });
+
+    const submitted = mapDomainContractInputToDto(draft.contract);
+
+    expect(submitted.scientific_tasks?.[0]?.parameters).toEqual({
+      window: { period_days: 3.5, harmonics: [1, 2, 4] },
+      notes: null,
+      active: true,
+    });
+  });
+
+  it("rejects scientific task parameters that are not JSON-compatible", () => {
+    const contract = contractInputDto();
+    contract.scientific_tasks = [
+      {
+        task_id: "task-bad",
+        skill_id: "light_curve_analysis",
+        parameters: { callback: (() => undefined) as never },
+        input_refs: [],
+      },
+    ];
+
+    expect(() =>
+      mapResearchContractDraft({
+        id: "rcd_01",
+        session_id: "sess_01",
+        project_id: "proj_01",
+        version: 1,
+        intent: "宿主星参数比较",
+        status: "draft",
+        contract,
+        warnings: [],
+        created_at: "2026-08-18T00:00:00Z",
+        updated_at: "2026-08-18T00:00:00Z",
+        expires_at: "2026-08-19T00:00:00Z",
+      }),
+    ).toThrow(/not JSON-compatible/u);
+  });
 });

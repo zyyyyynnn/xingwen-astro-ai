@@ -64,6 +64,25 @@ def _time_series_rows() -> list[dict[str, object]]:
     return rows
 
 
+def _entity_rows() -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for entity_index in range(6):
+        object_id = f"star.{entity_index}"
+        label = "variable" if entity_index % 2 == 0 else "quiet"
+        for observation in range(8):
+            index = entity_index * 8 + observation
+            rows.append(
+                {
+                    "row_id": f"obs.{index}",
+                    "object_id": object_id,
+                    "amplitude": float(entity_index * 3 + observation % 3),
+                    "period": float(1.0 + 0.1 * observation),
+                    "label": label,
+                }
+            )
+    return rows
+
+
 def test_group_split_keeps_test_groups_out_of_training() -> None:
     rows = _grouped_rows()
     result = build_scientific_skill_registry().execute(
@@ -97,6 +116,39 @@ def test_group_split_keeps_test_groups_out_of_training() -> None:
     assert training_groups, "training partition must cover at least one group"
     assert test_groups & training_groups == set(), (
         "a group leaked across the train/test boundary"
+    )
+
+
+def test_entity_split_keeps_test_entities_out_of_training() -> None:
+    rows = _entity_rows()
+    result = build_scientific_skill_registry().execute(
+        _request(
+            {
+                "rows": rows,
+                "feature_fields": ["amplitude", "period"],
+                "target_field": "label",
+                "task_kind": "classification",
+                "algorithm": "random_forest",
+                "split_strategy": "entity",
+                "entity_field": "object_id",
+            }
+        )
+    )
+
+    predictions = result.output["predictions"]
+    assert predictions, "entity split must evaluate a test partition"
+
+    entity_by_row = {str(row["row_id"]): str(row["object_id"]) for row in rows}
+    test_row_ids = {str(item["row_id"]) for item in predictions}
+    test_entities = {entity_by_row[row_id] for row_id in test_row_ids}
+    training_entities = {
+        entity_by_row[str(row["row_id"])]
+        for row in rows
+        if str(row["row_id"]) not in test_row_ids
+    }
+    assert training_entities, "training partition must cover at least one entity"
+    assert test_entities & training_entities == set(), (
+        "an entity leaked across the train/test boundary"
     )
 
 

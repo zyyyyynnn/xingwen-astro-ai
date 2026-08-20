@@ -49,10 +49,17 @@ export interface QualityConstraints {
 }
 
 /**
- * JSON-compatible parameter value. Mirrors the transport `JsonValue`
+ * JSON-compatible primitive value. Mirrors the transport `JsonPrimitive`
  * definition so bounded skill parameters survive the round-trip unchanged.
  */
-export type JsonValue = unknown;
+export type JsonPrimitive = null | boolean | number | string;
+
+/**
+ * Recursive JSON-compatible value. Mirrors the transport `JsonValue`
+ * definition so bounded skill parameters survive the round-trip unchanged.
+ */
+export type JsonValue =
+  JsonPrimitive | readonly JsonValue[] | { readonly [key: string]: JsonValue };
 
 /**
  * One bounded invocation of a registered scientific skill, authorized by the
