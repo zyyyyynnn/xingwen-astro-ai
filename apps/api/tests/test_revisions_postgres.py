@@ -102,15 +102,20 @@ class _FrozenRevisionArtifactVersions(ArtifactVersionTargetReadPort):
         version_ids: dict[str, UUID],
         owner_session_id: str,
     ) -> None:
-        self._version_ids = version_ids
+        self._version_ids = {
+            kind: {version_id} for kind, version_id in version_ids.items()
+        }
         self._owner_session_id = owner_session_id
+
+    def allow(self, version_ids: dict[str, UUID]) -> None:
+        for kind, version_id in version_ids.items():
+            self._version_ids.setdefault(kind, set()).add(version_id)
 
     async def validate_version(
         self, *, version_id: str, artifact_kind: str, session_id: str
     ) -> None:
-        if session_id != self._owner_session_id or self._version_ids.get(
-            artifact_kind
-        ) != UUID(version_id):
+        allowed = self._version_ids.get(artifact_kind, set())
+        if session_id != self._owner_session_id or UUID(version_id) not in allowed:
             raise AssertionError("revision fixture received an unknown ArtifactVersion")
 
 
@@ -285,16 +290,17 @@ def runtime(monkeypatch: pytest.MonkeyPatch):
             session.flush()
             artifact.latest_version_id = version.id
 
+    artifact_version_reader = _FrozenRevisionArtifactVersions(
+        version_ids=version_ids,
+        owner_session_id=owner.id,
+    )
     app.state.revision_service = RevisionApplicationService(
         factory=factory,
         workflow_store=app.state.workflow_store,
         target_authority=FeedbackTargetAuthority(
             app.state.artifact_read_service,
             paper_summary_reader=app.state.paper_summary_read_service,
-            artifact_version_reader=_FrozenRevisionArtifactVersions(
-                version_ids=version_ids,
-                owner_session_id=owner.id,
-            ),
+            artifact_version_reader=artifact_version_reader,
         ),
     )
 
@@ -316,6 +322,7 @@ def runtime(monkeypatch: pytest.MonkeyPatch):
             "other_csrf": other_csrf,
             "artifact_ids": artifact_ids,
             "version_ids": version_ids,
+            "artifact_version_reader": artifact_version_reader,
         }
     finally:
         client.__exit__(None, None, None)
@@ -447,6 +454,9 @@ def _seed_partial_revision_parent(
             session.add(version)
             session.flush()
             artifact.latest_version_id = version.id
+    artifact_version_reader = runtime["artifact_version_reader"]
+    assert isinstance(artifact_version_reader, _FrozenRevisionArtifactVersions)
+    artifact_version_reader.allow(version_ids)
     return {
         **runtime,
         "project_id": str(ids["project"]),
