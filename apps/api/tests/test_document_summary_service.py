@@ -8,7 +8,17 @@ from uuid import uuid4
 import pytest
 
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.core import (
+    ArtifactVersionDetail,
+    EvidenceDetail,
+    ProducerExecutionDetail,
+    ProducerReference,
+    ResearchArtifactDetail,
+    SourceMode,
+    SourceSnapshotDetail,
+)
 from app.schemas.paper_summary import (
+    PaperSummaryArtifactContent,
     PaperSummaryPaperMetadata,
     PaperSummarySourceSnapshotReference,
 )
@@ -30,6 +40,8 @@ from app.services.model_execution import (
     ModelExecutionRequest,
     ModelExecutionResponse,
 )
+from app.services.paper_summaries import PaperSummaryReadService
+from app.services.paper_summary_exports import PaperSummaryExportService
 from app.workflow.publisher import (
     ArtifactEvidenceBinding,
     ArtifactSourceSnapshotBinding,
@@ -49,11 +61,13 @@ class _Model:
             "evidence_id"
         ]
         payload = {
-            "background": [{
-                "statement_id": "summary.document.research_goal",
-                "text": "The paper studies transit signals.",
-                "evidence_ids": [evidence_id],
-            }],
+            "background": [
+                {
+                    "statement_id": "summary.document.research_goal",
+                    "text": "The paper studies transit signals.",
+                    "evidence_ids": [evidence_id],
+                }
+            ],
             "methodology": [],
             "dataset": [],
             "experiments": [],
@@ -82,6 +96,10 @@ _CONTENT_HASH = "sha256:" + "b" * 64
 _CONFIG_HASH = "sha256:" + "c" * 64
 _CANONICAL_HASH = "sha256:" + "d" * 64
 _PARAGRAPH_TEXT = "The paper studies transit signals."
+_VERSION_ID = "version.document-summary"
+_ARTIFACT_ID = "artifact.document-summary"
+_PROJECT_ID = "project.document-summary"
+_SESSION_ID = "owner"
 
 
 def _parse_candidate() -> DocumentParseCandidate:
@@ -159,6 +177,131 @@ def _request() -> ExecuteDocumentSummaryRequest:
     )
 
 
+def _published_summary_version(
+    summary: PaperSummaryArtifactContent,
+) -> ArtifactVersionDetail:
+    producer = summary.producer
+    assert producer.run_id is not None
+    snapshot_reference = summary.input_versions.source_snapshots[0]
+    persisted_snapshot_id = "snapshot.document-summary.persisted"
+    producer_reference = ProducerReference(
+        type=producer.producer_type,
+        name=producer.producer_name,
+        version=producer.producer_version,
+        model_provider=producer.provider,
+        requested_model=producer.model_name,
+        explicit_revision=producer.model_revision,
+        prompt_name=producer.prompt_name,
+        prompt_version=producer.prompt_version,
+        prompt_hash=producer.prompt_hash,
+        parameters_hash=producer.parameters_hash,
+    )
+    content = summary.model_dump(mode="json")
+    content_hash = compute_canonical_payload_hash(content)
+    evidence = tuple(
+        EvidenceDetail(
+            id=f"persisted.{item.evidence_id}",
+            artifact_version_id=_VERSION_ID,
+            target_type="paper_summary",
+            target_id=next(
+                statement.statement_id
+                for statement in summary.statements()
+                if item.evidence_id in statement.evidence_ids
+            ),
+            evidence_type="document_quote",
+            source_snapshot_id=persisted_snapshot_id,
+            paper_id=item.paper_id,
+            locator={
+                "source_record_id": item.source_record_id,
+                "summary_evidence_id": item.evidence_id,
+            },
+            quote_or_value=item.quote_or_value,
+            extraction_method="document_parse",
+            confidence=1.0,
+            created_at=producer.finished_at,
+        )
+        for item in summary.evidence
+    )
+    return ArtifactVersionDetail(
+        id=_VERSION_ID,
+        artifact_id=_ARTIFACT_ID,
+        project_id=_PROJECT_ID,
+        created_by_run_id=producer.run_id,
+        version_number=1,
+        schema_version=summary.schema_version,
+        content=content,
+        content_hash=content_hash,
+        input_hash=summary.input_hash,
+        source_mode=SourceMode.live,
+        producer=producer_reference,
+        source_snapshot_ids=(persisted_snapshot_id,),
+        evidence_ids=tuple(item.id for item in evidence),
+        created_at=producer.finished_at,
+        producer_execution=ProducerExecutionDetail(
+            id=producer.execution_id,
+            run_id=producer.run_id,
+            step_key=producer.step_key,
+            step_attempt_id="attempt.document-summary",
+            producer=producer_reference,
+            parameters=_request().parameters,
+            parameters_hash=producer.parameters_hash,
+            input_hash=summary.input_hash,
+            output_hash=content_hash,
+            status="completed",
+            started_at=producer.started_at,
+            finished_at=producer.finished_at,
+            token_usage=(
+                producer.usage.model_dump(mode="json")
+                if producer.usage is not None
+                else None
+            ),
+            latency_ms=producer.latency_ms,
+            provider_request_id=producer.provider_request_id,
+        ),
+        source_snapshots=(
+            SourceSnapshotDetail(
+                id=persisted_snapshot_id,
+                source_id=snapshot_reference.source_id,
+                source_type="research_input",
+                retrieved_at=producer.finished_at,
+                query={},
+                query_hash=compute_canonical_payload_hash({}),
+                source_version_or_etag=snapshot_reference.source_version,
+                content_hash=snapshot_reference.content_hash,
+                license_note="Test-owned immutable ResearchInput",
+                request_metadata={},
+            ),
+        ),
+        evidence=evidence,
+    )
+
+
+class _PublishedSummaryArtifacts:
+    def __init__(self, version: ArtifactVersionDetail) -> None:
+        self._version = version
+
+    def get_version(self, *, version_id: str, session_id: str) -> ArtifactVersionDetail:
+        assert version_id == _VERSION_ID
+        assert session_id == _SESSION_ID
+        return self._version
+
+    def get_artifact(
+        self, *, artifact_id: str, session_id: str
+    ) -> ResearchArtifactDetail:
+        assert artifact_id == _ARTIFACT_ID
+        assert session_id == _SESSION_ID
+        return ResearchArtifactDetail(
+            id=_ARTIFACT_ID,
+            project_id=_PROJECT_ID,
+            kind="paper_summary",
+            title="Document summary",
+            logical_key="paper_summary.document",
+            created_at=self._version.created_at,
+            latest_version_id=_VERSION_ID,
+            versions=(),
+        )
+
+
 def test_document_summary_executes_real_model_port_and_records_metadata() -> None:
     model = _Model()
     pipeline = PaperSummaryPipeline(
@@ -194,15 +337,34 @@ def test_document_summary_prepares_exact_identity_before_model_execution() -> No
         producer_execution_id="execution.document-summary.fixed",
     )
     assert result.admission.producer.input_hash == prepared.input_hash
-    assert (
-        result.admission.producer.execution_id
-        == "execution.document-summary.fixed"
-    )
+    assert result.admission.producer.execution_id == "execution.document-summary.fixed"
 
 
 def test_document_summary_rejects_model_hash_drift() -> None:
     with pytest.raises(ValueError, match="output hash mismatch"):
         DocumentSummaryService(_Model(tamper_hash=True)).execute(_request())
+
+
+def test_document_parse_summary_is_readable_and_exportable() -> None:
+    execution = DocumentSummaryService(_Model()).execute(_request())
+    summary = execution.admission.summary
+    assert summary is not None
+    read_service = PaperSummaryReadService(
+        _PublishedSummaryArtifacts(_published_summary_version(summary))
+    )
+
+    read = read_service.get_summary(
+        version_id=_VERSION_ID,
+        session_id=_SESSION_ID,
+    )
+    download = PaperSummaryExportService(read_service).export(
+        version_id=_VERSION_ID,
+        session_id=_SESSION_ID,
+        export_format="json",
+    )
+
+    assert read.paper == summary.paper
+    assert b'"title": "Transit Study"' in download.content
 
 
 def test_admitted_document_summary_closes_persisted_provenance_bindings() -> None:

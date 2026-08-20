@@ -82,7 +82,7 @@ class PaperSummaryReadService:
         if summary.input_versions.paper_collection_version_id is not None:
             collection = self._validate_input_collection(version, summary, session_id)
             expected_snapshot_keys = _collection_snapshot_keys(collection, summary)
-            _paper_metadata(collection, summary.paper_id)
+            paper = _paper_metadata(collection, summary.paper_id)
             snapshot_ids = self._validate_snapshots_and_evidence(
                 version,
                 summary,
@@ -97,6 +97,7 @@ class PaperSummaryReadService:
         else:
             if summary.paper is None or summary.input_versions.document_parses == ():
                 raise _schema_problem()
+            paper = summary.paper
             if version.source_mode is SourceMode.cached:
                 raise _provenance_problem()
             expected_snapshot_keys = {
@@ -123,7 +124,7 @@ class PaperSummaryReadService:
             content_hash=version.content_hash,
             input_hash=version.input_hash,
             created_at=version.created_at,
-            paper=_paper_metadata(collection, summary.paper_id),
+            paper=paper,
             summary=summary,
             cache_audits=cache_audits,
             producer_execution=version.producer_execution,
