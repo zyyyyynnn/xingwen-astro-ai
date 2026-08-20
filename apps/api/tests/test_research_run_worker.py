@@ -99,7 +99,6 @@ def test_literature_bindings_materialize_shared_evidence_per_domain_target() -> 
                 "output_requirements": [
                     "dataset",
                     "literature_claims",
-                    "reasoning_traces",
                     "graph",
                     "paper_summary",
                 ],

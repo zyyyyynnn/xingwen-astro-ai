@@ -131,12 +131,5 @@ export interface LiteratureRelationsArtifactReview extends LiteratureArtifactVer
   readonly relations: readonly LiteratureRelationReview[];
 }
 
-export interface ReasoningTracesArtifactReview extends LiteratureArtifactVersionReview {
-  readonly kind: "reasoning_traces";
-  readonly traces: readonly LiteratureReasoningTraceReview[];
-}
-
 export type LiteratureArtifactReview =
-  | LiteratureClaimsArtifactReview
-  | LiteratureRelationsArtifactReview
-  | ReasoningTracesArtifactReview;
+  LiteratureClaimsArtifactReview | LiteratureRelationsArtifactReview;

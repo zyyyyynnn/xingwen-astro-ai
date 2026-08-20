@@ -331,10 +331,6 @@ export type LiteratureRelationsArtifactReviewViewModel = Extract<
   LiteratureArtifactReview,
   { readonly kind: "literature_relations" }
 >;
-export type ReasoningTracesArtifactReviewViewModel = Extract<
-  LiteratureArtifactReview,
-  { readonly kind: "reasoning_traces" }
->;
 export type GraphArtifactReviewViewModel = GraphArtifactReview;
 export type DatasetArtifactReviewViewModel = Extract<
   DataArtifactReview,

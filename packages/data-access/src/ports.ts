@@ -327,7 +327,7 @@ export interface ArtifactExportRepository {
   download(exportRecord: ArtifactExport): Promise<ArtifactExportDownload>;
 }
 
-/** Deep reads for the public LiteratureClaim/Relation/Trace projections. */
+/** Deep reads for public Literature artifacts and their embedded traces. */
 export interface LiteratureArtifactRepository {
   getClaims(
     artifactVersionId: DomainEntityId,
@@ -338,11 +338,6 @@ export interface LiteratureArtifactRepository {
     artifactVersionId: DomainEntityId,
   ): Promise<
     Extract<LiteratureArtifactReview, { readonly kind: "literature_relations" }>
-  >;
-  getReasoningTraces(
-    artifactVersionId: DomainEntityId,
-  ): Promise<
-    Extract<LiteratureArtifactReview, { readonly kind: "reasoning_traces" }>
   >;
 }
 

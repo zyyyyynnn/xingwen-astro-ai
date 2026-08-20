@@ -116,7 +116,6 @@ def test_supported_run_outputs_are_an_explicit_fail_closed_allowlist() -> None:
             ArtifactKind.paper_summary,
             ArtifactKind.literature_claims,
             ArtifactKind.literature_relations,
-            ArtifactKind.reasoning_traces,
             ArtifactKind.graph,
         }
     )

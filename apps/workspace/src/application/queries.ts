@@ -394,7 +394,7 @@ export function createWorkspaceQueries({
     literatureArtifact: (
       projectId: DomainEntityId,
       artifactVersionId: DomainEntityId,
-      kind: "literature_claims" | "literature_relations" | "reasoning_traces",
+      kind: "literature_claims" | "literature_relations",
     ) =>
       queryOptions({
         queryKey: workspaceQueryKeys.literatureArtifact(
@@ -408,13 +408,9 @@ export function createWorkspaceQueries({
               ? await repositories.literatureArtifacts.getClaims(
                   artifactVersionId,
                 )
-              : kind === "literature_relations"
-                ? await repositories.literatureArtifacts.getRelations(
-                    artifactVersionId,
-                  )
-                : await repositories.literatureArtifacts.getReasoningTraces(
-                    artifactVersionId,
-                  );
+              : await repositories.literatureArtifacts.getRelations(
+                  artifactVersionId,
+                );
           requireProjectOwnership(
             "LiteratureArtifact",
             projectId,

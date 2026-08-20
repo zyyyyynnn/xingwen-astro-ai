@@ -108,7 +108,6 @@ class ArtifactKind(StrEnum):
     paper_summary = "paper_summary"
     literature_claims = "literature_claims"
     literature_relations = "literature_relations"
-    reasoning_traces = "reasoning_traces"
     graph = "graph"
     export = "export"
 

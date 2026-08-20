@@ -19,7 +19,6 @@ const ARTIFACT_KIND_LABELS = {
   paper_summary: "论文摘要",
   literature_claims: "文献论点",
   literature_relations: "文献关系",
-  reasoning_traces: "推理记录",
   graph: "证据图谱",
   export: "导出文件",
 } satisfies Readonly<Record<ArtifactKind, string>>;
@@ -38,7 +37,6 @@ const ARTIFACT_KIND_DESCRIPTIONS = {
   paper_summary: "归纳论文中的研究方法、核心发现与限制。",
   literature_claims: "提炼可以回溯到原始证据的文献论点。",
   literature_relations: "整理文献论点之间的支持、比较与关联。",
-  reasoning_traces: "保留证据综合过程中的关键判断依据。",
   graph: "连接研究对象、论点、证据与来源关系。",
   export: "整理可供外部使用的研究交付文件。",
 } satisfies Readonly<Record<ArtifactKind, string>>;

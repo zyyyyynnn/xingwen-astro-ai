@@ -493,8 +493,7 @@ const paperCollection = defineRenderer({
     `论文集合，候选 ${viewModel.candidates.length} 篇。`,
 });
 
-type LiteratureKind =
-  "literature_claims" | "literature_relations" | "reasoning_traces";
+type LiteratureKind = "literature_claims" | "literature_relations";
 
 function literature(kind: LiteratureKind, displayPriority: number) {
   return defineRenderer({
@@ -659,7 +658,6 @@ const ARTIFACT_RENDERER_DESCRIPTORS = [
   scientific("model_artifact", 64, "reading"),
   literature("literature_claims", 70),
   literature("literature_relations", 80),
-  literature("reasoning_traces", 90),
   graph,
   exportUnsupported,
 ] satisfies readonly ArtifactRendererDescriptor[];

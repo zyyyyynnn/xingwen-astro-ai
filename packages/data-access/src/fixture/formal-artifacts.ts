@@ -18,7 +18,6 @@ import type {
   LiteratureArtifactVersionContext,
   LiteratureClaimRead,
   LiteratureRelationRead,
-  LiteratureReasoningTraceRead,
   ProducerExecutionDetail,
   SourceCollectionArtifactRead,
   SourceCollectionMember,
@@ -31,7 +30,6 @@ const FIELDS_VERSION_ID = "artv_fdict_01";
 const SOURCES_VERSION_ID = "artv_srccol_01";
 const CLAIMS_VERSION_ID = "artv_claims_01";
 const RELATIONS_VERSION_ID = "artv_rels_01";
-const TRACES_VERSION_ID = "artv_traces_01";
 const GRAPH_VERSION_ID = "artv_graph_01";
 const RUN_ID = "run_01JEXAMPLE";
 const CREATED_AT = "2026-07-21T08:28:00Z";
@@ -591,25 +589,6 @@ export const literatureClaimReads: readonly LiteratureClaimRead[] = [claimRead];
 export const literatureRelationReads: readonly LiteratureRelationRead[] = [
   relationRead,
 ];
-export const literatureReasoningTraceReads: readonly LiteratureReasoningTraceRead[] =
-  [
-    {
-      version: literatureVersion("art_traces_01", TRACES_VERSION_ID),
-      source_snapshots: [sourceSnapshot],
-      evidence: [
-        evidence(
-          TRACES_VERSION_ID,
-          "trace",
-          "trace_01",
-          "Public comparison step.",
-        ),
-      ],
-      source_claim: claimRead,
-      target_claim: claimRead,
-      relation: relationRead.relation,
-      trace: relationRead.reasoning_trace!,
-    },
-  ];
 
 const graphVersion = {
   artifact_id: "art_graph_01",

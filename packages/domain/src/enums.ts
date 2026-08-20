@@ -86,7 +86,6 @@ export const ARTIFACT_KINDS = [
   "paper_summary",
   "literature_claims",
   "literature_relations",
-  "reasoning_traces",
   "graph",
   "export",
 ] as const;

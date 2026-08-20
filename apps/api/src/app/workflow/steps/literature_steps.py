@@ -4,11 +4,9 @@ from __future__ import annotations
 
 from app.schemas.literature_claim import LiteratureClaimStatus
 from app.schemas.literature_relation import LiteratureRelationStatus
-from app.schemas.reasoning_traces import build_reasoning_traces_artifact
 from app.workflow.publisher import admit_artifact_candidate
 from app.workflow.step_publication import (
     PreparedStep,
-    ReasoningTracesProducer,
     RunStepContext,
     StepModelCaller,
     StepPublicationFactory,
@@ -191,65 +189,8 @@ class LiteratureStepService:
                 )
             )
 
-        traces_artifact_id = step_uuid(
-            str(context.project_id), "artifact:reasoning_traces"
-        )
-        traces_version_id = step_uuid(
-            str(context.run_id), "artifact-version:reasoning_traces"
-        )
-        traces_producer = ReasoningTracesProducer()
-        traces_execution = self._publications.start_producer(
-            context,
-            step_key=step_key,
-            operation_key="reasoning_traces",
-            producer_type="algorithm",
-            producer_name=traces_producer.producer_name,
-            producer_version=traces_producer.producer_version,
-            input_hash=relations.output_hash,
-            parameters={},
-            attempt=attempt,
-            lease=lease,
-        )
-        try:
-            traces_candidate = build_reasoning_traces_artifact(relations)
-        except Exception:
-            self._publications.finish_producer(
-                traces_execution.id,
-                status="failed",
-                error_code="REASONING_TRACE_PROJECTION_FAILED",
-            )
-            raise
-        traces_admitted = admit_artifact_candidate(
-            traces_candidate,
-            schema_version=traces_candidate.schema_version,
-            source_snapshot_ids=(),
-            evidence_ids=(),
-            evidence_validator=lambda _context: None,
-            domain_validator=lambda _context: None,
-            quality_validator=lambda _context: None,
-            source_snapshot_bindings=(),
-            evidence_bindings=(),
-        )
-        self._publications.finish_producer(
-            traces_execution.id,
-            status="completed",
-            input_hash=traces_candidate.input_hash,
-            output_hash=traces_admitted.content_hash,
-        )
-        publications.append(
-            self._publications.publication(
-                context,
-                kind="reasoning_traces",
-                candidate=traces_admitted,
-                producer_execution_id=traces_execution.id,
-                artifact_id=traces_artifact_id,
-                version_id=traces_version_id,
-            )
-        )
         context.literature_claims = claims
         context.literature_relations = relations
-        context.reasoning_traces_artifact_id = traces_artifact_id
-        context.reasoning_traces_version_id = traces_version_id
         return PreparedStep(
             publications=tuple(publications),
             activity_result_summary=(

@@ -71,7 +71,7 @@ describe("Fixture adapter — reads map DTO to domain", () => {
 
   it("lists artifacts produced by a run and reads detail projections", async () => {
     const artifacts = await repos.artifacts.listByRun(RUN_ID);
-    expect(artifacts).toHaveLength(9);
+    expect(artifacts).toHaveLength(8);
     const artifact = await repos.artifacts.getArtifact("art_graph_01" as never);
     expect(artifact!.kind).toBe("graph");
     const version = await repos.artifacts.getVersion(

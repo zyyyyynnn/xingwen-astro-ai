@@ -1920,11 +1920,6 @@ _OUTPUT_PRESENTATION = {
         "整理文献、主张和对象关系。",
         "advanced",
     ),
-    ArtifactKind.reasoning_traces: (
-        "推理轨迹",
-        "保存可公开、可审计的推理摘要。",
-        "advanced",
-    ),
     ArtifactKind.export: ("导出结果", "生成可下载的研究结果包。", "advanced"),
     ArtifactKind.analysis_report: (
         "分析报告",

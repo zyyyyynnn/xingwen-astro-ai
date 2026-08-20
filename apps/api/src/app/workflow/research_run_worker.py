@@ -65,7 +65,6 @@ _ARTIFACT_TITLES: dict[str, str] = {
     "paper_summary": "论文结构化精读摘要",
     "literature_claims": "论文事实论点",
     "literature_relations": "论文论点关系",
-    "reasoning_traces": "推理链证据追踪",
     "graph": "证据与实体图谱",
 }
 

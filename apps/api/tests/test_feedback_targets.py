@@ -31,7 +31,7 @@ def test_whole_version_feedback_rejects_standalone_reasoning_traces() -> None:
 
     with pytest.raises(
         ValueError,
-        match="unsupported ArtifactVersion target kind: reasoning_traces",
+        match="reasoning_traces",
     ):
         asyncio.run(
             service.validate_version(

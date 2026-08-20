@@ -126,7 +126,6 @@ export type ArtifactKind =
   | "paper_summary"
   | "literature_claims"
   | "literature_relations"
-  | "reasoning_traces"
   | "graph"
   | "export";
 /**

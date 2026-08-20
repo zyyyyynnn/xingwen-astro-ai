@@ -26,10 +26,6 @@ type LiteratureRelationsReview = Extract<
   LiteratureArtifactReviewViewModel,
   { readonly kind: "literature_relations" }
 >;
-type ReasoningTracesReview = Extract<
-  LiteratureArtifactReviewViewModel,
-  { readonly kind: "reasoning_traces" }
->;
 
 function ClaimLabel({
   claim,
@@ -274,41 +270,6 @@ function RelationsTable({
   );
 }
 
-function TraceList({
-  review,
-  surface,
-  onSelectEvidence,
-}: {
-  readonly review: ReasoningTracesReview;
-  readonly surface: ScientificContentSurface;
-  readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
-}) {
-  const traces = review.traces.slice(0, SURFACE_LIMITS[surface]);
-  return (
-    <div className="my-3 space-y-3">
-      {traces.map((trace) => (
-        <div key={trace.traceId} className="space-y-1">
-          <ReasoningTrace trace={trace} />
-          <EvidenceAction
-            evidenceIds={trace.evidenceIds}
-            onSelectEvidence={onSelectEvidence}
-          />
-        </div>
-      ))}
-      {traces.length === 0 ? (
-        <p className="ui-text-body py-6 text-center text-[var(--oh-muted)]">
-          当前结果没有可展示的公开推导过程。
-        </p>
-      ) : null}
-      {limitNote(review.traces.length, traces.length, "条推导") ? (
-        <p className="text-xs text-[var(--oh-muted)]">
-          {limitNote(review.traces.length, traces.length, "条推导")}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
 export function LiteratureContent({
   review,
   title,
@@ -320,18 +281,11 @@ export function LiteratureContent({
   readonly surface: ScientificContentSurface;
   readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
 }) {
-  const label =
-    review.kind === "literature_claims"
-      ? "文献论点"
-      : review.kind === "literature_relations"
-        ? "文献关系"
-        : "公开推导过程";
+  const label = review.kind === "literature_claims" ? "文献论点" : "文献关系";
   const count =
     review.kind === "literature_claims"
       ? review.claims.length
-      : review.kind === "literature_relations"
-        ? review.relations.length
-        : review.traces.length;
+      : review.relations.length;
   return (
     <article
       className={`scientific-artifact scientific-artifact--${review.kind}`}
@@ -351,14 +305,8 @@ export function LiteratureContent({
           surface={surface}
           onSelectEvidence={onSelectEvidence}
         />
-      ) : review.kind === "literature_relations" ? (
-        <RelationsTable
-          review={review}
-          surface={surface}
-          onSelectEvidence={onSelectEvidence}
-        />
       ) : (
-        <TraceList
+        <RelationsTable
           review={review}
           surface={surface}
           onSelectEvidence={onSelectEvidence}

@@ -602,15 +602,6 @@ export function toLiteratureArtifactViewModel(
       })),
     };
   }
-  if (review.kind === "reasoning_traces") {
-    return {
-      ...base,
-      kind: review.kind,
-      traces: review.traces
-        .map(toTraceViewModel)
-        .filter((trace): trace is NonNullable<typeof trace> => trace !== null),
-    };
-  }
   return {
     ...base,
     kind: review.kind,

@@ -58,7 +58,6 @@ _LITERATURE_OUTPUTS = frozenset(
     {
         ArtifactKind.literature_claims,
         ArtifactKind.literature_relations,
-        ArtifactKind.reasoning_traces,
     }
 )
 _SCIENTIFIC_PHASES = frozenset(
@@ -91,7 +90,6 @@ SUPPORTED_RUN_OUTPUTS = frozenset(
         ArtifactKind.paper_summary,
         ArtifactKind.literature_claims,
         ArtifactKind.literature_relations,
-        ArtifactKind.reasoning_traces,
         ArtifactKind.graph,
     }
 )
@@ -111,7 +109,6 @@ ARTIFACT_KIND_ORDER = (
     ArtifactKind.paper_summary,
     ArtifactKind.literature_claims,
     ArtifactKind.literature_relations,
-    ArtifactKind.reasoning_traces,
     ArtifactKind.graph,
 )
 
@@ -151,7 +148,6 @@ STEP_ARTIFACT_KINDS = {
     "reasoning_literature": (
         ArtifactKind.literature_claims,
         ArtifactKind.literature_relations,
-        ArtifactKind.reasoning_traces,
     ),
     "building_graph": (ArtifactKind.graph,),
 }

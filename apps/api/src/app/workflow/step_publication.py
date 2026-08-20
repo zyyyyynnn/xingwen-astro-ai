@@ -56,15 +56,6 @@ def step_uuid(namespace_seed: str, name: str) -> UUID:
     return uuid5(uuid5(NAMESPACE_URL, namespace_seed), name)
 
 
-@dataclass(frozen=True, slots=True)
-class ReasoningTracesProducer:
-    """Algorithm producer identity for the derived ReasoningTrace projection."""
-
-    producer_type: str = "algorithm"
-    producer_name: str = "reasoning-traces-projection"
-    producer_version: str = "1.0.0"
-
-
 def _declared_input_hash(content: dict[str, object]) -> str:
     """Return the candidate's declared input_hash for ProducerExecution binding.
 
@@ -93,8 +84,6 @@ class RunStepContext:
     paper_summary: PaperSummaryArtifactContent | None = None
     literature_claims: LiteratureClaimsCandidate | None = None
     literature_relations: LiteratureRelationsCandidate | None = None
-    reasoning_traces_artifact_id: UUID | None = None
-    reasoning_traces_version_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -941,7 +930,6 @@ class StepModelCaller:
 __all__ = [
     "PreparedStep",
     "ResumableStepModelExecutionPort",
-    "ReasoningTracesProducer",
     "RunStepContext",
     "StepModelCaller",
     "StepPublicationFactory",

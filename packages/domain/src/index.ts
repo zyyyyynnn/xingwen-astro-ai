@@ -286,7 +286,6 @@ export type {
   LiteratureRelationDirectionReview,
   LiteratureRelationReview,
   LiteratureRelationsArtifactReview,
-  ReasoningTracesArtifactReview,
 } from "./literature-artifact";
 
 export type {

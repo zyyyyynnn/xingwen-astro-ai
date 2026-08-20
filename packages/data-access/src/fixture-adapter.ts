@@ -1110,7 +1110,6 @@ export function createFixtureRepositories(
     literatureArtifacts: createFixtureLiteratureArtifactRepository(
       bundle.data.literatureClaimReads ?? [],
       bundle.data.literatureRelationReads ?? [],
-      bundle.data.literatureReasoningTraceReads ?? [],
     ),
     graphArtifacts: createFixtureGraphArtifactRepository(
       bundle.data.graphArtifactReads ?? [],
