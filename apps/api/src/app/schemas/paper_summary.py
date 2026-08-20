@@ -164,7 +164,7 @@ class PaperSummaryEvidenceLocator(BaseModel):
     text_range: ShortString | None = None
     metadata_field: PaperMetadataField | None = None
     # DocumentParse-backed provenance: present exactly when the Evidence comes
-    # from a parsed ResearchInput PDF rather than a source URL.
+    # from a parsed ResearchInput document rather than a source URL.
     document_parse_id: Identifier | PersistedUuid | None = None
     document_parse_output_hash: ContentHash | None = None
     document_locator: DocumentLocator | None = None
@@ -227,9 +227,9 @@ class PaperSummaryEvidenceCandidate(BaseModel):
     # Collection-backed Evidence pins a PaperCollection candidate; DocumentParse
     # evidence pins the ResearchInput identity (a persisted UUID).
     candidate_id: Identifier | PersistedUuid
-    source_id: Identifier
+    source_id: ShortString
     source_record_id: ShortString
-    source_snapshot_id: Identifier
+    source_snapshot_id: Identifier | PersistedUuid
     claimed_source_version: ShortString | None = None
     locator: PaperSummaryEvidenceLocator
     quote_or_value: NonEmptyString
@@ -241,8 +241,10 @@ class PaperSummaryEvidenceCandidate(BaseModel):
 class PaperSummarySourceSnapshotReference(BaseModel):
     model_config = MODEL_CONFIG
 
-    source_snapshot_id: Identifier
-    source_id: Identifier
+    # Collection snapshots use their pipeline identity; DocumentParse snapshots
+    # pin the persisted database UUID from the parse record.
+    source_snapshot_id: Identifier | PersistedUuid
+    source_id: ShortString
     source_version: ShortString
     content_hash: ContentHash
 
@@ -253,7 +255,7 @@ class PaperSummaryDocumentParseReference(BaseModel):
     document_parse_id: PersistedUuid
     candidate_parse_id: Identifier
     research_input_id: PersistedUuid
-    source_snapshot_id: Identifier
+    source_snapshot_id: PersistedUuid
     input_content_hash: ContentHash
     canonical_output_hash: ContentHash
     parser_profile_id: Identifier
@@ -309,9 +311,9 @@ class PaperSummaryEvidence(BaseModel):
     evidence_id: Identifier
     paper_id: Identifier
     candidate_id: Identifier | PersistedUuid
-    source_id: Identifier
+    source_id: ShortString
     source_record_id: ShortString
-    source_snapshot_id: Identifier
+    source_snapshot_id: Identifier | PersistedUuid
     source_snapshot_version: ShortString
     source_snapshot_content_hash: ContentHash
     locator: PaperSummaryEvidenceLocator
@@ -325,7 +327,7 @@ class PaperSummarySourceConflict(BaseModel):
 
     conflict_id: Identifier
     evidence_id: Identifier
-    source_snapshot_id: Identifier
+    source_snapshot_id: Identifier | PersistedUuid
     claimed_source_version: ShortString
     source_snapshot_version: ShortString
     resolution: Literal["source_snapshot_version_retained"] = (
@@ -636,37 +638,15 @@ def compute_paper_summary_output_hash(
             "latency_ms",
         ):
             producer.pop(field, None)
-    return compute_canonical_payload_hash(_drop_empty_document_parses(payload))
-
-
-def _drop_empty_document_parses(value: Any) -> Any:
-    """Keep canonical hashes stable for collection-backed summaries.
-
-    ``document_parses`` defaults to an empty tuple; an empty family must not
-    alter the canonical payload of summaries that predate the DocumentParse
-    input path.
-    """
-
-    if isinstance(value, dict):
-        return {
-            key: _drop_empty_document_parses(item)
-            for key, item in value.items()
-            if not (key == "document_parses" and isinstance(item, list) and not item)
-        }
-    if isinstance(value, list):
-        return [_drop_empty_document_parses(item) for item in value]
-    return value
+    return compute_canonical_payload_hash(payload)
 
 
 def dump_paper_summary_input_versions(
     value: PaperSummaryInputVersions,
 ) -> dict[str, Any]:
-    """Canonical identity dump; an empty DocumentParse family is omitted."""
+    """Canonical identity dump for the current tagged input family."""
 
-    payload = value.model_dump(mode="json", exclude_none=True)
-    if not value.document_parses:
-        payload.pop("document_parses", None)
-    return payload
+    return value.model_dump(mode="json", exclude_none=True)
 
 
 def _seal_paper_summary_for_publication(

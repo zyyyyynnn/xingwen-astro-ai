@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -23,6 +24,7 @@ from app.schemas.paper_summary import (
     PaperSummaryInputVersions,
     PaperSummaryPaperMetadata,
     PaperSummarySourceSnapshotReference,
+    compute_paper_summary_output_hash,
 )
 from app.schemas.research_input import ResearchInputStatus, ResearchInputType
 from app.schemas.scientific_document import (
@@ -39,6 +41,7 @@ from app.services.document_summary import (
     DocumentSummaryService,
     ExecuteDocumentSummaryRequest,
 )
+from app.services.document_parse_store import DocumentParseSourceSnapshot
 from app.services.model_execution import (
     ModelExecutionRequest,
     ModelExecutionResponse,
@@ -103,7 +106,9 @@ _CANONICAL_HASH = "sha256:" + "d" * 64
 _PARAGRAPH_TEXT = "The paper studies transit signals."
 _VERSION_ID = "version.document-summary"
 _ARTIFACT_ID = "artifact.document-summary"
-_PROJECT_ID = "project.document-summary"
+_PROJECT_ID = "00000000-0000-4000-8000-0000000000ee"
+_SOURCE_SNAPSHOT_ID = "00000000-0000-4000-8000-0000000000ff"
+_SOURCE_ID = "research_input:00000000-0000-4000-8000-0000000000aa"
 _SESSION_ID = "owner"
 
 
@@ -161,8 +166,8 @@ def _request() -> ExecuteDocumentSummaryRequest:
         document_parse=_parse_candidate(),
         document_parse_id="00000000-0000-4000-8000-0000000000bb",
         source_snapshot=PaperSummarySourceSnapshotReference(
-            source_snapshot_id="source-snapshot.document-summary",
-            source_id="research-input",
+            source_snapshot_id=_SOURCE_SNAPSHOT_ID,
+            source_id=_SOURCE_ID,
             source_version=_CONTENT_HASH,
             content_hash=_CONTENT_HASH,
         ),
@@ -170,7 +175,7 @@ def _request() -> ExecuteDocumentSummaryRequest:
             paper_id="paper.document-summary",
             title="Transit Study",
         ),
-        source_id="research-input",
+        source_id=_SOURCE_ID,
         source_record_id="transit-study.pdf",
         research_goal="Summarize the transit method.",
         provider="qwen",
@@ -317,6 +322,27 @@ class _ResearchInputs:
         return self._record
 
 
+class _DocumentParses:
+    async def get_candidate(
+        self, *, project_id: UUID, document_parse_id: UUID
+    ) -> DocumentParseCandidate:
+        assert project_id == UUID(_PROJECT_ID)
+        assert document_parse_id == UUID("00000000-0000-4000-8000-0000000000bb")
+        return _parse_candidate()
+
+    def source_snapshot(
+        self, *, project_id: UUID, document_parse_id: UUID
+    ) -> DocumentParseSourceSnapshot:
+        assert project_id == UUID(_PROJECT_ID)
+        assert document_parse_id == UUID("00000000-0000-4000-8000-0000000000bb")
+        return DocumentParseSourceSnapshot(
+            id=UUID(_SOURCE_SNAPSHOT_ID),
+            source_id=_SOURCE_ID,
+            source_version=_CONTENT_HASH,
+            content_hash=_CONTENT_HASH,
+        )
+
+
 def _document_input_record(
     *, input_type: ResearchInputType, mime_type: str, filename: str
 ) -> ResearchInputRecord:
@@ -332,7 +358,7 @@ def _document_input_record(
         mime_type=mime_type,
         size_bytes=1024,
         status=ResearchInputStatus.accepted,
-        source_snapshot_id="source-snapshot.document-summary",
+        source_snapshot_id=_SOURCE_SNAPSHOT_ID,
         url=None,
         created_at=datetime(2026, 8, 14, tzinfo=timezone.utc),
         expires_at=None,
@@ -430,11 +456,14 @@ def test_document_image_summary_returns_its_authorized_source() -> None:
     read_service = PaperSummaryReadService(
         _PublishedSummaryArtifacts(version),
         research_input_resolver=_research_input_by_identity(_ResearchInputs(image)),
+        document_parses=_DocumentParses(),
     )
 
-    source = read_service.get_document_source(
-        version_id=_VERSION_ID,
-        session_id=_SESSION_ID,
+    source = asyncio.run(
+        read_service.get_document_source(
+            version_id=_VERSION_ID,
+            session_id=_SESSION_ID,
+        )
     )
 
     assert source.research_input is not None
@@ -455,12 +484,53 @@ def test_document_source_rejects_document_parse_provenance_drift() -> None:
     read_service = PaperSummaryReadService(
         _PublishedSummaryArtifacts(version),
         research_input_resolver=_research_input_by_identity(_ResearchInputs(pdf)),
+        document_parses=_DocumentParses(),
     )
 
     with pytest.raises(SecurityProblem) as exc_info:
-        read_service.get_document_source(
-            version_id=_VERSION_ID,
-            session_id=_SESSION_ID,
+        asyncio.run(
+            read_service.get_document_source(
+                version_id=_VERSION_ID,
+                session_id=_SESSION_ID,
+            )
+        )
+
+    assert exc_info.value.code == "PROVENANCE_SCOPE_VIOLATION"
+
+
+def test_document_source_rejects_frozen_parse_identity_drift() -> None:
+    execution = DocumentSummaryService(_Model()).execute(_request())
+    summary = execution.admission.summary
+    assert summary is not None
+    payload = summary.model_dump(mode="json")
+    drifted_hash = "sha256:" + "e" * 64
+    payload["input_versions"]["document_parses"][0]["canonical_output_hash"] = (
+        drifted_hash
+    )
+    payload["producer"]["input_versions"]["document_parses"][0][
+        "canonical_output_hash"
+    ] = drifted_hash
+    output_hash = compute_paper_summary_output_hash(payload)
+    payload["output_hash"] = output_hash
+    payload["producer"]["output_hash"] = output_hash
+    drifted = PaperSummaryArtifactContent.model_validate(payload)
+    pdf = _document_input_record(
+        input_type=ResearchInputType.pdf,
+        mime_type="application/pdf",
+        filename="transit-study.pdf",
+    )
+    read_service = PaperSummaryReadService(
+        _PublishedSummaryArtifacts(_published_summary_version(drifted)),
+        research_input_resolver=_research_input_by_identity(_ResearchInputs(pdf)),
+        document_parses=_DocumentParses(),
+    )
+
+    with pytest.raises(SecurityProblem) as exc_info:
+        asyncio.run(
+            read_service.get_document_source(
+                version_id=_VERSION_ID,
+                session_id=_SESSION_ID,
+            )
         )
 
     assert exc_info.value.code == "PROVENANCE_SCOPE_VIOLATION"

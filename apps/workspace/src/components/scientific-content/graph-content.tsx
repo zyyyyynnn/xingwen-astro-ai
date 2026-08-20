@@ -19,7 +19,7 @@ function NodeTable({
   const visible = nodes.slice(0, SURFACE_LIMITS[surface]);
   return (
     <div className="scientific-artifact__table-scroll overflow-x-auto my-2 border rounded border-[var(--oh-border)]">
-      <table className="w-full text-[13px] text-left border-collapse">
+      <table className="w-full text-xs text-left border-collapse">
         <caption className="sr-only">证据关系节点</caption>
         <thead>
           <tr className="border-b bg-[var(--oh-surface-subtle)] border-[var(--oh-border)]">
@@ -71,7 +71,7 @@ function EdgeTable({
   const visible = edges.slice(0, SURFACE_LIMITS[surface]);
   return (
     <div className="scientific-artifact__table-scroll overflow-x-auto my-2 border rounded border-[var(--oh-border)]">
-      <table className="w-full text-[13px] text-left border-collapse">
+      <table className="w-full text-xs text-left border-collapse">
         <caption className="sr-only">证据关系与上游证据</caption>
         <thead>
           <tr className="border-b bg-[var(--oh-surface-subtle)] border-[var(--oh-border)]">
@@ -155,7 +155,7 @@ export function GraphContent({
     >
       <ScientificContentHeader title={title} subtitle="证据关系" />
       <div
-        className="scientific-artifact__summary my-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-[var(--oh-muted)]"
+        className="scientific-artifact__summary my-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--oh-muted)]"
         aria-label="证据关系摘要"
       >
         <span>节点 {review.nodeCount} 个</span>

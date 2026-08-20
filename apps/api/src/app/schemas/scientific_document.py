@@ -44,6 +44,7 @@ from .core import (
     NonEmptyString,
     UtcDateTime,
 )
+from .research_input import ResearchInputType
 
 
 #: Schema version for the Scientific Document Parsing contract.
@@ -53,6 +54,19 @@ SCIENTIFIC_DOCUMENT_SCHEMA_VERSION = "1.2.0"
 SCIENTIFIC_DOCUMENT_IMAGE_MIME_TYPES = frozenset(
     {"image/jpeg", "image/png", "image/tiff", "image/webp"}
 )
+
+
+def is_supported_scientific_document_input(
+    *, input_type: ResearchInputType, mime_type: str | None
+) -> bool:
+    """Return whether a ResearchInput type and MIME form a supported document."""
+
+    if input_type is ResearchInputType.pdf:
+        return mime_type == "application/pdf"
+    if input_type is ResearchInputType.image:
+        return mime_type in SCIENTIFIC_DOCUMENT_IMAGE_MIME_TYPES
+    return False
+
 
 #: Every canonical model that participates in the Scientific Document Parsing contract. The schema
 #: hash is computed over the JSON Schema of exactly these models, in this
@@ -788,6 +802,7 @@ def compute_scientific_document_schema_hash() -> str:
 __all__ = [
     "SCIENTIFIC_DOCUMENT_SCHEMA_VERSION",
     "SCIENTIFIC_DOCUMENT_IMAGE_MIME_TYPES",
+    "is_supported_scientific_document_input",
     "CONTRACT_MODEL_NAMES",
     "DocumentParseQuality",
     "DocumentBlockKind",

@@ -75,7 +75,7 @@ export function ResearchInspectorTabs({
           {resultCount > 0 ? (
             <Badge
               variant="secondary"
-              className="h-4 min-w-4 px-1 text-[10px] leading-none"
+              className="h-4 min-w-4 px-1 text-xs leading-none"
             >
               {resultCount}
             </Badge>

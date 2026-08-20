@@ -65,9 +65,7 @@ def _parse_candidate(block_count: int) -> DocumentParseCandidate:
                 page_index=0,
                 reading_order=index,
                 kind=DocumentBlockKind.paragraph,
-                bbox=DocumentBBox(
-                    x1=72, y1=100 + index, x2=540, y2=116 + index
-                ),
+                bbox=DocumentBBox(x1=72, y1=100 + index, x2=540, y2=116 + index),
                 text=f"Observation paragraph {index} of the survey.",
                 quality=DocumentParseQuality.accepted,
                 parser_backend=ParserBackend.native,
@@ -102,8 +100,8 @@ def _request(block_count: int) -> ExecuteDocumentSummaryRequest:
         document_parse=_parse_candidate(block_count),
         document_parse_id="00000000-0000-4000-8000-0000000000bb",
         source_snapshot=PaperSummarySourceSnapshotReference(
-            source_snapshot_id="source-snapshot.chunked-summary",
-            source_id="research-input",
+            source_snapshot_id="00000000-0000-4000-8000-0000000000ff",
+            source_id="research_input:00000000-0000-4000-8000-0000000000aa",
             source_version=_CONTENT_HASH,
             content_hash=_CONTENT_HASH,
         ),
@@ -111,7 +109,7 @@ def _request(block_count: int) -> ExecuteDocumentSummaryRequest:
             paper_id="paper.chunked-summary",
             title="Long Survey",
         ),
-        source_id="research-input",
+        source_id="research_input:00000000-0000-4000-8000-0000000000aa",
         source_record_id="long-survey.pdf",
         research_goal="Summarize the survey findings.",
         provider="qwen",
@@ -135,9 +133,7 @@ class _ChunkModel:
         paper_payload = request.input_payload["paper_payload"]
         chunk = paper_payload.get("chunk")
         if chunk is None:
-            evidence_ids = [
-                item["evidence_id"] for item in paper_payload["evidence"]
-            ]
+            evidence_ids = [item["evidence_id"] for item in paper_payload["evidence"]]
             chunk_id = "single"
         else:
             evidence_ids = [item["evidence_id"] for item in chunk["evidence"]]
@@ -200,10 +196,7 @@ def test_long_document_runs_one_bounded_call_per_chunk() -> None:
     ]
     # Every finding keeps its chunk Evidence identity.
     assert all(item.evidence_ids for item in experiments)
-    assert all(
-        item.status.value == "supported"
-        for item in experiments
-    )
+    assert all(item.status.value == "supported" for item in experiments)
     assert result.token_usage is not None
     assert result.token_usage.total_tokens == 15 * result.chunk_count
     assert result.latency_ms == 4 * result.chunk_count
@@ -217,12 +210,8 @@ def test_chunked_execution_is_deterministic() -> None:
     assert isinstance(second, ChunkedDocumentSummaryExecution)
     assert first.admission.summary is not None
     assert second.admission.summary is not None
-    assert (
-        first.admission.summary.output_hash == second.admission.summary.output_hash
-    )
-    assert (
-        first.admission.producer.input_hash == second.admission.producer.input_hash
-    )
+    assert first.admission.summary.output_hash == second.admission.summary.output_hash
+    assert first.admission.producer.input_hash == second.admission.producer.input_hash
 
 
 def test_chunk_statement_citing_foreign_evidence_is_rejected() -> None:

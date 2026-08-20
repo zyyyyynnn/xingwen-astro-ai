@@ -33,8 +33,7 @@ from app.schemas.data_artifact_api import (
     SourceCollectionArtifactRead,
 )
 from app.schemas.enums import GraphEdgeType, GraphNodeType
-from app.schemas.research_input import ResearchInputType
-from app.schemas.scientific_document import SCIENTIFIC_DOCUMENT_IMAGE_MIME_TYPES
+from app.schemas.scientific_document import is_supported_scientific_document_input
 from app.schemas.graph_artifact_api import (
     GraphArtifactRead,
     GraphEdgeRead,
@@ -69,6 +68,7 @@ from app.services.literature_artifacts import LiteratureArtifactReadService
 from app.services.paper_collections import PaperCollectionReadService
 from app.services.paper_candidate_inputs import (
     CreatePaperCandidateInputCommand,
+    PaperCandidateInputReadService,
     PaperCandidateInputService,
 )
 from app.services.paper_summaries import (
@@ -118,9 +118,11 @@ def _paper_input_service(request: Request) -> PaperCandidateInputService:
 
 def _summary_service(request: Request) -> PaperSummaryReadService:
     pdf_source_resolver = None
-    input_service = request.app.state.paper_candidate_input_service
-    if input_service is not None:
-        pdf_source_resolver = input_service.accepted_research_input
+    input_reader: PaperCandidateInputReadService | None = (
+        request.app.state.paper_candidate_input_reader
+    )
+    if input_reader is not None:
+        pdf_source_resolver = input_reader.accepted_research_input
     research_input_resolver = None
     input_store = request.app.state.research_input_store
     if input_store is not None:
@@ -129,6 +131,7 @@ def _summary_service(request: Request) -> PaperSummaryReadService:
         _service(request),
         pdf_source_resolver=pdf_source_resolver,
         research_input_resolver=research_input_resolver,
+        document_parses=request.app.state.document_parse_service,
     )
 
 
@@ -151,15 +154,14 @@ def _research_input_by_identity(
             or record.content_hash != input_content_hash
         ):
             return None
-        if record.type is ResearchInputType.pdf:
-            return record if record.mime_type == "application/pdf" else None
-        if record.type is ResearchInputType.image:
-            return (
-                record
-                if record.mime_type in SCIENTIFIC_DOCUMENT_IMAGE_MIME_TYPES
-                else None
+        return (
+            record
+            if is_supported_scientific_document_input(
+                input_type=record.type,
+                mime_type=record.mime_type,
             )
-        return None
+            else None
+        )
 
     return resolve
 
@@ -338,12 +340,12 @@ def get_paper_summary(
     operation_id="getPaperSummaryDocumentSource",
     response_model=Envelope[PaperSummaryDocumentSourceRead],
 )
-def get_paper_summary_document_source(
+async def get_paper_summary_document_source(
     version_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
 ) -> Envelope[PaperSummaryDocumentSourceRead]:
-    data = _summary_service(request).get_document_source(
+    data = await _summary_service(request).get_document_source(
         version_id=version_id, session_id=_session_id(request)
     )
     _no_store(response)

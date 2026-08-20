@@ -4,11 +4,16 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Protocol
+from uuid import UUID
 
 from pydantic import ValidationError
 
 from app.schemas._hashing import compute_canonical_payload_hash
-from app.schemas.paper_summary import PaperSummaryArtifactContent
+from app.schemas.paper_summary import (
+    PaperSummaryArtifactContent,
+    PaperSummaryDocumentParseReference,
+)
+from app.schemas.scientific_document import DocumentParseCandidate
 from app.schemas.enums import SourceMode as PaperSourceMode
 from app.schemas.paper_collection import PaperCollection
 from app.schemas.paper_summary_api import (
@@ -20,6 +25,11 @@ from app.schemas.paper_summary_api import (
 from app.schemas.core import ArtifactVersionDetail, SourceMode, SourceSnapshotDetail
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
+from app.services.document_parse_store import (
+    DocumentParseError,
+    DocumentParseSourceSnapshot,
+    validate_document_locator,
+)
 from app.services.research_input_store import ResearchInputRecord
 
 
@@ -49,6 +59,18 @@ class DocumentSourceResolver(Protocol):
     ) -> ResearchInputRecord | None: ...
 
 
+class DocumentParseReadPort(Protocol):
+    """Read the persisted parse and its immutable source identity."""
+
+    async def get_candidate(
+        self, *, project_id: UUID, document_parse_id: UUID
+    ) -> DocumentParseCandidate: ...
+
+    def source_snapshot(
+        self, *, project_id: UUID, document_parse_id: UUID
+    ) -> DocumentParseSourceSnapshot: ...
+
+
 class PaperSummaryReadService:
     """Validate and project PaperSummary Pipeline content without repeating pipeline logic."""
 
@@ -58,10 +80,12 @@ class PaperSummaryReadService:
         *,
         pdf_source_resolver: PdfSourceResolver | None = None,
         research_input_resolver: DocumentSourceResolver | None = None,
+        document_parses: DocumentParseReadPort | None = None,
     ) -> None:
         self._artifacts = artifacts
         self._pdf_source_resolver = pdf_source_resolver
         self._research_input_resolver = research_input_resolver
+        self._document_parses = document_parses
 
     def get_summary(self, *, version_id: str, session_id: str) -> PaperSummaryRead:
         version = self._artifacts.get_version(
@@ -132,7 +156,7 @@ class PaperSummaryReadService:
             evidence=version.evidence,
         )
 
-    def get_document_source(
+    async def get_document_source(
         self, *, version_id: str, session_id: str
     ) -> PaperSummaryDocumentSourceRead:
         """Resolve the authorized full-text ResearchInput for the summarized paper.
@@ -158,9 +182,28 @@ class PaperSummaryReadService:
             if record is None:
                 return PaperSummaryDocumentSourceRead(research_input=None)
             return PaperSummaryDocumentSourceRead(research_input=record.to_ref())
-        if self._research_input_resolver is None:
+        if self._research_input_resolver is None or self._document_parses is None:
             return PaperSummaryDocumentSourceRead(research_input=None)
         (parse_reference,) = summary.input_versions.document_parses
+        try:
+            project_id = UUID(str(read.project_id))
+            document_parse_id = UUID(str(parse_reference.document_parse_id))
+            candidate = await self._document_parses.get_candidate(
+                project_id=project_id,
+                document_parse_id=document_parse_id,
+            )
+            source_snapshot = self._document_parses.source_snapshot(
+                project_id=project_id,
+                document_parse_id=document_parse_id,
+            )
+            _validate_document_parse_closure(
+                summary=summary,
+                reference=parse_reference,
+                candidate=candidate,
+                source_snapshot=source_snapshot,
+            )
+        except (DocumentParseError, ValueError) as exc:
+            raise _provenance_problem() from exc
         record = self._research_input_resolver(
             session_id=session_id,
             project_id=str(read.project_id),
@@ -317,6 +360,64 @@ class PaperSummaryReadService:
         if set(version.evidence_ids) != {item.id for item in generic_evidence}:
             raise _provenance_problem()
         return snapshot_ids
+
+
+def _validate_document_parse_closure(
+    *,
+    summary: PaperSummaryArtifactContent,
+    reference: PaperSummaryDocumentParseReference,
+    candidate: DocumentParseCandidate,
+    source_snapshot: DocumentParseSourceSnapshot,
+) -> None:
+    """Replay the frozen DocumentParse, snapshot, locator, and quote identity."""
+
+    if len(summary.input_versions.source_snapshots) != 1:
+        raise ValueError("document summary requires one source snapshot")
+    (snapshot_reference,) = summary.input_versions.source_snapshots
+    if (
+        candidate.parse_id != reference.candidate_parse_id
+        or candidate.research_input_id != str(reference.research_input_id)
+        or candidate.content_hash != reference.input_content_hash
+        or candidate.canonical_output_hash != reference.canonical_output_hash
+        or candidate.profile.parser_profile_id != reference.parser_profile_id
+        or candidate.profile.parser_profile_version != reference.parser_profile_version
+        or candidate.config_hash != reference.config_hash
+        or str(source_snapshot.id) != reference.source_snapshot_id
+        or snapshot_reference.source_snapshot_id != reference.source_snapshot_id
+        or source_snapshot.source_id != snapshot_reference.source_id
+        or source_snapshot.source_version != snapshot_reference.source_version
+        or source_snapshot.content_hash != snapshot_reference.content_hash
+        or snapshot_reference.content_hash != reference.input_content_hash
+    ):
+        raise ValueError("document summary parse identity drifted")
+
+    blocks = {block.block_id: block for block in candidate.blocks}
+    for evidence in summary.evidence:
+        locator = evidence.locator
+        document_locator = locator.document_locator
+        if (
+            evidence.candidate_id != reference.research_input_id
+            or evidence.source_id != snapshot_reference.source_id
+            or evidence.source_snapshot_id != snapshot_reference.source_snapshot_id
+            or evidence.source_snapshot_version != snapshot_reference.source_version
+            or evidence.source_snapshot_content_hash != snapshot_reference.content_hash
+            or locator.kind != "paper_text"
+            or locator.document_parse_id != reference.document_parse_id
+            or locator.document_parse_output_hash != reference.canonical_output_hash
+            or document_locator is None
+            or locator.page_index != document_locator.page_index
+        ):
+            raise ValueError("document summary evidence identity drifted")
+        validate_document_locator(candidate, document_locator)
+        block = blocks.get(document_locator.block_id)
+        span = document_locator.text_span
+        if (
+            block is None
+            or block.text is None
+            or span is None
+            or block.text[span.start : span.end] != evidence.quote_or_value
+        ):
+            raise ValueError("document summary evidence quote drifted")
 
 
 def _effective_source_version(

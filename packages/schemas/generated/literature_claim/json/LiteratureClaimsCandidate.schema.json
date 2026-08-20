@@ -798,7 +798,8 @@
           "type": "string"
         },
         "source_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "maxLength": 512,
+          "minLength": 1,
           "title": "Source Id",
           "type": "string"
         },
@@ -814,9 +815,18 @@
           "type": "string"
         },
         "source_snapshot_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Source Snapshot Id",
-          "type": "string"
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          ],
+          "title": "Source Snapshot Id"
         },
         "source_snapshot_version": {
           "maxLength": 512,
@@ -1009,14 +1019,24 @@
           "type": "string"
         },
         "source_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "maxLength": 512,
+          "minLength": 1,
           "title": "Source Id",
           "type": "string"
         },
         "source_snapshot_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Source Snapshot Id",
-          "type": "string"
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          ],
+          "title": "Source Snapshot Id"
         },
         "source_version": {
           "maxLength": 512,

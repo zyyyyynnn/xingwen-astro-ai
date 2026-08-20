@@ -34,6 +34,7 @@ from app.schemas.paper_collection_api import (
     PaperCollectionCandidateRead,
 )
 from app.schemas.research_input import ResearchInputCreate, ResearchInputType
+from app.schemas.scientific_document import is_supported_scientific_document_input
 from app.security import SecurityProblem
 from app.services.paper_collections import PaperCollectionReadService
 from app.services.research_input_ingestion import (
@@ -77,10 +78,6 @@ class PaperCandidateInputService:
         self._ingestion = ingestion
         self._research_inputs = research_inputs
         self._repository = repository
-        self._reader = PaperCandidateInputReadService(
-            research_inputs=research_inputs,
-            repository=repository,
-        )
 
     async def create(
         self, command: CreatePaperCandidateInputCommand
@@ -244,21 +241,6 @@ class PaperCandidateInputService:
             )
         )
 
-    def accepted_research_input(
-        self,
-        *,
-        session_id: str,
-        project_id: str,
-        paper_collection_version_id: str,
-        canonical_paper_id: str,
-    ) -> ResearchInputRecord | None:
-        return self._reader.accepted_research_input(
-            session_id=session_id,
-            project_id=project_id,
-            paper_collection_version_id=paper_collection_version_id,
-            canonical_paper_id=canonical_paper_id,
-        )
-
     def _project(
         self,
         row: _BindingRecord,
@@ -330,20 +312,13 @@ class PaperCandidateInputReadService:
         record = self._research_inputs.get(
             session_id=session_id, input_id=accepted.research_input_id
         )
-        supported_mime_types = {
-            "application/pdf",
-            "image/jpeg",
-            "image/png",
-            "image/tiff",
-            "image/webp",
-        }
         if (
             record is None
             or record.project_id != project_id
             or record.content_hash != accepted.research_input_content_hash
-            or (
-                record.type not in {ResearchInputType.pdf, ResearchInputType.image}
-                and record.mime_type not in supported_mime_types
+            or not is_supported_scientific_document_input(
+                input_type=record.type,
+                mime_type=record.mime_type,
             )
         ):
             return None

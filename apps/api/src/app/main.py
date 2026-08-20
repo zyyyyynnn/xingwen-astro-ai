@@ -219,6 +219,7 @@ def create_app() -> FastAPI:
     app.state.research_run_worker = None
     app.state.db_session_factory = None
     app.state.content_storage = None
+    app.state.document_parse_service = None
     _, database_session_factory, resource_authority = _configure_database_runtime(app)
 
     if database_session_factory is not None:
@@ -258,6 +259,7 @@ def create_app() -> FastAPI:
     app.state.research_input_idempotency = None
     app.state.research_input_ingestion = None
     app.state.paper_candidate_input_service = None
+    app.state.paper_candidate_input_reader = None
     app.state.research_input_rate_limiter = InMemoryRateLimiter(
         limit=settings.RESEARCH_INPUT_RATE_LIMIT
     )
@@ -316,19 +318,33 @@ def create_app() -> FastAPI:
     ):
         from app.services.paper_candidate_inputs import (
             PaperCandidateInputRepository,
+            PaperCandidateInputReadService,
             PaperCandidateInputService,
+        )
+        from app.services.document_parse_store import (
+            DocumentParseRepository,
+            DocumentParseService,
         )
         from app.services.paper_collections import PaperCollectionReadService
 
+        candidate_repository = PaperCandidateInputRepository(
+            database_session_factory, lease_ttl=lease_ttl
+        )
+        app.state.paper_candidate_input_reader = PaperCandidateInputReadService(
+            research_inputs=app.state.research_input_store,
+            repository=candidate_repository,
+        )
         app.state.paper_candidate_input_service = PaperCandidateInputService(
             paper_collections=PaperCollectionReadService(
                 app.state.artifact_read_service
             ),
             ingestion=app.state.research_input_ingestion,
             research_inputs=app.state.research_input_store,
-            repository=PaperCandidateInputRepository(
-                database_session_factory, lease_ttl=lease_ttl
-            ),
+            repository=candidate_repository,
+        )
+        app.state.document_parse_service = DocumentParseService(
+            DocumentParseRepository(database_session_factory),
+            app.state.content_storage,
         )
 
     app.add_middleware(

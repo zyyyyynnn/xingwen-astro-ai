@@ -65,7 +65,7 @@ export function EvidencePanel({
                 </div>
               )}
 
-              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                 <span className="font-medium">{locationString}</span>
                 {locator.sourceUrl && (
                   <Link
