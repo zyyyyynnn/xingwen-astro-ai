@@ -816,6 +816,7 @@ export function WorkspaceHost({
     onOpenArtifactVersion,
     onReturnToOverview,
   });
+  const isArtifactFullscreen = artifactVersionId !== null;
 
   const dockedWorkspace = researchPresentation ? (
     <DockedWorkspacePanel
@@ -1043,23 +1044,25 @@ export function WorkspaceHost({
     threadPanel,
     threadItemCount: streamItems.length,
     inspectorPanel:
-      hasPersistedConversation ||
-      currentDraft !== null ||
-      currentContract !== null ||
-      currentRun !== null ||
-      stepsData.length > 0 ||
-      streamItems.length > 0 ||
-      artifactPresentation.hasArtifacts
+      !isArtifactFullscreen &&
+      (hasPersistedConversation ||
+        currentDraft !== null ||
+        currentContract !== null ||
+        currentRun !== null ||
+        stepsData.length > 0 ||
+        streamItems.length > 0 ||
+        artifactPresentation.hasArtifacts)
         ? dockedWorkspace
         : null,
-    inspectorDockedPanel: dockedWorkspace,
-    inspectorDockedToolbar: dockedWorkspace ? (
-      <ResearchInspectorTabs
-        activeTab={dockedTab}
-        onTabChange={setDockedTab}
-        resultCount={artifactPresentation.artifactCount}
-      />
-    ) : null,
+    inspectorDockedPanel: isArtifactFullscreen ? null : dockedWorkspace,
+    inspectorDockedToolbar:
+      !isArtifactFullscreen && dockedWorkspace ? (
+        <ResearchInspectorTabs
+          activeTab={dockedTab}
+          onTabChange={setDockedTab}
+          resultCount={artifactPresentation.artifactCount}
+        />
+      ) : null,
     inspectorDockedLabel: undefined,
     inspectorRequest:
       inspectorRequestOverride ?? artifactPresentation.inspectorRequest,

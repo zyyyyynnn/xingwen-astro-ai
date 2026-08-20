@@ -23,6 +23,7 @@ export { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./card";
 export type { CardSize } from "./card";
 export {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,

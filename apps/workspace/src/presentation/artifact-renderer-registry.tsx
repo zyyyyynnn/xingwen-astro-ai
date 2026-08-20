@@ -426,7 +426,7 @@ function PaperCollectionFullscreen({
                   <SelectContent>
                     {documentInputs.map((input) => (
                       <SelectItem key={input.id} value={input.id}>
-                        {input.filename ?? input.id}
+                        {input.filename ?? "未命名科研文档"}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -437,8 +437,7 @@ function PaperCollectionFullscreen({
                 size="small"
                 disabled={selectedInputId === null || binding.isPending}
                 onClick={() => {
-                  if (selectedInputId)
-                    void binding.mutateAsync(selectedInputId);
+                  if (selectedInputId) binding.mutate(selectedInputId);
                 }}
               >
                 {binding.isPending ? "正在绑定" : "绑定到所选论文"}
