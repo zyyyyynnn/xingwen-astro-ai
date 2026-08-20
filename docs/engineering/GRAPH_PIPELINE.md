@@ -34,7 +34,7 @@ Pipeline 不创建数据库 ArtifactVersion/Evidence，不推进 ResearchRun，�
 
 - `dataset` 使用 `ResearchArtifact.artifact_id`；构建所用 ArtifactVersion 仅作为 provenance；
 - `field` 由 `field_manifest_id + canonical_field_id` 构成；source column、alias、展示 label 与 Dataset row 不进入 identity；
-- Paper、Claim、Relation、ReasoningTrace 使用其上游 typed identity，并固定产生该投影的 ArtifactVersion；
+- Paper、Claim、Relation、ReasoningTrace 使用其上游 typed identity；ReasoningTrace 固定其所属的 `LiteratureRelations` ArtifactVersion，不拥有独立 ArtifactVersion；
 - `source` 是 taxonomy 保留类型；来源真实性通过 SourceSnapshot/Evidence provenance 表达，Pipeline 不凭展示数据生成 source node；
 - `research_goal` 只有在 Graph input contract 明确提供版本固定的 ResearchGoal Authority 时才允许生成，不能从 Project 名称、Dataset metadata 或页面文本推测。
 

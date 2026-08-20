@@ -71,7 +71,7 @@ Planner 只有在持久化明确的输入请求后才能从 `planning` 进入 `w
 | Assistant Message   | 面向用户的正常研究叙事，写入 Thread    |
 | Reasoning Activity  | 公开的简短步骤分析（`public_analysis`）|
 | Tool Activity       | 执行事实                               |
-| ReasoningTrace      | Evidence-bound 正式科学推导 Artifact   |
+| ReasoningTrace      | `LiteratureRelations` 内嵌的 Evidence-bound typed domain record |
 
 Provider private chain-of-thought 永不进入上述任一路径。
 
