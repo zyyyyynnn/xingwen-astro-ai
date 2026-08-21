@@ -722,6 +722,10 @@ def _assert_publication_chain(
     assert content["kind"] == "paper_collection"
     # A contract-driven live collection carries no benchmark reference.
     assert content.get("benchmark") is None
+    assert content.get("search_input") is not None
+    assert content["search_input"]["schema_version"] == "1.0.0"
+    assert content["search_input"]["contract_id"]
+    assert content["search_input"]["input_hash"]
     assert content["acquisition_run"]["status"] == "completed"
 
     seen = adapter.seen_query

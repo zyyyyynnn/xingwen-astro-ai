@@ -6,40 +6,56 @@
 
 本文定义当前论文 Pipeline 的实际运行边界。领域实体由 [Data Model](../architecture/DATA_MODEL.md) 定义，ArtifactVersion 与缓存规则由 [Data Versioning](../architecture/DATA_VERSIONING.md) 定义，ResearchRun 状态只由 [Workflow Design](../architecture/WORKFLOW_DESIGN.md) 负责。
 
-## 1. PaperCollection 当前入口
+## 1. PaperCollection 架构与入口
 
-当前 `services/paper_pipeline` 的 scenario-driven runner 是 **benchmark-only**。它消费固定 benchmark 中的 `scenario_id`，用于验证 Crossref adapter、query normalization、canonicalization、dedupe、ranking、selection、SourceSnapshot、ProducerExecution 与 hash 的确定性；`scenario_id` 不是生产 ResearchContract 输入。
+文献检索流水线提供两个明确隔离的入口，共享底层规范化、跨源适配、去重排序与 Schema 校验核心：
 
-Benchmark machine asset：
+1. **生产 Contract-driven 入口**（`LivePaperCollectionRunner`）：
+   - 唯一输入：由 confirmed `ResearchContract` 经单一 mapper（`build_paper_search_input`）生成的不可变 typed `PaperSearchInput`；
+   - 生产执行绑定 `PaperSearchInput.input_hash`，不携带 `benchmark` 引用；
+   - 检索真实公开书目元数据，实时失败（`SourceFailure`）直接记录失败，绝不回退至 Fixture 或种子数据。
 
-`services/paper_pipeline/benchmarks/exoplanet_host_star/paper-reasoning-benchmark.json`
+2. **基准 Benchmark 入口**（`PaperCollectionBenchmarkRunner`）：
+   - 专用于基准场景评估（benchmark-only），输入为固定 benchmark machine asset：
+     `services/paper_pipeline/benchmarks/exoplanet_host_star/paper-reasoning-benchmark.json`
+   - 加载时固定并验证其 technical identity、scientific payload hash 与 content hash；
+   - 基准执行绑定 `benchmark` 引用，不携带 `search_input`；
+   - `scenario_id` 不用于生产 ResearchContract。
 
-加载时固定并验证其 technical identity、scientific payload hash 与 content hash，不读取动态 `latest`。
+两者互斥，生产与基准输入通过同一底层 canonical query normalizer 保证语义一致性。
 
-生产 Contract-driven Paper Search 不由本 runner 伪装实现。生产入口需要单一 `ResearchContract.paper_search_scope → typed PaperSearchInput` mapper，并由对应的独立实现 Issue 引入。该实现落地前：
+## 2. 数据流
 
-- scenario runner 不描述为 production search；
-- `scenario_id` 不映射为 `PaperSearchInput`；
-- 不让 Router/Workspace 把 benchmark scenario 当生产事实；
-- 不用 Fixture/Benchmark seed 回退 Live failure。
+### 生产 Contract-driven 数据流
+```text
+confirmed ResearchContract
+-> build_paper_search_input (unique mapper)
+-> typed PaperSearchInput
+-> normalized query (normalize_paper_search_input)
+-> Live Crossref adapter
+-> SourceSnapshot + raw candidates
+-> canonical candidates
+-> duplicate groups + conflicts / uncertain matches
+-> deterministic ranking + selection / exclusion reasons
+-> ProducerExecution + metrics + stable hashes
+-> validated PaperCollection (search_input bound, benchmark=None)
+-> Publisher admission
+```
 
-可复用的 Crossref adapter、canonicalization、dedupe、ranking 与 deterministic hash 组件继续保留，供 benchmark 与后续 Contract-driven 实现复用。
-
-## 2. Benchmark 数据流
-
+### 基准 Benchmark 数据流
 ```text
 fixed benchmark scenario
--> normalized benchmark query
+-> normalized benchmark query (normalize_benchmark_query)
 -> Crossref/recorded source adapter
 -> SourceSnapshot + raw candidates
 -> canonical candidates
 -> duplicate groups + conflicts / uncertain matches
 -> deterministic ranking + selection / exclusion reasons
 -> ProducerExecution + metrics + stable hashes
--> validated PaperCollection benchmark content
+-> validated PaperCollection benchmark content (benchmark bound, search_input=None)
 ```
 
-runner 只生成经过 `PaperCollection` Pydantic Schema 校验的内容；它不创建或更新 ArtifactVersion、latest pointer、ResearchRun、RunStep 或 RunEvent，也不实现 PaperSummary、Claim、Relation、ReasoningTrace、Evidence Graph 或 Workspace。
+runner 只生成经过 `PaperCollection` Pydantic Schema 校验的内容；它不直接修改数据库版本或推进 Run state，所有持久化均由统一 Publisher 负责。
 
 ## 3. Crossref adapter 边界
 
@@ -113,7 +129,7 @@ Summary 只接收已选定的 PaperCollection paper identity。JSON/schema/Evide
 
 PaperCollection/PaperSummary Pipeline 只产生 typed content/candidate。ArtifactVersion、Evidence 与 persisted SourceSnapshot 的发布必须走统一 Publisher；Pipeline 不写数据库版本、不推进 Run state，也不在 Router 中复制科研算法。
 
-Benchmark 与 Fixture 只能验证这些边界，不能用来证明 Contract-driven production Paper Search 已存在。
+生产检索生成的 PaperCollection 绑定唯一的 `PaperSearchInput` 输入；基准场景评估生成的 PaperCollection 绑定固定的 `benchmark` 引用，两者互斥且数据等级严格隔离。
 
 ## 10. Selected candidate handoff
 

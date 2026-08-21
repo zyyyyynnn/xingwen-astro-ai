@@ -36,6 +36,7 @@ from app.workflow.step_publication import (
 )
 from app.workflow.store import AttemptHandle, LeaseGrant
 from services.paper_pipeline.live_collection import LivePaperCollectionRunner
+from services.paper_pipeline.mapper import build_paper_search_input
 from services.paper_pipeline.constants import (
     SUMMARY_PRODUCER_NAME,
     SUMMARY_PRODUCER_VERSION,
@@ -145,8 +146,9 @@ class PaperStepService:
         attempt: AttemptHandle,
         lease: LeaseGrant,
     ) -> PreparedStep:
+        search_input = build_paper_search_input(context.contract)
         _query, rules, input_hash = self._collection_runner.prepare_execution(
-            scope=context.contract.paper_search_scope
+            search_input=search_input
         )
         producer_name, producer_version = self._collection_runner.producer_identity
         execution = self._publications.start_producer(
@@ -163,7 +165,7 @@ class PaperStepService:
         )
         try:
             collection = self._collection_runner.run(
-                scope=context.contract.paper_search_scope,
+                search_input=search_input,
                 source_mode=SourceMode.live,
                 data_level=DataSourceDataLevel.live_result,
                 run_id=str(context.run_id),

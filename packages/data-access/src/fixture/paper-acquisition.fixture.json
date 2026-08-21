@@ -12,7 +12,7 @@
     "artifact_id": "art_papcol_01",
     "project_id": "proj_01JEXAMPLE",
     "source_mode": "fixture",
-    "content_hash": "sha256:a3607299da9f45df6e0bbfa28d5b79bed67f1e95294bfe0c64f4a43f40283a6e",
+    "content_hash": "sha256:058c9b95c450eda0732195d5b9eef9f7c0f311a50349afccffb371049fba4553",
     "input_hash": "sha256:d60648726dd16c37686cf2a47093a97c53dbfe8a856b4f15c6504e27e17e01c4",
     "created_at": "2026-07-21T08:24:45Z",
     "collection": {
@@ -26,6 +26,7 @@
         "content_hash": "sha256:a315b54f934bb3b37e8273a9a766d5c87bd494089d99d7e82b6920b782e8ad57",
         "scenario_id": "search.tess_mission_and_catalogs"
       },
+      "search_input": null,
       "query": {
         "query_id": "query.ad776ae8cb840622c0c9f0e5",
         "normalization_rule_version": "1.0.0",
@@ -1555,6 +1556,7 @@
         "content_hash": "sha256:a315b54f934bb3b37e8273a9a766d5c87bd494089d99d7e82b6920b782e8ad57",
         "scenario_id": "search.tess_mission_and_catalogs"
       },
+      "search_input": null,
       "query": {
         "query_id": "query.ad776ae8cb840622c0c9f0e5",
         "normalization_rule_version": "1.0.0",
@@ -2161,7 +2163,7 @@
       },
       "output_hash": "sha256:93eeca827498b3217df9a214f8625af045eae3aa571ece41f3ed295e5b8ef77e"
     },
-    "content_hash": "sha256:a3607299da9f45df6e0bbfa28d5b79bed67f1e95294bfe0c64f4a43f40283a6e",
+    "content_hash": "sha256:058c9b95c450eda0732195d5b9eef9f7c0f311a50349afccffb371049fba4553",
     "input_hash": "sha256:d60648726dd16c37686cf2a47093a97c53dbfe8a856b4f15c6504e27e17e01c4",
     "source_mode": "fixture",
     "producer": {

@@ -105,6 +105,56 @@ class NormalizedPaperQuery(BaseModel):
         return self
 
 
+class PaperSearchInput(BaseModel):
+    """Typed scientific input contract for live contract-driven paper search."""
+
+    model_config = MODEL_CONFIG
+
+    schema_version: SemanticVersion = "1.0.0"
+    contract_id: Identifier
+    contract_version: int = Field(ge=1)
+    contract_content_hash: ContentHash
+    keywords: tuple[NonEmptyString, ...] = Field(min_length=1)
+    year_from: int | None = Field(default=None, ge=1900, le=2100)
+    year_to: int | None = Field(default=None, ge=1900, le=2100)
+    source_ids: tuple[Identifier, ...] = Field(min_length=1)
+    candidate_limit: int = Field(gt=0, le=100)
+    selection_limit: int = Field(gt=0, le=100)
+    stable_ordering: NonEmptyString = (
+        "source_relevance_then_canonical_tie_breaker"
+    )
+    content_scope: Literal["bibliographic_metadata"] = "bibliographic_metadata"
+    access_policy: NonEmptyString = (
+        "metadata_url_only_requires_independent_access_evidence"
+    )
+    source_policy_version: SemanticVersion = "1.0.0"
+    producer_name: NonEmptyString = "xingwen.paper_collection"
+    producer_version: SemanticVersion = "1.0.0"
+    input_hash: ContentHash
+
+    @model_validator(mode="after")
+    def validate_paper_search_input(self) -> Self:
+        if self.year_from is not None and self.year_to is not None:
+            if self.year_from > self.year_to:
+                raise ValueError("year_from must not exceed year_to")
+        if tuple(sorted(set(self.source_ids))) != self.source_ids:
+            raise ValueError("source_ids must be unique and sorted")
+        expected_hash = compute_paper_search_input_hash(self)
+        if self.input_hash != expected_hash:
+            raise ValueError(
+                f"input_hash does not match PaperSearchInput: {expected_hash}"
+            )
+        return self
+
+
+def compute_paper_search_input_hash(
+    value: PaperSearchInput | dict[str, Any],
+) -> str:
+    payload = _model_or_dict(value)
+    payload.pop("input_hash", None)
+    return compute_canonical_payload_hash(payload)
+
+
 class PaperCollectionRules(BaseModel):
     model_config = MODEL_CONFIG
 
@@ -406,6 +456,7 @@ class PaperCollectionPayload(BaseModel):
     kind: Literal["paper_collection"] = "paper_collection"
     schema_version: Literal["2.1.0"] = "2.1.0"
     benchmark: PaperBenchmarkReference | None = None
+    search_input: PaperSearchInput | None = None
     query: NormalizedPaperQuery
     acquisition_run: PaperCollectionAcquisitionRun
     source_executions: tuple[PaperSourceExecution, ...] = Field(min_length=1)
@@ -424,6 +475,15 @@ class PaperCollectionPayload(BaseModel):
 
     @model_validator(mode="after")
     def validate_collection_integrity(self) -> Self:
+        if self.benchmark is not None and self.search_input is not None:
+            raise ValueError(
+                "PaperCollection cannot carry both benchmark and search_input"
+            )
+        if self.benchmark is None and self.search_input is None:
+            raise ValueError(
+                "PaperCollection requires either benchmark or search_input"
+            )
+
         candidate_by_id = _unique_by(self.candidates, "candidate_id", "candidate")
         group_by_id = _unique_by(
             self.duplicate_groups, "duplicate_group_id", "duplicate group"
@@ -502,7 +562,10 @@ class PaperCollectionPayload(BaseModel):
                 "benchmark recall metrics require the frozen benchmark reference"
             )
         expected_input_hash = compute_paper_collection_input_hash(
-            self.benchmark, self.query, self.rules
+            self.benchmark,
+            self.query,
+            self.rules,
+            search_input=self.search_input,
         )
         if (
             self.input_hash != expected_input_hash
@@ -572,18 +635,26 @@ def compute_paper_collection_input_hash(
     benchmark: PaperBenchmarkReference | None,
     query: NormalizedPaperQuery,
     rules: PaperCollectionRules,
+    *,
+    search_input: PaperSearchInput | None = None,
 ) -> str:
-    return compute_canonical_payload_hash(
-        {
-            "benchmark": (
-                benchmark.model_dump(mode="json", exclude_none=True)
-                if benchmark is not None
-                else None
-            ),
-            "query_hash": query.query_hash,
-            "rules": rules.model_dump(mode="json", exclude_none=True),
-        }
-    )
+    if benchmark is not None and search_input is not None:
+        raise ValueError(
+            "cannot compute input hash with both benchmark and search_input"
+        )
+    if benchmark is None and search_input is None:
+        raise ValueError(
+            "input hash requires either benchmark or search_input"
+        )
+    payload: dict[str, Any] = {
+        "query_hash": query.query_hash,
+        "rules": rules.model_dump(mode="json", exclude_none=True),
+    }
+    if benchmark is not None:
+        payload["benchmark"] = benchmark.model_dump(mode="json", exclude_none=True)
+    if search_input is not None:
+        payload["search_input"] = search_input.input_hash
+    return compute_canonical_payload_hash(payload)
 
 
 def compute_paper_collection_output_hash(
@@ -635,3 +706,27 @@ def _unique_by(items: tuple[Any, ...], field: str, label: str) -> dict[str, Any]
             raise ValueError(f"duplicate {label} id: {item_id}")
         registry[item_id] = item
     return registry
+
+
+__all__ = [
+    "NormalizedPaperQuery",
+    "PaperBenchmarkReference",
+    "PaperCollection",
+    "PaperCollectionAcquisitionRun",
+    "PaperCollectionCandidate",
+    "PaperCollectionMetrics",
+    "PaperCollectionPayload",
+    "PaperCollectionRules",
+    "PaperDuplicateGroup",
+    "PaperPotentialDuplicate",
+    "PaperQueryPagination",
+    "PaperSearchInput",
+    "PaperSourceExecution",
+    "PaperSourcePage",
+    "ProducerExecution",
+    "RawPaperCandidate",
+    "compute_normalized_query_hash",
+    "compute_paper_collection_input_hash",
+    "compute_paper_collection_output_hash",
+    "compute_paper_search_input_hash",
+]

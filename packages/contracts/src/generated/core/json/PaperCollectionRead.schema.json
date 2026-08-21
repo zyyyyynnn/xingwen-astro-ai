@@ -382,6 +382,17 @@
           "title": "Schema Version",
           "type": "string"
         },
+        "search_input": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PaperSearchInput"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "selected_paper_ids": {
           "default": [],
           "items": {
@@ -976,6 +987,144 @@
         "candidate_limit"
       ],
       "title": "PaperQueryPagination",
+      "type": "object"
+    },
+    "PaperSearchInput": {
+      "additionalProperties": false,
+      "description": "Typed scientific input contract for live contract-driven paper search.",
+      "properties": {
+        "access_policy": {
+          "default": "metadata_url_only_requires_independent_access_evidence",
+          "minLength": 1,
+          "title": "Access Policy",
+          "type": "string"
+        },
+        "candidate_limit": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Candidate Limit",
+          "type": "integer"
+        },
+        "content_scope": {
+          "const": "bibliographic_metadata",
+          "default": "bibliographic_metadata",
+          "title": "Content Scope",
+          "type": "string"
+        },
+        "contract_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Contract Content Hash",
+          "type": "string"
+        },
+        "contract_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Contract Id",
+          "type": "string"
+        },
+        "contract_version": {
+          "minimum": 1,
+          "title": "Contract Version",
+          "type": "integer"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "keywords": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Keywords",
+          "type": "array"
+        },
+        "producer_name": {
+          "default": "xingwen.paper_collection",
+          "minLength": 1,
+          "title": "Producer Name",
+          "type": "string"
+        },
+        "producer_version": {
+          "default": "1.0.0",
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Producer Version",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.0.0",
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "selection_limit": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Selection Limit",
+          "type": "integer"
+        },
+        "source_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Ids",
+          "type": "array"
+        },
+        "source_policy_version": {
+          "default": "1.0.0",
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Source Policy Version",
+          "type": "string"
+        },
+        "stable_ordering": {
+          "default": "source_relevance_then_canonical_tie_breaker",
+          "minLength": 1,
+          "title": "Stable Ordering",
+          "type": "string"
+        },
+        "year_from": {
+          "anyOf": [
+            {
+              "maximum": 2100,
+              "minimum": 1900,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Year From"
+        },
+        "year_to": {
+          "anyOf": [
+            {
+              "maximum": 2100,
+              "minimum": 1900,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Year To"
+        }
+      },
+      "required": [
+        "contract_id",
+        "contract_version",
+        "contract_content_hash",
+        "keywords",
+        "source_ids",
+        "candidate_limit",
+        "selection_limit",
+        "input_hash"
+      ],
+      "title": "PaperSearchInput",
       "type": "object"
     },
     "PaperSourceExecution": {
