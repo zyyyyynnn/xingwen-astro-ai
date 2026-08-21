@@ -392,3 +392,30 @@ def test_paper_collection_payload_rejects_both_or_neither_benchmark_and_search_i
     dict_payload_neither.pop("search_input", None)
     with pytest.raises(ValidationError, match="PaperCollection requires either benchmark or search_input"):
         PaperCollection.model_validate(dict_payload_neither)
+
+
+def test_contract_with_open_publication_window_builds_and_validates_cleanly() -> None:
+    contract = _contract(year_from=None, year_to=None)
+    search_input = build_paper_search_input(contract)
+
+    assert search_input.year_from is None
+    assert search_input.year_to is None
+    assert search_input.input_hash == compute_paper_search_input_hash(search_input)
+
+    query = normalize_paper_search_input(search_input)
+    assert query.year_from == 1900
+    assert query.year_to == 2100
+
+
+def test_paper_search_input_accepts_uuid_and_identifier_contract_ids() -> None:
+    digit_starting_uuid = "0333ee32-f95d-412e-b09b-58ae456519e0"
+    base_input = build_paper_search_input(_contract())
+    raw_dict = base_input.model_dump(mode="json")
+    raw_dict["contract_id"] = digit_starting_uuid
+    raw_dict.pop("input_hash", None)
+    raw_dict["input_hash"] = compute_paper_search_input_hash(raw_dict)
+
+    validated = PaperSearchInput.model_validate(raw_dict)
+    assert validated.contract_id == digit_starting_uuid
+
+

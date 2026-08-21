@@ -16,6 +16,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    StringConstraints,
     model_validator,
 )
 
@@ -33,6 +34,9 @@ from .persistence import PersistedUuid
 
 
 MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
+CoreIdentifier = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=128)
+]
 NonEmptyString = Annotated[str, Field(min_length=1)]
 
 
@@ -111,7 +115,7 @@ class PaperSearchInput(BaseModel):
     model_config = MODEL_CONFIG
 
     schema_version: SemanticVersion = "1.0.0"
-    contract_id: Identifier
+    contract_id: CoreIdentifier
     contract_version: int = Field(ge=1)
     contract_content_hash: ContentHash
     keywords: tuple[NonEmptyString, ...] = Field(min_length=1)
@@ -692,9 +696,19 @@ def compute_paper_collection_output_hash(
     return compute_canonical_payload_hash(payload)
 
 
+def _prune_none_values(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        return {k: _prune_none_values(v) for k, v in obj.items() if v is not None}
+    if isinstance(obj, (list, tuple)):
+        return [_prune_none_values(v) for v in obj if v is not None]
+    return obj
+
+
 def _model_or_dict(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     if isinstance(value, BaseModel):
         return deepcopy(value.model_dump(mode="json", exclude_none=True))
+    if isinstance(value, dict):
+        return _prune_none_values(deepcopy(value))
     return deepcopy(value)
 
 
