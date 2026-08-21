@@ -41,13 +41,7 @@ Fixture、seed 或 TOI 结果副本当作补充来源。
 绑定来源表、列裁决、运行时类型契约、约束和分页。两者均使用 canonical JSON
 SHA-256。
 
-| 冻结输入                         | 值                                                                                  |
-| -------------------------------- | ----------------------------------------------------------------------------------- |
-| Case Manifest version/hash       | `2.0.0` / `sha256:efbee5ec7d9e9e450a1b08685eb27e0a600f58faec5524d37dc05a9b1f28276c` |
-| Field Manifest version/hash      | `2.0.0` / `sha256:b0ce150bebbfa9549273ecbb5e26ed302f64b9925d768bb42f944554d011a86f` |
-| Column adjudication version/hash | `1.0.0` / `sha256:b27b6fc8aab5d2ddeda2f21420650291567e09c26e969bb4eb89c54853d0766b` |
-| Runtime schema contract          | `nasa_exoplanet_archive.ps.runtime_schema.2026-07-30` / `1.0.0`                     |
-| Query normalization / Adapter    | `1.1.0` / `1.1.0`                                                                   |
+Case / Field Manifest 的版本与 content hash 以 `services/data_pipeline/manifests/exoplanet_host_star/` 及 `services/data_pipeline/constants.py` 为唯一机器 Authority；列裁决、运行时 Schema 契约、Query normalization 及 Adapter 版本由对应 Manifest 与常量定义，本文档不复制易漂移的机器版本与哈希常量。
 
 ## 2. Provider 层、Adapter 层与职责
 
