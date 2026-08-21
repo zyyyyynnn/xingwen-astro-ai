@@ -14,14 +14,7 @@
 
 主数据源 Adapter 只读取冻结的 `exoplanet_host_star` Case / Field Manifest，不读取动态 `latest`，也不接受调用方传入另一套字段清单。运行前同时校验版本与内容 hash。
 
-| 输入 | 固定值 |
-| --- | --- |
-| Case Manifest version | `2.0.0` |
-| Case Manifest hash | `sha256:efbee5ec7d9e9e450a1b08685eb27e0a600f58faec5524d37dc05a9b1f28276c` |
-| Field Manifest version | `2.0.0` |
-| Field Manifest hash | `sha256:b0ce150bebbfa9549273ecbb5e26ed302f64b9925d768bb42f944554d011a86f` |
-| Query normalization | `1.0.0` |
-| NASA TAP Adapter | `1.0.0` |
+Case 与 Field Manifest 的版本及 content hash 以 `services/data_pipeline/manifests/exoplanet_host_star/` 下的 JSON 文件与 `services/data_pipeline/constants.py` 为唯一机器 Authority；Query normalization、SourcePolicy 以及 NASA TAP Adapter 版本常量亦统一由 `services/data_pipeline/constants.py` 定义，本文档不复制具体版本号与哈希值。
 
 本实现不会执行 crossmatch、字段合并、单位统一、质量评分、第二来源回退、缓存选择、ArtifactVersion 发布或 ResearchRun 推进。Fixture 和 seed 不能在 Live 失败时替代真实来源结果。
 
