@@ -377,8 +377,8 @@
           "$ref": "#/$defs/PaperCollectionRules"
         },
         "schema_version": {
-          "const": "2.1.0",
-          "default": "2.1.0",
+          "const": "3.0.0",
+          "default": "3.0.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -994,8 +994,8 @@
       "description": "Typed scientific input contract for live contract-driven paper search.",
       "properties": {
         "access_policy": {
+          "const": "metadata_url_only_requires_independent_access_evidence",
           "default": "metadata_url_only_requires_independent_access_evidence",
-          "minLength": 1,
           "title": "Access Policy",
           "type": "string"
         },
@@ -1054,8 +1054,8 @@
           "type": "string"
         },
         "schema_version": {
+          "const": "1.0.0",
           "default": "1.0.0",
-          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1081,8 +1081,8 @@
           "type": "string"
         },
         "stable_ordering": {
+          "const": "source_relevance_then_canonical_tie_breaker",
           "default": "source_relevance_then_canonical_tie_breaker",
-          "minLength": 1,
           "title": "Stable Ordering",
           "type": "string"
         },

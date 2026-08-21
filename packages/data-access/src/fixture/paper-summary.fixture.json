@@ -16,8 +16,8 @@
     "version_number": 1,
     "supersedes_version_id": null,
     "source_mode": "fixture",
-    "content_hash": "sha256:63c8514bbc032d16272b8c1137b36dc9fb43e1e5bb5bdd86c3278eefb60018fc",
-    "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
+    "content_hash": "sha256:5142ba40295ad3426061cfc44e1a39c54ffdc448f6fab4ac5e748e9a58935c72",
+    "input_hash": "sha256:8569f42427f63e6ffd5b2e1af84ece15363aa816a79396429caf26a4007f82b4",
     "created_at": "2026-07-21T08:25:00Z",
     "paper": {
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
@@ -28,7 +28,7 @@
     "summary": {
       "kind": "paper_summary",
       "schema_version": "2.0.0",
-      "summary_id": "summary.689962460325bd4e386896bd",
+      "summary_id": "summary.3792966a0118b739b3d5fe2c",
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
       "paper": null,
       "benchmark": {
@@ -41,8 +41,8 @@
       },
       "input_versions": {
         "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
-        "paper_collection_schema_version": "2.1.0",
-        "paper_collection_output_hash": "sha256:93eeca827498b3217df9a214f8625af045eae3aa571ece41f3ed295e5b8ef77e",
+        "paper_collection_schema_version": "3.0.0",
+        "paper_collection_output_hash": "sha256:3dddf63586aa424edc8441dd23603c0653ac8976564d147b2639b673bdbd42e6",
         "document_parses": [],
         "source_snapshots": [
           {
@@ -210,7 +210,7 @@
       ],
       "source_conflicts": [],
       "producer": {
-        "execution_id": "execution.2d5a9d060c75c4177879afd3",
+        "execution_id": "execution.8569f42427f63e6ffd5b2e1a",
         "run_id": null,
         "step_key": "summarizing_papers",
         "producer_type": "model",
@@ -228,8 +228,8 @@
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
         "input_versions": {
           "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
-          "paper_collection_schema_version": "2.1.0",
-          "paper_collection_output_hash": "sha256:93eeca827498b3217df9a214f8625af045eae3aa571ece41f3ed295e5b8ef77e",
+          "paper_collection_schema_version": "3.0.0",
+          "paper_collection_output_hash": "sha256:3dddf63586aa424edc8441dd23603c0653ac8976564d147b2639b673bdbd42e6",
           "document_parses": [],
           "source_snapshots": [
             {
@@ -240,17 +240,17 @@
             }
           ]
         },
-        "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
+        "input_hash": "sha256:8569f42427f63e6ffd5b2e1af84ece15363aa816a79396429caf26a4007f82b4",
         "model_response_hash": "sha256:90dfa5e86c7510c092a671d33dbbd308ce9470e3c8c90be0cf3c62a6d2e04d3d",
-        "output_hash": "sha256:1388c4adc90ed0799f18edfb3d00bf12f7e5c8aa1608454c48c71327d654bca9",
+        "output_hash": "sha256:3f8438b716c195354c46def336024e013d296331b404ebbdc147dc562857c3ce",
         "status": "completed",
         "started_at": "2026-07-21T08:25:00Z",
         "finished_at": "2026-07-21T08:25:00Z",
         "latency_ms": 0,
         "error_code": null
       },
-      "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
-      "output_hash": "sha256:1388c4adc90ed0799f18edfb3d00bf12f7e5c8aa1608454c48c71327d654bca9"
+      "input_hash": "sha256:8569f42427f63e6ffd5b2e1af84ece15363aa816a79396429caf26a4007f82b4",
+      "output_hash": "sha256:3f8438b716c195354c46def336024e013d296331b404ebbdc147dc562857c3ce"
     },
     "cache_audits": [],
     "producer_execution": {
@@ -276,8 +276,8 @@
         "top_p": 1
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
-      "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
-      "output_hash": "sha256:63c8514bbc032d16272b8c1137b36dc9fb43e1e5bb5bdd86c3278eefb60018fc",
+      "input_hash": "sha256:8569f42427f63e6ffd5b2e1af84ece15363aa816a79396429caf26a4007f82b4",
+      "output_hash": "sha256:5142ba40295ad3426061cfc44e1a39c54ffdc448f6fab4ac5e748e9a58935c72",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",
@@ -399,7 +399,7 @@
     "content": {
       "kind": "paper_summary",
       "schema_version": "2.0.0",
-      "summary_id": "summary.689962460325bd4e386896bd",
+      "summary_id": "summary.3792966a0118b739b3d5fe2c",
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
       "paper": null,
       "benchmark": {
@@ -412,8 +412,8 @@
       },
       "input_versions": {
         "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
-        "paper_collection_schema_version": "2.1.0",
-        "paper_collection_output_hash": "sha256:93eeca827498b3217df9a214f8625af045eae3aa571ece41f3ed295e5b8ef77e",
+        "paper_collection_schema_version": "3.0.0",
+        "paper_collection_output_hash": "sha256:3dddf63586aa424edc8441dd23603c0653ac8976564d147b2639b673bdbd42e6",
         "document_parses": [],
         "source_snapshots": [
           {
@@ -581,7 +581,7 @@
       ],
       "source_conflicts": [],
       "producer": {
-        "execution_id": "execution.2d5a9d060c75c4177879afd3",
+        "execution_id": "execution.8569f42427f63e6ffd5b2e1a",
         "run_id": null,
         "step_key": "summarizing_papers",
         "producer_type": "model",
@@ -599,8 +599,8 @@
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
         "input_versions": {
           "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
-          "paper_collection_schema_version": "2.1.0",
-          "paper_collection_output_hash": "sha256:93eeca827498b3217df9a214f8625af045eae3aa571ece41f3ed295e5b8ef77e",
+          "paper_collection_schema_version": "3.0.0",
+          "paper_collection_output_hash": "sha256:3dddf63586aa424edc8441dd23603c0653ac8976564d147b2639b673bdbd42e6",
           "document_parses": [],
           "source_snapshots": [
             {
@@ -611,20 +611,20 @@
             }
           ]
         },
-        "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
+        "input_hash": "sha256:8569f42427f63e6ffd5b2e1af84ece15363aa816a79396429caf26a4007f82b4",
         "model_response_hash": "sha256:90dfa5e86c7510c092a671d33dbbd308ce9470e3c8c90be0cf3c62a6d2e04d3d",
-        "output_hash": "sha256:1388c4adc90ed0799f18edfb3d00bf12f7e5c8aa1608454c48c71327d654bca9",
+        "output_hash": "sha256:3f8438b716c195354c46def336024e013d296331b404ebbdc147dc562857c3ce",
         "status": "completed",
         "started_at": "2026-07-21T08:25:00Z",
         "finished_at": "2026-07-21T08:25:00Z",
         "latency_ms": 0,
         "error_code": null
       },
-      "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
-      "output_hash": "sha256:1388c4adc90ed0799f18edfb3d00bf12f7e5c8aa1608454c48c71327d654bca9"
+      "input_hash": "sha256:8569f42427f63e6ffd5b2e1af84ece15363aa816a79396429caf26a4007f82b4",
+      "output_hash": "sha256:3f8438b716c195354c46def336024e013d296331b404ebbdc147dc562857c3ce"
     },
-    "content_hash": "sha256:63c8514bbc032d16272b8c1137b36dc9fb43e1e5bb5bdd86c3278eefb60018fc",
-    "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
+    "content_hash": "sha256:5142ba40295ad3426061cfc44e1a39c54ffdc448f6fab4ac5e748e9a58935c72",
+    "input_hash": "sha256:8569f42427f63e6ffd5b2e1af84ece15363aa816a79396429caf26a4007f82b4",
     "source_mode": "fixture",
     "producer": {
       "type": "model",
@@ -671,8 +671,8 @@
         "top_p": 1
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
-      "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
-      "output_hash": "sha256:63c8514bbc032d16272b8c1137b36dc9fb43e1e5bb5bdd86c3278eefb60018fc",
+      "input_hash": "sha256:8569f42427f63e6ffd5b2e1af84ece15363aa816a79396429caf26a4007f82b4",
+      "output_hash": "sha256:5142ba40295ad3426061cfc44e1a39c54ffdc448f6fab4ac5e748e9a58935c72",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",

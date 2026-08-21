@@ -4305,7 +4305,7 @@
         "year_from": {
           "anyOf": [
             {
-              "maximum": 9999,
+              "maximum": 2100,
               "minimum": 1900,
               "type": "integer"
             },
@@ -4319,7 +4319,7 @@
         "year_to": {
           "anyOf": [
             {
-              "maximum": 9999,
+              "maximum": 2100,
               "minimum": 1900,
               "type": "integer"
             },

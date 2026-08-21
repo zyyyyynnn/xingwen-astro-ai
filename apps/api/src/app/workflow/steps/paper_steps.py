@@ -5,8 +5,7 @@ from __future__ import annotations
 import asyncio
 
 from app.schemas._hashing import compute_canonical_payload_hash
-from app.schemas.enums import SourceMode
-from app.schemas.source_acquisition import DataSourceDataLevel
+from app.schemas.enums import PaperDataLevel, SourceMode
 from app.schemas.paper_collection import PaperCollectionCandidate
 from app.schemas.paper_summary import (
     PaperSummaryAdmissionStatus,
@@ -167,7 +166,7 @@ class PaperStepService:
             collection = self._collection_runner.run(
                 search_input=search_input,
                 source_mode=SourceMode.live,
-                data_level=DataSourceDataLevel.live_result,
+                data_level=PaperDataLevel.live_result,
                 run_id=str(context.run_id),
             )
         except Exception:

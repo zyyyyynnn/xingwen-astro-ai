@@ -45,10 +45,7 @@ from services.paper_pipeline.constants import (
     SOURCE_POLICY_VERSION,
 )
 from services.paper_pipeline.live_collection import LivePaperCollectionRunner
-from services.paper_pipeline.mapper import (
-    build_paper_search_input,
-    map_contract_to_paper_search_input,
-)
+from services.paper_pipeline.mapper import build_paper_search_input
 from services.paper_pipeline.query import (
     normalize_canonical_paper_query,
     normalize_paper_search_input,
@@ -95,7 +92,7 @@ def _contract(
     )
     content_hash = compute_research_contract_content_hash(contract_input)
     return ResearchContract(
-        id=contract_id or f"contract-{uuid4()}",
+        id=contract_id or str(uuid4()),
         project_id=f"proj-{uuid4()}",
         version=version,
         content_hash=content_hash,
@@ -193,10 +190,6 @@ def test_mapper_projects_contract_into_paper_search_input() -> None:
     assert search_input.producer_name == PRODUCER_NAME
     assert search_input.producer_version == PRODUCER_VERSION
     assert search_input.input_hash == compute_paper_search_input_hash(search_input)
-
-    # Alias check
-    alias_result = map_contract_to_paper_search_input(contract)
-    assert alias_result == search_input
 
 
 def test_mapper_rejects_empty_keywords_or_sources() -> None:
@@ -352,7 +345,7 @@ def test_live_paper_collection_payload_integrity_and_input_hash_binding() -> Non
     collection = runner.run(search_input=search_input)
 
     assert collection.kind == "paper_collection"
-    assert collection.schema_version == "2.1.0"
+    assert collection.schema_version == "3.0.0"
     assert collection.benchmark is None
     assert collection.search_input == search_input
     assert collection.acquisition_run.status == "completed"
@@ -407,15 +400,36 @@ def test_contract_with_open_publication_window_builds_and_validates_cleanly() ->
     assert query.year_to == 2100
 
 
-def test_paper_search_input_accepts_uuid_and_identifier_contract_ids() -> None:
-    digit_starting_uuid = "0333ee32-f95d-412e-b09b-58ae456519e0"
-    base_input = build_paper_search_input(_contract())
-    raw_dict = base_input.model_dump(mode="json")
-    raw_dict["contract_id"] = digit_starting_uuid
-    raw_dict.pop("input_hash", None)
-    raw_dict["input_hash"] = compute_paper_search_input_hash(raw_dict)
+def test_paper_search_input_rejects_selection_limit_exceeding_candidate_limit() -> None:
+    contract = _contract(max_candidates=10)
+    search_input = build_paper_search_input(contract)
+    raw_payload = search_input.model_dump(mode="json")
+    raw_payload["selection_limit"] = 15
+    raw_payload.pop("input_hash", None)
+    raw_payload["input_hash"] = compute_paper_search_input_hash(raw_payload)
+    with pytest.raises(
+        ValidationError, match="selection_limit must not exceed candidate_limit"
+    ):
+        PaperSearchInput.model_validate(raw_payload)
 
-    validated = PaperSearchInput.model_validate(raw_dict)
-    assert validated.contract_id == digit_starting_uuid
+
+def test_paper_search_input_rejects_invalid_stable_ordering() -> None:
+    search_input = build_paper_search_input(_contract())
+    raw_payload = search_input.model_dump(mode="json")
+    raw_payload["stable_ordering"] = "random_shuffle"
+    raw_payload.pop("input_hash", None)
+    raw_payload["input_hash"] = compute_paper_search_input_hash(raw_payload)
+    with pytest.raises(ValidationError):
+        PaperSearchInput.model_validate(raw_payload)
+
+
+def test_paper_search_input_rejects_invalid_access_policy() -> None:
+    search_input = build_paper_search_input(_contract())
+    raw_payload = search_input.model_dump(mode="json")
+    raw_payload["access_policy"] = "fulltext_download_unrestricted"
+    raw_payload.pop("input_hash", None)
+    raw_payload["input_hash"] = compute_paper_search_input_hash(raw_payload)
+    with pytest.raises(ValidationError):
+        PaperSearchInput.model_validate(raw_payload)
 
 

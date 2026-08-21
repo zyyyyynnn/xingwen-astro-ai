@@ -16,11 +16,11 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    StringConstraints,
     model_validator,
 )
 
 from ._hashing import compute_canonical_payload_hash
+from .core import Identifier as CoreIdentifier
 from .enums import (
     PaperDataLevel,
     PaperSourceExecutionStatus,
@@ -34,9 +34,6 @@ from .persistence import PersistedUuid
 
 
 MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
-CoreIdentifier = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=128)
-]
 NonEmptyString = Annotated[str, Field(min_length=1)]
 
 
@@ -114,7 +111,7 @@ class PaperSearchInput(BaseModel):
 
     model_config = MODEL_CONFIG
 
-    schema_version: SemanticVersion = "1.0.0"
+    schema_version: Literal["1.0.0"] = "1.0.0"
     contract_id: CoreIdentifier
     contract_version: int = Field(ge=1)
     contract_content_hash: ContentHash
@@ -124,13 +121,13 @@ class PaperSearchInput(BaseModel):
     source_ids: tuple[Identifier, ...] = Field(min_length=1)
     candidate_limit: int = Field(gt=0, le=100)
     selection_limit: int = Field(gt=0, le=100)
-    stable_ordering: NonEmptyString = (
+    stable_ordering: Literal[
         "source_relevance_then_canonical_tie_breaker"
-    )
+    ] = "source_relevance_then_canonical_tie_breaker"
     content_scope: Literal["bibliographic_metadata"] = "bibliographic_metadata"
-    access_policy: NonEmptyString = (
+    access_policy: Literal[
         "metadata_url_only_requires_independent_access_evidence"
-    )
+    ] = "metadata_url_only_requires_independent_access_evidence"
     source_policy_version: SemanticVersion = "1.0.0"
     producer_name: NonEmptyString = "xingwen.paper_collection"
     producer_version: SemanticVersion = "1.0.0"
@@ -138,6 +135,8 @@ class PaperSearchInput(BaseModel):
 
     @model_validator(mode="after")
     def validate_paper_search_input(self) -> Self:
+        if self.selection_limit > self.candidate_limit:
+            raise ValueError("selection_limit must not exceed candidate_limit")
         if self.year_from is not None and self.year_to is not None:
             if self.year_from > self.year_to:
                 raise ValueError("year_from must not exceed year_to")
@@ -154,7 +153,20 @@ class PaperSearchInput(BaseModel):
 def compute_paper_search_input_hash(
     value: PaperSearchInput | dict[str, Any],
 ) -> str:
-    payload = _model_or_dict(value)
+    if isinstance(value, BaseModel):
+        payload = deepcopy(
+            value.model_dump(
+                mode="json",
+                exclude_none=True,
+            )
+        )
+    else:
+        payload = {
+            key: deepcopy(item)
+            for key, item in value.items()
+            if item is not None
+        }
+
     payload.pop("input_hash", None)
     return compute_canonical_payload_hash(payload)
 
@@ -458,7 +470,7 @@ class PaperCollectionPayload(BaseModel):
     model_config = MODEL_CONFIG
 
     kind: Literal["paper_collection"] = "paper_collection"
-    schema_version: Literal["2.1.0"] = "2.1.0"
+    schema_version: Literal["3.0.0"] = "3.0.0"
     benchmark: PaperBenchmarkReference | None = None
     search_input: PaperSearchInput | None = None
     query: NormalizedPaperQuery
@@ -696,19 +708,9 @@ def compute_paper_collection_output_hash(
     return compute_canonical_payload_hash(payload)
 
 
-def _prune_none_values(obj: Any) -> Any:
-    if isinstance(obj, dict):
-        return {k: _prune_none_values(v) for k, v in obj.items() if v is not None}
-    if isinstance(obj, (list, tuple)):
-        return [_prune_none_values(v) for v in obj if v is not None]
-    return obj
-
-
 def _model_or_dict(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     if isinstance(value, BaseModel):
         return deepcopy(value.model_dump(mode="json", exclude_none=True))
-    if isinstance(value, dict):
-        return _prune_none_values(deepcopy(value))
     return deepcopy(value)
 
 

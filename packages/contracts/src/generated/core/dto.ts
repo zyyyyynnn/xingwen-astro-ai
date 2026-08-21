@@ -3392,7 +3392,8 @@ export interface PaperCollection {
   query: NormalizedPaperQuery;
   ranking_rule: string;
   rules: PaperCollectionRules;
-  schema_version?: "2.1.0";
+  schema_version?: "3.0.0";
+  search_input?: PaperSearchInput | null;
   selected_paper_ids?: string[];
   /**
    * @minItems 1
@@ -3541,6 +3542,37 @@ export interface PaperCollectionRules {
   selection_limit: number;
   selection_version: string;
   source_policy_version: string;
+}
+/**
+ * Typed scientific input contract for live contract-driven paper search.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSearchInput".
+ */
+export interface PaperSearchInput {
+  access_policy?: "metadata_url_only_requires_independent_access_evidence";
+  candidate_limit: number;
+  content_scope?: "bibliographic_metadata";
+  contract_content_hash: string;
+  contract_id: string;
+  contract_version: number;
+  input_hash: string;
+  /**
+   * @minItems 1
+   */
+  keywords: [string, ...string[]];
+  producer_name?: string;
+  producer_version?: string;
+  schema_version?: "1.0.0";
+  selection_limit: number;
+  /**
+   * @minItems 1
+   */
+  source_ids: [string, ...string[]];
+  source_policy_version?: string;
+  stable_ordering?: "source_relevance_then_canonical_tie_breaker";
+  year_from?: number | null;
+  year_to?: number | null;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema

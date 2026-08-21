@@ -17,10 +17,6 @@ from .constants import (
 
 def build_paper_search_input(
     contract: ResearchContract,
-    *,
-    source_policy_version: str = SOURCE_POLICY_VERSION,
-    producer_name: str = PRODUCER_NAME,
-    producer_version: str = PRODUCER_VERSION,
 ) -> PaperSearchInput:
     """Project one confirmed ResearchContract into a typed PaperSearchInput.
 
@@ -60,18 +56,14 @@ def build_paper_search_input(
         "stable_ordering": "source_relevance_then_canonical_tie_breaker",
         "content_scope": "bibliographic_metadata",
         "access_policy": "metadata_url_only_requires_independent_access_evidence",
-        "source_policy_version": source_policy_version,
-        "producer_name": producer_name,
-        "producer_version": producer_version,
+        "source_policy_version": SOURCE_POLICY_VERSION,
+        "producer_name": PRODUCER_NAME,
+        "producer_version": PRODUCER_VERSION,
     }
     input_hash = compute_paper_search_input_hash(base_payload)
     return PaperSearchInput.model_validate({**base_payload, "input_hash": input_hash})
 
 
-# Alias for explicit contract mapper naming
-map_contract_to_paper_search_input = build_paper_search_input
-
 __all__ = [
     "build_paper_search_input",
-    "map_contract_to_paper_search_input",
 ]
