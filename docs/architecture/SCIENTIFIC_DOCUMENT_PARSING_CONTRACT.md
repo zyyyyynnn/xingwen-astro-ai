@@ -63,9 +63,10 @@ DocumentParserPort.parse_document(
 - `partial` 表示可用区域存在，但未解析不等于不存在，质量必须向下游传播。
 - `unsupported` 表示不能可靠处理；不得生成、补全或自动选择该 region 的事实。
 
-一个 table observation 的 parse quality 是 table、entity cell、value cell
-三者的闭包：任一为 `partial` 则 observation 为 `partial`；三者均为
-`accepted` 才为 `accepted`；任一为 `unsupported` 则该 observation 不得准入。
+一个 table observation 的 parse quality 是推导科学语义所需的 authoritative
+region 闭包：table、entity/value header 与对应 entity/value body cell。
+任一为 `partial` 则 observation 为 `partial`；五者均为 `accepted` 才为
+`accepted`；任一 semantic region 为 `unsupported` 则该 observation 不得准入。
 Unsupported table/row/cell 不产生可用 scientific observation；应用层通过
 稳定 `DOCUMENT_PARSE_UNSUPPORTED` reason code 暴露被拒绝的 region。
 

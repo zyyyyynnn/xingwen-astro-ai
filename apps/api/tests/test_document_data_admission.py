@@ -242,17 +242,30 @@ def _parse(
 def _table_quality_parse(
     host_token: str,
     *,
-    table_quality: DocumentParseQuality,
-    entity_quality: DocumentParseQuality,
-    value_quality: DocumentParseQuality,
+    table_quality: DocumentParseQuality = DocumentParseQuality.accepted,
+    entity_header_quality: DocumentParseQuality = DocumentParseQuality.accepted,
+    value_header_quality: DocumentParseQuality = DocumentParseQuality.accepted,
+    entity_quality: DocumentParseQuality = DocumentParseQuality.accepted,
+    value_quality: DocumentParseQuality = DocumentParseQuality.accepted,
+    value_header: str = "Teff [K]",
 ) -> DocumentParseCandidate:
-    parse = _parse([(host_token, "5600")], header=("star.tic_id", "Teff [K]"))
+    parse = _parse([(host_token, "5600")], header=("star.tic_id", value_header))
     table = parse.tables[0]
+    header_row = list(table.rows[0])
+    header_row[0] = header_row[0].model_copy(
+        update={"quality": entity_header_quality}
+    )
+    header_row[1] = header_row[1].model_copy(
+        update={"quality": value_header_quality}
+    )
     body_row = list(table.rows[1])
     body_row[0] = body_row[0].model_copy(update={"quality": entity_quality})
     body_row[1] = body_row[1].model_copy(update={"quality": value_quality})
     table = table.model_copy(
-        update={"quality": table_quality, "rows": (table.rows[0], tuple(body_row))}
+        update={
+            "quality": table_quality,
+            "rows": (tuple(header_row), tuple(body_row)),
+        }
     )
     return parse.model_copy(update={"tables": (table,)})
 
@@ -340,43 +353,138 @@ def test_table_extraction_admits_typed_observations_with_locator_closure(
 
 
 @pytest.mark.parametrize(
-    ("table_quality", "entity_quality", "value_quality", "expected_quality"),
+    (
+        "table_quality",
+        "entity_header_quality",
+        "value_header_quality",
+        "entity_quality",
+        "value_quality",
+        "value_header",
+        "expected_quality",
+        "expected_code",
+        "expected_status",
+        "expected_raw_quality",
+    ),
     [
         (
             DocumentParseQuality.accepted,
             DocumentParseQuality.accepted,
             DocumentParseQuality.accepted,
             DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            "Teff [K]",
+            DocumentParseQuality.accepted,
+            None,
+            None,
+            None,
         ),
         (
             DocumentParseQuality.partial,
             DocumentParseQuality.accepted,
             DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            "Teff [K]",
             DocumentParseQuality.partial,
+            None,
+            None,
+            None,
         ),
         (
             DocumentParseQuality.accepted,
             DocumentParseQuality.partial,
             DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            "Teff [K]",
             DocumentParseQuality.partial,
+            None,
+            None,
+            None,
         ),
         (
             DocumentParseQuality.accepted,
             DocumentParseQuality.accepted,
             DocumentParseQuality.partial,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            "Teff [K]",
             DocumentParseQuality.partial,
+            None,
+            None,
+            None,
+        ),
+        (
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.partial,
+            DocumentParseQuality.accepted,
+            "Teff [K]",
+            DocumentParseQuality.partial,
+            None,
+            None,
+            None,
+        ),
+        (
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.partial,
+            "Teff [K]",
+            DocumentParseQuality.partial,
+            None,
+            None,
+            None,
         ),
         (
             DocumentParseQuality.accepted,
             DocumentParseQuality.accepted,
             DocumentParseQuality.unsupported,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            "Teff [K]",
+            None,
+            None,
+            None,
             None,
         ),
         (
             DocumentParseQuality.accepted,
             DocumentParseQuality.unsupported,
             DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            "Teff [K]",
             None,
+            None,
+            None,
+            None,
+        ),
+        (
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            "Unknown field",
+            None,
+            DocumentObservationAdmissionCode.document_field_unresolved,
+            DocumentObservationAdmissionStatus.review_required,
+            DocumentParseQuality.accepted,
+        ),
+        (
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.partial,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            "Unknown field",
+            None,
+            DocumentObservationAdmissionCode.document_field_unresolved,
+            DocumentObservationAdmissionStatus.review_required,
+            DocumentParseQuality.partial,
         ),
     ],
 )
@@ -384,15 +492,24 @@ def test_table_observation_quality_propagates_from_all_regions(
     crossmatch,
     host_token,
     table_quality,
+    entity_header_quality,
+    value_header_quality,
     entity_quality,
     value_quality,
+    value_header,
     expected_quality,
+    expected_code,
+    expected_status,
+    expected_raw_quality,
 ) -> None:
     parse = _table_quality_parse(
         host_token,
         table_quality=table_quality,
+        entity_header_quality=entity_header_quality,
+        value_header_quality=value_header_quality,
         entity_quality=entity_quality,
         value_quality=value_quality,
+        value_header=value_header,
     )
     batch = extract_document_observations(
         parse=parse,
@@ -406,8 +523,17 @@ def test_table_observation_quality_propagates_from_all_regions(
         rules=RULES,
     )
     observations = _accepted_for(batch, "star.effective_temperature")
-    if expected_quality is None:
+    if expected_code is not None:
+        assert batch.accepted == ()
+        assert len(batch.raw_candidates) == 1
+        assert batch.raw_candidates[0].parse_quality is expected_raw_quality
+        assert len(batch.outcomes) == 1
+        assert batch.outcomes[0].code is expected_code
+        assert batch.outcomes[0].status is expected_status
+    elif expected_quality is None:
         assert observations == []
+        assert batch.raw_candidates == ()
+        assert batch.outcomes == ()
     else:
         assert len(observations) == 1
         assert observations[0].parse_quality is expected_quality
@@ -1746,16 +1872,18 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
 
     # The application batch exposes a stable rejected-region summary rather
     # than silently dropping an unsupported table.
-    unsupported_table = plan.prepared_inputs[0].candidate.tables[0].model_copy(
-        update={"quality": DocumentParseQuality.unsupported}
-    )
-    unsupported_candidate = plan.prepared_inputs[0].candidate.model_copy(
-        update={"tables": (unsupported_table,)}
-    )
+    unsupported_payload = plan.prepared_inputs[0].candidate.model_dump(mode="json")
+    unsupported_table = dict(unsupported_payload["tables"][0])
+    unsupported_table["quality"] = DocumentParseQuality.unsupported.value
+    unsupported_table["rows"] = []
+    unsupported_payload["tables"] = [unsupported_table]
+    validated_candidate = DocumentParseCandidate.model_validate(unsupported_payload)
+    assert validated_candidate.tables[0].quality is DocumentParseQuality.unsupported
+    assert validated_candidate.tables[0].rows == ()
     unsupported_plan = replace(
         plan,
         prepared_inputs=(
-            replace(plan.prepared_inputs[0], candidate=unsupported_candidate),
+            replace(plan.prepared_inputs[0], candidate=validated_candidate),
         ),
     )
     unsupported_batch = admission.execute(unsupported_plan)
@@ -1768,6 +1896,8 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
     assert unsupported_regions[0]["raw_candidate_id"].startswith(
         "document.parse.unsupported."
     )
+    assert unsupported_batch.raw_candidates == ()
+    assert unsupported_batch.accepted == ()
     assert admission.execute(unsupported_plan).producer_output_summary[
         "unsupported_regions"
     ] == unsupported_regions

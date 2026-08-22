@@ -96,7 +96,7 @@ Document observation 是既有 canonical row 的补充值，不是第三个 Cros
 - approved structured value 有合法值时优先于 document；structured 缺值时 admitted document 可补充；相等 document 值形成 consensus，冲突且无 structured winner 时保持 unresolved。
 - Dataset 的 SourceSnapshot registry 包含恰好两个 Crossmatch snapshots 与实际保留的 document snapshots；Publisher 通过唯一 binding 映射到既有 persisted rows，不复制 snapshot。
 - Data Quality 的 structured source-scope denominator 只统计 Crossmatch 左右两侧；document parse quality 是独立的 `DocumentParseQualityObservation`，不污染结构化分母。
-- Document admission 的 table/entity/value quality、unsupported-region reason code、raw candidate 与 locator provenance 必须原样进入 downstream evidence；Dataset projection 不重新解析 free text。
+- Document admission 的 authoritative table/header/body-region quality、unsupported-region reason code、raw candidate 与 locator provenance 必须原样进入 downstream evidence；Dataset projection 不重新解析 free text。
 
 ## 6. Quality and Publisher handoff
 

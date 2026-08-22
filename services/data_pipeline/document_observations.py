@@ -714,6 +714,26 @@ class _EntityIndex:
         return None
 
 
+@dataclass(frozen=True, slots=True)
+class _TableColumn:
+    """Resolved semantic facts for one usable table header column."""
+
+    column_index: int
+    label: str
+    unit_token: str | None
+    field_candidates: tuple[FieldDefinition, ...]
+    header_quality: DocumentParseQuality
+
+
+@dataclass(frozen=True, slots=True)
+class _TableLayout:
+    """Immutable header layout used to derive table observations."""
+
+    header_index: int
+    entity_column: int
+    columns: tuple[_TableColumn, ...]
+
+
 class _Extractor:
     """Canonical table/text readers producing raw drafts."""
 
@@ -736,13 +756,11 @@ class _Extractor:
         layout = self._table_layout(table)
         if layout is None:
             return []
-        header_index, column_fields, entity_column, column_units = layout
+        columns = {item.column_index: item for item in layout.columns}
+        entity_column = layout.entity_column
+        entity_header = columns[entity_column]
         drafts: list[_Draft] = []
-        header_labels = {
-            cell.column_index: (cell.text or "").strip()
-            for cell in table.rows[header_index]
-        }
-        for body_row in table.rows[header_index + 1 :]:
+        for body_row in table.rows[layout.header_index + 1 :]:
             entity_cell = next(
                 (cell for cell in body_row if cell.column_index == entity_column),
                 None,
@@ -755,8 +773,8 @@ class _Extractor:
             if entity_token == "":
                 continue
             for cell in body_row:
-                field_candidates = column_fields.get(cell.column_index)
-                if field_candidates is None or (cell.column_index == entity_column):
+                column = columns.get(cell.column_index)
+                if column is None or (cell.column_index == entity_column):
                     continue
                 if cell.quality is DocumentParseQuality.unsupported:
                     continue
@@ -765,6 +783,8 @@ class _Extractor:
                     continue
                 quality = _observation_region_quality(
                     table.quality,
+                    entity_header.header_quality,
+                    column.header_quality,
                     entity_cell.quality,
                     cell.quality,
                 )
@@ -782,25 +802,25 @@ class _Extractor:
                     ),
                     parse_quality=quality,
                     raw_text=text,
-                    header_context=header_labels.get(cell.column_index),
-                    header_unit_token=column_units.get(cell.column_index),
+                    header_context=column.label,
+                    header_unit_token=column.unit_token,
                     entity_token=entity_token,
                     row_context=((f"col:{entity_column}", entity_token),),
-                    field_candidates=(
-                        tuple(field_candidates) if field_candidates else None
-                    ),
+                    field_candidates=column.field_candidates,
                 )
                 drafts.append(draft)
         return drafts
 
-    def _table_layout(self, table: DocumentTable):
+    def _table_layout(self, table: DocumentTable) -> _TableLayout | None:
         for index, row in enumerate(table.rows):
-            column_fields: dict[int, tuple[FieldDefinition, ...]] = {}
-            column_units: dict[int, str | None] = {}
+            columns: list[_TableColumn] = []
             entity_column: int | None = None
             for cell in row:
                 label = (cell.text or "").strip()
-                if label == "":
+                if (
+                    label == ""
+                    or cell.quality is DocumentParseQuality.unsupported
+                ):
                     continue
                 base, unit_token = self._resolver.split_header_unit(label)
                 matches = tuple(
@@ -808,12 +828,23 @@ class _Extractor:
                         self._resolver.fields_for_label(base), key=lambda f: f.field_id
                     )
                 )
-                column_fields[cell.column_index] = matches
-                column_units[cell.column_index] = unit_token
+                columns.append(
+                    _TableColumn(
+                        column_index=cell.column_index,
+                        label=label,
+                        unit_token=unit_token,
+                        field_candidates=matches,
+                        header_quality=cell.quality,
+                    )
+                )
                 if any(field.object_identity_key for field in matches):
                     entity_column = cell.column_index
             if entity_column is not None:
-                return index, column_fields, entity_column, column_units
+                return _TableLayout(
+                    header_index=index,
+                    entity_column=entity_column,
+                    columns=tuple(columns),
+                )
         return None
 
     def text_drafts(self, parse: DocumentParseCandidate) -> list[_Draft]:
