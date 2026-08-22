@@ -1824,9 +1824,6 @@ class PaperCandidateInputBindingModel(Base):
     candidate_source_snapshot_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), nullable=False
     )
-    candidate_evidence_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), nullable=False
-    )
     mode: Mapped[str] = mapped_column(String(32), nullable=False)
     outcome: Mapped[str] = mapped_column(String(32), nullable=False)
     source_collection_status: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -1872,12 +1869,6 @@ class PaperCandidateInputBindingModel(Base):
             ["candidate_source_snapshot_id", "project_id"],
             ["source_snapshots.id", "source_snapshots.project_id"],
             name="fk_paper_candidate_input_binding_snapshot_project",
-            ondelete="RESTRICT",
-        ),
-        ForeignKeyConstraint(
-            ["candidate_evidence_id", "project_id"],
-            ["evidence.id", "evidence.project_id"],
-            name="fk_paper_candidate_input_binding_evidence_project",
             ondelete="RESTRICT",
         ),
         ForeignKeyConstraint(

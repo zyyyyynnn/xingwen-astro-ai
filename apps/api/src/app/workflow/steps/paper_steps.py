@@ -5,7 +5,12 @@ from __future__ import annotations
 import asyncio
 
 from app.schemas._hashing import compute_canonical_payload_hash
-from app.schemas.enums import PaperDataLevel, SourceMode
+from app.schemas.enums import (
+    PaperDataLevel,
+    PaperSourceExecutionStatus,
+    SourceMode,
+    UpstreamFailureClass,
+)
 from app.schemas.paper_collection import PaperCollectionCandidate
 from app.schemas.paper_summary import (
     PaperSummaryAdmissionStatus,
@@ -34,6 +39,7 @@ from app.workflow.step_publication import (
     step_uuid,
 )
 from app.workflow.store import AttemptHandle, LeaseGrant
+from services.paper_pipeline.errors import PaperSearchExecutionError
 from services.paper_pipeline.live_collection import LivePaperCollectionRunner
 from services.paper_pipeline.mapper import build_paper_search_input
 from services.paper_pipeline.constants import (
@@ -48,6 +54,18 @@ from services.paper_pipeline.summary import (
 
 #: Governed generation parameters shared by the paper summary model call.
 MODEL_PARAMETERS: dict[str, float | int] = {"temperature": 0.6, "top_p": 0.8}
+_RETRYABLE_SOURCE_FAILURES = frozenset(
+    {
+        UpstreamFailureClass.timeout,
+        UpstreamFailureClass.rate_limited,
+        UpstreamFailureClass.transport,
+        UpstreamFailureClass.upstream_server,
+        "timeout",
+        "rate_limited",
+        "transport",
+        "upstream_server",
+    }
+)
 
 
 def _selected_candidate(
@@ -149,6 +167,8 @@ class PaperStepService:
         _query, rules, input_hash = self._collection_runner.prepare_execution(
             search_input=search_input
         )
+        rules_payload = rules.model_dump(mode="json", exclude_none=True)
+        rules_hash = compute_canonical_payload_hash(rules_payload)
         producer_name, producer_version = self._collection_runner.producer_identity
         execution = self._publications.start_producer(
             context,
@@ -158,7 +178,8 @@ class PaperStepService:
             producer_name=producer_name,
             producer_version=producer_version,
             input_hash=input_hash,
-            parameters={"selection_limit": rules.selection_limit},
+            parameters=rules_payload,
+            parameters_hash=rules_hash,
             attempt=attempt,
             lease=lease,
         )
@@ -169,11 +190,67 @@ class PaperStepService:
                 data_level=PaperDataLevel.live_result,
                 run_id=str(context.run_id),
             )
-        except Exception:
+        except Exception as exc:
+            error_code = getattr(exc, "code", None) or "PAPER_COLLECTION_FAILED"
             self._publications.finish_producer(
-                execution.id, status="failed", error_code="PAPER_COLLECTION_FAILED"
+                execution.id,
+                status="failed",
+                error_code=error_code,
             )
             raise
+
+        if collection.acquisition_run.status == "failed":
+            failed_execution = next(
+                (
+                    e
+                    for e in collection.source_executions
+                    if e.status is PaperSourceExecutionStatus.failed
+                ),
+                None,
+            )
+            retryable = (
+                failed_execution.failure_class in _RETRYABLE_SOURCE_FAILURES
+                if failed_execution and failed_execution.failure_class
+                else False
+            )
+            error_code = (
+                failed_execution.failure_code
+                if failed_execution and failed_execution.failure_code
+                else "PAPER_SOURCE_FAILED"
+            )
+            error = PaperSearchExecutionError(
+                code=error_code,
+                public_message=(
+                    "文献数据源检索超时或限流，请稍后重试。"
+                    if retryable
+                    else "文献数据源检索遇到不可恢复的错误。"
+                ),
+                retryable=retryable,
+                producer_status="failed",
+            )
+            self._publications.finish_producer(
+                execution.id,
+                status="failed",
+                input_hash=collection.input_hash,
+                error_code=error_code,
+            )
+            raise error
+
+        if len(collection.candidates) == 0:
+            error = PaperSearchExecutionError(
+                code="PAPER_COLLECTION_EMPTY",
+                public_message="论文检索已完成，但没有找到符合研究协议的候选文献。",
+                retryable=False,
+                producer_status="rejected",
+            )
+            self._publications.finish_producer(
+                execution.id,
+                status="rejected",
+                input_hash=collection.input_hash,
+                error_code="PAPER_COLLECTION_EMPTY",
+            )
+            raise error
+
         self._publications.ensure_source_snapshots(context, collection.source_snapshots)
         # The Publisher contract for PaperCollection admits SourceSnapshot
         # bindings only: literature Evidence rows are declared by the later
@@ -193,7 +270,10 @@ class PaperStepService:
             evidence_bindings=(),
         )
         self._publications.finish_producer(
-            execution.id, status="completed", output_hash=admitted.content_hash
+            execution.id,
+            status="completed",
+            input_hash=collection.input_hash,
+            output_hash=admitted.content_hash,
         )
         publication = self._publications.publication(
             context,

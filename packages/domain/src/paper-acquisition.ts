@@ -14,7 +14,6 @@
  */
 
 import type { SourceMode } from "./enums";
-import type { Evidence } from "./evidence";
 import type { DomainEntityId } from "./identifiers";
 import type { ContentHash, UtcIsoTimestamp } from "./value-types";
 
@@ -273,7 +272,6 @@ export interface PaperCandidateReview {
   readonly selectionRuleVersion: string;
   readonly duplicateGroup: PaperDuplicateReview;
   readonly sourceSnapshot: SourceSnapshotSummary;
-  readonly evidence: readonly Evidence[];
 }
 
 /** The complete reviewable acquisition pinned to one immutable version. */

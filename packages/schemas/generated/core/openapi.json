@@ -9237,16 +9237,6 @@
             ],
             "title": "Access Evidence Hash"
           },
-          "candidate_evidence_ids": {
-            "items": {
-              "maxLength": 128,
-              "minLength": 1,
-              "type": "string"
-            },
-            "minItems": 1,
-            "title": "Candidate Evidence Ids",
-            "type": "array"
-          },
           "candidate_id": {
             "maxLength": 128,
             "minLength": 1,
@@ -9352,7 +9342,6 @@
           "candidate_id",
           "canonical_paper_id",
           "candidate_source_snapshot_id",
-          "candidate_evidence_ids",
           "mode",
           "outcome",
           "source_collection_status",
@@ -9767,7 +9756,7 @@
       },
       "PaperCollectionCandidateRead": {
         "additionalProperties": false,
-        "description": "Candidate plus its duplicate, source and Evidence read projections.",
+        "description": "Candidate plus its duplicate, source and collection identity read projections.",
         "properties": {
           "candidate": {
             "$ref": "#/components/schemas/PaperCollectionCandidate"
@@ -9775,23 +9764,27 @@
           "duplicate_group": {
             "$ref": "#/components/schemas/PaperDuplicateGroup"
           },
-          "evidence": {
-            "items": {
-              "$ref": "#/components/schemas/EvidenceDetail"
-            },
-            "minItems": 1,
-            "title": "Evidence",
-            "type": "array"
+          "paper_collection_input_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Paper Collection Input Hash",
+            "type": "string"
+          },
+          "paper_collection_version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Paper Collection Version Id",
+            "type": "string"
           },
           "source_snapshot": {
             "$ref": "#/components/schemas/SourceSnapshotDetail"
           }
         },
         "required": [
+          "paper_collection_version_id",
+          "paper_collection_input_hash",
           "candidate",
           "duplicate_group",
-          "source_snapshot",
-          "evidence"
+          "source_snapshot"
         ],
         "title": "PaperCollectionCandidateRead",
         "type": "object"
@@ -10260,30 +10253,16 @@
             "type": "string"
           },
           "year_from": {
-            "anyOf": [
-              {
-                "maximum": 2100.0,
-                "minimum": 1900.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Year From"
+            "maximum": 2100.0,
+            "minimum": 1900.0,
+            "title": "Year From",
+            "type": "integer"
           },
           "year_to": {
-            "anyOf": [
-              {
-                "maximum": 2100.0,
-                "minimum": 1900.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Year To"
+            "maximum": 2100.0,
+            "minimum": 1900.0,
+            "title": "Year To",
+            "type": "integer"
           }
         },
         "required": [
@@ -10291,6 +10270,8 @@
           "contract_version",
           "contract_content_hash",
           "keywords",
+          "year_from",
+          "year_to",
           "source_ids",
           "candidate_limit",
           "selection_limit",

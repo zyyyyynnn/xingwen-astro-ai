@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import math
-import re
-import unicodedata
 from typing import Any
 
 from app.schemas._hashing import compute_canonical_payload_hash
@@ -13,17 +11,14 @@ from app.schemas.paper_collection import (
     NormalizedPaperQuery,
     PaperQueryPagination,
     PaperSearchInput,
+    normalize_paper_query_text,
 )
 
 from .constants import OPEN_YEAR_FROM, OPEN_YEAR_TO, QUERY_NORMALIZATION_VERSION
+from .errors import PaperSearchExecutionError
 
 
-_WHITESPACE = re.compile(r"\s+")
 _SUPPORTED_SOURCES = frozenset({"crossref"})
-
-
-def normalize_text(value: str) -> str:
-    return _WHITESPACE.sub(" ", unicodedata.normalize("NFKC", value)).strip().casefold()
 
 
 def normalize_canonical_paper_query(
@@ -60,19 +55,22 @@ def normalize_canonical_paper_query(
 
     unsupported = set(normalized_source_ids) - _SUPPORTED_SOURCES
     if unsupported:
-        raise ValueError(
-            f"unsupported paper search source(s): {sorted(unsupported)}"
+        raise PaperSearchExecutionError(
+            code="PAPER_SOURCE_UNSUPPORTED",
+            public_message="研究协议指定了当前论文检索不支持的来源。",
+            retryable=False,
+            producer_status="rejected",
         )
 
     normalized_keywords = tuple(
-        sorted({normalize_text(keyword) for keyword in cleaned_keywords})
+        sorted({normalize_paper_query_text(keyword) for keyword in cleaned_keywords})
     )
     original_query = (
         raw_query_string.strip()
         if raw_query_string is not None and raw_query_string.strip()
         else " ".join(cleaned_keywords)
     )
-    normalized_query = normalize_text(original_query)
+    normalized_query = normalize_paper_query_text(original_query)
     resolved_year_from = OPEN_YEAR_FROM if year_from is None else year_from
     resolved_year_to = OPEN_YEAR_TO if year_to is None else year_to
     if resolved_year_from > resolved_year_to:
@@ -173,5 +171,4 @@ __all__ = [
     "normalize_benchmark_query",
     "normalize_canonical_paper_query",
     "normalize_paper_search_input",
-    "normalize_text",
 ]

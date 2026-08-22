@@ -34,6 +34,8 @@ from app.schemas.paper_collection import (
     compute_paper_collection_input_hash,
     compute_paper_collection_output_hash,
     compute_paper_search_input_hash,
+    compute_paper_source_request_parameters_hash,
+    normalize_paper_query_text,
 )
 from services.paper_pipeline.constants import (
     CANONICALIZATION_VERSION,
@@ -46,12 +48,12 @@ from services.paper_pipeline.constants import (
     SELECTION_VERSION,
     SOURCE_POLICY_VERSION,
 )
+from services.paper_pipeline.errors import PaperSearchExecutionError
 from services.paper_pipeline.live_collection import LivePaperCollectionRunner
 from services.paper_pipeline.mapper import build_paper_search_input
 from services.paper_pipeline.query import (
     normalize_canonical_paper_query,
     normalize_paper_search_input,
-    normalize_text,
 )
 from services.paper_pipeline.sources.base import (
     RawSourceRecord,
@@ -132,7 +134,10 @@ class _StubAdapter:
             query_hash=query.query_hash,
             content_hash=records_hash,
             license_note="Public metadata only.",
-            request_metadata={"adapter_name": self.adapter_name},
+            request_metadata={
+                "adapter_name": self.adapter_name,
+                "adapter_version": self.adapter_version,
+            },
         )
         page = PaperSourcePage(
             page_number=1,
@@ -264,13 +269,16 @@ def test_input_hash_changes_when_search_parameters_change() -> None:
 
 
 def test_normalizer_strictly_rejects_unsupported_sources() -> None:
-    with pytest.raises(ValueError, match="unsupported paper search source"):
+    with pytest.raises(PaperSearchExecutionError) as exc_info:
         normalize_canonical_paper_query(
             raw_keywords=("exoplanet",),
             source_ids=("arxiv", "unknown_source"),
             candidate_limit=10,
             page_size=10,
         )
+    assert exc_info.value.code == "PAPER_SOURCE_UNSUPPORTED"
+    assert exc_info.value.retryable is False
+    assert exc_info.value.producer_status == "rejected"
 
 
 def test_benchmark_and_production_specs_produce_identical_query_semantics() -> None:
@@ -393,8 +401,8 @@ def test_contract_with_open_publication_window_builds_and_validates_cleanly() ->
     contract = _contract(year_from=None, year_to=None)
     search_input = build_paper_search_input(contract)
 
-    assert search_input.year_from is None
-    assert search_input.year_to is None
+    assert search_input.year_from == 1900
+    assert search_input.year_to == 2100
     assert search_input.input_hash == compute_paper_search_input_hash(search_input)
 
     query = normalize_paper_search_input(search_input)
@@ -440,6 +448,66 @@ def test_paper_search_input_rejects_invalid_access_policy() -> None:
     [
         (
             lambda payload: (
+                payload["search_input"].__setitem__("keywords", ["other_keyword"]),
+                payload["search_input"].__setitem__(
+                    "input_hash",
+                    compute_paper_search_input_hash(payload["search_input"]),
+                ),
+            ),
+            "PaperSearchInput keywords do not match normalized query",
+        ),
+        (
+            lambda payload: (
+                payload["search_input"].__setitem__("year_from", 2019),
+                payload["search_input"].__setitem__(
+                    "input_hash",
+                    compute_paper_search_input_hash(payload["search_input"]),
+                ),
+            ),
+            "PaperSearchInput year_from does not match normalized query",
+        ),
+        (
+            lambda payload: (
+                payload["search_input"].__setitem__("year_to", 2025),
+                payload["search_input"].__setitem__(
+                    "input_hash",
+                    compute_paper_search_input_hash(payload["search_input"]),
+                ),
+            ),
+            "PaperSearchInput year_to does not match normalized query",
+        ),
+        (
+            lambda payload: (
+                payload["query"].__setitem__(
+                    "original_query_string", "completely different query"
+                ),
+                payload["query"].__setitem__(
+                    "normalized_query_string", normalize_paper_query_text("completely different query")
+                ),
+                payload["query"].__setitem__(
+                    "query_hash", compute_normalized_query_hash(payload["query"])
+                ),
+                payload["query"].__setitem__(
+                    "query_id",
+                    f"query.{payload['query']['query_hash'].removeprefix('sha256:')[:24]}",
+                ),
+                payload["source_executions"][0].__setitem__(
+                    "query_hash", payload["query"]["query_hash"]
+                ),
+                payload["source_executions"][0].__setitem__(
+                    "request_parameters_hash",
+                    compute_paper_source_request_parameters_hash(
+                        payload["query"], payload["source_executions"][0]["source_id"]
+                    ),
+                ),
+                payload["source_snapshots"][0].__setitem__(
+                    "query_hash", payload["query"]["query_hash"]
+                ),
+            ),
+            "PaperSearchInput original query string is inconsistent",
+        ),
+        (
+            lambda payload: (
                 payload["search_input"].__setitem__("source_ids", ["other_source"]),
                 payload["search_input"].__setitem__(
                     "input_hash",
@@ -483,11 +551,96 @@ def test_paper_search_input_rejects_invalid_access_policy() -> None:
                 payload["source_executions"][0].__setitem__(
                     "query_hash", payload["query"]["query_hash"]
                 ),
+                payload["source_executions"][0].__setitem__(
+                    "request_parameters_hash",
+                    compute_paper_source_request_parameters_hash(
+                        payload["query"], payload["source_executions"][0]["source_id"]
+                    ),
+                ),
                 payload["source_snapshots"][0].__setitem__(
                     "query_hash", payload["query"]["query_hash"]
                 ),
             ),
             "PaperSearchInput stable_ordering does not match query sort strategy",
+        ),
+        (
+            lambda payload: (
+                payload["query"].__setitem__("normalization_rule_version", "9.9.9"),
+                payload["query"].__setitem__(
+                    "query_hash", compute_normalized_query_hash(payload["query"])
+                ),
+                payload["query"].__setitem__(
+                    "query_id",
+                    f"query.{payload['query']['query_hash'].removeprefix('sha256:')[:24]}",
+                ),
+                payload["source_executions"][0].__setitem__(
+                    "query_hash", payload["query"]["query_hash"]
+                ),
+                payload["source_executions"][0].__setitem__(
+                    "request_parameters_hash",
+                    compute_paper_source_request_parameters_hash(
+                        payload["query"], payload["source_executions"][0]["source_id"]
+                    ),
+                ),
+                payload["source_snapshots"][0].__setitem__(
+                    "query_hash", payload["query"]["query_hash"]
+                ),
+            ),
+            "query normalization rule version does not match collection rules",
+        ),
+        (
+            lambda payload: payload["source_snapshots"][0]["request_metadata"].__setitem__(
+                "adapter_name", "wrong_adapter"
+            ),
+            "SourceSnapshot adapter_name does not match collection rules",
+        ),
+        (
+            lambda payload: payload["source_snapshots"][0]["request_metadata"].__setitem__(
+                "adapter_version", "9.9.9"
+            ),
+            "SourceSnapshot adapter_version does not match collection rules",
+        ),
+        (
+            lambda payload: payload["candidates"][0].__setitem__(
+                "ranking_rule_version", "9.9.9"
+            ),
+            "candidate ranking_rule_version does not match collection rules",
+        ),
+        (
+            lambda payload: payload["candidates"][0].__setitem__(
+                "selection_rule_version", "9.9.9"
+            ),
+            "candidate selection_rule_version does not match collection rules",
+        ),
+        (
+            lambda payload: payload["candidates"][0]["raw"].__setitem__(
+                "source_snapshot_id", f"snapshot.{uuid4()}"
+            ),
+            "candidate lacks SourceSnapshotRecord",
+        ),
+        (
+            lambda payload: payload["source_executions"][0].__setitem__(
+                "candidate_count", 99
+            ),
+            "source execution candidate_count is inconsistent",
+        ),
+        (
+            lambda payload: payload["producer"].__setitem__(
+                "parameters_hash", "sha256:" + "0" * 64
+            ),
+            "ProducerExecution parameters_hash does not match collection rules",
+        ),
+        (
+            lambda payload: payload["acquisition_run"].__setitem__(
+                "status", "failed"
+            ),
+            "acquisition_run status is inconsistent with source executions",
+        ),
+        (
+            lambda payload: payload["metrics"].__setitem__(
+                "duplicate_rate", 0.99
+            ),
+            "duplicate_rate metric is inconsistent",
         ),
     ],
 )

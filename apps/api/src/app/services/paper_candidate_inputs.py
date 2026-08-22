@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session
 
 from app.db.models import (
     ArtifactVersionModel,
-    EvidenceModel,
     PaperCandidateInputBindingModel,
     PaperCandidateInputIdempotencyModel,
     ResearchInputModel,
@@ -263,7 +262,6 @@ class PaperCandidateInputService:
             candidate_id=row.candidate_id,
             canonical_paper_id=row.canonical_paper_id,
             candidate_source_snapshot_id=str(row.candidate_source_snapshot_id),
-            candidate_evidence_ids=(str(row.candidate_evidence_id),),
             mode=row.mode,
             outcome=row.outcome,
             source_collection_status=row.source_collection_status,
@@ -333,7 +331,6 @@ class _BindingRecord:
     candidate_id: str
     canonical_paper_id: str
     candidate_source_snapshot_id: UUID
-    candidate_evidence_id: UUID
     mode: str
     outcome: str
     source_collection_status: str
@@ -553,34 +550,6 @@ class PaperCandidateInputRepository:
             snapshot = session.get(SourceSnapshotModel, snapshot_uuid)
             if snapshot is None or snapshot.project_id != project_uuid:
                 raise _integrity_problem()
-            candidate_evidence_options = tuple(
-                item
-                for item in candidate.evidence
-                if item.target_type == "paper_candidate"
-                and item.evidence_type == "paper_metadata"
-            )
-            if not candidate_evidence_options:
-                raise _integrity_problem()
-            candidate_evidence = min(
-                candidate_evidence_options, key=lambda item: item.id
-            )
-            evidence_uuid = _uuid(candidate_evidence.id)
-            evidence_row = session.scalar(
-                select(EvidenceModel).where(
-                    EvidenceModel.id == evidence_uuid,
-                    EvidenceModel.project_id == project_uuid,
-                    EvidenceModel.artifact_version_id == version_uuid,
-                    EvidenceModel.source_snapshot_id == snapshot_uuid,
-                    EvidenceModel.target_id.in_(
-                        (
-                            candidate.candidate.candidate_id,
-                            candidate.candidate.canonical_paper_id,
-                        )
-                    ),
-                )
-            )
-            if evidence_row is None:
-                raise _integrity_problem()
             input_uuid = _uuid(input_record.id) if input_record is not None else None
             if input_uuid is not None:
                 input_row = session.get(ResearchInputModel, input_uuid)
@@ -598,7 +567,6 @@ class PaperCandidateInputRepository:
                 "candidate_id": candidate.candidate.candidate_id,
                 "canonical_paper_id": candidate.candidate.canonical_paper_id,
                 "candidate_source_snapshot_id": snapshot_uuid,
-                "candidate_evidence_id": evidence_uuid,
                 "mode": request.mode,
                 "outcome": "metadata_only" if input_record is None else "accepted",
                 "source_collection_status": source_collection_status,
@@ -752,7 +720,6 @@ def _require_same_binding(
         "candidate_id",
         "canonical_paper_id",
         "candidate_source_snapshot_id",
-        "candidate_evidence_id",
         "mode",
         "outcome",
         "source_collection_status",
@@ -775,7 +742,6 @@ def _record(row: PaperCandidateInputBindingModel) -> _BindingRecord:
         candidate_id=row.candidate_id,
         canonical_paper_id=row.canonical_paper_id,
         candidate_source_snapshot_id=row.candidate_source_snapshot_id,
-        candidate_evidence_id=row.candidate_evidence_id,
         mode=row.mode,
         outcome=row.outcome,
         source_collection_status=row.source_collection_status,

@@ -1087,32 +1087,16 @@
           "type": "string"
         },
         "year_from": {
-          "anyOf": [
-            {
-              "maximum": 2100,
-              "minimum": 1900,
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Year From"
+          "maximum": 2100,
+          "minimum": 1900,
+          "title": "Year From",
+          "type": "integer"
         },
         "year_to": {
-          "anyOf": [
-            {
-              "maximum": 2100,
-              "minimum": 1900,
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Year To"
+          "maximum": 2100,
+          "minimum": 1900,
+          "title": "Year To",
+          "type": "integer"
         }
       },
       "required": [
@@ -1120,6 +1104,8 @@
         "contract_version",
         "contract_content_hash",
         "keywords",
+        "year_from",
+        "year_to",
         "source_ids",
         "candidate_limit",
         "selection_limit",

@@ -46,14 +46,15 @@ class PaperCollectionRead(BaseModel):
 
 
 class PaperCollectionCandidateRead(BaseModel):
-    """Candidate plus its duplicate, source and Evidence read projections."""
+    """Candidate plus its duplicate, source and collection identity read projections."""
 
     model_config = MODEL_CONFIG
 
+    paper_collection_version_id: Identifier
+    paper_collection_input_hash: ContentHash
     candidate: PaperCollectionCandidate
     duplicate_group: PaperDuplicateGroup
     source_snapshot: SourceSnapshotDetail
-    evidence: tuple[EvidenceDetail, ...] = Field(min_length=1)
 
 
 class PaperAccessEvidenceKind(StrEnum):
@@ -128,7 +129,6 @@ class PaperCandidateInputBinding(BaseModel):
     candidate_id: Identifier
     canonical_paper_id: Identifier
     candidate_source_snapshot_id: Identifier
-    candidate_evidence_ids: tuple[Identifier, ...] = Field(min_length=1)
     mode: Literal["open_access_url", "existing_research_input", "metadata_only"]
     # ``reused`` identifies an idempotent replay; persisted outcomes remain
     # the two durable business results and never expose a third database state.

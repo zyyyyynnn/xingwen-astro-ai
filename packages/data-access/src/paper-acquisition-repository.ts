@@ -16,7 +16,6 @@
  */
 
 import type {
-  EvidenceDetail as EvidenceDetailDto,
   PaperCollection as PaperCollectionDto,
   PaperCollectionCandidateRead as PaperCollectionCandidateReadDto,
   PaperCollectionRead as PaperCollectionReadDto,
@@ -50,7 +49,6 @@ import { asEntityId } from "@xingwen/domain";
 import { HttpClient, seg } from "./http-client";
 import { computeCanonicalJsonHash } from "./contract-hash";
 import { ValidationError } from "./errors";
-import { mapEvidenceDetail } from "./mapping";
 import type { PaperAcquisitionRepository } from "./ports";
 
 /** Internal page size; deliberately not exposed through the port. */
@@ -329,9 +327,6 @@ function mapCandidate(
     selectionRuleVersion: candidate.selection_rule_version,
     duplicateGroup: mapDuplicateGroup(read.duplicate_group),
     sourceSnapshot: mapSnapshotSummary(read.source_snapshot),
-    evidence: read.evidence.map((item: EvidenceDetailDto) =>
-      mapEvidenceDetail(item),
-    ),
   };
 }
 

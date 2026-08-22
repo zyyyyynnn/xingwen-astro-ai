@@ -12,7 +12,7 @@
     "artifact_id": "art_papcol_01",
     "project_id": "proj_01JEXAMPLE",
     "source_mode": "fixture",
-    "content_hash": "sha256:26b23d794392589f5208c6367a4b149076baa4323ae61a60c2c252cb707a9365",
+    "content_hash": "sha256:99070e5b14460c7bd760bd86b489be1ad9c2385ee7e7427ea6904125c1e1a68e",
     "input_hash": "sha256:d60648726dd16c37686cf2a47093a97c53dbfe8a856b4f15c6504e27e17e01c4",
     "created_at": "2026-07-21T08:24:45Z",
     "collection": {
@@ -141,6 +141,7 @@
           "cache_version": null,
           "request_metadata": {
             "adapter_name": "crossref_demo_fixture",
+            "adapter_version": "1.0.0",
             "data_level": "fixture",
             "demo_note": "deterministic demo fixture; not a live retrieval"
           }
@@ -611,7 +612,7 @@
         "prompt_version": null,
         "parameters_hash": "sha256:193081a3d9fa94466a0b3ab1bf540fb7f681d0343602c035cb9f47899546b794",
         "input_hash": "sha256:d60648726dd16c37686cf2a47093a97c53dbfe8a856b4f15c6504e27e17e01c4",
-        "output_hash": "sha256:3dddf63586aa424edc8441dd23603c0653ac8976564d147b2639b673bdbd42e6",
+        "output_hash": "sha256:65fdf281587848808a748594ee9a6d07fed2c8eaf0ad6cf9592a35d1e48bfe3e",
         "status": "completed",
         "started_at": "2026-07-21T08:24:00Z",
         "finished_at": "2026-07-21T08:24:45Z",
@@ -631,7 +632,7 @@
         "recalled_expected_candidate_count": 4,
         "candidate_recall": 1.0
       },
-      "output_hash": "sha256:3dddf63586aa424edc8441dd23603c0653ac8976564d147b2639b673bdbd42e6"
+      "output_hash": "sha256:65fdf281587848808a748594ee9a6d07fed2c8eaf0ad6cf9592a35d1e48bfe3e"
     },
     "producer_execution": {
       "id": "pexec_run_papcol_01",
@@ -654,7 +655,7 @@
       "parameters": {},
       "parameters_hash": "sha256:193081a3d9fa94466a0b3ab1bf540fb7f681d0343602c035cb9f47899546b794",
       "input_hash": "sha256:d60648726dd16c37686cf2a47093a97c53dbfe8a856b4f15c6504e27e17e01c4",
-      "output_hash": "sha256:3dddf63586aa424edc8441dd23603c0653ac8976564d147b2639b673bdbd42e6",
+      "output_hash": "sha256:65fdf281587848808a748594ee9a6d07fed2c8eaf0ad6cf9592a35d1e48bfe3e",
       "status": "completed",
       "started_at": "2026-07-21T08:24:00Z",
       "finished_at": "2026-07-21T08:24:45Z",
@@ -677,6 +678,7 @@
         "cache_version": null,
         "request_metadata": {
           "adapter_name": "crossref_demo_fixture",
+          "adapter_version": "1.0.0",
           "data_level": "fixture",
           "demo_note": "deterministic demo fixture; not a live retrieval"
         }
@@ -820,6 +822,8 @@
   },
   "candidate_reads": [
     {
+      "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
+      "paper_collection_input_hash": "sha256:d60648726dd16c37686cf2a47093a97c53dbfe8a856b4f15c6504e27e17e01c4",
       "candidate": {
         "candidate_id": "candidate.9c9bf84a0444a734b7c3e1d319eeb544e21e04aa8ff4f53831e544ed4554df9c",
         "raw": {
@@ -920,33 +924,15 @@
         "cache_version": null,
         "request_metadata": {
           "adapter_name": "crossref_demo_fixture",
+          "adapter_version": "1.0.0",
           "data_level": "fixture",
           "demo_note": "deterministic demo fixture; not a live retrieval"
         }
-      },
-      "evidence": [
-        {
-          "id": "evd_paper_01",
-          "artifact_version_id": "11111111-1111-4111-8111-111111111111",
-          "target_type": "paper_candidate",
-          "target_id": "candidate.9c9bf84a0444a734b7c3e1d319eeb544e21e04aa8ff4f53831e544ed4554df9c",
-          "evidence_type": "paper_search",
-          "source_snapshot_id": "snap_paper_crossref_01",
-          "paper_id": "paper.c2f79a3ceaf01e5b8571237e672d4724e4d8c707b109efb59d1b9733c3c55a99",
-          "locator": {
-            "kind": "database_cell",
-            "query_hash": "sha256:ad776ae8cb840622c0c9f0e57a7405520f412e819acecf3050101a52506e9013",
-            "row_key": "crossref:demo-duplicate-toi-catalog",
-            "field": "paper.title"
-          },
-          "quote_or_value": "TESS Objects of Interest Catalog from the TESS Prime Mission",
-          "extraction_method": "deterministic_parser",
-          "confidence": 1.0,
-          "created_at": "2026-07-21T08:24:45Z"
-        }
-      ]
+      }
     },
     {
+      "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
+      "paper_collection_input_hash": "sha256:d60648726dd16c37686cf2a47093a97c53dbfe8a856b4f15c6504e27e17e01c4",
       "candidate": {
         "candidate_id": "candidate.02ce823d0f143321d28cc5559795fe8bbc1c15e39e6323ad845e71c123cbcedb",
         "raw": {
@@ -1051,33 +1037,15 @@
         "cache_version": null,
         "request_metadata": {
           "adapter_name": "crossref_demo_fixture",
+          "adapter_version": "1.0.0",
           "data_level": "fixture",
           "demo_note": "deterministic demo fixture; not a live retrieval"
         }
-      },
-      "evidence": [
-        {
-          "id": "evd_paper_02",
-          "artifact_version_id": "11111111-1111-4111-8111-111111111111",
-          "target_type": "paper_candidate",
-          "target_id": "candidate.02ce823d0f143321d28cc5559795fe8bbc1c15e39e6323ad845e71c123cbcedb",
-          "evidence_type": "paper_search",
-          "source_snapshot_id": "snap_paper_crossref_01",
-          "paper_id": "paper.c2f79a3ceaf01e5b8571237e672d4724e4d8c707b109efb59d1b9733c3c55a99",
-          "locator": {
-            "kind": "database_cell",
-            "query_hash": "sha256:ad776ae8cb840622c0c9f0e57a7405520f412e819acecf3050101a52506e9013",
-            "row_key": "crossref:10.3847/1538-4365/abefe1",
-            "field": "paper.title"
-          },
-          "quote_or_value": "The TESS Objects of Interest Catalog from the TESS Prime Mission",
-          "extraction_method": "deterministic_parser",
-          "confidence": 1.0,
-          "created_at": "2026-07-21T08:24:45Z"
-        }
-      ]
+      }
     },
     {
+      "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
+      "paper_collection_input_hash": "sha256:d60648726dd16c37686cf2a47093a97c53dbfe8a856b4f15c6504e27e17e01c4",
       "candidate": {
         "candidate_id": "candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488",
         "raw": {
@@ -1141,33 +1109,15 @@
         "cache_version": null,
         "request_metadata": {
           "adapter_name": "crossref_demo_fixture",
+          "adapter_version": "1.0.0",
           "data_level": "fixture",
           "demo_note": "deterministic demo fixture; not a live retrieval"
         }
-      },
-      "evidence": [
-        {
-          "id": "evd_paper_03",
-          "artifact_version_id": "11111111-1111-4111-8111-111111111111",
-          "target_type": "paper_candidate",
-          "target_id": "candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488",
-          "evidence_type": "paper_search",
-          "source_snapshot_id": "snap_paper_crossref_01",
-          "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
-          "locator": {
-            "kind": "database_cell",
-            "query_hash": "sha256:ad776ae8cb840622c0c9f0e57a7405520f412e819acecf3050101a52506e9013",
-            "row_key": "crossref:10.3847/1538-3881/ab3467",
-            "field": "paper.title"
-          },
-          "quote_or_value": "The Revised TESS Input Catalog and Candidate Target List",
-          "extraction_method": "deterministic_parser",
-          "confidence": 1.0,
-          "created_at": "2026-07-21T08:24:45Z"
-        }
-      ]
+      }
     },
     {
+      "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
+      "paper_collection_input_hash": "sha256:d60648726dd16c37686cf2a47093a97c53dbfe8a856b4f15c6504e27e17e01c4",
       "candidate": {
         "candidate_id": "candidate.3583c307e03702c060c706e7fe3aa39cac4afed4c3e1f47eded9d2adcc8f415a",
         "raw": {
@@ -1231,33 +1181,15 @@
         "cache_version": null,
         "request_metadata": {
           "adapter_name": "crossref_demo_fixture",
+          "adapter_version": "1.0.0",
           "data_level": "fixture",
           "demo_note": "deterministic demo fixture; not a live retrieval"
         }
-      },
-      "evidence": [
-        {
-          "id": "evd_paper_04",
-          "artifact_version_id": "11111111-1111-4111-8111-111111111111",
-          "target_type": "paper_candidate",
-          "target_id": "candidate.3583c307e03702c060c706e7fe3aa39cac4afed4c3e1f47eded9d2adcc8f415a",
-          "evidence_type": "paper_search",
-          "source_snapshot_id": "snap_paper_crossref_01",
-          "paper_id": "paper.5150cdc95743446bb0b705185b7b07ea6d09fb7bda82b860a28b72ec6cacb3ab",
-          "locator": {
-            "kind": "database_cell",
-            "query_hash": "sha256:ad776ae8cb840622c0c9f0e57a7405520f412e819acecf3050101a52506e9013",
-            "row_key": "crossref:10.3847/1538-3881/aad050",
-            "field": "paper.title"
-          },
-          "quote_or_value": "The TESS Input Catalog and Candidate Target List",
-          "extraction_method": "deterministic_parser",
-          "confidence": 1.0,
-          "created_at": "2026-07-21T08:24:45Z"
-        }
-      ]
+      }
     },
     {
+      "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
+      "paper_collection_input_hash": "sha256:d60648726dd16c37686cf2a47093a97c53dbfe8a856b4f15c6504e27e17e01c4",
       "candidate": {
         "candidate_id": "candidate.c46a7e7bc6d500bbdd3d1a4dcabb15fa2db8ca4d67fccef4c2b56816d7dc0c0e",
         "raw": {
@@ -1332,33 +1264,15 @@
         "cache_version": null,
         "request_metadata": {
           "adapter_name": "crossref_demo_fixture",
+          "adapter_version": "1.0.0",
           "data_level": "fixture",
           "demo_note": "deterministic demo fixture; not a live retrieval"
         }
-      },
-      "evidence": [
-        {
-          "id": "evd_paper_05",
-          "artifact_version_id": "11111111-1111-4111-8111-111111111111",
-          "target_type": "paper_candidate",
-          "target_id": "candidate.c46a7e7bc6d500bbdd3d1a4dcabb15fa2db8ca4d67fccef4c2b56816d7dc0c0e",
-          "evidence_type": "paper_search",
-          "source_snapshot_id": "snap_paper_crossref_01",
-          "paper_id": "paper.c49f4872400d6fa5751e034a5b12e588014b28b3d37ab6cb949bb33449f00f9c",
-          "locator": {
-            "kind": "database_cell",
-            "query_hash": "sha256:ad776ae8cb840622c0c9f0e57a7405520f412e819acecf3050101a52506e9013",
-            "row_key": "crossref:10.1117/1.JATIS.1.1.014003",
-            "field": "paper.title"
-          },
-          "quote_or_value": "Transiting Exoplanet Survey Satellite",
-          "extraction_method": "deterministic_parser",
-          "confidence": 1.0,
-          "created_at": "2026-07-21T08:24:45Z"
-        }
-      ]
+      }
     },
     {
+      "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
+      "paper_collection_input_hash": "sha256:d60648726dd16c37686cf2a47093a97c53dbfe8a856b4f15c6504e27e17e01c4",
       "candidate": {
         "candidate_id": "candidate.b2abb7b70b542ae94f90f3f305d5b8222df8e4ce6b1777ebab159daa3bac781c",
         "raw": {
@@ -1425,33 +1339,15 @@
         "cache_version": null,
         "request_metadata": {
           "adapter_name": "crossref_demo_fixture",
+          "adapter_version": "1.0.0",
           "data_level": "fixture",
           "demo_note": "deterministic demo fixture; not a live retrieval"
         }
-      },
-      "evidence": [
-        {
-          "id": "evd_paper_06",
-          "artifact_version_id": "11111111-1111-4111-8111-111111111111",
-          "target_type": "paper_candidate",
-          "target_id": "candidate.b2abb7b70b542ae94f90f3f305d5b8222df8e4ce6b1777ebab159daa3bac781c",
-          "evidence_type": "paper_search",
-          "source_snapshot_id": "snap_paper_crossref_01",
-          "paper_id": "paper.7d7aeca298e716eec57277651124d39269c3779a5667d89ebebe2c0bc137f58f",
-          "locator": {
-            "kind": "database_cell",
-            "query_hash": "sha256:ad776ae8cb840622c0c9f0e57a7405520f412e819acecf3050101a52506e9013",
-            "row_key": "crossref:demo-uncertain-mission-reprint",
-            "field": "paper.title"
-          },
-          "quote_or_value": "Transiting Exoplanet Survey Satellite",
-          "extraction_method": "deterministic_parser",
-          "confidence": 1.0,
-          "created_at": "2026-07-21T08:24:45Z"
-        }
-      ]
+      }
     },
     {
+      "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
+      "paper_collection_input_hash": "sha256:d60648726dd16c37686cf2a47093a97c53dbfe8a856b4f15c6504e27e17e01c4",
       "candidate": {
         "candidate_id": "candidate.e3ff8c08ef3c48d0df02ea937ad554396bf724680a747f47a8bb5e3e1c27ec9b",
         "raw": {
@@ -1511,31 +1407,11 @@
         "cache_version": null,
         "request_metadata": {
           "adapter_name": "crossref_demo_fixture",
+          "adapter_version": "1.0.0",
           "data_level": "fixture",
           "demo_note": "deterministic demo fixture; not a live retrieval"
         }
-      },
-      "evidence": [
-        {
-          "id": "evd_paper_07",
-          "artifact_version_id": "11111111-1111-4111-8111-111111111111",
-          "target_type": "paper_candidate",
-          "target_id": "candidate.e3ff8c08ef3c48d0df02ea937ad554396bf724680a747f47a8bb5e3e1c27ec9b",
-          "evidence_type": "paper_search",
-          "source_snapshot_id": "snap_paper_crossref_01",
-          "paper_id": "paper.1cd1bbb7e10827a8207b559d4f0ae95d97d5822a4cea48e296607119a61a443c",
-          "locator": {
-            "kind": "database_cell",
-            "query_hash": "sha256:ad776ae8cb840622c0c9f0e57a7405520f412e819acecf3050101a52506e9013",
-            "row_key": "crossref:demo-unrelated-flares",
-            "field": "paper.title"
-          },
-          "quote_or_value": "A Survey of Unrelated M-dwarf Flares",
-          "extraction_method": "deterministic_parser",
-          "confidence": 1.0,
-          "created_at": "2026-07-21T08:24:45Z"
-        }
-      ]
+      }
     }
   ],
   "artifact_version": {
@@ -1671,6 +1547,7 @@
           "cache_version": null,
           "request_metadata": {
             "adapter_name": "crossref_demo_fixture",
+            "adapter_version": "1.0.0",
             "data_level": "fixture",
             "demo_note": "deterministic demo fixture; not a live retrieval"
           }
@@ -2141,7 +2018,7 @@
         "prompt_version": null,
         "parameters_hash": "sha256:193081a3d9fa94466a0b3ab1bf540fb7f681d0343602c035cb9f47899546b794",
         "input_hash": "sha256:d60648726dd16c37686cf2a47093a97c53dbfe8a856b4f15c6504e27e17e01c4",
-        "output_hash": "sha256:3dddf63586aa424edc8441dd23603c0653ac8976564d147b2639b673bdbd42e6",
+        "output_hash": "sha256:65fdf281587848808a748594ee9a6d07fed2c8eaf0ad6cf9592a35d1e48bfe3e",
         "status": "completed",
         "started_at": "2026-07-21T08:24:00Z",
         "finished_at": "2026-07-21T08:24:45Z",
@@ -2161,9 +2038,9 @@
         "recalled_expected_candidate_count": 4,
         "candidate_recall": 1.0
       },
-      "output_hash": "sha256:3dddf63586aa424edc8441dd23603c0653ac8976564d147b2639b673bdbd42e6"
+      "output_hash": "sha256:65fdf281587848808a748594ee9a6d07fed2c8eaf0ad6cf9592a35d1e48bfe3e"
     },
-    "content_hash": "sha256:26b23d794392589f5208c6367a4b149076baa4323ae61a60c2c252cb707a9365",
+    "content_hash": "sha256:99070e5b14460c7bd760bd86b489be1ad9c2385ee7e7427ea6904125c1e1a68e",
     "input_hash": "sha256:d60648726dd16c37686cf2a47093a97c53dbfe8a856b4f15c6504e27e17e01c4",
     "source_mode": "fixture",
     "producer": {
@@ -2212,7 +2089,7 @@
       "parameters": {},
       "parameters_hash": "sha256:193081a3d9fa94466a0b3ab1bf540fb7f681d0343602c035cb9f47899546b794",
       "input_hash": "sha256:d60648726dd16c37686cf2a47093a97c53dbfe8a856b4f15c6504e27e17e01c4",
-      "output_hash": "sha256:3dddf63586aa424edc8441dd23603c0653ac8976564d147b2639b673bdbd42e6",
+      "output_hash": "sha256:65fdf281587848808a748594ee9a6d07fed2c8eaf0ad6cf9592a35d1e48bfe3e",
       "status": "completed",
       "started_at": "2026-07-21T08:24:00Z",
       "finished_at": "2026-07-21T08:24:45Z",
@@ -2235,6 +2112,7 @@
         "cache_version": null,
         "request_metadata": {
           "adapter_name": "crossref_demo_fixture",
+          "adapter_version": "1.0.0",
           "data_level": "fixture",
           "demo_note": "deterministic demo fixture; not a live retrieval"
         }

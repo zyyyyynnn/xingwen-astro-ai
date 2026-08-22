@@ -25,6 +25,7 @@ from app.schemas.paper_collection import (
     ProducerExecution,
     compute_paper_collection_input_hash,
     compute_paper_collection_output_hash,
+    compute_paper_source_request_parameters_hash,
 )
 
 from .benchmark import load_frozen_benchmark
@@ -128,13 +129,8 @@ class PaperCollectionBenchmarkRunner:
         snapshots = []
         source_records: list[RawSourceRecord] = []
         source_started_at = self._now()
-        request_parameters_hash = compute_canonical_payload_hash(
-            {
-                "query_hash": query.query_hash,
-                "source_id": self.adapter.source_id,
-                "parameters": query.source_parameters[self.adapter.source_id],
-                "pagination": query.pagination.model_dump(mode="json"),
-            }
+        request_parameters_hash = compute_paper_source_request_parameters_hash(
+            query, self.adapter.source_id
         )
         try:
             result = self.adapter.search(

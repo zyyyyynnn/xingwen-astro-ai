@@ -44,9 +44,14 @@ from app.schemas.core import (
 from app.schemas.research_input import ResearchInputCreate
 from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.manifest import load_manifest_bundle
-from app.schemas.paper_collection import PaperSourcePage
-from app.schemas.enums import PaperDataLevel, SourceMode
+from app.schemas.paper_collection import (
+    PaperSourcePage,
+    normalize_paper_query_text,
+)
+from app.schemas.enums import PaperDataLevel, SourceMode, UpstreamFailureClass
 from app.security import canonical_request_hash
+from app.services.artifacts import ArtifactReadService
+from app.services.paper_collections import PaperCollectionReadService
 from app.services.model_execution import (
     ModelExecutionRequest,
     ModelExecutionResponse,
@@ -68,10 +73,10 @@ from app.workflow.persistent_executor import PersistentWorkflowExecutor
 from app.workflow.research_run_worker import ResearchRunWorker
 from app.workflow.store import PersistentWorkflowStore
 from services.paper_pipeline.live_collection import LivePaperCollectionRunner
-from services.paper_pipeline.query import normalize_text
 from services.paper_pipeline.sources.base import (
     NormalizedPaperQuery,
     RawSourceRecord,
+    SourceFailure,
     SourceSearchResult,
 )
 from services.scientific_skills.astro_acquisition import GaiaTapAdapter
@@ -192,7 +197,7 @@ class FrozenCrossrefAdapter:
         snapshot = SourceSnapshotRecord(
             snapshot_id="crossref-test-snapshot",
             source_id=self.source_id,
-            source_type="crossref_rest",
+            source_type="paper_metadata",
             retrieved_at=_FIXED_NOW,
             query=query.original_query_string,
             query_hash=query.query_hash,
@@ -202,7 +207,10 @@ class FrozenCrossrefAdapter:
             ),
             license_note="deposited metadata; publisher license governs content",
             cache_version=None,
-            request_metadata={},
+            request_metadata={
+                "adapter_name": self.adapter_name,
+                "adapter_version": self.adapter_version,
+            },
         )
         page = PaperSourcePage(
             page_number=1,
@@ -732,7 +740,7 @@ def _assert_publication_chain(
     assert seen is not None
     assert set(content["query"]["normalized_keywords"]) == set(seen.normalized_keywords)
     contract_keywords = {
-        normalize_text(keyword)
+        normalize_paper_query_text(keyword)
         for keyword in ("系外行星 宿主恒星", "exoplanet host star")
     }
     assert set(content["query"]["normalized_keywords"]) == contract_keywords
@@ -768,3 +776,413 @@ def _assert_run_events_and_thread(
         "planning",
         "searching_papers",
     }
+
+
+def test_paper_collection_read_service_returns_contract_search_projection(
+    postgres_engine: Engine,
+) -> None:
+    factory = session_factory(postgres_engine)
+    manifests = load_manifest_bundle(
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/case-manifest.json",
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/field-manifest.json",
+    )
+    store = PersistentWorkflowStore(factory)
+    service = ResearchApplicationService(
+        factory=factory,
+        workflow_store=store,
+        manifests=manifests,
+    )
+    session_id = f"session-{uuid4()}"
+    project = service.create_project(
+        session_id=session_id,
+        idempotency_key=f"project-{uuid4()}",
+        request=CreateResearchProjectRequest(
+            name="读取投影测试",
+            description="验证生产链产物经 ReadService 投影出无证据泄露的候选读模型",
+            case_key="exoplanet_host_star",
+        ),
+    )
+    draft = service.create_draft(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"draft-{uuid4()}",
+        request=CreateResearchContractDraftRequest(
+            intent="生成包含论文检索产物的执行",
+            contract=_contract_payload(),  # type: ignore[arg-type]
+        ),
+    )
+    contract = service.confirm_contract(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"confirm-{uuid4()}",
+        request=ConfirmResearchContractRequest(
+            draft_id=draft.id,
+            expected_draft_version=draft.version,
+        ),
+    )
+    run = service.create_run(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"run-{uuid4()}",
+        request=CreateRunRequest(
+            contract_id=contract.id,
+            execution_mode=ExecutionMode.live,
+        ),
+    )
+    run_id = UUID(run.id)
+    adapter = FrozenCrossrefAdapter(factory, run_id)
+    worker = ResearchRunWorker(
+        factory=factory,
+        store=store,
+        executor=PersistentWorkflowExecutor(store),
+        manifests=manifests,
+        model_port=ScriptedStepAgentModel(factory, run_id),
+        requested_model="qwen3.8-max",
+        explicit_revision=None,
+        paper_collection_runner=LivePaperCollectionRunner(
+            adapter=adapter,
+            clock=lambda: _FIXED_NOW,
+        ),
+    )
+    asyncio.run(worker.execute_run(run_id))
+    assert store.load_snapshot(run_id).status == "completed"
+
+    with factory() as session:
+        version_row = session.scalar(
+            select(ArtifactVersionModel).where(
+                ArtifactVersionModel.created_by_run_id == run_id,
+                ArtifactVersionModel.schema_version == "3.0.0",
+            )
+        )
+        assert version_row is not None
+        version_id = str(version_row.id)
+
+    read_service = PaperCollectionReadService(ArtifactReadService(factory))
+    collection_read = read_service.get_collection(
+        version_id=version_id, session_id=session_id
+    )
+    assert collection_read.collection.search_input is not None
+    assert collection_read.collection.search_input.contract_id == contract.id
+    assert collection_read.collection.benchmark is None
+
+    candidates, cursor, has_more = read_service.list_candidates(
+        version_id=version_id, session_id=session_id, cursor=None, limit=10
+    )
+    assert len(candidates) == 2
+    assert has_more is False
+    for candidate_read in candidates:
+        assert candidate_read.paper_collection_version_id == version_id
+        assert (
+            candidate_read.paper_collection_input_hash
+            == collection_read.collection.input_hash
+        )
+        assert candidate_read.source_snapshot.source_id == "crossref"
+
+    single_candidate = read_service.get_candidate(
+        version_id=version_id,
+        candidate_id=candidates[0].candidate.candidate_id,
+        session_id=session_id,
+    )
+    assert single_candidate.candidate.candidate_id == candidates[0].candidate.candidate_id
+    assert single_candidate.paper_collection_version_id == version_id
+
+
+class _FailingCrossrefAdapter(FrozenCrossrefAdapter):
+    def search(
+        self,
+        query: NormalizedPaperQuery,
+        *,
+        source_mode: SourceMode,
+        data_level: PaperDataLevel,
+    ) -> SourceSearchResult:
+        self.seen_query = query
+        raise SourceFailure(
+            UpstreamFailureClass.timeout,
+            "CROSSREF_TIMEOUT",
+            retryable=True,
+            attempt_count=3,
+        )
+
+
+def test_worker_handles_paper_search_upstream_timeout_failure(
+    postgres_engine: Engine,
+) -> None:
+    factory = session_factory(postgres_engine)
+    manifests = load_manifest_bundle(
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/case-manifest.json",
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/field-manifest.json",
+    )
+    store = PersistentWorkflowStore(factory)
+    service = ResearchApplicationService(
+        factory=factory,
+        workflow_store=store,
+        manifests=manifests,
+    )
+    session_id = f"session-{uuid4()}"
+    project = service.create_project(
+        session_id=session_id,
+        idempotency_key=f"project-{uuid4()}",
+        request=CreateResearchProjectRequest(
+            name="超时失败测试",
+            description="验证上游超时能够快照失败并正确记录可重试状态",
+            case_key="exoplanet_host_star",
+        ),
+    )
+    draft = service.create_draft(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"draft-{uuid4()}",
+        request=CreateResearchContractDraftRequest(
+            intent="执行论文检索超时测试",
+            contract=_contract_payload(),  # type: ignore[arg-type]
+        ),
+    )
+    contract = service.confirm_contract(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"confirm-{uuid4()}",
+        request=ConfirmResearchContractRequest(
+            draft_id=draft.id,
+            expected_draft_version=draft.version,
+        ),
+    )
+    run = service.create_run(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"run-{uuid4()}",
+        request=CreateRunRequest(
+            contract_id=contract.id,
+            execution_mode=ExecutionMode.live,
+        ),
+    )
+    run_id = UUID(run.id)
+    adapter = _FailingCrossrefAdapter(factory, run_id)
+    worker = ResearchRunWorker(
+        factory=factory,
+        store=store,
+        executor=PersistentWorkflowExecutor(store),
+        manifests=manifests,
+        model_port=ScriptedStepAgentModel(factory, run_id),
+        requested_model="qwen3.8-max",
+        explicit_revision=None,
+        paper_collection_runner=LivePaperCollectionRunner(
+            adapter=adapter,
+            clock=lambda: _FIXED_NOW,
+        ),
+    )
+    asyncio.run(worker.execute_run(run_id))
+    snapshot = store.load_snapshot(run_id)
+    assert snapshot.status == "failed"
+    step = next(s for s in snapshot.steps if s.key == "searching_papers")
+    assert step.status == "failed"
+    assert step.failure_code == "CROSSREF_TIMEOUT"
+    assert step.attempts[-1].error_code == "CROSSREF_TIMEOUT"
+    assert step.attempts[-1].retryable is True
+
+    with factory() as session:
+        producer_exec = session.scalar(
+            select(ProducerExecutionModel).where(
+                ProducerExecutionModel.run_id == run_id,
+                ProducerExecutionModel.step_key == "searching_papers",
+                ProducerExecutionModel.producer_type == "algorithm",
+            )
+        )
+        assert producer_exec is not None
+        assert producer_exec.status == "failed"
+        assert producer_exec.error_code == "CROSSREF_TIMEOUT"
+
+
+class _EmptyCrossrefAdapter(FrozenCrossrefAdapter):
+    def __init__(self, factory, run_id: UUID) -> None:
+        super().__init__(factory, run_id)
+        self.records = ()
+
+
+def test_worker_handles_paper_search_empty_candidates_failure(
+    postgres_engine: Engine,
+) -> None:
+    factory = session_factory(postgres_engine)
+    manifests = load_manifest_bundle(
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/case-manifest.json",
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/field-manifest.json",
+    )
+    store = PersistentWorkflowStore(factory)
+    service = ResearchApplicationService(
+        factory=factory,
+        workflow_store=store,
+        manifests=manifests,
+    )
+    session_id = f"session-{uuid4()}"
+    project = service.create_project(
+        session_id=session_id,
+        idempotency_key=f"project-{uuid4()}",
+        request=CreateResearchProjectRequest(
+            name="空结果失败测试",
+            description="验证检索无候选结果直接置为 rejected",
+            case_key="exoplanet_host_star",
+        ),
+    )
+    draft = service.create_draft(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"draft-{uuid4()}",
+        request=CreateResearchContractDraftRequest(
+            intent="执行空候选测试",
+            contract=_contract_payload(),  # type: ignore[arg-type]
+        ),
+    )
+    contract = service.confirm_contract(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"confirm-{uuid4()}",
+        request=ConfirmResearchContractRequest(
+            draft_id=draft.id,
+            expected_draft_version=draft.version,
+        ),
+    )
+    run = service.create_run(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"run-{uuid4()}",
+        request=CreateRunRequest(
+            contract_id=contract.id,
+            execution_mode=ExecutionMode.live,
+        ),
+    )
+    run_id = UUID(run.id)
+    adapter = _EmptyCrossrefAdapter(factory, run_id)
+    worker = ResearchRunWorker(
+        factory=factory,
+        store=store,
+        executor=PersistentWorkflowExecutor(store),
+        manifests=manifests,
+        model_port=ScriptedStepAgentModel(factory, run_id),
+        requested_model="qwen3.8-max",
+        explicit_revision=None,
+        paper_collection_runner=LivePaperCollectionRunner(
+            adapter=adapter,
+            clock=lambda: _FIXED_NOW,
+        ),
+    )
+    asyncio.run(worker.execute_run(run_id))
+    snapshot = store.load_snapshot(run_id)
+    assert snapshot.status == "failed"
+    step = next(s for s in snapshot.steps if s.key == "searching_papers")
+    assert step.status == "failed"
+    assert step.failure_code == "PAPER_COLLECTION_EMPTY"
+    assert step.attempts[-1].error_code == "PAPER_COLLECTION_EMPTY"
+    assert step.attempts[-1].retryable is False
+
+    with factory() as session:
+        producer_exec = session.scalar(
+            select(ProducerExecutionModel).where(
+                ProducerExecutionModel.run_id == run_id,
+                ProducerExecutionModel.step_key == "searching_papers",
+                ProducerExecutionModel.producer_type == "algorithm",
+            )
+        )
+        assert producer_exec is not None
+        assert producer_exec.status == "rejected"
+        assert producer_exec.error_code == "PAPER_COLLECTION_EMPTY"
+
+
+def test_worker_handles_unsupported_paper_search_source_failure(
+    postgres_engine: Engine,
+) -> None:
+    factory = session_factory(postgres_engine)
+    manifests = load_manifest_bundle(
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/case-manifest.json",
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/field-manifest.json",
+    )
+    store = PersistentWorkflowStore(factory)
+    service = ResearchApplicationService(
+        factory=factory,
+        workflow_store=store,
+        manifests=manifests,
+    )
+    session_id = f"session-{uuid4()}"
+    project = service.create_project(
+        session_id=session_id,
+        idempotency_key=f"project-{uuid4()}",
+        request=CreateResearchProjectRequest(
+            name="未支持来源失败测试",
+            description="验证未支持来源检索直接置为 rejected 且不可重试",
+            case_key="exoplanet_host_star",
+        ),
+    )
+    unsupported_contract_payload = dict(_contract_payload())
+    unsupported_contract_payload["paper_search_scope"] = {
+        "keywords": ("系外行星 宿主恒星", "exoplanet host star"),
+        "source_ids": ("unsupported_source",),
+        "max_candidates": 5,
+    }
+    draft = service.create_draft(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"draft-{uuid4()}",
+        request=CreateResearchContractDraftRequest(
+            intent="执行未支持来源测试",
+            contract=unsupported_contract_payload,  # type: ignore[arg-type]
+        ),
+    )
+    contract = service.confirm_contract(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"confirm-{uuid4()}",
+        request=ConfirmResearchContractRequest(
+            draft_id=draft.id,
+            expected_draft_version=draft.version,
+        ),
+    )
+    run = service.create_run(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"run-{uuid4()}",
+        request=CreateRunRequest(
+            contract_id=contract.id,
+            execution_mode=ExecutionMode.live,
+        ),
+    )
+    run_id = UUID(run.id)
+    adapter = FrozenCrossrefAdapter(factory, run_id)
+    worker = ResearchRunWorker(
+        factory=factory,
+        store=store,
+        executor=PersistentWorkflowExecutor(store),
+        manifests=manifests,
+        model_port=ScriptedStepAgentModel(factory, run_id),
+        requested_model="qwen3.8-max",
+        explicit_revision=None,
+        paper_collection_runner=LivePaperCollectionRunner(
+            adapter=adapter,
+            clock=lambda: _FIXED_NOW,
+        ),
+    )
+    asyncio.run(worker.execute_run(run_id))
+    snapshot = store.load_snapshot(run_id)
+    assert snapshot.status == "failed"
+    step = next(s for s in snapshot.steps if s.key == "searching_papers")
+    assert step.status == "failed"
+    assert step.failure_code == "PAPER_SOURCE_UNSUPPORTED"
+    assert step.attempts[-1].error_code == "PAPER_SOURCE_UNSUPPORTED"
+    assert step.attempts[-1].retryable is False
+
+    with factory() as session:
+        producer_exec = session.scalar(
+            select(ProducerExecutionModel).where(
+                ProducerExecutionModel.run_id == run_id,
+                ProducerExecutionModel.step_key == "searching_papers",
+                ProducerExecutionModel.producer_type == "algorithm",
+            )
+        )
+        assert producer_exec is None
+
+

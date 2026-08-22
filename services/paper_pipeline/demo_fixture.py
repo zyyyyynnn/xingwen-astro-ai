@@ -249,6 +249,7 @@ class DemoSourceAdapter:
             ),
             request_metadata={
                 "adapter_name": self.adapter_name,
+                "adapter_version": self.adapter_version,
                 "data_level": data_level.value,
                 "demo_note": "deterministic demo fixture; not a live retrieval",
             },
@@ -370,16 +371,11 @@ def build_demo_read() -> tuple[PaperCollectionRead, tuple[PaperCollectionCandida
     }
     candidate_reads = tuple(
         PaperCollectionCandidateRead(
+            paper_collection_version_id=_ARTIFACT_VERSION_ID,
+            paper_collection_input_hash=collection.input_hash,
             candidate=candidate,
             duplicate_group=groups[candidate.duplicate_group_id],
             source_snapshot=snapshot_detail,
-            evidence=tuple(
-                item
-                for item in evidence
-                if item.target_id
-                in {candidate.candidate_id, candidate.canonical_paper_id}
-                and item.source_snapshot_id == snapshot_detail.id
-            ),
         )
         for candidate in collection.candidates
     )

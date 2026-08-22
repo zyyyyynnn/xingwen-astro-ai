@@ -261,7 +261,10 @@ class _FixtureAdapter:
             query_hash=query.query_hash,
             content_hash=records_hash,
             license_note="Public metadata only.",
-            request_metadata={"adapter_name": self.adapter_name},
+            request_metadata={
+                "adapter_name": self.adapter_name,
+                "adapter_version": self.adapter_version,
+            },
         )
         page = PaperSourcePage(
             page_number=1,
@@ -380,7 +383,10 @@ class _Artifacts:
                     query_hash=self.collection.query.query_hash,
                     content_hash=self.collection.source_snapshots[0].content_hash,
                     license_note="Public metadata only.",
-                    request_metadata={"adapter_name": "paper_collection_api_fixture"},
+                    request_metadata={
+                        "adapter_name": "paper_collection_api_fixture",
+                        "adapter_version": "1.0.0",
+                    },
                 ),
             )
             if self.collection.source_snapshots
@@ -419,7 +425,7 @@ class _Artifacts:
                 parameters={},
                 parameters_hash=self.collection.producer.parameters_hash,
                 input_hash=self.collection.input_hash,
-                output_hash=self.collection.output_hash,
+                output_hash=compute_canonical_payload_hash(content),
                 status="completed",
                 started_at=NOW,
                 finished_at=NOW,
@@ -497,7 +503,9 @@ def test_candidate_cursor_is_stable_scoped_and_resolves_provenance(
     combined = first + second
     assert len({item.candidate.candidate_id for item in combined}) == 3
     assert all(
-        item.evidence and item.source_snapshot.id == SNAPSHOT_ID for item in combined
+        item.paper_collection_version_id == VERSION_ID
+        and item.source_snapshot.id == SNAPSHOT_ID
+        for item in combined
     )
 
     class _CrossVersion(_Artifacts):
@@ -1631,7 +1639,7 @@ def _seed_published_collection(
         parameters={},
         parameters_hash=collection.producer.parameters_hash,
         input_hash=collection.input_hash,
-        output_hash=collection.output_hash,
+        output_hash=admitted_hash,
         status="completed",
         started_at=NOW,
         finished_at=NOW,
@@ -1657,8 +1665,8 @@ def _seed_published_collection(
         content_hash=collection.source_snapshots[0].content_hash,
         license_note="Public metadata only.",
         request_metadata={
-            "method": "GET",
-            "authorization": "Bearer must-not-leak",
+            "adapter_name": "paper_collection_api_fixture",
+            "adapter_version": "1.0.0",
         },
     )
     version = ArtifactVersionModel(

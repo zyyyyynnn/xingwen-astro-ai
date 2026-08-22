@@ -72,9 +72,9 @@ def test_every_candidate_read_passes_pydantic(
         str(item.candidate_id) for item in read.collection.candidates
     ]
     for item in reads:
-        assert item.evidence, "every candidate read must carry Evidence"
-        for evidence in item.evidence:
-            assert evidence.source_snapshot_id == item.source_snapshot.id
+        assert item.paper_collection_version_id == read.artifact_version_id
+        assert item.paper_collection_input_hash == read.collection.input_hash
+        assert item.source_snapshot.id == read.source_snapshots[0].id
 
 
 def test_benchmark_identity_matches_frozen_package(

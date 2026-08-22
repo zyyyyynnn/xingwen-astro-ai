@@ -1913,7 +1913,7 @@ export interface CollectionEnvelope_PaperCollectionCandidateRead_ {
   page: CursorPage;
 }
 /**
- * Candidate plus its duplicate, source and Evidence read projections.
+ * Candidate plus its duplicate, source and collection identity read projections.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "PaperCollectionCandidateRead".
@@ -1921,10 +1921,8 @@ export interface CollectionEnvelope_PaperCollectionCandidateRead_ {
 export interface PaperCollectionCandidateRead {
   candidate: PaperCollectionCandidate;
   duplicate_group: PaperDuplicateGroup;
-  /**
-   * @minItems 1
-   */
-  evidence: [EvidenceDetail, ...EvidenceDetail[]];
+  paper_collection_input_hash: string;
+  paper_collection_version_id: string;
   source_snapshot: SourceSnapshotDetail;
 }
 /**
@@ -3312,10 +3310,6 @@ export interface Envelope_PaperCandidateInputBinding_ {
 export interface PaperCandidateInputBinding {
   access_evidence?: PaperCandidateAccessEvidence | null;
   access_evidence_hash?: string | null;
-  /**
-   * @minItems 1
-   */
-  candidate_evidence_ids: [string, ...string[]];
   candidate_id: string;
   candidate_source_snapshot_id: string;
   canonical_paper_id: string;
@@ -3571,8 +3565,8 @@ export interface PaperSearchInput {
   source_ids: [string, ...string[]];
   source_policy_version?: string;
   stable_ordering?: "source_relevance_then_canonical_tie_breaker";
-  year_from?: number | null;
-  year_to?: number | null;
+  year_from: number;
+  year_to: number;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema

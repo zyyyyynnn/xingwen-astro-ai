@@ -132,6 +132,7 @@ class FixtureAdapter:
             license_note="Fixture contains public bibliographic metadata only.",
             request_metadata={
                 "adapter_name": self.adapter_name,
+                "adapter_version": self.adapter_version,
                 "data_level": data_level.value,
             },
         )

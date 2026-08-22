@@ -9,6 +9,8 @@ from app.schemas.paper_collection import (
 )
 
 from .constants import (
+    OPEN_YEAR_FROM,
+    OPEN_YEAR_TO,
     PRODUCER_NAME,
     PRODUCER_VERSION,
     SOURCE_POLICY_VERSION,
@@ -41,6 +43,8 @@ def build_paper_search_input(
 
     candidate_limit = scope.max_candidates
     selection_limit = scope.max_candidates
+    resolved_year_from = OPEN_YEAR_FROM if scope.year_from is None else scope.year_from
+    resolved_year_to = OPEN_YEAR_TO if scope.year_to is None else scope.year_to
 
     base_payload = {
         "schema_version": "1.0.0",
@@ -48,8 +52,8 @@ def build_paper_search_input(
         "contract_version": contract.version,
         "contract_content_hash": contract.content_hash,
         "keywords": raw_keywords,
-        "year_from": scope.year_from,
-        "year_to": scope.year_to,
+        "year_from": resolved_year_from,
+        "year_to": resolved_year_to,
         "source_ids": raw_source_ids,
         "candidate_limit": candidate_limit,
         "selection_limit": selection_limit,
