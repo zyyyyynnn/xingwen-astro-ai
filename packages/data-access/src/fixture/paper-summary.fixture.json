@@ -16,8 +16,8 @@
     "version_number": 1,
     "supersedes_version_id": null,
     "source_mode": "fixture",
-    "content_hash": "sha256:63c8514bbc032d16272b8c1137b36dc9fb43e1e5bb5bdd86c3278eefb60018fc",
-    "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
+    "content_hash": "sha256:dc235da6491b8b1cc1897f776939e1c1871fedcda0c51795af47dcd9ede0f044",
+    "input_hash": "sha256:6c8751c40b59bdc9167c647a4585cf181145caced47a1dc1719e86e7288eeafc",
     "created_at": "2026-07-21T08:25:00Z",
     "paper": {
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
@@ -28,7 +28,7 @@
     "summary": {
       "kind": "paper_summary",
       "schema_version": "2.0.0",
-      "summary_id": "summary.689962460325bd4e386896bd",
+      "summary_id": "summary.03ec97987e9f721ab7215656",
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
       "paper": null,
       "benchmark": {
@@ -41,8 +41,8 @@
       },
       "input_versions": {
         "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
-        "paper_collection_schema_version": "2.1.0",
-        "paper_collection_output_hash": "sha256:93eeca827498b3217df9a214f8625af045eae3aa571ece41f3ed295e5b8ef77e",
+        "paper_collection_schema_version": "3.0.0",
+        "paper_collection_output_hash": "sha256:65fdf281587848808a748594ee9a6d07fed2c8eaf0ad6cf9592a35d1e48bfe3e",
         "document_parses": [],
         "source_snapshots": [
           {
@@ -210,7 +210,7 @@
       ],
       "source_conflicts": [],
       "producer": {
-        "execution_id": "execution.2d5a9d060c75c4177879afd3",
+        "execution_id": "execution.6c8751c40b59bdc9167c647a",
         "run_id": null,
         "step_key": "summarizing_papers",
         "producer_type": "model",
@@ -228,8 +228,8 @@
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
         "input_versions": {
           "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
-          "paper_collection_schema_version": "2.1.0",
-          "paper_collection_output_hash": "sha256:93eeca827498b3217df9a214f8625af045eae3aa571ece41f3ed295e5b8ef77e",
+          "paper_collection_schema_version": "3.0.0",
+          "paper_collection_output_hash": "sha256:65fdf281587848808a748594ee9a6d07fed2c8eaf0ad6cf9592a35d1e48bfe3e",
           "document_parses": [],
           "source_snapshots": [
             {
@@ -240,17 +240,17 @@
             }
           ]
         },
-        "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
+        "input_hash": "sha256:6c8751c40b59bdc9167c647a4585cf181145caced47a1dc1719e86e7288eeafc",
         "model_response_hash": "sha256:90dfa5e86c7510c092a671d33dbbd308ce9470e3c8c90be0cf3c62a6d2e04d3d",
-        "output_hash": "sha256:1388c4adc90ed0799f18edfb3d00bf12f7e5c8aa1608454c48c71327d654bca9",
+        "output_hash": "sha256:1eb715e28cb1447906a892a0940051bb5f0970ad34a211d1e065ccb715b6d79e",
         "status": "completed",
         "started_at": "2026-07-21T08:25:00Z",
         "finished_at": "2026-07-21T08:25:00Z",
         "latency_ms": 0,
         "error_code": null
       },
-      "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
-      "output_hash": "sha256:1388c4adc90ed0799f18edfb3d00bf12f7e5c8aa1608454c48c71327d654bca9"
+      "input_hash": "sha256:6c8751c40b59bdc9167c647a4585cf181145caced47a1dc1719e86e7288eeafc",
+      "output_hash": "sha256:1eb715e28cb1447906a892a0940051bb5f0970ad34a211d1e065ccb715b6d79e"
     },
     "cache_audits": [],
     "producer_execution": {
@@ -276,8 +276,8 @@
         "top_p": 1
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
-      "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
-      "output_hash": "sha256:63c8514bbc032d16272b8c1137b36dc9fb43e1e5bb5bdd86c3278eefb60018fc",
+      "input_hash": "sha256:6c8751c40b59bdc9167c647a4585cf181145caced47a1dc1719e86e7288eeafc",
+      "output_hash": "sha256:dc235da6491b8b1cc1897f776939e1c1871fedcda0c51795af47dcd9ede0f044",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",
@@ -300,6 +300,7 @@
         "cache_version": null,
         "request_metadata": {
           "adapter_name": "crossref_demo_fixture",
+          "adapter_version": "1.0.0",
           "data_level": "fixture",
           "demo_note": "deterministic demo fixture; not a live retrieval"
         }
@@ -399,7 +400,7 @@
     "content": {
       "kind": "paper_summary",
       "schema_version": "2.0.0",
-      "summary_id": "summary.689962460325bd4e386896bd",
+      "summary_id": "summary.03ec97987e9f721ab7215656",
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
       "paper": null,
       "benchmark": {
@@ -412,8 +413,8 @@
       },
       "input_versions": {
         "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
-        "paper_collection_schema_version": "2.1.0",
-        "paper_collection_output_hash": "sha256:93eeca827498b3217df9a214f8625af045eae3aa571ece41f3ed295e5b8ef77e",
+        "paper_collection_schema_version": "3.0.0",
+        "paper_collection_output_hash": "sha256:65fdf281587848808a748594ee9a6d07fed2c8eaf0ad6cf9592a35d1e48bfe3e",
         "document_parses": [],
         "source_snapshots": [
           {
@@ -581,7 +582,7 @@
       ],
       "source_conflicts": [],
       "producer": {
-        "execution_id": "execution.2d5a9d060c75c4177879afd3",
+        "execution_id": "execution.6c8751c40b59bdc9167c647a",
         "run_id": null,
         "step_key": "summarizing_papers",
         "producer_type": "model",
@@ -599,8 +600,8 @@
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
         "input_versions": {
           "paper_collection_version_id": "11111111-1111-4111-8111-111111111111",
-          "paper_collection_schema_version": "2.1.0",
-          "paper_collection_output_hash": "sha256:93eeca827498b3217df9a214f8625af045eae3aa571ece41f3ed295e5b8ef77e",
+          "paper_collection_schema_version": "3.0.0",
+          "paper_collection_output_hash": "sha256:65fdf281587848808a748594ee9a6d07fed2c8eaf0ad6cf9592a35d1e48bfe3e",
           "document_parses": [],
           "source_snapshots": [
             {
@@ -611,20 +612,20 @@
             }
           ]
         },
-        "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
+        "input_hash": "sha256:6c8751c40b59bdc9167c647a4585cf181145caced47a1dc1719e86e7288eeafc",
         "model_response_hash": "sha256:90dfa5e86c7510c092a671d33dbbd308ce9470e3c8c90be0cf3c62a6d2e04d3d",
-        "output_hash": "sha256:1388c4adc90ed0799f18edfb3d00bf12f7e5c8aa1608454c48c71327d654bca9",
+        "output_hash": "sha256:1eb715e28cb1447906a892a0940051bb5f0970ad34a211d1e065ccb715b6d79e",
         "status": "completed",
         "started_at": "2026-07-21T08:25:00Z",
         "finished_at": "2026-07-21T08:25:00Z",
         "latency_ms": 0,
         "error_code": null
       },
-      "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
-      "output_hash": "sha256:1388c4adc90ed0799f18edfb3d00bf12f7e5c8aa1608454c48c71327d654bca9"
+      "input_hash": "sha256:6c8751c40b59bdc9167c647a4585cf181145caced47a1dc1719e86e7288eeafc",
+      "output_hash": "sha256:1eb715e28cb1447906a892a0940051bb5f0970ad34a211d1e065ccb715b6d79e"
     },
-    "content_hash": "sha256:63c8514bbc032d16272b8c1137b36dc9fb43e1e5bb5bdd86c3278eefb60018fc",
-    "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
+    "content_hash": "sha256:dc235da6491b8b1cc1897f776939e1c1871fedcda0c51795af47dcd9ede0f044",
+    "input_hash": "sha256:6c8751c40b59bdc9167c647a4585cf181145caced47a1dc1719e86e7288eeafc",
     "source_mode": "fixture",
     "producer": {
       "type": "model",
@@ -671,8 +672,8 @@
         "top_p": 1
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
-      "input_hash": "sha256:2d5a9d060c75c4177879afd369796133b6e9ca1f8bc26e22c788d92e00f1f660",
-      "output_hash": "sha256:63c8514bbc032d16272b8c1137b36dc9fb43e1e5bb5bdd86c3278eefb60018fc",
+      "input_hash": "sha256:6c8751c40b59bdc9167c647a4585cf181145caced47a1dc1719e86e7288eeafc",
+      "output_hash": "sha256:dc235da6491b8b1cc1897f776939e1c1871fedcda0c51795af47dcd9ede0f044",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",
@@ -695,6 +696,7 @@
         "cache_version": null,
         "request_metadata": {
           "adapter_name": "crossref_demo_fixture",
+          "adapter_version": "1.0.0",
           "data_level": "fixture",
           "demo_note": "deterministic demo fixture; not a live retrieval"
         }

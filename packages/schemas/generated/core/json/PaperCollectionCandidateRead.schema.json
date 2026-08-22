@@ -1,110 +1,5 @@
 {
   "$defs": {
-    "EvidenceDetail": {
-      "additionalProperties": false,
-      "description": "Evidence bound to one immutable version and source snapshot.",
-      "properties": {
-        "artifact_version_id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Artifact Version Id",
-          "type": "string"
-        },
-        "confidence": {
-          "maximum": 1,
-          "minimum": 0,
-          "title": "Confidence",
-          "type": "number"
-        },
-        "created_at": {
-          "format": "date-time",
-          "title": "Created At",
-          "type": "string"
-        },
-        "evidence_type": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Evidence Type",
-          "type": "string"
-        },
-        "extraction_method": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Extraction Method",
-          "type": "string"
-        },
-        "id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Id",
-          "type": "string"
-        },
-        "locator": {
-          "additionalProperties": {
-            "$ref": "#/$defs/JsonValue"
-          },
-          "title": "Locator",
-          "type": "object"
-        },
-        "paper_id": {
-          "anyOf": [
-            {
-              "maxLength": 128,
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Paper Id"
-        },
-        "quote_or_value": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/JsonValue"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "source_snapshot_id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Source Snapshot Id",
-          "type": "string"
-        },
-        "target_id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Target Id",
-          "type": "string"
-        },
-        "target_type": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Target Type",
-          "type": "string"
-        }
-      },
-      "required": [
-        "id",
-        "artifact_version_id",
-        "target_type",
-        "target_id",
-        "evidence_type",
-        "source_snapshot_id",
-        "locator",
-        "extraction_method",
-        "confidence",
-        "created_at"
-      ],
-      "title": "EvidenceDetail",
-      "type": "object"
-    },
     "JsonValue": {},
     "PaperCandidateConflict": {
       "additionalProperties": false,
@@ -607,7 +502,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "Candidate plus its duplicate, source and Evidence read projections.",
+  "description": "Candidate plus its duplicate, source and collection identity read projections.",
   "properties": {
     "candidate": {
       "$ref": "#/$defs/PaperCollectionCandidate"
@@ -615,23 +510,27 @@
     "duplicate_group": {
       "$ref": "#/$defs/PaperDuplicateGroup"
     },
-    "evidence": {
-      "items": {
-        "$ref": "#/$defs/EvidenceDetail"
-      },
-      "minItems": 1,
-      "title": "Evidence",
-      "type": "array"
+    "paper_collection_input_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Paper Collection Input Hash",
+      "type": "string"
+    },
+    "paper_collection_version_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Paper Collection Version Id",
+      "type": "string"
     },
     "source_snapshot": {
       "$ref": "#/$defs/SourceSnapshotDetail"
     }
   },
   "required": [
+    "paper_collection_version_id",
+    "paper_collection_input_hash",
     "candidate",
     "duplicate_group",
-    "source_snapshot",
-    "evidence"
+    "source_snapshot"
   ],
   "title": "PaperCollectionCandidateRead",
   "type": "object"

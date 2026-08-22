@@ -225,8 +225,8 @@ class PaperSearchScope(BaseModel):
     model_config = CORE_MODEL_CONFIG
 
     keywords: tuple[NonEmptyString, ...] = ()
-    year_from: int | None = Field(default=None, ge=1900, le=9999)
-    year_to: int | None = Field(default=None, ge=1900, le=9999)
+    year_from: int | None = Field(default=None, ge=1900, le=2100)
+    year_to: int | None = Field(default=None, ge=1900, le=2100)
     source_ids: tuple[Identifier, ...] = ()
     max_candidates: int = Field(default=20, ge=1, le=100)
 

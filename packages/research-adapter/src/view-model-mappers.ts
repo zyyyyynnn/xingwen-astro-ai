@@ -517,7 +517,6 @@ export function toPaperAcquisitionViewModel(
           }),
         ),
       },
-      evidence: candidate.evidence.map((item) => ({ ...item })),
     })),
   };
 }

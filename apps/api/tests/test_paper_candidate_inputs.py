@@ -128,7 +128,6 @@ def test_binding_does_not_expose_duplicate_as_a_persisted_outcome() -> None:
             candidate_id="candidate-1",
             canonical_paper_id="paper-1",
             candidate_source_snapshot_id="snapshot-1",
-            candidate_evidence_ids=("evidence-1",),
             mode="metadata_only",
             outcome="duplicate",
             source_collection_status="completed",

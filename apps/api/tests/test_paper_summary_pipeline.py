@@ -101,6 +101,7 @@ class SummaryFixtureAdapter:
             license_note="Public bibliographic metadata fixture; no restricted full text.",
             request_metadata={
                 "adapter_name": self.adapter_name,
+                "adapter_version": self.adapter_version,
                 "data_level": data_level.value,
             },
         )

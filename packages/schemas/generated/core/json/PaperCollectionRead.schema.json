@@ -1,110 +1,5 @@
 {
   "$defs": {
-    "EvidenceDetail": {
-      "additionalProperties": false,
-      "description": "Evidence bound to one immutable version and source snapshot.",
-      "properties": {
-        "artifact_version_id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Artifact Version Id",
-          "type": "string"
-        },
-        "confidence": {
-          "maximum": 1,
-          "minimum": 0,
-          "title": "Confidence",
-          "type": "number"
-        },
-        "created_at": {
-          "format": "date-time",
-          "title": "Created At",
-          "type": "string"
-        },
-        "evidence_type": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Evidence Type",
-          "type": "string"
-        },
-        "extraction_method": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Extraction Method",
-          "type": "string"
-        },
-        "id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Id",
-          "type": "string"
-        },
-        "locator": {
-          "additionalProperties": {
-            "$ref": "#/$defs/JsonValue"
-          },
-          "title": "Locator",
-          "type": "object"
-        },
-        "paper_id": {
-          "anyOf": [
-            {
-              "maxLength": 128,
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Paper Id"
-        },
-        "quote_or_value": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/JsonValue"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "source_snapshot_id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Source Snapshot Id",
-          "type": "string"
-        },
-        "target_id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Target Id",
-          "type": "string"
-        },
-        "target_type": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Target Type",
-          "type": "string"
-        }
-      },
-      "required": [
-        "id",
-        "artifact_version_id",
-        "target_type",
-        "target_id",
-        "evidence_type",
-        "source_snapshot_id",
-        "locator",
-        "extraction_method",
-        "confidence",
-        "created_at"
-      ],
-      "title": "EvidenceDetail",
-      "type": "object"
-    },
     "JsonValue": {},
     "NormalizedPaperQuery": {
       "additionalProperties": false,
@@ -377,10 +272,21 @@
           "$ref": "#/$defs/PaperCollectionRules"
         },
         "schema_version": {
-          "const": "2.1.0",
-          "default": "2.1.0",
+          "const": "3.0.0",
+          "default": "3.0.0",
           "title": "Schema Version",
           "type": "string"
+        },
+        "search_input": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PaperSearchInput"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "selected_paper_ids": {
           "default": [],
@@ -976,6 +882,131 @@
         "candidate_limit"
       ],
       "title": "PaperQueryPagination",
+      "type": "object"
+    },
+    "PaperSearchInput": {
+      "additionalProperties": false,
+      "description": "Typed scientific input contract for live contract-driven paper search.",
+      "properties": {
+        "access_policy": {
+          "const": "metadata_url_only_requires_independent_access_evidence",
+          "default": "metadata_url_only_requires_independent_access_evidence",
+          "title": "Access Policy",
+          "type": "string"
+        },
+        "candidate_limit": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Candidate Limit",
+          "type": "integer"
+        },
+        "content_scope": {
+          "const": "bibliographic_metadata",
+          "default": "bibliographic_metadata",
+          "title": "Content Scope",
+          "type": "string"
+        },
+        "contract_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Contract Content Hash",
+          "type": "string"
+        },
+        "contract_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Contract Id",
+          "type": "string"
+        },
+        "contract_version": {
+          "minimum": 1,
+          "title": "Contract Version",
+          "type": "integer"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "keywords": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Keywords",
+          "type": "array"
+        },
+        "producer_name": {
+          "default": "xingwen.paper_collection",
+          "minLength": 1,
+          "title": "Producer Name",
+          "type": "string"
+        },
+        "producer_version": {
+          "default": "1.0.0",
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Producer Version",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "selection_limit": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Selection Limit",
+          "type": "integer"
+        },
+        "source_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Ids",
+          "type": "array"
+        },
+        "source_policy_version": {
+          "default": "1.0.0",
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Source Policy Version",
+          "type": "string"
+        },
+        "stable_ordering": {
+          "const": "source_relevance_then_canonical_tie_breaker",
+          "default": "source_relevance_then_canonical_tie_breaker",
+          "title": "Stable Ordering",
+          "type": "string"
+        },
+        "year_from": {
+          "maximum": 2100,
+          "minimum": 1900,
+          "title": "Year From",
+          "type": "integer"
+        },
+        "year_to": {
+          "maximum": 2100,
+          "minimum": 1900,
+          "title": "Year To",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "contract_id",
+        "contract_version",
+        "contract_content_hash",
+        "keywords",
+        "year_from",
+        "year_to",
+        "source_ids",
+        "candidate_limit",
+        "selection_limit",
+        "input_hash"
+      ],
+      "title": "PaperSearchInput",
       "type": "object"
     },
     "PaperSourceExecution": {
@@ -2040,13 +2071,6 @@
       "title": "Created At",
       "type": "string"
     },
-    "evidence": {
-      "items": {
-        "$ref": "#/$defs/EvidenceDetail"
-      },
-      "title": "Evidence",
-      "type": "array"
-    },
     "input_hash": {
       "pattern": "^sha256:[0-9a-f]{64}$",
       "title": "Input Hash",
@@ -2082,8 +2106,7 @@
     "created_at",
     "collection",
     "producer_execution",
-    "source_snapshots",
-    "evidence"
+    "source_snapshots"
   ],
   "title": "PaperCollectionRead",
   "type": "object"

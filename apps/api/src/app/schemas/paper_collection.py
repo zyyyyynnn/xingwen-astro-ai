@@ -8,7 +8,9 @@ ArtifactVersion envelope without translating it into a second domain model.
 from __future__ import annotations
 
 from copy import deepcopy
+import re
 from typing import Annotated, Any, Literal, Self
+import unicodedata
 
 from pydantic import (
     AfterValidator,
@@ -20,6 +22,7 @@ from pydantic import (
 )
 
 from ._hashing import compute_canonical_payload_hash
+from .core import Identifier as CoreIdentifier
 from .enums import (
     PaperDataLevel,
     PaperSourceExecutionStatus,
@@ -34,6 +37,12 @@ from .persistence import PersistedUuid
 
 MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
 NonEmptyString = Annotated[str, Field(min_length=1)]
+_WHITESPACE = re.compile(r"\s+")
+
+
+def normalize_paper_query_text(value: str) -> str:
+    """Canonical Unicode NFKC whitespace-collapsed casefolded text normalizer."""
+    return _WHITESPACE.sub(" ", unicodedata.normalize("NFKC", value)).strip().casefold()
 
 
 def _reject_blank(value: str) -> str:
@@ -92,6 +101,22 @@ class NormalizedPaperQuery(BaseModel):
             raise ValueError("query year_from must not exceed year_to")
         if tuple(sorted(set(self.normalized_keywords))) != self.normalized_keywords:
             raise ValueError("normalized_keywords must be unique and sorted")
+        expected_keywords = tuple(
+            sorted({
+                normalize_paper_query_text(keyword)
+                for keyword in self.original_keywords
+            })
+        )
+        if self.normalized_keywords != expected_keywords:
+            raise ValueError(
+                "normalized_keywords does not match normalized original_keywords"
+            )
+        if self.normalized_query_string != normalize_paper_query_text(
+            self.original_query_string
+        ):
+            raise ValueError(
+                "normalized_query_string does not match normalized original_query_string"
+            )
         if tuple(sorted(set(self.source_ids))) != self.source_ids:
             raise ValueError("source_ids must be unique and sorted")
         expected_hash = compute_normalized_query_hash(self)
@@ -103,6 +128,70 @@ class NormalizedPaperQuery(BaseModel):
         if self.query_id != expected_id:
             raise ValueError(f"query_id does not match normalized query: {expected_id}")
         return self
+
+
+class PaperSearchInput(BaseModel):
+    """Typed scientific input contract for live contract-driven paper search."""
+
+    model_config = MODEL_CONFIG
+
+    schema_version: Literal["1.0.0"] = "1.0.0"
+    contract_id: CoreIdentifier
+    contract_version: int = Field(ge=1)
+    contract_content_hash: ContentHash
+    keywords: tuple[NonEmptyString, ...] = Field(min_length=1)
+    year_from: int = Field(ge=1900, le=2100)
+    year_to: int = Field(ge=1900, le=2100)
+    source_ids: tuple[Identifier, ...] = Field(min_length=1)
+    candidate_limit: int = Field(gt=0, le=100)
+    selection_limit: int = Field(gt=0, le=100)
+    stable_ordering: Literal[
+        "source_relevance_then_canonical_tie_breaker"
+    ] = "source_relevance_then_canonical_tie_breaker"
+    content_scope: Literal["bibliographic_metadata"] = "bibliographic_metadata"
+    access_policy: Literal[
+        "metadata_url_only_requires_independent_access_evidence"
+    ] = "metadata_url_only_requires_independent_access_evidence"
+    source_policy_version: SemanticVersion = "1.0.0"
+    producer_name: NonEmptyString = "xingwen.paper_collection"
+    producer_version: SemanticVersion = "1.0.0"
+    input_hash: ContentHash
+
+    @model_validator(mode="after")
+    def validate_paper_search_input(self) -> Self:
+        if self.selection_limit > self.candidate_limit:
+            raise ValueError("selection_limit must not exceed candidate_limit")
+        if self.year_from > self.year_to:
+            raise ValueError("year_from must not exceed year_to")
+        if tuple(sorted(set(self.source_ids))) != self.source_ids:
+            raise ValueError("source_ids must be unique and sorted")
+        expected_hash = compute_paper_search_input_hash(self)
+        if self.input_hash != expected_hash:
+            raise ValueError(
+                f"input_hash does not match PaperSearchInput: {expected_hash}"
+            )
+        return self
+
+
+def compute_paper_search_input_hash(
+    value: PaperSearchInput | dict[str, Any],
+) -> str:
+    if isinstance(value, BaseModel):
+        payload = deepcopy(
+            value.model_dump(
+                mode="json",
+                exclude_none=True,
+            )
+        )
+    else:
+        payload = {
+            key: deepcopy(item)
+            for key, item in value.items()
+            if item is not None
+        }
+
+    payload.pop("input_hash", None)
+    return compute_canonical_payload_hash(payload)
 
 
 class PaperCollectionRules(BaseModel):
@@ -404,8 +493,9 @@ class PaperCollectionPayload(BaseModel):
     model_config = MODEL_CONFIG
 
     kind: Literal["paper_collection"] = "paper_collection"
-    schema_version: Literal["2.1.0"] = "2.1.0"
+    schema_version: Literal["3.0.0"] = "3.0.0"
     benchmark: PaperBenchmarkReference | None = None
+    search_input: PaperSearchInput | None = None
     query: NormalizedPaperQuery
     acquisition_run: PaperCollectionAcquisitionRun
     source_executions: tuple[PaperSourceExecution, ...] = Field(min_length=1)
@@ -424,6 +514,79 @@ class PaperCollectionPayload(BaseModel):
 
     @model_validator(mode="after")
     def validate_collection_integrity(self) -> Self:
+        if self.benchmark is not None and self.search_input is not None:
+            raise ValueError(
+                "PaperCollection cannot carry both benchmark and search_input"
+            )
+        if self.benchmark is None and self.search_input is None:
+            raise ValueError(
+                "PaperCollection requires either benchmark or search_input"
+            )
+
+        if self.search_input is not None:
+            if self.search_input.keywords != self.query.original_keywords:
+                raise ValueError(
+                    "PaperSearchInput keywords do not match normalized query"
+                )
+            if self.search_input.year_from != self.query.year_from:
+                raise ValueError(
+                    "PaperSearchInput year_from does not match normalized query"
+                )
+            if self.search_input.year_to != self.query.year_to:
+                raise ValueError(
+                    "PaperSearchInput year_to does not match normalized query"
+                )
+            if self.query.original_query_string != " ".join(self.search_input.keywords):
+                raise ValueError(
+                    "PaperSearchInput original query string is inconsistent"
+                )
+            if self.search_input.source_ids != self.query.source_ids:
+                raise ValueError(
+                    "PaperSearchInput source_ids do not match normalized query"
+                )
+            if (
+                self.search_input.candidate_limit
+                != self.query.pagination.candidate_limit
+            ):
+                raise ValueError(
+                    "PaperSearchInput candidate_limit does not match query pagination"
+                )
+            if self.search_input.stable_ordering != self.query.sort_strategy:
+                raise ValueError(
+                    "PaperSearchInput stable_ordering does not match query sort strategy"
+                )
+            if self.search_input.selection_limit != self.rules.selection_limit:
+                raise ValueError(
+                    "PaperSearchInput selection_limit does not match collection rules"
+                )
+            if (
+                self.search_input.source_policy_version
+                != self.rules.source_policy_version
+            ):
+                raise ValueError(
+                    "PaperSearchInput source_policy_version does not match collection rules"
+                )
+            if (
+                self.search_input.producer_name != self.producer.producer_name
+                or self.search_input.producer_version
+                != self.producer.producer_version
+            ):
+                raise ValueError(
+                    "PaperSearchInput producer identity does not match ProducerExecution"
+                )
+
+        if (
+            self.query.normalization_rule_version
+            != self.rules.query_normalization_version
+        ):
+            raise ValueError(
+                "query normalization rule version does not match collection rules"
+            )
+        if tuple(sorted(self.query.source_parameters.keys())) != self.query.source_ids:
+            raise ValueError(
+                "query source_parameters registry does not match query source_ids"
+            )
+
         candidate_by_id = _unique_by(self.candidates, "candidate_id", "candidate")
         group_by_id = _unique_by(
             self.duplicate_groups, "duplicate_group_id", "duplicate group"
@@ -432,6 +595,24 @@ class PaperCollectionPayload(BaseModel):
             self.source_snapshots, "snapshot_id", "SourceSnapshotRecord"
         )
         _unique_by(self.source_executions, "source_id", "source execution")
+
+        execution_source_ids = tuple(
+            sorted(execution.source_id for execution in self.source_executions)
+        )
+        if execution_source_ids != self.query.source_ids:
+            raise ValueError(
+                "source executions do not match normalized query sources"
+            )
+
+        execution_snapshot_ids = {
+            execution.source_snapshot_id
+            for execution in self.source_executions
+            if execution.source_snapshot_id is not None
+        }
+        if execution_snapshot_ids != set(self.source_snapshot_ids):
+            raise ValueError(
+                "collection source_snapshot_ids does not match execution snapshots"
+            )
 
         if self.source_snapshot_ids != tuple(sorted(snapshot_by_id)):
             raise ValueError(
@@ -456,6 +637,10 @@ class PaperCollectionPayload(BaseModel):
                 "every candidate must belong to exactly one duplicate group"
             )
 
+        execution_by_source = {
+            execution.source_id: execution
+            for execution in self.source_executions
+        }
         for candidate in self.candidates:
             if candidate.raw.source_snapshot_id not in snapshot_by_id:
                 raise ValueError(
@@ -464,6 +649,27 @@ class PaperCollectionPayload(BaseModel):
             if candidate.duplicate_group_id not in group_by_id:
                 raise ValueError(
                     f"candidate has unknown duplicate group: {candidate.candidate_id}"
+                )
+            if candidate.raw.source_id not in execution_by_source:
+                raise ValueError(
+                    f"candidate has unknown source_id: {candidate.raw.source_id}"
+                )
+            c_execution = execution_by_source[candidate.raw.source_id]
+            if c_execution.status is not PaperSourceExecutionStatus.completed:
+                raise ValueError(
+                    f"candidate belongs to non-completed execution: {candidate.candidate_id}"
+                )
+            if candidate.raw.source_snapshot_id != c_execution.source_snapshot_id:
+                raise ValueError(
+                    f"candidate source_snapshot_id does not match execution snapshot: {candidate.candidate_id}"
+                )
+            if candidate.ranking_rule_version != self.rules.ranking_version:
+                raise ValueError(
+                    f"candidate ranking_rule_version does not match collection rules: {candidate.candidate_id}"
+                )
+            if candidate.selection_rule_version != self.rules.selection_version:
+                raise ValueError(
+                    f"candidate selection_rule_version does not match collection rules: {candidate.candidate_id}"
                 )
 
         selected_ids = tuple(
@@ -479,11 +685,55 @@ class PaperCollectionPayload(BaseModel):
             raise ValueError("selected_paper_ids do not match selected candidates")
 
         for execution in self.source_executions:
+            expected_req_hash = compute_paper_source_request_parameters_hash(
+                self.query, execution.source_id
+            )
+            if execution.request_parameters_hash != expected_req_hash:
+                raise ValueError(
+                    "source execution request_parameters_hash does not match normalized query"
+                )
+            if execution.query_hash != self.query.query_hash:
+                raise ValueError(
+                    "source execution query_hash does not match normalized query"
+                )
+            if execution.pagination != self.query.pagination:
+                raise ValueError(
+                    "source execution pagination does not match normalized query"
+                )
+            actual_count = sum(
+                candidate.raw.source_id == execution.source_id
+                for candidate in self.candidates
+            )
+            if execution.candidate_count != actual_count:
+                raise ValueError(
+                    f"source execution candidate_count is inconsistent for {execution.source_id}"
+                )
             if (
                 execution.source_snapshot_id
                 and execution.source_snapshot_id not in snapshot_by_id
             ):
                 raise ValueError("source execution has unknown SourceSnapshotRecord")
+            if execution.source_snapshot_id:
+                snapshot = snapshot_by_id[execution.source_snapshot_id]
+                if snapshot.source_id != execution.source_id:
+                    raise ValueError(
+                        "SourceSnapshot source_id does not match source execution"
+                    )
+                if snapshot.query_hash != execution.query_hash:
+                    raise ValueError(
+                        "SourceSnapshot query_hash does not match source execution"
+                    )
+                if snapshot.request_metadata.get("adapter_name") != self.rules.adapter_name:
+                    raise ValueError(
+                        "SourceSnapshot adapter_name does not match collection rules"
+                    )
+                if (
+                    snapshot.request_metadata.get("adapter_version")
+                    != self.rules.adapter_version
+                ):
+                    raise ValueError(
+                        "SourceSnapshot adapter_version does not match collection rules"
+                    )
             if (
                 execution.source_mode is SourceMode.cached
                 and execution.source_snapshot_id
@@ -502,7 +752,10 @@ class PaperCollectionPayload(BaseModel):
                 "benchmark recall metrics require the frozen benchmark reference"
             )
         expected_input_hash = compute_paper_collection_input_hash(
-            self.benchmark, self.query, self.rules
+            self.benchmark,
+            self.query,
+            self.rules,
+            search_input=self.search_input,
         )
         if (
             self.input_hash != expected_input_hash
@@ -510,10 +763,54 @@ class PaperCollectionPayload(BaseModel):
         ):
             raise ValueError("PaperCollection input hash is inconsistent")
 
+        expected_parameters_hash = compute_canonical_payload_hash(
+            self.rules.model_dump(mode="json", exclude_none=True)
+        )
+        if self.producer.parameters_hash != expected_parameters_hash:
+            raise ValueError(
+                "ProducerExecution parameters_hash does not match collection rules"
+            )
+
         failure_count = sum(
             execution.status is PaperSourceExecutionStatus.failed
             for execution in self.source_executions
         )
+        successful_count = sum(
+            execution.status is PaperSourceExecutionStatus.completed
+            for execution in self.source_executions
+        )
+        if successful_count == 0:
+            expected_acquisition_status = "failed"
+        elif failure_count > 0:
+            expected_acquisition_status = "partial"
+        else:
+            expected_acquisition_status = "completed"
+
+        if self.acquisition_run.status != expected_acquisition_status:
+            raise ValueError(
+                "acquisition_run status is inconsistent with source executions"
+            )
+
+        if self.acquisition_run.status == "failed":
+            if self.producer.status is not ProducerExecutionStatus.failed:
+                raise ValueError(
+                    "ProducerExecution status must be failed when acquisition fails"
+                )
+            allowed_failure_codes = {
+                execution.failure_code
+                for execution in self.source_executions
+                if execution.failure_code
+            }
+            if self.producer.error_code not in allowed_failure_codes:
+                raise ValueError(
+                    "ProducerExecution error_code must match failed source execution"
+                )
+        else:
+            if self.producer.status is not ProducerExecutionStatus.completed:
+                raise ValueError(
+                    "ProducerExecution status must be completed for successful acquisition"
+                )
+
         empty_count = sum(
             execution.status is PaperSourceExecutionStatus.completed
             and execution.candidate_count == 0
@@ -530,6 +827,13 @@ class PaperCollectionPayload(BaseModel):
             raise ValueError("candidate metric is inconsistent")
         if self.metrics.duplicate_candidate_count != duplicate_count:
             raise ValueError("duplicate metric is inconsistent")
+        expected_duplicate_rate = (
+            round(duplicate_count / len(self.candidates), 6)
+            if self.candidates
+            else 0.0
+        )
+        if self.metrics.duplicate_rate != expected_duplicate_rate:
+            raise ValueError("duplicate_rate metric is inconsistent")
         if self.metrics.selected_count != len(self.selected_paper_ids):
             raise ValueError("selected metric is inconsistent")
         if self.acquisition_run.candidate_count != len(self.candidates):
@@ -568,22 +872,45 @@ def compute_normalized_query_hash(value: NormalizedPaperQuery | dict[str, Any]) 
     return compute_canonical_payload_hash(payload)
 
 
+def compute_paper_source_request_parameters_hash(
+    query: NormalizedPaperQuery | dict[str, Any],
+    source_id: str,
+) -> str:
+    query_payload = _model_or_dict(query)
+    source_parameters = query_payload.get("source_parameters", {}).get(source_id, {})
+    payload = {
+        "query_hash": query_payload["query_hash"],
+        "source_id": source_id,
+        "parameters": source_parameters,
+        "pagination": query_payload["pagination"],
+    }
+    return compute_canonical_payload_hash(payload)
+
+
 def compute_paper_collection_input_hash(
     benchmark: PaperBenchmarkReference | None,
     query: NormalizedPaperQuery,
     rules: PaperCollectionRules,
+    *,
+    search_input: PaperSearchInput | None = None,
 ) -> str:
-    return compute_canonical_payload_hash(
-        {
-            "benchmark": (
-                benchmark.model_dump(mode="json", exclude_none=True)
-                if benchmark is not None
-                else None
-            ),
-            "query_hash": query.query_hash,
-            "rules": rules.model_dump(mode="json", exclude_none=True),
-        }
-    )
+    if benchmark is not None and search_input is not None:
+        raise ValueError(
+            "cannot compute input hash with both benchmark and search_input"
+        )
+    if benchmark is None and search_input is None:
+        raise ValueError(
+            "input hash requires either benchmark or search_input"
+        )
+    payload: dict[str, Any] = {
+        "query_hash": query.query_hash,
+        "rules": rules.model_dump(mode="json", exclude_none=True),
+    }
+    if benchmark is not None:
+        payload["benchmark"] = benchmark.model_dump(mode="json", exclude_none=True)
+    if search_input is not None:
+        payload["search_input"] = search_input.input_hash
+    return compute_canonical_payload_hash(payload)
 
 
 def compute_paper_collection_output_hash(
@@ -635,3 +962,29 @@ def _unique_by(items: tuple[Any, ...], field: str, label: str) -> dict[str, Any]
             raise ValueError(f"duplicate {label} id: {item_id}")
         registry[item_id] = item
     return registry
+
+
+__all__ = [
+    "NormalizedPaperQuery",
+    "PaperBenchmarkReference",
+    "PaperCollection",
+    "PaperCollectionAcquisitionRun",
+    "PaperCollectionCandidate",
+    "PaperCollectionMetrics",
+    "PaperCollectionPayload",
+    "PaperCollectionRules",
+    "PaperDuplicateGroup",
+    "PaperPotentialDuplicate",
+    "PaperQueryPagination",
+    "PaperSearchInput",
+    "PaperSourceExecution",
+    "PaperSourcePage",
+    "ProducerExecution",
+    "RawPaperCandidate",
+    "compute_normalized_query_hash",
+    "compute_paper_collection_input_hash",
+    "compute_paper_collection_output_hash",
+    "compute_paper_search_input_hash",
+    "compute_paper_source_request_parameters_hash",
+    "normalize_paper_query_text",
+]

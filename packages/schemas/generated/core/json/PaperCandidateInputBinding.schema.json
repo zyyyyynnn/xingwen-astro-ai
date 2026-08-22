@@ -213,16 +213,6 @@
       "default": null,
       "title": "Access Evidence Hash"
     },
-    "candidate_evidence_ids": {
-      "items": {
-        "maxLength": 128,
-        "minLength": 1,
-        "type": "string"
-      },
-      "minItems": 1,
-      "title": "Candidate Evidence Ids",
-      "type": "array"
-    },
     "candidate_id": {
       "maxLength": 128,
       "minLength": 1,
@@ -330,7 +320,6 @@
     "candidate_id",
     "canonical_paper_id",
     "candidate_source_snapshot_id",
-    "candidate_evidence_ids",
     "mode",
     "outcome",
     "source_collection_status",

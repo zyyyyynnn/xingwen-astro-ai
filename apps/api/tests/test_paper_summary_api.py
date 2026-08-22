@@ -60,13 +60,10 @@ TEST_CANDIDATE = next(
 )
 
 
-def _collection(
-    source_mode: str = "fixture", *, execution_source_id: str | None = None
-) -> PaperCollection:
+def _collection(source_mode: str = "fixture") -> PaperCollection:
     payload = BASE_COLLECTION.model_dump(mode="json", exclude_none=True)
-    for execution in payload["source_executions"]:
-        execution["source_id"] = execution_source_id or execution["source_id"]
-        if source_mode == "cached":
+    if source_mode == "cached":
+        for execution in payload["source_executions"]:
             execution.update(
                 {
                     "source_mode": "cached",
@@ -76,8 +73,7 @@ def _collection(
                     "live_failure_code": "CROSSREF_TIMEOUT",
                 }
             )
-    for snapshot in payload["source_snapshots"]:
-        if source_mode == "cached":
+        for snapshot in payload["source_snapshots"]:
             snapshot["cache_version"] = "cache-fixture"
             snapshot["request_metadata"] = {
                 **snapshot["request_metadata"],
@@ -696,11 +692,25 @@ def test_paper_summary_rejects_source_mode_without_matching_cache_audit(
 
 
 def test_paper_summary_rejects_cached_execution_attributed_to_another_source() -> None:
-    collection = _collection("cached", execution_source_id="semantic-scholar")
+    collection = _collection("cached")
     summary = _summary(source_mode="cached", collection=collection)
     version = _version(summary=summary, source_mode="cached", collection=collection)
+    artifacts = _Artifacts(version, collection=collection)
+    content = dict(artifacts.collection_version.content)
+    executions = [dict(item) for item in content["source_executions"]]
+    executions[0]["source_id"] = "semantic-scholar"
+    content["source_executions"] = executions
+    output_hash = compute_paper_collection_output_hash(deepcopy(content))
+    content["output_hash"] = output_hash
+    content["producer"]["output_hash"] = output_hash
+    artifacts.collection_version = artifacts.collection_version.model_copy(
+        update={
+            "content": content,
+            "content_hash": compute_canonical_payload_hash(content),
+        }
+    )
 
-    response = _client(_Artifacts(version, collection=collection)).get(
+    response = _client(artifacts).get(
         f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary"
     )
 

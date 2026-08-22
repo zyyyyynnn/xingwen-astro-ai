@@ -136,7 +136,6 @@ describe("paperAcquisition.getReview — Fixture/HTTP parity", () => {
       reason: "selection limit reached after deterministic ranking",
     });
     expect(first?.sourceSnapshot.id).toBe("snap_paper_crossref_01");
-    expect(first?.evidence[0]?.id).toBe("evd_paper_01");
     // The raw ftp URL from the synthetic low-relevance record survives into
     // the raw record audit surface (and only there).
     expect(
@@ -211,6 +210,7 @@ describe("paperAcquisition.getReview — Fixture/HTTP parity", () => {
     expect(String(snapshot?.id)).toBe("snap_paper_crossref_01");
     expect(snapshot?.requestMetadata.map((entry) => entry.key)).toEqual([
       "adapter_name",
+      "adapter_version",
       "data_level",
       "demo_note",
     ]);

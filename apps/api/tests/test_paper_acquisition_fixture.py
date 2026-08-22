@@ -72,9 +72,9 @@ def test_every_candidate_read_passes_pydantic(
         str(item.candidate_id) for item in read.collection.candidates
     ]
     for item in reads:
-        assert item.evidence, "every candidate read must carry Evidence"
-        for evidence in item.evidence:
-            assert evidence.source_snapshot_id == item.source_snapshot.id
+        assert item.paper_collection_version_id == read.artifact_version_id
+        assert item.paper_collection_input_hash == read.collection.input_hash
+        assert item.source_snapshot.id == read.source_snapshots[0].id
 
 
 def test_benchmark_identity_matches_frozen_package(
@@ -179,6 +179,17 @@ def test_synthetic_records_carry_explicit_per_candidate_notes(
         assert "Not a real publication" in note
 
 
+def test_paper_collection_fixture_matches_zero_evidence_publication_authority(
+    committed_document: dict[str, Any],
+) -> None:
+    assert "evidence" not in committed_document["read"]
+
+    version = committed_document["artifact_version"]
+
+    assert version["evidence_ids"] == []
+    assert version["evidence"] == []
+
+
 def test_artifact_version_identity_is_consistent_with_the_collection(
     committed_document: dict[str, Any],
 ) -> None:
@@ -206,6 +217,13 @@ def test_artifact_version_identity_is_consistent_with_the_collection(
         producer["parameters_hash"]
         == read["collection"]["producer"]["parameters_hash"]
     )
+    rules = read["collection"]["rules"]
+    assert version["producer_execution"]["parameters"] == rules
+    assert (
+        version["producer_execution"]["parameters_hash"]
+        == read["collection"]["producer"]["parameters_hash"]
+    )
+    assert version["producer_execution"]["output_hash"] == version["content_hash"]
 
 
 def _collection_payload(document: dict[str, Any]) -> dict[str, Any]:

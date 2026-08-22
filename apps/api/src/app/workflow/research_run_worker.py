@@ -53,6 +53,7 @@ from app.workflow.store import (
 )
 from app.services.research_thread import append_assistant_message
 from packages.prompts.registry import PromptRegistry
+from services.paper_pipeline.errors import PaperSearchExecutionError
 from services.paper_pipeline.live_collection import LivePaperCollectionRunner
 
 LOGGER = logging.getLogger(__name__)
@@ -434,6 +435,13 @@ class ResearchRunWorker:
             "activity_kind": activity_error.activity_kind if activity_error else None,
             "activity_name": activity_error.activity_name if activity_error else None,
         }
+        if isinstance(cause, PaperSearchExecutionError):
+            return FailureDecision(
+                error_code=cause.code,
+                public_message=cause.public_message,
+                retryable=cause.retryable,
+                **activity_fields,
+            )
         if isinstance(cause, ModelExecutionError):
             return FailureDecision(
                 error_code=cause.code,

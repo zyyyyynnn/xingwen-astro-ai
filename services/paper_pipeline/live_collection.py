@@ -13,7 +13,6 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 
 from app.schemas._hashing import compute_canonical_payload_hash
-from app.schemas.core import PaperSearchScope
 from app.schemas.enums import (
     PaperDataLevel,
     PaperSourceExecutionStatus,
@@ -21,15 +20,18 @@ from app.schemas.enums import (
     SourceMode,
 )
 from app.schemas.paper_collection import (
+    NormalizedPaperQuery,
     PaperCollection,
     PaperCollectionAcquisitionRun,
     PaperCollectionMetrics,
     PaperCollectionPayload,
     PaperCollectionRules,
+    PaperSearchInput,
     PaperSourceExecution,
     ProducerExecution,
     compute_paper_collection_input_hash,
     compute_paper_collection_output_hash,
+    compute_paper_source_request_parameters_hash,
 )
 
 from .canonicalize import CandidateDraft, canonicalize_record
@@ -45,7 +47,7 @@ from .constants import (
     SOURCE_POLICY_VERSION,
 )
 from .dedupe import group_duplicates
-from .query import normalize_live_query
+from .query import normalize_paper_search_input
 from .ranking import rank_and_select
 from .sources.base import PaperSourceAdapter, SourceFailure
 from .sources.crossref import CrossrefAdapter
@@ -81,20 +83,12 @@ class LivePaperCollectionRunner:
     def prepare_execution(
         self,
         *,
-        scope: PaperSearchScope,
+        search_input: PaperSearchInput,
         page_size: int = 20,
-    ) -> tuple[object, PaperCollectionRules, str]:
-        if not scope.keywords:
-            raise ValueError("live paper search requires contract keywords")
-        if not scope.source_ids:
-            raise ValueError("live paper search requires contract source ids")
-        query = normalize_live_query(
-            keywords=scope.keywords,
-            year_from=scope.year_from,
-            year_to=scope.year_to,
-            source_ids=tuple(scope.source_ids),
+    ) -> tuple[NormalizedPaperQuery, PaperCollectionRules, str]:
+        query = normalize_paper_search_input(
+            search_input,
             page_size=page_size,
-            candidate_limit=scope.max_candidates,
         )
         rules = PaperCollectionRules(
             adapter_name=self.adapter.adapter_name,
@@ -106,9 +100,15 @@ class LivePaperCollectionRunner:
             selection_version=SELECTION_VERSION,
             retry_policy_version=RETRY_POLICY_VERSION,
             source_policy_version=SOURCE_POLICY_VERSION,
-            selection_limit=scope.max_candidates,
+            selection_limit=search_input.selection_limit,
         )
-        return query, rules, compute_paper_collection_input_hash(None, query, rules)
+        return (
+            query,
+            rules,
+            compute_paper_collection_input_hash(
+                None, query, rules, search_input=search_input
+            ),
+        )
 
     @property
     def producer_identity(self) -> tuple[str, str]:
@@ -117,7 +117,7 @@ class LivePaperCollectionRunner:
     def run(
         self,
         *,
-        scope: PaperSearchScope,
+        search_input: PaperSearchInput,
         source_mode: SourceMode = SourceMode.live,
         data_level: PaperDataLevel = PaperDataLevel.live_result,
         page_size: int = 20,
@@ -125,20 +125,15 @@ class LivePaperCollectionRunner:
     ) -> PaperCollection:
         started_at = self._now()
         query, rules, input_hash = self.prepare_execution(
-            scope=scope, page_size=page_size
+            search_input=search_input, page_size=page_size
         )
 
         source_executions: list[PaperSourceExecution] = []
         snapshots = []
         source_records: list = []
         source_started_at = self._now()
-        request_parameters_hash = compute_canonical_payload_hash(
-            {
-                "query_hash": query.query_hash,
-                "source_id": self.adapter.source_id,
-                "parameters": query.source_parameters[self.adapter.source_id],
-                "pagination": query.pagination.model_dump(mode="json"),
-            }
+        request_parameters_hash = compute_paper_source_request_parameters_hash(
+            query, self.adapter.source_id
         )
         try:
             result = self.adapter.search(
@@ -196,7 +191,7 @@ class LivePaperCollectionRunner:
             normalized_query=query.normalized_query_string,
             year_from=query.year_from,
             year_to=query.year_to,
-            selection_limit=scope.max_candidates,
+            selection_limit=search_input.selection_limit,
         )
         selected_paper_ids = tuple(
             sorted(
@@ -283,6 +278,7 @@ class LivePaperCollectionRunner:
         )
         payload = PaperCollectionPayload(
             benchmark=None,
+            search_input=search_input,
             query=query,
             acquisition_run=PaperCollectionAcquisitionRun(
                 acquisition_id=acquisition_id,

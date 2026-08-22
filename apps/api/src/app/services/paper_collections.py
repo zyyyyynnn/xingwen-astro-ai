@@ -59,7 +59,6 @@ class PaperCollectionReadService:
             collection=collection,
             producer_execution=version.producer_execution,
             source_snapshots=version.source_snapshots,
-            evidence=version.evidence,
         )
 
     def list_candidates(
@@ -108,20 +107,13 @@ class PaperCollectionReadService:
             snapshot = snapshots.get(candidate.raw.source_snapshot_id)
             if group is None or snapshot is None:
                 raise _provenance_problem()
-            evidence = tuple(
-                item
-                for item in detail.evidence
-                if item.target_id in {candidate.candidate_id, candidate.canonical_paper_id}
-                and item.source_snapshot_id == snapshot.id
-            )
-            if not evidence:
-                raise _provenance_problem()
             result.append(
                 PaperCollectionCandidateRead(
+                    paper_collection_version_id=detail.artifact_version_id,
+                    paper_collection_input_hash=detail.input_hash,
                     candidate=candidate,
                     duplicate_group=group,
                     source_snapshot=snapshot,
-                    evidence=evidence,
                 )
             )
         return tuple(result), next_cursor, has_more
@@ -149,21 +141,15 @@ class PaperCollectionReadService:
             item.duplicate_group_id: item for item in detail.collection.duplicate_groups
         }
         snapshot = _snapshot_projection_map(detail).get(candidate.raw.source_snapshot_id)
-        evidence = tuple(
-            item
-            for item in detail.evidence
-            if item.target_id in {candidate.candidate_id, candidate.canonical_paper_id}
-            and snapshot is not None
-            and item.source_snapshot_id == snapshot.id
-        )
         group = groups.get(candidate.duplicate_group_id)
-        if group is None or snapshot is None or not evidence:
+        if group is None or snapshot is None:
             raise _provenance_problem()
         return PaperCollectionCandidateRead(
+            paper_collection_version_id=detail.artifact_version_id,
+            paper_collection_input_hash=detail.input_hash,
             candidate=candidate,
             duplicate_group=group,
             source_snapshot=snapshot,
-            evidence=evidence,
         )
 
     @staticmethod
@@ -180,7 +166,7 @@ class PaperCollectionReadService:
             or version.producer_execution.parameters_hash
             != collection.producer.parameters_hash
             or version.producer_execution.input_hash != collection.input_hash
-            or version.producer_execution.output_hash != collection.output_hash
+            or version.producer_execution.output_hash != version.content_hash
             or version.producer_execution.producer.name
             != collection.producer.producer_name
             or version.producer_execution.producer.version
@@ -197,6 +183,8 @@ class PaperCollectionReadService:
             item.source_mode.value != version.source_mode.value
             for item in collection.source_executions
         ):
+            raise _schema_problem()
+        if version.evidence_ids or version.evidence:
             raise _schema_problem()
         if _contains_unsafe_html(collection.model_dump(mode="json")):
             raise _schema_problem()
