@@ -867,6 +867,21 @@ def test_paper_collection_read_service_returns_contract_search_projection(
     assert collection_read.collection.search_input.contract_id == contract.id
     assert collection_read.collection.benchmark is None
 
+    rules_payload = collection_read.collection.rules.model_dump(
+        mode="json",
+        exclude_none=True,
+    )
+    assert collection_read.producer_execution.parameters == rules_payload
+    assert (
+        collection_read.producer_execution.parameters_hash
+        == collection_read.collection.producer.parameters_hash
+    )
+    assert (
+        collection_read.producer_execution.output_hash
+        == collection_read.content_hash
+    )
+    assert collection_read.source_snapshots
+
     candidates, cursor, has_more = read_service.list_candidates(
         version_id=version_id, session_id=session_id, cursor=None, limit=10
     )
@@ -904,6 +919,28 @@ class _FailingCrossrefAdapter(FrozenCrossrefAdapter):
             retryable=True,
             attempt_count=3,
         )
+
+
+def _assert_no_paper_collection_publication(
+    session: Session,
+    *,
+    project_id: UUID,
+) -> None:
+    artifact = session.scalar(
+        select(ResearchArtifactModel).where(
+            ResearchArtifactModel.project_id == project_id,
+            ResearchArtifactModel.logical_key == "paper_collection.primary",
+        )
+    )
+    assert artifact is not None
+    assert artifact.latest_version_id is None
+
+    versions = session.scalars(
+        select(ArtifactVersionModel).where(
+            ArtifactVersionModel.artifact_id == artifact.id
+        )
+    ).all()
+    assert versions == []
 
 
 def test_worker_handles_paper_search_upstream_timeout_failure(
@@ -994,6 +1031,7 @@ def test_worker_handles_paper_search_upstream_timeout_failure(
         assert producer_exec is not None
         assert producer_exec.status == "failed"
         assert producer_exec.error_code == "CROSSREF_TIMEOUT"
+        _assert_no_paper_collection_publication(session, project_id=UUID(project.id))
 
 
 class _EmptyCrossrefAdapter(FrozenCrossrefAdapter):
@@ -1090,6 +1128,7 @@ def test_worker_handles_paper_search_empty_candidates_failure(
         assert producer_exec is not None
         assert producer_exec.status == "rejected"
         assert producer_exec.error_code == "PAPER_COLLECTION_EMPTY"
+        _assert_no_paper_collection_publication(session, project_id=UUID(project.id))
 
 
 def test_worker_handles_unsupported_paper_search_source_failure(
@@ -1184,5 +1223,6 @@ def test_worker_handles_unsupported_paper_search_source_failure(
             )
         )
         assert producer_exec is None
+        _assert_no_paper_collection_publication(session, project_id=UUID(project.id))
 
 

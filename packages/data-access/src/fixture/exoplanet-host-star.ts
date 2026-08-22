@@ -631,28 +631,6 @@ const evidence = [
     confidence: 0.85,
     createdAt: T8,
   },
-  // Paper acquisition evidence — same ids as the PaperCollection API read fixture so the
-  // candidate review, generic Evidence store, pinning and Share stay wired.
-  ...paperCollectionReadFixture.evidence.map((item) => ({
-    id: item.id,
-    artifactVersionId: item.artifact_version_id,
-    targetType: item.target_type,
-    targetId: item.target_id,
-    evidenceType: item.evidence_type,
-    sourceSnapshotId: item.source_snapshot_id,
-    paperId: item.paper_id ?? null,
-    locator: {
-      kind: "database_cell",
-      queryHash: String(item.locator.query_hash ?? ""),
-      rowKey: String(item.locator.row_key ?? ""),
-      field: String(item.locator.field ?? ""),
-    },
-    quoteOrValue:
-      typeof item.quote_or_value === "string" ? item.quote_or_value : null,
-    extractionMethod: item.extraction_method,
-    confidence: item.confidence,
-    createdAt: item.created_at,
-  })),
   // Paper summary evidence — same ids as the PaperSummary API read fixture so the summary
   // review, generic Evidence store, pinning and Share stay wired, mapped
   // through the shared `mapEvidenceDetail` DTO→domain projection.

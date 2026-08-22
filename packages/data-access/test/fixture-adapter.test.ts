@@ -33,8 +33,8 @@ describe("Fixture adapter — provenance and semantics", () => {
 
   it("reports evidence completeness from the fixture", () => {
     const { state } = repos.provenance;
-    expect(state.evidenceCompleteness.covered).toBe(14);
-    expect(state.evidenceCompleteness.total).toBe(14);
+    expect(state.evidenceCompleteness.covered).toBe(7);
+    expect(state.evidenceCompleteness.total).toBe(7);
   });
 });
 

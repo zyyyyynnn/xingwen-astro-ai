@@ -27,7 +27,6 @@ from sqlalchemy.exc import IntegrityError, ProgrammingError
 from app.config import settings
 from app.db.models import (
     ArtifactVersionModel,
-    EvidenceModel,
     PaperCandidateInputBindingModel,
     PaperCandidateInputIdempotencyModel,
     ProducerExecutionModel,
@@ -149,7 +148,6 @@ def _bridge_lease_context(
             artifact_id=ids[4],
             version_id=ids[5],
             snapshot_id=ids[6],
-            evidence_ids=tuple(uuid4() for _ in collection.candidates),
         )
     selected = next(item for item in collection.candidates if item.selected)
     try:
@@ -354,24 +352,6 @@ class _Artifacts:
                 title="Resource not found",
                 detail="Resource not found",
             )
-        candidates = self.collection.candidates
-        evidence = tuple(
-            EvidenceDetail(
-                id=f"evidence-{index}",
-                artifact_version_id=VERSION_ID,
-                target_type="paper_candidate",
-                target_id=candidate.candidate_id,
-                evidence_type="paper_metadata",
-                source_snapshot_id=SNAPSHOT_ID,
-                paper_id=candidate.canonical_paper_id,
-                locator={"source_record_id": candidate.raw.source_record_id},
-                quote_or_value=candidate.title,
-                extraction_method="direct_lookup",
-                confidence=1.0,
-                created_at=NOW,
-            )
-            for index, candidate in enumerate(candidates)
-        )
         source_snapshots = (
             (
                 SourceSnapshotDetail(
@@ -410,7 +390,7 @@ class _Artifacts:
                 version=self.collection.producer.producer_version,
             ),
             source_snapshot_ids=tuple(item.id for item in source_snapshots),
-            evidence_ids=tuple(item.id for item in evidence),
+            evidence_ids=(),
             created_at=NOW,
             producer_execution=ProducerExecutionDetail(
                 id="producer-1",
@@ -431,7 +411,7 @@ class _Artifacts:
                 finished_at=NOW,
             ),
             source_snapshots=source_snapshots,
-            evidence=evidence,
+            evidence=(),
         )
 
     def get_artifact(
@@ -554,6 +534,42 @@ def test_invalid_schema_unsafe_html_empty_and_source_failures_use_problem_detail
         429,
         "PAPER_SOURCE_RATE_LIMITED",
     )
+
+
+def test_paper_collection_read_rejects_impossible_search_phase_evidence() -> None:
+    collection = _collection()
+    fake_evidence = EvidenceDetail(
+        id="fake-evidence",
+        artifact_version_id=VERSION_ID,
+        target_type="paper_candidate",
+        target_id=collection.candidates[0].candidate_id,
+        evidence_type="paper_metadata",
+        source_snapshot_id=SNAPSHOT_ID,
+        paper_id=collection.candidates[0].canonical_paper_id,
+        locator={"source_record_id": collection.candidates[0].raw.source_record_id},
+        quote_or_value=collection.candidates[0].title,
+        extraction_method="direct_lookup",
+        confidence=1.0,
+        created_at=NOW,
+    )
+    tampered_version = _Artifacts(collection).get_version(
+        version_id=VERSION_ID, session_id="owner"
+    ).model_copy(
+        update={
+            "evidence_ids": ("fake-evidence",),
+            "evidence": (fake_evidence,),
+        }
+    )
+
+    class _TamperedArtifacts(_Artifacts):
+        def get_version(self, **kwargs):  # type: ignore[no-untyped-def]
+            return tampered_version
+
+    with pytest.raises(SecurityProblem) as exc_info:
+        PaperCollectionReadService(_TamperedArtifacts(collection)).get_collection(
+            version_id=VERSION_ID, session_id="owner"
+        )
+    assert exc_info.value.code == "PAPER_COLLECTION_SCHEMA_INVALID"
 
 
 @pytest.mark.parametrize(
@@ -682,7 +698,6 @@ def test_postgres_published_collection_reads_with_ownership_and_redaction(
     artifact_id = uuid4()
     version_id = uuid4()
     snapshot_id = uuid4()
-    evidence_ids = tuple(uuid4() for _ in collection.candidates)
     admitted_content = canonical_artifact_content_payload(collection)
     admitted_hash = compute_canonical_payload_hash(admitted_content)
     app = create_app()
@@ -706,7 +721,6 @@ def test_postgres_published_collection_reads_with_ownership_and_redaction(
                 artifact_id=artifact_id,
                 version_id=version_id,
                 snapshot_id=snapshot_id,
-                evidence_ids=evidence_ids,
             )
 
         with TestClient(app) as client:
@@ -764,7 +778,6 @@ def test_postgres_paper_candidate_bridge_accepts_replays_and_shares_rate_limit(
     run_id = UUID(RUN_ID)
     step_id, attempt_id, producer_id = uuid4(), uuid4(), uuid4()
     artifact_id, version_id, snapshot_id = uuid4(), uuid4(), uuid4()
-    evidence_ids = tuple(uuid4() for _ in collection.candidates)
     content_payload = canonical_artifact_content_payload(collection)
     content_hash = compute_canonical_payload_hash(content_payload)
     app = create_app()
@@ -786,8 +799,12 @@ def test_postgres_paper_candidate_bridge_accepts_replays_and_shares_rate_limit(
             artifact_id=artifact_id,
             version_id=version_id,
             snapshot_id=snapshot_id,
-            evidence_ids=evidence_ids,
         )
+
+    with factory() as session:
+        version = session.get(ArtifactVersionModel, version_id)
+        assert version is not None
+        assert version.evidence_ids == []
 
     selected = next(candidate for candidate in collection.candidates if candidate.selected)
     access_url = "https://repository.example/paper.csv"
@@ -989,7 +1006,7 @@ def test_paper_candidate_bridge_metadata_only_has_no_input_or_fetch(
     factory = session_factory(engine)
     collection = _collection(source_mode=SourceMode.fixture, data_level=PaperDataLevel.fixture)
     project_id = uuid4()
-    ids = (uuid4(), uuid4(), uuid4(), uuid4(), uuid4(), uuid4(), uuid4(), uuid4())
+    ids = tuple(uuid4() for _ in range(7))
     app = create_app()
     owner, credential, csrf_token = app.state.session_service.create(now=datetime.now(UTC))
     app.state.artifact_read_service = ArtifactReadService(factory)
@@ -1011,7 +1028,6 @@ def test_paper_candidate_bridge_metadata_only_has_no_input_or_fetch(
             artifact_id=ids[4],
             version_id=ids[5],
             snapshot_id=ids[6],
-            evidence_ids=tuple(uuid4() for _ in collection.candidates),
         )
     fetch_calls: list[str] = []
 
@@ -1105,7 +1121,6 @@ def test_paper_candidate_bridge_fetch_failures_leave_no_persistence(
             artifact_id=ids[4],
             version_id=ids[5],
             snapshot_id=ids[6],
-            evidence_ids=tuple(uuid4() for _ in collection.candidates),
         )
 
     selected = next(item for item in collection.candidates if item.selected)
@@ -1321,7 +1336,6 @@ def test_paper_candidate_bridge_concurrent_idempotency_precedes_fetch(
             artifact_id=ids[4],
             version_id=ids[5],
             snapshot_id=ids[6],
-            evidence_ids=tuple(uuid4() for _ in collection.candidates),
         )
     selected = next(item for item in collection.candidates if item.selected)
     fetch_started = threading.Event()
@@ -1490,7 +1504,6 @@ def test_paper_candidate_bridge_rejects_before_outbound_io(
             artifact_id=ids[4],
             version_id=ids[5],
             snapshot_id=ids[6],
-            evidence_ids=tuple(uuid4() for _ in collection.candidates),
         )
     candidate = (
         next(item for item in collection.candidates if not item.selected)
@@ -1567,7 +1580,6 @@ def _seed_published_collection(
     artifact_id,
     version_id,
     snapshot_id,
-    evidence_ids,
 ) -> None:
     project = build_research_project(
         project_id=project_id,
@@ -1691,7 +1703,7 @@ def _seed_published_collection(
             "parameters_hash": collection.producer.parameters_hash,
         },
         source_snapshot_ids=[str(snapshot_id)],
-        evidence_ids=[str(item) for item in evidence_ids],
+        evidence_ids=[],
         created_at=NOW,
     )
     persist_authoring_models(
@@ -1710,27 +1722,5 @@ def _seed_published_collection(
     session.add(artifact)
     session.flush()
     session.add(version)
-    session.flush()
-    for index, (candidate, evidence_id) in enumerate(
-        zip(collection.candidates, evidence_ids, strict=True)
-    ):
-        session.add(
-            EvidenceModel(
-                id=evidence_id,
-                project_id=project_id,
-                artifact_version_id=version_id,
-                target_type="paper_candidate",
-                target_id=candidate.candidate_id,
-                evidence_type="paper_metadata",
-                source_snapshot_id=snapshot_id,
-                paper_id=candidate.canonical_paper_id,
-                locator={"source_record_id": candidate.raw.source_record_id},
-                quote_or_value=("must-not-leak" if index == 0 else candidate.title),
-                extraction_method="direct_lookup",
-                confidence=1.0,
-                is_restricted=index == 0,
-                created_at=NOW,
-            )
-        )
     session.flush()
     artifact.latest_version_id = version_id

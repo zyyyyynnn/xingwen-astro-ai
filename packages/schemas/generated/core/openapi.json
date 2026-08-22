@@ -9907,13 +9907,6 @@
             "title": "Created At",
             "type": "string"
           },
-          "evidence": {
-            "items": {
-              "$ref": "#/components/schemas/EvidenceDetail"
-            },
-            "title": "Evidence",
-            "type": "array"
-          },
           "input_hash": {
             "pattern": "^sha256:[0-9a-f]{64}$",
             "title": "Input Hash",
@@ -9949,8 +9942,7 @@
           "created_at",
           "collection",
           "producer_execution",
-          "source_snapshots",
-          "evidence"
+          "source_snapshots"
         ],
         "title": "PaperCollectionRead",
         "type": "object"

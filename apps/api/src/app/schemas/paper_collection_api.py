@@ -14,7 +14,6 @@ from .paper_collection import (
 )
 from .core import (
     ContentHash,
-    EvidenceDetail,
     Identifier,
     ProducerExecutionDetail,
     SourceMode,
@@ -42,7 +41,6 @@ class PaperCollectionRead(BaseModel):
     collection: PaperCollection
     producer_execution: ProducerExecutionDetail
     source_snapshots: tuple[SourceSnapshotDetail, ...]
-    evidence: tuple[EvidenceDetail, ...]
 
 
 class PaperCollectionCandidateRead(BaseModel):

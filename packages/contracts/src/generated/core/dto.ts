@@ -3360,7 +3360,6 @@ export interface PaperCollectionRead {
   collection: PaperCollection;
   content_hash: string;
   created_at: string;
-  evidence: EvidenceDetail[];
   input_hash: string;
   producer_execution: ProducerExecutionDetail;
   project_id: string;

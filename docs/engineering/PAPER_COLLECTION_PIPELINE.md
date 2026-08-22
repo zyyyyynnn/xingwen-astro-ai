@@ -133,10 +133,9 @@ PaperCollection/PaperSummary Pipeline 只产生 typed content/candidate。Artifa
 
 ## 10. Selected candidate handoff
 
-选中的 `PaperCandidate` 通过 API bridge 进入既有 ResearchInput ingestion：先闭合
-ArtifactVersion、candidate、SourceSnapshot 与 Evidence provenance，再要求显式 lawful
-access evidence。公开访问 URL 只作为摄取请求输入，实际字节、MIME、大小、SSRF、重定向、
-内容哈希、CAS、ownership 与 idempotency 均由 ResearchInput 边界负责。metadata-only
-只记录不可变 provenance 和拒绝/未证明原因，不创建输入；此阶段不启动 parser、summary
-或 executor。Fixture、recorded、cached 和 synthetic candidate 不得被呈现为 Live 或
-创建新的 ResearchInput。
+选中的 `PaperCandidate` 通过 API bridge 进入既有 ResearchInput ingestion。该 bridge 先闭合
+ArtifactVersion → PaperCandidate → SourceSnapshot 的 search provenance，随后对于需要创建/绑定全文
+ResearchInput 的请求，再独立要求 `PaperCandidateAccessEvidence` 证明 lawful access。
+
+明确：PaperCollection search publication 不生成 literature Evidence。PaperSummary / Literature reasoning
+才拥有并发布 literature Evidence。metadata-only 只记录不可变 candidate + snapshot provenance 以及无法证明访问/受限等原因，不创建 ResearchInput。公开访问 URL 只作为摄取请求输入，实际字节、MIME、大小、SSRF、重定向、内容哈希、CAS、ownership 与 idempotency 均由 ResearchInput 边界负责。Fixture、recorded、cached 和 synthetic candidate 不得被呈现为 Live 或创建新的 ResearchInput。

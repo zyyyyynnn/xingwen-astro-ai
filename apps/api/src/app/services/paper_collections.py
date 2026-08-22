@@ -59,7 +59,6 @@ class PaperCollectionReadService:
             collection=collection,
             producer_execution=version.producer_execution,
             source_snapshots=version.source_snapshots,
-            evidence=version.evidence,
         )
 
     def list_candidates(
@@ -184,6 +183,8 @@ class PaperCollectionReadService:
             item.source_mode.value != version.source_mode.value
             for item in collection.source_executions
         ):
+            raise _schema_problem()
+        if version.evidence_ids or version.evidence:
             raise _schema_problem()
         if _contains_unsafe_html(collection.model_dump(mode="json")):
             raise _schema_problem()

@@ -8,6 +8,12 @@ deterministic in-process source adapter, then projects the result through the
 same read shapes PaperCollection API serves (``PaperCollectionRead`` and
 ``PaperCollectionCandidateRead``).
 
+Fixture publication projection mirrors real PaperCollection authority:
+- SourceSnapshot only
+- zero literature Evidence
+- exact Producer rules identity
+- exact Artifact content hash binding
+
 Records are never hand-transcribed: the four expected papers of the
 ``search.tess_mission_and_catalogs`` scenario are derived programmatically
 from the frozen benchmark seed papers (whose ``intended_uses`` must include
@@ -43,7 +49,6 @@ from app.schemas.paper_collection_api import (
 )
 from app.schemas.core import (
     ArtifactVersionDetail,
-    EvidenceDetail,
     ProducerExecutionDetail,
     ProducerReference,
     SourceSnapshotDetail,
@@ -310,6 +315,9 @@ def build_demo_read() -> tuple[PaperCollectionRead, tuple[PaperCollectionCandida
         cache_version=pipeline_snapshot.cache_version,
         request_metadata=pipeline_snapshot.request_metadata,
     )
+    rules_payload = collection.rules.model_dump(mode="json", exclude_none=True)
+    if compute_canonical_payload_hash(rules_payload) != collection.producer.parameters_hash:
+        raise ValueError("rules payload hash does not match collection.producer.parameters_hash")
     producer_execution = ProducerExecutionDetail(
         id="pexec_run_papcol_01",
         run_id=_RUN_ID,
@@ -321,37 +329,15 @@ def build_demo_read() -> tuple[PaperCollectionRead, tuple[PaperCollectionCandida
             version=collection.producer.producer_version,
             parameters_hash=collection.producer.parameters_hash,
         ),
-        parameters={},
+        parameters=rules_payload,
         parameters_hash=collection.producer.parameters_hash,
         input_hash=collection.input_hash,
-        output_hash=collection.output_hash,
+        output_hash=content_hash,
         status="completed",
         started_at=collection.producer.started_at,
         finished_at=collection.producer.finished_at,
         latency_ms=collection.producer.latency_ms,
         error_code=None,
-    )
-    evidence = tuple(
-        EvidenceDetail(
-            id=f"evd_paper_{index + 1:02d}",
-            artifact_version_id=_ARTIFACT_VERSION_ID,
-            target_type="paper_candidate",
-            target_id=candidate.candidate_id,
-            evidence_type="paper_search",
-            source_snapshot_id=_SNAPSHOT_DETAIL_ID,
-            paper_id=candidate.canonical_paper_id,
-            locator={
-                "kind": "database_cell",
-                "query_hash": collection.query.query_hash,
-                "row_key": candidate.raw.source_record_id,
-                "field": "paper.title",
-            },
-            quote_or_value=candidate.title,
-            extraction_method="deterministic_parser",
-            confidence=1.0,
-            created_at=collection.acquisition_run.finished_at,
-        )
-        for index, candidate in enumerate(collection.candidates)
     )
     read = PaperCollectionRead(
         artifact_version_id=_ARTIFACT_VERSION_ID,
@@ -364,7 +350,6 @@ def build_demo_read() -> tuple[PaperCollectionRead, tuple[PaperCollectionCandida
         collection=collection,
         producer_execution=producer_execution,
         source_snapshots=(snapshot_detail,),
-        evidence=evidence,
     )
     groups = {
         group.duplicate_group_id: group for group in collection.duplicate_groups
@@ -398,12 +383,12 @@ def build_fixture_document() -> dict[str, Any]:
         source_mode=read.source_mode,
         producer=read.producer_execution.producer,
         source_snapshot_ids=tuple(item.id for item in read.source_snapshots),
-        evidence_ids=tuple(item.id for item in read.evidence),
+        evidence_ids=(),
         supersedes_version_id=None,
         created_at=read.created_at,
         producer_execution=read.producer_execution,
         source_snapshots=read.source_snapshots,
-        evidence=read.evidence,
+        evidence=(),
     )
     return {
         "$generated": {
