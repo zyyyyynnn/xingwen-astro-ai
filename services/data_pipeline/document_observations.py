@@ -818,7 +818,8 @@ class _Extractor:
             for cell in row:
                 label = (cell.text or "").strip()
                 if (
-                    label == ""
+                    not cell.is_header
+                    or label == ""
                     or cell.quality is DocumentParseQuality.unsupported
                 ):
                     continue

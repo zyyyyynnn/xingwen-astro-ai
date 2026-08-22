@@ -539,6 +539,54 @@ def test_table_observation_quality_propagates_from_all_regions(
         assert observations[0].parse_quality is expected_quality
 
 
+def test_body_row_cannot_be_promoted_to_table_header(
+    crossmatch, host_token
+) -> None:
+    parse = _parse(
+        [
+            ("star.tic_id", "Teff [K]"),
+            (host_token, "5600"),
+        ]
+    )
+    table = parse.tables[0]
+    header_row = list(table.rows[0])
+    header_row[0] = header_row[0].model_copy(
+        update={"quality": DocumentParseQuality.unsupported}
+    )
+    parse = parse.model_copy(
+        update={
+            "tables": (
+                table.model_copy(
+                    update={
+                        "rows": (
+                            tuple(header_row),
+                            *table.rows[1:],
+                        )
+                    }
+                ),
+            )
+        }
+    )
+
+    assert parse.tables[0].rows[0][0].is_header is True
+    assert parse.tables[0].rows[1][0].is_header is False
+    batch = extract_document_observations(
+        parse=parse,
+        context=_context(),
+        snapshot_projection=_projection(),
+        contract_policy=DocumentSourcePolicy.research_input,
+        case_capability=True,
+        requested_fields=REQUESTED_FIELDS,
+        manifests=BUNDLE,
+        crossmatch=crossmatch,
+        rules=RULES,
+    )
+
+    assert batch.raw_candidates == ()
+    assert batch.accepted == ()
+    assert batch.outcomes == ()
+
+
 def _rehash_source_value_payload(payload: dict) -> dict:
     payload["content_hash"] = compute_data_artifact_content_hash(payload)
     return payload
