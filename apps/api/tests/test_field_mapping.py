@@ -33,7 +33,7 @@ def test_mapping_uses_entity_alignment_normalized_identity_and_preserves_all_sou
         for value in result.dataset.source_values
         if value.source_value_id in outcome.candidate_source_value_ids
     }
-    assert {value.raw_field for value in retained.values()} == {"tid", "tic_id"}
+    assert {value.origin.raw_field for value in retained.values()} == {"tid", "tic_id"}
     assert {value.source_id for value in retained.values()} == {
         "nasa_exoplanet_archive.toi",
         "nasa_exoplanet_archive.ps",

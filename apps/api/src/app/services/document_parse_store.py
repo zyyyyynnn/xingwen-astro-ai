@@ -94,10 +94,19 @@ class _DocumentParseMetadata:
 
 @dataclass(frozen=True, slots=True)
 class DocumentParseSourceSnapshot:
+    """Immutable persisted SourceSnapshot facts behind one DocumentParse."""
+
     id: UUID
     source_id: str
-    source_version: str
+    source_version_or_etag: str | None
     content_hash: str
+    source_type: str
+    retrieved_at: datetime
+    query: object
+    query_hash: str
+    license_note: str
+    cache_version: str | None
+    request_metadata: dict[str, object]
 
 
 @dataclass(frozen=True, slots=True)
@@ -345,10 +354,15 @@ class DocumentParseRepository:
             return DocumentParseSourceSnapshot(
                 id=row.id,
                 source_id=row.source_id,
-                source_version=(
-                    row.source_version_or_etag or row.cache_version or row.content_hash
-                ),
+                source_version_or_etag=row.source_version_or_etag,
                 content_hash=row.content_hash,
+                source_type=row.source_type,
+                retrieved_at=row.retrieved_at,
+                query=row.query,
+                query_hash=row.query_hash,
+                license_note=row.license_note,
+                cache_version=row.cache_version,
+                request_metadata=dict(row.request_metadata or {}),
             )
 
     def persist_locator(

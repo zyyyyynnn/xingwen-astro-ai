@@ -198,6 +198,13 @@ class UnitPolicy(StrEnum):
     canonical = "canonical"
 
 
+class DocumentSourcePolicy(StrEnum):
+    """Whether document-derived scientific values may enter the Dataset."""
+
+    disabled = "disabled"
+    research_input = "research_input"
+
+
 class CachePolicy(StrEnum):
     disabled = "disabled"
     fallback_on_recoverable_failure = "fallback_on_recoverable_failure"
@@ -206,7 +213,8 @@ class CachePolicy(StrEnum):
 class DataRequirements(BaseModel):
     model_config = CORE_MODEL_CONFIG
 
-    unit_policy: UnitPolicy = UnitPolicy.canonical
+    unit_policy: UnitPolicy
+    document_source_policy: DocumentSourcePolicy
 
 
 class SourceScope(BaseModel):
@@ -411,7 +419,7 @@ class ResearchContractDraft(BaseModel):
                     "contract": {
                         "research_goal": "Integrate exoplanet candidates and host-star parameters",
                         "target_objects": ["exoplanet_candidate", "host_star"],
-                        "data_requirements": {"unit_policy": "canonical"},
+                        "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
                         "requested_fields": ["planet.toi_id", "star.tic_id"],
                         "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
                         "paper_search_scope": {"max_candidates": 20},
@@ -452,7 +460,7 @@ class ResearchContract(ResearchContractInput):
                     "version": 1,
                     "research_goal": "Integrate exoplanet candidates and host-star parameters",
                     "target_objects": ["exoplanet_candidate", "host_star"],
-                    "data_requirements": {"unit_policy": "canonical"},
+                    "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
                     "requested_fields": ["planet.toi_id", "star.tic_id"],
                     "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
                     "paper_search_scope": {"max_candidates": 20},

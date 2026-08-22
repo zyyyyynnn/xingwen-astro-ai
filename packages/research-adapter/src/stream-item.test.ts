@@ -86,7 +86,10 @@ describe("buildUnifiedWorkspaceStream", () => {
     contract: {
       researchGoal: "分析系外行星宿主星物理参数",
       targetObjects: [asEntityId("host_star")],
-      dataRequirements: { unitPolicy: "canonical" },
+      dataRequirements: {
+        unitPolicy: "canonical",
+        documentSourcePolicy: "disabled" as const,
+      },
       requestedFields: [asEntityId("teff"), asEntityId("feh")],
       sourceScope: {
         allowedSources: [asEntityId("simbad"), asEntityId("gaia")],

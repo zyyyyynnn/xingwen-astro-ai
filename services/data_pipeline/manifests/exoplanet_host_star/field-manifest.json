@@ -3,8 +3,8 @@
   "case_id": "exoplanet_host_star",
   "name": "Exoplanet candidate and host-star field manifest",
   "description": "Canonical fields for the fixed TESS exoplanet candidate and host-star research case.",
-  "schema_version": "2.0.0",
-  "manifest_version": "2.0.0",
+  "schema_version": "3.0.0",
+  "manifest_version": "3.0.0",
   "sources": [
     {
       "source_id": "esa_gaia_dr3.gaiadr3.gaia_source",
@@ -14,8 +14,15 @@
       "documentation_url": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_main_source_catalogue/ssec_dm_gaia_source.html",
       "declaration_mode": "metadata_only",
       "provider_source_id": "esa_gaia_dr3",
-      "approved_columns": ["source_id", "ra", "dec", "teff_gspphot"],
-      "row_key_fields": ["source_id"],
+      "approved_columns": [
+        "source_id",
+        "ra",
+        "dec",
+        "teff_gspphot"
+      ],
+      "row_key_fields": [
+        "source_id"
+      ],
       "reference_columns": [],
       "provenance_columns": [],
       "column_contract": {
@@ -87,9 +94,20 @@
         "pl_bmasse",
         "pl_radjlim"
       ],
-      "row_key_fields": ["pl_name", "pl_refname"],
-      "reference_columns": ["pl_refname", "st_refname", "sy_refname"],
-      "provenance_columns": ["pl_bmassprov", "rowupdate", "st_metratio"],
+      "row_key_fields": [
+        "pl_name",
+        "pl_refname"
+      ],
+      "reference_columns": [
+        "pl_refname",
+        "st_refname",
+        "sy_refname"
+      ],
+      "provenance_columns": [
+        "pl_bmassprov",
+        "rowupdate",
+        "st_metratio"
+      ],
       "column_contract": {
         "snapshot_id": "nasa_exoplanet_archive.column_adjudications.2026-07-19",
         "snapshot_version": "1.0.0",
@@ -129,9 +147,13 @@
         "tid",
         "toi"
       ],
-      "row_key_fields": ["toi"],
+      "row_key_fields": [
+        "toi"
+      ],
       "reference_columns": [],
-      "provenance_columns": ["rowupdate"],
+      "provenance_columns": [
+        "rowupdate"
+      ],
       "column_contract": {
         "snapshot_id": "nasa_exoplanet_archive.column_adjudications.2026-07-19",
         "snapshot_version": "1.0.0",
@@ -206,7 +228,9 @@
         "pl_bmasse",
         "pl_radj_reflink"
       ],
-      "row_key_fields": ["pl_name"],
+      "row_key_fields": [
+        "pl_name"
+      ],
       "reference_columns": [
         "pl_bmasse_reflink",
         "pl_bmassj_reflink",
@@ -218,7 +242,10 @@
         "st_rad_reflink",
         "st_teff_reflink"
       ],
-      "provenance_columns": ["pl_bmassprov", "st_metratio"],
+      "provenance_columns": [
+        "pl_bmassprov",
+        "st_metratio"
+      ],
       "column_contract": {
         "snapshot_id": "nasa_exoplanet_archive.column_adjudications.2026-07-19",
         "snapshot_version": "1.0.0",
@@ -347,10 +374,14 @@
           "source_unit": "none",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["toi"]
+          "row_key_fields": [
+            "toi"
+          ]
         }
       ],
-      "source_priority": ["nasa_exoplanet_archive.toi"],
+      "source_priority": [
+        "nasa_exoplanet_archive.toi"
+      ],
       "conflict_resolution_strategy": "prefer_source_priority_preserve_all",
       "conflict_resolution_rule_version": "1.0.0",
       "required": true,
@@ -380,7 +411,8 @@
         "conflict",
         "evidence_coverage",
         "crossmatch_coverage"
-      ]
+      ],
+      "document_aliases": []
     },
     {
       "field_id": "planet.name",
@@ -398,7 +430,10 @@
           "source_unit": "none",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name", "pl_refname"],
+          "row_key_fields": [
+            "pl_name",
+            "pl_refname"
+          ],
           "reference_field": "pl_refname",
           "provenance_field": "rowupdate"
         },
@@ -409,7 +444,9 @@
           "source_unit": "none",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name"]
+          "row_key_fields": [
+            "pl_name"
+          ]
         }
       ],
       "source_priority": [
@@ -422,7 +459,10 @@
       "nullable": true,
       "null_policy": {
         "reason_required_when_null": true,
-        "allowed_reasons": ["not_in_source", "not_measured"]
+        "allowed_reasons": [
+          "not_in_source",
+          "not_measured"
+        ]
       },
       "limit_policy": {
         "rule_version": "1.0.0",
@@ -445,7 +485,8 @@
         "conflict",
         "evidence_coverage",
         "crossmatch_coverage"
-      ]
+      ],
+      "document_aliases": []
     },
     {
       "field_id": "planet.disposition",
@@ -463,18 +504,25 @@
           "source_unit": "none",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["toi"],
+          "row_key_fields": [
+            "toi"
+          ],
           "provenance_field": "rowupdate"
         }
       ],
-      "source_priority": ["nasa_exoplanet_archive.toi"],
+      "source_priority": [
+        "nasa_exoplanet_archive.toi"
+      ],
       "conflict_resolution_strategy": "prefer_source_priority_preserve_all",
       "conflict_resolution_rule_version": "1.0.0",
       "required": true,
       "nullable": true,
       "null_policy": {
         "reason_required_when_null": true,
-        "allowed_reasons": ["not_in_source", "not_measured"]
+        "allowed_reasons": [
+          "not_in_source",
+          "not_measured"
+        ]
       },
       "limit_policy": {
         "rule_version": "1.0.0",
@@ -495,7 +543,8 @@
         "missingness",
         "conflict",
         "evidence_coverage"
-      ]
+      ],
+      "document_aliases": []
     },
     {
       "field_id": "star.tic_id",
@@ -513,7 +562,9 @@
           "source_unit": "none",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["toi"]
+          "row_key_fields": [
+            "toi"
+          ]
         },
         {
           "source_id": "nasa_exoplanet_archive.ps",
@@ -522,7 +573,10 @@
           "source_unit": "none",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name", "pl_refname"],
+          "row_key_fields": [
+            "pl_name",
+            "pl_refname"
+          ],
           "reference_field": "pl_refname",
           "provenance_field": "rowupdate"
         },
@@ -533,7 +587,9 @@
           "source_unit": "none",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name"]
+          "row_key_fields": [
+            "pl_name"
+          ]
         }
       ],
       "source_priority": [
@@ -570,7 +626,8 @@
         "conflict",
         "evidence_coverage",
         "crossmatch_coverage"
-      ]
+      ],
+      "document_aliases": []
     },
     {
       "field_id": "star.gaia_dr3_id",
@@ -588,7 +645,9 @@
           "source_unit": "none",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["source_id"]
+          "row_key_fields": [
+            "source_id"
+          ]
         },
         {
           "source_id": "nasa_exoplanet_archive.ps",
@@ -597,7 +656,10 @@
           "source_unit": "none",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name", "pl_refname"],
+          "row_key_fields": [
+            "pl_name",
+            "pl_refname"
+          ],
           "reference_field": "pl_refname",
           "provenance_field": "rowupdate"
         },
@@ -608,7 +670,9 @@
           "source_unit": "none",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name"]
+          "row_key_fields": [
+            "pl_name"
+          ]
         }
       ],
       "source_priority": [
@@ -622,7 +686,10 @@
       "nullable": true,
       "null_policy": {
         "reason_required_when_null": true,
-        "allowed_reasons": ["not_in_source", "not_measured"]
+        "allowed_reasons": [
+          "not_in_source",
+          "not_measured"
+        ]
       },
       "limit_policy": {
         "rule_version": "1.0.0",
@@ -645,7 +712,8 @@
         "conflict",
         "evidence_coverage",
         "crossmatch_coverage"
-      ]
+      ],
+      "document_aliases": []
     },
     {
       "field_id": "star.name",
@@ -663,7 +731,10 @@
           "source_unit": "none",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name", "pl_refname"],
+          "row_key_fields": [
+            "pl_name",
+            "pl_refname"
+          ],
           "reference_field": "pl_refname",
           "provenance_field": "rowupdate"
         },
@@ -674,7 +745,9 @@
           "source_unit": "none",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name"]
+          "row_key_fields": [
+            "pl_name"
+          ]
         }
       ],
       "source_priority": [
@@ -687,7 +760,10 @@
       "nullable": true,
       "null_policy": {
         "reason_required_when_null": true,
-        "allowed_reasons": ["not_in_source", "not_measured"]
+        "allowed_reasons": [
+          "not_in_source",
+          "not_measured"
+        ]
       },
       "limit_policy": {
         "rule_version": "1.0.0",
@@ -710,7 +786,8 @@
         "conflict",
         "evidence_coverage",
         "crossmatch_coverage"
-      ]
+      ],
+      "document_aliases": []
     },
     {
       "field_id": "system.right_ascension",
@@ -728,7 +805,9 @@
           "source_unit": "degree",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["source_id"]
+          "row_key_fields": [
+            "source_id"
+          ]
         },
         {
           "source_id": "nasa_exoplanet_archive.toi",
@@ -737,7 +816,9 @@
           "source_unit": "degree",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["toi"]
+          "row_key_fields": [
+            "toi"
+          ]
         },
         {
           "source_id": "nasa_exoplanet_archive.ps",
@@ -746,7 +827,10 @@
           "source_unit": "degree",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name", "pl_refname"],
+          "row_key_fields": [
+            "pl_name",
+            "pl_refname"
+          ],
           "positive_error_field": "raerr1",
           "negative_error_field": "raerr2",
           "reference_field": "sy_refname",
@@ -759,7 +843,9 @@
           "source_unit": "degree",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name"],
+          "row_key_fields": [
+            "pl_name"
+          ],
           "positive_error_field": "raerr1",
           "negative_error_field": "raerr2"
         }
@@ -800,7 +886,8 @@
         "unit_consistency",
         "evidence_coverage",
         "crossmatch_coverage"
-      ]
+      ],
+      "document_aliases": []
     },
     {
       "field_id": "system.declination",
@@ -818,7 +905,9 @@
           "source_unit": "degree",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["source_id"]
+          "row_key_fields": [
+            "source_id"
+          ]
         },
         {
           "source_id": "nasa_exoplanet_archive.toi",
@@ -827,7 +916,9 @@
           "source_unit": "degree",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["toi"]
+          "row_key_fields": [
+            "toi"
+          ]
         },
         {
           "source_id": "nasa_exoplanet_archive.ps",
@@ -836,7 +927,10 @@
           "source_unit": "degree",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name", "pl_refname"],
+          "row_key_fields": [
+            "pl_name",
+            "pl_refname"
+          ],
           "positive_error_field": "decerr1",
           "negative_error_field": "decerr2",
           "reference_field": "sy_refname",
@@ -849,7 +943,9 @@
           "source_unit": "degree",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name"],
+          "row_key_fields": [
+            "pl_name"
+          ],
           "positive_error_field": "decerr1",
           "negative_error_field": "decerr2"
         }
@@ -890,7 +986,8 @@
         "unit_consistency",
         "evidence_coverage",
         "crossmatch_coverage"
-      ]
+      ],
+      "document_aliases": []
     },
     {
       "field_id": "planet.orbital_period",
@@ -908,7 +1005,10 @@
           "source_unit": "day",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name", "pl_refname"],
+          "row_key_fields": [
+            "pl_name",
+            "pl_refname"
+          ],
           "positive_error_field": "pl_orbpererr1",
           "negative_error_field": "pl_orbpererr2",
           "limit_field": "pl_orbperlim",
@@ -927,7 +1027,9 @@
           "source_unit": "day",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["toi"],
+          "row_key_fields": [
+            "toi"
+          ],
           "positive_error_field": "pl_orbpererr1",
           "negative_error_field": "pl_orbpererr2",
           "limit_field": "pl_orbperlim",
@@ -945,7 +1047,9 @@
           "source_unit": "day",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name"],
+          "row_key_fields": [
+            "pl_name"
+          ],
           "positive_error_field": "pl_orbpererr1",
           "negative_error_field": "pl_orbpererr2",
           "limit_field": "pl_orbperlim",
@@ -995,6 +1099,13 @@
         "conflict",
         "unit_consistency",
         "evidence_coverage"
+      ],
+      "document_aliases": [
+        {
+          "source_class": "document_research_input",
+          "alias": "Period",
+          "priority": 1
+        }
       ]
     },
     {
@@ -1013,7 +1124,10 @@
           "source_unit": "earth_radius",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name", "pl_refname"],
+          "row_key_fields": [
+            "pl_name",
+            "pl_refname"
+          ],
           "positive_error_field": "pl_radeerr1",
           "negative_error_field": "pl_radeerr2",
           "limit_field": "pl_radelim",
@@ -1032,7 +1146,10 @@
           "source_unit": "jupiter_radius",
           "conversion_rule_id": "unit.jupiter_radius_to_earth_radius",
           "priority": 2,
-          "row_key_fields": ["pl_name", "pl_refname"],
+          "row_key_fields": [
+            "pl_name",
+            "pl_refname"
+          ],
           "positive_error_field": "pl_radjerr1",
           "negative_error_field": "pl_radjerr2",
           "limit_field": "pl_radjlim",
@@ -1051,7 +1168,9 @@
           "source_unit": "earth_radius",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["toi"],
+          "row_key_fields": [
+            "toi"
+          ],
           "positive_error_field": "pl_radeerr1",
           "negative_error_field": "pl_radeerr2",
           "limit_field": "pl_radelim",
@@ -1069,7 +1188,9 @@
           "source_unit": "earth_radius",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name"],
+          "row_key_fields": [
+            "pl_name"
+          ],
           "positive_error_field": "pl_radeerr1",
           "negative_error_field": "pl_radeerr2",
           "limit_field": "pl_radelim",
@@ -1087,7 +1208,9 @@
           "source_unit": "jupiter_radius",
           "conversion_rule_id": "unit.jupiter_radius_to_earth_radius",
           "priority": 2,
-          "row_key_fields": ["pl_name"],
+          "row_key_fields": [
+            "pl_name"
+          ],
           "positive_error_field": "pl_radjerr1",
           "negative_error_field": "pl_radjerr2",
           "limit_field": "pl_radjlim",
@@ -1137,6 +1260,13 @@
         "conflict",
         "unit_consistency",
         "evidence_coverage"
+      ],
+      "document_aliases": [
+        {
+          "source_class": "document_research_input",
+          "alias": "Radius",
+          "priority": 1
+        }
       ]
     },
     {
@@ -1155,7 +1285,10 @@
           "source_unit": "earth_mass",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name", "pl_refname"],
+          "row_key_fields": [
+            "pl_name",
+            "pl_refname"
+          ],
           "positive_error_field": "pl_bmasseerr1",
           "negative_error_field": "pl_bmasseerr2",
           "limit_field": "pl_bmasselim",
@@ -1174,7 +1307,10 @@
           "source_unit": "jupiter_mass",
           "conversion_rule_id": "unit.jupiter_mass_to_earth_mass",
           "priority": 2,
-          "row_key_fields": ["pl_name", "pl_refname"],
+          "row_key_fields": [
+            "pl_name",
+            "pl_refname"
+          ],
           "positive_error_field": "pl_bmassjerr1",
           "negative_error_field": "pl_bmassjerr2",
           "limit_field": "pl_bmassjlim",
@@ -1193,7 +1329,9 @@
           "source_unit": "earth_mass",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name"],
+          "row_key_fields": [
+            "pl_name"
+          ],
           "positive_error_field": "pl_bmasseerr1",
           "negative_error_field": "pl_bmasseerr2",
           "limit_field": "pl_bmasselim",
@@ -1212,7 +1350,9 @@
           "source_unit": "jupiter_mass",
           "conversion_rule_id": "unit.jupiter_mass_to_earth_mass",
           "priority": 2,
-          "row_key_fields": ["pl_name"],
+          "row_key_fields": [
+            "pl_name"
+          ],
           "positive_error_field": "pl_bmassjerr1",
           "negative_error_field": "pl_bmassjerr2",
           "limit_field": "pl_bmassjlim",
@@ -1262,6 +1402,13 @@
         "conflict",
         "unit_consistency",
         "evidence_coverage"
+      ],
+      "document_aliases": [
+        {
+          "source_class": "document_research_input",
+          "alias": "Mass",
+          "priority": 1
+        }
       ]
     },
     {
@@ -1280,7 +1427,9 @@
           "source_unit": "kelvin",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["source_id"]
+          "row_key_fields": [
+            "source_id"
+          ]
         },
         {
           "source_id": "nasa_exoplanet_archive.ps",
@@ -1289,7 +1438,10 @@
           "source_unit": "kelvin",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name", "pl_refname"],
+          "row_key_fields": [
+            "pl_name",
+            "pl_refname"
+          ],
           "positive_error_field": "st_tefferr1",
           "negative_error_field": "st_tefferr2",
           "limit_field": "st_tefflim",
@@ -1308,7 +1460,9 @@
           "source_unit": "kelvin",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["toi"],
+          "row_key_fields": [
+            "toi"
+          ],
           "positive_error_field": "st_tefferr1",
           "negative_error_field": "st_tefferr2",
           "limit_field": "st_tefflim",
@@ -1326,7 +1480,9 @@
           "source_unit": "kelvin",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name"],
+          "row_key_fields": [
+            "pl_name"
+          ],
           "positive_error_field": "st_tefferr1",
           "negative_error_field": "st_tefferr2",
           "limit_field": "st_tefflim",
@@ -1377,6 +1533,18 @@
         "conflict",
         "unit_consistency",
         "evidence_coverage"
+      ],
+      "document_aliases": [
+        {
+          "source_class": "document_research_input",
+          "alias": "Effective Temperature",
+          "priority": 1
+        },
+        {
+          "source_class": "document_research_input",
+          "alias": "Teff",
+          "priority": 1
+        }
       ]
     },
     {
@@ -1395,7 +1563,10 @@
           "source_unit": "dex",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name", "pl_refname"],
+          "row_key_fields": [
+            "pl_name",
+            "pl_refname"
+          ],
           "positive_error_field": "st_meterr1",
           "negative_error_field": "st_meterr2",
           "limit_field": "st_metlim",
@@ -1414,7 +1585,9 @@
           "source_unit": "dex",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name"],
+          "row_key_fields": [
+            "pl_name"
+          ],
           "positive_error_field": "st_meterr1",
           "negative_error_field": "st_meterr2",
           "limit_field": "st_metlim",
@@ -1464,7 +1637,8 @@
         "conflict",
         "unit_consistency",
         "evidence_coverage"
-      ]
+      ],
+      "document_aliases": []
     },
     {
       "field_id": "star.radius",
@@ -1482,7 +1656,10 @@
           "source_unit": "solar_radius",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name", "pl_refname"],
+          "row_key_fields": [
+            "pl_name",
+            "pl_refname"
+          ],
           "positive_error_field": "st_raderr1",
           "negative_error_field": "st_raderr2",
           "limit_field": "st_radlim",
@@ -1501,7 +1678,9 @@
           "source_unit": "solar_radius",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["toi"],
+          "row_key_fields": [
+            "toi"
+          ],
           "positive_error_field": "st_raderr1",
           "negative_error_field": "st_raderr2",
           "limit_field": "st_radlim",
@@ -1519,7 +1698,9 @@
           "source_unit": "solar_radius",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name"],
+          "row_key_fields": [
+            "pl_name"
+          ],
           "positive_error_field": "st_raderr1",
           "negative_error_field": "st_raderr2",
           "limit_field": "st_radlim",
@@ -1569,6 +1750,13 @@
         "conflict",
         "unit_consistency",
         "evidence_coverage"
+      ],
+      "document_aliases": [
+        {
+          "source_class": "document_research_input",
+          "alias": "Radius",
+          "priority": 1
+        }
       ]
     },
     {
@@ -1587,7 +1775,10 @@
           "source_unit": "solar_mass",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name", "pl_refname"],
+          "row_key_fields": [
+            "pl_name",
+            "pl_refname"
+          ],
           "positive_error_field": "st_masserr1",
           "negative_error_field": "st_masserr2",
           "limit_field": "st_masslim",
@@ -1606,7 +1797,9 @@
           "source_unit": "solar_mass",
           "conversion_rule_id": "unit.identity",
           "priority": 1,
-          "row_key_fields": ["pl_name"],
+          "row_key_fields": [
+            "pl_name"
+          ],
           "positive_error_field": "st_masserr1",
           "negative_error_field": "st_masserr2",
           "limit_field": "st_masslim",
@@ -1655,6 +1848,13 @@
         "conflict",
         "unit_consistency",
         "evidence_coverage"
+      ],
+      "document_aliases": [
+        {
+          "source_class": "document_research_input",
+          "alias": "Mass",
+          "priority": 1
+        }
       ]
     }
   ],
@@ -1663,5 +1863,5 @@
     "module": "data_pipeline",
     "role": "data_pipeline"
   },
-  "content_hash": "sha256:d74d01950e7171aacce8cf660582d5245a2fa84e8bf6948224695740cd3c334e"
+  "content_hash": "sha256:a922748dee1a51f616e256d1fe71a7e2b94596bcdfa465906046734bbf90118d"
 }

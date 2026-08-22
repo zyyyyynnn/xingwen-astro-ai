@@ -24,13 +24,28 @@
     "DataRequirements": {
       "additionalProperties": false,
       "properties": {
+        "document_source_policy": {
+          "$ref": "#/$defs/DocumentSourcePolicy"
+        },
         "unit_policy": {
-          "$ref": "#/$defs/UnitPolicy",
-          "default": "canonical"
+          "$ref": "#/$defs/UnitPolicy"
         }
       },
+      "required": [
+        "unit_policy",
+        "document_source_policy"
+      ],
       "title": "DataRequirements",
       "type": "object"
+    },
+    "DocumentSourcePolicy": {
+      "description": "Whether document-derived scientific values may enter the Dataset.",
+      "enum": [
+        "disabled",
+        "research_input"
+      ],
+      "title": "DocumentSourcePolicy",
+      "type": "string"
     },
     "EvidenceRequirements": {
       "additionalProperties": false,

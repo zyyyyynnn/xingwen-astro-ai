@@ -10,7 +10,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import ResearchContract, validate_research_contract_content_hash
-from app.schemas.data_artifacts import ManifestPins, SourceCellLocator
+from app.schemas.data_artifacts import ManifestPins, DatabaseCellLocator
 from app.schemas.data_quality import QualityMetricScope
 from app.schemas.manifest import FieldDefinition, SourceAlias
 from app.schemas.source_acquisition import compute_raw_data_record_hash
@@ -257,7 +257,7 @@ def admit_source_table(
                     bundle,
                     conversion_versions,
                 )
-            locator = SourceCellLocator(
+            locator = DatabaseCellLocator(
                 source_role="single",
                 source_snapshot_id=source_snapshot_id,
                 source_snapshot_content_hash=source_snapshot_content_hash,

@@ -29,6 +29,8 @@ from app.schemas.data_quality import (
     DataQualityEvaluationResult,
     DataQualityRuleSet,
     DatasetQualityResult,
+    DocumentParseQualityObservation,
+    DocumentParseQualityStatus,
     FieldQualityResult,
     QualityArtifactReference,
     QualityCount,
@@ -454,6 +456,40 @@ def _build_dataset_result(
     return DatasetQualityResult(**payload, content_hash=compute_quality_content_hash(payload))
 
 
+def _build_document_parse_observation(
+    value: DataQualityEvaluationInput,
+) -> DocumentParseQualityObservation:
+    """Observe parse quality of the document inputs actually retained by the build.
+
+    This never feeds structured left/right completeness; it is an independent
+    non-metric observation.
+    """
+
+    observations = value.data_artifact_input.document_observations
+    if not observations:
+        return DocumentParseQualityObservation(
+            status=DocumentParseQualityStatus.not_applicable
+        )
+    research_input_ids: list[str] = []
+    document_parse_ids: list[str] = []
+    qualities = set()
+    for observation in observations:
+        research_input_ids.append(str(observation.research_input_id))
+        document_parse_ids.append(str(observation.document_parse_id))
+        qualities.add(observation.parse_quality.value)
+    if any(quality == "unsupported" for quality in qualities):
+        status = DocumentParseQualityStatus.unsupported
+    elif any(quality == "partial" for quality in qualities):
+        status = DocumentParseQualityStatus.partial
+    else:
+        status = DocumentParseQualityStatus.complete
+    return DocumentParseQualityObservation(
+        status=status,
+        research_input_ids=tuple(dict.fromkeys(research_input_ids)),
+        document_parse_ids=tuple(dict.fromkeys(document_parse_ids)),
+    )
+
+
 def _build_result(
     value: DataQualityEvaluationInput,
     rules: DataQualityRuleSet,
@@ -527,6 +563,9 @@ def _build_result(
         "field_results": [item.model_dump(mode="json") for item in fields],
         "row_results": [item.model_dump(mode="json") for item in rows],
         "dataset_result": dataset.model_dump(mode="json"),
+        "document_parse_observation": _build_document_parse_observation(value).model_dump(
+            mode="json"
+        ),
         "contract_gate": gate.model_dump(mode="json"),
         "aggregate_score": None,
         "aggregate_score_policy": rules.aggregate_score_policy.model_dump(mode="json"),

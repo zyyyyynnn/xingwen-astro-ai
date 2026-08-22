@@ -1,12 +1,12 @@
 {
   "benchmark_id": "exoplanet_host_star.crossmatch_benchmark",
   "version": "2.0.0",
-  "content_hash": "sha256:4fb94979b868c43ce5e0884dca8b35d628fe1c51421a5dc2da9c61a0dde9b0a0",
+  "content_hash": "sha256:5824e2c093e670cd6b00c18aac7e74e53bd4aa63daf02eadeafe1e7d2828e75c",
   "data_level": "synthetic_fixture",
   "provenance_note": "Pinned synthetic fixture for deterministic cross-source entity alignment review; not scientific ground truth.",
   "rule_set_id": "exoplanet_host_star.crossmatch_rules",
   "rule_set_version": "2.0.0",
-  "rule_set_content_hash": "sha256:929df3c7a9693d70c63e26fdc15613450e0c51900e6d4893db39121c20f57305",
+  "rule_set_content_hash": "sha256:66e365e1f600aa2a9b4fdec9915d1e9f669057404bd0cbd2ff57227eeeb89247",
   "scenarios": [
     {
       "scenario_id": "exact_one_to_one",
@@ -36,8 +36,12 @@
         "inconclusive_count": 0,
         "review_required_count": 0,
         "planet_assertion_count": 1,
-        "methods": ["exact_identifier"],
-        "topologies": ["one_to_one"],
+        "methods": [
+          "exact_identifier"
+        ],
+        "topologies": [
+          "one_to_one"
+        ],
         "conflict_codes": []
       }
     },
@@ -75,8 +79,12 @@
         "inconclusive_count": 0,
         "review_required_count": 0,
         "planet_assertion_count": 2,
-        "methods": ["exact_identifier"],
-        "topologies": ["one_to_many"],
+        "methods": [
+          "exact_identifier"
+        ],
+        "topologies": [
+          "one_to_many"
+        ],
         "conflict_codes": []
       }
     },
@@ -113,8 +121,12 @@
         "inconclusive_count": 0,
         "review_required_count": 0,
         "planet_assertion_count": 1,
-        "methods": ["exact_identifier"],
-        "topologies": ["many_to_one"],
+        "methods": [
+          "exact_identifier"
+        ],
+        "topologies": [
+          "many_to_one"
+        ],
         "conflict_codes": []
       }
     },
@@ -157,8 +169,12 @@
         "inconclusive_count": 0,
         "review_required_count": 0,
         "planet_assertion_count": 2,
-        "methods": ["exact_identifier"],
-        "topologies": ["many_to_many"],
+        "methods": [
+          "exact_identifier"
+        ],
+        "topologies": [
+          "many_to_many"
+        ],
         "conflict_codes": []
       }
     },
@@ -194,9 +210,13 @@
         "inconclusive_count": 0,
         "review_required_count": 0,
         "planet_assertion_count": 1,
-        "methods": ["compound"],
+        "methods": [
+          "compound"
+        ],
         "topologies": [],
-        "conflict_codes": ["crossmatch.identifier_coordinate_conflict"]
+        "conflict_codes": [
+          "crossmatch.identifier_coordinate_conflict"
+        ]
       }
     },
     {
@@ -227,8 +247,12 @@
         "inconclusive_count": 0,
         "review_required_count": 0,
         "planet_assertion_count": 1,
-        "methods": ["exact_identifier"],
-        "topologies": ["one_to_one"],
+        "methods": [
+          "exact_identifier"
+        ],
+        "topologies": [
+          "one_to_one"
+        ],
         "conflict_codes": []
       }
     },
@@ -266,8 +290,12 @@
         "inconclusive_count": 0,
         "review_required_count": 0,
         "planet_assertion_count": 2,
-        "methods": ["exact_identifier"],
-        "topologies": ["one_to_many"],
+        "methods": [
+          "exact_identifier"
+        ],
+        "topologies": [
+          "one_to_many"
+        ],
         "conflict_codes": []
       }
     },
@@ -300,8 +328,12 @@
         "inconclusive_count": 0,
         "review_required_count": 0,
         "planet_assertion_count": 1,
-        "methods": ["exact_identifier"],
-        "topologies": ["one_to_one"],
+        "methods": [
+          "exact_identifier"
+        ],
+        "topologies": [
+          "one_to_one"
+        ],
         "conflict_codes": []
       }
     },
@@ -335,8 +367,12 @@
         "inconclusive_count": 0,
         "review_required_count": 1,
         "planet_assertion_count": 1,
-        "methods": ["coordinate"],
-        "topologies": ["one_to_one"],
+        "methods": [
+          "coordinate"
+        ],
+        "topologies": [
+          "one_to_one"
+        ],
         "conflict_codes": []
       }
     },
@@ -370,8 +406,12 @@
         "inconclusive_count": 0,
         "review_required_count": 1,
         "planet_assertion_count": 1,
-        "methods": ["coordinate"],
-        "topologies": ["one_to_one"],
+        "methods": [
+          "coordinate"
+        ],
+        "topologies": [
+          "one_to_one"
+        ],
         "conflict_codes": []
       }
     },
@@ -405,8 +445,12 @@
         "inconclusive_count": 0,
         "review_required_count": 1,
         "planet_assertion_count": 1,
-        "methods": ["coordinate"],
-        "topologies": ["one_to_one"],
+        "methods": [
+          "coordinate"
+        ],
+        "topologies": [
+          "one_to_one"
+        ],
         "conflict_codes": []
       }
     },
@@ -440,8 +484,12 @@
         "inconclusive_count": 0,
         "review_required_count": 1,
         "planet_assertion_count": 1,
-        "methods": ["coordinate"],
-        "topologies": ["one_to_one"],
+        "methods": [
+          "coordinate"
+        ],
+        "topologies": [
+          "one_to_one"
+        ],
         "conflict_codes": []
       }
     },
@@ -475,8 +523,12 @@
         "inconclusive_count": 0,
         "review_required_count": 1,
         "planet_assertion_count": 1,
-        "methods": ["coordinate"],
-        "topologies": ["one_to_one"],
+        "methods": [
+          "coordinate"
+        ],
+        "topologies": [
+          "one_to_one"
+        ],
         "conflict_codes": []
       }
     },
@@ -552,8 +604,12 @@
         "inconclusive_count": 0,
         "review_required_count": 1,
         "planet_assertion_count": 2,
-        "methods": ["coordinate"],
-        "topologies": ["one_to_many"],
+        "methods": [
+          "coordinate"
+        ],
+        "topologies": [
+          "one_to_many"
+        ],
         "conflict_codes": []
       }
     },
@@ -587,8 +643,13 @@
         "inconclusive_count": 0,
         "review_required_count": 2,
         "planet_assertion_count": 1,
-        "methods": ["coordinate", "curated_entity_alias"],
-        "topologies": ["one_to_one"],
+        "methods": [
+          "coordinate",
+          "curated_entity_alias"
+        ],
+        "topologies": [
+          "one_to_one"
+        ],
         "conflict_codes": []
       }
     },
@@ -620,8 +681,13 @@
         "inconclusive_count": 0,
         "review_required_count": 0,
         "planet_assertion_count": 1,
-        "methods": ["compound", "exact_identifier"],
-        "topologies": ["one_to_one"],
+        "methods": [
+          "compound",
+          "exact_identifier"
+        ],
+        "topologies": [
+          "one_to_one"
+        ],
         "conflict_codes": []
       }
     },
@@ -659,9 +725,16 @@
         "inconclusive_count": 0,
         "review_required_count": 0,
         "planet_assertion_count": 2,
-        "methods": ["compound", "exact_identifier"],
-        "topologies": ["one_to_many"],
-        "conflict_codes": ["crossmatch.alias_conflict"]
+        "methods": [
+          "compound",
+          "exact_identifier"
+        ],
+        "topologies": [
+          "one_to_many"
+        ],
+        "conflict_codes": [
+          "crossmatch.alias_conflict"
+        ]
       }
     },
     {
@@ -696,9 +769,13 @@
         "inconclusive_count": 0,
         "review_required_count": 0,
         "planet_assertion_count": 1,
-        "methods": ["compound"],
+        "methods": [
+          "compound"
+        ],
         "topologies": [],
-        "conflict_codes": ["crossmatch.identifier_conflict"]
+        "conflict_codes": [
+          "crossmatch.identifier_conflict"
+        ]
       }
     },
     {
@@ -897,8 +974,12 @@
         "review_required_count": 1,
         "manual_adjudication_count": 1,
         "planet_assertion_count": 1,
-        "methods": ["coordinate"],
-        "topologies": ["one_to_one"],
+        "methods": [
+          "coordinate"
+        ],
+        "topologies": [
+          "one_to_one"
+        ],
         "conflict_codes": []
       }
     },

@@ -7,8 +7,12 @@ from typing import Any
 
 from app.schemas.core import ResearchContract, UnitPolicy
 from app.schemas.data_artifacts import (
+    DocumentObservationLocator,
+    DocumentResearchInputOrigin,
     DatasetArtifactCandidate,
+    DocumentSourceCollectionMember,
     SourceCollectionArtifactCandidate,
+    StructuredSourceCollectionMember,
 )
 from app.schemas.data_quality import (
     DatasetQualityResult,
@@ -75,8 +79,15 @@ def _collect_observations(
         manifests.resolve_source_scope(contract.source_scope.allowed_sources)
     )
     actual_sources = {
-        member.source_id for member in source_collection_candidate.members
+        member.source_id
+        for member in source_collection_candidate.members
+        if isinstance(member, StructuredSourceCollectionMember)
     }
+    document_source_values = [
+        item
+        for item in dataset_candidate.source_values
+        if isinstance(item.origin, DocumentResearchInputOrigin)
+    ]
     observations: dict[str, QualityMetricResult | bool] = {
         f"dataset.{field_name}": getattr(dataset_result, field_name)
         for field_name in DatasetQualityResult.model_fields
@@ -97,9 +108,69 @@ def _collect_observations(
                 not contract.evidence_requirements.require_source_snapshot
                 or bool(dataset_candidate.source_snapshot_ids)
             ),
+            # Document authorization is verified independently from the
+            # structured source scope; without document values this stays True.
+            "candidate.document_source_authorized": _document_source_authorized(
+                contract,
+                document_source_values=document_source_values,
+                source_collection_candidate=source_collection_candidate,
+                manifests=manifests,
+            ),
         }
     )
     return observations
+
+
+def _document_source_authorized(
+    contract: ResearchContract,
+    *,
+    document_source_values: list,
+    source_collection_candidate: SourceCollectionArtifactCandidate,
+    manifests: ManifestBundle,
+) -> bool:
+    """Validate document policy from typed value/provenance facts only."""
+
+    if not document_source_values:
+        return True
+    if contract.data_requirements.document_source_policy.value != "research_input":
+        return False
+    if "document_research_input" not in manifests.case_manifest.document_source_classes:
+        return False
+    document_members = tuple(
+        member
+        for member in source_collection_candidate.members
+        if isinstance(member, DocumentSourceCollectionMember)
+    )
+    for source_value in document_source_values:
+        origin = source_value.origin
+        locator = source_value.evidence_locator
+        if not isinstance(origin, DocumentResearchInputOrigin):
+            return False
+        if not isinstance(locator, DocumentObservationLocator):
+            return False
+        if (
+            source_value.source_id != f"research_input:{origin.research_input_id}"
+            or source_value.source_snapshot_id != locator.source_snapshot_id
+            or source_value.source_snapshot_content_hash
+            != locator.source_snapshot_content_hash
+            or source_value.query_hash != locator.query_hash
+            or locator.research_input_id != origin.research_input_id
+            or locator.document_parse_id != origin.document_parse_id
+            or locator.raw_candidate_id != origin.raw_candidate_id
+            or locator.document_locator != origin.document_locator
+        ):
+            return False
+        if not any(
+            member.source_id == source_value.source_id
+            and member.source_snapshot_id == source_value.source_snapshot_id
+            and member.source_snapshot_content_hash
+            == source_value.source_snapshot_content_hash
+            and member.query_hash == source_value.query_hash
+            and origin.document_parse_id in member.document_parse_ids
+            for member in document_members
+        ):
+            return False
+    return True
 
 
 def _evaluate_binding(

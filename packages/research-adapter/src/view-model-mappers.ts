@@ -55,6 +55,7 @@ function toContractInputViewModel(
     targetObjects: [...input.targetObjects],
     dataRequirements: {
       unitPolicy: input.dataRequirements.unitPolicy,
+      documentSourcePolicy: input.dataRequirements.documentSourcePolicy,
     },
     requestedFields: [...input.requestedFields],
     sourceScope: {

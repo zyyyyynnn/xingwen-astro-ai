@@ -24,7 +24,10 @@ import { workspaceQueryKeys } from "./query-keys";
 const contractInput: ResearchContractInput = {
   researchGoal: "Compare host-star properties for a reproducible sample",
   targetObjects: [asEntityId("Kepler-186")],
-  dataRequirements: { unitPolicy: "canonical" },
+  dataRequirements: {
+    unitPolicy: "canonical",
+    documentSourcePolicy: "disabled",
+  },
   requestedFields: [asEntityId("stellar_mass")],
   sourceScope: { allowedSources: [asEntityId("nasa_exoplanet_archive")] },
   paperSearchScope: {

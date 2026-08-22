@@ -241,8 +241,13 @@ def dataset_scientific_projection(value: Any) -> dict[str, Any]:
                     {
                         "canonical_value": outcome.get("canonical_value"),
                         "canonical_unit": outcome.get("canonical_unit"),
-                        "selected_candidate": _canonical_source_value(
-                            source_values[selected_id]
+                        # Document consensus outcomes intentionally select no
+                        # scientific winner; the canonical value is the shared
+                        # equal value across all retained candidates.
+                        "selected_candidate": (
+                            _canonical_source_value(source_values[selected_id])
+                            if selected_id is not None
+                            else None
                         ),
                         "selection": {
                             "strategy": selection.get("strategy"),

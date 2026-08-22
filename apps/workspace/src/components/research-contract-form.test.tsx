@@ -93,7 +93,10 @@ function makeDraft(): ResearchContractDraftViewModel {
     contract: {
       researchGoal: "建立可追溯的宿主恒星参数比较集",
       targetObjects: [asEntityId("host_star")],
-      dataRequirements: { unitPolicy: "canonical" },
+      dataRequirements: {
+        unitPolicy: "canonical",
+        documentSourcePolicy: "disabled",
+      },
       requestedFields: [asEntityId("teff")],
       sourceScope: { allowedSources: [asEntityId("simbad")] },
       paperSearchScope: {

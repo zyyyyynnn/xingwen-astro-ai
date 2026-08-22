@@ -337,9 +337,17 @@
           "type": "array"
         },
         "selected_source_value_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Selected Source Value Id",
-          "type": "string"
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Selected Source Value Id"
         },
         "selection_id": {
           "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
@@ -365,7 +373,6 @@
         "canonical_field_id",
         "canonical_value",
         "canonical_unit",
-        "selected_source_value_id",
         "candidate_source_value_ids",
         "transformation_evidence_ids",
         "selection_id",

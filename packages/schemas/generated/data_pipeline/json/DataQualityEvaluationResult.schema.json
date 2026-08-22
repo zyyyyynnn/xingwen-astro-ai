@@ -292,6 +292,51 @@
       "title": "DatasetQualityResult",
       "type": "object"
     },
+    "DocumentParseQualityObservation": {
+      "additionalProperties": false,
+      "description": "Non-metric observation of the parses actually used by one Dataset build.",
+      "properties": {
+        "document_parse_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Document Parse Ids",
+          "type": "array"
+        },
+        "research_input_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Research Input Ids",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/DocumentParseQualityStatus"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "DocumentParseQualityObservation",
+      "type": "object"
+    },
+    "DocumentParseQualityStatus": {
+      "description": "Independent document parse quality status; it is not an aggregate score.",
+      "enum": [
+        "complete",
+        "partial",
+        "unsupported",
+        "not_applicable"
+      ],
+      "title": "DocumentParseQualityStatus",
+      "type": "string"
+    },
     "EntityLevel": {
       "enum": [
         "host_star",
@@ -1491,6 +1536,9 @@
     "dataset_result": {
       "$ref": "#/$defs/DatasetQualityResult"
     },
+    "document_parse_observation": {
+      "$ref": "#/$defs/DocumentParseQualityObservation"
+    },
     "evaluation_plan": {
       "$ref": "#/$defs/QualityEvaluationPlan"
     },
@@ -1576,6 +1624,7 @@
     "field_results",
     "row_results",
     "dataset_result",
+    "document_parse_observation",
     "contract_gate",
     "aggregate_score",
     "aggregate_score_policy",

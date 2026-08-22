@@ -389,11 +389,34 @@ class StepPublicationFactory:
         *,
         kind: str,
         candidate: DatasetArtifactCandidate,
+        snapshot_bindings_override: dict[str, str] | None = None,
     ) -> tuple[
         tuple[ArtifactSourceSnapshotBinding, ...],
         tuple[ArtifactEvidenceBinding, ...],
     ]:
-        snapshots = self.source_bindings(context, candidate.source_snapshot_ids)
+        """Bind pipeline snapshot identities to persisted SourceSnapshot rows.
+
+        Structured left/right snapshots are derived through the deterministic
+        run-scoped uuid; callers may supply exact overrides for snapshots that
+        already exist as persisted rows (document research inputs), which must
+        never be duplicated by ``ensure_source_snapshots``.
+        """
+
+        overrides = snapshot_bindings_override or {}
+
+        def persisted_id(pipeline_snapshot_id: str) -> str:
+            bound = overrides.get(pipeline_snapshot_id)
+            if bound is not None:
+                return str(bound)
+            return self.persisted_snapshot_id(context, pipeline_snapshot_id)
+
+        snapshots = tuple(
+            ArtifactSourceSnapshotBinding(
+                pipeline_source_snapshot_id=item,
+                persisted_source_snapshot_id=persisted_id(item),
+            )
+            for item in candidate.source_snapshot_ids
+        )
         transformations = {
             item.evidence_id: item for item in candidate.transformation_evidence
         }
@@ -424,9 +447,8 @@ class StepPublicationFactory:
                             f"{kind}:evidence:{pipeline_id}",
                         )
                     ),
-                    persisted_source_snapshot_id=self.persisted_snapshot_id(
-                        context,
-                        pipeline_snapshot_id,
+                    persisted_source_snapshot_id=persisted_id(
+                        pipeline_snapshot_id
                     ),
                 )
             )

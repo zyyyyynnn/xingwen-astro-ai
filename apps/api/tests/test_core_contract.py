@@ -42,7 +42,7 @@ def contract_input() -> dict[str, object]:
     return {
         "research_goal": "Integrate exoplanet candidates and host-star parameters",
         "target_objects": ["exoplanet_candidate", "host_star"],
-        "data_requirements": {"unit_policy": "canonical"},
+        "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
         "requested_fields": ["planet.toi_id", "star.tic_id"],
         "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
         "paper_search_scope": {"year_from": 2015, "max_candidates": 20},
@@ -210,7 +210,7 @@ def test_fixture_contract_hash_matches_pydantic_canonical_payload() -> None:
     payload = {
         "research_goal": "Integrate exoplanet candidates and host-star parameters",
         "target_objects": ["exoplanet_candidate", "host_star"],
-        "data_requirements": {"unit_policy": "canonical"},
+        "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
         "requested_fields": ["planet.toi_id", "star.tic_id"],
         "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
         "paper_search_scope": {
@@ -235,7 +235,7 @@ def test_fixture_contract_hash_matches_pydantic_canonical_payload() -> None:
 
     assert normalized["evidence_requirements"]["minimum_coverage"] == 1.0
     assert canonical_request_hash(normalized) == (
-        "sha256:7b810e492de26672a8f2cc4c70179a754e4a82ed3bd72461bcc9e9c2abbd983f"
+        "sha256:82d51bd3fb5739b5ab1afeefa59c270de416bb20d6e780f39dca3c66c90d479a"
     )
     assert compute_research_contract_content_hash(
         ResearchContractInput.model_validate(payload)

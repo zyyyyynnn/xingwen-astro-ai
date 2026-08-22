@@ -1183,6 +1183,21 @@ CrossmatchRecord = Annotated[
 ]
 
 
+def compute_crossmatch_record_logical_key(
+    record: PairedMatch | UnpairedRecord | ConflictGroup,
+) -> ContentHash:
+    """Return the one logical identity used for a Crossmatch record."""
+
+    if isinstance(record, UnpairedRecord):
+        return compute_canonical_payload_hash(
+            {
+                "record_type": record.record_type,
+                "candidate_id": record.candidate_id,
+            }
+        )
+    return record.logical_match_key
+
+
 class RatioMetric(BaseModel):
     model_config = MODEL_CONFIG
 
@@ -2499,7 +2514,9 @@ def resolve_crossmatch_record_edge_components(
         semantics = derive_crossmatch_record_semantics(component)
         key = (semantics.record_type, semantics.logical_match_key)
         if key in components:
-            raise ValueError("crossmatch edge components contain duplicate record identity")
+            raise ValueError(
+                "crossmatch edge components contain duplicate record identity"
+            )
         components[key] = component
 
     resolved: dict[str, tuple[CandidateEdge, ...]] = {}
@@ -2517,7 +2534,9 @@ def resolve_crossmatch_record_edge_components(
             or record.right_candidate_ids != semantics.right_candidate_ids
             or record.entity_level is not semantics.entity_level
         ):
-            raise ValueError("crossmatch record candidate membership disagrees with component")
+            raise ValueError(
+                "crossmatch record candidate membership disagrees with component"
+            )
         observed.add(key)
         resolved[record.logical_match_key] = component
     if observed != set(components):

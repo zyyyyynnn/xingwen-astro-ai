@@ -406,7 +406,12 @@ def _validate_document_parse_closure(
         or str(source_snapshot.id) != reference.source_snapshot_id
         or snapshot_reference.source_snapshot_id != reference.source_snapshot_id
         or source_snapshot.source_id != snapshot_reference.source_id
-        or source_snapshot.source_version != snapshot_reference.source_version
+        or _effective_source_version(
+            source_version_or_etag=source_snapshot.source_version_or_etag,
+            cache_version=source_snapshot.cache_version,
+            content_hash=source_snapshot.content_hash,
+        )
+        != snapshot_reference.source_version
         or source_snapshot.content_hash != snapshot_reference.content_hash
         or snapshot_reference.content_hash != reference.input_content_hash
     ):

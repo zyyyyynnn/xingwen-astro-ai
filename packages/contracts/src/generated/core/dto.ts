@@ -402,6 +402,17 @@ export type ConflictResolutionStrategy = "prefer_source_priority_preserve_all";
  * via the `definition` "ContractDraftStatus".
  */
 export type ContractDraftStatus = "draft" | "confirmed" | "expired";
+/**
+ * Whether document-derived scientific values may enter the Dataset.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DocumentSourcePolicy".
+ */
+export type DocumentSourcePolicy = "disabled" | "research_input";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "UnitPolicy".
+ */
 export type UnitPolicy = "canonical";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -495,6 +506,25 @@ export type QualityMetricInput =
  * via the `definition` "UncertaintyMode".
  */
 export type UncertaintyMode = "not_applicable" | "asymmetric_source_errors";
+/**
+ * Lifecycle quality of a parsed region / whole document.
+ *
+ * ``accepted`` does NOT mean a scientific fact is verified. It means the
+ * current parser/profile reached admission conditions for the usable region
+ * and it may become downstream Evidence / input.
+ *
+ * ``partial`` means only part of the content was reliably parsed. Downstream
+ * may use the clearly valid part, but MUST keep ``unparsed != absent``: a
+ * missing recognition must never be read as "does not exist in the paper".
+ *
+ * ``unsupported`` means the current parser/profile cannot reliably process
+ * the region. No fabricated full text may be emitted and no downstream model
+ * may auto-complete the gap.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DocumentParseQuality".
+ */
+export type DocumentParseQuality = "accepted" | "partial" | "unsupported";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "LimitStatus".
@@ -738,11 +768,6 @@ export type ModelArtifactStatus1 = "active" | "deprecated" | "revoked";
 export type ResearchInputStatus2 = "accepted" | "unsupported_processing" | "failed_ingestion";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "UnitPolicy".
- */
-export type UnitPolicy1 = "canonical";
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "SourceMode".
  */
 export type SourceMode = "fixture" | "live" | "cached";
@@ -941,15 +966,18 @@ export interface SourceTableCellAdmission {
   canonical_unit: string;
   canonical_value: string | null;
   evidence_id: string;
-  locator: SourceCellLocator;
+  locator: DatabaseCellLocator;
   raw_value: JsonValue | null;
   row_id: string;
 }
 /**
+ * Locator for one structured database cell (left/right Crossmatch side).
+ *
  * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "SourceCellLocator".
+ * via the `definition` "DatabaseCellLocator".
  */
-export interface SourceCellLocator {
+export interface DatabaseCellLocator {
+  kind?: "database_cell";
   query_hash: string;
   raw_field: string;
   raw_record_content_hash: string;
@@ -1396,7 +1424,7 @@ export interface MappedCanonicalValue {
   canonical_unit: string;
   canonical_value: string;
   conflict_ids: string[];
-  selected_source_value_id: string;
+  selected_source_value_id?: string | null;
   selection_id: string;
   status?: "mapped";
   transformation_evidence_ids: string[];
@@ -2276,7 +2304,8 @@ export interface ResearchContractInput {
  * via the `definition` "DataRequirements".
  */
 export interface DataRequirements {
-  unit_policy?: UnitPolicy;
+  document_source_policy: DocumentSourcePolicy;
+  unit_policy: UnitPolicy;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -2547,6 +2576,27 @@ export interface SupplementalDataQueryCursor {
   pl_refname: string;
 }
 /**
+ * Logical data-pipeline projection of one scientific source snapshot.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DataSourceSnapshotProjection".
+ */
+export interface DataSourceSnapshotProjection {
+  cache_version?: string | null;
+  content_hash: string;
+  license_note: string;
+  query: JsonValue;
+  query_hash: string;
+  request_metadata?: {
+    [k: string]: JsonValue;
+  };
+  retrieved_at: string;
+  snapshot_id: string;
+  source_id: string;
+  source_type: string;
+  source_version_or_etag?: string | null;
+}
+/**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "DatasetArtifactCandidate".
  */
@@ -2582,7 +2632,7 @@ export interface DatasetArtifactCandidate {
   requested_fields: string[];
   row_count: number;
   rows: DatasetRow[];
-  schema_version?: "1.0.0";
+  schema_version?: "2.0.0";
   selections: FieldSelectionRecord[];
   source_snapshot_ids: string[];
   source_values: SourceValueCandidate[];
@@ -2609,6 +2659,7 @@ export interface FieldDefinition {
   crossmatch_rule_version?: string | null;
   data_type: DataType;
   description: string;
+  document_aliases: DocumentFieldAlias[];
   evidence_locator_rule_id: string;
   field_id: string;
   label_en: string;
@@ -2633,6 +2684,17 @@ export interface FieldDefinition {
   source_priority: [string, ...string[]];
   transformation_rule_version: string;
   uncertainty_policy: UncertaintyPolicy;
+}
+/**
+ * A document label mapped to one canonical field; owned by the Field Manifest.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DocumentFieldAlias".
+ */
+export interface DocumentFieldAlias {
+  alias: string;
+  priority: number;
+  source_class: "document_research_input";
 }
 /**
  * Whether the field can carry upper or lower limit semantics.
@@ -2747,107 +2809,63 @@ export interface SourceValueCandidate {
   content_hash: string;
   conversion_rule_id: string;
   conversion_rule_version: string;
-  evidence_locator: SourceCellLocator;
+  evidence_locator: DatabaseCellLocator | DocumentObservationLocator;
   limit: LimitValue;
   null_status?: NullReason | null;
-  provenance_field?: string | null;
-  provenance_value?: string | number | boolean | null;
+  origin: StructuredDatabaseOrigin | DocumentResearchInputOrigin;
   query_hash: string;
-  raw_field: string;
-  raw_record_content_hash: string;
-  raw_record_row_key: [unknown, unknown][];
   raw_value?: string | number | boolean | null;
-  reference_field?: string | null;
-  reference_value?: string | number | boolean | null;
   source_id: string;
   source_priority: number;
   source_snapshot_content_hash: string;
   source_snapshot_id: string;
-  source_table: string;
   source_unit: string;
   source_value_id: string;
   transformation_rule_version: string;
   uncertainty: UncertaintyValue;
 }
 /**
+ * Locator for one admitted document observation bound to persisted provenance.
+ *
  * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "LimitValue".
+ * via the `definition` "DocumentObservationLocator".
  */
-export interface LimitValue {
-  locator?: SourceCellLocator | null;
-  raw_flag?: number | null;
-  status: LimitStatus;
+export interface DocumentObservationLocator {
+  document_locator: DocumentLocator;
+  document_parse_id: string;
+  kind?: "document_observation";
+  parse_quality: DocumentParseQuality;
+  query_hash: string;
+  raw_candidate_id: string;
+  research_input_id: string;
+  source_id: string;
+  source_snapshot_content_hash: string;
+  source_snapshot_id: string;
 }
 /**
+ * Canonical SINGLE SOURCE OF TRUTH locator back to a parsed element.
+ *
+ * A locator is only complete together with the owning ``DocumentParseCandidate``
+ * (which carries ``research_input_id`` / input ``content_hash``). It must be
+ * persistable and verifiable by DocumentParse Persistence without re-parsing the source.
+ *
+ * This is the ONLY locator representation in the contract. ``page_index``,
+ * ``block_id``, ``bbox``, ``table_id`` and ``cell_id`` live here and nowhere
+ * else; the ``ScientificDataExtractionCandidate`` references a parse solely
+ * through this locator, so contradictory parallel locator fields are
+ * impossible by construction.
+ *
  * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "UncertaintyValue".
+ * via the `definition` "DocumentLocator".
  */
-export interface UncertaintyValue {
-  canonical_negative?: string | null;
-  canonical_positive?: string | null;
-  negative_locator?: SourceCellLocator | null;
-  positive_locator?: SourceCellLocator | null;
-  source_negative?: string | null;
-  source_positive?: string | null;
-  status: UncertaintyStatus;
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "TransformationEvidence".
- */
-export interface TransformationEvidence {
-  canonical_field_id: string;
-  canonical_unit: string;
-  canonical_value?: string | null;
-  content_hash: string;
-  conversion_catalog_content_hash: string;
-  conversion_catalog_id: string;
-  conversion_catalog_version: string;
-  conversion_rule_id: string;
-  conversion_rule_version: string;
-  crossmatch_evidence_ids: string[];
-  crossmatch_logical_key: string;
-  crossmatch_result_content_hash: string;
-  crossmatch_result_id: string;
-  dataset_row_id: string;
-  evidence_id: string;
-  limit: LimitValue;
-  limit_locator?: SourceCellLocator | null;
-  locator: SourceCellLocator;
-  provenance_field?: string | null;
-  provenance_locator?: SourceCellLocator | null;
-  provenance_value?: string | number | boolean | null;
-  raw_value?: string | number | boolean | null;
-  reference_field?: string | null;
-  reference_locator?: SourceCellLocator | null;
-  reference_value?: string | number | boolean | null;
-  selection_reason: string;
-  selection_status: SelectionStatus;
-  source_unit: string;
-  source_value_id: string;
-  target_candidate_kind?: "dataset";
-  transformation_rule_version: string;
-  uncertainty: UncertaintyValue;
-  uncertainty_locators: SourceCellLocator[];
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "DatasetArtifactRead".
- */
-export interface DatasetArtifactRead {
-  artifact_id: string;
-  artifact_version_id: string;
-  content_hash: string;
-  created_at: string;
-  dataset: DatasetArtifactCandidate;
-  evidence: EvidenceDetail[];
-  input_hash: string;
-  producer_execution: ProducerExecutionDetail;
-  project_id: string;
-  quality_projection: DataQualityProjection;
-  schema_version: string;
-  source_mode: App_Schemas_Core__SourceMode;
-  source_snapshots: SourceSnapshotDetail[];
+export interface DocumentLocator {
+  bbox?: DocumentBBox | null;
+  block_id?: string | null;
+  cell_id?: string | null;
+  page_index: number;
+  reading_order?: number | null;
+  table_id?: string | null;
+  text_span?: TextSpan | null;
 }
 /**
  * Axis-aligned bounding box in absolute PDF points.
@@ -2876,31 +2894,6 @@ export interface DocumentBBox {
   y2: number;
 }
 /**
- * Canonical SINGLE SOURCE OF TRUTH locator back to a parsed element.
- *
- * A locator is only complete together with the owning ``DocumentParseCandidate``
- * (which carries ``research_input_id`` / input ``content_hash``). It must be
- * persistable and verifiable by DocumentParse Persistence without re-parsing the source.
- *
- * This is the ONLY locator representation in the contract. ``page_index``,
- * ``block_id``, ``bbox``, ``table_id`` and ``cell_id`` live here and nowhere
- * else; the ``ScientificDataExtractionCandidate`` references a parse solely
- * through this locator, so contradictory parallel locator fields are
- * impossible by construction.
- *
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "DocumentLocator".
- */
-export interface DocumentLocator {
-  bbox?: DocumentBBox | null;
-  block_id?: string | null;
-  cell_id?: string | null;
-  page_index: number;
-  reading_order?: number | null;
-  table_id?: string | null;
-  text_span?: TextSpan | null;
-}
-/**
  * Character-offset span within a block's raw text (0-based, inclusive start).
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -2909,6 +2902,138 @@ export interface DocumentLocator {
 export interface TextSpan {
   end: number;
   start: number;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LimitValue".
+ */
+export interface LimitValue {
+  locator?: DatabaseCellLocator | null;
+  raw_flag?: number | null;
+  status: LimitStatus;
+}
+/**
+ * Structured left/right database provenance of one source value.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "StructuredDatabaseOrigin".
+ */
+export interface StructuredDatabaseOrigin {
+  kind?: "structured_database";
+  provenance_field?: string | null;
+  provenance_value?: string | number | boolean | null;
+  raw_field: string;
+  raw_record_content_hash: string;
+  raw_record_row_key: [unknown, unknown][];
+  reference_field?: string | null;
+  reference_value?: string | number | boolean | null;
+  source_table: string;
+}
+/**
+ * Admitted document observation provenance of one source value.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DocumentResearchInputOrigin".
+ */
+export interface DocumentResearchInputOrigin {
+  document_locator: DocumentLocator;
+  document_parse_id: string;
+  kind?: "document_research_input";
+  parse_quality: DocumentParseQuality;
+  raw_candidate_id: string;
+  research_input_id: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "UncertaintyValue".
+ */
+export interface UncertaintyValue {
+  canonical_negative?: string | null;
+  canonical_positive?: string | null;
+  negative_locator?: DatabaseCellLocator | null;
+  positive_locator?: DatabaseCellLocator | null;
+  source_negative?: string | null;
+  source_positive?: string | null;
+  status: UncertaintyStatus;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "TransformationEvidence".
+ */
+export interface TransformationEvidence {
+  canonical_field_id: string;
+  canonical_unit: string;
+  canonical_value?: string | null;
+  content_hash: string;
+  conversion_catalog_content_hash: string;
+  conversion_catalog_id: string;
+  conversion_catalog_version: string;
+  conversion_rule_id: string;
+  conversion_rule_version: string;
+  crossmatch_evidence_ids: string[];
+  crossmatch_logical_key: string;
+  crossmatch_result_content_hash: string;
+  crossmatch_result_id: string;
+  dataset_row_id: string;
+  evidence_id: string;
+  limit: LimitValue;
+  limit_locator?: DatabaseCellLocator | null;
+  locator: DatabaseCellLocator | DocumentObservationLocator;
+  provenance_field?: string | null;
+  provenance_locator?: DatabaseCellLocator | null;
+  provenance_value?: string | number | boolean | null;
+  raw_value?: string | number | boolean | null;
+  reference_field?: string | null;
+  reference_locator?: DatabaseCellLocator | null;
+  reference_value?: string | number | boolean | null;
+  selection_reason: string;
+  selection_status: SelectionStatus;
+  source_unit: string;
+  source_value_id: string;
+  target_candidate_kind?: "dataset";
+  transformation_rule_version: string;
+  uncertainty: UncertaintyValue;
+  uncertainty_locators: DatabaseCellLocator[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DatasetArtifactRead".
+ */
+export interface DatasetArtifactRead {
+  artifact_id: string;
+  artifact_version_id: string;
+  content_hash: string;
+  created_at: string;
+  dataset: DatasetArtifactCandidate;
+  evidence: EvidenceDetail[];
+  input_hash: string;
+  producer_execution: ProducerExecutionDetail;
+  project_id: string;
+  quality_projection: DataQualityProjection;
+  schema_version: string;
+  source_mode: App_Schemas_Core__SourceMode;
+  source_snapshots: SourceSnapshotDetail[];
+}
+/**
+ * One admitted document research input retained as supplemental provenance.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DocumentSourceCollectionMember".
+ */
+export interface DocumentSourceCollectionMember {
+  /**
+   * @minItems 1
+   */
+  document_parse_ids: [string, ...string[]];
+  member_kind?: "document";
+  observation_ids: string[];
+  query_hash: string;
+  research_input_id: string;
+  source_class: "document_research_input";
+  source_id: string;
+  source_snapshot: DataSourceSnapshotProjection;
+  source_snapshot_content_hash: string;
+  source_snapshot_id: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -3006,6 +3131,7 @@ export interface FieldDictionaryArtifactCandidate {
   conversion_catalog_content_hash: string;
   conversion_catalog_id: string;
   conversion_catalog_version: string;
+  crossmatch_source_snapshot_ids: string[];
   evidence_ids: string[];
   field_definitions: FieldDefinition[];
   input_hash: string;
@@ -3018,7 +3144,7 @@ export interface FieldDictionaryArtifactCandidate {
   producer: DataArtifactProducer;
   quality_evaluation_status?: "not_evaluated";
   requested_fields: string[];
-  schema_version?: "1.0.0";
+  schema_version?: "2.0.0";
   source_snapshot_ids: string[];
 }
 /**
@@ -5072,6 +5198,7 @@ export interface SourceCollectionArtifactCandidate {
   conversion_catalog_version: string;
   crossmatch_content_hash: string;
   crossmatch_result_id: string;
+  crossmatch_source_snapshot_ids: string[];
   evidence_ids: string[];
   inconclusive_record_keys: string[];
   input_hash: string;
@@ -5080,23 +5207,24 @@ export interface SourceCollectionArtifactCandidate {
   mapping_rule_set_content_hash: string;
   mapping_rule_set_id: string;
   mapping_rule_set_version: string;
-  members: SourceCollectionMember[];
+  members: (StructuredSourceCollectionMember | DocumentSourceCollectionMember)[];
   output_hash: string;
   producer: DataArtifactProducer;
   quality_evaluation_status?: "not_evaluated";
   review_required_record_keys: string[];
-  schema_version?: "1.0.0";
+  schema_version?: "2.0.0";
   source_snapshot_ids: string[];
   source_value_ids: string[];
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "SourceCollectionMember".
+ * via the `definition` "StructuredSourceCollectionMember".
  */
-export interface SourceCollectionMember {
+export interface StructuredSourceCollectionMember {
   completion: DataSourceCompletion;
   data_level: DataSourceDataLevel;
   license_note: string;
+  member_kind?: "structured";
   query_hash: string;
   raw_record_count: number;
   raw_record_reference_registry_hash: string;

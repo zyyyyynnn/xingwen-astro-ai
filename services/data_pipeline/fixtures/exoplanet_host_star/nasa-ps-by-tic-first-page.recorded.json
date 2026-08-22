@@ -10,10 +10,10 @@
   "license_note": "NASA Exoplanet Archive Planetary Systems metadata is publicly queryable; preserve archive attribution and follow the archive acknowledgement and citation guidance.",
   "source_mode": "fixture",
   "data_level": "recorded_response",
-  "case_manifest_version": "2.0.0",
-  "case_manifest_content_hash": "sha256:baa4d6c24ff46d25172074fd26c8c692c50e006e643dc7c72b4bc18c90be52bf",
-  "field_manifest_version": "2.0.0",
-  "field_manifest_content_hash": "sha256:d74d01950e7171aacce8cf660582d5245a2fa84e8bf6948224695740cd3c334e",
+  "case_manifest_version": "3.0.0",
+  "case_manifest_content_hash": "sha256:7bccb7f4bc447afecdffb968f2c85f4e3c5a5f1a3f2f051090a460a66093aeaa",
+  "field_manifest_version": "3.0.0",
+  "field_manifest_content_hash": "sha256:a922748dee1a51f616e256d1fe71a7e2b94596bcdfa465906046734bbf90118d",
   "column_contract_snapshot_id": "nasa_exoplanet_archive.column_adjudications.2026-07-19",
   "column_contract_snapshot_version": "1.0.0",
   "column_contract_content_hash": "sha256:a4351598b4cc9ec0537a95e30f6abaa1af6e6c8e015f1d7a8662a4ce4708625a",
@@ -21,14 +21,16 @@
   "runtime_schema_contract_version": "1.0.0",
   "runtime_schema_contract_content_hash": "sha256:9542eb05dc37053347e3d27c1598a1ea3586d439fb05eb6f331fef9960c49245",
   "input_identity_field": "star.tic_id",
-  "input_values": ["TIC 219698776"],
+  "input_values": [
+    "TIC 219698776"
+  ],
   "pagination": {
     "page_size": 2,
     "max_pages": 1,
     "record_limit": 2
   },
-  "input_hash": "sha256:8dcc23e0799d0614d61d97e327affc2b6539e90c4e3beb6a31988eca51226858",
-  "query_hash": "sha256:7d87f9684e769b13418e1739b3673ee43af22a5e02f43a9c37b238f7f84e3882",
+  "input_hash": "sha256:16c88324194d8632c97acf8661a24dbb78a7688d39a0bf764f42b2abb37920e2",
+  "query_hash": "sha256:8beeda393f1d407e18401b54377f1dda810bdc17f0abae89ff233b43a335fde2",
   "schema_response_hash": "sha256:a28e495ee8ee1d22d4d3d312cccf9e0e61ec68684454c83724ac5f7e4ba3151a",
   "page_response_hash": "sha256:d79407c7c9385291a58fdd02037e87b70270ba8880c95eb08976f7a117c176e9",
   "provenance_note": "Recorded from a successful bounded supplemental source acquisition metadata request to the official NASA Exoplanet Archive TAP sync endpoint. The request used the normalized TIC inputs and pagination stored here; schema_response_hash and page_response_hash bind the two captured JSON responses. Replay is fixture evidence and must never be labeled live or cached.",
@@ -300,11 +302,11 @@
       "st_metlim": null,
       "pl_rade": 2.19615073,
       "pl_orbperlim": 0,
-      "pl_orbpererr2": -8.16241e-6,
+      "pl_orbpererr2": -8.16241e-06,
       "pl_radelim": 0,
       "pl_radeerr2": -0.5582007,
       "pl_radeerr1": 0.5582007,
-      "pl_orbpererr1": 8.16241e-6,
+      "pl_orbpererr1": 8.16241e-06,
       "tic_id": "TIC 219698776",
       "hostname": "TOI-1243",
       "pl_name": "TOI-1243 b",
@@ -350,11 +352,11 @@
       "st_metlim": 0,
       "pl_rade": 2.33,
       "pl_orbperlim": 0,
-      "pl_orbpererr2": -4.5e-6,
+      "pl_orbpererr2": -4.5e-06,
       "pl_radelim": 0,
       "pl_radeerr2": -0.12,
       "pl_radeerr1": 0.12,
-      "pl_orbpererr1": 4.2e-6,
+      "pl_orbpererr1": 4.2e-06,
       "tic_id": "TIC 219698776",
       "hostname": "TOI-1243",
       "pl_name": "TOI-1243 b",
@@ -382,5 +384,5 @@
   "page_safe_response_headers": {
     "date": "Thu, 30 Jul 2026 05:56:12 GMT"
   },
-  "content_hash": "sha256:22417f2aab037b978d341a4c5417939cb139e7b5c8639145b2715217e4b56710"
+  "content_hash": "sha256:abd53480378d9b1a51610247350e090ed0cfe922a8fb660cf420b5e4663004c3"
 }

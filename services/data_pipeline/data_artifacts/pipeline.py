@@ -37,7 +37,7 @@ from .projection import (
 
 
 def _candidate(model_type, payload: dict[str, Any]):
-    payload.setdefault("schema_version", "1.0.0")
+    payload.setdefault("schema_version", "2.0.0")
     payload.setdefault("quality_evaluation_status", "not_evaluated")
     normalized: dict[str, Any] = {}
     deferred = {
@@ -115,7 +115,7 @@ def _assemble_data_artifact_candidates(
             "crossmatch_input_hash": result.input_hash,
             "crossmatch_output_hash": result.output_hash,
             "crossmatch_content_hash": result.content_hash,
-            "crossmatch_source_snapshot_ids": projection.source_snapshot_ids,
+            "crossmatch_source_snapshot_ids": projection.crossmatch_source_snapshot_ids,
             "crossmatch_evidence": [
                 evidence.model_dump(mode="json")
                 for evidence in projection.crossmatch_evidence
@@ -152,6 +152,7 @@ def _assemble_data_artifact_candidates(
         {
             "kind": "field_dictionary",
             **common,
+            "crossmatch_source_snapshot_ids": projection.crossmatch_source_snapshot_ids,
             "requested_fields": tuple(field.field_id for field in projection.fields),
             "field_definitions": [
                 field.model_dump(mode="json") for field in projection.fields
@@ -171,6 +172,7 @@ def _assemble_data_artifact_candidates(
             ),
             "crossmatch_result_id": result.result_id,
             "crossmatch_content_hash": result.content_hash,
+            "crossmatch_source_snapshot_ids": projection.crossmatch_source_snapshot_ids,
             "alignment_record_keys": projection.alignment_record_keys,
             "conflict_record_keys": projection.conflict_record_keys,
             "review_required_record_keys": projection.review_required_record_keys,
@@ -178,7 +180,7 @@ def _assemble_data_artifact_candidates(
         },
     )
     payload = {
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "dataset": dataset,
         "field_dictionary": field_dictionary,
         "source_collection": source_collection,

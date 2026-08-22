@@ -10,6 +10,7 @@
 import type {
   ArtifactKind,
   ContractDraftStatus,
+  DocumentSourcePolicy,
   ScientificSkillId,
   UnitPolicy,
 } from "./enums";
@@ -23,6 +24,7 @@ import type {
 
 export interface DataRequirements {
   readonly unitPolicy: UnitPolicy;
+  readonly documentSourcePolicy: DocumentSourcePolicy;
 }
 
 export interface SourceScope {

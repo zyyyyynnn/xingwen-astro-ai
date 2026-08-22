@@ -71,6 +71,7 @@ def _build_input_from_crossmatch(
         left_acquisition=crossmatch_input.left,
         right_acquisition=crossmatch_input.right,
         crossmatch_result=crossmatch_result,
+        document_observations=(),
         mapping_rule_set=baseline.mapping_rule_set,
         conversion_catalog=baseline.conversion_catalog,
         producer_version=baseline.producer_version,
@@ -293,7 +294,9 @@ def _rehash_candidate_payload(payload: dict) -> dict:
     payload["output_hash"] = compute_data_artifact_output_hash(payload)
     identity_hash = payload.get("canonical_content_hash", payload["output_hash"])
     payload["candidate_id"] = compute_data_artifact_candidate_id(
-        payload["kind"], identity_hash
+        payload["kind"],
+        identity_hash,
+        schema_version=payload["schema_version"],
     )
     return payload
 
@@ -515,6 +518,7 @@ def test_source_collection_members_survive_reversed_snapshot_sort_order() -> Non
             reference["source_snapshot_id"] = replacement
         _refresh_raw_record_registry(member)
     payload["source_snapshot_ids"] = sorted(replacements)
+    payload["crossmatch_source_snapshot_ids"] = sorted(replacements)
     _rehash_candidate_payload(payload)
 
     reparsed = SourceCollectionArtifactCandidate.model_validate(payload)

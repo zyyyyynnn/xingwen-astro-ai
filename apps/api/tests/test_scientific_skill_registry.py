@@ -568,7 +568,10 @@ def _contract(
         {
             "research_goal": "Execute a bounded scientific analysis",
             "target_objects": ["host_star"],
-            "data_requirements": {},
+            "data_requirements": {
+                "unit_policy": "canonical",
+                "document_source_policy": "disabled",
+            },
             "requested_fields": (
                 [
                     "star.gaia_dr3_id",

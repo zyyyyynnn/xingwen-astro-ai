@@ -84,6 +84,7 @@ def _validate_common(
     expected = (
         input_value.manifest_pins,
         projection.source_snapshot_ids,
+        projection.crossmatch_source_snapshot_ids,
         projection.evidence_ids,
         input_value.mapping_rule_set.rule_set_id,
         input_value.mapping_rule_set.version,
@@ -98,6 +99,7 @@ def _validate_common(
     actual = (
         candidate.manifest_pins,
         candidate.source_snapshot_ids,
+        candidate.crossmatch_source_snapshot_ids,
         candidate.evidence_ids,
         candidate.mapping_rule_set_id,
         candidate.mapping_rule_set_version,
@@ -177,7 +179,7 @@ def _validate_dataset(
         result.input_hash,
         result.output_hash,
         result.content_hash,
-        projection.source_snapshot_ids,
+        projection.crossmatch_source_snapshot_ids,
         projection.crossmatch_evidence_ids,
     ):
         raise ValueError("Dataset Cross-source Entity Alignment lineage differs from the domain projection")

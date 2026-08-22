@@ -24,6 +24,7 @@ import type {
   ScientificTask,
   SemanticVersion,
   SourceMode,
+  DocumentSourcePolicy,
   UnitPolicy,
   UtcIsoTimestamp,
   EvidenceTargetType,
@@ -129,6 +130,7 @@ export interface ContractInputViewModel {
   readonly targetObjects: readonly DomainEntityId[];
   readonly dataRequirements: {
     readonly unitPolicy: UnitPolicy;
+    readonly documentSourcePolicy: DocumentSourcePolicy;
   };
   readonly requestedFields: readonly DomainEntityId[];
   readonly sourceScope: {

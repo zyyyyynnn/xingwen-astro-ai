@@ -529,7 +529,10 @@ function parseContract(
   const input: ResearchContractInput = {
     researchGoal: form.researchGoal.trim(),
     targetObjects,
-    dataRequirements: { unitPolicy: "canonical" },
+    dataRequirements: {
+      unitPolicy: "canonical",
+      documentSourcePolicy: "disabled",
+    },
     requestedFields,
     sourceScope: { allowedSources },
     paperSearchScope: {

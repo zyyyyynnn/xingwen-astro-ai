@@ -20,7 +20,7 @@ import type {
   LiteratureRelationRead,
   ProducerExecutionDetail,
   SourceCollectionArtifactRead,
-  SourceCollectionMember,
+  StructuredSourceCollectionMember,
   SourceSnapshotDetail,
 } from "@xingwen/contracts";
 
@@ -154,6 +154,7 @@ const field: FieldDefinition = {
   crossmatch_key: true,
   object_identity_key: true,
   source_priority: ["nasa_exoplanet_archive"],
+  document_aliases: [],
   source_aliases: [
     {
       source_id: "nasa_exoplanet_archive",
@@ -200,6 +201,7 @@ const fieldTemperature: FieldDefinition = {
   nullable: true,
   crossmatch_key: false,
   object_identity_key: false,
+  document_aliases: [],
   source_aliases: [
     {
       ...field.source_aliases[0],
@@ -349,7 +351,7 @@ const fieldDictionaryCandidate = {
   mapping_rule_set_content_hash: producer.mapping_rule_set_content_hash,
 };
 
-const sourceMember: SourceCollectionMember = {
+const sourceMember: StructuredSourceCollectionMember = {
   source_id: "nasa_exoplanet_archive",
   source_snapshot_id: sourceSnapshot.id,
   source_snapshot_content_hash: sourceSnapshot.content_hash,

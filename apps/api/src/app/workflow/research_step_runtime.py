@@ -10,6 +10,7 @@ from app.db.models import RunStepModel
 from app.schemas.manifest import ManifestBundle
 from app.schemas.scientific_capabilities import capability_for
 from app.services.content_storage import ContentStorage
+from app.services.document_data_admission import DocumentDataAdmissionService
 from app.services.document_parse_store import (
     DocumentParseRepository,
     DocumentParseService,
@@ -76,11 +77,6 @@ class ResearchStepRuntime:
         self._scientific_skill_registry = (
             build_scientific_skill_registry() if content_storage is not None else None
         )
-        self._data_steps = DataStepService(
-            manifests=manifests,
-            publications=self._publications,
-            store=store,
-        )
         paper_inputs = (
             PaperCandidateInputReadService(
                 research_inputs=PersistentResearchInputStore(factory),
@@ -89,10 +85,27 @@ class ResearchStepRuntime:
             if content_storage is not None
             else None
         )
+        # One shared DocumentParseService instance: PaperStepService and the
+        # document admission service must never hold parallel storage views.
         document_parses = (
             DocumentParseService(DocumentParseRepository(factory), content_storage)
             if content_storage is not None
             else None
+        )
+        document_admission = (
+            DocumentDataAdmissionService(
+                factory=factory,
+                document_parses=document_parses,
+                manifests=manifests,
+            )
+            if content_storage is not None
+            else None
+        )
+        self._data_steps = DataStepService(
+            manifests=manifests,
+            publications=self._publications,
+            store=store,
+            document_admission=document_admission,
         )
         self._paper_steps = PaperStepService(
             publications=self._publications,

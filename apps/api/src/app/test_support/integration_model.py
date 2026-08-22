@@ -9,6 +9,8 @@ browser UI without claiming Qwen/provider qualification.
 from __future__ import annotations
 
 from app.schemas.core import (
+    DocumentSourcePolicy,
+    UnitPolicy,
     ArtifactKind,
     DataRequirements,
     EvidenceRequirements,
@@ -54,7 +56,7 @@ class DeterministicIntegrationModelExecutionPort:
         contract = ResearchContractInput(
             research_goal=message.strip(),
             target_objects=(target_id,),
-            data_requirements=DataRequirements(),
+            data_requirements=DataRequirements(unit_policy=UnitPolicy.canonical, document_source_policy=DocumentSourcePolicy.disabled),
             requested_fields=tuple(str(item) for item in default_fields),
             source_scope=SourceScope(allowed_sources=(source_id,)),
             paper_search_scope=PaperSearchScope(),
