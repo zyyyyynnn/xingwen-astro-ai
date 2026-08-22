@@ -2,10 +2,9 @@
   "catalog_id": "exoplanet_host_star.unit_conversions",
   "schema_version": "1.0.0",
   "version": "2.0.0",
-  "content_hash": "sha256:b405037809e667190130376b7d5066fe1d4f13d21ec5b00b31f5d6db3220e7a2",
   "field_manifest_id": "exoplanet_host_star.fields",
-  "field_manifest_version": "2.0.0",
-  "field_manifest_content_hash": "sha256:d74d01950e7171aacce8cf660582d5245a2fa84e8bf6948224695740cd3c334e",
+  "field_manifest_version": "3.0.0",
+  "field_manifest_content_hash": "sha256:a922748dee1a51f616e256d1fe71a7e2b94596bcdfa465906046734bbf90118d",
   "numeric_implementation_version": "1.0.0",
   "precision_digits": 28,
   "rounding_mode": "ROUND_HALF_EVEN",
@@ -58,5 +57,6 @@
     "note": "Ratios use the exact nominal equatorial radii R_eJ/R_eE and nominal mass parameters (GM)_J/(GM)_E adopted by Resolution B3; these are conversion factors, not current best estimates."
   },
   "maintained_by": "data pipeline maintainers",
-  "created_at": "2026-08-02"
+  "created_at": "2026-08-02",
+  "content_hash": "sha256:204ae42b6239506ecbc12eb04a38b12c63b2401854f1e9e5a2d68f535e2217b6"
 }

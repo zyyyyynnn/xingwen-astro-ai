@@ -50,6 +50,11 @@ export interface DataArtifactFieldSourceAlias {
   readonly priority: number;
 }
 
+export interface DataArtifactDocumentFieldAlias {
+  readonly alias: string;
+  readonly priority: number;
+}
+
 export interface DataArtifactFieldDefinition {
   readonly fieldId: DomainEntityId;
   readonly labelEn: string;
@@ -63,6 +68,7 @@ export interface DataArtifactFieldDefinition {
   readonly crossmatchKey: boolean;
   readonly objectIdentityKey: boolean;
   readonly sourceAliases: readonly DataArtifactFieldSourceAlias[];
+  readonly documentAliases: readonly DataArtifactDocumentFieldAlias[];
   readonly sourcePriority: readonly DomainEntityId[];
 }
 
@@ -107,15 +113,18 @@ export interface FieldDictionaryArtifactReview extends DataArtifactReviewBase {
 }
 
 export interface SourceCollectionMemberReview {
+  readonly memberKind: "structured" | "document";
   readonly sourceId: DomainEntityId | null;
   readonly sourceSnapshotId: DomainEntityId;
   readonly sourceSnapshotContentHash: ContentHash;
-  readonly side: string;
-  readonly dataLevel: string;
-  readonly sourceMode: SourceMode;
+  readonly side: string | null;
+  readonly dataLevel: string | null;
+  readonly sourceMode: SourceMode | null;
   readonly rawRecordCount: number | null;
-  readonly completionStatus: string;
+  readonly completionStatus: string | null;
   readonly licenseNote: string;
+  readonly researchInputId?: DomainEntityId;
+  readonly documentParseIds?: readonly DomainEntityId[];
 }
 
 export interface SourceCollectionArtifactReview extends DataArtifactReviewBase {

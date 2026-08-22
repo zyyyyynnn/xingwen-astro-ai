@@ -28,7 +28,10 @@ const versionId = asEntityId("version_test");
 const contractInput = {
   researchGoal: "Compare exoplanet candidates with host-star parameters",
   targetObjects: [asEntityId("exoplanet_candidate")],
-  dataRequirements: { unitPolicy: "canonical" as const },
+  dataRequirements: {
+    unitPolicy: "canonical" as const,
+    documentSourcePolicy: "disabled" as const,
+  },
   requestedFields: [asEntityId("planet.toi_id")],
   sourceScope: { allowedSources: [asEntityId("nasa_exoplanet_archive")] },
   paperSearchScope: {

@@ -2,13 +2,12 @@
   "rule_set_id": "exoplanet_host_star.mapping_rules",
   "schema_version": "1.0.0",
   "version": "2.0.0",
-  "content_hash": "sha256:cf78f40ff3449c0b8a3052b8c401b48569af537d31a6185dce226bf618be9fd4",
   "case_manifest_id": "exoplanet_host_star",
-  "case_manifest_version": "2.0.0",
-  "case_manifest_content_hash": "sha256:baa4d6c24ff46d25172074fd26c8c692c50e006e643dc7c72b4bc18c90be52bf",
+  "case_manifest_version": "3.0.0",
+  "case_manifest_content_hash": "sha256:7bccb7f4bc447afecdffb968f2c85f4e3c5a5f1a3f2f051090a460a66093aeaa",
   "field_manifest_id": "exoplanet_host_star.fields",
-  "field_manifest_version": "2.0.0",
-  "field_manifest_content_hash": "sha256:d74d01950e7171aacce8cf660582d5245a2fa84e8bf6948224695740cd3c334e",
+  "field_manifest_version": "3.0.0",
+  "field_manifest_content_hash": "sha256:a922748dee1a51f616e256d1fe71a7e2b94596bcdfa465906046734bbf90118d",
   "producer_name": "xingwen.data_artifacts",
   "producer_version": "2.0.0",
   "source_selection_policy_version": "1.0.0",
@@ -27,15 +26,24 @@
     "rules": [
       {
         "entity_level": "host_star",
-        "allowed_object_types": ["star", "system"]
+        "allowed_object_types": [
+          "star",
+          "system"
+        ]
       },
       {
         "entity_level": "planet_assertion",
-        "allowed_object_types": ["planet", "star", "system"]
+        "allowed_object_types": [
+          "planet",
+          "star",
+          "system"
+        ]
       },
       {
         "entity_level": "planet_candidate",
-        "allowed_object_types": ["planet"]
+        "allowed_object_types": [
+          "planet"
+        ]
       }
     ]
   },
@@ -55,5 +63,6 @@
     "max_total_cell_outcomes": 500000
   },
   "created_at": "2026-08-02",
-  "maintained_by": "data pipeline maintainers"
+  "maintained_by": "data pipeline maintainers",
+  "content_hash": "sha256:7b3e7334d9f2bdf83aa3fa99770a59970a8efab4945c25c0540a9b9a41fd038e"
 }

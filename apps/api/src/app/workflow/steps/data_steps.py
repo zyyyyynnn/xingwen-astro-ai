@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from app.schemas._hashing import compute_canonical_payload_hash
@@ -41,6 +42,10 @@ from app.schemas.data_quality import (
 )
 from app.schemas.manifest import ManifestBundle
 from app.security import canonical_request_hash
+from app.services.document_data_admission import (
+    DocumentDataAdmissionBatch,
+    DocumentDataAdmissionService,
+)
 from app.workflow.publisher import admit_artifact_candidate
 from app.workflow.step_publication import (
     PreparedStep,
@@ -86,10 +91,57 @@ class DataStepService:
         manifests: ManifestBundle,
         publications: StepPublicationFactory,
         store: PersistentWorkflowStore,
+        document_admission: DocumentDataAdmissionService | None = None,
     ) -> None:
         self._manifests = manifests
         self._publications = publications
         self._store = store
+        self._document_admission = document_admission
+
+    def _admit_document_observations(
+        self,
+        context: RunStepContext,
+        *,
+        crossmatch: CrossmatchResult,
+        attempt: AttemptHandle,
+        lease: LeaseGrant,
+        step_key: str,
+    ) -> DocumentDataAdmissionBatch | None:
+        """Run document-data admission inside cleaning_data when configured."""
+
+        if self._document_admission is None:
+            return None
+        batch = asyncio.run(
+            self._document_admission.build(
+                project_id=context.project_id,
+                contract=context.contract,
+                crossmatch=crossmatch,
+            )
+        )
+        if not batch.producer_input_facts:
+            return None
+        execution = self._publications.start_producer(
+            context,
+            step_key=step_key,
+            operation_key="data_artifact:document_observations",
+            producer_type="algorithm",
+            producer_name="document-data-admission",
+            producer_version=batch.rule_set_version,
+            input_hash=batch.producer_input_hash,
+            parameters={
+                "rule_set_id": batch.rule_set_id,
+                "rule_set_version": batch.rule_set_version,
+                "configuration_hash": batch.configuration_hash,
+            },
+            attempt=attempt,
+            lease=lease,
+        )
+        self._publications.finish_producer(
+            execution.id,
+            status="completed",
+            output_hash=batch.producer_output_hash,
+        )
+        return batch
 
     def fetch(
         self,
@@ -229,6 +281,17 @@ class DataStepService:
             crossmatch = align_cross_source_records(crossmatch_input)
         mapping = load_mapping_rule_set()
         conversion = load_unit_conversion_catalog()
+        # Document observations enter the existing cleaning chain after
+        # the frozen CrossmatchResult exists and before the Data Artifact
+        # build input is created. This is a C-domain extension of
+        # cleaning_data, never a new RunStep.
+        document_batch = self._admit_document_observations(
+            context,
+            crossmatch=crossmatch,
+            attempt=attempt,
+            lease=lease,
+            step_key=step_key,
+        )
         pins = ManifestPins(
             case_manifest_id=crossmatch.case_manifest_id,
             case_manifest_version=crossmatch.case_manifest_version,
@@ -243,6 +306,9 @@ class DataStepService:
             "left_acquisition": left,
             "right_acquisition": right,
             "crossmatch_result": crossmatch,
+            "document_observations": (
+                document_batch.accepted if document_batch is not None else ()
+            ),
             "mapping_rule_set": mapping,
             "conversion_catalog": conversion,
             "producer_version": mapping.producer_version,
@@ -335,6 +401,9 @@ class DataStepService:
         self._publications.ensure_source_snapshots(
             context, (left.snapshot, right.snapshot)
         )
+        document_snapshot_bindings = (
+            document_batch.snapshot_bindings if document_batch is not None else {}
+        )
         publications = []
         for kind, candidate in (
             ("dataset", build_result.dataset),
@@ -345,6 +414,7 @@ class DataStepService:
                 context,
                 kind=kind,
                 candidate=build_result.dataset,
+                snapshot_bindings_override=document_snapshot_bindings,
             )
             admitted = admit_artifact_candidate(
                 candidate,

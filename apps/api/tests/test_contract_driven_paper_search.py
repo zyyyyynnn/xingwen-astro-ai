@@ -79,7 +79,7 @@ def _contract(
         {
             "research_goal": "验证基于规范契约驱动的论文检索生产链",
             "target_objects": ["exoplanet_candidate", "host_star"],
-            "data_requirements": {"unit_policy": "canonical"},
+            "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
             "requested_fields": ["planet.toi_id", "star.tic_id"],
             "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
             "paper_search_scope": {

@@ -21,6 +21,7 @@ from .core import (
     NonEmptyString,
     ResearchContract,
     SemanticVersion,
+    Identifier as RuntimeIdentifier,
 )
 from .data_artifacts import (
     AlignmentStatus,
@@ -730,6 +731,36 @@ class DatasetQualityResult(BaseModel):
         return self
 
 
+class DocumentParseQualityStatus(StrEnum):
+    """Independent document parse quality status; it is not an aggregate score."""
+
+    complete = "complete"
+    partial = "partial"
+    unsupported = "unsupported"
+    not_applicable = "not_applicable"
+
+
+class DocumentParseQualityObservation(BaseModel):
+    """Non-metric observation of the parses actually used by one Dataset build."""
+
+    model_config = MODEL_CONFIG
+
+    status: DocumentParseQualityStatus
+    research_input_ids: tuple[RuntimeIdentifier, ...] = ()
+    document_parse_ids: tuple[RuntimeIdentifier, ...] = ()
+
+    @model_validator(mode="after")
+    def validate_observation(self) -> DocumentParseQualityObservation:
+        if self.status is DocumentParseQualityStatus.not_applicable:
+            if self.research_input_ids or self.document_parse_ids:
+                raise ValueError(
+                    "not-applicable document observation cannot bind parses"
+                )
+        elif not self.research_input_ids or not self.document_parse_ids:
+            raise ValueError("document observation must bind its provenance")
+        return self
+
+
 class QualityConstraintResult(BaseModel):
     model_config = MODEL_CONFIG
 
@@ -851,6 +882,7 @@ class DataQualityEvaluationResult(BaseModel):
     field_results: tuple[FieldQualityResult, ...]
     row_results: tuple[RowQualityResult, ...]
     dataset_result: DatasetQualityResult
+    document_parse_observation: DocumentParseQualityObservation
     contract_gate: ResearchContractQualityGate
     aggregate_score: Decimal | None
     aggregate_score_policy: QualityAggregateScorePolicy
@@ -1148,6 +1180,8 @@ def compute_data_quality_result_id(input_hash: ContentHash, rule_set_content_has
 
 
 __all__ = [
+    "DocumentParseQualityObservation",
+    "DocumentParseQualityStatus",
     "DataQualityEvaluationInput",
     "DataQualityEvaluationOutcome",
     "DataQualityEvaluationRejected",

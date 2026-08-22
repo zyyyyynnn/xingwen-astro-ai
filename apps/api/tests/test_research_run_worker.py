@@ -92,7 +92,7 @@ def test_literature_bindings_materialize_shared_evidence_per_domain_target() -> 
                 "created_at": "2026-08-13T00:00:00Z",
                 "research_goal": "研究目标",
                 "target_objects": ["host_star"],
-                "data_requirements": {"unit_policy": "canonical"},
+                "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
                 "requested_fields": ["star.tic_id"],
                 "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
                 "paper_search_scope": {},

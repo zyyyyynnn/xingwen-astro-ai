@@ -26,7 +26,7 @@ def _contract(*requested_fields: str, source_min: float = 1.0) -> ResearchContra
         "version": 1,
         "research_goal": "Evaluate evidence-bound exoplanet data quality",
         "target_objects": ["exoplanet_candidate", "host_star"],
-        "data_requirements": {"unit_policy": "canonical"},
+        "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
         "requested_fields": list(requested_fields),
         "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
         "paper_search_scope": {"max_candidates": 20},

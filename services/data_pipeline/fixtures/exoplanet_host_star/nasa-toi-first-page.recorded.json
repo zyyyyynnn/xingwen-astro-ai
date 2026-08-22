@@ -6,10 +6,10 @@
   "source_endpoint": "https://exoplanetarchive.ipac.caltech.edu/TAP/sync",
   "source_mode": "fixture",
   "data_level": "recorded_response",
-  "case_manifest_version": "2.0.0",
-  "case_manifest_content_hash": "sha256:baa4d6c24ff46d25172074fd26c8c692c50e006e643dc7c72b4bc18c90be52bf",
-  "field_manifest_version": "2.0.0",
-  "field_manifest_content_hash": "sha256:d74d01950e7171aacce8cf660582d5245a2fa84e8bf6948224695740cd3c334e",
+  "case_manifest_version": "3.0.0",
+  "case_manifest_content_hash": "sha256:7bccb7f4bc447afecdffb968f2c85f4e3c5a5f1a3f2f051090a460a66093aeaa",
+  "field_manifest_version": "3.0.0",
+  "field_manifest_content_hash": "sha256:a922748dee1a51f616e256d1fe71a7e2b94596bcdfa465906046734bbf90118d",
   "pagination": {
     "page_size": 2,
     "max_pages": 1,
@@ -17,8 +17,16 @@
   },
   "provenance_note": "Recorded from a successful metadata-only primary source acquisition smoke request to the official NASA Exoplanet Archive TAP sync endpoint. Replay is fixture evidence and must never be labeled live or cached.",
   "tap_schema": [
-    { "table_name": "toi", "column_name": "dec", "datatype": "double" },
-    { "table_name": "toi", "column_name": "pl_orbper", "datatype": "double" },
+    {
+      "table_name": "toi",
+      "column_name": "dec",
+      "datatype": "double"
+    },
+    {
+      "table_name": "toi",
+      "column_name": "pl_orbper",
+      "datatype": "double"
+    },
     {
       "table_name": "toi",
       "column_name": "pl_orbpererr1",
@@ -29,24 +37,96 @@
       "column_name": "pl_orbpererr2",
       "datatype": "double"
     },
-    { "table_name": "toi", "column_name": "pl_orbperlim", "datatype": "int" },
-    { "table_name": "toi", "column_name": "pl_rade", "datatype": "double" },
-    { "table_name": "toi", "column_name": "pl_radeerr1", "datatype": "double" },
-    { "table_name": "toi", "column_name": "pl_radeerr2", "datatype": "double" },
-    { "table_name": "toi", "column_name": "pl_radelim", "datatype": "int" },
-    { "table_name": "toi", "column_name": "ra", "datatype": "double" },
-    { "table_name": "toi", "column_name": "rowupdate", "datatype": "char" },
-    { "table_name": "toi", "column_name": "st_rad", "datatype": "double" },
-    { "table_name": "toi", "column_name": "st_raderr1", "datatype": "double" },
-    { "table_name": "toi", "column_name": "st_raderr2", "datatype": "double" },
-    { "table_name": "toi", "column_name": "st_radlim", "datatype": "int" },
-    { "table_name": "toi", "column_name": "st_teff", "datatype": "double" },
-    { "table_name": "toi", "column_name": "st_tefferr1", "datatype": "double" },
-    { "table_name": "toi", "column_name": "st_tefferr2", "datatype": "double" },
-    { "table_name": "toi", "column_name": "st_tefflim", "datatype": "int" },
-    { "table_name": "toi", "column_name": "tfopwg_disp", "datatype": "char" },
-    { "table_name": "toi", "column_name": "tid", "datatype": "int" },
-    { "table_name": "toi", "column_name": "toi", "datatype": "char" }
+    {
+      "table_name": "toi",
+      "column_name": "pl_orbperlim",
+      "datatype": "int"
+    },
+    {
+      "table_name": "toi",
+      "column_name": "pl_rade",
+      "datatype": "double"
+    },
+    {
+      "table_name": "toi",
+      "column_name": "pl_radeerr1",
+      "datatype": "double"
+    },
+    {
+      "table_name": "toi",
+      "column_name": "pl_radeerr2",
+      "datatype": "double"
+    },
+    {
+      "table_name": "toi",
+      "column_name": "pl_radelim",
+      "datatype": "int"
+    },
+    {
+      "table_name": "toi",
+      "column_name": "ra",
+      "datatype": "double"
+    },
+    {
+      "table_name": "toi",
+      "column_name": "rowupdate",
+      "datatype": "char"
+    },
+    {
+      "table_name": "toi",
+      "column_name": "st_rad",
+      "datatype": "double"
+    },
+    {
+      "table_name": "toi",
+      "column_name": "st_raderr1",
+      "datatype": "double"
+    },
+    {
+      "table_name": "toi",
+      "column_name": "st_raderr2",
+      "datatype": "double"
+    },
+    {
+      "table_name": "toi",
+      "column_name": "st_radlim",
+      "datatype": "int"
+    },
+    {
+      "table_name": "toi",
+      "column_name": "st_teff",
+      "datatype": "double"
+    },
+    {
+      "table_name": "toi",
+      "column_name": "st_tefferr1",
+      "datatype": "double"
+    },
+    {
+      "table_name": "toi",
+      "column_name": "st_tefferr2",
+      "datatype": "double"
+    },
+    {
+      "table_name": "toi",
+      "column_name": "st_tefflim",
+      "datatype": "int"
+    },
+    {
+      "table_name": "toi",
+      "column_name": "tfopwg_disp",
+      "datatype": "char"
+    },
+    {
+      "table_name": "toi",
+      "column_name": "tid",
+      "datatype": "int"
+    },
+    {
+      "table_name": "toi",
+      "column_name": "toi",
+      "datatype": "char"
+    }
   ],
   "records": [
     {
@@ -76,8 +156,8 @@
     {
       "dec": -5.513852,
       "pl_orbper": 1.9316462,
-      "pl_orbpererr1": 0.0000053,
-      "pl_orbpererr2": -0.0000053,
+      "pl_orbpererr1": 5.3e-06,
+      "pl_orbpererr2": -5.3e-06,
       "pl_orbperlim": 0,
       "pl_rade": 11.2154,
       "pl_radeerr1": 2.6242,
@@ -99,5 +179,5 @@
     }
   ],
   "safe_response_headers": {},
-  "content_hash": "sha256:746572acdf304ffd439fd17f6987e63fdf2c33021f819a3739381230a684f1d9"
+  "content_hash": "sha256:2303943c13a7ee985b412ff2e73cf900268fbc904983e783aff3bf5d7f928949"
 }

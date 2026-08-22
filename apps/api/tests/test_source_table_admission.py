@@ -32,7 +32,7 @@ def _contract() -> ResearchContract:
         {
             "research_goal": "Admit a bounded Gaia source table",
             "target_objects": ["host_star"],
-            "data_requirements": {"unit_policy": "canonical"},
+            "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
             "requested_fields": [
                 "star.gaia_dr3_id",
                 "system.right_ascension",

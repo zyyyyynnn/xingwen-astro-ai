@@ -77,6 +77,11 @@ def _collect_observations(
     actual_sources = {
         member.source_id for member in source_collection_candidate.members
     }
+    document_source_values = [
+        item
+        for item in dataset_candidate.source_values
+        if getattr(item.origin, "kind", None) == "document_research_input"
+    ]
     observations: dict[str, QualityMetricResult | bool] = {
         f"dataset.{field_name}": getattr(dataset_result, field_name)
         for field_name in DatasetQualityResult.model_fields
@@ -96,6 +101,16 @@ def _collect_observations(
             "candidate.source_snapshot_present": (
                 not contract.evidence_requirements.require_source_snapshot
                 or bool(dataset_candidate.source_snapshot_ids)
+            ),
+            # Document authorization is verified independently from the
+            # structured source scope; without document values this stays True.
+            "candidate.document_source_authorized": (
+                not document_source_values
+                or (
+                    contract.data_requirements.document_source_policy.value
+                    == "research_input"
+                    and "document_research_input" in manifests.case_manifest.document_source_classes
+                )
             ),
         }
     )

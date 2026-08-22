@@ -153,7 +153,10 @@ describe("OpenHands-derived research message flow", () => {
       contract: {
         researchGoal: "分析 Kepler 宿主星物理参数" as any,
         targetObjects: ["host_star" as any],
-        dataRequirements: { unitPolicy: "canonical" as any },
+        dataRequirements: {
+          unitPolicy: "canonical" as any,
+          documentSourcePolicy: "disabled" as any,
+        },
         requestedFields: ["teff" as any, "feh" as any],
         sourceScope: { allowedSources: ["simbad" as any, "gaia" as any] },
         paperSearchScope: {

@@ -346,6 +346,12 @@ class _DocumentParses:
             source_id=_SOURCE_ID,
             source_version=_CONTENT_HASH,
             content_hash=_CONTENT_HASH,
+            source_type="research_input_upload",
+            retrieved_at=_parse_candidate().created_at,
+            query={"research_input_id": "00000000-0000-4000-8000-0000000000aa"},
+            query_hash=_CONTENT_HASH,
+            license_note="user-provided upload",
+            cache_version=None,
         )
 
 

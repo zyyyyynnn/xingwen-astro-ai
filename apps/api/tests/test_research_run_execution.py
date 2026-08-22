@@ -251,7 +251,7 @@ def _contract_payload() -> dict[str, object]:
     return {
         "research_goal": "整合近邻Confirmed系外行星候选与宿主恒星参数并核对文献证据。",
         "target_objects": ["exoplanet_candidate", "host_star"],
-        "data_requirements": {"unit_policy": "canonical"},
+        "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
         "requested_fields": ["planet.toi_id", "star.tic_id"],
         "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
         "paper_search_scope": {
@@ -421,7 +421,7 @@ def test_worker_executes_uploaded_csv_scientific_task_end_to_end(
     contract_payload = {
         "research_goal": "分析上传观测表的字段完整性与数值分布。",
         "target_objects": ["host_star"],
-        "data_requirements": {"unit_policy": "canonical"},
+        "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
         "requested_fields": ["star.tic_id"],
         "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
         "paper_search_scope": {"keywords": (), "source_ids": (), "max_candidates": 1},
@@ -583,7 +583,7 @@ def test_gaia_scientific_admission_publishes_uuid_cell_evidence_end_to_end(
     contract_payload = {
         "research_goal": "查询 Gaia DR3 宿主恒星并保留逐单元证据。",
         "target_objects": ["host_star"],
-        "data_requirements": {"unit_policy": "canonical"},
+        "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
         "requested_fields": [
             "star.gaia_dr3_id",
             "system.right_ascension",

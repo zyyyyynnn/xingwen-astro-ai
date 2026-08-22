@@ -91,6 +91,16 @@ accepted pair/adjudication 只合并同一 row grain 的 members。review-requir
 
 领域投影是 deterministic、不可变的构建结果。candidate 的 `input_hash`、`output_hash`、content hash 必须覆盖实际影响科学内容的输入、策略、规则与 provenance；wall-clock 等运行观察值只在其明确合同中出现，不能造成同内容 hash 漂移。
 
+### 6.1 Document-derived supplemental 来源
+
+已准入的 document observation 是现有 canonical row 的补充科学值，不是第三条 Crossmatch side，也不创建新的 canonical object：
+
+- `DataArtifactBuildInput.document_observations` 只接受已完成 provenance/field/entity/raw-semantics 授权的 typed admission 输出；projection 不接收 raw parse candidate 或任意 dict。
+- `SourceValueCandidate.origin` 是 discriminated union：structured database origin 与 document research input origin；document 值的 locator 为 `DocumentObservationLocator`，绑定 persisted DocumentParse UUID 与其既有 persisted SourceSnapshot。
+- selection 规则固定：approved structured 有合法值时不被 document 自动覆盖；structured 缺值时可由 admitted document 补充；多个相等的 document 值共同形成 consensus canonical value（`selected_source_value_id=None`），冲突且无 structured winner 时保留 `UnresolvedCanonicalValue` + conflict，不做确定性科学胜者。
+- Dataset `source_snapshot_ids` = 2 个 crossmatch snapshot + 实际保留的 document snapshots；`crossmatch_source_snapshot_ids` 恒为恰好 2 且属于 left/right。Publisher 通过 binding override 将 pipeline 逻辑 snapshot 映射到既有 persisted 行，不复制 SourceSnapshot。
+- 数据质量评估的 structured source_scope denominator 只观察 crossmatch 左右两侧；document 解析质量由独立的非指标观测 `DocumentParseQualityObservation`（complete/partial/unsupported/not_applicable）表达，Contract gate 另行校验 `document_source_authorized`。
+
 ## 7. 单源科学表准入
 
 不需要跨源对齐的科学采集表先形成 `SourceTableAdmission`，再进入科学 Artifact 组装；它不是第四种 Data Artifact，也不引入第二套 Dataset、Crossmatch、字段注册表或质量引擎。

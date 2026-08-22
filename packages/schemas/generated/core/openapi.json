@@ -2267,11 +2267,17 @@
       "DataRequirements": {
         "additionalProperties": false,
         "properties": {
+          "document_source_policy": {
+            "$ref": "#/components/schemas/DocumentSourcePolicy"
+          },
           "unit_policy": {
-            "$ref": "#/components/schemas/UnitPolicy",
-            "default": "canonical"
+            "$ref": "#/components/schemas/UnitPolicy"
           }
         },
+        "required": [
+          "unit_policy",
+          "document_source_policy"
+        ],
         "title": "DataRequirements",
         "type": "object"
       },
@@ -2324,6 +2330,93 @@
         "title": "DataSourceDataLevel",
         "type": "string"
       },
+      "DataSourceSnapshotProjection": {
+        "additionalProperties": false,
+        "description": "Logical data-pipeline projection of one scientific source snapshot.",
+        "properties": {
+          "cache_version": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Version"
+          },
+          "content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "license_note": {
+            "minLength": 1,
+            "title": "License Note",
+            "type": "string"
+          },
+          "query": {
+            "$ref": "#/components/schemas/JsonValue"
+          },
+          "query_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Query Hash",
+            "type": "string"
+          },
+          "request_metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Request Metadata",
+            "type": "object"
+          },
+          "retrieved_at": {
+            "format": "date-time",
+            "title": "Retrieved At",
+            "type": "string"
+          },
+          "snapshot_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "source_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_type": {
+            "minLength": 1,
+            "title": "Source Type",
+            "type": "string"
+          },
+          "source_version_or_etag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Version Or Etag"
+          }
+        },
+        "required": [
+          "snapshot_id",
+          "source_id",
+          "source_type",
+          "retrieved_at",
+          "query",
+          "query_hash",
+          "content_hash",
+          "license_note"
+        ],
+        "title": "DataSourceSnapshotProjection",
+        "type": "object"
+      },
       "DataType": {
         "description": "Canonical scalar types supported by the frozen case.",
         "enum": [
@@ -2333,6 +2426,90 @@
         ],
         "title": "DataType",
         "type": "string"
+      },
+      "DatabaseCellLocator": {
+        "additionalProperties": false,
+        "description": "Locator for one structured database cell (left/right Crossmatch side).",
+        "properties": {
+          "kind": {
+            "const": "database_cell",
+            "default": "database_cell",
+            "title": "Kind",
+            "type": "string"
+          },
+          "query_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Query Hash",
+            "type": "string"
+          },
+          "raw_field": {
+            "minLength": 1,
+            "title": "Raw Field",
+            "type": "string"
+          },
+          "raw_record_content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Raw Record Content Hash",
+            "type": "string"
+          },
+          "row_key": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              ],
+              "type": "array"
+            },
+            "minItems": 1,
+            "title": "Row Key",
+            "type": "array"
+          },
+          "source_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_role": {
+            "enum": [
+              "left",
+              "right",
+              "single"
+            ],
+            "title": "Source Role",
+            "type": "string"
+          },
+          "source_snapshot_content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Source Snapshot Content Hash",
+            "type": "string"
+          },
+          "source_snapshot_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Source Snapshot Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_role",
+          "source_snapshot_id",
+          "source_snapshot_content_hash",
+          "source_id",
+          "query_hash",
+          "row_key",
+          "raw_record_content_hash",
+          "raw_field"
+        ],
+        "title": "DatabaseCellLocator",
+        "type": "object"
       },
       "DatasetArtifactCandidate": {
         "additionalProperties": false,
@@ -2521,8 +2698,8 @@
             "type": "array"
           },
           "schema_version": {
-            "const": "1.0.0",
-            "default": "1.0.0",
+            "const": "2.0.0",
+            "default": "2.0.0",
             "title": "Schema Version",
             "type": "string"
           },
@@ -2901,6 +3078,34 @@
         "title": "DocumentBBox",
         "type": "object"
       },
+      "DocumentFieldAlias": {
+        "additionalProperties": false,
+        "description": "A document label mapped to one canonical field; owned by the Field Manifest.",
+        "properties": {
+          "alias": {
+            "minLength": 1,
+            "title": "Alias",
+            "type": "string"
+          },
+          "priority": {
+            "minimum": 1.0,
+            "title": "Priority",
+            "type": "integer"
+          },
+          "source_class": {
+            "const": "document_research_input",
+            "title": "Source Class",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_class",
+          "alias",
+          "priority"
+        ],
+        "title": "DocumentFieldAlias",
+        "type": "object"
+      },
       "DocumentLocator": {
         "additionalProperties": false,
         "description": "Canonical SINGLE SOURCE OF TRUTH locator back to a parsed element.\n\nA locator is only complete together with the owning ``DocumentParseCandidate``\n(which carries ``research_input_id`` / input ``content_hash``). It must be\npersistable and verifiable by DocumentParse Persistence without re-parsing the source.\n\nThis is the ONLY locator representation in the contract. ``page_index``,\n``block_id``, ``bbox``, ``table_id`` and ``cell_id`` live here and nowhere\nelse; the ``ScientificDataExtractionCandidate`` references a parse solely\nthrough this locator, so contradictory parallel locator fields are\nimpossible by construction.",
@@ -2987,6 +3192,217 @@
         ],
         "title": "DocumentLocator",
         "type": "object"
+      },
+      "DocumentObservationLocator": {
+        "additionalProperties": false,
+        "description": "Locator for one admitted document observation bound to persisted provenance.",
+        "properties": {
+          "document_locator": {
+            "$ref": "#/components/schemas/DocumentLocator"
+          },
+          "document_parse_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Document Parse Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "document_observation",
+            "default": "document_observation",
+            "title": "Kind",
+            "type": "string"
+          },
+          "parse_quality": {
+            "$ref": "#/components/schemas/DocumentParseQuality"
+          },
+          "query_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Query Hash",
+            "type": "string"
+          },
+          "raw_candidate_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Raw Candidate Id",
+            "type": "string"
+          },
+          "research_input_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Research Input Id",
+            "type": "string"
+          },
+          "source_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_snapshot_content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Source Snapshot Content Hash",
+            "type": "string"
+          },
+          "source_snapshot_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Source Snapshot Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_snapshot_id",
+          "source_snapshot_content_hash",
+          "source_id",
+          "query_hash",
+          "research_input_id",
+          "document_parse_id",
+          "raw_candidate_id",
+          "parse_quality",
+          "document_locator"
+        ],
+        "title": "DocumentObservationLocator",
+        "type": "object"
+      },
+      "DocumentParseQuality": {
+        "description": "Lifecycle quality of a parsed region / whole document.\n\n``accepted`` does NOT mean a scientific fact is verified. It means the\ncurrent parser/profile reached admission conditions for the usable region\nand it may become downstream Evidence / input.\n\n``partial`` means only part of the content was reliably parsed. Downstream\nmay use the clearly valid part, but MUST keep ``unparsed != absent``: a\nmissing recognition must never be read as \"does not exist in the paper\".\n\n``unsupported`` means the current parser/profile cannot reliably process\nthe region. No fabricated full text may be emitted and no downstream model\nmay auto-complete the gap.",
+        "enum": [
+          "accepted",
+          "partial",
+          "unsupported"
+        ],
+        "title": "DocumentParseQuality",
+        "type": "string"
+      },
+      "DocumentResearchInputOrigin": {
+        "additionalProperties": false,
+        "description": "Admitted document observation provenance of one source value.",
+        "properties": {
+          "document_locator": {
+            "$ref": "#/components/schemas/DocumentLocator"
+          },
+          "document_parse_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Document Parse Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "document_research_input",
+            "default": "document_research_input",
+            "title": "Kind",
+            "type": "string"
+          },
+          "parse_quality": {
+            "$ref": "#/components/schemas/DocumentParseQuality"
+          },
+          "raw_candidate_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Raw Candidate Id",
+            "type": "string"
+          },
+          "research_input_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Research Input Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "research_input_id",
+          "document_parse_id",
+          "raw_candidate_id",
+          "parse_quality",
+          "document_locator"
+        ],
+        "title": "DocumentResearchInputOrigin",
+        "type": "object"
+      },
+      "DocumentSourceCollectionMember": {
+        "additionalProperties": false,
+        "description": "One admitted document research input retained as supplemental provenance.",
+        "properties": {
+          "document_parse_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Document Parse Ids",
+            "type": "array"
+          },
+          "member_kind": {
+            "const": "document",
+            "default": "document",
+            "title": "Member Kind",
+            "type": "string"
+          },
+          "observation_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            "title": "Observation Ids",
+            "type": "array"
+          },
+          "query_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Query Hash",
+            "type": "string"
+          },
+          "research_input_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Research Input Id",
+            "type": "string"
+          },
+          "source_class": {
+            "const": "document_research_input",
+            "title": "Source Class",
+            "type": "string"
+          },
+          "source_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_snapshot": {
+            "$ref": "#/components/schemas/DataSourceSnapshotProjection"
+          },
+          "source_snapshot_content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Source Snapshot Content Hash",
+            "type": "string"
+          },
+          "source_snapshot_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Source Snapshot Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_class",
+          "source_snapshot",
+          "source_id",
+          "source_snapshot_id",
+          "source_snapshot_content_hash",
+          "query_hash",
+          "research_input_id",
+          "document_parse_ids",
+          "observation_ids"
+        ],
+        "title": "DocumentSourceCollectionMember",
+        "type": "object"
+      },
+      "DocumentSourcePolicy": {
+        "description": "Whether document-derived scientific values may enter the Dataset.",
+        "enum": [
+          "disabled",
+          "research_input"
+        ],
+        "title": "DocumentSourcePolicy",
+        "type": "string"
       },
       "EntityLevel": {
         "enum": [
@@ -4249,6 +4665,13 @@
             "title": "Description",
             "type": "string"
           },
+          "document_aliases": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentFieldAlias"
+            },
+            "title": "Document Aliases",
+            "type": "array"
+          },
           "evidence_locator_rule_id": {
             "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
             "title": "Evidence Locator Rule Id",
@@ -4333,6 +4756,7 @@
           "data_type",
           "canonical_unit",
           "source_aliases",
+          "document_aliases",
           "source_priority",
           "conflict_resolution_strategy",
           "conflict_resolution_rule_version",
@@ -4372,6 +4796,14 @@
             "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
             "title": "Conversion Catalog Version",
             "type": "string"
+          },
+          "crossmatch_source_snapshot_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            "title": "Crossmatch Source Snapshot Ids",
+            "type": "array"
           },
           "evidence_ids": {
             "items": {
@@ -4440,8 +4872,8 @@
             "type": "array"
           },
           "schema_version": {
-            "const": "1.0.0",
-            "default": "1.0.0",
+            "const": "2.0.0",
+            "default": "2.0.0",
             "title": "Schema Version",
             "type": "string"
           },
@@ -4460,6 +4892,7 @@
           "requested_fields",
           "field_definitions",
           "source_snapshot_ids",
+          "crossmatch_source_snapshot_ids",
           "evidence_ids",
           "mapping_rule_set_id",
           "mapping_rule_set_version",
@@ -6717,7 +7150,7 @@
           "locator": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SourceCellLocator"
+                "$ref": "#/components/schemas/DatabaseCellLocator"
               },
               {
                 "type": "null"
@@ -8170,9 +8603,16 @@
             "type": "array"
           },
           "selected_source_value_id": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-            "title": "Selected Source Value Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Source Value Id"
           },
           "selection_id": {
             "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
@@ -8198,7 +8638,6 @@
           "canonical_field_id",
           "canonical_value",
           "canonical_unit",
-          "selected_source_value_id",
           "candidate_source_value_ids",
           "transformation_evidence_ids",
           "selection_id",
@@ -13463,6 +13902,7 @@
             "created_at": "2026-07-21T08:00:00Z",
             "created_from_draft_id": "rcd_01JEXAMPLE",
             "data_requirements": {
+              "document_source_policy": "disabled",
               "unit_policy": "canonical"
             },
             "evidence_requirements": {},
@@ -13611,6 +14051,7 @@
           {
             "contract": {
               "data_requirements": {
+                "document_source_policy": "disabled",
                 "unit_policy": "canonical"
               },
               "evidence_requirements": {},
@@ -16356,83 +16797,6 @@
         "title": "SourceAlias",
         "type": "object"
       },
-      "SourceCellLocator": {
-        "additionalProperties": false,
-        "properties": {
-          "query_hash": {
-            "pattern": "^sha256:[0-9a-f]{64}$",
-            "title": "Query Hash",
-            "type": "string"
-          },
-          "raw_field": {
-            "minLength": 1,
-            "title": "Raw Field",
-            "type": "string"
-          },
-          "raw_record_content_hash": {
-            "pattern": "^sha256:[0-9a-f]{64}$",
-            "title": "Raw Record Content Hash",
-            "type": "string"
-          },
-          "row_key": {
-            "items": {
-              "maxItems": 2,
-              "minItems": 2,
-              "prefixItems": [
-                {
-                  "minLength": 1,
-                  "type": "string"
-                },
-                {
-                  "minLength": 1,
-                  "type": "string"
-                }
-              ],
-              "type": "array"
-            },
-            "minItems": 1,
-            "title": "Row Key",
-            "type": "array"
-          },
-          "source_id": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-            "title": "Source Id",
-            "type": "string"
-          },
-          "source_role": {
-            "enum": [
-              "left",
-              "right",
-              "single"
-            ],
-            "title": "Source Role",
-            "type": "string"
-          },
-          "source_snapshot_content_hash": {
-            "pattern": "^sha256:[0-9a-f]{64}$",
-            "title": "Source Snapshot Content Hash",
-            "type": "string"
-          },
-          "source_snapshot_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Source Snapshot Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "source_role",
-          "source_snapshot_id",
-          "source_snapshot_content_hash",
-          "source_id",
-          "query_hash",
-          "row_key",
-          "raw_record_content_hash",
-          "raw_field"
-        ],
-        "title": "SourceCellLocator",
-        "type": "object"
-      },
       "SourceCollectionArtifactCandidate": {
         "additionalProperties": false,
         "properties": {
@@ -16482,6 +16846,14 @@
             "title": "Crossmatch Result Id",
             "type": "string"
           },
+          "crossmatch_source_snapshot_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            "title": "Crossmatch Source Snapshot Ids",
+            "type": "array"
+          },
           "evidence_ids": {
             "items": {
               "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
@@ -16529,7 +16901,21 @@
           },
           "members": {
             "items": {
-              "$ref": "#/components/schemas/SourceCollectionMember"
+              "discriminator": {
+                "mapping": {
+                  "document": "#/components/schemas/DocumentSourceCollectionMember",
+                  "structured": "#/components/schemas/StructuredSourceCollectionMember"
+                },
+                "propertyName": "member_kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/StructuredSourceCollectionMember"
+                },
+                {
+                  "$ref": "#/components/schemas/DocumentSourceCollectionMember"
+                }
+              ]
             },
             "title": "Members",
             "type": "array"
@@ -16557,8 +16943,8 @@
             "type": "array"
           },
           "schema_version": {
-            "const": "1.0.0",
-            "default": "1.0.0",
+            "const": "2.0.0",
+            "default": "2.0.0",
             "title": "Schema Version",
             "type": "string"
           },
@@ -16583,6 +16969,7 @@
           "candidate_id",
           "manifest_pins",
           "source_snapshot_ids",
+          "crossmatch_source_snapshot_ids",
           "evidence_ids",
           "members",
           "source_value_ids",
@@ -16689,85 +17076,6 @@
           "source_collection"
         ],
         "title": "SourceCollectionArtifactRead",
-        "type": "object"
-      },
-      "SourceCollectionMember": {
-        "additionalProperties": false,
-        "properties": {
-          "completion": {
-            "$ref": "#/components/schemas/DataSourceCompletion"
-          },
-          "data_level": {
-            "$ref": "#/components/schemas/DataSourceDataLevel"
-          },
-          "license_note": {
-            "minLength": 1,
-            "title": "License Note",
-            "type": "string"
-          },
-          "query_hash": {
-            "pattern": "^sha256:[0-9a-f]{64}$",
-            "title": "Query Hash",
-            "type": "string"
-          },
-          "raw_record_count": {
-            "minimum": 0.0,
-            "title": "Raw Record Count",
-            "type": "integer"
-          },
-          "raw_record_reference_registry_hash": {
-            "pattern": "^sha256:[0-9a-f]{64}$",
-            "title": "Raw Record Reference Registry Hash",
-            "type": "string"
-          },
-          "raw_record_references": {
-            "items": {
-              "$ref": "#/components/schemas/RawSourceRecordReference"
-            },
-            "title": "Raw Record References",
-            "type": "array"
-          },
-          "side": {
-            "$ref": "#/components/schemas/CrossmatchSide"
-          },
-          "source_id": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-            "title": "Source Id",
-            "type": "string"
-          },
-          "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__enums__SourceMode"
-          },
-          "source_snapshot": {
-            "$ref": "#/components/schemas/SourceSnapshotRecord"
-          },
-          "source_snapshot_content_hash": {
-            "pattern": "^sha256:[0-9a-f]{64}$",
-            "title": "Source Snapshot Content Hash",
-            "type": "string"
-          },
-          "source_snapshot_id": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-            "title": "Source Snapshot Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "side",
-          "source_snapshot",
-          "source_id",
-          "source_snapshot_id",
-          "source_snapshot_content_hash",
-          "query_hash",
-          "source_mode",
-          "data_level",
-          "completion",
-          "license_note",
-          "raw_record_references",
-          "raw_record_count",
-          "raw_record_reference_registry_hash"
-        ],
-        "title": "SourceCollectionMember",
         "type": "object"
       },
       "SourceScope": {
@@ -17223,7 +17531,7 @@
             "type": "string"
           },
           "locator": {
-            "$ref": "#/components/schemas/SourceCellLocator"
+            "$ref": "#/components/schemas/DatabaseCellLocator"
           },
           "raw_value": {
             "anyOf": [
@@ -17414,7 +17722,22 @@
             "type": "string"
           },
           "evidence_locator": {
-            "$ref": "#/components/schemas/SourceCellLocator"
+            "discriminator": {
+              "mapping": {
+                "database_cell": "#/components/schemas/DatabaseCellLocator",
+                "document_observation": "#/components/schemas/DocumentObservationLocator"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DatabaseCellLocator"
+              },
+              {
+                "$ref": "#/components/schemas/DocumentObservationLocator"
+              }
+            ],
+            "title": "Evidence Locator"
           },
           "limit": {
             "$ref": "#/components/schemas/LimitValue"
@@ -17429,75 +17752,28 @@
               }
             ]
           },
-          "provenance_field": {
-            "anyOf": [
+          "origin": {
+            "discriminator": {
+              "mapping": {
+                "document_research_input": "#/components/schemas/DocumentResearchInputOrigin",
+                "structured_database": "#/components/schemas/StructuredDatabaseOrigin"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
               {
-                "minLength": 1,
-                "type": "string"
+                "$ref": "#/components/schemas/StructuredDatabaseOrigin"
               },
               {
-                "type": "null"
+                "$ref": "#/components/schemas/DocumentResearchInputOrigin"
               }
             ],
-            "title": "Provenance Field"
-          },
-          "provenance_value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-                "type": "string"
-              },
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Provenance Value"
+            "title": "Origin"
           },
           "query_hash": {
             "pattern": "^sha256:[0-9a-f]{64}$",
             "title": "Query Hash",
             "type": "string"
-          },
-          "raw_field": {
-            "minLength": 1,
-            "title": "Raw Field",
-            "type": "string"
-          },
-          "raw_record_content_hash": {
-            "pattern": "^sha256:[0-9a-f]{64}$",
-            "title": "Raw Record Content Hash",
-            "type": "string"
-          },
-          "raw_record_row_key": {
-            "items": {
-              "maxItems": 2,
-              "minItems": 2,
-              "prefixItems": [
-                {
-                  "minLength": 1,
-                  "type": "string"
-                },
-                {
-                  "minLength": 1,
-                  "type": "string"
-                }
-              ],
-              "type": "array"
-            },
-            "title": "Raw Record Row Key",
-            "type": "array"
           },
           "raw_value": {
             "anyOf": [
@@ -17523,44 +17799,9 @@
             ],
             "title": "Raw Value"
           },
-          "reference_field": {
-            "anyOf": [
-              {
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reference Field"
-          },
-          "reference_value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-                "type": "string"
-              },
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reference Value"
-          },
           "source_id": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "maxLength": 128,
+            "minLength": 1,
             "title": "Source Id",
             "type": "string"
           },
@@ -17577,11 +17818,6 @@
           "source_snapshot_id": {
             "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
             "title": "Source Snapshot Id",
-            "type": "string"
-          },
-          "source_table": {
-            "minLength": 1,
-            "title": "Source Table",
             "type": "string"
           },
           "source_unit": {
@@ -17607,13 +17843,9 @@
           "source_value_id",
           "canonical_field_id",
           "source_id",
-          "source_table",
           "source_snapshot_id",
           "source_snapshot_content_hash",
           "query_hash",
-          "raw_record_row_key",
-          "raw_record_content_hash",
-          "raw_field",
           "source_unit",
           "canonical_unit",
           "alias_priority",
@@ -17624,6 +17856,7 @@
           "uncertainty",
           "limit",
           "evidence_locator",
+          "origin",
           "content_hash"
         ],
         "title": "SourceValueCandidate",
@@ -17878,6 +18111,217 @@
         "title": "SpectrumPoint",
         "type": "object"
       },
+      "StructuredDatabaseOrigin": {
+        "additionalProperties": false,
+        "description": "Structured left/right database provenance of one source value.",
+        "properties": {
+          "kind": {
+            "const": "structured_database",
+            "default": "structured_database",
+            "title": "Kind",
+            "type": "string"
+          },
+          "provenance_field": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provenance Field"
+          },
+          "provenance_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provenance Value"
+          },
+          "raw_field": {
+            "minLength": 1,
+            "title": "Raw Field",
+            "type": "string"
+          },
+          "raw_record_content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Raw Record Content Hash",
+            "type": "string"
+          },
+          "raw_record_row_key": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Raw Record Row Key",
+            "type": "array"
+          },
+          "reference_field": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Field"
+          },
+          "reference_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Value"
+          },
+          "source_table": {
+            "minLength": 1,
+            "title": "Source Table",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_table",
+          "raw_record_row_key",
+          "raw_record_content_hash",
+          "raw_field"
+        ],
+        "title": "StructuredDatabaseOrigin",
+        "type": "object"
+      },
+      "StructuredSourceCollectionMember": {
+        "additionalProperties": false,
+        "properties": {
+          "completion": {
+            "$ref": "#/components/schemas/DataSourceCompletion"
+          },
+          "data_level": {
+            "$ref": "#/components/schemas/DataSourceDataLevel"
+          },
+          "license_note": {
+            "minLength": 1,
+            "title": "License Note",
+            "type": "string"
+          },
+          "member_kind": {
+            "const": "structured",
+            "default": "structured",
+            "title": "Member Kind",
+            "type": "string"
+          },
+          "query_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Query Hash",
+            "type": "string"
+          },
+          "raw_record_count": {
+            "minimum": 0.0,
+            "title": "Raw Record Count",
+            "type": "integer"
+          },
+          "raw_record_reference_registry_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Raw Record Reference Registry Hash",
+            "type": "string"
+          },
+          "raw_record_references": {
+            "items": {
+              "$ref": "#/components/schemas/RawSourceRecordReference"
+            },
+            "title": "Raw Record References",
+            "type": "array"
+          },
+          "side": {
+            "$ref": "#/components/schemas/CrossmatchSide"
+          },
+          "source_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_mode": {
+            "$ref": "#/components/schemas/app__schemas__enums__SourceMode"
+          },
+          "source_snapshot": {
+            "$ref": "#/components/schemas/SourceSnapshotRecord"
+          },
+          "source_snapshot_content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Source Snapshot Content Hash",
+            "type": "string"
+          },
+          "source_snapshot_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Source Snapshot Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "side",
+          "source_snapshot",
+          "source_id",
+          "source_snapshot_id",
+          "source_snapshot_content_hash",
+          "query_hash",
+          "source_mode",
+          "data_level",
+          "completion",
+          "license_note",
+          "raw_record_references",
+          "raw_record_count",
+          "raw_record_reference_registry_hash"
+        ],
+        "title": "StructuredSourceCollectionMember",
+        "type": "object"
+      },
       "SupplementalDataQueryCursor": {
         "additionalProperties": false,
         "properties": {
@@ -18069,7 +18513,7 @@
           "limit_locator": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SourceCellLocator"
+                "$ref": "#/components/schemas/DatabaseCellLocator"
               },
               {
                 "type": "null"
@@ -18077,7 +18521,22 @@
             ]
           },
           "locator": {
-            "$ref": "#/components/schemas/SourceCellLocator"
+            "discriminator": {
+              "mapping": {
+                "database_cell": "#/components/schemas/DatabaseCellLocator",
+                "document_observation": "#/components/schemas/DocumentObservationLocator"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DatabaseCellLocator"
+              },
+              {
+                "$ref": "#/components/schemas/DocumentObservationLocator"
+              }
+            ],
+            "title": "Locator"
           },
           "provenance_field": {
             "anyOf": [
@@ -18094,7 +18553,7 @@
           "provenance_locator": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SourceCellLocator"
+                "$ref": "#/components/schemas/DatabaseCellLocator"
               },
               {
                 "type": "null"
@@ -18164,7 +18623,7 @@
           "reference_locator": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SourceCellLocator"
+                "$ref": "#/components/schemas/DatabaseCellLocator"
               },
               {
                 "type": "null"
@@ -18229,7 +18688,7 @@
           },
           "uncertainty_locators": {
             "items": {
-              "$ref": "#/components/schemas/SourceCellLocator"
+              "$ref": "#/components/schemas/DatabaseCellLocator"
             },
             "title": "Uncertainty Locators",
             "type": "array"
@@ -18337,7 +18796,7 @@
           "negative_locator": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SourceCellLocator"
+                "$ref": "#/components/schemas/DatabaseCellLocator"
               },
               {
                 "type": "null"
@@ -18347,7 +18806,7 @@
           "positive_locator": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SourceCellLocator"
+                "$ref": "#/components/schemas/DatabaseCellLocator"
               },
               {
                 "type": "null"

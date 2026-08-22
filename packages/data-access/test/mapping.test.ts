@@ -14,7 +14,10 @@ function contractInputDto(): ResearchContractInputDto {
   return {
     research_goal: "Compare host-star parameters with traceable evidence",
     target_objects: ["host_star"],
-    data_requirements: { unit_policy: "canonical" },
+    data_requirements: {
+      unit_policy: "canonical",
+      document_source_policy: "disabled",
+    },
     requested_fields: ["teff"],
     source_scope: { allowed_sources: ["simbad"] },
     paper_search_scope: {

@@ -153,6 +153,30 @@ ScientificDataExtractionCandidate
 
 `OCR → final Dataset` is forbidden.
 
+### 8.1 Handoff to data admission
+
+The raw candidate enters the existing Dataset chain through one deterministic
+document observation pipeline:
+
+- Field labels resolve only via exact canonical field ids or exact normalized
+  registered `DocumentFieldAlias` entries owned by the Field Manifest
+  (NFKC + trim + whitespace collapse + casefold; no fuzzy matching, no LLM
+  mapping, no dynamically learned aliases).
+- Entities bind only through exact unique matches against the frozen
+  crossmatch identity rows. Documents are never a third crossmatch side and
+  no canonical object is created.
+- Scalar semantics (symmetric/asymmetric uncertainty, upper/lower limits,
+  explicit nulls) are parsed exactly once into the typed admitted observation;
+  Dataset projection never re-reads the free text.
+- Admission outcomes are `accepted`, `review_required`, or `rejected` with
+  stable reason codes; `review_required` never auto-selects a value.
+- Authorization requires all of: Contract `document_source_policy =
+  research_input`, Case Manifest `document_source_classes` capability, bound
+  ResearchInput, persisted DocumentParse, its persisted SourceSnapshot, and a
+  valid locator.
+- Provenance reuses the persisted DocumentParse SourceSnapshot row through the
+  Publisher binding map; a second snapshot row is never created.
+
 ## 9. DocumentParse logical identity
 
 The logical identity supplied to the persistence layer binds the ResearchInput

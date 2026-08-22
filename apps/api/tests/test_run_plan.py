@@ -18,7 +18,7 @@ def contract_for(*outputs: str) -> ResearchContractInput:
         {
             "research_goal": "Compare a bounded astronomical sample",
             "target_objects": ["host_star"],
-            "data_requirements": {"unit_policy": "canonical"},
+            "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
             "requested_fields": ["star.mass"],
             "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
             "paper_search_scope": {"max_candidates": 20},

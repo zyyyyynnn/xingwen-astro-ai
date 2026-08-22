@@ -14,7 +14,8 @@ import type {
   FieldDictionaryArtifactRead as FieldDictionaryArtifactReadDto,
   SourceCollectionArtifactCandidate,
   SourceCollectionArtifactRead as SourceCollectionArtifactReadDto,
-  SourceCollectionMember,
+  DocumentSourceCollectionMember,
+  StructuredSourceCollectionMember,
 } from "@xingwen/contracts";
 import {
   asEntityId,
@@ -63,6 +64,10 @@ function mapField(dto: FieldDefinition): DataArtifactFieldDefinition {
       sourceTable: alias.source_table,
       rawField: alias.raw_field,
       sourceUnit: alias.source_unit,
+      priority: alias.priority,
+    })),
+    documentAliases: dto.document_aliases.map((alias) => ({
+      alias: alias.alias,
       priority: alias.priority,
     })),
     sourcePriority: dto.source_priority.map(id),
@@ -192,9 +197,27 @@ function mapFieldDictionary(
 }
 
 function mapSourceMember(
-  member: SourceCollectionMember,
+  member: StructuredSourceCollectionMember | DocumentSourceCollectionMember,
 ): SourceCollectionMemberReview {
+  if ("research_input_id" in member) {
+    return {
+      memberKind: "document",
+      sourceId: member.source_id ? id(member.source_id) : null,
+      sourceSnapshotId: id(member.source_snapshot_id),
+      sourceSnapshotContentHash:
+        member.source_snapshot_content_hash as ContentHash,
+      side: null,
+      dataLevel: null,
+      sourceMode: null,
+      rawRecordCount: null,
+      completionStatus: null,
+      licenseNote: member.source_snapshot.license_note,
+      researchInputId: id(member.research_input_id),
+      documentParseIds: member.document_parse_ids.map((value) => id(value)),
+    };
+  }
   return {
+    memberKind: "structured",
     sourceId: member.source_id ? id(member.source_id) : null,
     sourceSnapshotId: id(member.source_snapshot_id),
     sourceSnapshotContentHash:

@@ -19,7 +19,7 @@ const RUN_ID = "run_01JEXAMPLE" as never;
 // `rcd_01JTOUR` carries the same input as the pre-seeded contract
 // `rc_01JEXAMPLE`, so confirming it must reproduce this exact hash.
 const EXPECTED_CONTRACT_HASH =
-  "sha256:7b810e492de26672a8f2cc4c70179a754e4a82ed3bd72461bcc9e9c2abbd983f";
+  "sha256:82d51bd3fb5739b5ab1afeefa59c270de416bb20d6e780f39dca3c66c90d479a";
 const ALL_ZERO_HASH = "sha256:" + "0".repeat(64);
 
 describe("Fixture adapter — provenance and semantics", () => {

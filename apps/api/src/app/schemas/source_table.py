@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ._hashing import compute_canonical_payload_hash
 from .core import ContentHash, Identifier, JsonValue, UtcDateTime
-from .data_artifacts import ManifestPins, SourceCellLocator
+from .data_artifacts import ManifestPins, DatabaseCellLocator
 from .data_quality import (
     QualityConstraintResult,
     QualityGateStatus,
@@ -41,7 +41,7 @@ class SourceTableCellAdmission(BaseModel):
     canonical_value: str | None
     canonical_unit: Identifier
     evidence_id: Identifier
-    locator: SourceCellLocator
+    locator: DatabaseCellLocator
 
 
 class SourceTableRowAdmission(BaseModel):

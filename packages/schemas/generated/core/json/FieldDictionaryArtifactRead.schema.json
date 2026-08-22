@@ -236,6 +236,34 @@
       "title": "DataType",
       "type": "string"
     },
+    "DocumentFieldAlias": {
+      "additionalProperties": false,
+      "description": "A document label mapped to one canonical field; owned by the Field Manifest.",
+      "properties": {
+        "alias": {
+          "minLength": 1,
+          "title": "Alias",
+          "type": "string"
+        },
+        "priority": {
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "source_class": {
+          "const": "document_research_input",
+          "title": "Source Class",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_class",
+        "alias",
+        "priority"
+      ],
+      "title": "DocumentFieldAlias",
+      "type": "object"
+    },
     "EvidenceDetail": {
       "additionalProperties": false,
       "description": "Evidence bound to one immutable version and source snapshot.",
@@ -383,6 +411,13 @@
           "title": "Description",
           "type": "string"
         },
+        "document_aliases": {
+          "items": {
+            "$ref": "#/$defs/DocumentFieldAlias"
+          },
+          "title": "Document Aliases",
+          "type": "array"
+        },
         "evidence_locator_rule_id": {
           "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
           "title": "Evidence Locator Rule Id",
@@ -467,6 +502,7 @@
         "data_type",
         "canonical_unit",
         "source_aliases",
+        "document_aliases",
         "source_priority",
         "conflict_resolution_strategy",
         "conflict_resolution_rule_version",
@@ -506,6 +542,14 @@
           "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
           "title": "Conversion Catalog Version",
           "type": "string"
+        },
+        "crossmatch_source_snapshot_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Crossmatch Source Snapshot Ids",
+          "type": "array"
         },
         "evidence_ids": {
           "items": {
@@ -574,8 +618,8 @@
           "type": "array"
         },
         "schema_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -594,6 +638,7 @@
         "requested_fields",
         "field_definitions",
         "source_snapshot_ids",
+        "crossmatch_source_snapshot_ids",
         "evidence_ids",
         "mapping_rule_set_id",
         "mapping_rule_set_version",

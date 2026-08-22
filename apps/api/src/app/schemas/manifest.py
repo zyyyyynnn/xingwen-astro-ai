@@ -8,6 +8,7 @@ belong to their dedicated adapters and pipelines.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+import unicodedata
 from datetime import date
 from enum import StrEnum
 from pathlib import Path
@@ -80,6 +81,12 @@ class ConflictResolutionStrategy(StrEnum):
     """The only Case and Field Manifest selection declaration approved for this case."""
 
     prefer_source_priority_preserve_all = "prefer_source_priority_preserve_all"
+
+
+class DocumentSourceClass(StrEnum):
+    """Static document source capability a Case can process."""
+
+    document_research_input = "document_research_input"
 
 
 class QualityMetricInput(StrEnum):
@@ -306,6 +313,16 @@ class SourceAlias(BaseModel):
         )
 
 
+class DocumentFieldAlias(BaseModel):
+    """A document label mapped to one canonical field; owned by the Field Manifest."""
+
+    model_config = MODEL_CONFIG
+
+    source_class: Literal["document_research_input"]
+    alias: NonEmptyString
+    priority: Annotated[int, Field(ge=1)]
+
+
 class FieldDefinition(BaseModel):
     """The complete Case and Field Manifest contract for one canonical field."""
 
@@ -319,6 +336,7 @@ class FieldDefinition(BaseModel):
     data_type: DataType
     canonical_unit: Identifier
     source_aliases: tuple[SourceAlias, ...] = Field(min_length=1)
+    document_aliases: tuple[DocumentFieldAlias, ...]
     source_priority: tuple[Identifier, ...] = Field(min_length=1)
     conflict_resolution_strategy: ConflictResolutionStrategy
     conflict_resolution_rule_version: SemanticVersion
@@ -425,6 +443,7 @@ class FieldManifestPayload(BaseModel):
         field_by_id = _unique_registry(self.fields, "field_id", "canonical field id")
 
         alias_owners: dict[tuple[str, str, str], str] = {}
+        document_alias_owners: dict[tuple[str, str], str] = {}
         used_reference_columns = {source.source_id: set() for source in self.sources}
         used_provenance_columns = {source.source_id: set() for source in self.sources}
         for field in self.fields:
@@ -438,6 +457,22 @@ class FieldManifestPayload(BaseModel):
                     f"unregistered evidence locator rule "
                     f"{field.evidence_locator_rule_id} for {field.field_id}"
                 )
+
+            for document_alias in field.document_aliases:
+                if document_alias.alias in field_by_id:
+                    raise ValueError(
+                        f"document alias must not use canonical field id: "
+                        f"{document_alias.alias}"
+                    )
+                normalized = normalize_document_alias_label(document_alias.alias)
+                owner_key = (field.object_type.value, normalized)
+                previous_owner = document_alias_owners.get(owner_key)
+                if previous_owner is not None:
+                    raise ValueError(
+                        f"ambiguous document alias {document_alias.alias!r} for object "
+                        f"{field.object_type.value}: {previous_owner} and {field.field_id}"
+                    )
+                document_alias_owners[owner_key] = field.field_id
 
             alias_source_ids = {alias.source_id for alias in field.source_aliases}
             if set(field.source_priority) != alias_source_ids:
@@ -620,6 +655,7 @@ class CaseManifestPayload(BaseModel):
     target_objects: tuple[TargetObjectDefinition, ...] = Field(min_length=1)
     default_requested_fields: tuple[CanonicalFieldId, ...] = Field(min_length=1)
     allowed_source_ids: tuple[Identifier, ...] = Field(min_length=1)
+    document_source_classes: tuple[DocumentSourceClass, ...]
     field_manifest: ManifestReference
     minimum_evidence_locator_components: tuple[NonEmptyString, ...] = Field(min_length=1)
 
@@ -630,6 +666,10 @@ class CaseManifestPayload(BaseModel):
             raise ValueError("duplicate target object type")
         _require_unique(self.default_requested_fields, "default requested field")
         _require_unique(self.allowed_source_ids, "allowed source id")
+        _require_unique(
+            self.document_source_classes,
+            "document source class",
+        )
         _require_unique(
             self.minimum_evidence_locator_components,
             "minimum evidence locator component",
@@ -774,6 +814,16 @@ class ManifestBundle(BaseModel):
         if unsupported:
             raise ValueError(f"unsupported requested field(s): {unsupported}")
         return values
+
+
+def normalize_document_alias_label(label: str) -> str:
+    """Normalize a document label for exact registered-alias comparison only.
+
+    Allowed: Unicode NFKC, trim, whitespace collapse, casefold. No fuzzy
+    matching, embedding, or edit-distance acceptance exists anywhere.
+    """
+
+    return " ".join(unicodedata.normalize("NFKC", label).split()).casefold()
 
 
 def compute_content_hash(value: BaseModel | Mapping[str, Any]) -> str:

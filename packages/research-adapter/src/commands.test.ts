@@ -10,7 +10,10 @@ const context = { idempotencyKey: "action-command-1" } as const;
 const contract = {
   researchGoal: "Compare candidate objects",
   targetObjects: [asEntityId("candidate")],
-  dataRequirements: { unitPolicy: "canonical" as const },
+  dataRequirements: {
+    unitPolicy: "canonical" as const,
+    documentSourcePolicy: "disabled" as const,
+  },
   requestedFields: [asEntityId("candidate.id")],
   sourceScope: { allowedSources: [asEntityId("source.primary")] },
   paperSearchScope: {

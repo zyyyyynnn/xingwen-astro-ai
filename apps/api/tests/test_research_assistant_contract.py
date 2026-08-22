@@ -5,6 +5,8 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from app.schemas.core import (
+    DocumentSourcePolicy,
+    UnitPolicy,
     ArtifactKind,
     DataRequirements,
     EvidenceRequirements,
@@ -36,7 +38,7 @@ def _contract_input() -> ResearchContractInput:
     return ResearchContractInput(
         research_goal="Integrate exoplanet candidates and host-star parameters",
         target_objects=("exoplanet_candidate",),
-        data_requirements=DataRequirements(),
+        data_requirements=DataRequirements(unit_policy=UnitPolicy.canonical, document_source_policy=DocumentSourcePolicy.disabled),
         requested_fields=("planet.toi_id",),
         source_scope=SourceScope(allowed_sources=("nasa_exoplanet_archive",)),
         paper_search_scope=PaperSearchScope(),

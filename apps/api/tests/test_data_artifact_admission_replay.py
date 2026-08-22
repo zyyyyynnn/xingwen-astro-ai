@@ -93,6 +93,7 @@ def _input_from_crossmatch(crossmatch_input, *requested_fields: str) -> DataArti
         left_acquisition=crossmatch_input.left,
         right_acquisition=crossmatch_input.right,
         crossmatch_result=crossmatch_result,
+        document_observations=(),
         mapping_rule_set=baseline.mapping_rule_set,
         conversion_catalog=baseline.conversion_catalog,
         producer_version=baseline.producer_version,
@@ -151,7 +152,7 @@ def _rehash_candidate_payload(payload: dict) -> dict:
     payload["output_hash"] = compute_data_artifact_output_hash(payload)
     identity_hash = payload.get("canonical_content_hash", payload["output_hash"])
     payload["candidate_id"] = compute_data_artifact_candidate_id(
-        payload["kind"], identity_hash
+        payload["kind"], identity_hash, schema_version=payload["schema_version"]
     )
     return payload
 
@@ -254,8 +255,8 @@ def test_publisher_replay_rejects_missing_unused_acquisition_record() -> None:
     dataset_record_keys = {
         (
             value.source_id,
-            value.raw_record_row_key,
-            value.raw_record_content_hash,
+            value.origin.raw_record_row_key,
+            value.origin.raw_record_content_hash,
         )
         for value in result.dataset.source_values
     }
@@ -499,7 +500,9 @@ def test_dataset_candidate_id_rejects_noncanonical_output_hash_identity() -> Non
     candidate = build_data_artifact_candidates(build_input("star.tic_id")).dataset
     payload = candidate.model_dump(mode="json")
     payload["candidate_id"] = compute_data_artifact_candidate_id(
-        payload["kind"], payload["output_hash"]
+        payload["kind"],
+        payload["output_hash"],
+        schema_version=payload["schema_version"],
     )
 
     with pytest.raises(ValidationError, match="candidate_id.*canonical identity"):
@@ -664,7 +667,7 @@ def _rehash_candidate_payload(payload: dict) -> dict:
     payload["output_hash"] = compute_data_artifact_output_hash(payload)
     identity_hash = payload.get("canonical_content_hash", payload["output_hash"])
     payload["candidate_id"] = compute_data_artifact_candidate_id(
-        payload["kind"], identity_hash
+        payload["kind"], identity_hash, schema_version=payload["schema_version"]
     )
     return payload
 
