@@ -175,7 +175,20 @@ document observation pipeline:
   ResearchInput, persisted DocumentParse, its persisted SourceSnapshot, and a
   valid locator.
 - Provenance reuses the persisted DocumentParse SourceSnapshot row through the
-  Publisher binding map; a second snapshot row is never created.
+  existing Data Artifact binding map; a second snapshot row is never created.
+- `DocumentDataAdmissionService.prepare(project_id, run_id, contract,
+  crossmatch)` resolves only ResearchInputs bound to the Contract draft or the
+  current Run. It skips inputs without a persisted parse, selects exactly one
+  parse when present, and fails closed with
+  `DOCUMENT_PARSE_SELECTION_AMBIGUOUS` when multiple distinct parses exist.
+- `execute(plan)` receives the frozen Contract, Case/Field Manifest pins,
+  CrossmatchResult, RuleSet, parse identities and complete SourceSnapshot
+  projections. It performs pure extraction only. The Producer input hash is
+  one canonical payload containing those facts; the output hash covers all raw
+  candidates, typed observations, admission outcomes and unsupported-region
+  summaries.
+- SourceSnapshot projection preserves the persisted `source_version_or_etag`,
+  `cache_version` and `request_metadata`; no fallback identity is synthesized.
 
 ## 9. DocumentParse logical identity
 

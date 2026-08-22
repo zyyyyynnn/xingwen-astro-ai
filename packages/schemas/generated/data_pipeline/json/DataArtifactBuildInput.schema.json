@@ -3363,22 +3363,6 @@
           "title": "Source Unit",
           "type": "string"
         },
-        "uncertainty_negative_canonical": {
-          "anyOf": [
-            {
-              "type": "number"
-            },
-            {
-              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Uncertainty Negative Canonical"
-        },
         "uncertainty_negative_raw": {
           "anyOf": [
             {
@@ -3394,22 +3378,6 @@
           ],
           "default": null,
           "title": "Uncertainty Negative Raw"
-        },
-        "uncertainty_positive_canonical": {
-          "anyOf": [
-            {
-              "type": "number"
-            },
-            {
-              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Uncertainty Positive Canonical"
         },
         "uncertainty_positive_raw": {
           "anyOf": [

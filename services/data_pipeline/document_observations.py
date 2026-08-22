@@ -26,7 +26,12 @@ from typing import Any
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import DocumentSourcePolicy
-from app.schemas.crossmatch import CrossmatchResult, UnpairedRecord
+from app.schemas.crossmatch import (
+    CrossmatchRecord,
+    CrossmatchResult,
+    UnpairedRecord,
+    compute_crossmatch_record_logical_key,
+)
 from app.schemas.data_artifacts import (
     DataArtifactErrorCode,
     DataSourceSnapshotProjection,
@@ -61,15 +66,8 @@ from .crossmatch.identity import (
     normalize_tic_id,
     normalize_toi_id,
 )
-from .data_artifacts.conversion import (
-    convert_decimal_value,
-    decimal_from_source,
-)
+from .data_artifacts.conversion import decimal_from_source
 from .data_artifacts.errors import DataArtifactError
-
-
-#: Stable extraction semantics folded into every derived candidate id.
-EXTRACTION_RULE_VERSION = "document-observation-rules.v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,7 +87,6 @@ class RawExtractionBatch:
     raw_candidates: tuple[ScientificDataExtractionCandidate, ...]
     accepted: tuple[TypedDocumentObservation, ...]
     outcomes: tuple["DocumentObservationOutcome", ...]
-    producer_input_facts: dict[str, Any]
     producer_output_summary: dict[str, Any]
 
 
@@ -117,7 +114,6 @@ def extract_document_observations(
     manifests: ManifestBundle,
     crossmatch: CrossmatchResult,
     rules: DocumentObservationRuleSet,
-    conversion_catalog,
 ) -> RawExtractionBatch:
     """Run the complete deterministic document-to-observation transformation."""
 
@@ -127,9 +123,7 @@ def extract_document_observations(
         )
     resolver = _Resolver(
         manifests=manifests,
-        conversion_catalog=conversion_catalog,
         requested_fields=requested_fields,
-        rules=rules,
     )
     entities = _EntityIndex(crossmatch=crossmatch)
     extractor = _Extractor(
@@ -148,21 +142,25 @@ def extract_document_observations(
     accepted: list[TypedDocumentObservation] = []
     outcomes: list[DocumentObservationOutcome] = []
 
-    def record_unsupported() -> None:
+    def record_unsupported(table: DocumentTable) -> None:
         _guard_capacity(len(raw_candidates), len(outcomes), rules)
+        region_hash = compute_canonical_payload_hash(
+            {
+                "document_parse_id": context.document_parse_id,
+                "table_id": table.table_id,
+            }
+        ).removeprefix("sha256:")
         outcomes.append(
             DocumentObservationOutcome(
-                raw_candidate_id="document.parse.unsupported",
+                raw_candidate_id=f"document.parse.unsupported.{region_hash[:24]}",
                 status=DocumentObservationAdmissionStatus.rejected,
-                code=(
-                    DocumentObservationAdmissionCode.document_parse_unsupported
-                ),
+                code=(DocumentObservationAdmissionCode.document_parse_unsupported),
             )
         )
 
     for table in sorted(parse.tables, key=lambda item: item.table_id):
         if table.quality is DocumentParseQuality.unsupported:
-            record_unsupported()
+            record_unsupported(table)
             continue
         for draft in extractor.table_drafts(table):
             _record_draft(
@@ -189,33 +187,33 @@ def extract_document_observations(
             rules=rules,
         )
 
-    producer_input_facts = {
-        "research_input_id": context.research_input_id,
-        "document_parse_id": context.document_parse_id,
-        "parse_canonical_output_hash": parse.canonical_output_hash,
-        "crossmatch_content_hash": crossmatch.content_hash,
-        "rule_set_id": rules.rule_set_id,
-        "rule_set_version": rules.version,
-        "configuration_hash": rules.configuration_hash,
-        "field_manifest_content_hash": manifests.field_manifest.content_hash,
-        "case_manifest_content_hash": manifests.case_manifest.content_hash,
-    }
     producer_output_summary = {
         "raw_candidate_count": len(raw_candidates),
         "accepted_count": len(accepted),
-        "accepted_observation_ids": sorted(item.observation_id for item in accepted),
-        "outcome_digest": compute_canonical_payload_hash(
-            [
-                {"id": item.raw_candidate_id, "status": item.status.value}
-                for item in outcomes
-            ]
-        ),
+        "raw_candidates": [
+            item.model_dump(mode="json", exclude={"created_at"})
+            for item in sorted(raw_candidates, key=lambda item: item.candidate_id)
+        ],
+        "accepted_observations": [
+            item.model_dump(mode="json")
+            for item in sorted(accepted, key=lambda item: item.observation_id)
+        ],
+        "outcomes": [
+            {
+                "raw_candidate_id": item.raw_candidate_id,
+                "status": item.status.value,
+                "code": item.code.value if item.code is not None else None,
+            }
+            for item in sorted(
+                outcomes,
+                key=lambda item: (item.raw_candidate_id, item.status.value),
+            )
+        ],
     }
     return RawExtractionBatch(
         raw_candidates=tuple(raw_candidates),
         accepted=tuple(accepted),
         outcomes=tuple(outcomes),
-        producer_input_facts=producer_input_facts,
         producer_output_summary=producer_output_summary,
     )
 
@@ -238,9 +236,7 @@ def _authorization_rejection(
     if policy is DocumentSourcePolicy.disabled:
         return DocumentObservationAdmissionCode.document_source_disabled
     if not case_capability:
-        return (
-            DocumentObservationAdmissionCode.document_source_capability_unsupported
-        )
+        return DocumentObservationAdmissionCode.document_source_capability_unsupported
     return None
 
 
@@ -310,9 +306,6 @@ class _Draft:
         "parsed_scalar",
         "positive_error",
         "negative_error",
-        "converted_scalar",
-        "converted_positive",
-        "converted_negative",
         "limit_status",
         "null_status",
         "unit_id",
@@ -357,9 +350,6 @@ class _Draft:
         self.parsed_scalar: Decimal | None = None
         self.positive_error: Decimal | None = None
         self.negative_error: Decimal | None = None
-        self.converted_scalar: Decimal | None = None
-        self.converted_positive: Decimal | None = None
-        self.converted_negative: Decimal | None = None
         self.limit_status = LimitStatus.not_applicable
         self.null_status: NullReason | None = None
         self.unit_id: str | None = None
@@ -374,8 +364,8 @@ class _Draft:
         code = code or self._resolve_entity()
         code = code or self._parse_value()
         code = code or self._resolve_unit()
-        # Identity depends only on frozen parse facts; admission outcome never
-        # changes it and created_at never enters it.
+        # Identity depends only on frozen parse facts and the actual RuleSet;
+        # admission outcome never changes it and created_at never enters it.
         self.candidate_id = self._derive_candidate_id()
         return code
 
@@ -390,16 +380,12 @@ class _Draft:
             label_source = self.header_context or self.raw_text
             matches = self.resolver.fields_for_label(label_source)
         if not matches:
-            return (
-                DocumentObservationAdmissionCode.document_field_unresolved
-            )
+            return DocumentObservationAdmissionCode.document_field_unresolved
         if self.entity_token:
             object_type = self.entities.object_type_for_token(self.entity_token)
             if object_type is not None:
                 scoped = [
-                    field
-                    for field in matches
-                    if field.object_type.value == object_type
+                    field for field in matches if field.object_type.value == object_type
                 ]
                 if scoped:
                     matches = scoped
@@ -410,21 +396,15 @@ class _Draft:
 
     def _resolve_entity(self) -> DocumentObservationAdmissionCode | None:
         if not self.entity_token:
-            return (
-                DocumentObservationAdmissionCode.document_entity_unresolved
-            )
+            return DocumentObservationAdmissionCode.document_entity_unresolved
         assert self.resolved_field is not None
         key, status = self.entities.exact_unique_match(
             self.entity_token, self.resolved_field.object_type.value
         )
         if key is None:
             if status == "ambiguous":
-                return (
-                    DocumentObservationAdmissionCode.document_entity_ambiguous
-                )
-            return (
-                DocumentObservationAdmissionCode.document_entity_unresolved
-            )
+                return DocumentObservationAdmissionCode.document_entity_ambiguous
+            return DocumentObservationAdmissionCode.document_entity_unresolved
         self.logical_key = key
         return None
 
@@ -432,8 +412,7 @@ class _Draft:
         text = self.raw_text.strip()
         lowered = normalize_document_alias_label(text)
         null_tokens = {
-            normalize_document_alias_label(token)
-            for token in self.rules.null_tokens
+            normalize_document_alias_label(token) for token in self.rules.null_tokens
         }
         if lowered in null_tokens:
             self.null_status = NullReason.not_measured
@@ -446,9 +425,9 @@ class _Draft:
                 self.negative_error = decimal_from_source(asymmetric.group("neg"))
             except (DataArtifactError, InvalidOperation):
                 return DocumentObservationAdmissionCode.document_value_invalid
-            self.raw_unit_token = (
-                (asymmetric.groupdict().get("unit") or "").strip() or None
-            )
+            inline_unit = (asymmetric.groupdict().get("unit") or "").strip()
+            if inline_unit:
+                self.raw_unit_token = inline_unit
             return None
         numeric = re.match(self.rules.numeric_pattern, text)
         if numeric is None:
@@ -496,41 +475,10 @@ class _Draft:
     def _resolve_unit(self) -> DocumentObservationAdmissionCode | None:
         assert self.resolved_field is not None
         field = self.resolved_field
-        if self.parsed_scalar is None:
-            return None
         unit_id = self.resolver.unit_id_for(field=field, token=self.raw_unit_token)
         if unit_id is None:
             return DocumentObservationAdmissionCode.document_unit_unresolved
-        try:
-            converted = self.resolver.convert(
-                value=self.parsed_scalar,
-                field=field,
-                source_unit=unit_id,
-            )
-            positive = (
-                self.resolver.convert(
-                    value=self.positive_error,
-                    field=field,
-                    source_unit=unit_id,
-                )
-                if self.positive_error is not None
-                else None
-            )
-            negative = (
-                self.resolver.convert(
-                    value=self.negative_error,
-                    field=field,
-                    source_unit=unit_id,
-                )
-                if self.negative_error is not None
-                else None
-            )
-        except DataArtifactError:
-            return DocumentObservationAdmissionCode.document_unit_unresolved
         self.unit_id = unit_id
-        self.converted_scalar = converted
-        self.converted_positive = positive
-        self.converted_negative = negative
         return None
 
     def _derive_candidate_id(self) -> str:
@@ -540,7 +488,11 @@ class _Draft:
                 "locator": self.locator.model_dump(mode="json"),
                 "raw_text": self.raw_text,
                 "raw_unit": self.raw_unit_token,
-                "extraction_rule_version": EXTRACTION_RULE_VERSION,
+                "rule_set": {
+                    "id": self.rules.rule_set_id,
+                    "version": self.rules.version,
+                    "configuration_hash": self.rules.configuration_hash,
+                },
             }
         ).removeprefix("sha256:")
         return f"cand.{digest[:24]}"
@@ -568,6 +520,7 @@ class _Draft:
         snapshot_projection: DataSourceSnapshotProjection,
     ) -> TypedDocumentObservation:
         assert self.resolved_field is not None and self.logical_key is not None
+        assert self.unit_id is not None
         return TypedDocumentObservation(
             observation_id=f"obs.{self.candidate_id.removeprefix('cand.')}",
             raw_candidate_id=self.candidate_id,
@@ -581,36 +534,30 @@ class _Draft:
             crossmatch_logical_key=self.logical_key,
             raw_value=self.raw_text,
             raw_text=self.raw_text,
-            parsed_scalar=self.converted_scalar,
-            source_unit=self.unit_id or self.resolved_field.canonical_unit,
+            parsed_scalar=self.parsed_scalar,
+            source_unit=self.unit_id,
             uncertainty_positive_raw=self.positive_error,
             uncertainty_negative_raw=self.negative_error,
-            uncertainty_positive_canonical=self.converted_positive,
-            uncertainty_negative_canonical=self.converted_negative,
             limit_status=self.limit_status,
             null_status=self.null_status,
         )
 
 
 class _Resolver:
-    """Field/unit/conversion lookups over the frozen manifests and catalog."""
+    """Field and unit lookups over the frozen manifest bundle."""
 
     def __init__(
         self,
         *,
         manifests: ManifestBundle,
-        conversion_catalog,
         requested_fields: tuple[CanonicalFieldId, ...],
-        rules: DocumentObservationRuleSet,
     ) -> None:
         self._fields = tuple(
             field
             for field in manifests.field_manifest.fields
             if field.field_id in set(requested_fields)
         )
-        units_by_id = {
-            unit.unit_id: unit for unit in manifests.field_manifest.units
-        }
+        units_by_id = {unit.unit_id: unit for unit in manifests.field_manifest.units}
         self._unit_ids = frozenset(units_by_id)
         self._unit_labels = {
             normalize_document_alias_label(unit.label): unit_id
@@ -622,12 +569,17 @@ class _Resolver:
         self._quantity_kinds = {
             unit_id: unit.quantity_kind for unit_id, unit in units_by_id.items()
         }
-        self._conversions = {
-            rule.rule_id: rule.rule_version
-            for rule in manifests.field_manifest.conversion_rules
+        self._conversion_rule_ids = {
+            field.field_id: {
+                unit_id: frozenset(
+                    alias.conversion_rule_id
+                    for alias in field.source_aliases
+                    if alias.source_unit == unit_id
+                )
+                for unit_id in self._unit_ids
+            }
+            for field in self._fields
         }
-        self._catalog = conversion_catalog
-        self._rules = rules
         self._alias_index: dict[str, list[FieldDefinition]] = {}
         for field in self._fields:
             keys = {normalize_document_alias_label(field.field_id)}
@@ -637,9 +589,6 @@ class _Resolver:
             )
             for key in keys:
                 self._alias_index.setdefault(key, []).append(field)
-
-    def header_label(self, draft: "_Draft") -> str | None:
-        return draft_header_context(draft)
 
     def fields_for_label(self, label: str) -> list[FieldDefinition]:
         normalized = normalize_document_alias_label(label)
@@ -660,49 +609,22 @@ class _Resolver:
 
     def unit_id_for(self, *, field: FieldDefinition, token: str | None) -> str | None:
         if token is None or token == "":
-            return field.canonical_unit
+            canonical_kind = self._quantity_kinds[field.canonical_unit]
+            return "none" if canonical_kind.value == "none" else None
         cleaned = token.strip()
         if cleaned in self._unit_ids:
-            return cleaned
-        by_label = self._unit_labels.get(normalize_document_alias_label(cleaned))
-        if by_label is not None:
-            return by_label
-        return self._unit_symbols.get(cleaned)
-
-    def convert(
-        self,
-        *,
-        value: Decimal,
-        field: FieldDefinition,
-        source_unit: str,
-    ) -> Decimal:
-        if source_unit == field.canonical_unit:
-            rule_id = "unit.identity"
-            resolved_source = resolved_target = field.canonical_unit
+            unit_id = cleaned
         else:
-            declared = [
-                alias.conversion_rule_id
-                for alias in field.source_aliases
-                if alias.source_unit == source_unit
-            ]
-            if len(declared) != 1:
-                raise DataArtifactError(
-                    DataArtifactErrorCode.unknown_conversion_rule,
-                    f"no unique frozen conversion declares {source_unit} "
-                    f"for {field.field_id}",
-                )
-            rule_id = declared[0]
-            resolved_source = source_unit
-            resolved_target = field.canonical_unit
-        return convert_decimal_value(
-            value,
-            rule_id=rule_id,
-            rule_version=self._conversions[rule_id],
-            source_unit=resolved_source,
-            target_unit=resolved_target,
-            quantity_kind=self._quantity_kinds[field.canonical_unit].value,
-            catalog=self._catalog,
-        )
+            unit_id = self._unit_labels.get(normalize_document_alias_label(cleaned))
+            if unit_id is None:
+                unit_id = self._unit_symbols.get(cleaned)
+        if unit_id is None:
+            return None
+        if self._quantity_kinds[unit_id] != self._quantity_kinds[field.canonical_unit]:
+            return None
+        if len(self._conversion_rule_ids[field.field_id][unit_id]) != 1:
+            return None
+        return unit_id
 
 
 class _EntityIndex:
@@ -720,29 +642,18 @@ class _EntityIndex:
         self._keys_by_token: dict[str, set[str]] = {}
         self._objects_by_token: dict[str, set[str]] = {}
         for record in crossmatch.records:
-            record_key = (
-                record.logical_match_key
-                if not isinstance(record, UnpairedRecord)
-                else compute_canonical_payload_hash(
-                    {
-                        "record_type": record.record_type,
-                        "candidate_id": record.candidate_id,
-                    }
-                )
-            )
+            record_key = compute_crossmatch_record_logical_key(record)
             for candidate_id in self._member_ids(record):
                 candidate = candidates.get(candidate_id)
                 if candidate is None:
                     continue
                 object_type = (
-                    "star"
-                    if candidate.entity_level.value == "host_star"
-                    else "planet"
+                    "star" if candidate.entity_level.value == "host_star" else "planet"
                 )
                 for value in candidate.identity_values:
-                    self._keys_by_token.setdefault(
-                        value.normalized_value, set()
-                    ).add(record_key)
+                    self._keys_by_token.setdefault(value.normalized_value, set()).add(
+                        record_key
+                    )
                     self._objects_by_token.setdefault(
                         value.normalized_value, set()
                     ).add(object_type)
@@ -834,9 +745,7 @@ class _Extractor:
                 continue
             for cell in body_row:
                 field_candidates = column_fields.get(cell.column_index)
-                if field_candidates is None or (
-                    cell.column_index == entity_column
-                ):
+                if field_candidates is None or (cell.column_index == entity_column):
                     continue
                 if cell.quality is DocumentParseQuality.unsupported:
                     continue
@@ -851,6 +760,7 @@ class _Extractor:
                     locator=DocumentLocator(
                         page_index=table.page_index,
                         block_id=table.block_id,
+                        bbox=cell.bbox,
                         table_id=table.table_id,
                         cell_id=cell.cell_id,
                     ),
@@ -860,7 +770,9 @@ class _Extractor:
                     header_unit_token=column_units.get(cell.column_index),
                     entity_token=entity_token,
                     row_context=((f"col:{entity_column}", entity_token),),
-                    field_candidates=tuple(field_candidates),
+                    field_candidates=(
+                        tuple(field_candidates) if field_candidates else None
+                    ),
                 )
                 drafts.append(draft)
         return drafts
@@ -876,15 +788,15 @@ class _Extractor:
                     continue
                 base, unit_token = self._resolver.split_header_unit(label)
                 matches = tuple(
-                    sorted(self._resolver.fields_for_label(base), key=lambda f: f.field_id)
+                    sorted(
+                        self._resolver.fields_for_label(base), key=lambda f: f.field_id
+                    )
                 )
-                if not matches:
-                    continue
                 column_fields[cell.column_index] = matches
                 column_units[cell.column_index] = unit_token
                 if any(field.object_identity_key for field in matches):
                     entity_column = cell.column_index
-            if column_fields and entity_column is not None:
+            if entity_column is not None:
                 return index, column_fields, entity_column, column_units
         return None
 
@@ -892,7 +804,6 @@ class _Extractor:
         patterns = self._rules.declared_text_patterns
         if not patterns:
             return []
-        blocks_by_id = {block.block_id: block for block in parse.blocks}
         drafts: list[_Draft] = []
         for pattern in patterns:
             compiled = re.compile(pattern.pattern)
@@ -903,47 +814,47 @@ class _Extractor:
                     continue
                 if block.text is None:
                     continue
-                match = compiled.search(block.text)
-                if match is None:
-                    continue
-                groups = match.groupdict()
-                if any(
-                    groups.get(name) in (None, "")
-                    for name in ("field", "value", "entity", "unit")
-                ):
-                    continue
-                quality = (
-                    DocumentParseQuality.accepted
-                    if block.quality is DocumentParseQuality.accepted
-                    else DocumentParseQuality.partial
-                )
-                start, end = match.span()
-                drafts.append(
-                    _Draft(
-                        context=self._context,
-                        resolver=self._resolver,
-                        entities=self._entities,
-                        rules=self._rules,
-                        locator=DocumentLocator(
-                            page_index=block.page_index,
-                            block_id=block.block_id,
-                            text_span=TextSpan(start=start, end=end),
-                        ),
-                        parse_quality=quality,
-                        raw_text=groups["value"].strip(),
-                        header_context=groups["field"].strip(),
-                        header_unit_token=(groups.get("unit") or "").strip() or None,
-                        entity_token=groups["entity"].strip(),
-                        row_context=(("pattern", pattern.pattern_id),),
+                for match in compiled.finditer(block.text):
+                    groups = match.groupdict()
+                    if any(
+                        groups.get(name) in (None, "")
+                        for name in ("field", "value", "entity")
+                    ):
+                        continue
+                    quality = (
+                        DocumentParseQuality.accepted
+                        if block.quality is DocumentParseQuality.accepted
+                        else DocumentParseQuality.partial
                     )
-                )
+                    start, end = match.span()
+                    drafts.append(
+                        _Draft(
+                            context=self._context,
+                            resolver=self._resolver,
+                            entities=self._entities,
+                            rules=self._rules,
+                            locator=DocumentLocator(
+                                page_index=block.page_index,
+                                block_id=block.block_id,
+                                bbox=block.bbox,
+                                reading_order=block.reading_order,
+                                text_span=TextSpan(start=start, end=end),
+                            ),
+                            parse_quality=quality,
+                            raw_text=groups["value"].strip(),
+                            header_context=groups["field"].strip(),
+                            header_unit_token=(groups.get("unit") or "").strip()
+                            or None,
+                            entity_token=groups["entity"].strip(),
+                            row_context=(("pattern", pattern.pattern_id),),
+                        )
+                    )
         return drafts
 
 
 __all__ = [
     "DocumentObservationError",
     "DocumentObservationOutcome",
-    "EXTRACTION_RULE_VERSION",
     "PersistedDocumentContext",
     "RawExtractionBatch",
     "extract_document_observations",

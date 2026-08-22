@@ -65,6 +65,9 @@ from services.data_pipeline.crossmatch.policy import (
     load_entity_alias_catalog,
 )
 from services.data_pipeline.data_artifacts import build_data_artifact_candidates
+from services.data_pipeline.data_artifacts.projection import (
+    derive_document_snapshot_bindings,
+)
 from services.data_pipeline.data_artifacts.admission import (
     validate_data_artifact_domain,
     validate_data_artifact_evidence,
@@ -111,31 +114,39 @@ class DataStepService:
 
         if self._document_admission is None:
             return None
-        batch = asyncio.run(
-            self._document_admission.build(
+        plan = asyncio.run(
+            self._document_admission.prepare(
                 project_id=context.project_id,
+                run_id=context.run_id,
                 contract=context.contract,
                 crossmatch=crossmatch,
             )
         )
-        if not batch.producer_input_facts:
+        if plan is None:
             return None
         execution = self._publications.start_producer(
             context,
             step_key=step_key,
             operation_key="data_artifact:document_observations",
             producer_type="algorithm",
-            producer_name="document-data-admission",
-            producer_version=batch.rule_set_version,
-            input_hash=batch.producer_input_hash,
-            parameters={
-                "rule_set_id": batch.rule_set_id,
-                "rule_set_version": batch.rule_set_version,
-                "configuration_hash": batch.configuration_hash,
-            },
+            producer_name=plan.producer_name,
+            producer_version=plan.producer_version,
+            input_hash=plan.producer_input_hash,
+            parameters=plan.producer_parameters,
             attempt=attempt,
             lease=lease,
         )
+        try:
+            batch = self._document_admission.execute(plan)
+        except Exception as exc:
+            error_code = getattr(exc, "code", "DOCUMENT_DATA_ADMISSION_FAILED")
+            error_code = getattr(error_code, "value", error_code)
+            self._publications.finish_producer(
+                execution.id,
+                status="failed",
+                error_code=str(error_code),
+            )
+            raise
         self._publications.finish_producer(
             execution.id,
             status="completed",
@@ -320,6 +331,7 @@ class DataStepService:
         )
         data_payload["input_hash"] = compute_data_artifact_input_hash(unhashed)
         data_input = DataArtifactBuildInput.model_validate(data_payload)
+        document_snapshot_bindings = derive_document_snapshot_bindings(data_input)
         producer_version = mapping.producer_version
         build_executions = {
             kind: self._publications.start_producer(
@@ -400,9 +412,6 @@ class DataStepService:
             raise
         self._publications.ensure_source_snapshots(
             context, (left.snapshot, right.snapshot)
-        )
-        document_snapshot_bindings = (
-            document_batch.snapshot_bindings if document_batch is not None else {}
         )
         publications = []
         for kind, candidate in (

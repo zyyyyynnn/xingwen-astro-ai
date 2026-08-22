@@ -1,10 +1,10 @@
 {
   "rule_set_id": "exoplanet_host_star.document_observation_rules",
-  "schema_version": "1.0.0",
-  "version": "1.0.0",
-  "configuration_hash": "sha256:433109a2229bc7859c222ef256d0d133669a9026ad6131671e13a6772de89a95",
+  "schema_version": "1.1.0",
+  "version": "1.1.0",
+  "configuration_hash": "sha256:921de14756ee201c44c3d6dfe41571574fd6478da7a736cd61d66ab8ab90b644",
   "producer_name": "xingwen.document-data-admission",
-  "producer_version": "1.0.0",
+  "producer_version": "1.1.0",
   "case_manifest_id": "exoplanet_host_star",
   "case_manifest_version": "3.0.0",
   "case_manifest_content_hash": "sha256:7bccb7f4bc447afecdffb968f2c85f4e3c5a5f1a3f2f051090a460a66093aeaa",
@@ -12,19 +12,15 @@
   "field_manifest_version": "3.0.0",
   "field_manifest_content_hash": "sha256:a922748dee1a51f616e256d1fe71a7e2b94596bcdfa465906046734bbf90118d",
   "field_label_normalization": "nfkc_trim_collapse_casefold",
-  "numeric_syntax_version": "1.0.0",
+  "numeric_syntax_version": "1.1.0",
   "null_tokens": [
     "--",
     "not measured",
     "not_measured",
     "n/a"
   ],
-  "uncertainty_separators": [
-    "±",
-    "+/-"
-  ],
-  "asymmetric_pattern": "^(?P<value>[0-9]+(?:\\.[0-9]+)?)\\s*\\+(?P<pos>[0-9]+(?:\\.[0-9]+)?)\\s*/\\s*-(?P<neg>[0-9]+(?:\\.[0-9]+)?)(?:\\s+(?P<unit>[A-Za-z][A-Za-z0-9_/^()\\[\\]\\-]*))?$",
-  "numeric_pattern": "^(?P<limit><=|>=|<|>)?\\s*(?P<value>[0-9]+(?:\\.[0-9]+)?)(?:\\s*±\\s*(?P<sym>[0-9]+(?:\\.[0-9]+)?))?(?:\\s+(?P<unit>[A-Za-z][A-Za-z0-9_/^()\\[\\]\\-]*))?$",
+  "asymmetric_pattern": "^(?P<value>[+-]?[0-9]+(?:\\.[0-9]+)?)\\s*\\+(?P<pos>[0-9]+(?:\\.[0-9]+)?)\\s*/\\s*-(?P<neg>[0-9]+(?:\\.[0-9]+)?)(?:\\s+(?P<unit>[A-Za-z][A-Za-z0-9_/^()\\[\\]\\-]*))?$",
+  "numeric_pattern": "^(?P<limit><=|>=|<|>)?\\s*(?P<value>[+-]?[0-9]+(?:\\.[0-9]+)?)(?:\\s*(?:±|\\+/-)\\s*(?P<sym>[0-9]+(?:\\.[0-9]+)?))?(?:\\s+(?P<unit>[A-Za-z][A-Za-z0-9_/^()\\[\\]\\-]*))?$",
   "limit_tokens": [
     {
       "token": "<",
@@ -45,7 +41,12 @@
   ],
   "table_header_policy": "exact_canonical_or_registered_alias_only",
   "text_observation_policy": "declared_patterns_only",
-  "declared_text_patterns": [],
+  "declared_text_patterns": [
+    {
+      "pattern_id": "assignment-with-entity",
+      "pattern": "(?P<field>[A-Za-z][A-Za-z0-9_. ]*?)\\s*(?:=|:)\\s*(?P<value>(?:[<>]=?\\s*)?[+-]?[0-9]+(?:\\.[0-9]+)?(?:\\s*(?:±|\\+/-)\\s*[0-9]+(?:\\.[0-9]+)?|\\s*\\+[0-9]+(?:\\.[0-9]+)?\\s*/\\s*-[0-9]+(?:\\.[0-9]+)?)?)\\s*(?P<unit>[A-Za-z][A-Za-z0-9_/^()\\[\\]\\-]*)?\\s*(?:for|of|in)\\s*(?P<entity>[A-Za-z][A-Za-z0-9_.:-]*(?:\\s+[A-Za-z0-9_.:-]+)*)"
+    }
+  ],
   "max_observations_per_parse": 200,
   "created_at": "2026-08-22",
   "maintained_by": "data pipeline maintainers"

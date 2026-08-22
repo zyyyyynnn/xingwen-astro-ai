@@ -19,6 +19,7 @@ from app.schemas.crossmatch import (
     CrossmatchEvidence,
     EntityCandidate,
     UnpairedRecord,
+    compute_crossmatch_record_logical_key,
     compute_crossmatch_content_hash,
 )
 from app.schemas.data_artifact_identity import derive_canonical_row_identity
@@ -65,7 +66,12 @@ from services.data_pipeline.crossmatch.policy import (
 )
 from services.data_pipeline.manifest import load_frozen_manifest_bundle
 
-from .conversion import convert_decimal_value, decimal_from_source, serialize_decimal
+from .conversion import (
+    convert_decimal_value,
+    decimal_from_source,
+    resolve_conversion_rule,
+    serialize_decimal,
+)
 from .errors import DataArtifactError
 from .policy import load_mapping_rule_set, load_unit_conversion_catalog
 
@@ -365,11 +371,7 @@ def validate_frozen_crossmatch_handoff(input_value: DataArtifactBuildInput) -> N
 
 
 def _record_key(record: CrossmatchRecord) -> str:
-    if isinstance(record, UnpairedRecord):
-        return compute_canonical_payload_hash(
-            {"record_type": record.record_type, "candidate_id": record.candidate_id}
-        )
-    return record.logical_match_key
+    return compute_crossmatch_record_logical_key(record)
 
 
 def _record_members(record: CrossmatchRecord) -> tuple[str, ...]:
@@ -647,14 +649,31 @@ def _source_value(
     return _hashed(SourceValueCandidate, payload)
 
 
-def _document_uncertainty(observation: TypedDocumentObservation) -> UncertaintyValue:
+def _document_uncertainty(
+    observation: TypedDocumentObservation,
+    *,
+    field: FieldDefinition,
+    quantity_kind: str,
+    conversion_rule,
+    input_value: DataArtifactBuildInput,
+) -> UncertaintyValue:
     values = (
         observation.uncertainty_positive_raw,
         observation.uncertainty_negative_raw,
     )
-    canonical_values = (
-        observation.uncertainty_positive_canonical,
-        observation.uncertainty_negative_canonical,
+    canonical_values = tuple(
+        convert_decimal_value(
+            value,
+            rule_id=conversion_rule.rule_id,
+            rule_version=conversion_rule.rule_version,
+            source_unit=observation.source_unit,
+            target_unit=field.canonical_unit,
+            quantity_kind=quantity_kind,
+            catalog=input_value.conversion_catalog,
+        )
+        if value is not None
+        else None
+        for value in values
     )
     count = sum(item is not None for item in values)
     status = (
@@ -671,15 +690,6 @@ def _document_uncertainty(observation: TypedDocumentObservation) -> UncertaintyV
     )
 
 
-def _document_conversion_version(input_value: DataArtifactBuildInput) -> str:
-    identity = next(
-        rule
-        for rule in input_value.conversion_catalog.rules
-        if rule.rule_id == "unit.identity"
-    )
-    return identity.rule_version
-
-
 def _document_source_value(
     *,
     row_id: str,
@@ -687,13 +697,28 @@ def _document_source_value(
     field: FieldDefinition,
     structured_priority_count: int,
     input_value: DataArtifactBuildInput,
+    quantity_kind: str,
 ) -> SourceValueCandidate:
     """Project one admitted typed document observation into a Dataset source value."""
 
+    conversion_rule = resolve_conversion_rule(
+        source_unit=observation.source_unit,
+        target_unit=field.canonical_unit,
+        quantity_kind=quantity_kind,
+        catalog=input_value.conversion_catalog,
+    )
     canonical: str | None = None
     if observation.parsed_scalar is not None:
         canonical = serialize_decimal(
-            observation.parsed_scalar,
+            convert_decimal_value(
+                observation.parsed_scalar,
+                rule_id=conversion_rule.rule_id,
+                rule_version=conversion_rule.rule_version,
+                source_unit=observation.source_unit,
+                target_unit=field.canonical_unit,
+                quantity_kind=quantity_kind,
+                catalog=input_value.conversion_catalog,
+            ),
             capacity=input_value.conversion_catalog.decimal_capacity,
         )
     locator = DocumentObservationLocator(
@@ -729,9 +754,15 @@ def _document_source_value(
         "alias_priority": 1,
         "source_priority": structured_priority_count + 1,
         "transformation_rule_version": field.transformation_rule_version,
-        "conversion_rule_id": "unit.identity",
-        "conversion_rule_version": _document_conversion_version(input_value),
-        "uncertainty": _document_uncertainty(observation).model_dump(mode="json"),
+        "conversion_rule_id": conversion_rule.rule_id,
+        "conversion_rule_version": conversion_rule.rule_version,
+        "uncertainty": _document_uncertainty(
+            observation,
+            field=field,
+            quantity_kind=quantity_kind,
+            conversion_rule=conversion_rule,
+            input_value=input_value,
+        ).model_dump(mode="json"),
         "limit": LimitValue(status=observation.limit_status).model_dump(mode="json"),
         "null_status": observation.null_status,
         "evidence_locator": locator.model_dump(mode="json"),
@@ -747,7 +778,9 @@ def _document_source_value(
     return _hashed(SourceValueCandidate, payload)
 
 
-def _replace_raw_field(locator: DatabaseCellLocator, raw_field: str) -> DatabaseCellLocator:
+def _replace_raw_field(
+    locator: DatabaseCellLocator, raw_field: str
+) -> DatabaseCellLocator:
     return locator.model_copy(update={"raw_field": raw_field})
 
 
@@ -807,14 +840,16 @@ def _build_evidence(
         "reference_field": reference_field,
         "reference_value": reference_value,
         "reference_locator": _replace_raw_field(
-            source_value.evidence_locator, reference_field  # type: ignore[arg-type]
+            source_value.evidence_locator,
+            reference_field,  # type: ignore[arg-type]
         ).model_dump(mode="json")
         if reference_field is not None
         else None,
         "provenance_field": provenance_field,
         "provenance_value": provenance_value,
         "provenance_locator": _replace_raw_field(
-            source_value.evidence_locator, provenance_field  # type: ignore[arg-type]
+            source_value.evidence_locator,
+            provenance_field,  # type: ignore[arg-type]
         ).model_dump(mode="json")
         if provenance_field is not None
         else None,
@@ -983,9 +1018,7 @@ def _document_members(
             grouped[research_input_id], key=lambda item: item.observation_id
         )
         snapshot = observations[0].pipeline_source_snapshot
-        if any(
-            item.pipeline_source_snapshot != snapshot for item in observations
-        ):
+        if any(item.pipeline_source_snapshot != snapshot for item in observations):
             raise DataArtifactError(
                 DataArtifactErrorCode.snapshot_mismatch,
                 "document observations disagree about their pipeline snapshot",
@@ -1000,14 +1033,33 @@ def _document_members(
                 query_hash=snapshot.query_hash,
                 research_input_id=research_input_id,
                 document_parse_ids=tuple(
-                    dict.fromkeys(
-                        str(item.document_parse_id) for item in observations
-                    )
+                    dict.fromkeys(str(item.document_parse_id) for item in observations)
                 ),
                 observation_ids=tuple(item.observation_id for item in observations),
             )
         )
     return tuple(members)
+
+
+def derive_document_snapshot_bindings(
+    input_value: DataArtifactBuildInput,
+) -> dict[str, str]:
+    """Derive the exact persisted snapshot binding from validated observations."""
+
+    bindings: dict[str, str] = {}
+    for observation in sorted(
+        input_value.document_observations,
+        key=lambda item: (item.pipeline_snapshot_id, item.observation_id),
+    ):
+        pipeline_id = observation.pipeline_snapshot_id
+        persisted_id = str(observation.persisted_source_snapshot_id)
+        existing = bindings.setdefault(pipeline_id, persisted_id)
+        if existing != persisted_id:
+            raise DataArtifactError(
+                DataArtifactErrorCode.snapshot_mismatch,
+                "one pipeline document snapshot must bind exactly one persisted snapshot",
+            )
+    return {key: bindings[key] for key in sorted(bindings)}
 
 
 def derive_data_artifact_domain_projection(
@@ -1122,6 +1174,7 @@ def derive_data_artifact_domain_projection(
                         field=field,
                         structured_priority_count=structured_priority_count,
                         input_value=input_value,
+                        quantity_kind=_quantity_kind(field, bundle),
                     )
                 )
                 document_snapshot_ids.add(
@@ -1360,13 +1413,10 @@ def derive_data_artifact_domain_projection(
             )
         )
     )
-    source_snapshot_ids = tuple(sorted({*crossmatch_snapshot_ids, *document_snapshot_ids}))
-    document_snapshot_bindings = {
-        str(observation.pipeline_source_snapshot.snapshot_id): str(
-            observation.persisted_source_snapshot_id
-        )
-        for observation in input_value.document_observations
-    }
+    source_snapshot_ids = tuple(
+        sorted({*crossmatch_snapshot_ids, *document_snapshot_ids})
+    )
+    document_snapshot_bindings = derive_document_snapshot_bindings(input_value)
     crossmatch_evidence_ids = tuple(
         sorted(
             {
@@ -1396,8 +1446,7 @@ def derive_data_artifact_domain_projection(
         transformation_evidence=tuple(all_evidence),
         selections=tuple(all_selections),
         conflicts=tuple(all_conflicts),
-        source_members=_source_members(input_value)
-        + _document_members(input_value),
+        source_members=_source_members(input_value) + _document_members(input_value),
         producer=producer,
         source_snapshot_ids=source_snapshot_ids,
         crossmatch_source_snapshot_ids=crossmatch_snapshot_ids,
@@ -1435,6 +1484,7 @@ def derive_data_artifact_domain_projection(
 
 __all__ = [
     "DataArtifactDomainProjection",
+    "derive_document_snapshot_bindings",
     "derive_data_artifact_domain_projection",
     "derive_field_conflicts",
     "numeric_values_agree",

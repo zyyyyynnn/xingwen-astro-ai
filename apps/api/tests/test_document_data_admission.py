@@ -12,14 +12,16 @@ import asyncio
 import os
 from datetime import UTC, datetime
 from decimal import Decimal
-from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 import pytest
 from pydantic import ValidationError
 
 from app.schemas._hashing import compute_canonical_payload_hash
-from app.schemas.source_acquisition import RawDataSourceRecord, compute_raw_data_record_hash
+from app.schemas.source_acquisition import (
+    RawDataSourceRecord,
+    compute_raw_data_record_hash,
+)
 from app.schemas.core import (
     DocumentSourcePolicy,
     ResearchContract,
@@ -98,7 +100,7 @@ CANONICAL_OUTPUT_HASH = "sha256:" + "d" * 64
 CONFIG_HASH = "sha256:" + "c" * 64
 QUERY_HASH = compute_canonical_payload_hash({"research_input_id": str(INPUT_ID)})
 
-HEADER_ROW = ("star.tic_id", "Teff [K]", "star.radius")
+HEADER_ROW = ("star.tic_id", "Teff [K]", "star.radius [R_sun]")
 REQUESTED_FIELDS = (
     "star.tic_id",
     "star.effective_temperature",
@@ -110,9 +112,7 @@ REQUESTED_FIELDS = (
 def crossmatch():
     benchmark = load_crossmatch_benchmark()
     scenario = next(
-        item
-        for item in benchmark.scenarios
-        if item.scenario_id == "exact_one_to_one"
+        item for item in benchmark.scenarios if item.scenario_id == "exact_one_to_one"
     )
     return align_cross_source_records(_scenario_input(scenario))
 
@@ -255,7 +255,6 @@ def _extract(
         manifests=BUNDLE,
         crossmatch=crossmatch,
         rules=RULES,
-        conversion_catalog=CATALOG,
     )
 
 
@@ -275,11 +274,7 @@ def _outcome_for(batch, code) -> list:
 
 
 def _accepted_for(batch, field_id: str):
-    return [
-        item
-        for item in batch.accepted
-        if item.canonical_field_id == field_id
-    ]
+    return [item for item in batch.accepted if item.canonical_field_id == field_id]
 
 
 def test_table_extraction_admits_typed_observations_with_locator_closure(
@@ -296,7 +291,6 @@ def test_table_extraction_admits_typed_observations_with_locator_closure(
         manifests=BUNDLE,
         crossmatch=crossmatch,
         rules=RULES,
-        conversion_catalog=CATALOG,
     )
 
     assert len(batch.raw_candidates) == 2
@@ -392,6 +386,163 @@ def test_invalid_number_rejects_and_unknown_unit_reviews(
     assert reviewed[0].status is DocumentObservationAdmissionStatus.review_required
 
 
+def test_unknown_table_header_keeps_raw_candidate_for_review(
+    crossmatch, host_token
+) -> None:
+    batch = _extract(
+        [(host_token, "1.2")],
+        crossmatch,
+        requested=("star.tic_id",),
+        header=("star.tic_id", "unregistered.scientific_field"),
+    )
+
+    assert len(batch.raw_candidates) == 1
+    assert batch.accepted == ()
+    assert len(batch.outcomes) == 1
+    assert batch.outcomes[0].code is (
+        DocumentObservationAdmissionCode.document_field_unresolved
+    )
+    assert (
+        batch.outcomes[0].status is DocumentObservationAdmissionStatus.review_required
+    )
+
+
+def test_signed_scalar_and_dimensioned_missing_unit_are_fail_closed(
+    crossmatch, host_token
+) -> None:
+    signed = _extract(
+        [(host_token, "-0.15 dex")],
+        crossmatch,
+        requested=("star.tic_id", "star.metallicity"),
+        header=("star.tic_id", "star.metallicity"),
+    )
+    assert signed.accepted[0].parsed_scalar == Decimal("-0.15")
+    assert signed.accepted[0].source_unit == "dex"
+
+    missing_unit = _extract(
+        [(host_token, "5600")],
+        crossmatch,
+        requested=("star.tic_id", "star.effective_temperature"),
+        header=("star.tic_id", "star.effective_temperature"),
+    )
+    assert missing_unit.accepted == ()
+    assert missing_unit.outcomes[0].code is (
+        DocumentObservationAdmissionCode.document_unit_unresolved
+    )
+    assert (
+        missing_unit.outcomes[0].status
+        is DocumentObservationAdmissionStatus.review_required
+    )
+
+
+def _text_parse(
+    text: str,
+    *,
+    kind: DocumentBlockKind = DocumentBlockKind.paragraph,
+    quality: DocumentParseQuality = DocumentParseQuality.accepted,
+) -> DocumentParseCandidate:
+    base = _parse([])
+    block = DocumentBlock(
+        block_id="doc-text-block",
+        page_index=0,
+        reading_order=1,
+        kind=kind,
+        bbox=DocumentBBox(x1=20, y1=220, x2=580, y2=260),
+        text=text,
+        quality=quality,
+        parser_backend=ParserBackend.native,
+        parser_profile_id="native-default",
+    )
+    return base.model_copy(
+        update={
+            "pages": (
+                base.pages[0].model_copy(update={"block_ids": ("doc-text-block",)}),
+            ),
+            "blocks": (block,),
+            "tables": (),
+        }
+    )
+
+
+@pytest.mark.parametrize("kind", [DocumentBlockKind.paragraph, DocumentBlockKind.list])
+def test_text_observation_patterns_admit_multiple_and_preserve_geometry(
+    crossmatch, host_token, kind
+) -> None:
+    parse = _text_parse(
+        f"star.effective_temperature = 5600 K for {host_token}; "
+        f"star.radius = 1.2 R_sun for {host_token}",
+        kind=kind,
+    )
+    batch = extract_document_observations(
+        parse=parse,
+        context=_context(),
+        snapshot_projection=_projection(),
+        contract_policy=DocumentSourcePolicy.research_input,
+        case_capability=True,
+        requested_fields=REQUESTED_FIELDS + ("star.radius",),
+        manifests=BUNDLE,
+        crossmatch=crossmatch,
+        rules=RULES,
+    )
+
+    assert len(batch.raw_candidates) == 2
+    assert {item.canonical_field_id for item in batch.accepted} == {
+        "star.effective_temperature",
+        "star.radius",
+    }
+    assert all(
+        item.document_locator.bbox == parse.blocks[0].bbox for item in batch.accepted
+    )
+    assert all(item.document_locator.reading_order == 1 for item in batch.accepted)
+    assert all(item.document_locator.text_span is not None for item in batch.accepted)
+
+
+def test_text_unknown_field_missing_unit_partial_and_unsupported_are_explicit(
+    crossmatch, host_token
+) -> None:
+    reviewed = extract_document_observations(
+        parse=_text_parse(
+            f"unregistered.scientific_field = 5600 K for {host_token}; "
+            f"star.effective_temperature = 5600 for {host_token}",
+            quality=DocumentParseQuality.partial,
+        ),
+        context=_context(),
+        snapshot_projection=_projection(),
+        contract_policy=DocumentSourcePolicy.research_input,
+        case_capability=True,
+        requested_fields=REQUESTED_FIELDS,
+        manifests=BUNDLE,
+        crossmatch=crossmatch,
+        rules=RULES,
+    )
+    assert len(reviewed.raw_candidates) == 2
+    assert {item.code for item in reviewed.outcomes} == {
+        DocumentObservationAdmissionCode.document_field_unresolved,
+        DocumentObservationAdmissionCode.document_unit_unresolved,
+    }
+    assert all(
+        item.status is DocumentObservationAdmissionStatus.review_required
+        for item in reviewed.outcomes
+    )
+
+    unsupported = extract_document_observations(
+        parse=_text_parse(
+            f"star.effective_temperature = 5600 K for {host_token}",
+            quality=DocumentParseQuality.unsupported,
+        ),
+        context=_context(),
+        snapshot_projection=_projection(),
+        contract_policy=DocumentSourcePolicy.research_input,
+        case_capability=True,
+        requested_fields=REQUESTED_FIELDS,
+        manifests=BUNDLE,
+        crossmatch=crossmatch,
+        rules=RULES,
+    )
+    assert unsupported.raw_candidates == ()
+    assert unsupported.accepted == ()
+
+
 def test_field_resolution_authority(crossmatch, host_token) -> None:
     # Registered document alias exact.
     alias_batch = _extract([(host_token, "5100", "--")], crossmatch)
@@ -400,7 +551,7 @@ def test_field_resolution_authority(crossmatch, host_token) -> None:
     canonical_parse = _parse([(host_token, "5100", "--")])
     rebuilt_header = list(canonical_parse.tables[0].rows[0])
     rebuilt_header[1] = rebuilt_header[1].model_copy(
-        update={"text": "star.effective_temperature"}
+        update={"text": "star.effective_temperature [K]"}
     )
     rebuilt_rows = [tuple(rebuilt_header), *canonical_parse.tables[0].rows[1:]]
     canonical_parse = canonical_parse.model_copy(
@@ -422,7 +573,6 @@ def test_field_resolution_authority(crossmatch, host_token) -> None:
         manifests=BUNDLE,
         crossmatch=crossmatch,
         rules=RULES,
-        conversion_catalog=CATALOG,
     )
     assert _accepted_for(canonical_batch, "star.effective_temperature")
 
@@ -430,8 +580,7 @@ def test_field_resolution_authority(crossmatch, host_token) -> None:
     # registered column still resolves deterministically.
     unknown_batch = _extract([(host_token, "5100", "--")], crossmatch)
     assert not any(
-        item.canonical_field_id == "star.luminosity"
-        for item in unknown_batch.accepted
+        item.canonical_field_id == "star.luminosity" for item in unknown_batch.accepted
     )
     assert _accepted_for(unknown_batch, "star.effective_temperature")
 
@@ -441,8 +590,7 @@ def test_field_resolution_authority(crossmatch, host_token) -> None:
     reviewed = [
         item
         for item in shared.outcomes
-        if item.code
-        is DocumentObservationAdmissionCode.document_field_ambiguous
+        if item.code is DocumentObservationAdmissionCode.document_field_ambiguous
     ]
     assert reviewed
     assert reviewed[0].status is DocumentObservationAdmissionStatus.review_required
@@ -460,35 +608,9 @@ def test_entity_resolution_requires_exact_unique_frozen_row(
     assert reviewed[0].status is DocumentObservationAdmissionStatus.review_required
 
     index = _EntityIndex(crossmatch=crossmatch)
-    fake_records = [
-        SimpleNamespace(
-            logical_match_key="sha256:" + "1" * 64,
-            left_candidate_ids=("l1",),
-            right_candidate_ids=("r1",),
-            candidate_id=None,
-        ),
-        SimpleNamespace(
-            logical_match_key="sha256:" + "2" * 64,
-            left_candidate_ids=("l2",),
-            right_candidate_ids=("r2",),
-            candidate_id=None,
-        ),
-    ]
-    fake_candidates = {
-        side + number: SimpleNamespace(
-            candidate_id=side + number,
-            entity_level=SimpleNamespace(value="host_star"),
-            identity_values=(
-                SimpleNamespace(
-                    normalized_value="TIC 101", field_id="star.tic_id"
-                ),
-            ),
-        )
-        for side, number in (("l", "1"), ("r", "1"), ("l", "2"), ("r", "2"))
-    }
     index._keys_by_token["TIC 101"] = {
         "sha256:" + "1" * 64,
-        "sha256:" + "2" *64,
+        "sha256:" + "2" * 64,
     }
     index._objects_by_token["TIC 101"] = {"star"}
     key, status = index.exact_unique_match("TIC 101", "star")
@@ -505,16 +627,13 @@ def test_disabled_policy_rejects_every_document_value(crossmatch, host_token) ->
     assert batch.outcomes
     assert all(
         outcome.status is DocumentObservationAdmissionStatus.rejected
-        and outcome.code
-        is DocumentObservationAdmissionCode.document_source_disabled
+        and outcome.code is DocumentObservationAdmissionCode.document_source_disabled
         for outcome in batch.outcomes
     )
 
 
 def test_missing_case_capability_rejects(crossmatch, host_token) -> None:
-    batch = _extract(
-        [(host_token, "5100", "--")], crossmatch, capability=False
-    )
+    batch = _extract([(host_token, "5100", "--")], crossmatch, capability=False)
     assert batch.accepted == ()
     assert all(
         outcome.code
@@ -545,7 +664,6 @@ def test_context_mismatch_fails_closed(crossmatch) -> None:
             manifests=BUNDLE,
             crossmatch=crossmatch,
             rules=RULES,
-            conversion_catalog=CATALOG,
         )
 
 
@@ -608,7 +726,9 @@ def _observation(
     )
 
 
-def _with_documents(baseline: DataArtifactBuildInput, documents) -> DataArtifactBuildInput:
+def _with_documents(
+    baseline: DataArtifactBuildInput, documents
+) -> DataArtifactBuildInput:
     unhashed = DataArtifactBuildInput.model_construct(
         manifest_pins=baseline.manifest_pins,
         requested_fields=baseline.requested_fields,
@@ -632,9 +752,7 @@ def _structured_orbital_baseline() -> DataArtifactBuildInput:
 
     benchmark = load_crossmatch_benchmark()
     scenario = next(
-        item
-        for item in benchmark.scenarios
-        if item.scenario_id == "exact_one_to_one"
+        item for item in benchmark.scenarios if item.scenario_id == "exact_one_to_one"
     )
     crossmatch_input = _scenario_input(scenario)
 
@@ -666,7 +784,11 @@ def _structured_orbital_baseline() -> DataArtifactBuildInput:
             "right": add_measurement(crossmatch_input.right),
         }
     )
-    return build_input("planet.orbital_period") if False else _baseline_from_injected(injected)
+    return (
+        build_input("planet.orbital_period")
+        if False
+        else _baseline_from_injected(injected)
+    )
 
 
 def _baseline_from_injected(crossmatch_input) -> DataArtifactBuildInput:
@@ -715,8 +837,7 @@ def test_structured_source_wins_and_document_conflict_is_retained() -> None:
         item
         for item in without_documents.dataset.rows
         if any(
-            field.canonical_field_id == "planet.orbital_period"
-            for field in item.fields
+            field.canonical_field_id == "planet.orbital_period" for field in item.fields
         )
     )
     outcome = next(
@@ -783,13 +904,10 @@ def test_document_fills_structured_missing_value() -> None:
     target = next(
         item
         for item in row.fields
-        if isinstance(item, DeclaredNullValue)
-        and item.reason.value == "not_in_source"
+        if isinstance(item, DeclaredNullValue) and item.reason.value == "not_in_source"
     )
     field_id = target.canonical_field_id
-    unit = (
-        "earth_mass" if field_id == "planet.mass" else "kelvin"
-    )
+    unit = "earth_mass" if field_id == "planet.mass" else "kelvin"
     documents = [
         _observation(
             index=1,
@@ -851,7 +969,9 @@ def test_equal_document_values_form_consensus_without_winner() -> None:
     assert merged.canonical_value == "1.5"
     assert not merged.conflict_ids
     selection = next(
-        item for item in result.dataset.selections if item.selection_id == merged.selection_id
+        item
+        for item in result.dataset.selections
+        if item.selection_id == merged.selection_id
     )
     assert selection.selected_source_value_id is None
     assert selection.reason.startswith("equal admitted document values")
@@ -873,7 +993,9 @@ def test_conflicting_documents_without_structured_value_stay_unresolved() -> Non
         for item in result.dataset.conflicts
         if item.conflict_id == unresolved.conflict_ids[0]
     )
-    assert conflict.source_value_ids == tuple(sorted(unresolved.candidate_source_value_ids))
+    assert conflict.source_value_ids == tuple(
+        sorted(unresolved.candidate_source_value_ids)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -890,9 +1012,7 @@ def _quality_contract(*requested: str) -> ResearchContract:
             "document_source_policy": "research_input",
         },
         requested_fields=list(requested),
-        source_scope={
-            "allowed_sources": ["nasa_exoplanet_archive", "esa_gaia_dr3"]
-        },
+        source_scope={"allowed_sources": ["nasa_exoplanet_archive", "esa_gaia_dr3"]},
         paper_search_scope={"max_candidates": 20},
         output_requirements=["dataset"],
         evidence_requirements={},
@@ -989,7 +1109,10 @@ def test_partial_and_unsupported_parse_observations_map_independently() -> None:
     assert partial.status is DocumentParseQualityStatus.partial
     assert unsupported.status is DocumentParseQualityStatus.unsupported
     with pytest.raises(ValidationError):
-        DocumentParseQualityObservation(status=DocumentParseQualityStatus.not_applicable, research_input_ids=(str(INPUT_ID),))
+        DocumentParseQualityObservation(
+            status=DocumentParseQualityStatus.not_applicable,
+            research_input_ids=(str(INPUT_ID),),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -1004,7 +1127,7 @@ def postgres_engine():
     if not TEST_DATABASE_URL:
         pytest.skip("TEST_DATABASE_URL is not configured")
     from db_bootstrap import reset_current_schema
-    from app.db.session import create_engine_from_url, session_factory
+    from app.db.session import create_engine_from_url
 
     assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower(), (
         "refusing non-test database"
@@ -1022,6 +1145,7 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
     from sqlalchemy import select
 
     from app.db.models import (
+        DocumentParseModel,
         ProducerExecutionModel,
         ResearchInputBindingModel,
         ResearchInputContentModel,
@@ -1031,9 +1155,11 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
         SourceSnapshotModel,
         StepAttemptModel,
     )
-    from db_bootstrap import reset_current_schema
     from app.db.session import session_factory
-    from app.services.document_data_admission import DocumentDataAdmissionService
+    from app.services.document_data_admission import (
+        DocumentDataAdmissionService,
+        DocumentParseSelectionAmbiguousError,
+    )
     from app.services.document_parse_store import (
         DocumentParseRepository,
         DocumentParseService,
@@ -1048,11 +1174,24 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
     )
 
     factory = session_factory(postgres_engine)
-    ids = {name: uuid4() for name in (
-        "project", "contract", "run", "step", "attempt", "producer", "input", "draft",
-    )}
+    ids = {
+        name: uuid4()
+        for name in (
+            "project",
+            "contract",
+            "run",
+            "run_b",
+            "step",
+            "attempt",
+            "producer",
+            "input",
+            "input_b",
+            "draft",
+        )
+    }
     storage = LocalContentStorage.__new__(LocalContentStorage)
-    import pathlib, tempfile
+    import pathlib
+    import tempfile
 
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="doc-admission-cas-"))
     storage = LocalContentStorage(tmp / "cas")
@@ -1068,12 +1207,30 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
         created_at=NOW,
         updated_at=NOW,
     )
-    draft = build_contract_draft(project, draft_id=ids["draft"], created_at=NOW, updated_at=NOW)
+    draft = build_contract_draft(
+        project, draft_id=ids["draft"], created_at=NOW, updated_at=NOW
+    )
+    contract_payload = {
+        "research_goal": "Integrate admitted document observations into datasets",
+        "target_objects": ["exoplanet_candidate", "host_star"],
+        "data_requirements": {
+            "unit_policy": "canonical",
+            "document_source_policy": "research_input",
+        },
+        "requested_fields": list(REQUESTED_FIELDS),
+        "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
+        "paper_search_scope": {"max_candidates": 20},
+        "output_requirements": ["dataset"],
+        "evidence_requirements": {},
+        "quality_constraints": {},
+    }
+    contract_content_hash = compute_research_contract_content_hash(contract_payload)
     contract_model = build_contract_model(
         project,
         draft,
         contract_id=ids["contract"],
-        content_hash="sha256:" + "e" * 64,
+        content_hash=contract_content_hash,
+        content=contract_payload,
         created_at=NOW,
     )
     with factory() as session, session.begin():
@@ -1081,21 +1238,37 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
             session, project=project, draft=draft, contract=contract_model
         )
     with factory() as session, session.begin():
-        session.add(
-            ResearchRunModel(
-                id=ids["run"],
-                project_id=ids["project"],
-                contract_id=ids["contract"],
-                execution_mode="live",
-                status="completed",
-                progress=100,
-                derivation_kind="original",
-                cache_policy="disabled",
-                latest_event_sequence=0,
-                revision=1,
-                idempotency_key=f"run-{ids['run']}",
-                request_hash="sha256:" + "b" * 64,
-            )
+        session.add_all(
+            [
+                ResearchRunModel(
+                    id=ids["run"],
+                    project_id=ids["project"],
+                    contract_id=ids["contract"],
+                    execution_mode="live",
+                    status="completed",
+                    progress=100,
+                    derivation_kind="original",
+                    cache_policy="disabled",
+                    latest_event_sequence=0,
+                    revision=1,
+                    idempotency_key=f"run-{ids['run']}",
+                    request_hash="sha256:" + "b" * 64,
+                ),
+                ResearchRunModel(
+                    id=ids["run_b"],
+                    project_id=ids["project"],
+                    contract_id=ids["contract"],
+                    execution_mode="live",
+                    status="queued",
+                    progress=0,
+                    derivation_kind="original",
+                    cache_policy="disabled",
+                    latest_event_sequence=0,
+                    revision=1,
+                    idempotency_key=f"run-{ids['run_b']}",
+                    request_hash="sha256:" + "c" * 64,
+                ),
+            ]
         )
     with factory() as session, session.begin():
         step = RunStepModel(
@@ -1164,34 +1337,62 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
             finished_at=NOW,
             latency_ms=12,
         )
-        session.add_all([input_row, producer])
+        input_b_row = ResearchInputModel(
+            id=ids["input_b"],
+            session_id="owner",
+            project_id=ids["project"],
+            type="pdf",
+            source_type="upload",
+            content_hash=pdf_hash,
+            filename="paper-b.pdf",
+            status="accepted",
+            source_snapshot_id=None,
+            created_at=NOW,
+        )
+        session.add_all([input_row, input_b_row, producer])
     with factory() as session, session.begin():
-        session.add(
-            ResearchInputBindingModel(
-                input_id=ids["input"],
-                project_id=ids["project"],
-                contract_draft_id=ids["draft"],
-                bound_at=NOW,
-            )
+        session.add_all(
+            [
+                ResearchInputBindingModel(
+                    input_id=ids["input"],
+                    project_id=ids["project"],
+                    contract_draft_id=ids["draft"],
+                    bound_at=NOW,
+                ),
+                ResearchInputBindingModel(
+                    input_id=ids["input_b"],
+                    project_id=ids["project"],
+                    run_id=ids["run_b"],
+                    bound_at=NOW,
+                ),
+            ]
         )
 
     repository = DocumentParseRepository(factory)
     service = DocumentParseService(repository, storage)
-    parse = _parse([(next(
-        value.normalized_value
-        for candidate in align_cross_source_records(
-            _scenario_input(
+    parse = _parse(
+        [
+            (
                 next(
-                    item
-                    for item in load_crossmatch_benchmark().scenarios
-                    if item.scenario_id == "exact_one_to_one"
-                )
+                    value.normalized_value
+                    for candidate in align_cross_source_records(
+                        _scenario_input(
+                            next(
+                                item
+                                for item in load_crossmatch_benchmark().scenarios
+                                if item.scenario_id == "exact_one_to_one"
+                            )
+                        )
+                    ).candidates
+                    if candidate.entity_level.value == "host_star"
+                    for value in candidate.identity_values
+                    if value.field_id == "star.tic_id"
+                ),
+                "5600 ± 50 K",
+                "1.20",
             )
-        ).candidates
-        if candidate.entity_level.value == "host_star"
-        for value in candidate.identity_values
-        if value.field_id == "star.tic_id"
-    ), "5600 ± 50 K", "1.20")])
+        ]
+    )
     # The persisted parse must bind the seeded ResearchInput identity and its
     # immutable uploaded content identity.
     parse = parse.model_copy(
@@ -1219,19 +1420,8 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
         version=1,
         created_from_draft_id=str(ids["draft"]),
         created_at=NOW,
-        content_hash="sha256:" + "e" * 64,
-        research_goal="Integrate admitted document observations into datasets",
-        target_objects=["exoplanet_candidate", "host_star"],
-        data_requirements={
-            "unit_policy": "canonical",
-            "document_source_policy": "research_input",
-        },
-        requested_fields=list(REQUESTED_FIELDS),
-        source_scope={"allowed_sources": ["nasa_exoplanet_archive"]},
-        paper_search_scope={"max_candidates": 20},
-        output_requirements=["dataset"],
-        evidence_requirements={},
-        quality_constraints={},
+        content_hash=contract_content_hash,
+        **contract_payload,
     )
 
     admission = DocumentDataAdmissionService(
@@ -1239,25 +1429,33 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
         document_parses=service,
         manifests=BUNDLE,
     )
-    batch = asyncio.run(
-        admission.build(
-            project_id=ids["project"],
-            contract=contract,
-            crossmatch=align_cross_source_records(
-                _scenario_input(
-                    next(
-                        item
-                        for item in load_crossmatch_benchmark().scenarios
-                        if item.scenario_id == "exact_one_to_one"
-                    )
-                )
-            ),
+    crossmatch = align_cross_source_records(
+        _scenario_input(
+            next(
+                item
+                for item in load_crossmatch_benchmark().scenarios
+                if item.scenario_id == "exact_one_to_one"
+            )
         )
     )
+    plan = asyncio.run(
+        admission.prepare(
+            project_id=ids["project"],
+            run_id=ids["run"],
+            contract=contract,
+            crossmatch=crossmatch,
+        )
+    )
+    assert plan is not None
+    assert {item.research_input_id for item in plan.prepared_inputs} == {ids["input"]}
+    batch = admission.execute(plan)
     assert batch.accepted, "seeded table must admit at least one observation"
 
     # The single persisted upload SourceSnapshot is reused, never duplicated.
-    bindings = batch.snapshot_bindings
+    bindings = {
+        item.pipeline_snapshot_id: str(item.persisted_source_snapshot_id)
+        for item in batch.accepted
+    }
     assert len(bindings) == 1
     persisted_binding = next(iter(bindings.values()))
     assert UUID(persisted_binding) == record.source_snapshot_id
@@ -1274,28 +1472,71 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
 
     # Locator closure against the persisted canonical parse.
     stored_parse = asyncio.run(
-        service.get_candidate(
-            project_id=ids["project"], document_parse_id=record.id
-        )
+        service.get_candidate(project_id=ids["project"], document_parse_id=record.id)
     )
     for observation in batch.accepted:
         validate_document_locator(stored_parse, observation.document_locator)
 
     # Determinism of the persisted-provenance producer identities.
-    again = asyncio.run(
-        admission.build(
+    again_plan = asyncio.run(
+        admission.prepare(
             project_id=ids["project"],
+            run_id=ids["run"],
             contract=contract,
-            crossmatch=align_cross_source_records(
-                _scenario_input(
-                    next(
-                        item
-                        for item in load_crossmatch_benchmark().scenarios
-                        if item.scenario_id == "exact_one_to_one"
-                    )
-                )
-            ),
+            crossmatch=crossmatch,
         )
     )
+    assert again_plan is not None
+    again = admission.execute(again_plan)
+    assert again_plan.producer_input_hash == plan.producer_input_hash
     assert again.producer_input_hash == batch.producer_input_hash
     assert again.producer_output_hash == batch.producer_output_hash
+
+    with factory() as session, session.begin():
+        stored_row = session.get(DocumentParseModel, record.id)
+        assert stored_row is not None
+        session.add(
+            DocumentParseModel(
+                id=uuid4(),
+                project_id=stored_row.project_id,
+                research_input_id=stored_row.research_input_id,
+                source_snapshot_id=stored_row.source_snapshot_id,
+                created_by_run_id=stored_row.created_by_run_id,
+                run_step_id=stored_row.run_step_id,
+                producer_execution_id=stored_row.producer_execution_id,
+                candidate_parse_id=f"{stored_row.candidate_parse_id}.duplicate",
+                identity_hash=compute_canonical_payload_hash(
+                    {"duplicate_of": str(stored_row.id)}
+                ),
+                schema_version=stored_row.schema_version,
+                schema_hash=stored_row.schema_hash,
+                input_content_hash=stored_row.input_content_hash,
+                parse_input_hash=stored_row.parse_input_hash,
+                canonical_output_hash=stored_row.canonical_output_hash,
+                payload_content_hash=stored_row.payload_content_hash,
+                payload_semantic_hash=stored_row.payload_semantic_hash,
+                payload_storage_ref=stored_row.payload_storage_ref,
+                parser_profile_id=stored_row.parser_profile_id,
+                parser_profile_version=stored_row.parser_profile_version,
+                native_engine=stored_row.native_engine,
+                native_engine_version=stored_row.native_engine_version,
+                visual_engine=stored_row.visual_engine,
+                visual_engine_version=stored_row.visual_engine_version,
+                visual_model_id=stored_row.visual_model_id,
+                visual_model_revision=stored_row.visual_model_revision,
+                config_hash=stored_row.config_hash,
+                overall_quality=stored_row.overall_quality,
+                candidate_created_at=stored_row.candidate_created_at,
+            )
+        )
+
+    with pytest.raises(DocumentParseSelectionAmbiguousError) as error:
+        asyncio.run(
+            admission.prepare(
+                project_id=ids["project"],
+                run_id=ids["run"],
+                contract=contract,
+                crossmatch=crossmatch,
+            )
+        )
+    assert error.value.code == "DOCUMENT_PARSE_SELECTION_AMBIGUOUS"

@@ -9,6 +9,8 @@ import math
 from app.schemas.data_artifacts import (
     DecimalCapacity,
     DataArtifactErrorCode,
+    QuantityKind,
+    UnitConversionImplementation,
     UnitConversionCatalog,
 )
 
@@ -38,7 +40,10 @@ def _validate_decimal_capacity(
     if (
         len(digits) > capacity.max_significant_digits
         or abs(value.adjusted()) > capacity.max_adjusted_exponent
-        or (isinstance(exponent, int) and max(-exponent, 0) > capacity.max_fractional_scale)
+        or (
+            isinstance(exponent, int)
+            and max(-exponent, 0) > capacity.max_fractional_scale
+        )
     ):
         raise DataArtifactError(
             DataArtifactErrorCode.capacity_exceeded,
@@ -146,6 +151,44 @@ def convert_decimal_value(
     return Decimal(0) if converted.is_zero() else converted
 
 
+def resolve_conversion_rule(
+    *,
+    source_unit: str,
+    target_unit: str,
+    quantity_kind: str | QuantityKind,
+    catalog: UnitConversionCatalog,
+) -> UnitConversionImplementation:
+    """Resolve the unique frozen conversion for one field/unit pair."""
+
+    kind = (
+        quantity_kind.value
+        if isinstance(quantity_kind, QuantityKind)
+        else quantity_kind
+    )
+    if source_unit == target_unit:
+        matches = [rule for rule in catalog.rules if rule.rule_id == "unit.identity"]
+        if len(matches) != 1:
+            raise DataArtifactError(
+                DataArtifactErrorCode.conversion_catalog_mismatch,
+                "frozen catalog must contain exactly one identity conversion",
+            )
+        return matches[0]
+
+    matches = [
+        rule
+        for rule in catalog.rules
+        if rule.source_unit == source_unit
+        and rule.target_unit == target_unit
+        and rule.quantity_kind.value == kind
+    ]
+    if len(matches) != 1:
+        raise DataArtifactError(
+            DataArtifactErrorCode.unknown_conversion_rule,
+            "frozen catalog does not contain one unique compatible conversion",
+        )
+    return matches[0]
+
+
 def serialize_decimal(
     value: Decimal,
     *,
@@ -180,4 +223,9 @@ def _catalog_index(catalog: UnitConversionCatalog):
     return {rule.rule_id: rule for rule in catalog.rules}
 
 
-__all__ = ["convert_decimal_value", "decimal_from_source", "serialize_decimal"]
+__all__ = [
+    "convert_decimal_value",
+    "decimal_from_source",
+    "resolve_conversion_rule",
+    "serialize_decimal",
+]

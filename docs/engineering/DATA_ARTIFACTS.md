@@ -47,6 +47,12 @@ Field alias、source/alias priority、null、uncertainty、limit、unit 与 qual
 
 主值与 uncertainty 使用同一已授权换算；identity conversion 只允许同单位。转换常数只存在于 machine catalog，Python 分支不复制常数。
 
+Document observation 的 source unit 必须先由 Field Manifest 的 Unit Registry
+解析，再由 frozen `UnitConversionCatalog` 唯一解析实际 conversion rule；主值与
+raw uncertainty 都使用该 rule，输出保留 source unit、canonical unit、rule id 和
+rule version。缺少单位、quantity kind 不匹配或 conversion rule 不唯一时不生成
+canonical value。
+
 ## 4. 值、缺失、误差与 limit
 
 每个 `SourceValueCandidate` 保留：
@@ -98,7 +104,7 @@ accepted pair/adjudication 只合并同一 row grain 的 members。review-requir
 - `DataArtifactBuildInput.document_observations` 只接受已完成 provenance/field/entity/raw-semantics 授权的 typed admission 输出；projection 不接收 raw parse candidate 或任意 dict。
 - `SourceValueCandidate.origin` 是 discriminated union：structured database origin 与 document research input origin；document 值的 locator 为 `DocumentObservationLocator`，绑定 persisted DocumentParse UUID 与其既有 persisted SourceSnapshot。
 - selection 规则固定：approved structured 有合法值时不被 document 自动覆盖；structured 缺值时可由 admitted document 补充；多个相等的 document 值共同形成 consensus canonical value（`selected_source_value_id=None`），冲突且无 structured winner 时保留 `UnresolvedCanonicalValue` + conflict，不做确定性科学胜者。
-- Dataset `source_snapshot_ids` = 2 个 crossmatch snapshot + 实际保留的 document snapshots；`crossmatch_source_snapshot_ids` 恒为恰好 2 且属于 left/right。Publisher 通过 binding override 将 pipeline 逻辑 snapshot 映射到既有 persisted 行，不复制 SourceSnapshot。
+- Dataset `source_snapshot_ids` = 2 个 crossmatch snapshot + 实际保留的 document snapshots；`crossmatch_source_snapshot_ids` 恒为恰好 2 且属于 left/right。`DataArtifactBuildInput` 验证后由 projection 从 typed observations 推导 pipeline snapshot 到 persisted snapshot 的唯一绑定；Publisher 使用该绑定映射到既有 persisted 行，不复制 SourceSnapshot。
 - 数据质量评估的 structured source_scope denominator 只观察 crossmatch 左右两侧；document 解析质量由独立的非指标观测 `DocumentParseQualityObservation`（complete/partial/unsupported/not_applicable）表达，Contract gate 另行校验 `document_source_authorized`。
 
 ## 7. 单源科学表准入
@@ -122,4 +128,4 @@ replay 必须对 exact input/content/producer/provenance 进行等值校验；�
 1. 字段事实改动先更新 source evidence/canonical Manifest，再更新 mapping/unit/quality machine assets 与 hash。
 2. `ResearchContract.requested_fields` 只接受 Case Manifest 的 canonical Field IDs。
 3. source alias、recorded response、Fixture/Benchmark/Cached/Live 必须保持其真实数据等级，不互相伪装。
-4. 技术版本、content/input/output hash 与 upstream exact identity 是科研可复现信息，继续保留；Git 保存这些定义的历史变化，不在活动目录维护 machine changelog 副本。
+4. 技术版本、content/input/output hash 与 upstream exact identity 是科研可复现信息，继续保留；规范文档只描述当前规则。

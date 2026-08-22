@@ -12,7 +12,8 @@ from __future__ import annotations
 
 from datetime import date
 from enum import StrEnum
-from typing import Annotated, Literal, Self
+import re
+from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -50,6 +51,19 @@ class DeclaredTextPattern(BaseModel):
     pattern_id: Identifier
     pattern: NonEmptyString
 
+    @model_validator(mode="after")
+    def validate_pattern(self) -> Self:
+        try:
+            compiled = re.compile(self.pattern)
+        except re.error as exc:
+            raise ValueError("declared text pattern must compile") from exc
+        required = {"field", "value", "entity", "unit"}
+        if not required <= set(compiled.groupindex):
+            raise ValueError(
+                "declared text pattern must define field, value, entity and unit groups"
+            )
+        return self
+
 
 class DocumentObservationRuleSet(BaseModel):
     """Frozen rules governing document observation extraction and admission."""
@@ -72,7 +86,6 @@ class DocumentObservationRuleSet(BaseModel):
     field_label_normalization: Literal["nfkc_trim_collapse_casefold"]
     numeric_syntax_version: SemanticVersion
     null_tokens: tuple[NonEmptyString, ...] = Field(min_length=1)
-    uncertainty_separators: tuple[NonEmptyString, ...] = Field(min_length=1)
     asymmetric_pattern: NonEmptyString
     numeric_pattern: NonEmptyString
     limit_tokens: tuple[LimitToken, ...] = Field(min_length=1)
@@ -85,6 +98,19 @@ class DocumentObservationRuleSet(BaseModel):
 
     @model_validator(mode="after")
     def validate_hash(self) -> Self:
+        try:
+            numeric = re.compile(self.numeric_pattern)
+            asymmetric = re.compile(self.asymmetric_pattern)
+        except re.error as exc:
+            raise ValueError("document numeric patterns must compile") from exc
+        if not {"limit", "value", "sym", "unit"} <= set(numeric.groupindex):
+            raise ValueError(
+                "numeric_pattern must define limit, value, sym and unit groups"
+            )
+        if not {"value", "pos", "neg", "unit"} <= set(asymmetric.groupindex):
+            raise ValueError(
+                "asymmetric_pattern must define value, pos, neg and unit groups"
+            )
         payload = self.model_dump(mode="json", exclude={"configuration_hash"})
         expected = "sha256:" + compute_canonical_payload_hash(payload).removeprefix(
             "sha256:"

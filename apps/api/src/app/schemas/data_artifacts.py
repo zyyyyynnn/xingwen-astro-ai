@@ -36,6 +36,7 @@ from .crossmatch import (
     CrossmatchSide,
     CrossmatchSourceInput,
     EntityLevel,
+    compute_crossmatch_record_logical_key,
 )
 from .enums import SourceMode
 from .evidence import SourceSnapshotRecord
@@ -560,13 +561,17 @@ class SourceValueCandidate(BaseModel):
             if self.origin.provenance_field is None and (
                 self.origin.provenance_value is not None
             ):
-                raise ValueError(
-                    "source provenance value requires a provenance field"
-                )
+                raise ValueError("source provenance value requires a provenance field")
         else:
             if not isinstance(self.evidence_locator, DocumentObservationLocator):
                 raise ValueError(
                     "document origin requires a document observation evidence locator"
+                )
+            if self.limit.status is not LimitStatus.not_applicable and (
+                self.limit.raw_flag is not None or self.limit.locator is not None
+            ):
+                raise ValueError(
+                    "document limit must carry semantic status without database provenance"
                 )
             if (
                 locator_record != expected_record
@@ -919,10 +924,10 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
             raise ValueError(
                 "Dataset SourceSnapshot registry must contain the crossmatch snapshots"
             )
-        if (
-            self.evidence_ids != tuple(sorted(self.evidence_ids))
-            or self.crossmatch_evidence_ids
-            != tuple(sorted(self.crossmatch_evidence_ids))
+        if self.evidence_ids != tuple(
+            sorted(self.evidence_ids)
+        ) or self.crossmatch_evidence_ids != tuple(
+            sorted(self.crossmatch_evidence_ids)
         ):
             raise ValueError("Dataset top-level references must use canonical order")
         source_values = {item.source_value_id: item for item in self.source_values}
@@ -1149,9 +1154,7 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                             raise ValueError(
                                 "mapped outcome winner is not a retained source value"
                             )
-                        expected_reason = (
-                            "highest declared source and alias priority; every candidate is retained"
-                        )
+                        expected_reason = "highest declared source and alias priority; every candidate is retained"
                         selected = source_values[outcome.selected_source_value_id]
                         if (
                             selected.canonical_value != outcome.canonical_value
@@ -1411,9 +1414,9 @@ class FieldDictionaryArtifactCandidate(_PublisherReadyCandidate):
                 raise ValueError(
                     f"FieldDictionary contains duplicate {label} reference"
                 )
-        if self.source_snapshot_ids != tuple(
-            sorted(self.source_snapshot_ids)
-        ) or set(self.crossmatch_source_snapshot_ids) - set(self.source_snapshot_ids):
+        if self.source_snapshot_ids != tuple(sorted(self.source_snapshot_ids)) or set(
+            self.crossmatch_source_snapshot_ids
+        ) - set(self.source_snapshot_ids):
             raise ValueError("FieldDictionary references must use canonical order")
         if self.evidence_ids != tuple(sorted(self.evidence_ids)):
             raise ValueError("FieldDictionary references must use canonical order")
@@ -1633,9 +1636,7 @@ class SourceCollectionArtifactCandidate(_PublisherReadyCandidate):
                 "SourceCollection requires one canonical left/right structured pair"
             )
         source_ids = tuple(member.source_id for member in structured_members)
-        snapshot_ids = tuple(
-            member.source_snapshot_id for member in structured_members
-        )
+        snapshot_ids = tuple(member.source_snapshot_id for member in structured_members)
         if len(set(source_ids)) != 2 or len(set(snapshot_ids)) != 2:
             raise ValueError(
                 "SourceCollection requires two independent sources and snapshots"
@@ -1708,9 +1709,7 @@ class DocumentObservationAdmissionCode(StrEnum):
     """Stable reason codes for document observation admission outcomes."""
 
     document_source_disabled = "DOCUMENT_SOURCE_DISABLED"
-    document_source_capability_unsupported = (
-        "DOCUMENT_SOURCE_CAPABILITY_UNSUPPORTED"
-    )
+    document_source_capability_unsupported = "DOCUMENT_SOURCE_CAPABILITY_UNSUPPORTED"
     document_provenance_invalid = "DOCUMENT_PROVENANCE_INVALID"
     document_parse_unsupported = "DOCUMENT_PARSE_UNSUPPORTED"
     document_field_unresolved = "DOCUMENT_FIELD_UNRESOLVED"
@@ -1748,8 +1747,6 @@ class TypedDocumentObservation(BaseModel):
     source_unit: Identifier
     uncertainty_positive_raw: Decimal | None = None
     uncertainty_negative_raw: Decimal | None = None
-    uncertainty_positive_canonical: Decimal | None = None
-    uncertainty_negative_canonical: Decimal | None = None
     limit_status: LimitStatus = LimitStatus.not_applicable
     null_status: NullReason | None = None
 
@@ -1757,6 +1754,19 @@ class TypedDocumentObservation(BaseModel):
     def validate_observation(self) -> Self:
         if self.raw_value is None and self.raw_text is None:
             raise ValueError("document observation requires raw value or text")
+        if self.null_status is None and self.parsed_scalar is None:
+            raise ValueError("accepted document observation requires a parsed scalar")
+        if self.null_status is not None and self.parsed_scalar is not None:
+            raise ValueError("explicit-null document observation cannot carry a scalar")
+        if self.null_status is not None and (
+            self.uncertainty_positive_raw is not None
+            or self.uncertainty_negative_raw is not None
+        ):
+            raise ValueError(
+                "explicit-null document observation cannot carry uncertainty"
+            )
+        if not self.document_parse_id or not self.persisted_source_snapshot_id:
+            raise ValueError("document observation requires persisted provenance IDs")
         if self.pipeline_source_snapshot.snapshot_id != self.pipeline_snapshot_id:
             raise ValueError(
                 "document observation pipeline snapshot projection drifted"
@@ -1798,7 +1808,46 @@ class DataArtifactBuildInput(BaseModel):
     def validate_input(self) -> Self:
         if len(self.requested_fields) != len(set(self.requested_fields)):
             raise ValueError("requested fields must be unique")
+        observation_ids = [item.observation_id for item in self.document_observations]
+        candidate_ids = [item.raw_candidate_id for item in self.document_observations]
+        if len(observation_ids) != len(set(observation_ids)):
+            raise ValueError("document observations must have unique observation_id")
+        if len(candidate_ids) != len(set(candidate_ids)):
+            raise ValueError("document observations must have unique raw_candidate_id")
+        requested_fields = set(self.requested_fields)
+        if any(
+            item.canonical_field_id not in requested_fields
+            for item in self.document_observations
+        ):
+            raise ValueError("document observation field is not requested")
         result = self.crossmatch_result
+        record_keys = {
+            compute_crossmatch_record_logical_key(record) for record in result.records
+        }
+        if any(
+            item.crossmatch_logical_key not in record_keys
+            for item in self.document_observations
+        ):
+            raise ValueError(
+                "document observation references an unknown Crossmatch row"
+            )
+        snapshot_bindings: dict[str, str] = {}
+        snapshot_facts: dict[str, DataSourceSnapshotProjection] = {}
+        for item in self.document_observations:
+            pipeline_id = item.pipeline_snapshot_id
+            persisted_id = str(item.persisted_source_snapshot_id)
+            previous = snapshot_bindings.setdefault(pipeline_id, persisted_id)
+            if previous != persisted_id:
+                raise ValueError(
+                    "one pipeline document snapshot must bind exactly one persisted snapshot"
+                )
+            previous_projection = snapshot_facts.setdefault(
+                pipeline_id, item.pipeline_source_snapshot
+            )
+            if previous_projection != item.pipeline_source_snapshot:
+                raise ValueError(
+                    "document observations disagree about pipeline snapshot facts"
+                )
         pins = self.manifest_pins
         expected_pins = (
             pins.case_manifest_id,
