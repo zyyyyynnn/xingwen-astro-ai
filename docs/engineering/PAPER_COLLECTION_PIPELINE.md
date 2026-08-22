@@ -22,7 +22,7 @@
    - 基准执行绑定 `benchmark` 引用，不携带 `search_input`；
    - `scenario_id` 不用于生产 ResearchContract。
 
-两者互斥，生产与基准输入通过同一底层 canonical query normalizer 保证语义一致性。
+两者互斥，生产与基准输入通过同一底层 canonical query normalizer 保证语义一致性。PaperCollection 3.0.0 validates that search input, normalized query, execution rules, producer identity, source executions and source snapshots describe the same search execution; aggregate hashes do not substitute for cross-object provenance equality.
 
 ## 2. 数据流
 

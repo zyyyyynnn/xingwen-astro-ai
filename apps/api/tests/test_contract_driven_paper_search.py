@@ -30,7 +30,9 @@ from app.schemas.paper_collection import (
     PaperCollectionRules,
     PaperSearchInput,
     PaperSourcePage,
+    compute_normalized_query_hash,
     compute_paper_collection_input_hash,
+    compute_paper_collection_output_hash,
     compute_paper_search_input_hash,
 )
 from services.paper_pipeline.constants import (
@@ -431,5 +433,209 @@ def test_paper_search_input_rejects_invalid_access_policy() -> None:
     raw_payload["input_hash"] = compute_paper_search_input_hash(raw_payload)
     with pytest.raises(ValidationError):
         PaperSearchInput.model_validate(raw_payload)
+
+
+@pytest.mark.parametrize(
+    ("mutator", "expected_match"),
+    [
+        (
+            lambda payload: (
+                payload["search_input"].__setitem__("source_ids", ["other_source"]),
+                payload["search_input"].__setitem__(
+                    "input_hash",
+                    compute_paper_search_input_hash(payload["search_input"]),
+                ),
+            ),
+            "PaperSearchInput source_ids do not match normalized query",
+        ),
+        (
+            lambda payload: (
+                payload["search_input"].__setitem__("selection_limit", 5),
+                payload["search_input"].__setitem__(
+                    "input_hash",
+                    compute_paper_search_input_hash(payload["search_input"]),
+                ),
+            ),
+            "PaperSearchInput selection_limit does not match collection rules",
+        ),
+        (
+            lambda payload: (
+                payload["search_input"].__setitem__("producer_version", "2.0.0"),
+                payload["search_input"].__setitem__(
+                    "input_hash",
+                    compute_paper_search_input_hash(payload["search_input"]),
+                ),
+            ),
+            "PaperSearchInput producer identity does not match ProducerExecution",
+        ),
+        (
+            lambda payload: (
+                payload["query"].__setitem__(
+                    "sort_strategy", "canonical_tie_breaker_only"
+                ),
+                payload["query"].__setitem__(
+                    "query_hash", compute_normalized_query_hash(payload["query"])
+                ),
+                payload["query"].__setitem__(
+                    "query_id",
+                    f"query.{payload['query']['query_hash'].removeprefix('sha256:')[:24]}",
+                ),
+                payload["source_executions"][0].__setitem__(
+                    "query_hash", payload["query"]["query_hash"]
+                ),
+                payload["source_snapshots"][0].__setitem__(
+                    "query_hash", payload["query"]["query_hash"]
+                ),
+            ),
+            "PaperSearchInput stable_ordering does not match query sort strategy",
+        ),
+    ],
+)
+def test_paper_collection_rejects_inconsistent_production_search_provenance(
+    mutator: Any, expected_match: str
+) -> None:
+    contract = _contract(max_candidates=10)
+    search_input = build_paper_search_input(contract)
+    raw_record = RawSourceRecord(
+        source_id="crossref",
+        source_record_id="rec-1",
+        title="Host Stars of TESS Planets",
+        authors=("Ada Researcher",),
+        year=2021,
+        doi="10.1000/tess-host-1",
+        arxiv_id=None,
+        url="https://doi.org/10.1000/tess-host-1",
+    )
+    adapter = _StubAdapter(records=(raw_record,))
+    runner = LivePaperCollectionRunner(adapter=adapter, clock=lambda: _FIXED_NOW)
+    collection = runner.run(search_input=search_input)
+
+    payload = collection.model_dump(mode="json")
+    mutator(payload)
+
+    new_input_hash = compute_canonical_payload_hash(
+        {
+            "query_hash": payload["query"]["query_hash"],
+            "rules": payload["rules"],
+            "search_input": payload["search_input"]["input_hash"],
+        }
+    )
+    payload["input_hash"] = new_input_hash
+    payload["producer"]["input_hash"] = new_input_hash
+    payload["output_hash"] = compute_paper_collection_output_hash(payload)
+    payload["producer"]["output_hash"] = payload["output_hash"]
+
+    with pytest.raises(ValidationError, match=expected_match):
+        PaperCollection.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    ("mutator", "expected_match"),
+    [
+        (
+            lambda payload: payload["source_executions"][0].__setitem__(
+                "query_hash", "sha256:" + "0" * 64
+            ),
+            "source execution query_hash does not match normalized query",
+        ),
+        (
+            lambda payload: payload["source_executions"][0]["pagination"].__setitem__(
+                "page_size", 99
+            ),
+            "source execution pagination does not match normalized query",
+        ),
+        (
+            lambda payload: (
+                payload["source_executions"][0].__setitem__(
+                    "source_id", "other_source"
+                ),
+                payload["source_executions"][0].__setitem__(
+                    "source_snapshot_id", None
+                ),
+                payload["source_executions"][0].__setitem__("status", "failed"),
+                payload["source_executions"][0].__setitem__(
+                    "failure_class", "timeout"
+                ),
+                payload["source_executions"][0].__setitem__(
+                    "failure_code", "TIMEOUT"
+                ),
+            ),
+            "source executions do not match normalized query sources",
+        ),
+    ],
+)
+def test_paper_collection_rejects_source_execution_query_mismatch(
+    mutator: Any, expected_match: str
+) -> None:
+    contract = _contract(max_candidates=10)
+    search_input = build_paper_search_input(contract)
+    raw_record = RawSourceRecord(
+        source_id="crossref",
+        source_record_id="rec-1",
+        title="Host Stars of TESS Planets",
+        authors=("Ada Researcher",),
+        year=2021,
+        doi="10.1000/tess-host-1",
+        arxiv_id=None,
+        url="https://doi.org/10.1000/tess-host-1",
+    )
+    adapter = _StubAdapter(records=(raw_record,))
+    runner = LivePaperCollectionRunner(adapter=adapter, clock=lambda: _FIXED_NOW)
+    collection = runner.run(search_input=search_input)
+
+    payload = collection.model_dump(mode="json")
+    mutator(payload)
+
+    payload["output_hash"] = compute_paper_collection_output_hash(payload)
+    payload["producer"]["output_hash"] = payload["output_hash"]
+
+    with pytest.raises(ValidationError, match=expected_match):
+        PaperCollection.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    ("mutator", "expected_match"),
+    [
+        (
+            lambda payload: payload["source_snapshots"][0].__setitem__(
+                "query_hash", "sha256:" + "f" * 64
+            ),
+            "SourceSnapshot query_hash does not match source execution",
+        ),
+        (
+            lambda payload: payload["source_snapshots"][0].__setitem__(
+                "source_id", "ads"
+            ),
+            "SourceSnapshot source_id does not match source execution",
+        ),
+    ],
+)
+def test_paper_collection_rejects_snapshot_execution_provenance_mismatch(
+    mutator: Any, expected_match: str
+) -> None:
+    contract = _contract(max_candidates=10)
+    search_input = build_paper_search_input(contract)
+    raw_record = RawSourceRecord(
+        source_id="crossref",
+        source_record_id="rec-1",
+        title="Host Stars of TESS Planets",
+        authors=("Ada Researcher",),
+        year=2021,
+        doi="10.1000/tess-host-1",
+        arxiv_id=None,
+        url="https://doi.org/10.1000/tess-host-1",
+    )
+    adapter = _StubAdapter(records=(raw_record,))
+    runner = LivePaperCollectionRunner(adapter=adapter, clock=lambda: _FIXED_NOW)
+    collection = runner.run(search_input=search_input)
+
+    payload = collection.model_dump(mode="json")
+    mutator(payload)
+
+    payload["output_hash"] = compute_paper_collection_output_hash(payload)
+    payload["producer"]["output_hash"] = payload["output_hash"]
+
+    with pytest.raises(ValidationError, match=expected_match):
+        PaperCollection.model_validate(payload)
 
 

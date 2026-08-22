@@ -500,6 +500,42 @@ class PaperCollectionPayload(BaseModel):
                 "PaperCollection requires either benchmark or search_input"
             )
 
+        if self.search_input is not None:
+            if self.search_input.source_ids != self.query.source_ids:
+                raise ValueError(
+                    "PaperSearchInput source_ids do not match normalized query"
+                )
+            if (
+                self.search_input.candidate_limit
+                != self.query.pagination.candidate_limit
+            ):
+                raise ValueError(
+                    "PaperSearchInput candidate_limit does not match query pagination"
+                )
+            if self.search_input.stable_ordering != self.query.sort_strategy:
+                raise ValueError(
+                    "PaperSearchInput stable_ordering does not match query sort strategy"
+                )
+            if self.search_input.selection_limit != self.rules.selection_limit:
+                raise ValueError(
+                    "PaperSearchInput selection_limit does not match collection rules"
+                )
+            if (
+                self.search_input.source_policy_version
+                != self.rules.source_policy_version
+            ):
+                raise ValueError(
+                    "PaperSearchInput source_policy_version does not match collection rules"
+                )
+            if (
+                self.search_input.producer_name != self.producer.producer_name
+                or self.search_input.producer_version
+                != self.producer.producer_version
+            ):
+                raise ValueError(
+                    "PaperSearchInput producer identity does not match ProducerExecution"
+                )
+
         candidate_by_id = _unique_by(self.candidates, "candidate_id", "candidate")
         group_by_id = _unique_by(
             self.duplicate_groups, "duplicate_group_id", "duplicate group"
@@ -508,6 +544,14 @@ class PaperCollectionPayload(BaseModel):
             self.source_snapshots, "snapshot_id", "SourceSnapshotRecord"
         )
         _unique_by(self.source_executions, "source_id", "source execution")
+
+        execution_source_ids = tuple(
+            sorted(execution.source_id for execution in self.source_executions)
+        )
+        if execution_source_ids != self.query.source_ids:
+            raise ValueError(
+                "source executions do not match normalized query sources"
+            )
 
         if self.source_snapshot_ids != tuple(sorted(snapshot_by_id)):
             raise ValueError(
@@ -555,11 +599,29 @@ class PaperCollectionPayload(BaseModel):
             raise ValueError("selected_paper_ids do not match selected candidates")
 
         for execution in self.source_executions:
+            if execution.query_hash != self.query.query_hash:
+                raise ValueError(
+                    "source execution query_hash does not match normalized query"
+                )
+            if execution.pagination != self.query.pagination:
+                raise ValueError(
+                    "source execution pagination does not match normalized query"
+                )
             if (
                 execution.source_snapshot_id
                 and execution.source_snapshot_id not in snapshot_by_id
             ):
                 raise ValueError("source execution has unknown SourceSnapshotRecord")
+            if execution.source_snapshot_id:
+                snapshot = snapshot_by_id[execution.source_snapshot_id]
+                if snapshot.source_id != execution.source_id:
+                    raise ValueError(
+                        "SourceSnapshot source_id does not match source execution"
+                    )
+                if snapshot.query_hash != execution.query_hash:
+                    raise ValueError(
+                        "SourceSnapshot query_hash does not match source execution"
+                    )
             if (
                 execution.source_mode is SourceMode.cached
                 and execution.source_snapshot_id
