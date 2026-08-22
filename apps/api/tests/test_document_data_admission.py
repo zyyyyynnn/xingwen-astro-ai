@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID, uuid4
 
@@ -34,9 +34,12 @@ from app.schemas.data_artifacts import (
     DeclaredNullValue,
     DocumentObservationAdmissionCode,
     DocumentObservationAdmissionStatus,
+    LimitStatus,
     MappedCanonicalValue,
+    SourceValueCandidate,
     TypedDocumentObservation,
     UnresolvedCanonicalValue,
+    compute_data_artifact_content_hash,
     compute_data_artifact_input_hash,
 )
 from app.schemas.data_quality import (
@@ -236,6 +239,24 @@ def _parse(
     )
 
 
+def _table_quality_parse(
+    host_token: str,
+    *,
+    table_quality: DocumentParseQuality,
+    entity_quality: DocumentParseQuality,
+    value_quality: DocumentParseQuality,
+) -> DocumentParseCandidate:
+    parse = _parse([(host_token, "5600")], header=("star.tic_id", "Teff [K]"))
+    table = parse.tables[0]
+    body_row = list(table.rows[1])
+    body_row[0] = body_row[0].model_copy(update={"quality": entity_quality})
+    body_row[1] = body_row[1].model_copy(update={"quality": value_quality})
+    table = table.model_copy(
+        update={"quality": table_quality, "rows": (table.rows[0], tuple(body_row))}
+    )
+    return parse.model_copy(update={"tables": (table,)})
+
+
 def _extract(
     body_rows: list[tuple[str, ...]],
     crossmatch,
@@ -316,6 +337,171 @@ def test_table_extraction_admits_typed_observations_with_locator_closure(
 
     for observation in batch.accepted:
         validate_document_locator(parse, observation.document_locator)
+
+
+@pytest.mark.parametrize(
+    ("table_quality", "entity_quality", "value_quality", "expected_quality"),
+    [
+        (
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+        ),
+        (
+            DocumentParseQuality.partial,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.partial,
+        ),
+        (
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.partial,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.partial,
+        ),
+        (
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.partial,
+            DocumentParseQuality.partial,
+        ),
+        (
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.unsupported,
+            None,
+        ),
+        (
+            DocumentParseQuality.accepted,
+            DocumentParseQuality.unsupported,
+            DocumentParseQuality.accepted,
+            None,
+        ),
+    ],
+)
+def test_table_observation_quality_propagates_from_all_regions(
+    crossmatch,
+    host_token,
+    table_quality,
+    entity_quality,
+    value_quality,
+    expected_quality,
+) -> None:
+    parse = _table_quality_parse(
+        host_token,
+        table_quality=table_quality,
+        entity_quality=entity_quality,
+        value_quality=value_quality,
+    )
+    batch = extract_document_observations(
+        parse=parse,
+        context=_context(),
+        snapshot_projection=_projection(),
+        contract_policy=DocumentSourcePolicy.research_input,
+        case_capability=True,
+        requested_fields=REQUESTED_FIELDS,
+        manifests=BUNDLE,
+        crossmatch=crossmatch,
+        rules=RULES,
+    )
+    observations = _accepted_for(batch, "star.effective_temperature")
+    if expected_quality is None:
+        assert observations == []
+    else:
+        assert len(observations) == 1
+        assert observations[0].parse_quality is expected_quality
+
+
+def _rehash_source_value_payload(payload: dict) -> dict:
+    payload["content_hash"] = compute_data_artifact_content_hash(payload)
+    return payload
+
+
+def _structured_source_value_payload() -> dict:
+    dataset = build_data_artifact_candidates(build_input("star.tic_id")).dataset
+    source_value = next(
+        item
+        for item in dataset.source_values
+        if item.origin.kind == "structured_database"
+    )
+    return source_value.model_dump(mode="json")
+
+
+def _document_source_value_payload() -> dict:
+    baseline = build_input("planet.mass")
+    logical_key = next(
+        row.crossmatch_logical_key
+        for row in build_data_artifact_candidates(baseline).dataset.rows
+        if any(field.canonical_field_id == "planet.mass" for field in row.fields)
+    )
+    result = build_data_artifact_candidates(
+        _with_documents(
+            baseline,
+            [
+                _observation(
+                    index=1,
+                    field_id="planet.mass",
+                    logical_key=logical_key,
+                    scalar="1.5",
+                    unit="earth_mass",
+                )
+            ],
+        )
+    )
+    source_value = next(
+        item
+        for item in result.dataset.source_values
+        if item.origin.kind == "document_research_input"
+    )
+    return source_value.model_dump(mode="json")
+
+
+def test_structured_applicable_limit_requires_database_provenance() -> None:
+    payload = _structured_source_value_payload()
+    payload["limit"] = {
+        "status": LimitStatus.upper_limit.value,
+        "raw_flag": None,
+        "locator": None,
+    }
+    with pytest.raises(
+        ValidationError, match="structured applicable limit requires database flag"
+    ):
+        SourceValueCandidate.model_validate(_rehash_source_value_payload(payload))
+
+
+def test_structured_applicable_limit_accepts_database_provenance() -> None:
+    payload = _structured_source_value_payload()
+    payload["limit"] = {
+        "status": LimitStatus.upper_limit.value,
+        "raw_flag": 0,
+        "locator": payload["evidence_locator"],
+    }
+    SourceValueCandidate.model_validate(_rehash_source_value_payload(payload))
+
+
+def test_document_applicable_limit_remains_semantic_only() -> None:
+    payload = _document_source_value_payload()
+    payload["limit"] = {
+        "status": LimitStatus.upper_limit.value,
+        "raw_flag": None,
+        "locator": None,
+    }
+    SourceValueCandidate.model_validate(_rehash_source_value_payload(payload))
+
+
+def test_document_applicable_limit_rejects_database_provenance() -> None:
+    payload = _document_source_value_payload()
+    structured_locator = _structured_source_value_payload()["evidence_locator"]
+    payload["limit"] = {
+        "status": LimitStatus.upper_limit.value,
+        "raw_flag": 0,
+        "locator": structured_locator,
+    }
+    with pytest.raises(
+        ValidationError, match="document limit must carry semantic status"
+    ):
+        SourceValueCandidate.model_validate(_rehash_source_value_payload(payload))
 
 
 @pytest.mark.parametrize(
@@ -785,9 +971,7 @@ def _structured_orbital_baseline() -> DataArtifactBuildInput:
         }
     )
     return (
-        build_input("planet.orbital_period")
-        if False
-        else _baseline_from_injected(injected)
+        _baseline_from_injected(injected)
     )
 
 
@@ -1145,11 +1329,14 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
     from sqlalchemy import select
 
     from app.db.models import (
+        ArtifactVersionModel,
         DocumentParseModel,
+        EvidenceModel,
         ProducerExecutionModel,
         ResearchInputBindingModel,
         ResearchInputContentModel,
         ResearchInputModel,
+        ResearchArtifactModel,
         ResearchRunModel,
         RunStepModel,
         SourceSnapshotModel,
@@ -1166,6 +1353,11 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
         PersistDocumentParseRequest,
         validate_document_locator,
     )
+    from app.services.artifacts import ArtifactReadService
+    from app.services.data_artifacts import DataArtifactReadService
+    from app.workflow.publisher import ArtifactPublisher
+    from app.workflow.step_publication import RunStepContext, StepPublicationFactory
+    from app.workflow.store import PersistentWorkflowStore
     from authoring_test_support import (
         build_contract_draft,
         build_research_contract as build_contract_model,
@@ -1187,9 +1379,10 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
             "input",
             "input_b",
             "draft",
+            "cleaning_step",
+            "artifact",
         )
     }
-    storage = LocalContentStorage.__new__(LocalContentStorage)
     import pathlib
     import tempfile
 
@@ -1218,7 +1411,9 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
             "document_source_policy": "research_input",
         },
         "requested_fields": list(REQUESTED_FIELDS),
-        "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
+        "source_scope": {
+            "allowed_sources": ["nasa_exoplanet_archive", "esa_gaia_dr3"]
+        },
         "paper_search_scope": {"max_candidates": 20},
         "output_requirements": ["dataset"],
         "evidence_requirements": {},
@@ -1245,8 +1440,8 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
                     project_id=ids["project"],
                     contract_id=ids["contract"],
                     execution_mode="live",
-                    status="completed",
-                    progress=100,
+                    status="cleaning_data",
+                    progress=50,
                     derivation_kind="original",
                     cache_policy="disabled",
                     latest_event_sequence=0,
@@ -1259,8 +1454,8 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
                     project_id=ids["project"],
                     contract_id=ids["contract"],
                     execution_mode="live",
-                    status="queued",
-                    progress=0,
+                    status="completed",
+                    progress=100,
                     derivation_kind="original",
                     cache_policy="disabled",
                     latest_event_sequence=0,
@@ -1283,6 +1478,18 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
             status="completed",
             progress=100,
         )
+        cleaning_step = RunStepModel(
+            id=ids["cleaning_step"],
+            run_id=ids["run"],
+            position=1,
+            key="cleaning_data",
+            label="Clean data",
+            enter_status="cleaning_data",
+            success_status="completed",
+            max_attempts=1,
+            status="pending",
+            progress=0,
+        )
         attempt = StepAttemptModel(
             id=ids["attempt"],
             run_step_id=ids["step"],
@@ -1301,7 +1508,7 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
             size_bytes=len(pdf_bytes),
             created_at=NOW,
         )
-        session.add_all([step, attempt, content])
+        session.add_all([step, cleaning_step, attempt, content])
     with factory() as session, session.begin():
         input_row = ResearchInputModel(
             id=ids["input"],
@@ -1365,6 +1572,14 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
                     run_id=ids["run_b"],
                     bound_at=NOW,
                 ),
+                ResearchArtifactModel(
+                    id=ids["artifact"],
+                    project_id=ids["project"],
+                    kind="dataset",
+                    title="Document admission dataset",
+                    logical_key=f"dataset.document-{ids['artifact']}",
+                    created_at=NOW,
+                ),
             ]
         )
 
@@ -1392,6 +1607,19 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
                 "1.20",
             )
         ]
+    )
+    table = parse.tables[0]
+    body_row = list(table.rows[1])
+    for column, (x1, x2) in enumerate(((20, 100), (110, 220), (230, 330))):
+        body_row[column] = body_row[column].model_copy(
+            update={"bbox": DocumentBBox(x1=x1, y1=30, x2=x2, y2=45)}
+        )
+    parse = parse.model_copy(
+        update={
+            "tables": (
+                table.model_copy(update={"rows": (table.rows[0], tuple(body_row))}),
+            )
+        }
     )
     # The persisted parse must bind the seeded ResearchInput identity and its
     # immutable uploaded content identity.
@@ -1448,8 +1676,101 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
     )
     assert plan is not None
     assert {item.research_input_id for item in plan.prepared_inputs} == {ids["input"]}
+
+    from dataclasses import replace
+
+    from app.workflow.publisher import admit_artifact_candidate
+    from services.data_pipeline.data_artifacts.admission import (
+        validate_data_artifact_domain,
+        validate_data_artifact_evidence,
+    )
+    from services.data_pipeline.data_artifacts.pipeline import (
+        build_data_artifact_candidates,
+    )
+    from services.data_pipeline.data_artifacts.projection import (
+        derive_document_snapshot_bindings,
+    )
+    from services.data_pipeline.data_quality import (
+        admit_data_artifact_quality,
+        build_data_quality_publication_validator,
+        evaluate_data_quality,
+    )
+    from services.data_pipeline.data_quality.policy import load_frozen_quality_rule_set
+
+    workflow = PersistentWorkflowStore(factory)
+    lease = workflow.acquire_lease(
+        ids["run"],
+        owner="document-admission-e2e",
+        lease_duration=timedelta(minutes=5),
+        expected_status="cleaning_data",
+        expected_revision=1,
+    )
+    attempt = workflow.begin_step(
+        ids["run"],
+        step_key="cleaning_data",
+        attempt_idempotency_key="document-admission-cleaning-attempt",
+        token=lease.token,
+        generation=lease.generation,
+        expected_status="cleaning_data",
+        expected_revision=lease.revision,
+        public_message="Admit document observations and publish the Dataset",
+    )
+    context = RunStepContext(
+        run_id=ids["run"],
+        project_id=ids["project"],
+        session_id="owner",
+        contract=contract,
+        artifacts={"dataset": ids["artifact"]},
+        versions={},
+    )
+    publications = StepPublicationFactory(factory=factory)
+    document_execution = publications.start_producer(
+        context,
+        step_key="cleaning_data",
+        operation_key="data_artifact:document_observations",
+        producer_type="algorithm",
+        producer_name=plan.producer_name,
+        producer_version=plan.producer_version,
+        input_hash=plan.producer_input_hash,
+        parameters=plan.producer_parameters,
+        attempt=attempt,
+        lease=lease,
+    )
     batch = admission.execute(plan)
+    publications.finish_producer(
+        document_execution.id,
+        status="completed",
+        output_hash=batch.producer_output_hash,
+    )
     assert batch.accepted, "seeded table must admit at least one observation"
+
+    # The application batch exposes a stable rejected-region summary rather
+    # than silently dropping an unsupported table.
+    unsupported_table = plan.prepared_inputs[0].candidate.tables[0].model_copy(
+        update={"quality": DocumentParseQuality.unsupported}
+    )
+    unsupported_candidate = plan.prepared_inputs[0].candidate.model_copy(
+        update={"tables": (unsupported_table,)}
+    )
+    unsupported_plan = replace(
+        plan,
+        prepared_inputs=(
+            replace(plan.prepared_inputs[0], candidate=unsupported_candidate),
+        ),
+    )
+    unsupported_batch = admission.execute(unsupported_plan)
+    unsupported_regions = unsupported_batch.producer_output_summary[
+        "unsupported_regions"
+    ]
+    assert len(unsupported_regions) == 1
+    assert unsupported_regions[0]["status"] == "rejected"
+    assert unsupported_regions[0]["code"] == "DOCUMENT_PARSE_UNSUPPORTED"
+    assert unsupported_regions[0]["raw_candidate_id"].startswith(
+        "document.parse.unsupported."
+    )
+    assert admission.execute(unsupported_plan).producer_output_summary[
+        "unsupported_regions"
+    ] == unsupported_regions
 
     # The single persisted upload SourceSnapshot is reused, never duplicated.
     bindings = {
@@ -1463,7 +1784,8 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
         rows = tuple(
             session.scalars(
                 select(SourceSnapshotModel).where(
-                    SourceSnapshotModel.project_id == ids["project"]
+                    SourceSnapshotModel.project_id == ids["project"],
+                    SourceSnapshotModel.source_id == f"research_input:{ids['input']}",
                 )
             )
         )
@@ -1491,6 +1813,234 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
     assert again_plan.producer_input_hash == plan.producer_input_hash
     assert again.producer_input_hash == batch.producer_input_hash
     assert again.producer_output_hash == batch.producer_output_hash
+
+    data_input = _with_documents(build_input(*REQUESTED_FIELDS), batch.accepted)
+    data_execution = publications.start_producer(
+        context,
+        step_key="cleaning_data",
+        operation_key="data_artifact:dataset",
+        producer_type="algorithm",
+        producer_name="data-artifact-dataset",
+        producer_version=data_input.producer_version,
+        input_hash=data_input.input_hash,
+        parameters={},
+        attempt=attempt,
+        lease=lease,
+    )
+    build_result = build_data_artifact_candidates(data_input)
+    quality_payload = {
+        "data_artifact_input": data_input,
+        "dataset_candidate": build_result.dataset,
+        "field_dictionary_candidate": build_result.field_dictionary,
+        "source_collection_candidate": build_result.source_collection,
+        "research_contract": contract,
+        "quality_rule_set": load_frozen_quality_rule_set(),
+    }
+    quality_unhashed = DataQualityEvaluationInput.model_construct(
+        **quality_payload,
+        input_hash="sha256:" + "0" * 64,
+    )
+    quality_payload["input_hash"] = compute_data_quality_input_hash(quality_unhashed)
+    quality_input = DataQualityEvaluationInput.model_validate(quality_payload)
+    quality_result = evaluate_data_quality(quality_input)
+    assert isinstance(quality_result, DataQualityEvaluationResult)
+    assert quality_result.contract_gate.overall_status.value == "pass"
+    quality_checks = {
+        item.observation_key: item.result.value
+        for item in quality_result.contract_gate.checks
+    }
+    assert quality_checks["candidate.source_scope_allowed"] == "pass"
+    assert quality_checks["candidate.document_source_authorized"] == "pass"
+    quality_admission = admit_data_artifact_quality(
+        build_result=build_result,
+        evaluation_input=quality_input,
+        evaluation_result=quality_result,
+    )
+
+    publications.ensure_source_snapshots(
+        context,
+        (data_input.left_acquisition.snapshot, data_input.right_acquisition.snapshot),
+    )
+    document_snapshot_bindings = derive_document_snapshot_bindings(data_input)
+    source_bindings, evidence_bindings = publications.data_bindings(
+        context,
+        kind="dataset",
+        candidate=build_result.dataset,
+        snapshot_bindings_override=document_snapshot_bindings,
+    )
+    admitted = admit_artifact_candidate(
+        build_result.dataset,
+        schema_version=build_result.dataset.schema_version,
+        source_snapshot_ids=build_result.dataset.source_snapshot_ids,
+        evidence_ids=build_result.dataset.evidence_ids,
+        evidence_validator=validate_data_artifact_evidence,
+        domain_validator=validate_data_artifact_domain,
+        quality_validator=build_data_quality_publication_validator(
+            quality_admission,
+            candidate_kind="dataset",
+        ),
+        source_snapshot_bindings=source_bindings,
+        evidence_bindings=evidence_bindings,
+    )
+    publications.finish_producer(
+        data_execution.id,
+        status="completed",
+        input_hash=data_input.input_hash,
+        output_hash=admitted.content_hash,
+    )
+    publication = publications.publication(
+        context,
+        kind="dataset",
+        candidate=admitted,
+        producer_execution_id=data_execution.id,
+        artifact_id=ids["artifact"],
+    )
+    published = ArtifactPublisher(factory).publish_step_outputs(
+        ids["run"],
+        step_key="cleaning_data",
+        attempt_id=attempt.attempt_id,
+        token=lease.token,
+        generation=lease.generation,
+        expected_status=attempt.run_status,
+        expected_revision=attempt.run_revision,
+        publications=(publication,),
+        public_message="Document-backed Dataset published with quality and provenance",
+    )
+    assert published.status == "completed"
+    assert len(published.versions) == 1
+    version_id = published.versions[0].id
+
+    with factory() as session:
+        document_execution_row = session.get(
+            ProducerExecutionModel, document_execution.id
+        )
+        data_execution_row = session.get(ProducerExecutionModel, data_execution.id)
+        assert document_execution_row is not None
+        assert document_execution_row.status == "completed"
+        assert document_execution_row.producer_name == plan.producer_name
+        assert document_execution_row.producer_version == plan.producer_version
+        assert document_execution_row.input_hash == plan.producer_input_hash
+        assert document_execution_row.output_hash == batch.producer_output_hash
+        assert data_execution_row is not None
+        assert data_execution_row.status == "completed"
+        assert data_execution_row.input_hash == data_input.input_hash
+        assert data_execution_row.output_hash == admitted.content_hash
+
+        version_row = session.get(ArtifactVersionModel, version_id)
+        assert version_row is not None
+        assert version_row.artifact_id == ids["artifact"]
+        assert version_row.source_mode == "live"
+        assert set(version_row.source_snapshot_ids) == set(
+            str(item) for item in admitted.source_snapshot_ids
+        )
+        assert str(record.source_snapshot_id) in version_row.source_snapshot_ids
+        assert f"research-input.{ids['input']}" not in version_row.source_snapshot_ids
+        evidence_rows = tuple(
+            session.scalars(
+                select(EvidenceModel).where(
+                    EvidenceModel.artifact_version_id == version_id,
+                    EvidenceModel.project_id == ids["project"],
+                )
+            )
+        )
+        document_evidence = next(
+            item
+            for item in evidence_rows
+            if item.locator.get("kind") == "document_observation"
+        )
+        assert document_evidence.source_snapshot_id == record.source_snapshot_id
+        assert document_evidence.locator["research_input_id"] == str(ids["input"])
+        assert document_evidence.locator["document_parse_id"] == str(record.id)
+        assert document_evidence.locator["raw_candidate_id"]
+        document_locator = document_evidence.locator["document_locator"]
+        assert document_locator["page_index"] == 0
+        assert document_locator["block_id"] == "doc-table-block"
+        assert document_locator["table_id"] == "observations-table"
+        assert document_locator["cell_id"] in {"c-1-1", "c-1-2"}
+        assert document_locator["bbox"] in (
+            {"x1": 110.0, "y1": 30.0, "x2": 220.0, "y2": 45.0},
+            {"x1": 230.0, "y1": 30.0, "x2": 330.0, "y2": 45.0},
+        )
+        snapshots = tuple(
+            session.scalars(
+                select(SourceSnapshotModel).where(
+                    SourceSnapshotModel.project_id == ids["project"],
+                )
+            )
+        )
+        assert {item.source_id for item in snapshots} == {
+            str(data_input.left_acquisition.snapshot.source_id),
+            str(data_input.right_acquisition.snapshot.source_id),
+            f"research_input:{ids['input']}",
+        }
+        assert len(snapshots) == 3
+
+    artifact_reads = ArtifactReadService(factory)
+    dataset_reads = DataArtifactReadService(artifact_reads)
+    version_read = artifact_reads.get_version(
+        version_id=str(version_id), session_id="owner", full_content=True
+    )
+    data_read = dataset_reads.get_dataset(
+        version_id=str(version_id), session_id="owner"
+    )
+    upload_snapshot = next(
+        item
+        for item in data_read.source_snapshots
+        if item.source_id == f"research_input:{ids['input']}"
+    )
+    assert upload_snapshot.source_type == "research_input_upload"
+    assert upload_snapshot.query == {"research_input_id": str(ids["input"])}
+    assert upload_snapshot.query_hash == compute_canonical_payload_hash(
+        upload_snapshot.query
+    )
+    assert upload_snapshot.content_hash == pdf_hash
+    assert upload_snapshot.license_note == "user-provided upload"
+    assert upload_snapshot.source_version_or_etag is None
+    assert upload_snapshot.cache_version is None
+    assert upload_snapshot.request_metadata["ingestion_source"] == "upload"
+    assert data_read.quality_projection.overall_status == "pass"
+    assert version_read.source_snapshot_ids == tuple(
+        item.id for item in data_read.source_snapshots
+    )
+
+    document_value = next(
+        item
+        for item in data_read.dataset.source_values
+        if item.origin.kind == "document_research_input"
+    )
+    source_observation = next(
+        item
+        for item in batch.accepted
+        if item.raw_candidate_id == document_value.origin.raw_candidate_id
+    )
+    assert document_value.source_snapshot_id == f"research-input.{ids['input']}"
+    assert document_value.raw_value == source_observation.raw_value
+    assert document_value.source_unit == source_observation.source_unit
+    assert source_observation.parsed_scalar is not None
+    assert document_value.origin.research_input_id == str(ids["input"])
+    assert document_value.origin.document_parse_id == str(record.id)
+    assert document_value.origin.raw_candidate_id == source_observation.raw_candidate_id
+    assert document_value.evidence_locator.kind == "document_observation"
+    assert document_value.evidence_locator.research_input_id == str(ids["input"])
+    assert document_value.evidence_locator.document_parse_id == str(record.id)
+    assert document_value.evidence_locator.document_locator.page_index == 0
+    assert document_value.evidence_locator.document_locator.table_id == (
+        "observations-table"
+    )
+    assert document_value.evidence_locator.document_locator.cell_id in {
+        "c-1-1",
+        "c-1-2",
+    }
+    assert document_value.evidence_locator.document_locator.bbox is not None
+    transformation = next(
+        item
+        for item in data_read.dataset.transformation_evidence
+        if item.source_value_id == document_value.source_value_id
+    )
+    assert transformation.locator == document_value.evidence_locator
+    assert transformation.source_unit == document_value.source_unit
+    assert transformation.canonical_unit == document_value.canonical_unit
+    assert transformation.conversion_rule_id == document_value.conversion_rule_id
 
     with factory() as session, session.begin():
         stored_row = session.get(DocumentParseModel, record.id)

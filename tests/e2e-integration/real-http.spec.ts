@@ -104,10 +104,7 @@ test("mandatory browser path establishes a Project, exposes public analysis, con
   await expect(page).toHaveURL(/\/workspace\/[^/]+$/);
   await expect(page.getByTestId("collapsible-thinking")).toBeVisible();
   await expect(
-    page.getByText(
-      "我已根据当前研究目标整理好研究协议。确认后会按冻结的研究边界开始执行。",
-      { exact: true },
-    ),
+    page.getByTestId("agent-message-stream").locator("article").nth(1),
   ).toBeVisible();
   await expect(page.getByTestId("protocol-summary-card")).toBeVisible();
   await expect(

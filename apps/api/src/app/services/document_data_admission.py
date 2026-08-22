@@ -22,6 +22,7 @@ from app.schemas.core import DocumentSourcePolicy, ResearchContract
 from app.schemas.crossmatch import CrossmatchResult
 from app.schemas.data_artifacts import (
     DataSourceSnapshotProjection,
+    DocumentObservationAdmissionCode,
     TypedDocumentObservation,
 )
 from app.schemas.document_observation_rules import DocumentObservationRuleSet
@@ -300,7 +301,7 @@ class DocumentDataAdmissionService:
                 }
                 for item in ordered_outcomes
                 if item.code is not None
-                and item.code.value == "document_parse_unsupported"
+                and item.code is DocumentObservationAdmissionCode.document_parse_unsupported
             ],
         }
         return DocumentDataAdmissionBatch(

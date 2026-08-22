@@ -103,6 +103,22 @@ class DocumentObservationError(RuntimeError):
     """Raised when caller-supplied frozen facts violate the input contract."""
 
 
+def _observation_region_quality(
+    *qualities: DocumentParseQuality,
+) -> DocumentParseQuality:
+    """Propagate parse quality across the regions forming one observation."""
+
+    if any(quality is DocumentParseQuality.unsupported for quality in qualities):
+        raise DocumentObservationError(
+            "unsupported parse regions cannot form a scientific observation"
+        )
+    if any(quality is DocumentParseQuality.partial for quality in qualities):
+        return DocumentParseQuality.partial
+    if all(quality is DocumentParseQuality.accepted for quality in qualities):
+        return DocumentParseQuality.accepted
+    raise DocumentObservationError("unrecognized observation region quality")
+
+
 def extract_document_observations(
     *,
     parse: DocumentParseCandidate,
@@ -722,11 +738,6 @@ class _Extractor:
             return []
         header_index, column_fields, entity_column, column_units = layout
         drafts: list[_Draft] = []
-        quality = (
-            DocumentParseQuality.accepted
-            if table.quality is DocumentParseQuality.accepted
-            else DocumentParseQuality.partial
-        )
         header_labels = {
             cell.column_index: (cell.text or "").strip()
             for cell in table.rows[header_index]
@@ -752,6 +763,11 @@ class _Extractor:
                 text = (cell.text or "").strip()
                 if text == "":
                     continue
+                quality = _observation_region_quality(
+                    table.quality,
+                    entity_cell.quality,
+                    cell.quality,
+                )
                 draft = _Draft(
                     context=self._context,
                     resolver=self._resolver,

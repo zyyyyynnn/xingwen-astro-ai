@@ -76,6 +76,7 @@ _FORBIDDEN_KEYS = frozenset(
 )
 _SAFE_REQUEST_METADATA_KEYS = frozenset(
     {
+        "ingestion_source",
         "endpoint",
         "method",
         "request_class",

@@ -517,6 +517,14 @@ class SourceValueCandidate(BaseModel):
                 raise ValueError(
                     "structured origin requires a database cell evidence locator"
                 )
+            if self.limit.status is not LimitStatus.not_applicable and (
+                self.limit.raw_flag is None
+                or self.limit.locator is None
+                or not isinstance(self.limit.locator, DatabaseCellLocator)
+            ):
+                raise ValueError(
+                    "structured applicable limit requires database flag and locator"
+                )
             expected_record += (
                 self.origin.raw_record_row_key,
                 self.origin.raw_record_content_hash,
