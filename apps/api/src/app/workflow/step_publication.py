@@ -90,7 +90,8 @@ class RunStepContext:
     data_acquisitions: tuple[CrossmatchSourceInput, CrossmatchSourceInput] | None = None
     data_result: DataArtifactBuildResult | None = None
     data_revision: DataRevisionExecutionInput | None = None
-    revision_recompute_artifact_kinds: frozenset[str] = frozenset()
+    data_recompute_step_key: str | None = None
+    non_data_recompute_step_keys: frozenset[str] = frozenset()
     paper_collection: PaperCollection | None = None
     paper_summary: PaperSummaryArtifactContent | None = None
     literature_claims: LiteratureClaimsCandidate | None = None

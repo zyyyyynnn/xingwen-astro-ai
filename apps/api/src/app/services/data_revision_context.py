@@ -63,7 +63,8 @@ class RevisionRunContext:
     artifacts: dict[str, UUID]
     versions: dict[str, UUID]
     data_execution: DataRevisionExecutionInput | None
-    recompute_artifact_kinds: frozenset[str]
+    data_recompute_step_key: str | None
+    non_data_recompute_step_keys: frozenset[str]
 
 
 class DataRevisionContextLoader:
@@ -199,6 +200,22 @@ class DataRevisionContextLoader:
                 for item in decisions
                 if item.artifact_kind in _DATA_KINDS
             }
+            non_data_recompute_decisions = tuple(
+                item
+                for item in decisions
+                if item.artifact_kind not in _DATA_KINDS
+                and item.decision == "recompute"
+            )
+            if any(item.step_key is None for item in non_data_recompute_decisions):
+                raise DataRevisionError(
+                    DataRevisionErrorCode.replan_required,
+                    "a frozen non-data recompute decision has no RunStep identity",
+                )
+            non_data_recompute_step_keys = frozenset(
+                item.step_key
+                for item in non_data_recompute_decisions
+                if item.step_key is not None
+            )
             if not data_decisions:
                 return RevisionRunContext(
                     artifacts={item.artifact_kind: item.artifact_id for item in decisions},
@@ -207,11 +224,8 @@ class DataRevisionContextLoader:
                         for item in decisions
                     },
                     data_execution=None,
-                    recompute_artifact_kinds=frozenset(
-                        item.artifact_kind
-                        for item in decisions
-                        if item.decision == "recompute"
-                    ),
+                    data_recompute_step_key=None,
+                    non_data_recompute_step_keys=non_data_recompute_step_keys,
                 )
             if set(data_decisions) != set(_DATA_KINDS):
                 raise DataRevisionError(
@@ -226,6 +240,22 @@ class DataRevisionContextLoader:
                     DataRevisionErrorCode.replan_required,
                     "the confirmed plan splits one data artifact bundle across reuse and recompute",
                 )
+            data_recompute_step_key: str | None = None
+            if data_decision_values == {"recompute"}:
+                data_step_keys = {
+                    item.step_key for item in data_decisions.values()
+                }
+                if len(data_step_keys) != 1:
+                    raise DataRevisionError(
+                        DataRevisionErrorCode.replan_required,
+                        "the frozen data recompute decisions do not share one RunStep identity",
+                    )
+                data_recompute_step_key = next(iter(data_step_keys))
+                if data_recompute_step_key is None:
+                    raise DataRevisionError(
+                        DataRevisionErrorCode.replan_required,
+                        "the frozen data recompute decision has no RunStep identity",
+                    )
             compatibility_code = (
                 DataRevisionErrorCode.replan_required
                 if data_decision_values == {"reuse"}
@@ -446,11 +476,8 @@ class DataRevisionContextLoader:
                 item.artifact_kind: item.artifact_version_id for item in decisions
             },
             data_execution=data_execution,
-            recompute_artifact_kinds=frozenset(
-                item.artifact_kind
-                for item in decisions
-                if item.decision == "recompute"
-            ),
+            data_recompute_step_key=data_recompute_step_key,
+            non_data_recompute_step_keys=non_data_recompute_step_keys,
         )
 
 

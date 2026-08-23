@@ -441,8 +441,9 @@ class ResearchRunWorker:
                     artifacts=revision.artifacts,
                     versions=revision.versions,
                     data_revision=revision.data_execution,
-                    revision_recompute_artifact_kinds=(
-                        revision.recompute_artifact_kinds
+                    data_recompute_step_key=revision.data_recompute_step_key,
+                    non_data_recompute_step_keys=(
+                        revision.non_data_recompute_step_keys
                     ),
                 )
             # Fixed pipeline steps need their stable primary Artifact targets

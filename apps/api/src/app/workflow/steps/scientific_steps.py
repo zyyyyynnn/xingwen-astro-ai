@@ -97,7 +97,11 @@ class ScientificStepService:
     ) -> PreparedStep:
         task_id, skill_id = self._step_binding(attempt.run_step_id)
         revision = context.data_revision
-        if revision is not None:
+        data_owned_here = (
+            revision is not None and context.data_recompute_step_key == step_key
+        )
+        scientific_owned_here = step_key in context.non_data_recompute_step_keys
+        if data_owned_here:
             if not isinstance(
                 revision.baseline_input.authority,
                 SourceTableDataArtifactAuthority,
@@ -108,11 +112,7 @@ class ScientificStepService:
                 )
             if not revision.acquisition_recompute_authorized:
                 result = execute_data_revision(revision)
-                if (
-                    result.disposition == "recompute"
-                    and "analysis_report"
-                    not in context.revision_recompute_artifact_kinds
-                ):
+                if result.disposition == "recompute" and not scientific_owned_here:
                     return self._publish_gaia_revision_result(
                         context,
                         step_key=step_key,
@@ -202,6 +202,8 @@ class ScientificStepService:
         )
         revision = context.data_revision
         if revision is not None:
+            if context.data_recompute_step_key != step_key:
+                return ()
             result = execute_data_revision(
                 replace(
                     revision,
