@@ -215,7 +215,7 @@ function mapSourceMember(
     | SourceTableSourceCollectionMember
     | DocumentSourceCollectionMember,
 ): SourceCollectionMemberReview {
-  if ("source_table_admission" in member) {
+  if (member.member_kind === "source_table") {
     return {
       memberKind: "source_table",
       sourceId: id(member.source_id),
@@ -246,6 +246,9 @@ function mapSourceMember(
       researchInputId: id(member.research_input_id),
       documentParseIds: member.document_parse_ids.map((value) => id(value)),
     };
+  }
+  if (!("side" in member)) {
+    throw new Error("unsupported SourceCollection member shape");
   }
   return {
     memberKind: "structured",

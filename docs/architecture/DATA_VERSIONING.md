@@ -29,7 +29,7 @@
 - `(artifact_id, version_number)` 与 `(artifact_id, publication_key)` 唯一。
 - 内容、`content_hash`、`input_hash`、ProducerExecution 与 Evidence 绑定发布后不可修改。
 - `latest_version_id` 只是可变读取指针；Evidence、分享与导出必须引用具体 version ID。
-- `source_mode` 的 `fixture | live | cached` 是 provenance 事实。CacheSelector 命中只返回并审计绑定真实 origin Run/ArtifactVersion 的 CacheRecord，不复制 ArtifactVersion；后续 cached ArtifactVersion 仍只能由 Publisher 在显式消费该选择结果的执行闭环中发布，当前 HTTP/runtime 不伪造该发布。
+- `execution_mode` 是运行时执行意图，`source_mode` 的 `fixture | recorded | live | cached` 是实际 provenance 事实；`recorded` 不等同于 fixture、cached 或 live。CacheSelector 命中只返回并审计绑定真实 origin Run/ArtifactVersion 的 CacheRecord，不复制 ArtifactVersion；后续 cached ArtifactVersion 仍只能由 Publisher 在显式消费该选择结果的执行闭环中发布，当前 HTTP/runtime 不伪造该发布。
 - `supersedes_version_id` 仅在真实发布关系存在时记录，并必须保持同一 Artifact 内的无环 lineage。
 
 ## 3. ProducerExecution 与 SourceSnapshot

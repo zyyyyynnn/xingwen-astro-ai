@@ -7,6 +7,7 @@ from typing import Any
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import (
+    ArtifactKind,
     RepairCheckpointContext,
     RepairCandidateCoordinate,
     RepairCandidateIdentity,
@@ -325,7 +326,11 @@ class DataStepService:
         data_input = DataArtifactBuildInput.model_validate(data_payload)
         document_snapshot_bindings = derive_document_snapshot_bindings(data_input)
         publication_config = DataArtifactPublicationConfig(
-            publish_kinds=("dataset", "field_dictionary", "source_collection"),
+            publish_kinds=(
+                ArtifactKind.dataset,
+                ArtifactKind.field_dictionary,
+                ArtifactKind.source_collection,
+            ),
             operation_key_prefix="data_artifact",
             producer_error_code="DATA_ARTIFACT_BUILD_FAILED",
             producer_version=mapping.producer_version,

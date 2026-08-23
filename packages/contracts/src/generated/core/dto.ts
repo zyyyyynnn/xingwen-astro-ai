@@ -129,10 +129,12 @@ export type ArtifactKind =
   | "graph"
   | "export";
 /**
+ * Actual origin of an ArtifactVersion-compatible pipeline payload.
+ *
  * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "app__schemas__core__SourceMode".
+ * via the `definition` "SourceMode".
  */
-export type App_Schemas_Core__SourceMode = "fixture" | "live" | "cached";
+export type SourceMode = "fixture" | "recorded" | "live" | "cached";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "BindResearchInputRequest".
@@ -677,13 +679,6 @@ export type UpstreamFailureClass =
   | "invalid_response"
   | "policy_violation";
 /**
- * Actual origin of an ArtifactVersion-compatible pipeline payload.
- *
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "app__schemas__enums__SourceMode".
- */
-export type App_Schemas_Enums__SourceMode = "fixture" | "live" | "cached";
-/**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "PaperSourceExecutionStatus".
  */
@@ -767,11 +762,6 @@ export type ModelArtifactStatus1 = "active" | "deprecated" | "revoked";
  * via the `definition` "ResearchInputStatus".
  */
 export type ResearchInputStatus2 = "accepted" | "unsupported_processing" | "failed_ingestion";
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "SourceMode".
- */
-export type SourceMode = "fixture" | "live" | "cached";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "CreateResearchInputRequest".
@@ -951,7 +941,7 @@ export interface SourceTableAdmission {
   research_contract_version: number;
   retrieved_at: string;
   rows?: SourceTableRowAdmission[];
-  schema_version?: "1.0.0";
+  schema_version?: "2.0.0";
   source_id: string;
   source_result_status: "complete" | "empty" | "truncated";
   source_snapshot_content_hash: string;
@@ -1102,7 +1092,7 @@ export interface ArtifactVersionDetail {
   producer_execution: ProducerExecutionDetail;
   project_id: string;
   schema_version: string;
-  source_mode: App_Schemas_Core__SourceMode;
+  source_mode: SourceMode;
   source_snapshot_ids?: string[];
   source_snapshots: SourceSnapshotDetail[];
   supersedes_version_id?: string | null;
@@ -1208,7 +1198,7 @@ export interface ArtifactVersionSummary {
   created_at: string;
   id: string;
   schema_version: string;
-  source_mode: App_Schemas_Core__SourceMode;
+  source_mode: SourceMode;
   supersedes_version_id?: string | null;
   version_number: number;
 }
@@ -1468,8 +1458,10 @@ export interface CrossmatchRowAuthority {
  * via the `definition` "SourceTableRowAuthority".
  */
 export interface SourceTableRowAuthority {
+  admission_id: string;
   authority_kind?: "source_table";
   canonical_row_identity: SourceTableCanonicalRowIdentity;
+  source_table_row_id: string;
 }
 /**
  * Canonical identity derived from one admitted SourceTable row.
@@ -1480,10 +1472,9 @@ export interface SourceTableRowAuthority {
 export interface SourceTableCanonicalRowIdentity {
   canonical_identity: string;
   entity_level?: EntityLevel1;
+  identity_field_id: string;
   identity_kind?: "source_table";
   identity_version?: "1.0.0";
-  source_table_admission_id: string;
-  source_table_row_id: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -1842,7 +1833,7 @@ export interface LiteratureArtifactVersionContext {
   producer_execution: ProducerExecutionDetail;
   project_id: string;
   schema_version: string;
-  source_mode: App_Schemas_Core__SourceMode;
+  source_mode: SourceMode;
   supersedes_version_id: string | null;
   version_number: number;
 }
@@ -1863,7 +1854,7 @@ export interface GraphArtifactVersionContext {
   report_hash: string;
   schema_version: string;
   scientific_hash: string;
-  source_mode: App_Schemas_Core__SourceMode;
+  source_mode: SourceMode;
   supersedes_version_id: string | null;
   version_number: number;
 }
@@ -2692,24 +2683,27 @@ export interface DatasetArtifactCandidate {
   requested_fields: string[];
   row_count: number;
   rows: DatasetRow[];
-  schema_version?: "2.0.0";
+  schema_version?: "3.0.0";
   selections: FieldSelectionRecord[];
   source_snapshot_ids: string[];
   source_values: SourceValueCandidate[];
   transformation_evidence: TransformationEvidence[];
 }
 /**
- * SourceTable-specific admission and Evidence authority for a candidate.
+ * Compact SourceTable lineage binding for a public candidate.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "SourceTableArtifactAuthority".
  */
 export interface SourceTableArtifactAuthority {
+  admission_id: string;
+  admission_output_hash: string;
   authority_kind?: "source_table";
   evidence_ids: string[];
+  source_id: string;
   source_snapshot_content_hash: string;
   source_snapshot_id: string;
-  source_table_admission: SourceTableAdmission;
+  source_table: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -3092,7 +3086,7 @@ export interface DatasetArtifactRead {
   project_id: string;
   quality_projection: DataQualityProjection;
   schema_version: string;
-  source_mode: App_Schemas_Core__SourceMode;
+  source_mode: SourceMode;
   source_snapshots: SourceSnapshotDetail[];
 }
 /**
@@ -3200,7 +3194,7 @@ export interface FieldDictionaryArtifactRead {
   project_id: string;
   quality_projection: DataQualityProjection;
   schema_version: string;
-  source_mode: App_Schemas_Core__SourceMode;
+  source_mode: SourceMode;
   source_snapshots: SourceSnapshotDetail[];
 }
 /**
@@ -3225,7 +3219,7 @@ export interface FieldDictionaryArtifactCandidate {
   producer: DataArtifactProducer;
   quality_evaluation_status?: "not_evaluated";
   requested_fields: string[];
-  schema_version?: "2.0.0";
+  schema_version?: "3.0.0";
   source_snapshot_ids: string[];
 }
 /**
@@ -3291,7 +3285,7 @@ export interface GraphArtifactVersionReference {
   project_id: string;
   role: GraphInputRole;
   schema_version: string;
-  source_mode: "fixture" | "live" | "cached";
+  source_mode: SourceMode;
   version_number: number;
 }
 /**
@@ -3570,7 +3564,7 @@ export interface PaperCollectionRead {
   input_hash: string;
   producer_execution: ProducerExecutionDetail;
   project_id: string;
-  source_mode: App_Schemas_Core__SourceMode;
+  source_mode: SourceMode;
   source_snapshots: SourceSnapshotDetail[];
 }
 /**
@@ -3793,7 +3787,7 @@ export interface PaperSourceExecution {
   request_parameters_hash: string;
   retry_count: number;
   source_id: string;
-  source_mode: App_Schemas_Enums__SourceMode;
+  source_mode: SourceMode;
   source_snapshot_id?: string | null;
   started_at: string;
   status: PaperSourceExecutionStatus;
@@ -3886,7 +3880,7 @@ export interface PaperSummaryRead {
   paper: PaperSummaryPaperMetadata;
   producer_execution: ProducerExecutionDetail;
   project_id: string;
-  source_mode: App_Schemas_Core__SourceMode;
+  source_mode: SourceMode;
   source_snapshots: SourceSnapshotDetail[];
   summary: PaperSummaryArtifactContent;
   supersedes_version_id: string | null;
@@ -4125,7 +4119,7 @@ export interface PublicArtifactVersion {
   id: string;
   kind: ArtifactKind;
   schema_version: string;
-  source_mode: App_Schemas_Core__SourceMode;
+  source_mode: SourceMode;
   title: string;
   version_number: number;
 }
@@ -4483,7 +4477,7 @@ export interface ScientificArtifactRead {
   input_hash: string;
   producer_execution: ProducerExecutionDetail;
   project_id: string;
-  source_mode: App_Schemas_Core__SourceMode;
+  source_mode: SourceMode;
   source_snapshots: SourceSnapshotDetail[];
   supersedes_version_id: string | null;
   version_number: number;
@@ -5263,7 +5257,7 @@ export interface SourceCollectionArtifactRead {
   quality_projection: DataQualityProjection;
   schema_version: string;
   source_collection: SourceCollectionArtifactCandidate;
-  source_mode: App_Schemas_Core__SourceMode;
+  source_mode: SourceMode;
   source_snapshots: SourceSnapshotDetail[];
 }
 /**
@@ -5291,7 +5285,7 @@ export interface SourceCollectionArtifactCandidate {
   output_hash: string;
   producer: DataArtifactProducer;
   quality_evaluation_status?: "not_evaluated";
-  schema_version?: "2.0.0";
+  schema_version?: "3.0.0";
   source_snapshot_ids: string[];
   source_value_ids: string[];
 }
@@ -5310,7 +5304,7 @@ export interface StructuredSourceCollectionMember {
   raw_record_references: RawSourceRecordReference[];
   side: CrossmatchSide;
   source_id: string;
-  source_mode: App_Schemas_Enums__SourceMode;
+  source_mode: SourceMode;
   source_snapshot: SourceSnapshotRecord;
   source_snapshot_content_hash: string;
   source_snapshot_id: string;
@@ -5331,12 +5325,14 @@ export interface RawSourceRecordReference {
   source_snapshot_id: string;
 }
 /**
- * One persisted SourceTable and its admitted raw-record registry.
+ * One persisted SourceTable and its compact raw-record registry.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "SourceTableSourceCollectionMember".
  */
 export interface SourceTableSourceCollectionMember {
+  admission_id: string;
+  admission_output_hash: string;
   license_note: string;
   member_kind?: "source_table";
   query_hash: string;
@@ -5346,7 +5342,7 @@ export interface SourceTableSourceCollectionMember {
   source_snapshot: SourceSnapshotRecord;
   source_snapshot_content_hash: string;
   source_snapshot_id: string;
-  source_table_admission: SourceTableAdmission;
+  source_table: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema

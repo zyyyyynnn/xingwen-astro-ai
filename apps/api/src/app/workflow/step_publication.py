@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import SourceSnapshotModel
 from app.schemas.core import ResearchContract
+from app.schemas.enums import SourceMode
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.crossmatch import CrossmatchSourceInput
 from app.schemas.data_artifacts import (
@@ -265,7 +266,7 @@ class StepPublicationFactory:
         producer_execution_id: UUID,
         artifact_id: UUID | None = None,
         version_id: UUID | None = None,
-        source_mode: str = "live",
+        source_mode: SourceMode = SourceMode.live,
     ) -> ArtifactPublication:
         artifact_id = artifact_id or context.artifacts[kind]
         version_id = version_id or step_uuid(
@@ -276,7 +277,7 @@ class StepPublicationFactory:
             publication_key=f"run:{context.run_id}:artifact:{kind}",
             producer_execution_id=producer_execution_id,
             candidate=candidate,
-            source_mode=source_mode,
+            source_mode=SourceMode(source_mode),
             supersedes_version_id=context.versions.get(kind),
             version_id=version_id,
         )

@@ -37,7 +37,7 @@ from .projection import (
 
 
 def _candidate(model_type, payload: dict[str, Any]):
-    payload.setdefault("schema_version", "2.0.0")
+    payload.setdefault("schema_version", "3.0.0")
     payload.setdefault("quality_evaluation_status", "not_evaluated")
     normalized: dict[str, Any] = {}
     deferred = {
@@ -162,7 +162,7 @@ def _assemble_data_artifact_candidates(
         },
     )
     payload = {
-        "schema_version": "2.0.0",
+        "schema_version": "3.0.0",
         "dataset": dataset,
         "field_dictionary": field_dictionary,
         "source_collection": source_collection,

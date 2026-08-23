@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from typing import Literal
+from typing import Literal, Sequence
 from uuid import UUID
 
 import pytest
@@ -36,18 +36,22 @@ def _contract(
     *,
     allowed_sources: tuple[str, ...] = ("esa_gaia_dr3",),
     contract_id: str = "contract.gaia",
+    requested_fields: Sequence[str] | None = None,
 ) -> ResearchContract:
     contract_input = ResearchContractInput.model_validate(
         {
             "research_goal": "Admit a bounded Gaia source table",
             "target_objects": ["host_star"],
             "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
-            "requested_fields": [
-                "star.gaia_dr3_id",
-                "system.right_ascension",
-                "system.declination",
-                "star.effective_temperature",
-            ],
+            "requested_fields": list(
+                requested_fields
+                or (
+                    "star.gaia_dr3_id",
+                    "system.right_ascension",
+                    "system.declination",
+                    "star.effective_temperature",
+                )
+            ),
             "source_scope": {"allowed_sources": list(allowed_sources)},
             "paper_search_scope": {},
             "output_requirements": ["dataset"],
@@ -69,7 +73,16 @@ def _contract(
     return ResearchContract.model_validate(payload)
 
 
-def _admit(*, result_status: Literal["complete", "empty", "truncated"] = "complete"):
+def _admit(
+    *,
+    result_status: Literal["complete", "empty", "truncated"] = "complete",
+    source_snapshot_id: str = SNAPSHOT_ID,
+    source_snapshot_content_hash: str = CONTENT_HASH,
+    query_hash: str = QUERY_HASH,
+    retrieved_at: datetime = RETRIEVED_AT,
+    evidence_scope_id: str = "request.gaia.primary",
+    requested_fields: Sequence[str] | None = None,
+):
     return admit_source_table(
         source_id=GAIA_SOURCE_ID,
         fields=("source_id", "ra", "dec", "teff_gspphot"),
@@ -82,12 +95,12 @@ def _admit(*, result_status: Literal["complete", "empty", "truncated"] = "comple
             },
         ),
         result_status=result_status,
-        source_snapshot_id=SNAPSHOT_ID,
-        source_snapshot_content_hash=CONTENT_HASH,
-        query_hash=QUERY_HASH,
-        retrieved_at=RETRIEVED_AT,
-        evidence_scope_id="request.gaia.primary",
-        contract=_contract(),
+        source_snapshot_id=source_snapshot_id,
+        source_snapshot_content_hash=source_snapshot_content_hash,
+        query_hash=query_hash,
+        retrieved_at=retrieved_at,
+        evidence_scope_id=evidence_scope_id,
+        contract=_contract(requested_fields=requested_fields),
     )
 
 

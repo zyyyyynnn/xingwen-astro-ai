@@ -45,29 +45,30 @@ function hash(seed: string): string {
 
 const sourceSnapshot: SourceSnapshotDetail = {
   id: "snap_01",
-  source_id: "nasa_exoplanet_archive",
+  source_id: "nasa_exoplanet_archive.toi",
   source_type: "catalog",
   retrieved_at: "2026-07-21T08:20:00Z",
-  query: { table: "exoplanet_candidates", fixture: true },
+  query: { table: "toi", fixture: true },
   query_hash: hash("q"),
   content_hash: hash("s"),
   request_metadata: { adapter: "demo_replay" },
-  source_version_or_etag: "fixture-2026-07-21",
+  source_version_or_etag: "fixture-2026-07-21-toi",
   license_note:
-    "Fixture projection of the public NASA Exoplanet Archive schema.",
+    "Fixture projection of the public NASA Exoplanet Archive TOI schema.",
 };
 
-const secondarySourceSnapshot: SourceSnapshotDetail = {
+const psSourceSnapshot: SourceSnapshotDetail = {
   id: "snap_02",
-  source_id: "esa_gaia_dr3",
+  source_id: "nasa_exoplanet_archive.ps",
   source_type: "catalog",
   retrieved_at: "2026-07-21T08:20:01Z",
-  query: { table: "gaia_source", fixture: true },
+  query: { table: "ps", fixture: true },
   query_hash: hash("r"),
   content_hash: hash("t"),
   request_metadata: { adapter: "demo_replay" },
-  source_version_or_etag: "fixture-2026-07-21-gaia",
-  license_note: "Fixture projection of the public ESA Gaia DR3 schema.",
+  source_version_or_etag: "fixture-2026-07-21-ps",
+  license_note:
+    "Fixture projection of the public NASA Exoplanet Archive PS schema.",
 };
 
 const producerExecution: ProducerExecutionDetail = {
@@ -130,7 +131,7 @@ function dataBase(
     input_hash: hash("d"),
     created_at: CREATED_AT,
     producer_execution: producerExecution,
-    source_snapshots: [sourceSnapshot, secondarySourceSnapshot],
+    source_snapshots: [sourceSnapshot, psSourceSnapshot],
     evidence: [
       evidence(artifactVersionId, kind, `${kind}.candidate`, "fixture"),
     ],
@@ -177,12 +178,12 @@ const field: FieldDefinition = {
   nullable: false,
   crossmatch_key: true,
   object_identity_key: true,
-  source_priority: ["nasa_exoplanet_archive"],
+  source_priority: ["nasa_exoplanet_archive.toi", "nasa_exoplanet_archive.ps"],
   document_aliases: [],
   source_aliases: [
     {
-      source_id: "nasa_exoplanet_archive",
-      source_table: "exoplanet_candidates",
+      source_id: "nasa_exoplanet_archive.toi",
+      source_table: "toi",
       raw_field: "toi",
       source_unit: "dimensionless",
       priority: 1,
@@ -229,6 +230,8 @@ const fieldTemperature: FieldDefinition = {
   source_aliases: [
     {
       ...field.source_aliases[0],
+      source_id: "nasa_exoplanet_archive.ps",
+      source_table: "ps",
       raw_field: "st_teff",
       source_unit: "kelvin",
       row_key_fields: ["tic_id"],
@@ -250,7 +253,10 @@ const row: DatasetRow = {
     entity_level: "planet_candidate",
     logical_key: hash("a"),
     record_type: "paired",
-    source_member_ids: ["source_member_nasa", "source_member_gaia"],
+    source_member_ids: [
+      "nasa_exoplanet_archive.toi",
+      "nasa_exoplanet_archive.ps",
+    ],
     canonical_row_identity: {
       alignment_status: "accepted",
       entity_level: "planet_candidate",
@@ -296,7 +302,7 @@ const row: DatasetRow = {
   conflict_ids: [],
   projected_field_ids: ["planet.toi_id", "star.effective_temperature"],
   projection_policy_version: "1.0.0",
-  source_snapshot_ids: [sourceSnapshot.id, secondarySourceSnapshot.id],
+  source_snapshot_ids: [sourceSnapshot.id, psSourceSnapshot.id],
   evidence_ids: [],
 };
 
@@ -327,7 +333,7 @@ const crossmatchAuthority: CrossmatchArtifactAuthority = {
   input_hash: hash("a"),
   output_hash: hash("b"),
   content_hash: hash("c"),
-  source_snapshot_ids: [sourceSnapshot.id, secondarySourceSnapshot.id],
+  source_snapshot_ids: [sourceSnapshot.id, psSourceSnapshot.id],
   evidence: [],
   evidence_ids: [],
   alignment_record_keys: [hash("b")],
@@ -339,7 +345,7 @@ const crossmatchAuthority: CrossmatchArtifactAuthority = {
 const datasetCandidate = {
   candidate_id: "dataset_candidate_01",
   kind: "dataset" as const,
-  schema_version: "2.0.0" as const,
+  schema_version: "3.0.0" as const,
   requested_fields: [field.field_id, fieldTemperature.field_id],
   columns: [{ field }, { field: fieldTemperature }],
   rows: [row],
@@ -347,7 +353,7 @@ const datasetCandidate = {
   field_count: 2,
   conflicts: [],
   evidence_ids: [],
-  source_snapshot_ids: [sourceSnapshot.id, secondarySourceSnapshot.id],
+  source_snapshot_ids: [sourceSnapshot.id, psSourceSnapshot.id],
   input_hash: hash("d"),
   output_hash: hash("e"),
   canonical_content_hash: hash("c"),
@@ -370,11 +376,11 @@ const datasetCandidate = {
 const fieldDictionaryCandidate = {
   candidate_id: "field_dictionary_candidate_01",
   kind: "field_dictionary" as const,
-  schema_version: "2.0.0" as const,
+  schema_version: "3.0.0" as const,
   requested_fields: [field.field_id, fieldTemperature.field_id],
   field_definitions: [field, fieldTemperature],
   evidence_ids: [],
-  source_snapshot_ids: [sourceSnapshot.id, secondarySourceSnapshot.id],
+  source_snapshot_ids: [sourceSnapshot.id, psSourceSnapshot.id],
   input_hash: hash("d"),
   output_hash: hash("e"),
   authority: crossmatchAuthority,
@@ -389,7 +395,7 @@ const fieldDictionaryCandidate = {
 };
 
 const sourceMember: StructuredSourceCollectionMember = {
-  source_id: "nasa_exoplanet_archive",
+  source_id: sourceSnapshot.source_id,
   source_snapshot_id: sourceSnapshot.id,
   source_snapshot_content_hash: sourceSnapshot.content_hash,
   source_snapshot: {
@@ -424,21 +430,21 @@ const sourceMember: StructuredSourceCollectionMember = {
   license_note: sourceSnapshot.license_note,
 };
 
-const secondarySourceMember: StructuredSourceCollectionMember = {
-  source_id: secondarySourceSnapshot.source_id,
-  source_snapshot_id: secondarySourceSnapshot.id,
-  source_snapshot_content_hash: secondarySourceSnapshot.content_hash,
+const psSourceMember: StructuredSourceCollectionMember = {
+  source_id: psSourceSnapshot.source_id,
+  source_snapshot_id: psSourceSnapshot.id,
+  source_snapshot_content_hash: psSourceSnapshot.content_hash,
   source_snapshot: {
-    snapshot_id: secondarySourceSnapshot.id,
-    source_id: secondarySourceSnapshot.source_id,
-    source_type: secondarySourceSnapshot.source_type,
-    retrieved_at: secondarySourceSnapshot.retrieved_at,
-    query: JSON.stringify(secondarySourceSnapshot.query),
-    query_hash: secondarySourceSnapshot.query_hash,
-    content_hash: secondarySourceSnapshot.content_hash,
-    license_note: secondarySourceSnapshot.license_note,
-    request_metadata: secondarySourceSnapshot.request_metadata,
-    source_version_or_etag: secondarySourceSnapshot.source_version_or_etag,
+    snapshot_id: psSourceSnapshot.id,
+    source_id: psSourceSnapshot.source_id,
+    source_type: psSourceSnapshot.source_type,
+    retrieved_at: psSourceSnapshot.retrieved_at,
+    query: JSON.stringify(psSourceSnapshot.query),
+    query_hash: psSourceSnapshot.query_hash,
+    content_hash: psSourceSnapshot.content_hash,
+    license_note: psSourceSnapshot.license_note,
+    request_metadata: psSourceSnapshot.request_metadata,
+    source_version_or_etag: psSourceSnapshot.source_version_or_etag,
   },
   side: "right",
   data_level: "fixture",
@@ -447,25 +453,25 @@ const secondarySourceMember: StructuredSourceCollectionMember = {
   raw_record_reference_registry_hash: hash("v"),
   raw_record_references: [
     {
-      source_id: secondarySourceSnapshot.source_id,
-      source_snapshot_id: secondarySourceSnapshot.id,
-      source_snapshot_content_hash: secondarySourceSnapshot.content_hash,
-      query_hash: secondarySourceSnapshot.query_hash,
+      source_id: psSourceSnapshot.source_id,
+      source_snapshot_id: psSourceSnapshot.id,
+      source_snapshot_content_hash: psSourceSnapshot.content_hash,
+      query_hash: psSourceSnapshot.query_hash,
       raw_record_content_hash: hash("w"),
-      row_key: [["source_id", "65214061869072512"]],
+      row_key: [["tic_id", "5678"]],
     },
   ],
-  query_hash: secondarySourceSnapshot.query_hash,
+  query_hash: psSourceSnapshot.query_hash,
   completion: { status: "complete", continuation_cursor: null },
-  license_note: secondarySourceSnapshot.license_note,
+  license_note: psSourceSnapshot.license_note,
 };
 
 const sourceCollectionCandidate = {
   candidate_id: "source_collection_candidate_01",
   kind: "source_collection" as const,
-  schema_version: "2.0.0" as const,
-  members: [sourceMember, secondarySourceMember],
-  source_snapshot_ids: [sourceSnapshot.id, secondarySourceSnapshot.id],
+  schema_version: "3.0.0" as const,
+  members: [sourceMember, psSourceMember],
+  source_snapshot_ids: [sourceSnapshot.id, psSourceSnapshot.id],
   source_value_ids: [],
   evidence_ids: [],
   input_hash: hash("d"),

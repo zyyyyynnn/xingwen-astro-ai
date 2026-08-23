@@ -35,11 +35,15 @@ from services.data_pipeline.data_quality import evaluate_data_quality
 from services.data_pipeline.data_quality.policy import load_frozen_quality_rule_set
 
 from data_artifact_test_support import build_data_publication_bindings
-from test_source_table_admission import _admit, _contract
+from test_source_table_admission import RETRIEVED_AT, _admit, _contract
 
 
-def _source_table_data_input(admission=None) -> DataArtifactBuildInput:
-    admission = admission or _admit()
+def _source_table_data_input(
+    admission=None,
+    *,
+    requested_fields=None,
+) -> DataArtifactBuildInput:
+    admission = admission or _admit(requested_fields=requested_fields)
     mapping_rule_set = load_mapping_rule_set()
     conversion_catalog = load_unit_conversion_catalog()
     snapshot = SourceSnapshotRecord(
@@ -61,7 +65,10 @@ def _source_table_data_input(admission=None) -> DataArtifactBuildInput:
     )
     unhashed = DataArtifactBuildInput.model_construct(
         manifest_pins=admission.manifest_pins,
-        requested_fields=tuple(column.canonical_field_id for column in admission.columns),
+        requested_fields=tuple(
+            requested_fields
+            or (column.canonical_field_id for column in admission.columns)
+        ),
         authority=authority,
         mapping_rule_set=mapping_rule_set,
         conversion_catalog=conversion_catalog,
@@ -122,6 +129,66 @@ def test_source_table_enters_quality_without_constructing_crossmatch_result() ->
     assert all(item.authority.authority_kind == "source_table" for item in result.row_results)
 
 
+def test_source_table_projects_requested_fields_from_an_acquisition_superset() -> None:
+    requested_fields = ("system.right_ascension",)
+    data_input = _source_table_data_input(requested_fields=requested_fields)
+    build_result = build_data_artifact_candidates(data_input)
+
+    assert build_result.dataset.requested_fields == requested_fields
+    assert tuple(column.field.field_id for column in build_result.dataset.columns) == requested_fields
+    assert build_result.field_dictionary.requested_fields == requested_fields
+    assert build_result.dataset.rows[0].projected_field_ids == requested_fields
+    assert build_result.dataset.rows[0].row_authority.canonical_row_identity.canonical_identity.startswith(
+        "Gaia DR3 "
+    )
+    assert "star.gaia_dr3_id" not in build_result.dataset.requested_fields
+    assert len(build_result.dataset.evidence_ids) == 1
+    assert len(build_result.source_collection.members[0].raw_record_references) == 1
+
+    quality_result = evaluate_data_quality(
+        _quality_input(
+            data_input,
+            build_result,
+            contract=_contract(requested_fields=requested_fields),
+        )
+    )
+    assert isinstance(quality_result, DataQualityEvaluationResult)
+    assert quality_result.dataset_result.field_count == 1
+    assert quality_result.dataset_result.applicable_cell_count == 1
+    assert quality_result.dataset_result.evidence_coverage.value == 1
+
+    for candidate in (
+        build_result.dataset,
+        build_result.field_dictionary,
+        build_result.source_collection,
+    ):
+        assert "source_table_admission" not in candidate.authority.model_dump(mode="json")
+    assert "source_table_admission" not in build_result.source_collection.members[0].model_dump(
+        mode="json"
+    )
+
+
+def test_source_table_scientific_identity_excludes_retrieval_lineage() -> None:
+    first = build_data_artifact_candidates(_source_table_data_input(_admit()))
+    second = build_data_artifact_candidates(
+        _source_table_data_input(
+            _admit(
+                source_snapshot_id="00000000-0000-0000-0000-000000000222",
+                source_snapshot_content_hash="sha256:" + "c" * 64,
+                query_hash="sha256:" + "d" * 64,
+                retrieved_at=RETRIEVED_AT.replace(second=4),
+                evidence_scope_id="request.gaia.retried",
+            )
+        )
+    )
+
+    assert first.dataset.canonical_content_hash == second.dataset.canonical_content_hash
+    assert first.dataset.candidate_id == second.dataset.candidate_id
+    assert first.dataset.lineage_hash != second.dataset.lineage_hash
+    assert first.dataset.authority.admission_id != second.dataset.authority.admission_id
+    assert first.dataset.source_snapshot_ids != second.dataset.source_snapshot_ids
+
+
 def test_source_table_quality_rejects_admission_transplant_to_another_contract() -> None:
     data_input = _source_table_data_input()
     build_result = build_data_artifact_candidates(data_input)
@@ -168,13 +235,15 @@ def test_source_table_candidates_close_existing_quality_and_publisher_admission(
     assert build_result.field_dictionary.field_definitions
     source_member = build_result.source_collection.members[0]
     assert source_member.member_kind == "source_table"
+    assert source_member.admission_id == build_result.dataset.authority.admission_id
+    assert source_member.source_table == build_result.dataset.authority.source_table
     assert (
-        source_member.source_table_admission.admission_id
-        == build_result.dataset.authority.source_table_admission.admission_id
+        source_member.admission_output_hash
+        == build_result.dataset.authority.admission_output_hash
     )
     assert all(
-        cell.locator.source_role == "single"
-        for cell in source_member.source_table_admission.cells
+        reference.source_id == build_result.dataset.authority.source_id
+        for reference in source_member.raw_record_references
     )
 
     snapshots, evidence = build_data_publication_bindings(build_result.dataset)

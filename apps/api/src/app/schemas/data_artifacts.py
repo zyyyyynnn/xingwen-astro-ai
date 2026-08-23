@@ -54,6 +54,7 @@ from .manifest import (
 )
 from .scientific_document import DocumentLocator, DocumentParseQuality
 from .source_acquisition import DataSourceDataLevel, DataSourceCompletion
+from .source_table import SourceTableAdmission
 
 
 MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
@@ -812,8 +813,7 @@ class SourceTableCanonicalRowIdentity(BaseModel):
     identity_kind: Literal["source_table"] = "source_table"
     identity_version: Literal["1.0.0"] = "1.0.0"
     entity_level: EntityLevel = EntityLevel.host_star
-    source_table_admission_id: Identifier
-    source_table_row_id: Identifier
+    identity_field_id: CanonicalFieldId
     canonical_identity: NonEmptyString
 
 
@@ -833,6 +833,8 @@ class SourceTableRowAuthority(BaseModel):
     model_config = MODEL_CONFIG
 
     authority_kind: Literal["source_table"] = "source_table"
+    admission_id: Identifier
+    source_table_row_id: Identifier
     canonical_row_identity: SourceTableCanonicalRowIdentity
 
 
@@ -881,10 +883,7 @@ class DatasetRow(BaseModel):
                 raise ValueError(
                     "Dataset row fields disagree with its canonical row identity"
                 )
-        elif (
-            self.row_authority.canonical_row_identity.source_table_row_id
-            != self.row_id
-        ):
+        elif self.row_authority.source_table_row_id != self.row_id:
             raise ValueError("SourceTable row identity does not bind its row_id")
         _validate_content_hash(self)
         return self
@@ -949,28 +948,23 @@ class CrossmatchArtifactAuthority(BaseModel):
 
 
 class SourceTableArtifactAuthority(BaseModel):
-    """SourceTable-specific admission and Evidence authority for a candidate."""
+    """Compact SourceTable lineage binding for a public candidate."""
 
-    model_config = {**MODEL_CONFIG, "defer_build": True}
+    model_config = MODEL_CONFIG
 
     authority_kind: Literal["source_table"] = "source_table"
-    source_table_admission: "SourceTableAdmission"
+    admission_id: Identifier
+    admission_output_hash: ContentHash
+    source_id: Identifier
+    source_table: NonEmptyString
     source_snapshot_id: RuntimeIdentifier
     source_snapshot_content_hash: ContentHash
     evidence_ids: tuple[RuntimeIdentifier, ...]
 
     @model_validator(mode="after")
     def validate_authority(self) -> Self:
-        admission = self.source_table_admission
-        if (
-            self.source_snapshot_id != admission.source_snapshot_id
-            or self.source_snapshot_content_hash
-            != admission.source_snapshot_content_hash
-        ):
-            raise ValueError("SourceTable authority disagrees with its admission")
-        expected = tuple(sorted(cell.evidence_id for cell in admission.cells))
-        if self.evidence_ids != expected:
-            raise ValueError("SourceTable authority Evidence registry is not closed")
+        if self.evidence_ids != tuple(sorted(set(self.evidence_ids))):
+            raise ValueError("SourceTable authority Evidence registry is not canonical")
         return self
 
 
@@ -982,7 +976,7 @@ DataArtifactAuthority = Annotated[
 
 class DatasetArtifactCandidate(_PublisherReadyCandidate):
     kind: Literal["dataset"] = "dataset"
-    schema_version: Literal["2.0.0"] = "2.0.0"
+    schema_version: Literal["3.0.0"] = "3.0.0"
     candidate_id: Identifier
     manifest_pins: ManifestPins
     authority: DataArtifactAuthority
@@ -1049,18 +1043,6 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
         else:
             if self.authority.source_snapshot_id not in self.source_snapshot_ids:
                 raise ValueError("Dataset SourceTable snapshot is not registered")
-            if self.authority.source_table_admission.source_result_status != "complete":
-                raise ValueError("Dataset cannot be built from an incomplete SourceTable")
-            if self.authority.source_table_admission.overall_status.value != "pass":
-                raise ValueError("Dataset cannot be built from a failing SourceTable")
-            admission = self.authority.source_table_admission
-            columns_by_field = {
-                column.canonical_field_id: column for column in admission.columns
-            }
-            cells_by_locator = {
-                (cell.locator.row_key, cell.locator.raw_field): cell
-                for cell in admission.cells
-            }
             for source_value in self.source_values:
                 if not isinstance(source_value.origin, StructuredDatabaseOrigin):
                     raise ValueError(
@@ -1071,43 +1053,29 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                     raise ValueError(
                         "SourceTable Dataset values require single-source cell locators"
                     )
-                cell = cells_by_locator.get((locator.row_key, locator.raw_field))
-                column = columns_by_field.get(source_value.canonical_field_id)
-                if cell is None or column is None:
-                    raise ValueError(
-                        "SourceTable Dataset value is not bound to an admitted cell"
-                    )
                 if (
-                    source_value.source_id != admission.source_id
-                    or source_value.source_snapshot_id != admission.source_snapshot_id
+                    source_value.source_id != self.authority.source_id
+                    or source_value.source_snapshot_id != self.authority.source_snapshot_id
                     or source_value.source_snapshot_content_hash
-                    != admission.source_snapshot_content_hash
-                    or source_value.query_hash != admission.query_hash
-                    or source_value.origin.source_table != admission.source_table
+                    != self.authority.source_snapshot_content_hash
+                    or locator.source_id != self.authority.source_id
+                    or locator.source_snapshot_id != self.authority.source_snapshot_id
+                    or locator.source_snapshot_content_hash
+                    != self.authority.source_snapshot_content_hash
+                    or source_value.origin.source_table != self.authority.source_table
                     or source_value.origin.raw_field != locator.raw_field
-                    or source_value.raw_value != cell.raw_value
-                    or source_value.canonical_value != cell.canonical_value
-                    or source_value.canonical_unit != cell.canonical_unit
-                    or source_value.source_unit != column.source_unit
-                    or source_value.conversion_rule_id != column.conversion_rule_id
-                    or source_value.conversion_rule_version
-                    != column.conversion_rule_version
                 ):
                     raise ValueError(
-                        "SourceTable Dataset value disagrees with its admitted cell"
+                        "SourceTable Dataset value disagrees with its compact authority"
                     )
-            rows_by_id = {row.row_id: row for row in admission.rows}
             for row in self.rows:
                 if not isinstance(row.row_authority, SourceTableRowAuthority):
                     raise ValueError("SourceTable Dataset requires SourceTable row authority")
                 identity = row.row_authority.canonical_row_identity
-                admitted_row = rows_by_id.get(identity.source_table_row_id)
                 if (
-                    admitted_row is None
-                    or identity.source_table_admission_id != admission.admission_id
-                    or identity.canonical_identity != admitted_row.canonical_identity
+                    row.row_authority.admission_id != self.authority.admission_id
                 ):
-                    raise ValueError("SourceTable Dataset row identity is not admitted")
+                    raise ValueError("SourceTable Dataset row authority is not bound")
         selections = {item.selection_id: item for item in self.selections}
         conflicts = {item.conflict_id: item for item in self.conflicts}
         expected_evidence_ids = set(evidence)
@@ -1264,7 +1232,7 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
             else:
                 if not isinstance(item.authority, SourceTableTransformationAuthority):
                     raise ValueError("SourceTable Dataset requires SourceTable Evidence authority")
-                if item.authority.admission_id != self.authority.source_table_admission.admission_id:
+                if item.authority.admission_id != self.authority.admission_id:
                     raise ValueError("transformation Evidence SourceTable binding drifted")
         for row in self.rows:
             row_evidence = {
@@ -1573,7 +1541,7 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
 
 class FieldDictionaryArtifactCandidate(_PublisherReadyCandidate):
     kind: Literal["field_dictionary"] = "field_dictionary"
-    schema_version: Literal["2.0.0"] = "2.0.0"
+    schema_version: Literal["3.0.0"] = "3.0.0"
     candidate_id: Identifier
     manifest_pins: ManifestPins
     authority: DataArtifactAuthority
@@ -1720,14 +1688,16 @@ class StructuredSourceCollectionMember(BaseModel):
 
 
 class SourceTableSourceCollectionMember(BaseModel):
-    """One persisted SourceTable and its admitted raw-record registry."""
+    """One persisted SourceTable and its compact raw-record registry."""
 
-    model_config = {**MODEL_CONFIG, "defer_build": True}
+    model_config = MODEL_CONFIG
 
     member_kind: Literal["source_table"] = "source_table"
     source_snapshot: SourceSnapshotRecord
-    source_table_admission: "SourceTableAdmission"
+    admission_id: Identifier
+    admission_output_hash: ContentHash
     source_id: Identifier
+    source_table: NonEmptyString
     source_snapshot_id: RuntimeIdentifier
     source_snapshot_content_hash: ContentHash
     query_hash: ContentHash
@@ -1737,49 +1707,52 @@ class SourceTableSourceCollectionMember(BaseModel):
 
     @model_validator(mode="after")
     def validate_member(self) -> Self:
-        admission = self.source_table_admission
         if (
-            self.source_id != admission.source_id
-            or self.source_snapshot_id != admission.source_snapshot_id
-            or self.source_snapshot_content_hash
-            != admission.source_snapshot_content_hash
-            or self.query_hash != admission.query_hash
-            or self.source_snapshot.snapshot_id != self.source_snapshot_id
+            self.source_snapshot.snapshot_id != self.source_snapshot_id
             or self.source_snapshot.source_id != self.source_id
             or self.source_snapshot.content_hash != self.source_snapshot_content_hash
             or self.source_snapshot.query_hash != self.query_hash
             or self.license_note != self.source_snapshot.license_note
         ):
-            raise ValueError("SourceTable member disagrees with its Snapshot/admission")
-        references_by_row: dict[tuple[tuple[str, str], ...], RawSourceRecordReference] = {}
-        for cell in admission.cells:
-            reference = RawSourceRecordReference(
-                source_id=self.source_id,
-                source_snapshot_id=self.source_snapshot_id,
-                source_snapshot_content_hash=self.source_snapshot_content_hash,
-                query_hash=self.query_hash,
-                row_key=cell.locator.row_key,
-                raw_record_content_hash=cell.locator.raw_record_content_hash,
-            )
-            previous = references_by_row.setdefault(reference.row_key, reference)
-            if previous.raw_record_content_hash != reference.raw_record_content_hash:
-                raise ValueError("SourceTable cells disagree about a raw record hash")
-        expected_references = tuple(references_by_row.values())
-        expected_references = tuple(
+            raise ValueError("SourceTable member disagrees with its Snapshot")
+        if self.raw_record_references != tuple(
             sorted(
-                expected_references,
+                self.raw_record_references,
                 key=lambda item: (
                     item.source_id,
                     item.row_key,
                     item.raw_record_content_hash,
                 ),
             )
-        )
-        if (
-            self.raw_record_references != expected_references
-            or self.raw_record_count != len(expected_references)
         ):
+            raise ValueError("SourceTable raw record references must use canonical order")
+        row_keys = tuple(item.row_key for item in self.raw_record_references)
+        record_hashes = tuple(
+            item.raw_record_content_hash for item in self.raw_record_references
+        )
+        if len(row_keys) != len(set(row_keys)):
+            raise ValueError("SourceTable member contains duplicate row key")
+        if len(record_hashes) != len(set(record_hashes)):
+            raise ValueError("SourceTable member contains duplicate record hash")
+        if self.raw_record_count != len(self.raw_record_references):
             raise ValueError("SourceTable raw record registry is not closed")
+        expected_binding = (
+            self.source_id,
+            self.source_snapshot_id,
+            self.source_snapshot_content_hash,
+            self.query_hash,
+        )
+        if any(
+            (
+                item.source_id,
+                item.source_snapshot_id,
+                item.source_snapshot_content_hash,
+                item.query_hash,
+            )
+            != expected_binding
+            for item in self.raw_record_references
+        ):
+            raise ValueError("raw record reference disagrees with its source member")
         return self
 
 
@@ -1846,7 +1819,7 @@ SourceCollectionMember = Annotated[
 
 class SourceCollectionArtifactCandidate(_PublisherReadyCandidate):
     kind: Literal["source_collection"] = "source_collection"
-    schema_version: Literal["2.0.0"] = "2.0.0"
+    schema_version: Literal["3.0.0"] = "3.0.0"
     candidate_id: Identifier
     manifest_pins: ManifestPins
     authority: DataArtifactAuthority
@@ -1912,8 +1885,9 @@ class SourceCollectionArtifactCandidate(_PublisherReadyCandidate):
             snapshot_ids = (source_table_members[0].source_snapshot_id,)
             if (
                 self.authority.source_snapshot_id != snapshot_ids[0]
-                or self.authority.source_table_admission.admission_id
-                != source_table_members[0].source_table_admission.admission_id
+                or self.authority.admission_id != source_table_members[0].admission_id
+                or self.authority.admission_output_hash
+                != source_table_members[0].admission_output_hash
             ):
                 raise ValueError("SourceCollection SourceTable authority drifted")
         if document_members and any(
@@ -2060,11 +2034,11 @@ class CrossmatchDataArtifactAuthority(BaseModel):
 class SourceTableDataArtifactAuthority(BaseModel):
     """One persisted SourceSnapshot plus its admitted SourceTable."""
 
-    model_config = {**MODEL_CONFIG, "defer_build": True}
+    model_config = MODEL_CONFIG
 
     authority_kind: Literal["source_table"] = "source_table"
     source_snapshot: SourceSnapshotRecord
-    source_table_admission: "SourceTableAdmission"
+    source_table_admission: SourceTableAdmission
 
     @model_validator(mode="after")
     def validate_authority(self) -> Self:
@@ -2142,11 +2116,12 @@ class DataArtifactBuildInput(BaseModel):
             admission = self.authority.source_table_admission
             if document_observations:
                 raise ValueError("SourceTable authority cannot carry document observations")
-            if self.requested_fields != tuple(
-                sorted(column.canonical_field_id for column in admission.columns)
-            ):
+            admitted_fields = {
+                column.canonical_field_id for column in admission.columns
+            }
+            if not set(self.requested_fields) <= admitted_fields:
                 raise ValueError(
-                    "SourceTable Data Artifact must project the admitted columns exactly"
+                    "SourceTable requested fields must be admitted canonical fields"
                 )
         snapshot_bindings: dict[str, str] = {}
         snapshot_facts: dict[str, DataSourceSnapshotProjection] = {}
@@ -2276,7 +2251,7 @@ class DataArtifactBuildResult(BaseModel):
     model_config = MODEL_CONFIG
     __artifact_publication_requires_admission__: ClassVar[bool] = True
 
-    schema_version: Literal["2.0.0"] = "2.0.0"
+    schema_version: Literal["3.0.0"] = "3.0.0"
     dataset: DatasetArtifactCandidate
     field_dictionary: FieldDictionaryArtifactCandidate
     source_collection: SourceCollectionArtifactCandidate
@@ -2338,16 +2313,19 @@ class DataArtifactBuildResult(BaseModel):
             if not isinstance(self.source_collection.authority, SourceTableArtifactAuthority):
                 raise ValueError("Dataset and SourceCollection authority kinds drifted")
             if (
-                self.source_collection.authority.source_table_admission.admission_id
-                != self.dataset.authority.source_table_admission.admission_id
+                self.source_collection.authority.admission_id
+                != self.dataset.authority.admission_id
+                or self.source_collection.authority.admission_output_hash
+                != self.dataset.authority.admission_output_hash
+                or self.source_collection.authority.source_id
+                != self.dataset.authority.source_id
                 or self.source_collection.authority.source_snapshot_id
                 != self.dataset.authority.source_snapshot_id
             ):
                 raise ValueError("Dataset and SourceCollection SourceTable identity drifted")
             if any(
                 not isinstance(row.row_authority, SourceTableRowAuthority)
-                or row.row_authority.canonical_row_identity.source_table_admission_id
-                != self.dataset.authority.source_table_admission.admission_id
+                or row.row_authority.admission_id != self.dataset.authority.admission_id
                 for row in self.dataset.rows
             ):
                 raise ValueError("Dataset rows do not bind the admitted SourceTable")
@@ -2466,7 +2444,7 @@ def compute_data_artifact_candidate_id(
     kind: str,
     identity_hash: str,
     *,
-    schema_version: str = "1.0.0",
+    schema_version: str = "3.0.0",
 ) -> str:
     return compute_dataset_candidate_id(kind, schema_version, identity_hash)
 
@@ -2513,7 +2491,7 @@ def _validate_candidate_id(value: BaseModel) -> None:
     expected = compute_data_artifact_candidate_id(
         getattr(value, "kind"),
         identity_hash,
-        schema_version=getattr(value, "schema_version", "1.0.0"),
+        schema_version=getattr(value, "schema_version", "3.0.0"),
     )
     if getattr(value, "candidate_id") != expected:
         raise ValueError(f"candidate_id does not match canonical identity: {expected}")
@@ -2523,37 +2501,6 @@ def _require_unique(values: tuple[BaseModel, ...], attribute: str, label: str) -
     identities = [getattr(value, attribute) for value in values]
     if len(identities) != len(set(identities)):
         raise ValueError(f"candidate contains duplicate {label}")
-
-
-def rebuild_source_table_models(source_table_admission: type[BaseModel]) -> None:
-    """Resolve SourceTable references after its schema module is initialized."""
-
-    namespace = {"SourceTableAdmission": source_table_admission}
-    for model in (
-        SourceTableArtifactAuthority,
-        SourceTableDataArtifactAuthority,
-        SourceTableSourceCollectionMember,
-    ):
-        model.model_rebuild(_types_namespace=namespace, force=True)
-    for model in (
-        DatasetArtifactCandidate,
-        FieldDictionaryArtifactCandidate,
-        SourceCollectionArtifactCandidate,
-        DataArtifactBuildInput,
-        DataArtifactBuildResult,
-    ):
-        model.model_rebuild(force=True)
-
-
-# Resolve the source-table authority after both schema modules have been
-# initialized.  The conditional avoids importing SourceTable while
-# data_quality is still defining the shared quality result models.
-import sys as _sys
-
-if "app.schemas.data_quality" not in _sys.modules:
-    from .source_table import SourceTableAdmission as _SourceTableAdmission
-
-    rebuild_source_table_models(_SourceTableAdmission)
 
 
 __all__ = [
@@ -2609,5 +2556,4 @@ __all__ = [
     "compute_data_artifact_lineage_hash",
     "compute_data_artifact_output_hash",
     "compute_data_artifact_public_payload_hash",
-    "rebuild_source_table_models",
 ]

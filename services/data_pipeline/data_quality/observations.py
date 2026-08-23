@@ -26,6 +26,7 @@ from app.schemas.data_artifacts import (
     UnresolvedCanonicalValue,
 )
 from app.schemas.manifest import FieldDefinition, ManifestBundle
+from app.schemas.source_table import SourceTableAdmission
 
 
 @dataclass(frozen=True)
@@ -139,6 +140,8 @@ def observe_quality(
     candidate: DatasetArtifactCandidate,
     crossmatch_result: CrossmatchResult | None,
     manifests: ManifestBundle,
+    *,
+    source_table_admission: SourceTableAdmission | None = None,
 ) -> QualityObservationBundle:
     """Aggregate every Data Artifact outcome once into field, row and dataset counters."""
 
@@ -358,9 +361,11 @@ def observe_quality(
     else:
         if not isinstance(candidate.authority, SourceTableArtifactAuthority):
             raise ValueError("SourceTable quality observation requires SourceTable authority")
+        if source_table_admission is None:
+            raise ValueError("SourceTable quality observation requires its input admission")
         metrics = SourceTableRecordMetrics()
         source_scope_numerator = int(
-            candidate.authority.source_table_admission.source_result_status
+            source_table_admission.source_result_status
             == "complete"
         )
         source_scope_denominator = 1

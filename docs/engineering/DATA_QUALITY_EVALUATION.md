@@ -15,6 +15,12 @@ gate 和 Publisher 质量交接；不实现 mapping、crossmatch engine、Source
 acquisition、HTTP、数据库、ArtifactVersion、Workflow、缓存读取、前端或科学
 真实性判定。
 
+SourceTable 的完整 admission 只从 `DataArtifactBuildInput.authority` 读取；三个
+public candidates 只携带 compact SourceTable binding。Quality 在 fresh Data Artifact
+projection 后校验 admission、output、source、snapshot binding，Evidence registry
+只覆盖实际进入 Dataset projection 的 cells，不把 acquisition-only columns 计入
+Dataset metrics 或 Evidence coverage。
+
 `apps/api/src/app/schemas/data_quality.py` 是公共 Pydantic Schema authoring
 source。`quality-rules.json` 是唯一版本化 RuleSet。入口先校验 RuleSet 自身
 hash，再由 `compile_quality_evaluation_plan()` 把冻结 RuleSet 编译为不可变

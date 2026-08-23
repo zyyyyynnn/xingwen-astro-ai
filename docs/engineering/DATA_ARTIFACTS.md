@@ -43,12 +43,14 @@ projection 的唯一事务边界。
   SourceTableAdmission、其 Manifest/mapping/conversion/quality pins、canonical
   columns、rows、cells 与 Evidence；只有 complete 且通过 quality gate 的
   admission 可以进入 Dataset；
-- requested fields、mapping rules、unit conversion catalog；
+- requested fields、mapping rules、unit conversion catalog；`requested_fields` 是 Dataset 与 FieldDictionary 的唯一公共投影 Authority，SourceTable acquisition columns 可以是包含 identity/provenance 所需字段的受控 superset；
 - producer technical identity、质量约束引用与 `input_hash`。
 
 来源、query、record set、row key、raw record hash 与对应 authority 必须相互
 一致。source column name 不是 canonical field identity，不能冒充
-`requested_fields`；SourceTable projection 还必须精确投影 admitted columns。
+`requested_fields`；SourceTable projection 只投影已准入且被
+`requested_fields` 选中的 canonical columns，identity-only acquisition column
+可以留在 input-time admission 而不进入 Dataset。
 所有字段事实从 Manifest 与 machine assets 读取，代码不得复制第二份 alias、
 priority、unit 或 conversion 常数。
 
@@ -121,8 +123,9 @@ attestation。Publisher 只接受 persistence-ready candidate：每个 declared
 SourceSnapshot/Evidence 必须绑定同一 Project 的持久化记录，缺失、悬空、跨项目或
 content/query identity 不一致时，在任何 ArtifactVersion 或 latest pointer 写入
 前拒绝。Crossmatch candidate 保留双侧 snapshot 与 Evidence；SourceTable
-candidate 复用同一个已持久化 snapshot，并把每个 cell 的 locator/Evidence 绑定到
-该 snapshot。replay 必须对 exact input、content、producer 与 provenance 等值
+candidate 复用同一个已持久化 snapshot，并把实际投影 cell 的 locator/Evidence 绑定到
+该 snapshot；完整 `SourceTableAdmission` 只属于 immutable build-input authority，public
+candidate 使用 compact lineage binding。replay 必须对 exact input、content、producer 与 provenance 等值
 校验；相同 publication identity 对应不同内容时稳定冲突。
 
 ## 7. Stable maintenance rules

@@ -26,6 +26,7 @@ from app.db.models import (
 )
 from app.schemas.core import ArtifactKind, ResearchContract, ScientificSkillId
 from app.schemas.data_quality import QualityGateStatus
+from app.schemas.enums import SourceMode
 from app.schemas.source_table import SourceTableAdmission
 from app.schemas.scientific_skills import (
     AnalysisReportArtifactContent,
@@ -85,7 +86,7 @@ class ScientificStepAdmission:
         step_key: str,
         contract: ResearchContract,
         output: ScientificStepOutput,
-        source_mode: str,
+        source_mode: SourceMode,
     ) -> tuple[ArtifactPublication, ...]:
         """Admit the candidate set and bind ProducerExecutions.
 
@@ -173,7 +174,7 @@ class ScientificStepAdmission:
                     publication_key=target.publication_key,
                     producer_execution_id=execution.id,
                     candidate=admitted,
-                    source_mode=source_mode,
+                    source_mode=SourceMode(source_mode),
                     supersedes_version_id=target.supersedes_version_id,
                 )
             )

@@ -203,6 +203,7 @@ def admit_data_artifact_quality(
     elif isinstance(input_authority, SourceTableDataArtifactAuthority):
         expected_quality_authority = SourceTableQualityAuthority(
             admission_id=input_authority.source_table_admission.admission_id,
+            admission_output_hash=input_authority.source_table_admission.output_hash,
             source_snapshot_id=input_authority.source_snapshot.snapshot_id,
             source_snapshot_content_hash=input_authority.source_snapshot.content_hash,
             evidence_ids=tuple(build_result.dataset.evidence_ids),

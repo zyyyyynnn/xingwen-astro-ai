@@ -43,6 +43,7 @@ from app.schemas.data_artifacts import (
     SourceTableArtifactAuthority,
     SourceTableTransformationAuthority,
 )
+from app.schemas.enums import SourceMode
 from app.services.research_thread import append_assistant_message
 from app.workflow.store import TERMINAL_RUN_STATUSES
 
@@ -92,7 +93,7 @@ _PRODUCER_TYPES = frozenset({"pipeline", "model", "algorithm"})
 _PRODUCER_TERMINAL_STATUSES = frozenset(
     {"completed", "failed", "rejected", "cancelled"}
 )
-_SOURCE_MODES = frozenset({"fixture", "live", "cached"})
+_SOURCE_MODES = frozenset(mode.value for mode in SourceMode)
 _SCIENTIFIC_ARTIFACT_KINDS = frozenset(
     {
         "analysis_report",
@@ -811,7 +812,7 @@ class ArtifactPublication:
     publication_key: str
     producer_execution_id: UUID
     candidate: AdmittedArtifactCandidate
-    source_mode: str
+    source_mode: SourceMode
     supersedes_version_id: UUID | None = None
     version_id: UUID | None = None
 
@@ -1250,7 +1251,7 @@ class ArtifactPublisher:
                     content=output.candidate.content,
                     content_hash=output.candidate.content_hash,
                     input_hash=producer.input_hash,
-                    source_mode=output.source_mode,
+                    source_mode=SourceMode(output.source_mode).value,
                     producer=_public_producer_metadata(producer),
                     source_snapshot_ids=list(output.candidate.source_snapshot_ids),
                     evidence_ids=list(output.candidate.evidence_ids),
@@ -2402,7 +2403,7 @@ def _data_publication_references(
                     transformation.authority, SourceTableTransformationAuthority
                 ) or (
                     transformation.authority.admission_id
-                    != semantic_candidate.authority.source_table_admission.admission_id
+                    != semantic_candidate.authority.admission_id
                     or transformation.authority.row_id != transformation.dataset_row_id
                     or transformation.locator.source_snapshot_id
                     != semantic_candidate.authority.source_snapshot_id
@@ -3557,7 +3558,7 @@ def _validated_publications(
             )
         if output.source_mode not in _SOURCE_MODES:
             raise PublicationAdmissionError(
-                "source_mode must be fixture, live, or cached"
+                "source_mode must be fixture, recorded, live, or cached"
             )
     return tuple(sorted(outputs, key=lambda output: output.artifact_id))
 
@@ -3798,7 +3799,7 @@ def _require_same_publication(
         output.candidate.schema_version,
         output.candidate.content,
         output.candidate.content_hash,
-        output.source_mode,
+        SourceMode(output.source_mode).value,
         list(output.candidate.source_snapshot_ids),
         list(output.candidate.evidence_ids),
         (

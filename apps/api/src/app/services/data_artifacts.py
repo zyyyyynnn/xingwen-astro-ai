@@ -425,7 +425,7 @@ def _validate_dataset_provenance(
                     transformation.authority, SourceTableTransformationAuthority
                 ) or (
                     transformation.authority.admission_id
-                    != candidate.authority.source_table_admission.admission_id
+                    != candidate.authority.admission_id
                     or transformation.authority.row_id
                     != transformation.dataset_row_id
                     or transformation.locator.source_snapshot_id

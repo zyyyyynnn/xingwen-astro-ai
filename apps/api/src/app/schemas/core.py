@@ -19,6 +19,7 @@ from pydantic import (
 )
 
 from ._hashing import compute_canonical_payload_hash
+from .enums import SourceMode
 from .scientific_capabilities import contract_parameters, produced_artifact_kinds
 
 
@@ -60,12 +61,6 @@ UtcDateTime = Annotated[AwareDatetime, AfterValidator(_require_utc)]
 class ExecutionMode(StrEnum):
     demo_replay = "demo_replay"
     live = "live"
-
-
-class SourceMode(StrEnum):
-    fixture = "fixture"
-    live = "live"
-    cached = "cached"
 
 
 class DerivationKind(StrEnum):
@@ -310,6 +305,16 @@ class ResearchContractInput(BaseModel):
         if len(task_ids) != len(set(task_ids)):
             raise ValueError("scientific_tasks must use unique task_id values")
         selected_outputs = frozenset(self.output_requirements)
+        support_outputs = frozenset(
+            {
+                ArtifactKind.field_dictionary,
+                ArtifactKind.source_collection,
+            }
+        )
+        if selected_outputs & support_outputs and ArtifactKind.dataset not in selected_outputs:
+            raise ValueError(
+                "field_dictionary and source_collection require dataset output"
+            )
         for artifact_kind in _SCIENTIFIC_OUTPUT_KINDS:
             if artifact_kind not in selected_outputs:
                 continue

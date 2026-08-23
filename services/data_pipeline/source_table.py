@@ -368,7 +368,7 @@ def admit_source_table(
 
     payload: dict[str, object] = {
         "kind": "source_table_admission",
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "admission_id": "source_table.pending",
         "source_id": source_id,
         "source_table": source.source_table,

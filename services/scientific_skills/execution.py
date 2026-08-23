@@ -23,6 +23,7 @@ from app.schemas.core import (
     ScientificSkillId,
     ScientificTaskInput,
 )
+from app.schemas.enums import SourceMode
 from app.schemas.source_table import SourceTableAdmission
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.scientific_skills import (
@@ -51,7 +52,11 @@ from app.schemas.scientific_capabilities import (
     scientific_skill_phase,
 )
 from app.services.content_storage import ContentStorage
-from services.data_pipeline.source_table import GAIA_SOURCE_ID, admit_source_table
+from services.data_pipeline.source_table import (
+    GAIA_SOURCE_ID,
+    admit_source_table,
+    gaia_source_contract,
+)
 from .registry import ScientificSkillRegistry
 from .types import (
     ScientificSkillBudget,
@@ -91,7 +96,7 @@ class ScientificTaskExecutionOutcome:
 class ScientificStepOutput:
     task_id: str
     skill_id: ScientificSkillId
-    source_mode: Literal["fixture", "live", "cached"]
+    source_mode: SourceMode
     artifact_candidates: tuple[
         AnalysisReportArtifactContent
         | VisualizationArtifactContent
@@ -107,20 +112,17 @@ class ScientificStepOutput:
 
 def _publication_source_mode(
     outcome: ScientificTaskExecutionOutcome,
-) -> Literal["fixture", "live", "cached"]:
+) -> SourceMode:
     acquisition = outcome.result.output.get("acquisition")
     if not isinstance(acquisition, Mapping):
         if outcome.task.skill_id is ScientificSkillId.gaia_cone_search:
             raise ValueError("Gaia acquisition provenance is missing")
-        return "live"
+        return SourceMode.live
     source_mode = acquisition.get("source_mode")
-    if source_mode == "live":
-        return "live"
-    if source_mode == "cached":
-        return "cached"
-    if source_mode in {"fixture", "recorded"}:
-        return "fixture"
-    raise ValueError("scientific acquisition source_mode is unknown")
+    try:
+        return SourceMode(source_mode)
+    except ValueError as error:
+        raise ValueError("scientific acquisition source_mode is unknown") from error
 
 
 class ScientificProducedSourceRecorder(Protocol):
@@ -144,6 +146,62 @@ ScientificInputResolver = Callable[
 class ScientificSkillExecutor(Protocol):
     async def execute(self, request: ScientificSkillRequest) -> ScientificSkillResult:
         """Execute one validated request and return its bounded result."""
+
+
+_GAIA_DATA_ARTIFACT_KINDS = frozenset(
+    {
+        ArtifactKind.dataset,
+        ArtifactKind.field_dictionary,
+        ArtifactKind.source_collection,
+    }
+)
+
+
+def _normalize_gaia_data_fields(
+    task: ScientificTaskInput,
+    contract: ResearchContract,
+) -> ScientificTaskInput:
+    """Translate Contract canonical fields into the Gaia adapter's raw projection."""
+
+    if (
+        task.skill_id is not ScientificSkillId.gaia_cone_search
+        or not _GAIA_DATA_ARTIFACT_KINDS.intersection(contract.output_requirements)
+    ):
+        return task
+    raw_by_canonical = {
+        item.canonical_field_id: item.raw_field for item in gaia_source_contract()
+    }
+    unsupported = tuple(
+        field_id
+        for field_id in contract.requested_fields
+        if field_id not in raw_by_canonical
+    )
+    if unsupported:
+        raise ValueError(
+            "Gaia Data Artifact requested fields are not admitted by the source contract: "
+            + ", ".join(unsupported)
+        )
+    explicit = task.parameters.get("fields")
+    if explicit is None:
+        analysis_fields: tuple[str, ...] = ()
+    elif isinstance(explicit, (list, tuple)) and all(
+        isinstance(field, str) for field in explicit
+    ):
+        analysis_fields = tuple(explicit)
+    else:
+        raise ValueError("Gaia fields must be a list of raw source field names")
+    requested_raw_fields = tuple(
+        raw_by_canonical[field_id] for field_id in contract.requested_fields
+    )
+    normalized_fields = list(dict.fromkeys((*analysis_fields, *requested_raw_fields)))
+    return task.model_copy(
+        update={
+            "parameters": {
+                **task.parameters,
+                "fields": normalized_fields,
+            }
+        }
+    )
 
 
 class InProcessScientificSkillExecutor:
@@ -247,6 +305,7 @@ class ScientificStepAdapter:
         contract: ResearchContract,
         resolve_inputs: ScientificInputResolver,
     ) -> ScientificTaskExecutionOutcome:
+        task = _normalize_gaia_data_fields(task, contract)
         bindings = tuple(await resolve_inputs(task))
         _validate_bindings(task, bindings)
         parameters = dict(task.parameters)

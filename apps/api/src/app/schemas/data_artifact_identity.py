@@ -192,8 +192,7 @@ def _canonical_row_identity(value: Any) -> dict[str, Any]:
             "identity_kind": payload.get("identity_kind"),
             "identity_version": payload.get("identity_version"),
             "entity_level": payload.get("entity_level"),
-            "source_table_admission_id": payload.get("source_table_admission_id"),
-            "source_table_row_id": payload.get("source_table_row_id"),
+            "identity_field_id": payload.get("identity_field_id"),
             "canonical_identity": payload.get("canonical_identity"),
         }
     members_by_hash = {

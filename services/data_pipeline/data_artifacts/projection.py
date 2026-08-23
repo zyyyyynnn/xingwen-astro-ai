@@ -260,12 +260,13 @@ def validate_policy_bindings(input_value: DataArtifactBuildInput):
         column_by_field = {
             column.canonical_field_id: column for column in admission.columns
         }
-        if set(column_by_field) != requested:
+        if not requested <= set(column_by_field):
             raise DataArtifactError(
                 DataArtifactErrorCode.unsupported_requested_field,
-                "requested fields do not exactly match the admitted SourceTable columns",
+                "requested fields are not all admitted SourceTable columns",
             )
-        for field_id, column in column_by_field.items():
+        for field_id in requested:
+            column = column_by_field[field_id]
             field = fields[field_id]
             aliases = tuple(
                 alias
@@ -1195,11 +1196,22 @@ def _derive_source_table_domain_projection(
     cells_by_row_field = {
         (cell.row_id, cell.canonical_field_id): cell for cell in admission.cells
     }
-    if set(columns_by_field) != {field.field_id for field in fields}:
+    requested_fields = {field.field_id for field in fields}
+    if not requested_fields <= set(columns_by_field):
         raise DataArtifactError(
             DataArtifactErrorCode.source_table_admission_mismatch,
-            "SourceTable admission fields do not close the requested projection",
+            "SourceTable admission does not contain the requested projection",
         )
+    manifest = load_frozen_manifest_bundle().field_manifest
+    source = next(
+        item for item in manifest.sources if item.source_id == admission.source_id
+    )
+    identity_raw_field = source.row_key_fields[0]
+    identity_column = next(
+        column
+        for column in admission.columns
+        if column.raw_field == identity_raw_field
+    )
 
     source_values: list[SourceValueCandidate] = []
     transformation_evidence: list[TransformationEvidence] = []
@@ -1281,9 +1293,10 @@ def _derive_source_table_domain_projection(
                 {
                     "row_id": row_id,
                     "row_authority": SourceTableRowAuthority(
+                        admission_id=admission.admission_id,
+                        source_table_row_id=row_id,
                         canonical_row_identity=SourceTableCanonicalRowIdentity(
-                            source_table_admission_id=admission.admission_id,
-                            source_table_row_id=row_id,
+                            identity_field_id=identity_column.canonical_field_id,
                             canonical_identity=admitted_row.canonical_identity,
                         )
                     ).model_dump(mode="json"),
@@ -1322,8 +1335,10 @@ def _derive_source_table_domain_projection(
     source_snapshot = authority_input.source_snapshot
     source_member = SourceTableSourceCollectionMember(
         source_snapshot=source_snapshot,
-        source_table_admission=admission,
+        admission_id=admission.admission_id,
+        admission_output_hash=admission.output_hash,
         source_id=admission.source_id,
+        source_table=admission.source_table,
         source_snapshot_id=admission.source_snapshot_id,
         source_snapshot_content_hash=admission.source_snapshot_content_hash,
         query_hash=admission.query_hash,
@@ -1343,7 +1358,10 @@ def _derive_source_table_domain_projection(
     )
     evidence_ids = tuple(sorted(item.evidence_id for item in transformation_evidence))
     artifact_authority = SourceTableArtifactAuthority(
-        source_table_admission=admission,
+        admission_id=admission.admission_id,
+        admission_output_hash=admission.output_hash,
+        source_id=admission.source_id,
+        source_table=admission.source_table,
         source_snapshot_id=admission.source_snapshot_id,
         source_snapshot_content_hash=admission.source_snapshot_content_hash,
         evidence_ids=evidence_ids,

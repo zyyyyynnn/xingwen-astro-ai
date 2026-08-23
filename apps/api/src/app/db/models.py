@@ -1016,7 +1016,7 @@ class ArtifactVersionModel(TimestampMixin, Base):
         Index("ix_artifact_versions_producer_execution_id", "producer_execution_id"),
         CheckConstraint("version_number >= 1", name="version_positive"),
         CheckConstraint(
-            "source_mode IN ('fixture','live','cached')", name="source_mode"
+            "source_mode IN ('fixture','recorded','live','cached')", name="source_mode"
         ),
     )
 

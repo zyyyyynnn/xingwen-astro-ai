@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+from app.schemas.core import ArtifactKind
 from app.schemas.data_artifacts import (
     DataArtifactBuildInput,
     DataArtifactBuildResult,
@@ -14,6 +15,7 @@ from app.schemas.data_quality import (
     DataQualityEvaluationResult,
     compute_data_quality_input_hash,
 )
+from app.schemas.enums import SourceMode
 from app.workflow.publisher import (
     ArtifactPublication,
     ProducerExecutionSnapshot,
@@ -39,12 +41,12 @@ from services.data_pipeline.data_quality.policy import load_frozen_quality_rule_
 class DataArtifactPublicationConfig:
     """Step-specific bindings for the shared Data Artifact publication seam."""
 
-    publish_kinds: tuple[str, ...]
+    publish_kinds: tuple[ArtifactKind, ...]
     operation_key_prefix: str
     producer_error_code: str
     producer_version: str
     quality_failure_message: str
-    source_mode: str = "live"
+    source_mode: SourceMode = SourceMode.live
     snapshot_bindings_override: dict[str, str] | None = None
     source_snapshots: tuple[object, ...] = ()
 
@@ -78,12 +80,12 @@ class DataArtifactPublicationService:
             raise ValueError("Data Artifact publication requires at least one kind")
 
         executions = {
-            kind: self._publications.start_producer(
+            kind.value: self._publications.start_producer(
                 context,
                 step_key=step_key,
-                operation_key=f"{config.operation_key_prefix}:{kind}",
+                operation_key=f"{config.operation_key_prefix}:{kind.value}",
                 producer_type="algorithm",
-                producer_name=f"data-artifact-{kind}",
+                producer_name=f"data-artifact-{kind.value}",
                 producer_version=config.producer_version,
                 input_hash=data_input.input_hash,
                 parameters={},
@@ -147,10 +149,11 @@ class DataArtifactPublicationService:
         publications: list[ArtifactPublication] = []
         try:
             for kind in config.publish_kinds:
-                candidate = candidates[kind]
+                kind_value = kind.value
+                candidate = candidates[kind_value]
                 source_bindings, evidence_bindings = self._publications.data_bindings(
                     context,
-                    kind=kind,
+                    kind=kind_value,
                     candidate=prepared.build_result.dataset,
                     snapshot_bindings_override=config.snapshot_bindings_override,
                 )
@@ -163,26 +166,28 @@ class DataArtifactPublicationService:
                     domain_validator=validate_data_artifact_domain,
                     quality_validator=build_data_quality_publication_validator(
                         prepared.quality,
-                        candidate_kind=kind,
+                        candidate_kind=kind_value,
                     ),
                     source_snapshot_bindings=source_bindings,
                     evidence_bindings=evidence_bindings,
                     data_provenance_candidate=(
-                        None if kind == "dataset" else prepared.build_result.dataset
+                        None
+                        if kind is ArtifactKind.dataset
+                        else prepared.build_result.dataset
                     ),
                 )
-                execution = prepared.executions[kind]
+                execution = prepared.executions[kind_value]
                 self._publications.finish_producer(
                     execution.id,
                     status="completed",
                     input_hash=candidate.input_hash,
                     output_hash=admitted.content_hash,
                 )
-                completed_kinds.add(kind)
+                completed_kinds.add(kind_value)
                 publications.append(
                     self._publications.publication(
                         context,
-                        kind=kind,
+                        kind=kind_value,
                         candidate=admitted,
                         producer_execution_id=execution.id,
                         source_mode=config.source_mode,

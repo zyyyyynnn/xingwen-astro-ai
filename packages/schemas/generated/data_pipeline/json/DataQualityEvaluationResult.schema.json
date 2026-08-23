@@ -1604,6 +1604,11 @@
           "$ref": "#/$defs/EntityLevel",
           "default": "host_star"
         },
+        "identity_field_id": {
+          "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Identity Field Id",
+          "type": "string"
+        },
         "identity_kind": {
           "const": "source_table",
           "default": "source_table",
@@ -1615,21 +1620,10 @@
           "default": "1.0.0",
           "title": "Identity Version",
           "type": "string"
-        },
-        "source_table_admission_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Source Table Admission Id",
-          "type": "string"
-        },
-        "source_table_row_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Source Table Row Id",
-          "type": "string"
         }
       },
       "required": [
-        "source_table_admission_id",
-        "source_table_row_id",
+        "identity_field_id",
         "canonical_identity"
       ],
       "title": "SourceTableCanonicalRowIdentity",
@@ -1643,6 +1637,11 @@
           "maxLength": 128,
           "minLength": 1,
           "title": "Admission Id",
+          "type": "string"
+        },
+        "admission_output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Admission Output Hash",
           "type": "string"
         },
         "authority_kind": {
@@ -1674,6 +1673,7 @@
       },
       "required": [
         "admission_id",
+        "admission_output_hash",
         "source_snapshot_id",
         "source_snapshot_content_hash",
         "evidence_ids"
@@ -1808,7 +1808,7 @@
       "type": "array"
     },
     "schema_version": {
-      "const": "2.0.0",
+      "const": "3.0.0",
       "title": "Schema Version",
       "type": "string"
     },

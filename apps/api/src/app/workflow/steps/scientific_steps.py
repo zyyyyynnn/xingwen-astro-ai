@@ -136,12 +136,12 @@ class ScientificStepService:
         output: ScientificStepOutput,
     ) -> tuple[ArtifactPublication, ...]:
         data_kinds = (
-            ArtifactKind.dataset.value,
-            ArtifactKind.field_dictionary.value,
-            ArtifactKind.source_collection.value,
+            ArtifactKind.dataset,
+            ArtifactKind.field_dictionary,
+            ArtifactKind.source_collection,
         )
         requested_kinds = {
-            kind.value for kind in context.contract.output_requirements
+            kind for kind in context.contract.output_requirements
         }
         if (
             output.skill_id is not ScientificSkillId.gaia_cone_search

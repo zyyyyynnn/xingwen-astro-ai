@@ -110,7 +110,11 @@ def _contract_input(
                 )
             },
             "paper_search_scope": {"max_candidates": 20},
-            "output_requirements": [artifact_kind],
+            "output_requirements": (
+                [artifact_kind]
+                if artifact_kind == "dataset"
+                else ["dataset", artifact_kind]
+            ),
             "evidence_requirements": {
                 "require_locator": True,
                 "require_source_snapshot": True,

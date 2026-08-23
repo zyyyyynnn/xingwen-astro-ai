@@ -553,7 +553,7 @@ def test_gaia_scientific_admission_publishes_uuid_cell_evidence_end_to_end(
             "result_status": "complete",
             "response_format": "csv",
             "acquisition": {
-                "source_mode": "cached",
+                "source_mode": "recorded",
                 "adapter": "gaia_tap",
                 "adapter_version": "3.0.0",
                 "endpoint": "https://gea.esac.esa.int/tap-server/tap/sync",
@@ -681,6 +681,7 @@ def test_gaia_scientific_admission_publishes_uuid_cell_evidence_end_to_end(
             )
         ).all()
         assert len(versions) == 8
+        assert all(version.source_mode == "recorded" for version in versions)
         assert {
             kind: sum(version.content["kind"] == kind for version in versions)
             for kind in (

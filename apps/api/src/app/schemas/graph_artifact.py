@@ -12,6 +12,7 @@ from typing import Annotated, Any, ClassVar, Literal, Self
 
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     PrivateAttr,
@@ -26,7 +27,7 @@ from ._graph_seal import (
     graph_artifact_candidate_is_sealed,
 )
 from ._hashing import compute_canonical_payload_hash
-from .enums import EvidenceType, GraphEdgeType, GraphNodeType
+from .enums import EvidenceType, GraphEdgeType, GraphNodeType, SourceMode
 from .persistence import PersistedUuid
 
 
@@ -73,6 +74,14 @@ ContentHash = Annotated[
     str,
     StringConstraints(pattern=r"^sha256:[0-9a-f]{64}$", max_length=71),
 ]
+
+def _coerce_source_mode(value: SourceMode | str) -> SourceMode:
+    return value if isinstance(value, SourceMode) else SourceMode(value)
+
+
+GraphSourceMode = Annotated[SourceMode, BeforeValidator(_coerce_source_mode)]
+
+
 def _json_compatible(value: Any) -> Any:
     """Normalize nested model payloads before canonical hashing.
 
@@ -205,7 +214,7 @@ class GraphArtifactVersionReference(BaseModel):
     content_hash: ContentHash
     input_hash: ContentHash
     output_hash: ContentHash
-    source_mode: Literal["fixture", "live", "cached"]
+    source_mode: GraphSourceMode
     producer_type: Literal["pipeline", "model", "algorithm"]
     producer_name: Identifier
     producer_version: SemanticVersion

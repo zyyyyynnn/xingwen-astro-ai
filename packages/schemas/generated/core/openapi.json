@@ -374,7 +374,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__core__SourceMode"
+            "$ref": "#/components/schemas/SourceMode"
           },
           "source_snapshot_ids": {
             "default": [],
@@ -464,7 +464,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__core__SourceMode"
+            "$ref": "#/components/schemas/SourceMode"
           },
           "supersedes_version_id": {
             "anyOf": [
@@ -2874,8 +2874,8 @@
             "type": "array"
           },
           "schema_version": {
-            "const": "2.0.0",
-            "default": "2.0.0",
+            "const": "3.0.0",
+            "default": "3.0.0",
             "title": "Schema Version",
             "type": "string"
           },
@@ -2999,7 +2999,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__core__SourceMode"
+            "$ref": "#/components/schemas/SourceMode"
           },
           "source_snapshots": {
             "items": {
@@ -5044,8 +5044,8 @@
             "type": "array"
           },
           "schema_version": {
-            "const": "2.0.0",
-            "default": "2.0.0",
+            "const": "3.0.0",
+            "default": "3.0.0",
             "title": "Schema Version",
             "type": "string"
           },
@@ -5138,7 +5138,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__core__SourceMode"
+            "$ref": "#/components/schemas/SourceMode"
           },
           "source_snapshots": {
             "items": {
@@ -5565,7 +5565,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__core__SourceMode"
+            "$ref": "#/components/schemas/SourceMode"
           },
           "supersedes_version_id": {
             "anyOf": [
@@ -5692,13 +5692,7 @@
             "type": "string"
           },
           "source_mode": {
-            "enum": [
-              "fixture",
-              "live",
-              "cached"
-            ],
-            "title": "Source Mode",
-            "type": "string"
+            "$ref": "#/components/schemas/SourceMode"
           },
           "version_number": {
             "minimum": 1.0,
@@ -7402,7 +7396,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__core__SourceMode"
+            "$ref": "#/components/schemas/SourceMode"
           },
           "supersedes_version_id": {
             "anyOf": [
@@ -10535,7 +10529,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__core__SourceMode"
+            "$ref": "#/components/schemas/SourceMode"
           },
           "source_snapshots": {
             "items": {
@@ -11047,7 +11041,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__enums__SourceMode"
+            "$ref": "#/components/schemas/SourceMode"
           },
           "source_snapshot_id": {
             "anyOf": [
@@ -12129,7 +12123,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__core__SourceMode"
+            "$ref": "#/components/schemas/SourceMode"
           },
           "source_snapshots": {
             "items": {
@@ -12910,7 +12904,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__core__SourceMode"
+            "$ref": "#/components/schemas/SourceMode"
           },
           "title": {
             "minLength": 1,
@@ -16120,7 +16114,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__core__SourceMode"
+            "$ref": "#/components/schemas/SourceMode"
           },
           "source_snapshots": {
             "items": {
@@ -17091,8 +17085,8 @@
             "type": "string"
           },
           "schema_version": {
-            "const": "2.0.0",
-            "default": "2.0.0",
+            "const": "3.0.0",
+            "default": "3.0.0",
             "title": "Schema Version",
             "type": "string"
           },
@@ -17193,7 +17187,7 @@
             "$ref": "#/components/schemas/SourceCollectionArtifactCandidate"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__core__SourceMode"
+            "$ref": "#/components/schemas/SourceMode"
           },
           "source_snapshots": {
             "items": {
@@ -17220,6 +17214,17 @@
         ],
         "title": "SourceCollectionArtifactRead",
         "type": "object"
+      },
+      "SourceMode": {
+        "description": "Actual origin of an ArtifactVersion-compatible pipeline payload.",
+        "enum": [
+          "fixture",
+          "recorded",
+          "live",
+          "cached"
+        ],
+        "title": "SourceMode",
+        "type": "string"
       },
       "SourceScope": {
         "additionalProperties": false,
@@ -17572,8 +17577,8 @@
             "type": "array"
           },
           "schema_version": {
-            "const": "1.0.0",
-            "default": "1.0.0",
+            "const": "2.0.0",
+            "default": "2.0.0",
             "title": "Schema Version",
             "type": "string"
           },
@@ -17644,8 +17649,18 @@
       },
       "SourceTableArtifactAuthority": {
         "additionalProperties": false,
-        "description": "SourceTable-specific admission and Evidence authority for a candidate.",
+        "description": "Compact SourceTable lineage binding for a public candidate.",
         "properties": {
+          "admission_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Admission Id",
+            "type": "string"
+          },
+          "admission_output_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Admission Output Hash",
+            "type": "string"
+          },
           "authority_kind": {
             "const": "source_table",
             "default": "source_table",
@@ -17661,6 +17676,11 @@
             "title": "Evidence Ids",
             "type": "array"
           },
+          "source_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Source Id",
+            "type": "string"
+          },
           "source_snapshot_content_hash": {
             "pattern": "^sha256:[0-9a-f]{64}$",
             "title": "Source Snapshot Content Hash",
@@ -17672,12 +17692,17 @@
             "title": "Source Snapshot Id",
             "type": "string"
           },
-          "source_table_admission": {
-            "$ref": "#/components/schemas/SourceTableAdmission"
+          "source_table": {
+            "minLength": 1,
+            "title": "Source Table",
+            "type": "string"
           }
         },
         "required": [
-          "source_table_admission",
+          "admission_id",
+          "admission_output_hash",
+          "source_id",
+          "source_table",
           "source_snapshot_id",
           "source_snapshot_content_hash",
           "evidence_ids"
@@ -17698,6 +17723,11 @@
             "$ref": "#/components/schemas/EntityLevel",
             "default": "host_star"
           },
+          "identity_field_id": {
+            "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+            "title": "Identity Field Id",
+            "type": "string"
+          },
           "identity_kind": {
             "const": "source_table",
             "default": "source_table",
@@ -17709,21 +17739,10 @@
             "default": "1.0.0",
             "title": "Identity Version",
             "type": "string"
-          },
-          "source_table_admission_id": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-            "title": "Source Table Admission Id",
-            "type": "string"
-          },
-          "source_table_row_id": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-            "title": "Source Table Row Id",
-            "type": "string"
           }
         },
         "required": [
-          "source_table_admission_id",
-          "source_table_row_id",
+          "identity_field_id",
           "canonical_identity"
         ],
         "title": "SourceTableCanonicalRowIdentity",
@@ -17924,6 +17943,11 @@
       "SourceTableRowAuthority": {
         "additionalProperties": false,
         "properties": {
+          "admission_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Admission Id",
+            "type": "string"
+          },
           "authority_kind": {
             "const": "source_table",
             "default": "source_table",
@@ -17932,9 +17956,16 @@
           },
           "canonical_row_identity": {
             "$ref": "#/components/schemas/SourceTableCanonicalRowIdentity"
+          },
+          "source_table_row_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Source Table Row Id",
+            "type": "string"
           }
         },
         "required": [
+          "admission_id",
+          "source_table_row_id",
           "canonical_row_identity"
         ],
         "title": "SourceTableRowAuthority",
@@ -17942,8 +17973,18 @@
       },
       "SourceTableSourceCollectionMember": {
         "additionalProperties": false,
-        "description": "One persisted SourceTable and its admitted raw-record registry.",
+        "description": "One persisted SourceTable and its compact raw-record registry.",
         "properties": {
+          "admission_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Admission Id",
+            "type": "string"
+          },
+          "admission_output_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Admission Output Hash",
+            "type": "string"
+          },
           "license_note": {
             "minLength": 1,
             "title": "License Note",
@@ -17991,14 +18032,18 @@
             "title": "Source Snapshot Id",
             "type": "string"
           },
-          "source_table_admission": {
-            "$ref": "#/components/schemas/SourceTableAdmission"
+          "source_table": {
+            "minLength": 1,
+            "title": "Source Table",
+            "type": "string"
           }
         },
         "required": [
           "source_snapshot",
-          "source_table_admission",
+          "admission_id",
+          "admission_output_hash",
           "source_id",
+          "source_table",
           "source_snapshot_id",
           "source_snapshot_content_hash",
           "query_hash",
@@ -18649,7 +18694,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__enums__SourceMode"
+            "$ref": "#/components/schemas/SourceMode"
           },
           "source_snapshot": {
             "$ref": "#/components/schemas/SourceSnapshotRecord"
@@ -20880,25 +20925,6 @@
         ],
         "title": "WwtTrackedObjectView",
         "type": "object"
-      },
-      "app__schemas__core__SourceMode": {
-        "enum": [
-          "fixture",
-          "live",
-          "cached"
-        ],
-        "title": "SourceMode",
-        "type": "string"
-      },
-      "app__schemas__enums__SourceMode": {
-        "description": "Actual origin of an ArtifactVersion-compatible pipeline payload.",
-        "enum": [
-          "fixture",
-          "live",
-          "cached"
-        ],
-        "title": "SourceMode",
-        "type": "string"
       }
     }
   },

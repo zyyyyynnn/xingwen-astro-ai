@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from ._hashing import compute_canonical_payload_hash
 from .core import ContentHash, Identifier, JsonValue, SemanticVersion, UtcDateTime
 from .data_artifact_primitives import DatabaseCellLocator, ManifestPins
-from .data_quality import (
+from .data_quality_primitives import (
     QualityConstraintResult,
     QualityGateStatus,
     QualityMetricResult,
@@ -61,7 +61,7 @@ class SourceTableAdmission(BaseModel):
     model_config = MODEL_CONFIG
 
     kind: Literal["source_table_admission"] = "source_table_admission"
-    schema_version: Literal["1.0.0"] = "1.0.0"
+    schema_version: Literal["2.0.0"] = "2.0.0"
     admission_id: Identifier
     source_id: Identifier
     source_table: NonEmptyString
@@ -231,10 +231,3 @@ __all__ = [
     "compute_source_table_input_hash",
     "compute_source_table_output_hash",
 ]
-
-
-# Resolve Data Artifact SourceTable references after this module has finished
-# defining the admission schema; this also breaks the data_quality import cycle.
-from . import data_artifacts as _data_artifacts
-
-_data_artifacts.rebuild_source_table_models(SourceTableAdmission)

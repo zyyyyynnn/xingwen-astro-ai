@@ -329,6 +329,11 @@
           "$ref": "#/$defs/EntityLevel",
           "default": "host_star"
         },
+        "identity_field_id": {
+          "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Identity Field Id",
+          "type": "string"
+        },
         "identity_kind": {
           "const": "source_table",
           "default": "source_table",
@@ -340,21 +345,10 @@
           "default": "1.0.0",
           "title": "Identity Version",
           "type": "string"
-        },
-        "source_table_admission_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Source Table Admission Id",
-          "type": "string"
-        },
-        "source_table_row_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Source Table Row Id",
-          "type": "string"
         }
       },
       "required": [
-        "source_table_admission_id",
-        "source_table_row_id",
+        "identity_field_id",
         "canonical_identity"
       ],
       "title": "SourceTableCanonicalRowIdentity",

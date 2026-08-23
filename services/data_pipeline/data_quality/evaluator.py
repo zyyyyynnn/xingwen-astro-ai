@@ -110,6 +110,14 @@ def evaluate_data_quality(
                 else None
             ),
             manifests,
+            source_table_admission=(
+                evaluation_input.data_artifact_input.authority.source_table_admission
+                if isinstance(
+                    evaluation_input.data_artifact_input.authority,
+                    SourceTableDataArtifactAuthority,
+                )
+                else None
+            ),
         )
         incomplete_source = observations.dataset.source_scope_insufficient
         field_results = _build_field_results(
@@ -253,12 +261,12 @@ def _validate_input_bindings(
                 QualityErrorCode.QUALITY_RESEARCH_CONTRACT_MISMATCH,
                 QualityFailureStage.contract_validation,
             )
+        expected_evidence_ids = tuple(value.dataset_candidate.evidence_ids)
         if admission.source_result_status != "complete" or admission.overall_status.value != "pass":
             _fail(
                 QualityErrorCode.QUALITY_SOURCE_SCOPE_INSUFFICIENT,
                 QualityFailureStage.data_artifact_validation,
             )
-        expected_evidence_ids = tuple(sorted(cell.evidence_id for cell in admission.cells))
         for candidate in candidates:
             if not isinstance(candidate.authority, SourceTableArtifactAuthority):
                 _fail(
@@ -266,7 +274,10 @@ def _validate_input_bindings(
                     QualityFailureStage.data_artifact_validation,
                 )
             if (
-                candidate.authority.source_table_admission != admission
+                candidate.authority.admission_id != admission.admission_id
+                or candidate.authority.admission_output_hash != admission.output_hash
+                or candidate.authority.source_id != admission.source_id
+                or candidate.authority.source_table != admission.source_table
                 or candidate.authority.source_snapshot_id != authority.source_snapshot.snapshot_id
                 or candidate.authority.source_snapshot_content_hash
                 != authority.source_snapshot.content_hash
@@ -467,8 +478,8 @@ def _build_row_results(
                 ).model_dump(mode="json")
                 if isinstance(row.row_authority, CrossmatchRowAuthority)
                 else SourceTableRowQualityAuthority(
-                    admission_id=row.row_authority.canonical_row_identity.source_table_admission_id,
-                    row_id=row.row_authority.canonical_row_identity.source_table_row_id,
+                    admission_id=row.row_authority.admission_id,
+                    row_id=row.row_authority.source_table_row_id,
                 ).model_dump(mode="json")
             ),
             "applicable_field_count": len(row.projected_field_ids),
@@ -632,6 +643,7 @@ def _build_result(
             raise ValueError("unsupported Data Artifact input authority")
         quality_authority = SourceTableQualityAuthority(
             admission_id=authority.source_table_admission.admission_id,
+            admission_output_hash=authority.source_table_admission.output_hash,
             source_snapshot_id=authority.source_snapshot.snapshot_id,
             source_snapshot_content_hash=authority.source_snapshot.content_hash,
             evidence_ids=tuple(dataset_candidate.evidence_ids),
@@ -663,7 +675,7 @@ def _build_result(
     )
     payload = {
         "kind": "data_quality",
-        "schema_version": "2.0.0",
+        "schema_version": "3.0.0",
         "result_id": compute_data_quality_result_id(value.input_hash, rules.content_hash),
         "input_references": input_refs.model_dump(mode="json"),
         "evaluation_plan": plan.model_dump(mode="json"),
