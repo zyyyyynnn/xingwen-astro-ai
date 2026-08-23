@@ -324,7 +324,7 @@ def _readmit_quality_baseline(
     except Exception as exc:
         raise DataRevisionError(
             DataRevisionErrorCode.input_not_replayable,
-            "quality-only execution cannot exactly rederive the frozen C-04 bundle",
+            "quality-only execution cannot exactly rederive the frozen data bundle",
         ) from exc
 
 

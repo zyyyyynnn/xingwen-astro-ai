@@ -19,7 +19,7 @@ def compute_revision_plan_hash(
     recompute_steps: Sequence[str],
     version_decisions: Sequence[dict[str, Any]],
 ) -> str:
-    """Hash the exact ordered facts frozen by B-11 for one RevisionPlan."""
+    """Hash the exact ordered facts frozen for one RevisionPlan."""
 
     return canonical_request_hash(
         {
