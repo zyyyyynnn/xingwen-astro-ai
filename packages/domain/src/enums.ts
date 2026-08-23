@@ -17,7 +17,7 @@ export function isExecutionMode(value: unknown): value is ExecutionMode {
   );
 }
 
-export const SOURCE_MODES = ["fixture", "live", "cached"] as const;
+export const SOURCE_MODES = ["fixture", "recorded", "live", "cached"] as const;
 export type SourceMode = (typeof SOURCE_MODES)[number];
 
 export function isSourceMode(value: unknown): value is SourceMode {

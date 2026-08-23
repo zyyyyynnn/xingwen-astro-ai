@@ -500,8 +500,10 @@
       "type": "object"
     },
     "SourceMode": {
+      "description": "Actual origin of an ArtifactVersion-compatible pipeline payload.",
       "enum": [
         "fixture",
+        "recorded",
         "live",
         "cached"
       ],

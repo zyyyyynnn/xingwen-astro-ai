@@ -380,7 +380,7 @@
     },
     "DatabaseCellLocator": {
       "additionalProperties": false,
-      "description": "Locator for one structured database cell (left/right Crossmatch side).",
+      "description": "Locator for one structured database cell.",
       "properties": {
         "kind": {
           "const": "database_cell",
@@ -2643,8 +2643,10 @@
       "type": "string"
     },
     "SourceMode": {
+      "description": "Actual origin of an ArtifactVersion-compatible pipeline payload.",
       "enum": [
         "fixture",
+        "recorded",
         "live",
         "cached"
       ],
@@ -2897,8 +2899,8 @@
           "type": "array"
         },
         "schema_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -3058,6 +3060,17 @@
           "default": null,
           "title": "Canonical Unit Symbol"
         },
+        "conversion_rule_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Conversion Rule Id",
+          "type": "string"
+        },
+        "conversion_rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Conversion Rule Version",
+          "type": "string"
+        },
         "label_zh": {
           "minLength": 1,
           "title": "Label Zh",
@@ -3092,7 +3105,9 @@
         "canonical_field_id",
         "label_zh",
         "source_unit",
-        "canonical_unit"
+        "canonical_unit",
+        "conversion_rule_id",
+        "conversion_rule_version"
       ],
       "title": "SourceTableColumnAdmission",
       "type": "object"

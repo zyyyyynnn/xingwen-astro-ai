@@ -219,7 +219,12 @@ CAPABILITY_DESCRIPTORS: dict[str, dict[str, object]] = {
         "label": "Gaia 锥形检索",
         "description": "按天区坐标查询 Gaia DR3 目录。",
         "accepted_input_kinds": ("sky_coordinates",),
-        "produced_artifact_kinds": ("analysis_report",),
+        "produced_artifact_kinds": (
+            "dataset",
+            "field_dictionary",
+            "source_collection",
+            "analysis_report",
+        ),
         "parameters": (
             ("ra_degrees", "number", True, "赤经（度）"),
             ("dec_degrees", "number", True, "赤纬（度）"),

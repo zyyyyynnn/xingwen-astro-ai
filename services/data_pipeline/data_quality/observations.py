@@ -13,15 +13,20 @@ from app.schemas.crossmatch import (
     resolve_crossmatch_record_edge_components,
 )
 from app.schemas.data_artifacts import (
+    CrossmatchArtifactAuthority,
+    CrossmatchRowAuthority,
     DatasetArtifactCandidate,
     DatasetRow,
     DeclaredNullValue,
     FieldConflictRecord,
     MappedCanonicalValue,
+    SourceTableArtifactAuthority,
+    SourceTableRowAuthority,
     SourceValueCandidate,
     UnresolvedCanonicalValue,
 )
 from app.schemas.manifest import FieldDefinition, ManifestBundle
+from app.schemas.source_table import SourceTableAdmission
 
 
 @dataclass(frozen=True)
@@ -80,8 +85,8 @@ class DatasetObservation:
     source_scope_numerator: int
     source_scope_denominator: int
     source_scope_insufficient: bool
-    crossmatch_metrics: Any
-    crossmatch_record_count: int
+    record_metrics: Any
+    alignment_record_count: int
     validation_integrity: bool
 
 
@@ -111,10 +116,32 @@ class _FieldAccumulator:
     evidence_ids: set[str] = dataclass_field(default_factory=set)
 
 
+@dataclass(frozen=True)
+class _MetricCounts:
+    numerator: int
+    denominator: int
+
+
+@dataclass(frozen=True)
+class SourceTableRecordMetrics:
+    """Empty alignment metrics for a SourceTable that has no pairwise join."""
+
+    match_coverage: _MetricCounts = _MetricCounts(0, 0)
+    evidence_coverage: _MetricCounts = _MetricCounts(0, 0)
+    low_confidence_count: int = 0
+    candidate_pair_count: int = 0
+    manual_review_required_count: int = 0
+    paired_group_count: int = 0
+    conflict_group_count: int = 0
+    inconclusive_record_count: int = 0
+
+
 def observe_quality(
     candidate: DatasetArtifactCandidate,
-    crossmatch_result: CrossmatchResult,
+    crossmatch_result: CrossmatchResult | None,
     manifests: ManifestBundle,
+    *,
+    source_table_admission: SourceTableAdmission | None = None,
 ) -> QualityObservationBundle:
     """Aggregate every Data Artifact outcome once into field, row and dataset counters."""
 
@@ -134,12 +161,20 @@ def observe_quality(
     source_snapshot_ids = set(candidate.source_snapshot_ids)
     retained_evidence_ids = set(candidate.evidence_ids)
 
-    edge_components = resolve_crossmatch_record_edge_components(crossmatch_result)
-    paired_records = {
-        record.logical_match_key: record
-        for record in crossmatch_result.records
-        if isinstance(record, PairedMatch)
-    }
+    edge_components = (
+        resolve_crossmatch_record_edge_components(crossmatch_result)
+        if crossmatch_result is not None
+        else {}
+    )
+    paired_records = (
+        {
+            record.logical_match_key: record
+            for record in crossmatch_result.records
+            if isinstance(record, PairedMatch)
+        }
+        if crossmatch_result is not None
+        else {}
+    )
 
     dataset_null_reasons: Counter[str] = Counter()
     dataset_applicable_count = 0
@@ -249,29 +284,44 @@ def observe_quality(
                 dataset_same_source_conflict_count += same_source
                 dataset_cross_source_conflict_count += cross_source
 
-        paired_record = paired_records.get(row.crossmatch_logical_key)
-        confidence_applicable = (
-            paired_record is not None
-            and row.crossmatch_logical_key in edge_components
-            and paired_record.confidence_band
-            in {ConfidenceBand.high, ConfidenceBand.medium, ConfidenceBand.low}
-        )
-        low_confidence = (
-            paired_record.confidence_band is ConfidenceBand.low
-            if confidence_applicable
-            else None
-        )
-        is_adjudicable = row.crossmatch_record_type in {"paired", "conflict_group"}
-        review_required = (
-            row.alignment_status.value in {"review_required", "conflict"}
-            if is_adjudicable
-            else None
-        )
-        inconclusive = (
-            row.alignment_status.value == "inconclusive"
-            if row.crossmatch_record_type == "unpaired"
-            else None
-        )
+        if (
+            crossmatch_result is not None
+            and isinstance(row.row_authority, CrossmatchRowAuthority)
+        ):
+            paired_record = paired_records.get(row.row_authority.logical_key)
+            confidence_applicable = (
+                paired_record is not None
+                and row.row_authority.logical_key in edge_components
+                and paired_record.confidence_band
+                in {ConfidenceBand.high, ConfidenceBand.medium, ConfidenceBand.low}
+            )
+            low_confidence = (
+                paired_record.confidence_band is ConfidenceBand.low
+                if confidence_applicable
+                else None
+            )
+            is_adjudicable = row.row_authority.record_type in {
+                "paired",
+                "conflict_group",
+            }
+            review_required = (
+                row.row_authority.alignment_status.value
+                in {"review_required", "conflict"}
+                if is_adjudicable
+                else None
+            )
+            inconclusive = (
+                row.row_authority.alignment_status.value == "inconclusive"
+                if row.row_authority.record_type == "unpaired"
+                else None
+            )
+        else:
+            if not isinstance(row.row_authority, SourceTableRowAuthority):
+                raise ValueError("unsupported Dataset row authority")
+            confidence_applicable = False
+            low_confidence = None
+            review_required = None
+            inconclusive = None
         row_observations.append(
             RowObservation(
                 row=row,
@@ -297,9 +347,30 @@ def observe_quality(
         )
         for field_id in candidate.requested_fields
     )
-    metrics = crossmatch_result.metrics
-    source_members = (crossmatch_result.left_completion, crossmatch_result.right_completion)
-    source_scope_insufficient = any(item.status.value != "complete" for item in source_members)
+    if crossmatch_result is not None:
+        metrics = crossmatch_result.metrics
+        source_members = (
+            crossmatch_result.left_completion,
+            crossmatch_result.right_completion,
+        )
+        source_scope_numerator = sum(
+            item.status.value == "complete" for item in source_members
+        )
+        source_scope_denominator = len(source_members)
+        alignment_record_count = len(crossmatch_result.records)
+    else:
+        if not isinstance(candidate.authority, SourceTableArtifactAuthority):
+            raise ValueError("SourceTable quality observation requires SourceTable authority")
+        if source_table_admission is None:
+            raise ValueError("SourceTable quality observation requires its input admission")
+        metrics = SourceTableRecordMetrics()
+        source_scope_numerator = int(
+            source_table_admission.source_result_status
+            == "complete"
+        )
+        source_scope_denominator = 1
+        alignment_record_count = 0
+    source_scope_insufficient = source_scope_numerator != source_scope_denominator
     dataset_observation = DatasetObservation(
         row_count=len(candidate.rows),
         field_count=len(candidate.columns),
@@ -315,11 +386,11 @@ def observe_quality(
         unit_applicable_assertion_count=dataset_unit_applicable_assertion_count,
         same_source_conflict_cell_count=dataset_same_source_conflict_count,
         cross_source_conflict_cell_count=dataset_cross_source_conflict_count,
-        source_scope_numerator=sum(item.status.value == "complete" for item in source_members),
-        source_scope_denominator=len(source_members),
+        source_scope_numerator=source_scope_numerator,
+        source_scope_denominator=source_scope_denominator,
         source_scope_insufficient=source_scope_insufficient,
-        crossmatch_metrics=metrics,
-        crossmatch_record_count=len(crossmatch_result.records),
+        record_metrics=metrics,
+        alignment_record_count=alignment_record_count,
         validation_integrity=True,
     )
     return QualityObservationBundle(
@@ -371,8 +442,12 @@ def field_metric_observations(item: FieldObservation) -> dict[str, int | bool]:
 
 
 def row_metric_observations(item: RowObservation) -> dict[str, int | bool]:
-    is_adjudicable = item.row.crossmatch_record_type in {"paired", "conflict_group"}
-    is_unpaired = item.row.crossmatch_record_type == "unpaired"
+    is_crossmatch = isinstance(item.row.row_authority, CrossmatchRowAuthority)
+    is_adjudicable = is_crossmatch and item.row.row_authority.record_type in {
+        "paired",
+        "conflict_group",
+    }
+    is_unpaired = is_crossmatch and item.row.row_authority.record_type == "unpaired"
     return {
         "row.mapped_count": item.mapped_count,
         "row.applicable_field_count": len(item.row.projected_field_ids),
@@ -393,7 +468,7 @@ def row_metric_observations(item: RowObservation) -> dict[str, int | bool]:
 
 
 def dataset_metric_observations(item: DatasetObservation) -> dict[str, int | bool]:
-    metrics = item.crossmatch_metrics
+    metrics = item.record_metrics
     return {
         "dataset.mapped_count": item.mapped_count,
         "dataset.applicable_cell_count": item.applicable_cell_count,
@@ -415,7 +490,7 @@ def dataset_metric_observations(item: DatasetObservation) -> dict[str, int | boo
             metrics.paired_group_count + metrics.conflict_group_count
         ),
         "dataset.inconclusive_record_count": metrics.inconclusive_record_count,
-        "dataset.crossmatch_record_count": item.crossmatch_record_count,
+        "dataset.crossmatch_record_count": item.alignment_record_count,
         "dataset.complete_source_count": item.source_scope_numerator,
         "dataset.required_source_count": item.source_scope_denominator,
         "dataset.validation_pass_count": int(item.validation_integrity),

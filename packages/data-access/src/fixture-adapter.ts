@@ -229,6 +229,15 @@ function validateBundlePayloads(bundle: FixtureBundle): void {
       model: "PaperSummaryRead",
       payloads: bundle.data.paperSummaries.map((item) => item.summary),
     },
+    { model: "DatasetArtifactRead", payloads: bundle.data.dataArtifactReads },
+    {
+      model: "FieldDictionaryArtifactRead",
+      payloads: bundle.data.fieldDictionaryArtifactReads,
+    },
+    {
+      model: "SourceCollectionArtifactRead",
+      payloads: bundle.data.sourceCollectionArtifactReads,
+    },
   ];
   for (const { model, payloads } of entries) {
     for (const payload of payloads) {

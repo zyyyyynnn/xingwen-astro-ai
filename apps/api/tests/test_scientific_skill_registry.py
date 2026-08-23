@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from dataclasses import replace
 from datetime import UTC, datetime
 from math import exp, pi, sin
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 import pytest
@@ -39,6 +40,11 @@ from services.scientific_skills import (
     ScientificSourceReference,
     ScientificStepAdapter,
     build_scientific_skill_registry,
+)
+from services.scientific_skills.execution import (
+    _admit_gaia_output,
+    _normalize_gaia_data_fields,
+    _publication_source_mode,
 )
 
 
@@ -563,6 +569,7 @@ def _contract(
     output: str | Sequence[str],
     input_refs: Sequence[str] = (),
     parameters: dict[str, object] | None = None,
+    requested_fields: Sequence[str] | None = None,
 ) -> ResearchContract:
     contract_input = ResearchContractInput.model_validate(
         {
@@ -572,14 +579,17 @@ def _contract(
                 "unit_policy": "canonical",
                 "document_source_policy": "disabled",
             },
-            "requested_fields": (
-                [
-                    "star.gaia_dr3_id",
-                    "system.right_ascension",
-                    "system.declination",
-                ]
-                if skill_id is ScientificSkillId.gaia_cone_search
-                else ["star.mass"]
+            "requested_fields": list(
+                requested_fields
+                or (
+                    [
+                        "star.gaia_dr3_id",
+                        "system.right_ascension",
+                        "system.declination",
+                    ]
+                    if skill_id is ScientificSkillId.gaia_cone_search
+                    else ["star.mass"]
+                )
             ),
             "source_scope": {
                 "allowed_sources": [
@@ -604,6 +614,7 @@ def _contract(
             "quality_constraints": {},
         }
     )
+
     return ResearchContract.model_validate(
         contract_input.model_dump(mode="json")
         | {
@@ -615,6 +626,165 @@ def _contract(
             "content_hash": compute_research_contract_content_hash(contract_input),
         }
     )
+
+
+@pytest.mark.parametrize(
+    ("source_mode", "expected"),
+    [
+        ("live", "live"),
+        ("cached", "cached"),
+        ("recorded", "recorded"),
+        ("fixture", "fixture"),
+    ],
+)
+def test_scientific_publication_source_mode_preserves_non_live_origins(
+    source_mode: str, expected: str
+) -> None:
+    outcome = SimpleNamespace(
+        task=SimpleNamespace(skill_id=ScientificSkillId.data_profile),
+        result=SimpleNamespace(output={"acquisition": {"source_mode": source_mode}})
+    )
+
+    assert _publication_source_mode(outcome) == expected
+
+
+def test_scientific_publication_source_mode_rejects_unknown_origin() -> None:
+    outcome = SimpleNamespace(
+        task=SimpleNamespace(skill_id=ScientificSkillId.data_profile),
+        result=SimpleNamespace(output={"acquisition": {"source_mode": "mock"}})
+    )
+
+    with pytest.raises(ValueError, match="source_mode is unknown"):
+        _publication_source_mode(outcome)
+
+
+def test_scientific_publication_source_mode_rejects_missing_gaia_provenance() -> None:
+    outcome = SimpleNamespace(
+        task=SimpleNamespace(skill_id=ScientificSkillId.gaia_cone_search),
+        result=SimpleNamespace(output={}),
+    )
+
+    with pytest.raises(ValueError, match="Gaia acquisition provenance is missing"):
+        _publication_source_mode(outcome)
+
+
+@pytest.mark.anyio
+async def test_gaia_unsupported_dataset_field_rejects_before_resolver_or_executor() -> None:
+    class _NeverCalledExecutor:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def execute(self, _: ScientificSkillRequest) -> object:
+            self.calls += 1
+            raise AssertionError("Gaia executor must not be called")
+
+    executor = _NeverCalledExecutor()
+    adapter = ScientificStepAdapter(
+        executor=executor,
+        content_storage=_MemoryStorage(),
+        source_recorder=_GaiaSourceRecorder(),
+    )
+    contract = _contract(
+        skill_id=ScientificSkillId.gaia_cone_search,
+        output="dataset",
+        parameters={
+            "ra_degrees": 10.0,
+            "dec_degrees": 20.0,
+            "radius_degrees": 0.1,
+        },
+        requested_fields=("star.mass",),
+    )
+    resolver_calls = 0
+
+    async def resolve(_: ScientificTaskInput) -> Sequence[ScientificInputBinding]:
+        nonlocal resolver_calls
+        resolver_calls += 1
+        return ()
+
+    with pytest.raises(ValueError, match="not admitted by the source contract"):
+        await adapter.execute(
+            task_id="task.primary",
+            project_id=PROJECT_ID,
+            run_id=RUN_ID,
+            contract=contract,
+            resolve_inputs=resolve,
+        )
+
+    assert resolver_calls == 0
+    assert executor.calls == 0
+
+
+def test_gaia_data_artifact_fields_are_raw_json_array_union() -> None:
+    task = ScientificTaskInput(
+        task_id="task.primary",
+        skill_id=ScientificSkillId.gaia_cone_search,
+        parameters={"fields": ["teff_gspphot"], "ra_degrees": 10.0},
+    )
+    contract = _contract(
+        skill_id=ScientificSkillId.gaia_cone_search,
+        output="dataset",
+        parameters={"ra_degrees": 10.0, "dec_degrees": 20.0},
+        requested_fields=("system.right_ascension",),
+    )
+
+    normalized = _normalize_gaia_data_fields(task, contract)
+
+    assert normalized.parameters["fields"] == ["teff_gspphot", "ra", "dec"]
+
+
+@pytest.mark.parametrize(
+    ("status", "truncated", "rows"),
+    [
+        (
+            "complete",
+            True,
+            [{"source_id": "65214061869072512", "ra": 56.7, "dec": 24.1}],
+        ),
+        (
+            "truncated",
+            False,
+            [{"source_id": "65214061869072512", "ra": 56.7, "dec": 24.1}],
+        ),
+        (
+            "empty",
+            False,
+            [{"source_id": "65214061869072512", "ra": 56.7, "dec": 24.1}],
+        ),
+    ],
+)
+def test_gaia_admission_rejects_inconsistent_completion_attestation(
+    status: str, truncated: bool, rows: list[dict[str, object]]
+) -> None:
+    output = {
+        "fields": ["source_id", "ra", "dec"],
+        "rows": rows,
+        "result_status": status,
+        "truncated": truncated,
+    }
+
+    with pytest.raises(ValueError, match="completion status is inconsistent"):
+        _admit_gaia_output(
+            output,
+            produced_sources=(
+                ScientificSourceReference(
+                    source_snapshot_id=SNAPSHOT_ID,
+                    content_hash=HASH,
+                    source_id="esa_gaia_dr3.gaiadr3.gaia_source",
+                    query_hash="sha256:" + "b" * 64,
+                    retrieved_at=datetime(2026, 8, 20, tzinfo=UTC),
+                ),
+            ),
+            evidence_scope_id="evidence.gaia-status-test",
+            contract=_contract(
+                skill_id=ScientificSkillId.gaia_cone_search,
+                output="dataset",
+                parameters={
+                    "ra_degrees": 10.0,
+                    "dec_degrees": 20.0,
+                    "radius_degrees": 0.1,
+                },
+            ),
+        )
 
 
 @pytest.mark.anyio

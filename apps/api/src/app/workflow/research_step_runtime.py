@@ -70,7 +70,11 @@ class ResearchStepRuntime:
         self._requested_model = requested_model
         self._explicit_revision = explicit_revision
         self._scientific_steps = (
-            ScientificStepService(factory=factory, content_storage=content_storage)
+            ScientificStepService(
+                factory=factory,
+                content_storage=content_storage,
+                publications=self._publications,
+            )
             if content_storage is not None
             else None
         )

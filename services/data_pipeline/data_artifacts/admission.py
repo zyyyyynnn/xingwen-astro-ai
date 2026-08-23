@@ -7,6 +7,7 @@ from typing import Protocol
 from pydantic import ValidationError
 
 from app.schemas.data_artifacts import (
+    CrossmatchArtifactAuthority,
     DataArtifactBuildInput,
     DataArtifactBuildResult,
     DatasetArtifactCandidate,
@@ -84,7 +85,7 @@ def _validate_common(
     expected = (
         input_value.manifest_pins,
         projection.source_snapshot_ids,
-        projection.crossmatch_source_snapshot_ids,
+        projection.authority,
         projection.evidence_ids,
         input_value.mapping_rule_set.rule_set_id,
         input_value.mapping_rule_set.version,
@@ -99,7 +100,7 @@ def _validate_common(
     actual = (
         candidate.manifest_pins,
         candidate.source_snapshot_ids,
-        candidate.crossmatch_source_snapshot_ids,
+        candidate.authority,
         candidate.evidence_ids,
         candidate.mapping_rule_set_id,
         candidate.mapping_rule_set_version,
@@ -142,7 +143,6 @@ def _validate_dataset(
     candidate: DatasetArtifactCandidate, projection: DataArtifactDomainProjection
 ) -> None:
     input_value = projection.input_value
-    result = input_value.crossmatch_result
     expected_columns = tuple(field for field in projection.fields)
     if candidate.requested_fields != tuple(field.field_id for field in projection.fields):
         raise ValueError("Dataset requested fields differ from the domain projection")
@@ -154,10 +154,6 @@ def _validate_dataset(
         raise ValueError("Dataset SourceValue set differs from the complete domain projection")
     if candidate.transformation_evidence != projection.transformation_evidence:
         raise ValueError("Dataset Evidence set differs from the complete domain projection")
-    if candidate.crossmatch_evidence != projection.crossmatch_evidence:
-        raise ValueError(
-            "Dataset CrossmatchEvidence set differs from the complete domain projection"
-        )
     if candidate.selections != projection.selections:
         raise ValueError("Dataset selection set differs from the complete domain projection")
     if candidate.conflicts != projection.conflicts:
@@ -167,22 +163,8 @@ def _validate_dataset(
         or candidate.field_count != len(projection.fields)
     ):
         raise ValueError("Dataset dimensions differ from the domain projection")
-    if (
-        candidate.crossmatch_result_id,
-        candidate.crossmatch_input_hash,
-        candidate.crossmatch_output_hash,
-        candidate.crossmatch_content_hash,
-        candidate.crossmatch_source_snapshot_ids,
-        candidate.crossmatch_evidence_ids,
-    ) != (
-        result.result_id,
-        result.input_hash,
-        result.output_hash,
-        result.content_hash,
-        projection.crossmatch_source_snapshot_ids,
-        projection.crossmatch_evidence_ids,
-    ):
-        raise ValueError("Dataset Cross-source Entity Alignment lineage differs from the domain projection")
+    if candidate.authority != projection.authority:
+        raise ValueError("Dataset authority differs from the domain projection")
     if (
         candidate.quality_metric_input_declarations
         != projection.quality_metric_input_declarations
@@ -208,26 +190,37 @@ def _validate_source_collection(
     candidate: SourceCollectionArtifactCandidate,
     projection: DataArtifactDomainProjection,
 ) -> None:
-    result = projection.input_value.crossmatch_result
+    expected_authority = projection.authority
+    if isinstance(expected_authority, CrossmatchArtifactAuthority):
+        expected_status_keys = (
+            expected_authority.alignment_record_keys,
+            expected_authority.conflict_record_keys,
+            expected_authority.review_required_record_keys,
+            expected_authority.inconclusive_record_keys,
+        )
+    else:
+        expected_status_keys = ((), (), (), ())
     expected = (
         projection.source_members,
         tuple(value.source_value_id for value in projection.source_values),
-        result.result_id,
-        result.content_hash,
-        projection.alignment_record_keys,
-        projection.conflict_record_keys,
-        projection.review_required_record_keys,
-        projection.inconclusive_record_keys,
+        expected_authority,
+        *expected_status_keys,
     )
+    actual_authority = candidate.authority
+    if isinstance(actual_authority, CrossmatchArtifactAuthority):
+        actual_status_keys = (
+            actual_authority.alignment_record_keys,
+            actual_authority.conflict_record_keys,
+            actual_authority.review_required_record_keys,
+            actual_authority.inconclusive_record_keys,
+        )
+    else:
+        actual_status_keys = ((), (), (), ())
     actual = (
         candidate.members,
         candidate.source_value_ids,
-        candidate.crossmatch_result_id,
-        candidate.crossmatch_content_hash,
-        candidate.alignment_record_keys,
-        candidate.conflict_record_keys,
-        candidate.review_required_record_keys,
-        candidate.inconclusive_record_keys,
+        candidate.authority,
+        *actual_status_keys,
     )
     if actual != expected:
         raise ValueError(

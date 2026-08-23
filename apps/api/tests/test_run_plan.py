@@ -204,6 +204,75 @@ def test_scientific_artifact_closure_uses_the_frozen_skill_capability() -> None:
     )
     plan = compile_run_plan(contract)
 
-    kinds = artifact_kinds_for_steps(plan)
+    kinds = artifact_kinds_for_steps(
+        plan,
+        requested_outputs=frozenset(contract.output_requirements),
+    )
 
     assert kinds == (ArtifactKind.analysis_report,)
+
+
+def test_gaia_source_table_and_implicit_dataset_prerequisite_fail_closed() -> None:
+    contract = ResearchContractInput.model_validate(
+        {
+            **contract_for("dataset").model_dump(mode="json"),
+            "output_requirements": ["dataset", "analysis_report"],
+            "source_scope": {"allowed_sources": ["esa_gaia_dr3"]},
+            "scientific_tasks": [
+                {
+                    "task_id": "gaia-nearby",
+                    "skill_id": "gaia_cone_search",
+                    "input_refs": [],
+                    "parameters": {
+                        "ra_degrees": 10.0,
+                        "dec_degrees": 20.0,
+                        "radius_degrees": 0.1,
+                    },
+                },
+                {
+                    "task_id": "profile-gaia-output",
+                    "skill_id": "data_profile",
+                    "input_refs": [],
+                    "parameters": {},
+                },
+            ],
+        }
+    )
+
+    with pytest.raises(UnsupportedRunPlanError, match="cannot share a Run plan"):
+        compile_run_plan(contract)
+
+
+def test_multiple_gaia_source_table_producers_fail_closed() -> None:
+    contract = ResearchContractInput.model_validate(
+        {
+            **contract_for("dataset").model_dump(mode="json"),
+            "output_requirements": ["dataset"],
+            "source_scope": {"allowed_sources": ["esa_gaia_dr3"]},
+            "scientific_tasks": [
+                {
+                    "task_id": "gaia-nearby-a",
+                    "skill_id": "gaia_cone_search",
+                    "input_refs": [],
+                    "parameters": {
+                        "ra_degrees": 10.0,
+                        "dec_degrees": 20.0,
+                        "radius_degrees": 0.1,
+                    },
+                },
+                {
+                    "task_id": "gaia-nearby-b",
+                    "skill_id": "gaia_cone_search",
+                    "input_refs": [],
+                    "parameters": {
+                        "ra_degrees": 30.0,
+                        "dec_degrees": 40.0,
+                        "radius_degrees": 0.1,
+                    },
+                },
+            ],
+        }
+    )
+
+    with pytest.raises(UnsupportedRunPlanError, match="exactly one"):
+        compile_run_plan(contract)

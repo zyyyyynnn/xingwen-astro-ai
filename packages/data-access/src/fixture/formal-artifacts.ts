@@ -19,6 +19,7 @@ import type {
   LiteratureClaimRead,
   LiteratureRelationRead,
   ProducerExecutionDetail,
+  CrossmatchArtifactAuthority,
   SourceCollectionArtifactRead,
   StructuredSourceCollectionMember,
   SourceSnapshotDetail,
@@ -35,21 +36,39 @@ const RUN_ID = "run_01JEXAMPLE";
 const CREATED_AT = "2026-07-21T08:28:00Z";
 
 function hash(seed: string): string {
-  return `sha256:${seed.repeat(64)}`;
+  const encoded = Array.from(seed)
+    .map((character) => character.codePointAt(0)!.toString(16))
+    .join("");
+  const digest = encoded.repeat(Math.ceil(64 / encoded.length)).slice(0, 64);
+  return `sha256:${digest}`;
 }
 
 const sourceSnapshot: SourceSnapshotDetail = {
   id: "snap_01",
-  source_id: "nasa_exoplanet_archive",
+  source_id: "nasa_exoplanet_archive.toi",
   source_type: "catalog",
   retrieved_at: "2026-07-21T08:20:00Z",
-  query: { table: "exoplanet_candidates", fixture: true },
+  query: { table: "toi", fixture: true },
   query_hash: hash("q"),
   content_hash: hash("s"),
   request_metadata: { adapter: "demo_replay" },
-  source_version_or_etag: "fixture-2026-07-21",
+  source_version_or_etag: "fixture-2026-07-21-toi",
   license_note:
-    "Fixture projection of the public NASA Exoplanet Archive schema.",
+    "Fixture projection of the public NASA Exoplanet Archive TOI schema.",
+};
+
+const psSourceSnapshot: SourceSnapshotDetail = {
+  id: "snap_02",
+  source_id: "nasa_exoplanet_archive.ps",
+  source_type: "catalog",
+  retrieved_at: "2026-07-21T08:20:01Z",
+  query: { table: "ps", fixture: true },
+  query_hash: hash("r"),
+  content_hash: hash("t"),
+  request_metadata: { adapter: "demo_replay" },
+  source_version_or_etag: "fixture-2026-07-21-ps",
+  license_note:
+    "Fixture projection of the public NASA Exoplanet Archive PS schema.",
 };
 
 const producerExecution: ProducerExecutionDetail = {
@@ -95,18 +114,24 @@ function evidence(
   };
 }
 
-function dataBase(artifactId: string, artifactVersionId: string, kind: string) {
+type DataArtifactKind = "dataset" | "field_dictionary" | "source_collection";
+
+function dataBase(
+  artifactId: string,
+  artifactVersionId: string,
+  kind: DataArtifactKind,
+) {
   return {
     artifact_id: artifactId,
     artifact_version_id: artifactVersionId,
     project_id: PROJECT_ID,
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     source_mode: "fixture" as const,
     content_hash: hash(artifactVersionId.slice(-1)),
     input_hash: hash("d"),
     created_at: CREATED_AT,
     producer_execution: producerExecution,
-    source_snapshots: [sourceSnapshot],
+    source_snapshots: [sourceSnapshot, psSourceSnapshot],
     evidence: [
       evidence(artifactVersionId, kind, `${kind}.candidate`, "fixture"),
     ],
@@ -153,12 +178,12 @@ const field: FieldDefinition = {
   nullable: false,
   crossmatch_key: true,
   object_identity_key: true,
-  source_priority: ["nasa_exoplanet_archive"],
+  source_priority: ["nasa_exoplanet_archive.toi", "nasa_exoplanet_archive.ps"],
   document_aliases: [],
   source_aliases: [
     {
-      source_id: "nasa_exoplanet_archive",
-      source_table: "exoplanet_candidates",
+      source_id: "nasa_exoplanet_archive.toi",
+      source_table: "toi",
       raw_field: "toi",
       source_unit: "dimensionless",
       priority: 1,
@@ -195,7 +220,7 @@ const fieldTemperature: FieldDefinition = {
   meaning_zh: "恒星有效温度",
   description: "Stellar effective temperature from the host-star catalog.",
   data_type: "number",
-  canonical_unit: "K",
+  canonical_unit: "kelvin",
   object_type: "star",
   required: false,
   nullable: true,
@@ -205,8 +230,10 @@ const fieldTemperature: FieldDefinition = {
   source_aliases: [
     {
       ...field.source_aliases[0],
+      source_id: "nasa_exoplanet_archive.ps",
+      source_table: "ps",
       raw_field: "st_teff",
-      source_unit: "K",
+      source_unit: "kelvin",
       row_key_fields: ["tic_id"],
     },
   ],
@@ -219,27 +246,34 @@ const fieldTemperature: FieldDefinition = {
 
 const row: DatasetRow = {
   row_id: "row_toi_1234",
-  entity_level: "planet_candidate",
-  alignment_status: "accepted",
-  crossmatch_logical_key: "toi:1234",
-  crossmatch_record_type: "planet_candidate",
   content_hash: hash("r"),
-  canonical_row_identity: {
+  row_authority: {
+    authority_kind: "crossmatch",
     alignment_status: "accepted",
     entity_level: "planet_candidate",
+    logical_key: hash("a"),
     record_type: "paired",
-    member_entities: [
-      {
-        entity_level: "planet_candidate",
-        identity_values: [
-          {
-            field_id: "planet.toi_id",
-            normalized_value: "TOI-1234",
-            normalization_rule_version: "1.0.0",
-          },
-        ],
-      },
+    source_member_ids: [
+      "nasa_exoplanet_archive.toi",
+      "nasa_exoplanet_archive.ps",
     ],
+    canonical_row_identity: {
+      alignment_status: "accepted",
+      entity_level: "planet_candidate",
+      record_type: "paired",
+      member_entities: [
+        {
+          entity_level: "planet_candidate",
+          identity_values: [
+            {
+              field_id: "planet.toi_id",
+              normalized_value: "TOI-1234",
+              normalization_rule_version: "1.0.0",
+            },
+          ],
+        },
+      ],
+    },
   },
   fields: [
     {
@@ -255,7 +289,7 @@ const row: DatasetRow = {
     },
     {
       canonical_field_id: "star.effective_temperature",
-      canonical_unit: "K",
+      canonical_unit: "kelvin",
       canonical_value: "5800",
       candidate_source_value_ids: ["source_value_teff_1234"],
       selected_source_value_id: "source_value_teff_1234",
@@ -268,8 +302,7 @@ const row: DatasetRow = {
   conflict_ids: [],
   projected_field_ids: ["planet.toi_id", "star.effective_temperature"],
   projection_policy_version: "1.0.0",
-  source_member_ids: ["source_member_nasa"],
-  source_snapshot_ids: [sourceSnapshot.id],
+  source_snapshot_ids: [sourceSnapshot.id, psSourceSnapshot.id],
   evidence_ids: [],
 };
 
@@ -294,10 +327,25 @@ const manifestPins = {
   field_manifest_content_hash: hash("y"),
 };
 
+const crossmatchAuthority: CrossmatchArtifactAuthority = {
+  authority_kind: "crossmatch",
+  result_id: "crossmatch_01",
+  input_hash: hash("a"),
+  output_hash: hash("b"),
+  content_hash: hash("c"),
+  source_snapshot_ids: [sourceSnapshot.id, psSourceSnapshot.id],
+  evidence: [],
+  evidence_ids: [],
+  alignment_record_keys: [hash("b")],
+  conflict_record_keys: [],
+  inconclusive_record_keys: [],
+  review_required_record_keys: [],
+};
+
 const datasetCandidate = {
   candidate_id: "dataset_candidate_01",
   kind: "dataset" as const,
-  schema_version: "1.0.0" as const,
+  schema_version: "3.0.0" as const,
   requested_fields: [field.field_id, fieldTemperature.field_id],
   columns: [{ field }, { field: fieldTemperature }],
   rows: [row],
@@ -305,18 +353,12 @@ const datasetCandidate = {
   field_count: 2,
   conflicts: [],
   evidence_ids: [],
-  source_snapshot_ids: [sourceSnapshot.id],
+  source_snapshot_ids: [sourceSnapshot.id, psSourceSnapshot.id],
   input_hash: hash("d"),
   output_hash: hash("e"),
   canonical_content_hash: hash("c"),
   lineage_hash: hash("l"),
-  crossmatch_result_id: "crossmatch_01",
-  crossmatch_input_hash: hash("a"),
-  crossmatch_output_hash: hash("b"),
-  crossmatch_content_hash: hash("c"),
-  crossmatch_source_snapshot_ids: [sourceSnapshot.id],
-  crossmatch_evidence_ids: [],
-  crossmatch_evidence: [],
+  authority: crossmatchAuthority,
   producer,
   manifest_pins: manifestPins,
   conversion_catalog_id: producer.conversion_catalog_id,
@@ -334,13 +376,14 @@ const datasetCandidate = {
 const fieldDictionaryCandidate = {
   candidate_id: "field_dictionary_candidate_01",
   kind: "field_dictionary" as const,
-  schema_version: "1.0.0" as const,
+  schema_version: "3.0.0" as const,
   requested_fields: [field.field_id, fieldTemperature.field_id],
   field_definitions: [field, fieldTemperature],
   evidence_ids: [],
-  source_snapshot_ids: [sourceSnapshot.id],
+  source_snapshot_ids: [sourceSnapshot.id, psSourceSnapshot.id],
   input_hash: hash("d"),
   output_hash: hash("e"),
+  authority: crossmatchAuthority,
   producer,
   manifest_pins: manifestPins,
   conversion_catalog_id: producer.conversion_catalog_id,
@@ -352,7 +395,7 @@ const fieldDictionaryCandidate = {
 };
 
 const sourceMember: StructuredSourceCollectionMember = {
-  source_id: "nasa_exoplanet_archive",
+  source_id: sourceSnapshot.source_id,
   source_snapshot_id: sourceSnapshot.id,
   source_snapshot_content_hash: sourceSnapshot.content_hash,
   source_snapshot: {
@@ -387,17 +430,49 @@ const sourceMember: StructuredSourceCollectionMember = {
   license_note: sourceSnapshot.license_note,
 };
 
+const psSourceMember: StructuredSourceCollectionMember = {
+  source_id: psSourceSnapshot.source_id,
+  source_snapshot_id: psSourceSnapshot.id,
+  source_snapshot_content_hash: psSourceSnapshot.content_hash,
+  source_snapshot: {
+    snapshot_id: psSourceSnapshot.id,
+    source_id: psSourceSnapshot.source_id,
+    source_type: psSourceSnapshot.source_type,
+    retrieved_at: psSourceSnapshot.retrieved_at,
+    query: JSON.stringify(psSourceSnapshot.query),
+    query_hash: psSourceSnapshot.query_hash,
+    content_hash: psSourceSnapshot.content_hash,
+    license_note: psSourceSnapshot.license_note,
+    request_metadata: psSourceSnapshot.request_metadata,
+    source_version_or_etag: psSourceSnapshot.source_version_or_etag,
+  },
+  side: "right",
+  data_level: "fixture",
+  source_mode: "fixture",
+  raw_record_count: 1,
+  raw_record_reference_registry_hash: hash("v"),
+  raw_record_references: [
+    {
+      source_id: psSourceSnapshot.source_id,
+      source_snapshot_id: psSourceSnapshot.id,
+      source_snapshot_content_hash: psSourceSnapshot.content_hash,
+      query_hash: psSourceSnapshot.query_hash,
+      raw_record_content_hash: hash("w"),
+      row_key: [["tic_id", "5678"]],
+    },
+  ],
+  query_hash: psSourceSnapshot.query_hash,
+  completion: { status: "complete", continuation_cursor: null },
+  license_note: psSourceSnapshot.license_note,
+};
+
 const sourceCollectionCandidate = {
   candidate_id: "source_collection_candidate_01",
   kind: "source_collection" as const,
-  schema_version: "1.0.0" as const,
-  members: [sourceMember],
-  source_snapshot_ids: [sourceSnapshot.id],
+  schema_version: "3.0.0" as const,
+  members: [sourceMember, psSourceMember],
+  source_snapshot_ids: [sourceSnapshot.id, psSourceSnapshot.id],
   source_value_ids: [],
-  alignment_record_keys: ["toi:1234"],
-  conflict_record_keys: [],
-  inconclusive_record_keys: [],
-  review_required_record_keys: [],
   evidence_ids: [],
   input_hash: hash("d"),
   output_hash: hash("e"),
@@ -409,15 +484,14 @@ const sourceCollectionCandidate = {
   mapping_rule_set_id: producer.mapping_rule_set_id,
   mapping_rule_set_version: producer.mapping_rule_set_version,
   mapping_rule_set_content_hash: producer.mapping_rule_set_content_hash,
-  crossmatch_result_id: "crossmatch_01",
-  crossmatch_content_hash: hash("c"),
+  authority: crossmatchAuthority,
 };
 
 export const dataArtifactReads: readonly DatasetArtifactRead[] = [
   {
     ...dataBase("art_dataset_01", DATASET_VERSION_ID, "dataset"),
     dataset: datasetCandidate,
-  } as unknown as DatasetArtifactRead,
+  },
 ];
 
 export const fieldDictionaryArtifactReads: readonly FieldDictionaryArtifactRead[] =
@@ -425,7 +499,7 @@ export const fieldDictionaryArtifactReads: readonly FieldDictionaryArtifactRead[
     {
       ...dataBase("art_fdict_01", FIELDS_VERSION_ID, "field_dictionary"),
       field_dictionary: fieldDictionaryCandidate,
-    } as unknown as FieldDictionaryArtifactRead,
+    },
   ];
 
 export const sourceCollectionArtifactReads: readonly SourceCollectionArtifactRead[] =
@@ -433,7 +507,7 @@ export const sourceCollectionArtifactReads: readonly SourceCollectionArtifactRea
     {
       ...dataBase("art_srccol_01", SOURCES_VERSION_ID, "source_collection"),
       source_collection: sourceCollectionCandidate,
-    } as unknown as SourceCollectionArtifactRead,
+    },
   ];
 
 function literatureVersion(

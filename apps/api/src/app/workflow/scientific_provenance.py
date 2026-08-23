@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+import json
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from sqlalchemy import select
@@ -14,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.db.models import GaiaTapResponseCacheModel, SourceSnapshotModel
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import ScientificSkillId, ScientificTaskInput
+from app.schemas.evidence import SourceSnapshotRecord
 from services.scientific_skills.astro_acquisition import GAIA_CACHE_VERSION
 from services.scientific_skills.types import (
     ScientificSkillRequest,
@@ -72,6 +74,7 @@ class _ProducedSource:
     source_type: str
     license_note: str
     query: dict[str, object]
+    query_hash: str | None
     content_hash: str
     source_version_or_etag: str | None
     retrieved_at: datetime
@@ -99,7 +102,13 @@ class DatabaseScientificSourceRecorder:
         references: list[ScientificSourceReference] = []
         with self._session_factory() as session, session.begin():
             for source in sources:
-                query_hash = compute_canonical_payload_hash(source.query)
+                query_hash = source.query_hash or compute_canonical_payload_hash(
+                    source.query
+                )
+                if compute_canonical_payload_hash(source.query) != query_hash:
+                    raise ValueError(
+                        "scientific SourceSnapshot query identity does not match query_hash"
+                    )
                 snapshot_id = _scientific_source_snapshot_id(
                     project_id=project_id,
                     source_id=source.source_id,
@@ -146,6 +155,24 @@ class DatabaseScientificSourceRecorder:
                         source_id=source.source_id,
                         query_hash=query_hash,
                         retrieved_at=source.retrieved_at,
+                        source_snapshot=SourceSnapshotRecord(
+                            snapshot_id=str(row.id),
+                            source_id=row.source_id,
+                            source_type=row.source_type,
+                            retrieved_at=row.retrieved_at,
+                            query=json.dumps(
+                                row.query,
+                                ensure_ascii=False,
+                                sort_keys=True,
+                                separators=(",", ":"),
+                            ),
+                            query_hash=row.query_hash,
+                            source_version_or_etag=row.source_version_or_etag,
+                            content_hash=row.content_hash,
+                            license_note=row.license_note,
+                            cache_version=row.cache_version,
+                            request_metadata=dict(row.request_metadata),
+                        ),
                     )
                 )
         return tuple(references)
@@ -269,6 +296,7 @@ def _produced_sources(
     sources: list[_ProducedSource] = []
     for source_id, source_type, license_note in metadata:
         query = dict(base_query)
+        query_hash: str | None = None
         content_hash = result.output_hash
         request_metadata: dict[str, object] = {}
         if source_id == "nominatim_openstreetmap":
@@ -339,12 +367,36 @@ def _produced_sources(
                     "schema_response_content_hash",
                 }
             }
+        if task.skill_id is ScientificSkillId.gaia_cone_search:
+            raw_query = acquisition_metadata.get("query")
+            raw_response_format = acquisition_metadata.get("response_format")
+            raw_cache_version = acquisition_metadata.get("cache_version")
+            raw_query_hash = acquisition_metadata.get("query_hash")
+            if not all(
+                isinstance(value, str)
+                for value in (
+                    raw_query,
+                    raw_response_format,
+                    raw_cache_version,
+                    raw_query_hash,
+                )
+            ):
+                raise ValueError(
+                    "Gaia acquisition query identity is missing or invalid"
+                )
+            query = {
+                "query": raw_query,
+                "response_format": raw_response_format,
+                "cache_version": raw_cache_version,
+            }
+            query_hash = raw_query_hash
         sources.append(
             _ProducedSource(
                 source_id=source_id,
                 source_type=source_type,
                 license_note=license_note,
                 query=query,
+                query_hash=query_hash,
                 content_hash=content_hash,
                 source_version_or_etag=source_version,
                 retrieved_at=retrieved_at,

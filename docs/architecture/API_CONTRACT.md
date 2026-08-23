@@ -12,7 +12,7 @@
 - 单资源成功响应使用 `Envelope`，集合成功响应使用 `CollectionEnvelope`；失败响应统一遵循 RFC 9457 `ProblemDetails`。
 - 集合接口使用不透明 cursor 分页（默认 20，最大 100）。
 - 写操作通过 `Idempotency-Key` 或版本前置条件确保幂等。
-- `execution_mode`（demo_replay / live）与 `source_mode`（fixture / live / cached）分离。
+- `execution_mode`（demo_replay / live）与 `source_mode`（fixture / recorded / live / cached）分离；`source_mode` 记录实际来源事实，`recorded` 不等同于 fixture、cached 或 live。
 - 前端组件不直接依赖 Transport DTO，必须经由 Repository Adapter 校验与映射。
 - API 严禁返回模型私有思维过程；ReasoningTrace 仅包含可审查依据与引用。
 

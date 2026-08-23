@@ -361,7 +361,7 @@ def build_data_graph_fixture(
         candidate=build_result.dataset,
         artifact_version_id=dataset_version_id,
         candidate_kind="dataset",
-        crossmatch_evidence=quality_input.data_artifact_input.crossmatch_result.evidence,
+        crossmatch_evidence=quality_input.data_artifact_input.authority.crossmatch_result.evidence,
         source_snapshot_bindings=snapshots,
         reverse=reverse_data_bindings,
     )
@@ -369,7 +369,7 @@ def build_data_graph_fixture(
         candidate=build_result.dataset,
         artifact_version_id=dictionary_version_id,
         candidate_kind="field_dictionary",
-        crossmatch_evidence=quality_input.data_artifact_input.crossmatch_result.evidence,
+        crossmatch_evidence=quality_input.data_artifact_input.authority.crossmatch_result.evidence,
         source_snapshot_bindings=snapshots,
         reverse=reverse_data_bindings,
     )

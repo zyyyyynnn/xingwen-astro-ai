@@ -9,6 +9,7 @@ class SourceMode(StrEnum):
     """Actual origin of an ArtifactVersion-compatible pipeline payload."""
 
     fixture = "fixture"
+    recorded = "recorded"
     live = "live"
     cached = "cached"
 

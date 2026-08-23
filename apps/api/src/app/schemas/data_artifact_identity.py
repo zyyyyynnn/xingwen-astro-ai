@@ -187,6 +187,14 @@ def _canonical_row_identity(value: Any) -> dict[str, Any]:
     """Normalize a serialized canonical row identity for scientific hashing."""
 
     payload = _payload(value)
+    if payload.get("identity_kind") == "source_table":
+        return {
+            "identity_kind": payload.get("identity_kind"),
+            "identity_version": payload.get("identity_version"),
+            "entity_level": payload.get("entity_level"),
+            "identity_field_id": payload.get("identity_field_id"),
+            "canonical_identity": payload.get("canonical_identity"),
+        }
     members_by_hash = {
         compute_canonical_payload_hash(identity): identity
         for identity in (
@@ -205,6 +213,16 @@ def _canonical_row_identity(value: Any) -> dict[str, Any]:
     if payload.get("conflict_code") is not None:
         projected["conflict_code"] = payload["conflict_code"]
     return projected
+
+
+def _row_canonical_identity(row: Mapping[str, Any]) -> dict[str, Any]:
+    authority = row.get("row_authority")
+    if not isinstance(authority, Mapping):
+        raise ValueError("Dataset row requires typed row_authority")
+    identity = authority.get("canonical_row_identity")
+    if not isinstance(identity, Mapping):
+        raise ValueError("Dataset row authority requires canonical_row_identity")
+    return _canonical_row_identity(identity)
 
 
 def dataset_scientific_projection(value: Any) -> dict[str, Any]:
@@ -286,9 +304,7 @@ def dataset_scientific_projection(value: Any) -> dict[str, Any]:
             outcomes.append(projected)
         rows.append(
             {
-                "canonical_row_identity": _canonical_row_identity(
-                    row.get("canonical_row_identity", {})
-                ),
+                "canonical_row_identity": _row_canonical_identity(row),
                 "projection_policy_version": row.get("projection_policy_version"),
                 "projected_field_ids": row.get("projected_field_ids"),
                 "fields": outcomes,

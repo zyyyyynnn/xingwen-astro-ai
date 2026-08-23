@@ -7,6 +7,7 @@ from typing import Any
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import (
+    ArtifactKind,
     RepairCheckpointContext,
     RepairCandidateCoordinate,
     RepairCandidateIdentity,
@@ -31,22 +32,22 @@ from app.schemas.crossmatch import (
     compute_crossmatch_source_input_hash,
 )
 from app.schemas.data_artifacts import (
+    CrossmatchDataArtifactAuthority,
     DataArtifactBuildInput,
     ManifestPins,
     compute_data_artifact_input_hash,
 )
-from app.schemas.data_quality import (
-    DataQualityEvaluationInput,
-    DataQualityEvaluationResult,
-    compute_data_quality_input_hash,
-)
+from app.schemas.data_quality import DataQualityEvaluationResult
 from app.schemas.manifest import ManifestBundle
 from app.security import canonical_request_hash
 from app.services.document_data_admission import (
     DocumentDataAdmissionBatch,
     DocumentDataAdmissionService,
 )
-from app.workflow.publisher import admit_artifact_candidate
+from app.workflow.data_artifact_publication import (
+    DataArtifactPublicationConfig,
+    DataArtifactPublicationService,
+)
 from app.workflow.step_publication import (
     PreparedStep,
     RunStepContext,
@@ -64,24 +65,13 @@ from services.data_pipeline.crossmatch.policy import (
     load_crossmatch_source_policy,
     load_entity_alias_catalog,
 )
-from services.data_pipeline.data_artifacts import build_data_artifact_candidates
 from services.data_pipeline.data_artifacts.projection import (
     derive_document_snapshot_bindings,
-)
-from services.data_pipeline.data_artifacts.admission import (
-    validate_data_artifact_domain,
-    validate_data_artifact_evidence,
 )
 from services.data_pipeline.data_artifacts.policy import (
     load_mapping_rule_set,
     load_unit_conversion_catalog,
 )
-from services.data_pipeline.data_quality import (
-    admit_data_artifact_quality,
-    build_data_quality_publication_validator,
-    evaluate_data_quality,
-)
-from services.data_pipeline.data_quality.policy import load_frozen_quality_rule_set
 from services.data_pipeline.live_acquisition import acquire_case_sources
 
 
@@ -100,6 +90,7 @@ class DataStepService:
         self._publications = publications
         self._store = store
         self._document_admission = document_admission
+        self._data_artifacts = DataArtifactPublicationService(publications)
 
     def _admit_document_observations(
         self,
@@ -314,11 +305,13 @@ class DataStepService:
         data_payload: dict[str, Any] = {
             "manifest_pins": pins,
             "requested_fields": context.contract.requested_fields,
-            "left_acquisition": left,
-            "right_acquisition": right,
-            "crossmatch_result": crossmatch,
-            "document_observations": (
-                document_batch.accepted if document_batch is not None else ()
+            "authority": CrossmatchDataArtifactAuthority(
+                left_acquisition=left,
+                right_acquisition=right,
+                crossmatch_result=crossmatch,
+                document_observations=(
+                    document_batch.accepted if document_batch is not None else ()
+                ),
             ),
             "mapping_rule_set": mapping,
             "conversion_catalog": conversion,
@@ -332,55 +325,35 @@ class DataStepService:
         data_payload["input_hash"] = compute_data_artifact_input_hash(unhashed)
         data_input = DataArtifactBuildInput.model_validate(data_payload)
         document_snapshot_bindings = derive_document_snapshot_bindings(data_input)
-        producer_version = mapping.producer_version
-        build_executions = {
-            kind: self._publications.start_producer(
-                context,
-                step_key=step_key,
-                operation_key=f"data_artifact:{kind}",
-                producer_type="algorithm",
-                producer_name=f"data-artifact-{kind}",
-                producer_version=producer_version,
-                input_hash=data_input.input_hash,
-                parameters={},
-                attempt=attempt,
-                lease=lease,
-            )
-            for kind in ("dataset", "field_dictionary", "source_collection")
-        }
+        publication_config = DataArtifactPublicationConfig(
+            publish_kinds=(
+                ArtifactKind.dataset,
+                ArtifactKind.field_dictionary,
+                ArtifactKind.source_collection,
+            ),
+            operation_key_prefix="data_artifact",
+            producer_error_code="DATA_ARTIFACT_BUILD_FAILED",
+            producer_version=mapping.producer_version,
+            quality_failure_message="实时数据未通过研究协议的数据质量约束",
+            snapshot_bindings_override=document_snapshot_bindings,
+            source_snapshots=(left.snapshot, right.snapshot),
+        )
+        prepared = self._data_artifacts.prepare(
+            context,
+            step_key=step_key,
+            attempt=attempt,
+            lease=lease,
+            data_input=data_input,
+            config=publication_config,
+        )
         build_executions_closed = False
         try:
-            build_result = build_data_artifact_candidates(data_input)
-            quality_payload: dict[str, Any] = {
-                "data_artifact_input": data_input,
-                "dataset_candidate": build_result.dataset,
-                "field_dictionary_candidate": build_result.field_dictionary,
-                "source_collection_candidate": build_result.source_collection,
-                "research_contract": context.contract,
-                "quality_rule_set": load_frozen_quality_rule_set(),
-            }
-            quality_unhashed = DataQualityEvaluationInput.model_construct(
-                **quality_payload,
-                input_hash="sha256:" + "0" * 64,
-            )
-            quality_payload["input_hash"] = compute_data_quality_input_hash(
-                quality_unhashed
-            )
-            quality_input = DataQualityEvaluationInput.model_validate(quality_payload)
-            quality_result = evaluate_data_quality(quality_input)
-            if not isinstance(quality_result, DataQualityEvaluationResult):
-                raise ValueError("实时数据未通过研究协议的数据质量约束")
-            quality = admit_data_artifact_quality(
-                build_result=build_result,
-                evaluation_input=quality_input,
-                evaluation_result=quality_result,
-            )
             if repair_state is not None:
                 outcome = _repair_outcome(
                     repair_state=repair_state,
                     before_defects=defects,
                     crossmatch=crossmatch,
-                    quality_result=quality_result,
+                    quality_result=prepared.quality.evaluation_result,
                 )
                 self._store.complete_repair_checkpoint(
                     context.run_id,
@@ -393,7 +366,7 @@ class DataStepService:
                     expected_revision=attempt.run_revision,
                 )
                 if outcome.status == "false_repair":
-                    for execution in build_executions.values():
+                    for execution in prepared.executions.values():
                         self._publications.finish_producer(
                             execution.id,
                             status="rejected",
@@ -403,66 +376,23 @@ class DataStepService:
                     raise ValueError("人工修复决定未通过确定性重验证")
         except Exception:
             if not build_executions_closed:
-                for execution in build_executions.values():
+                for execution in prepared.executions.values():
                     self._publications.finish_producer(
                         execution.id,
                         status="failed",
                         error_code="DATA_ARTIFACT_BUILD_FAILED",
                     )
             raise
-        self._publications.ensure_source_snapshots(
-            context, (left.snapshot, right.snapshot)
+        publications = self._data_artifacts.publish(
+            context,
+            prepared=prepared,
+            config=publication_config,
         )
-        publications = []
-        for kind, candidate in (
-            ("dataset", build_result.dataset),
-            ("field_dictionary", build_result.field_dictionary),
-            ("source_collection", build_result.source_collection),
-        ):
-            source_bindings, evidence_bindings = self._publications.data_bindings(
-                context,
-                kind=kind,
-                candidate=build_result.dataset,
-                snapshot_bindings_override=document_snapshot_bindings,
-            )
-            admitted = admit_artifact_candidate(
-                candidate,
-                schema_version=candidate.schema_version,
-                source_snapshot_ids=candidate.source_snapshot_ids,
-                evidence_ids=candidate.evidence_ids,
-                evidence_validator=validate_data_artifact_evidence,
-                domain_validator=validate_data_artifact_domain,
-                quality_validator=build_data_quality_publication_validator(
-                    quality,
-                    candidate_kind=kind,
-                ),
-                source_snapshot_bindings=source_bindings,
-                evidence_bindings=evidence_bindings,
-                data_provenance_candidate=(
-                    None if kind == "dataset" else build_result.dataset
-                ),
-            )
-            execution = build_executions[kind]
-            self._publications.finish_producer(
-                execution.id,
-                status="completed",
-                input_hash=candidate.input_hash,
-                output_hash=admitted.content_hash,
-            )
-            publications.append(
-                self._publications.publication(
-                    context,
-                    kind=kind,
-                    candidate=admitted,
-                    producer_execution_id=execution.id,
-                )
-            )
-        context.data_result = build_result
         return PreparedStep(
-            publications=tuple(publications),
+            publications=publications,
             activity_result_summary=(
                 "已完成研究数据对齐与质量校验，共输出 "
-                f"{len(build_result.dataset.records)} 条规范化记录"
+                f"{len(prepared.build_result.dataset.rows)} 条规范化记录"
             ),
         )
 

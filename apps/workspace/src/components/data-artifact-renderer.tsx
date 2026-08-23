@@ -28,6 +28,7 @@ const SURFACE_LIMITS: Record<
 function sourceModeLabel(mode: string): string {
   if (mode === "live") return "实时数据";
   if (mode === "cached") return "缓存数据";
+  if (mode === "recorded") return "已记录数据";
   if (mode === "fixture") return "演示数据";
   return "来源状态未知";
 }

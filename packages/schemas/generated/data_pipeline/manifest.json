@@ -77,7 +77,7 @@
       "path": "json/MappingRuleSet.schema.json"
     },
     {
-      "module": "app.schemas.data_quality",
+      "module": "app.schemas.data_quality_primitives",
       "name": "QualityConstraintResult",
       "path": "json/QualityConstraintResult.schema.json"
     },
@@ -92,7 +92,7 @@
       "path": "json/QualityMetricPlan.schema.json"
     },
     {
-      "module": "app.schemas.data_quality",
+      "module": "app.schemas.data_quality_primitives",
       "name": "QualityMetricResult",
       "path": "json/QualityMetricResult.schema.json"
     },

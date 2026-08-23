@@ -6,12 +6,20 @@
 
 ## 1. 边界与唯一事实源
 
-质量评估消费已经通过字段映射与实体对齐边界的三个 typed candidate、
-`DataArtifactBuildInput`、冻结 Manifest、`CrossmatchResult` 和
-`ResearchContract`，产生 `DataQualityEvaluationResult` 或结构化 rejected
-outcome。它只负责确定性质量算法、typed result、Contract gate 和 Publisher
-质量交接；不实现 mapping、crossmatch engine、HTTP、数据库、ArtifactVersion、
-Workflow、缓存读取、前端或科学真实性判定。
+质量评估消费已经通过字段映射边界的三个 typed candidate、
+`DataArtifactBuildInput`、冻结 Manifest 和 `ResearchContract`，以及其
+discriminated input authority：已有 Crossmatch authority 或一个完整且通过
+gate 的 SourceTableAdmission authority。它产生 `DataQualityEvaluationResult`
+或结构化 rejected outcome。它只负责确定性质量算法、typed result、Contract
+gate 和 Publisher 质量交接；不实现 mapping、crossmatch engine、SourceTable
+acquisition、HTTP、数据库、ArtifactVersion、Workflow、缓存读取、前端或科学
+真实性判定。
+
+SourceTable 的完整 admission 只从 `DataArtifactBuildInput.authority` 读取；三个
+public candidates 只携带 compact SourceTable binding。Quality 在 fresh Data Artifact
+projection 后校验 admission、output、source、snapshot binding，Evidence registry
+只覆盖实际进入 Dataset projection 的 cells，不把 acquisition-only columns 计入
+Dataset metrics 或 Evidence coverage。
 
 `apps/api/src/app/schemas/data_quality.py` 是公共 Pydantic Schema authoring
 source。`quality-rules.json` 是唯一版本化 RuleSet。入口先校验 RuleSet 自身
@@ -69,6 +77,12 @@ scope、precision、整数 numerator/denominator、Decimal value 和 input locat
 - dataset 层保留对应的 edge/record rate，另有 object match、source-scope 和
   validation integrity 指标。
 
+SourceTable authority 没有 pairwise alignment、low-confidence、review-required
+或 inconclusive 记录；这些 Crossmatch-only row metrics 在 SourceTable 结果中
+为 not applicable 或零值，并不通过伪造 CrossmatchResult 获得分母。SourceTable
+的 source-scope completeness、unit consistency 与 Evidence coverage 仍使用
+同一冻结 plan 和 Contract gate。
+
 row low-confidence 不比较 edge logical key、record logical key 或 Evidence ID。
 实体对齐结果使用 candidate membership 和 connected component 语义提供权威
 record-to-edge component 投影，质量评估只消费该投影；因此 row flag 与 dataset
@@ -115,7 +129,7 @@ Contract locator 和 binding version 都由 plan 驱动。整体状态固定按
 SourceSnapshot、source scope 和 unit policy 仍分别执行其明确的 boolean gate。
 
 Evidence 完整性属于字段映射 candidate admission：质量评估首先按冻结 input 重建并
-精确校验 candidate，缺失 Transformation/Crossmatch Evidence 的 payload 在进入
+精确校验 candidate，缺失 Transformation 或 authority Evidence 的 payload 在进入
 observations 前即以 `QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH` 拒绝。质量评估不维护不可达的
 `QUALITY_EVIDENCE_GAP` 二次分支；Evidence coverage metric 与 gate 只审计已经通过
 字段映射/实体对齐 admission 的覆盖计数，来源不完整时按 plan 传播 `insufficient`。

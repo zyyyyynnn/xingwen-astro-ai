@@ -129,6 +129,83 @@
       "title": "CanonicalRowIdentity",
       "type": "object"
     },
+    "CrossmatchQualityAuthority": {
+      "additionalProperties": false,
+      "description": "Quality input binding for the existing Crossmatch authority.",
+      "properties": {
+        "authority_kind": {
+          "const": "crossmatch",
+          "default": "crossmatch",
+          "title": "Authority Kind",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Hash",
+          "type": "string"
+        },
+        "result_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Result Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result_id",
+        "input_hash",
+        "output_hash",
+        "content_hash"
+      ],
+      "title": "CrossmatchQualityAuthority",
+      "type": "object"
+    },
+    "CrossmatchRowQualityAuthority": {
+      "additionalProperties": false,
+      "description": "Quality row binding for one Crossmatch alignment record.",
+      "properties": {
+        "alignment_status": {
+          "$ref": "#/$defs/AlignmentStatus"
+        },
+        "authority_kind": {
+          "const": "crossmatch",
+          "default": "crossmatch",
+          "title": "Authority Kind",
+          "type": "string"
+        },
+        "logical_key": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Logical Key",
+          "type": "string"
+        },
+        "record_type": {
+          "enum": [
+            "paired",
+            "unpaired",
+            "conflict_group"
+          ],
+          "title": "Record Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "logical_key",
+        "record_type",
+        "alignment_status"
+      ],
+      "title": "CrossmatchRowQualityAuthority",
+      "type": "object"
+    },
     "DatasetQualityResult": {
       "additionalProperties": false,
       "properties": {
@@ -865,6 +942,24 @@
     "QualityInputReferences": {
       "additionalProperties": false,
       "properties": {
+        "authority": {
+          "discriminator": {
+            "mapping": {
+              "crossmatch": "#/$defs/CrossmatchQualityAuthority",
+              "source_table": "#/$defs/SourceTableQualityAuthority"
+            },
+            "propertyName": "authority_kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CrossmatchQualityAuthority"
+            },
+            {
+              "$ref": "#/$defs/SourceTableQualityAuthority"
+            }
+          ],
+          "title": "Authority"
+        },
         "candidates": {
           "items": {
             "$ref": "#/$defs/QualityArtifactReference"
@@ -873,27 +968,6 @@
           "minItems": 3,
           "title": "Candidates",
           "type": "array"
-        },
-        "crossmatch_content_hash": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Crossmatch Content Hash",
-          "type": "string"
-        },
-        "crossmatch_input_hash": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Crossmatch Input Hash",
-          "type": "string"
-        },
-        "crossmatch_output_hash": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Crossmatch Output Hash",
-          "type": "string"
-        },
-        "crossmatch_result_id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Crossmatch Result Id",
-          "type": "string"
         },
         "data_artifact_input_hash": {
           "pattern": "^sha256:[0-9a-f]{64}$",
@@ -957,10 +1031,7 @@
         "candidates",
         "requested_field_ids",
         "row_ids",
-        "crossmatch_result_id",
-        "crossmatch_input_hash",
-        "crossmatch_output_hash",
-        "crossmatch_content_hash",
+        "authority",
         "research_contract_id",
         "research_contract_version",
         "research_contract_content_hash",
@@ -1362,16 +1433,39 @@
     "RowQualityResult": {
       "additionalProperties": false,
       "properties": {
-        "alignment_status": {
-          "$ref": "#/$defs/AlignmentStatus"
-        },
         "applicable_field_count": {
           "minimum": 0,
           "title": "Applicable Field Count",
           "type": "integer"
         },
+        "authority": {
+          "discriminator": {
+            "mapping": {
+              "crossmatch": "#/$defs/CrossmatchRowQualityAuthority",
+              "source_table": "#/$defs/SourceTableRowQualityAuthority"
+            },
+            "propertyName": "authority_kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CrossmatchRowQualityAuthority"
+            },
+            {
+              "$ref": "#/$defs/SourceTableRowQualityAuthority"
+            }
+          ],
+          "title": "Authority"
+        },
         "canonical_row_identity": {
-          "$ref": "#/$defs/CanonicalRowIdentity"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CanonicalRowIdentity"
+            },
+            {
+              "$ref": "#/$defs/SourceTableCanonicalRowIdentity"
+            }
+          ],
+          "title": "Canonical Row Identity"
         },
         "completeness": {
           "$ref": "#/$defs/QualityMetricResult"
@@ -1391,11 +1485,6 @@
         "content_hash": {
           "pattern": "^sha256:[0-9a-f]{64}$",
           "title": "Content Hash",
-          "type": "string"
-        },
-        "crossmatch_logical_key": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Crossmatch Logical Key",
           "type": "string"
         },
         "declared_null_count": {
@@ -1478,7 +1567,7 @@
         "row_id",
         "canonical_row_identity",
         "entity_level",
-        "alignment_status",
+        "authority",
         "applicable_field_count",
         "mapped_count",
         "declared_null_count",
@@ -1497,10 +1586,129 @@
         "conflict_ids",
         "evidence_ids",
         "source_snapshot_ids",
-        "crossmatch_logical_key",
         "content_hash"
       ],
       "title": "RowQualityResult",
+      "type": "object"
+    },
+    "SourceTableCanonicalRowIdentity": {
+      "additionalProperties": false,
+      "description": "Canonical identity derived from one admitted SourceTable row.",
+      "properties": {
+        "canonical_identity": {
+          "minLength": 1,
+          "title": "Canonical Identity",
+          "type": "string"
+        },
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel",
+          "default": "host_star"
+        },
+        "identity_field_id": {
+          "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Identity Field Id",
+          "type": "string"
+        },
+        "identity_kind": {
+          "const": "source_table",
+          "default": "source_table",
+          "title": "Identity Kind",
+          "type": "string"
+        },
+        "identity_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Identity Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "identity_field_id",
+        "canonical_identity"
+      ],
+      "title": "SourceTableCanonicalRowIdentity",
+      "type": "object"
+    },
+    "SourceTableQualityAuthority": {
+      "additionalProperties": false,
+      "description": "Quality input binding for one admitted persisted SourceTable.",
+      "properties": {
+        "admission_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Admission Id",
+          "type": "string"
+        },
+        "admission_output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Admission Output Hash",
+          "type": "string"
+        },
+        "authority_kind": {
+          "const": "source_table",
+          "default": "source_table",
+          "title": "Authority Kind",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "source_snapshot_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Snapshot Content Hash",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Snapshot Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "admission_id",
+        "admission_output_hash",
+        "source_snapshot_id",
+        "source_snapshot_content_hash",
+        "evidence_ids"
+      ],
+      "title": "SourceTableQualityAuthority",
+      "type": "object"
+    },
+    "SourceTableRowQualityAuthority": {
+      "additionalProperties": false,
+      "description": "Quality row binding for one admitted SourceTable row.",
+      "properties": {
+        "admission_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Admission Id",
+          "type": "string"
+        },
+        "authority_kind": {
+          "const": "source_table",
+          "default": "source_table",
+          "title": "Authority Kind",
+          "type": "string"
+        },
+        "row_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Row Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "admission_id",
+        "row_id"
+      ],
+      "title": "SourceTableRowQualityAuthority",
       "type": "object"
     }
   },
@@ -1600,7 +1808,7 @@
       "type": "array"
     },
     "schema_version": {
-      "const": "2.0.0",
+      "const": "3.0.0",
       "title": "Schema Version",
       "type": "string"
     },

@@ -22,7 +22,11 @@ from app.services.data_artifacts import (
     _encode_cursor,
 )
 from app.schemas.manifest import DataType
-from app.schemas.data_artifacts import DatasetArtifactCandidate
+from app.schemas.data_artifacts import (
+    CrossmatchArtifactAuthority,
+    CrossmatchTransformationAuthority,
+    DatasetArtifactCandidate,
+)
 from app.schemas.data_quality import DataQualityProjection
 from app.security import SecurityProblem
 
@@ -90,12 +94,14 @@ def _service_for_dataset() -> tuple[DataArtifactReadService, str]:
     transformations = {
         item.evidence_id: item for item in candidate.transformation_evidence
     }
+    assert isinstance(candidate.authority, CrossmatchArtifactAuthority)
     crossmatch_identity: dict[str, tuple[str, str]] = {}
     for transformation in transformations.values():
-        for evidence_id in transformation.crossmatch_evidence_ids:
+        assert isinstance(transformation.authority, CrossmatchTransformationAuthority)
+        for evidence_id in transformation.authority.evidence_ids:
             crossmatch_identity[evidence_id] = (
-                transformation.crossmatch_result_id,
-                transformation.crossmatch_result_content_hash,
+                transformation.authority.result_id,
+                transformation.authority.result_content_hash,
             )
     evidence_items = []
     for evidence_id in candidate.evidence_ids:
@@ -123,7 +129,7 @@ def _service_for_dataset() -> tuple[DataArtifactReadService, str]:
             continue
         identity = crossmatch_identity[evidence_id]
         crossmatch = next(
-            item for item in candidate.crossmatch_evidence if item.evidence_id == evidence_id
+            item for item in candidate.authority.evidence if item.evidence_id == evidence_id
         )
         left_snapshot_ids = {
             item.source_snapshot_id for item in crossmatch.left_locators

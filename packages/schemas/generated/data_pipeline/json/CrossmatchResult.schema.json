@@ -2029,6 +2029,7 @@
       "description": "Actual origin of an ArtifactVersion-compatible pipeline payload.",
       "enum": [
         "fixture",
+        "recorded",
         "live",
         "cached"
       ],
@@ -2157,7 +2158,8 @@
           "type": "string"
         },
         "snapshot_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "maxLength": 128,
+          "minLength": 1,
           "title": "Snapshot Id",
           "type": "string"
         },

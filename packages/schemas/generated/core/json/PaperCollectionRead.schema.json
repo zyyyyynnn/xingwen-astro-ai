@@ -1117,7 +1117,7 @@
           "type": "string"
         },
         "source_mode": {
-          "$ref": "#/$defs/app__schemas__enums__SourceMode"
+          "$ref": "#/$defs/SourceMode"
         },
         "source_snapshot_id": {
           "anyOf": [
@@ -1831,6 +1831,17 @@
       "title": "RawPaperCandidate",
       "type": "object"
     },
+    "SourceMode": {
+      "description": "Actual origin of an ArtifactVersion-compatible pipeline payload.",
+      "enum": [
+        "fixture",
+        "recorded",
+        "live",
+        "cached"
+      ],
+      "title": "SourceMode",
+      "type": "string"
+    },
     "SourceSnapshotDetail": {
       "additionalProperties": false,
       "description": "Reproducible source metadata after the application redaction boundary.",
@@ -1970,7 +1981,8 @@
           "type": "string"
         },
         "snapshot_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "maxLength": 128,
+          "minLength": 1,
           "title": "Snapshot Id",
           "type": "string"
         },
@@ -2022,25 +2034,6 @@
       ],
       "title": "UpstreamFailureClass",
       "type": "string"
-    },
-    "app__schemas__core__SourceMode": {
-      "enum": [
-        "fixture",
-        "live",
-        "cached"
-      ],
-      "title": "SourceMode",
-      "type": "string"
-    },
-    "app__schemas__enums__SourceMode": {
-      "description": "Actual origin of an ArtifactVersion-compatible pipeline payload.",
-      "enum": [
-        "fixture",
-        "live",
-        "cached"
-      ],
-      "title": "SourceMode",
-      "type": "string"
     }
   },
   "additionalProperties": false,
@@ -2086,7 +2079,7 @@
       "type": "string"
     },
     "source_mode": {
-      "$ref": "#/$defs/app__schemas__core__SourceMode"
+      "$ref": "#/$defs/SourceMode"
     },
     "source_snapshots": {
       "items": {

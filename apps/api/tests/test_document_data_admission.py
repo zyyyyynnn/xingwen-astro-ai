@@ -34,6 +34,8 @@ from app.schemas.data_artifacts import (
     DeclaredNullValue,
     DocumentObservationAdmissionCode,
     DocumentObservationAdmissionStatus,
+    CrossmatchDataArtifactAuthority,
+    CrossmatchRowAuthority,
     LimitStatus,
     MappedCanonicalValue,
     SourceValueCandidate,
@@ -605,9 +607,10 @@ def _structured_source_value_payload() -> dict:
 def _document_source_value_payload() -> dict:
     baseline = build_input("planet.mass")
     logical_key = next(
-        row.crossmatch_logical_key
+        row.row_authority.logical_key
         for row in build_data_artifact_candidates(baseline).dataset.rows
-        if any(field.canonical_field_id == "planet.mass" for field in row.fields)
+        if isinstance(row.row_authority, CrossmatchRowAuthority)
+        and any(field.canonical_field_id == "planet.mass" for field in row.fields)
     )
     result = build_data_artifact_candidates(
         _with_documents(
@@ -1089,13 +1092,13 @@ def _observation(
 def _with_documents(
     baseline: DataArtifactBuildInput, documents
 ) -> DataArtifactBuildInput:
+    assert isinstance(baseline.authority, CrossmatchDataArtifactAuthority)
     unhashed = DataArtifactBuildInput.model_construct(
         manifest_pins=baseline.manifest_pins,
         requested_fields=baseline.requested_fields,
-        left_acquisition=baseline.left_acquisition,
-        right_acquisition=baseline.right_acquisition,
-        crossmatch_result=baseline.crossmatch_result,
-        document_observations=tuple(documents),
+        authority=baseline.authority.model_copy(
+            update={"document_observations": tuple(documents)}
+        ),
         mapping_rule_set=baseline.mapping_rule_set,
         conversion_catalog=baseline.conversion_catalog,
         producer_version=baseline.producer_version,
@@ -1169,10 +1172,12 @@ def _baseline_from_injected(crossmatch_input) -> DataArtifactBuildInput:
     unhashed = DataArtifactBuildInput.model_construct(
         manifest_pins=pins,
         requested_fields=("planet.orbital_period",),
-        left_acquisition=crossmatch_input.left,
-        right_acquisition=crossmatch_input.right,
-        crossmatch_result=result,
-        document_observations=(),
+        authority=CrossmatchDataArtifactAuthority(
+            left_acquisition=crossmatch_input.left,
+            right_acquisition=crossmatch_input.right,
+            crossmatch_result=result,
+            document_observations=(),
+        ),
         mapping_rule_set=mapping,
         conversion_catalog=CATALOG,
         producer_version=mapping.producer_version,
@@ -1185,7 +1190,12 @@ def _baseline_from_injected(crossmatch_input) -> DataArtifactBuildInput:
 
 
 def _paired_row(dataset):
-    return next(row for row in dataset.rows if row.alignment_status.value == "accepted")
+    return next(
+        row
+        for row in dataset.rows
+        if isinstance(row.row_authority, CrossmatchRowAuthority)
+        and row.row_authority.alignment_status.value == "accepted"
+    )
 
 
 def test_structured_source_wins_and_document_conflict_is_retained() -> None:
@@ -1211,7 +1221,7 @@ def test_structured_source_wins_and_document_conflict_is_retained() -> None:
         _observation(
             index=0,
             field_id="planet.orbital_period",
-            logical_key=row.crossmatch_logical_key,
+            logical_key=row.row_authority.logical_key,
             scalar=document_value,
             unit="day",
         )
@@ -1270,7 +1280,7 @@ def test_document_fills_structured_missing_value() -> None:
         _observation(
             index=1,
             field_id=field_id,
-            logical_key=row.crossmatch_logical_key,
+            logical_key=row.row_authority.logical_key,
             scalar="1.5" if unit == "earth_mass" else "5600",
             unit=unit,
         )
@@ -1304,7 +1314,7 @@ def _document_pair(field_id: str, unit: str, scalars: list[str]):
         _observation(
             index=index + 10,
             field_id=field_id,
-            logical_key=row.crossmatch_logical_key,
+            logical_key=row.row_authority.logical_key,
             scalar=value,
             unit=unit,
         )
@@ -1422,7 +1432,7 @@ def test_document_sources_never_change_structured_denominator() -> None:
                     index=21,
                     field_id="planet.mass",
                     logical_key=next(
-                        row.crossmatch_logical_key
+                        row.row_authority.logical_key
                         for row in build_data_artifact_candidates(baseline).dataset.rows
                         if any(
                             field.canonical_field_id == "planet.mass"
@@ -2035,9 +2045,13 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
         evaluation_result=quality_result,
     )
 
+    assert isinstance(data_input.authority, CrossmatchDataArtifactAuthority)
     publications.ensure_source_snapshots(
         context,
-        (data_input.left_acquisition.snapshot, data_input.right_acquisition.snapshot),
+        (
+            data_input.authority.left_acquisition.snapshot,
+            data_input.authority.right_acquisition.snapshot,
+        ),
     )
     document_snapshot_bindings = derive_document_snapshot_bindings(data_input)
     source_bindings, evidence_bindings = publications.data_bindings(
@@ -2147,8 +2161,8 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
             )
         )
         assert {item.source_id for item in snapshots} == {
-            str(data_input.left_acquisition.snapshot.source_id),
-            str(data_input.right_acquisition.snapshot.source_id),
+            str(data_input.authority.left_acquisition.snapshot.source_id),
+            str(data_input.authority.right_acquisition.snapshot.source_id),
             f"research_input:{ids['input']}",
         }
         assert len(snapshots) == 3

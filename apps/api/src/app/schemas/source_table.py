@@ -7,9 +7,9 @@ from typing import Annotated, Any, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ._hashing import compute_canonical_payload_hash
-from .core import ContentHash, Identifier, JsonValue, UtcDateTime
-from .data_artifacts import ManifestPins, DatabaseCellLocator
-from .data_quality import (
+from .core import ContentHash, Identifier, JsonValue, SemanticVersion, UtcDateTime
+from .data_artifact_primitives import DatabaseCellLocator, ManifestPins
+from .data_quality_primitives import (
     QualityConstraintResult,
     QualityGateStatus,
     QualityMetricResult,
@@ -28,6 +28,8 @@ class SourceTableColumnAdmission(BaseModel):
     label_zh: NonEmptyString
     source_unit: Identifier
     canonical_unit: Identifier
+    conversion_rule_id: Identifier
+    conversion_rule_version: SemanticVersion
     source_unit_symbol: str | None = None
     canonical_unit_symbol: str | None = None
 
@@ -59,7 +61,7 @@ class SourceTableAdmission(BaseModel):
     model_config = MODEL_CONFIG
 
     kind: Literal["source_table_admission"] = "source_table_admission"
-    schema_version: Literal["1.0.0"] = "1.0.0"
+    schema_version: Literal["2.0.0"] = "2.0.0"
     admission_id: Identifier
     source_id: Identifier
     source_table: NonEmptyString
@@ -220,7 +222,6 @@ def compute_source_table_output_hash(
     payload.pop("admission_id", None)
     payload.pop("output_hash", None)
     return compute_canonical_payload_hash(payload)
-
 
 __all__ = [
     "SourceTableAdmission",

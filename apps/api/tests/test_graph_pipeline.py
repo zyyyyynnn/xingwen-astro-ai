@@ -72,7 +72,7 @@ def _field_upstream_evidence_ids(dataset, field_id: str) -> set[str]:
         evidence_ids.update(outcome.transformation_evidence_ids)
         for evidence_id in outcome.transformation_evidence_ids:
             evidence_ids.update(
-                transformations[evidence_id].crossmatch_evidence_ids
+                transformations[evidence_id].authority.evidence_ids
             )
     return evidence_ids
 
@@ -933,7 +933,8 @@ def test_crossmatch_evidence_content_identity_fails_closed() -> None:
     fixture = build_data_graph_fixture()
     assert fixture.inputs.data is not None
     published = fixture.inputs.data.dataset
-    crossmatch_id = published.candidate.crossmatch_evidence_ids[0]
+    assert published.candidate.authority.authority_kind == "crossmatch"
+    crossmatch_id = published.candidate.authority.evidence_ids[0]
     binding = next(
         item
         for item in published.evidence_bindings

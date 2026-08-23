@@ -24,8 +24,9 @@ from app.db.models import (
     RunStepModel,
     SourceSnapshotModel,
 )
-from app.schemas.core import ResearchContract, ScientificSkillId
+from app.schemas.core import ArtifactKind, ResearchContract, ScientificSkillId
 from app.schemas.data_quality import QualityGateStatus
+from app.schemas.enums import SourceMode
 from app.schemas.source_table import SourceTableAdmission
 from app.schemas.scientific_skills import (
     AnalysisReportArtifactContent,
@@ -85,7 +86,7 @@ class ScientificStepAdmission:
         step_key: str,
         contract: ResearchContract,
         output: ScientificStepOutput,
-        source_mode: str,
+        source_mode: SourceMode,
     ) -> tuple[ArtifactPublication, ...]:
         """Admit the candidate set and bind ProducerExecutions.
 
@@ -110,7 +111,16 @@ class ScientificStepAdmission:
             raise PublicationAdmissionError(
                 "Scientific task output is not bound to the frozen contract"
             )
-        if not output.artifact_candidates:
+        if not output.artifact_candidates and not (
+            output.skill_id is ScientificSkillId.gaia_cone_search
+            and output.source_table_admissions
+            and set(contract.output_requirements)
+            & {
+                ArtifactKind.dataset,
+                ArtifactKind.field_dictionary,
+                ArtifactKind.source_collection,
+            }
+        ):
             raise PublicationAdmissionError(
                 "A scientific Workflow step must publish its complete output set"
             )
@@ -164,7 +174,7 @@ class ScientificStepAdmission:
                     publication_key=target.publication_key,
                     producer_execution_id=execution.id,
                     candidate=admitted,
-                    source_mode=source_mode,
+                    source_mode=SourceMode(source_mode),
                     supersedes_version_id=target.supersedes_version_id,
                 )
             )
@@ -391,12 +401,21 @@ def _quality_validator(
 def _validate_source_table_admission_cardinality(
     output: ScientificStepOutput,
 ) -> None:
-    admissions = tuple(
+    admissions = output.source_table_admissions
+    report_admissions = tuple(
         admission
         for candidate in output.artifact_candidates
         if isinstance(candidate, AnalysisReportArtifactContent)
         for admission in candidate.source_table_admissions
     )
+    has_report = any(
+        isinstance(candidate, AnalysisReportArtifactContent)
+        for candidate in output.artifact_candidates
+    )
+    if has_report and report_admissions != admissions:
+        raise PublicationAdmissionError(
+            "scientific source-table admission cardinality is not closed across the output"
+        )
     expected = 1 if output.skill_id is ScientificSkillId.gaia_cone_search else 0
     if len(admissions) != expected:
         raise PublicationAdmissionError(

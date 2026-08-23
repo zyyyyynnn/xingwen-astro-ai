@@ -277,9 +277,30 @@ def test_contract_rejects_whitespace_goal() -> None:
         )
 
 
+@pytest.mark.parametrize("support_output", ["field_dictionary", "source_collection"])
+def test_support_data_outputs_require_explicit_dataset(support_output: str) -> None:
+    with pytest.raises(ValidationError, match="require dataset output"):
+        ResearchContractInput.model_validate(
+            {**contract_input(), "output_requirements": [support_output]}
+        )
+
+    valid = ResearchContractInput.model_validate(
+        {
+            **contract_input(),
+            "output_requirements": ["dataset", support_output],
+        }
+    )
+    assert set(valid.output_requirements) == {"dataset", support_output}
+
+
 def test_execution_source_and_run_status_enums_preserve_domain_vocabulary() -> None:
     assert set(ExecutionMode) == {ExecutionMode.demo_replay, ExecutionMode.live}
-    assert set(SourceMode) == {SourceMode.fixture, SourceMode.live, SourceMode.cached}
+    assert set(SourceMode) == {
+        SourceMode.fixture,
+        SourceMode.recorded,
+        SourceMode.live,
+        SourceMode.cached,
+    }
     run_statuses = {value.value for value in RunStatus}
     assert run_statuses == {
         "queued",

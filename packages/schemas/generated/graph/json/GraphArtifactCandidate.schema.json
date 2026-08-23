@@ -315,13 +315,7 @@
           "type": "string"
         },
         "source_mode": {
-          "enum": [
-            "fixture",
-            "live",
-            "cached"
-          ],
-          "title": "Source Mode",
-          "type": "string"
+          "$ref": "#/$defs/SourceMode"
         },
         "version_number": {
           "minimum": 1,
@@ -1435,6 +1429,17 @@
       ],
       "title": "GraphTaxonomy",
       "type": "object"
+    },
+    "SourceMode": {
+      "description": "Actual origin of an ArtifactVersion-compatible pipeline payload.",
+      "enum": [
+        "fixture",
+        "recorded",
+        "live",
+        "cached"
+      ],
+      "title": "SourceMode",
+      "type": "string"
     }
   },
   "additionalProperties": false,

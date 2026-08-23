@@ -10,18 +10,22 @@ from pydantic import ValidationError
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.artifact_publication import canonical_artifact_content_payload
 from app.schemas.data_artifacts import (
+    CrossmatchDataArtifactAuthority,
     DataArtifactBuildResult,
     DatasetArtifactCandidate,
     FieldDictionaryArtifactCandidate,
+    SourceTableDataArtifactAuthority,
     SourceCollectionArtifactCandidate,
 )
 from app.schemas.data_quality import (
+    CrossmatchQualityAuthority,
     DataQualityEvaluationInput,
     DataQualityEvaluationResult,
     DataQualityProjection,
     QualityErrorCode,
     QualityFailureStage,
     QualityArtifactReference,
+    SourceTableQualityAuthority,
     compute_data_quality_result_id,
 )
 from app.workflow.publisher import AdmissionValidator, _seal_data_quality_attestation
@@ -188,17 +192,32 @@ def admit_data_artifact_quality(
         ),
     )
     references = trusted_result.input_references
+    input_authority = evaluation_input.data_artifact_input.authority
+    if isinstance(input_authority, CrossmatchDataArtifactAuthority):
+        expected_quality_authority = CrossmatchQualityAuthority(
+            result_id=input_authority.crossmatch_result.result_id,
+            input_hash=input_authority.crossmatch_result.input_hash,
+            output_hash=input_authority.crossmatch_result.output_hash,
+            content_hash=input_authority.crossmatch_result.content_hash,
+        )
+    elif isinstance(input_authority, SourceTableDataArtifactAuthority):
+        expected_quality_authority = SourceTableQualityAuthority(
+            admission_id=input_authority.source_table_admission.admission_id,
+            admission_output_hash=input_authority.source_table_admission.output_hash,
+            source_snapshot_id=input_authority.source_snapshot.snapshot_id,
+            source_snapshot_content_hash=input_authority.source_snapshot.content_hash,
+            evidence_ids=tuple(build_result.dataset.evidence_ids),
+        )
+    else:
+        raise DataQualityError(
+            QualityErrorCode.QUALITY_RESULT_HASH_MISMATCH,
+            "quality result references carry an unsupported Data Artifact authority",
+            stage=QualityFailureStage.admission_validation,
+        )
     if (
         references.data_artifact_input_hash != evaluation_input.data_artifact_input.input_hash
         or references.candidates != expected_candidate_references
-        or references.crossmatch_result_id
-        != evaluation_input.data_artifact_input.crossmatch_result.result_id
-        or references.crossmatch_input_hash
-        != evaluation_input.data_artifact_input.crossmatch_result.input_hash
-        or references.crossmatch_output_hash
-        != evaluation_input.data_artifact_input.crossmatch_result.output_hash
-        or references.crossmatch_content_hash
-        != evaluation_input.data_artifact_input.crossmatch_result.content_hash
+        or references.authority != expected_quality_authority
         or references.research_contract_id != evaluation_input.research_contract.id
         or references.research_contract_version != evaluation_input.research_contract.version
         or references.research_contract_content_hash

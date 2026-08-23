@@ -16,9 +16,15 @@ from app.schemas.core import (
 )
 from app.schemas.crossmatch import compute_crossmatch_metrics
 from app.schemas.data_artifacts import (
+    CrossmatchArtifactAuthority,
+    CrossmatchDataArtifactAuthority,
+    CrossmatchRowAuthority,
     DataArtifactBuildInput,
     DatasetArtifactCandidate,
     FieldDictionaryArtifactCandidate,
+    SourceTableArtifactAuthority,
+    SourceTableDataArtifactAuthority,
+    SourceTableRowAuthority,
     SourceCollectionArtifactCandidate,
     compute_data_artifact_input_hash,
 )
@@ -39,6 +45,10 @@ from app.schemas.data_quality import (
     QualityFailureStage,
     QualityGateStatus,
     QualityInputReferences,
+    CrossmatchQualityAuthority,
+    SourceTableQualityAuthority,
+    CrossmatchRowQualityAuthority,
+    SourceTableRowQualityAuthority,
     QualityManifestFieldReference,
     QualityMetricResult,
     QualityMetricScope,
@@ -91,8 +101,23 @@ def evaluate_data_quality(
         _validate_input_bindings(evaluation_input, manifests, rules, plan)
         observations = observe_quality(
             evaluation_input.dataset_candidate,
-            evaluation_input.data_artifact_input.crossmatch_result,
+            (
+                evaluation_input.data_artifact_input.authority.crossmatch_result
+                if isinstance(
+                    evaluation_input.data_artifact_input.authority,
+                    CrossmatchDataArtifactAuthority,
+                )
+                else None
+            ),
             manifests,
+            source_table_admission=(
+                evaluation_input.data_artifact_input.authority.source_table_admission
+                if isinstance(
+                    evaluation_input.data_artifact_input.authority,
+                    SourceTableDataArtifactAuthority,
+                )
+                else None
+            ),
         )
         incomplete_source = observations.dataset.source_scope_insufficient
         field_results = _build_field_results(
@@ -205,18 +230,63 @@ def _validate_input_bindings(
     )
     if actual_pins != expected_pins:
         _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
-    result = data_input.crossmatch_result
-    recomputed_metrics = compute_crossmatch_metrics(
-        result.candidates,
-        result.candidate_edges,
-        result.records,
-        result.evidence,
-    )
-    if recomputed_metrics != result.metrics:
-        _fail(
-            QualityErrorCode.QUALITY_CROSSMATCH_METRICS_MISMATCH,
-            QualityFailureStage.crossmatch_validation,
+    if isinstance(data_input.authority, CrossmatchDataArtifactAuthority):
+        result = data_input.authority.crossmatch_result
+        recomputed_metrics = compute_crossmatch_metrics(
+            result.candidates,
+            result.candidate_edges,
+            result.records,
+            result.evidence,
         )
+        if recomputed_metrics != result.metrics:
+            _fail(
+                QualityErrorCode.QUALITY_CROSSMATCH_METRICS_MISMATCH,
+                QualityFailureStage.crossmatch_validation,
+            )
+    else:
+        authority = data_input.authority
+        if not isinstance(authority, SourceTableDataArtifactAuthority):
+            _fail(
+                QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH,
+                QualityFailureStage.data_artifact_validation,
+            )
+        admission = authority.source_table_admission
+        if (
+            admission.research_contract_id != value.research_contract.id
+            or admission.research_contract_version != value.research_contract.version
+            or admission.research_contract_content_hash
+            != value.research_contract.content_hash
+        ):
+            _fail(
+                QualityErrorCode.QUALITY_RESEARCH_CONTRACT_MISMATCH,
+                QualityFailureStage.contract_validation,
+            )
+        expected_evidence_ids = tuple(value.dataset_candidate.evidence_ids)
+        if admission.source_result_status != "complete" or admission.overall_status.value != "pass":
+            _fail(
+                QualityErrorCode.QUALITY_SOURCE_SCOPE_INSUFFICIENT,
+                QualityFailureStage.data_artifact_validation,
+            )
+        for candidate in candidates:
+            if not isinstance(candidate.authority, SourceTableArtifactAuthority):
+                _fail(
+                    QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH,
+                    QualityFailureStage.data_artifact_validation,
+                )
+            if (
+                candidate.authority.admission_id != admission.admission_id
+                or candidate.authority.admission_output_hash != admission.output_hash
+                or candidate.authority.source_id != admission.source_id
+                or candidate.authority.source_table != admission.source_table
+                or candidate.authority.source_snapshot_id != authority.source_snapshot.snapshot_id
+                or candidate.authority.source_snapshot_content_hash
+                != authority.source_snapshot.content_hash
+                or candidate.evidence_ids != expected_evidence_ids
+            ):
+                _fail(
+                    QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH,
+                    QualityFailureStage.data_artifact_validation,
+                )
     _validate_research_contract(value, manifests)
     _validate_capacity(value, rules, plan)
 
@@ -238,10 +308,7 @@ def _validate_candidate_cross_bindings(
         _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
     if source_collection.source_value_ids != tuple(item.source_value_id for item in dataset.source_values):
         _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
-    if (
-        source_collection.crossmatch_result_id != dataset.crossmatch_result_id
-        or source_collection.crossmatch_content_hash != dataset.crossmatch_content_hash
-    ):
+    if source_collection.authority != dataset.authority:
         _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
     if any(candidate.input_hash != data_input.input_hash for candidate in candidates):
         _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
@@ -290,7 +357,14 @@ def _validate_capacity(
     plan: QualityEvaluationPlan,
 ) -> None:
     dataset = value.dataset_candidate
-    result = value.data_artifact_input.crossmatch_result
+    result = (
+        value.data_artifact_input.authority.crossmatch_result
+        if isinstance(
+            value.data_artifact_input.authority,
+            CrossmatchDataArtifactAuthority,
+        )
+        else None
+    )
     counts = {
         "rows": len(dataset.rows),
         "fields": len(dataset.columns),
@@ -298,9 +372,11 @@ def _validate_capacity(
         "source_values": len(dataset.source_values),
         "evidence": len(dataset.evidence_ids),
         "conflict_references": sum(len(row.conflict_ids) for row in dataset.rows),
-        "crossmatch_edges": len(result.candidate_edges),
+        "crossmatch_edges": len(result.candidate_edges) if result is not None else 0,
         "metric_records": _count_public_metric_records(value, plan),
-        "diagnostic_references": len(result.metrics.error_example_references),
+        "diagnostic_references": (
+            len(result.metrics.error_example_references) if result is not None else 0
+        ),
     }
     limits = {
         "rows": rules.capacity.max_rows,
@@ -394,7 +470,18 @@ def _build_row_results(
             "row_id": row.row_id,
             "canonical_row_identity": row.canonical_row_identity.model_dump(mode="json"),
             "entity_level": row.entity_level.value,
-            "alignment_status": row.alignment_status.value,
+            "authority": (
+                CrossmatchRowQualityAuthority(
+                    logical_key=row.row_authority.logical_key,
+                    record_type=row.row_authority.record_type,
+                    alignment_status=row.row_authority.alignment_status,
+                ).model_dump(mode="json")
+                if isinstance(row.row_authority, CrossmatchRowAuthority)
+                else SourceTableRowQualityAuthority(
+                    admission_id=row.row_authority.admission_id,
+                    row_id=row.row_authority.source_table_row_id,
+                ).model_dump(mode="json")
+            ),
             "applicable_field_count": len(row.projected_field_ids),
             "mapped_count": observation.mapped_count,
             "declared_null_count": observation.declared_null_count,
@@ -404,7 +491,6 @@ def _build_row_results(
             "conflict_ids": list(row.conflict_ids),
             "evidence_ids": list(row.evidence_ids),
             "source_snapshot_ids": list(row.source_snapshot_ids),
-            "crossmatch_logical_key": row.crossmatch_logical_key,
         }
         results.append(
             RowQualityResult(**payload, content_hash=compute_quality_content_hash(payload))
@@ -444,14 +530,23 @@ def _build_dataset_result(
         "row_result_ids": [row.row_id for row in value.dataset_candidate.rows],
         "source_snapshot_ids": list(value.dataset_candidate.source_snapshot_ids),
         "evidence_ids": list(value.dataset_candidate.evidence_ids),
-        "raw_status_distribution": [
-            {"key": key, "count": count}
-            for key, count in sorted(
-                Counter(
-                    row.alignment_status.value for row in value.dataset_candidate.rows
-                ).items()
+        "raw_status_distribution": (
+            [
+                {"key": key, "count": count}
+                for key, count in sorted(
+                    Counter(
+                        row.row_authority.alignment_status.value
+                        for row in value.dataset_candidate.rows
+                        if isinstance(row.row_authority, CrossmatchRowAuthority)
+                    ).items()
+                )
+            ]
+            if any(
+                isinstance(row.row_authority, CrossmatchRowAuthority)
+                for row in value.dataset_candidate.rows
             )
-        ],
+            else [{"key": "source_table", "count": len(value.dataset_candidate.rows)}]
+        ),
     }
     return DatasetQualityResult(**payload, content_hash=compute_quality_content_hash(payload))
 
@@ -465,7 +560,14 @@ def _build_document_parse_observation(
     non-metric observation.
     """
 
-    observations = value.data_artifact_input.document_observations
+    observations = (
+        value.data_artifact_input.authority.document_observations
+        if isinstance(
+            value.data_artifact_input.authority,
+            CrossmatchDataArtifactAuthority,
+        )
+        else ()
+    )
     if not observations:
         return DocumentParseQualityObservation(
             status=DocumentParseQualityStatus.not_applicable
@@ -524,15 +626,34 @@ def _build_result(
             output_hash=source_candidate.output_hash,
         ),
     )
+    if isinstance(
+        value.data_artifact_input.authority,
+        CrossmatchDataArtifactAuthority,
+    ):
+        result = value.data_artifact_input.authority.crossmatch_result
+        quality_authority = CrossmatchQualityAuthority(
+            result_id=result.result_id,
+            input_hash=result.input_hash,
+            output_hash=result.output_hash,
+            content_hash=result.content_hash,
+        )
+    else:
+        authority = value.data_artifact_input.authority
+        if not isinstance(authority, SourceTableDataArtifactAuthority):
+            raise ValueError("unsupported Data Artifact input authority")
+        quality_authority = SourceTableQualityAuthority(
+            admission_id=authority.source_table_admission.admission_id,
+            admission_output_hash=authority.source_table_admission.output_hash,
+            source_snapshot_id=authority.source_snapshot.snapshot_id,
+            source_snapshot_content_hash=authority.source_snapshot.content_hash,
+            evidence_ids=tuple(dataset_candidate.evidence_ids),
+        )
     input_refs = QualityInputReferences(
         data_artifact_input_hash=value.data_artifact_input.input_hash,
         candidates=candidates,
         requested_field_ids=value.dataset_candidate.requested_fields,
         row_ids=tuple(item.row_id for item in value.dataset_candidate.rows),
-        crossmatch_result_id=value.data_artifact_input.crossmatch_result.result_id,
-        crossmatch_input_hash=value.data_artifact_input.crossmatch_result.input_hash,
-        crossmatch_output_hash=value.data_artifact_input.crossmatch_result.output_hash,
-        crossmatch_content_hash=value.data_artifact_input.crossmatch_result.content_hash,
+        authority=quality_authority,
         research_contract_id=value.research_contract.id,
         research_contract_version=value.research_contract.version,
         research_contract_content_hash=value.research_contract.content_hash,
@@ -554,7 +675,7 @@ def _build_result(
     )
     payload = {
         "kind": "data_quality",
-        "schema_version": "2.0.0",
+        "schema_version": "3.0.0",
         "result_id": compute_data_quality_result_id(value.input_hash, rules.content_hash),
         "input_references": input_refs.model_dump(mode="json"),
         "evaluation_plan": plan.model_dump(mode="json"),

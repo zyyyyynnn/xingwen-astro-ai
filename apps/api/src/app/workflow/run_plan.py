@@ -9,6 +9,7 @@ from typing import Protocol
 from app.schemas.core import (
     ArtifactKind,
     ResearchContractInput,
+    ScientificSkillId,
 )
 from app.schemas.scientific_capabilities import (
     capability_for,
@@ -22,11 +23,19 @@ from app.workflow.store import RUN_STEP_STATUS_ORDER, RunStepDefinition
 class UnsupportedRunPlanError(ValueError):
     """Raised when a requested Artifact has no executable RunStep closure."""
 
-    def __init__(self, outputs: frozenset[ArtifactKind]) -> None:
+    def __init__(
+        self,
+        outputs: frozenset[ArtifactKind],
+        *,
+        reason: str | None = None,
+    ) -> None:
         self.outputs = outputs
         super().__init__(
-            "unsupported Run output requirements: "
-            + ", ".join(sorted(item.value for item in outputs))
+            reason
+            or (
+                "unsupported Run output requirements: "
+                + ", ".join(sorted(item.value for item in outputs))
+            )
         )
 
 
@@ -112,11 +121,9 @@ ARTIFACT_KIND_ORDER = (
     ArtifactKind.graph,
 )
 
-#: The Artifact kinds each frozen RunStep publishes. The frozen RunStep chain
-#: is the sole owner of the Artifact dependency closure: the runtime derives
-#: required kinds from the persisted steps and never recomputes them from the
-#: contract. Scientific phases list the union of kinds their task-owned steps
-#: may produce.
+#: The Artifact kinds each frozen RunStep may publish. Fixed pipeline steps
+#: retain their complete bundle; scientific steps are narrowed to the kinds
+#: requested by the confirmed contract when stable primary targets are made.
 STEP_ARTIFACT_KINDS = {
     "planning": (),
     "fetching_data": (),
@@ -155,14 +162,21 @@ STEP_ARTIFACT_KINDS = {
 
 def artifact_kinds_for_steps(
     steps: Sequence[FrozenRunStep],
+    *,
+    requested_outputs: frozenset[ArtifactKind] | None = None,
 ) -> tuple[ArtifactKind, ...]:
     """Return the Artifact kinds published by one frozen RunStep chain."""
 
     required: set[ArtifactKind] = set()
     for step in steps:
         if step.skill_id is not None:
-            required.update(
+            scientific_kinds = {
                 ArtifactKind(kind) for kind in produced_artifact_kinds(step.skill_id)
+            }
+            required.update(
+                scientific_kinds
+                if requested_outputs is None
+                else scientific_kinds & requested_outputs
             )
         elif step.key in STEP_ARTIFACT_KINDS:
             required.update(STEP_ARTIFACT_KINDS[step.key])
@@ -182,8 +196,38 @@ def compile_run_plan(
         raise UnsupportedRunPlanError(unsupported)
 
     required = {"planning"}
-    if outputs & _DATA_OUTPUTS:
+    gaia_tasks = tuple(
+        task
+        for task in contract.scientific_tasks
+        if task.skill_id is ScientificSkillId.gaia_cone_search
+    )
+    gaia_source_table_outputs = bool(outputs & _DATA_OUTPUTS) and bool(gaia_tasks)
+    if outputs & _DATA_OUTPUTS and not gaia_source_table_outputs:
         required.update(("fetching_data", "cleaning_data"))
+    if gaia_source_table_outputs:
+        if len(gaia_tasks) > 1:
+            raise UnsupportedRunPlanError(
+                outputs & _DATA_OUTPUTS,
+                reason=(
+                    "Gaia SourceTable outputs require exactly one "
+                    "gaia_cone_search task; received: "
+                    + ", ".join(task.task_id for task in gaia_tasks)
+                ),
+            )
+        ambiguous_tasks = tuple(
+            task.task_id
+            for task in contract.scientific_tasks
+            if requires_dataset_prerequisite(task.skill_id.value) and not task.input_refs
+        )
+        if ambiguous_tasks:
+            raise UnsupportedRunPlanError(
+                outputs & _DATA_OUTPUTS,
+                reason=(
+                    "Gaia SourceTable outputs cannot share a Run plan with "
+                    "dataset-dependent scientific tasks lacking explicit input_refs: "
+                    + ", ".join(ambiguous_tasks)
+                ),
+            )
     # Every scientific task owns its phase and dataset prerequisites through
     # the capability table; a planned task can never be silently dropped from
     # the frozen step chain.

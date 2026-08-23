@@ -12,6 +12,7 @@ from app.schemas.data_artifacts import (
     DatasetArtifactCandidate,
     DocumentSourceCollectionMember,
     SourceCollectionArtifactCandidate,
+    SourceTableSourceCollectionMember,
     StructuredSourceCollectionMember,
 )
 from app.schemas.data_quality import (
@@ -81,7 +82,10 @@ def _collect_observations(
     actual_sources = {
         member.source_id
         for member in source_collection_candidate.members
-        if isinstance(member, StructuredSourceCollectionMember)
+        if isinstance(
+            member,
+            (StructuredSourceCollectionMember, SourceTableSourceCollectionMember),
+        )
     }
     document_source_values = [
         item
