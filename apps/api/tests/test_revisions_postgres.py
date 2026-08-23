@@ -773,6 +773,7 @@ def _seed_superseded_report_project(
             version_number: int,
             version_id: UUID,
             supersedes_version_id: UUID | None,
+            publication_key: str,
         ) -> None:
             step_id, attempt_id, producer_id = execution[ARTIFACT_STEP[kind]]
             artifact = session.get(ResearchArtifactModel, artifact_ids[kind])
@@ -796,7 +797,7 @@ def _seed_superseded_report_project(
                 step_attempt_id=attempt_id,
                 producer_execution_id=producer_id,
                 version_number=version_number,
-                publication_key=f"superseded-{kind}-v{version_number}",
+                publication_key=publication_key,
                 schema_version="2.0.0",
                 content={"kind": kind},
                 content_hash=HASH_C if version_number == 1 else HASH_A,
@@ -829,6 +830,7 @@ def _seed_superseded_report_project(
                 version_number=1,
                 version_id=version_ids[kind],
                 supersedes_version_id=None,
+                publication_key=f"superseded-{kind}-parent-baseline",
             )
         publish(
             "paper_summary",
@@ -837,6 +839,7 @@ def _seed_superseded_report_project(
             version_number=2,
             version_id=superseded_version_ids["paper_summary"],
             supersedes_version_id=version_ids["paper_summary"],
+            publication_key="superseded-paper_summary-later-run",
         )
     artifact_version_reader = runtime["artifact_version_reader"]
     assert isinstance(artifact_version_reader, _FrozenRevisionArtifactVersions)

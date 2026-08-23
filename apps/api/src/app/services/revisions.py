@@ -560,6 +560,44 @@ class RevisionApplicationService:
                     "REVISION_AFFECTED_OUTPUT_CONFLICT",
                     "The recomputed steps do not close over the frozen recompute decisions",
                 )
+            decision_by_artifact_id = {
+                item.artifact_id: item for item in decisions
+            }
+            publication_artifact_ids_by_step: dict[str, set[UUID]] = {}
+            for step_key, artifact_id in session.execute(
+                select(RunStepModel.key, ArtifactVersionModel.artifact_id)
+                .join(
+                    ArtifactVersionModel,
+                    ArtifactVersionModel.run_step_id == RunStepModel.id,
+                )
+                .where(ArtifactVersionModel.created_by_run_id == parent.id)
+            ):
+                publication_artifact_ids_by_step.setdefault(step_key, set()).add(
+                    artifact_id
+                )
+            recompute_step_keys = set(recompute_steps)
+            for step in parent_steps:
+                if (
+                    step.key not in recompute_step_keys
+                    or step.key in prerequisite_step_keys
+                    or step.skill_id == "gaia_cone_search"
+                ):
+                    continue
+                if any(
+                    (item := decision_by_artifact_id.get(artifact_id)) is None
+                    or item.decision != RevisionDecision.recompute.value
+                    or item.step_key != step.key
+                    for artifact_id in publication_artifact_ids_by_step.get(
+                        step.key, ()
+                    )
+                ):
+                    raise _conflict(
+                        "REVISION_AFFECTED_OUTPUT_CONFLICT",
+                        (
+                            "Re-executing a publishing step would republish "
+                            "a co-output frozen for reuse"
+                        ),
+                    )
             plan = RevisionPlanModel(
                 id=plan_id,
                 project_id=project.id,

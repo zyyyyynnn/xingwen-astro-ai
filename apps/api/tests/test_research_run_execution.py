@@ -20,15 +20,19 @@ from uuid import UUID, uuid4
 import pytest
 
 from db_bootstrap import reset_current_schema
-from sqlalchemy import Engine, select
+from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
     ArtifactVersionModel,
     EvidenceModel,
+    ModelExecutionModel,
     ProducerExecutionModel,
     ResearchArtifactModel,
+    ResearchRunModel,
     ResearchThreadEntryModel,
+    RevisionPlanModel,
+    RevisionPlanVersionModel,
     RunEventModel,
     SourceSnapshotModel,
 )
@@ -55,7 +59,7 @@ from app.schemas.paper_collection import (
 )
 from app.schemas.enums import PaperDataLevel, SourceMode, UpstreamFailureClass
 from app.schemas.source_acquisition import DataSourceDataLevel
-from app.security import canonical_request_hash
+from app.security import SecurityProblem, canonical_request_hash
 from app.services.artifacts import ArtifactReadService
 from app.services.data_artifacts import DataArtifactReadService
 from app.services.data_artifact_build_inputs import DataArtifactBuildInputRepository
@@ -2165,6 +2169,273 @@ def test_non_gaia_report_revision_ignores_reused_data_context(
         not execution.producer_name.startswith("data-artifact-")
         for execution in revision_executions
     )
+
+
+def test_partial_co_output_revision_conflicts_before_plan_persistence(
+    postgres_engine: Engine,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    factory = session_factory(postgres_engine)
+    manifests = load_manifest_bundle(
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/case-manifest.json",
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/field-manifest.json",
+    )
+    store = PersistentWorkflowStore(factory)
+    service = ResearchApplicationService(
+        factory=factory,
+        workflow_store=store,
+        manifests=manifests,
+    )
+    session_id = f"session-{uuid4()}"
+    project = service.create_project(
+        session_id=session_id,
+        idempotency_key=f"co-output-project-{uuid4()}",
+        request=CreateResearchProjectRequest(
+            name="多输出科学步骤修订",
+            description="验证部分共输出修订在计划持久化前冲突",
+            case_key="exoplanet_host_star",
+        ),
+    )
+    content_storage = LocalContentStorage(tmp_path / "co-output-content")
+    input_store = PersistentResearchInputStore(factory)
+    ingestion = ResearchInputIngestionService(
+        repository=input_store,
+        idempotency_repository=PersistentIdempotencyRepository(factory),
+        content_storage=content_storage,
+        policy=ResearchInputPolicy.from_values(
+            allowed_mime_types=("text/csv",),
+            max_size_bytes=1024 * 1024,
+        ),
+        url_fetch_config=UrlFetchConfig(
+            allowed_protocols=("https",),
+            allowed_hosts=(),
+            timeout_seconds=1,
+            max_redirects=0,
+            max_response_bytes=1024,
+        ),
+    )
+    uploaded_rows = "\n".join(
+        f"OBJ-{index:03d},{12.4 + index * 0.17},{1.6 + (index % 5) * 0.23}"
+        for index in range(24)
+    )
+    research_input = asyncio.run(
+        ingestion.create(
+            ResearchInputIngestionCommand(
+                session_id=session_id,
+                project_id=project.id,
+                payload=ResearchInputCreate(
+                    type="csv",
+                    filename="anomaly.csv",
+                    mime_type="text/csv",
+                ),
+                idempotency_key=f"co-output-upload-{uuid4()}",
+                file_content=(
+                    f"object_id,magnitude,parallax\n{uploaded_rows}\n"
+                ).encode(),
+                file_filename="anomaly.csv",
+            )
+        )
+    )
+    scientific_task = {
+        "task_id": "anomaly-co-output-review",
+        "skill_id": "anomaly_detection",
+        "input_refs": [research_input.id],
+        "parameters": {"feature_fields": ["magnitude", "parallax"]},
+    }
+    parent_payload = {
+        "research_goal": "在同一冻结科学步骤同时发布分析报告与可视化。",
+        "target_objects": ["host_star"],
+        "data_requirements": {
+            "unit_policy": "canonical",
+            "document_source_policy": "disabled",
+        },
+        "requested_fields": [
+            "star.gaia_dr3_id",
+            "system.right_ascension",
+            "system.declination",
+        ],
+        "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
+        "paper_search_scope": {"keywords": (), "source_ids": (), "max_candidates": 1},
+        "output_requirements": ["analysis_report", "visualization"],
+        "evidence_requirements": {},
+        "quality_constraints": {},
+        "scientific_tasks": [scientific_task],
+    }
+
+    def confirm_and_run(
+        payload: dict[str, object], prefix: str
+    ) -> tuple[UUID, UUID]:
+        draft = service.create_draft(
+            project_id=project.id,
+            session_id=session_id,
+            idempotency_key=f"{prefix}-draft-{uuid4()}",
+            request=CreateResearchContractDraftRequest(
+                intent="验证多输出科学步骤修订",
+                contract=payload,  # type: ignore[arg-type]
+            ),
+        )
+        input_store.bind_to_contract(
+            session_id=session_id,
+            input_id=research_input.id,
+            project_id=project.id,
+            contract_draft_id=draft.id,
+        )
+        contract = service.confirm_contract(
+            project_id=project.id,
+            session_id=session_id,
+            idempotency_key=f"{prefix}-contract-{uuid4()}",
+            request=ConfirmResearchContractRequest(
+                draft_id=draft.id,
+                expected_draft_version=draft.version,
+            ),
+        )
+        run = service.create_run(
+            project_id=project.id,
+            session_id=session_id,
+            idempotency_key=f"{prefix}-run-{uuid4()}",
+            request=CreateRunRequest(
+                contract_id=contract.id,
+                execution_mode=ExecutionMode.live,
+            ),
+        )
+        run_id = UUID(run.id)
+        worker = ResearchRunWorker(
+            factory=factory,
+            store=store,
+            executor=PersistentWorkflowExecutor(store),
+            manifests=manifests,
+            model_port=ScriptedStepAgentModel(factory, run_id),
+            requested_model="qwen3.8-max",
+            explicit_revision=None,
+            content_storage=content_storage,
+        )
+        asyncio.run(worker.execute_run(run_id))
+        assert store.load_snapshot(run_id).status == "completed", [
+            (step.key, step.status, step.failure_code)
+            for step in store.load_snapshot(run_id).steps
+        ]
+        return run_id, contract.id
+
+    parent_id, _parent_contract_id = confirm_and_run(parent_payload, "co-output-parent")
+
+    with factory() as session:
+        latest_by_kind = {
+            artifact.kind: (artifact, version)
+            for artifact, version in session.execute(
+                select(ResearchArtifactModel, ArtifactVersionModel)
+                .join(
+                    ArtifactVersionModel,
+                    ArtifactVersionModel.id == ResearchArtifactModel.latest_version_id,
+                )
+                .where(ResearchArtifactModel.project_id == UUID(project.id))
+            )
+        }
+    assert set(latest_by_kind) == {"analysis_report", "visualization"}
+    report_artifact, report_baseline = latest_by_kind["analysis_report"]
+    visualization_artifact, visualization_baseline = latest_by_kind["visualization"]
+    assert report_baseline.created_by_run_id == parent_id
+    assert visualization_baseline.created_by_run_id == parent_id
+
+    later_payload = {
+        **parent_payload,
+        "output_requirements": ["analysis_report"],
+    }
+    later_id, _later_contract_id = confirm_and_run(later_payload, "co-output-later")
+
+    with factory() as session:
+        report_current = session.get(
+            ArtifactVersionModel,
+            session.get(ResearchArtifactModel, report_artifact.id).latest_version_id,
+        )
+        visualization_current = session.get(
+            ArtifactVersionModel,
+            session.get(
+                ResearchArtifactModel, visualization_artifact.id
+            ).latest_version_id,
+        )
+    assert report_current is not None and visualization_current is not None
+    assert report_current.created_by_run_id == later_id
+    assert report_current.supersedes_version_id == report_baseline.id
+    assert visualization_current.id == visualization_baseline.id
+    assert visualization_current.created_by_run_id == parent_id
+
+    revisions = RevisionApplicationService(factory=factory, workflow_store=store)
+    feedback = asyncio.run(
+        revisions.create_feedback(
+            version_id=str(visualization_current.id),
+            session_id=session_id,
+            idempotency_key=f"co-output-feedback-{uuid4()}",
+            request=CreateUserFeedbackRequest(
+                expected_version_number=visualization_current.version_number,
+                target_type="artifact_version",
+                target_id=str(visualization_current.id),
+                target_locator={
+                    "artifact_id": str(visualization_artifact.id),
+                    "artifact_version_id": str(visualization_current.id),
+                },
+                category="correction",
+                summary="重新执行同一冻结科学步骤的可视化",
+                requested_change="该步骤不得复用已由后续运行发布的分析报告",
+            ),
+        )
+    )
+
+    def side_effect_counts() -> tuple[int, ...]:
+        with factory() as session:
+            return (
+                session.scalar(select(func.count()).select_from(RevisionPlanModel)),
+                session.scalar(
+                    select(func.count()).select_from(RevisionPlanVersionModel)
+                ),
+                session.scalar(
+                    select(func.count())
+                    .select_from(ResearchRunModel)
+                    .where(ResearchRunModel.derivation_kind == "revision")
+                ),
+                session.scalar(
+                    select(func.count()).select_from(ProducerExecutionModel)
+                ),
+                session.scalar(
+                    select(func.count()).select_from(ArtifactVersionModel)
+                ),
+                session.scalar(
+                    select(func.count()).select_from(ModelExecutionModel)
+                ),
+            )
+
+    before = side_effect_counts()
+    parent_snapshot = store.load_snapshot(parent_id)
+    with pytest.raises(SecurityProblem) as excinfo:
+        asyncio.run(
+            revisions.create_plan(
+                project_id=project.id,
+                session_id=session_id,
+                idempotency_key=f"co-output-plan-{uuid4()}",
+                request=CreateRevisionPlanRequest(
+                    feedback_ids=(feedback.id,),
+                    expected_parent_run_revision=parent_snapshot.revision,
+                ),
+            )
+        )
+    assert (excinfo.value.status, excinfo.value.code) == (
+        409,
+        "REVISION_AFFECTED_OUTPUT_CONFLICT",
+    )
+    assert side_effect_counts() == before
+    with factory() as session:
+        assert (
+            session.get(ResearchArtifactModel, report_artifact.id).latest_version_id
+            == report_current.id
+        )
+        assert (
+            session.get(
+                ResearchArtifactModel, visualization_artifact.id
+            ).latest_version_id
+            == visualization_current.id
+        )
 
 
 def _assert_publication_chain(
