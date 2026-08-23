@@ -20,6 +20,7 @@ from app.schemas.data_artifacts import (
 from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.scientific_capabilities import capability_for
 from app.services.content_storage import ContentStorage
+from app.services.data_artifact_build_inputs import DataArtifactBuildInputRepository
 from app.workflow.data_artifact_publication import (
     DataArtifactPublicationConfig,
     DataArtifactPublicationService,
@@ -61,6 +62,7 @@ class ScientificStepService:
         factory: Callable[[], Session],
         content_storage: ContentStorage,
         publications: StepPublicationFactory,
+        build_inputs: DataArtifactBuildInputRepository,
         registry: ScientificSkillRegistry | None = None,
     ) -> None:
         self._factory = factory
@@ -72,7 +74,10 @@ class ScientificStepService:
             ).acquire
         )
         self._admission = ScientificStepAdmission(factory)
-        self._data_artifacts = DataArtifactPublicationService(publications)
+        self._data_artifacts = DataArtifactPublicationService(
+            publications,
+            build_inputs,
+        )
 
     def execute(
         self,

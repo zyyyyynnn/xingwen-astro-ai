@@ -32,7 +32,9 @@ from app.services.feedback_targets import (
     ArtifactVersionTargetReadPort,
     FeedbackTargetAuthority,
 )
+from app.services.data_revision_context import DataRevisionContextLoader
 from app.services.revisions import RevisionApplicationService
+from services.data_pipeline.revision import DataRevisionError
 from app.workflow.run_plan import compile_run_plan
 from artifact_publication_test_support import publish_reference_dataset
 from authoring_test_support import (
@@ -190,6 +192,7 @@ def runtime(monkeypatch: pytest.MonkeyPatch):
     assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower()
     reset_current_schema(TEST_DATABASE_URL)
     monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(TEST_DATABASE_URL))
+    monkeypatch.setattr(settings, "APP_ENV", "test")
     app = create_app()
     owner, owner_credential, owner_csrf = app.state.session_service.create(
         now=datetime.now(UTC)
@@ -774,6 +777,13 @@ def test_confirm_is_idempotent_restart_safe_and_preserves_parent(
     )
 
     factory = runtime["factory"]
+    loaded = DataRevisionContextLoader(factory).load(
+        run_id=UUID(run["id"]),
+        session_id=str(runtime["owner_session_id"]),
+    )
+    assert loaded is not None
+    assert loaded.data_execution is None
+    assert loaded.versions["dataset"] == runtime["version_ids"]["dataset"]  # type: ignore[index]
     with factory() as session:
         assert (
             session.scalar(
@@ -946,6 +956,69 @@ def test_stale_plan_fails_before_creating_revision_run(
                 .where(ResearchRunModel.derivation_kind == "revision")
             )
             == 0
+        )
+
+
+def test_confirmed_revision_rejects_stale_baseline_before_replay(
+    runtime: dict[str, object],
+) -> None:
+    feedback = _create_feedback(runtime, "graph", key="feedback-runtime-stale")
+    plan = _create_plan(
+        runtime,
+        feedback.json()["data"]["id"],
+        key="plan-runtime-stale",
+    )
+    client = runtime["client"]
+    assert isinstance(client, TestClient)
+    confirmation = client.post(
+        f"/api/revision-plans/{plan.json()['data']['id']}/confirm",
+        headers={
+            "X-CSRF-Token": str(runtime["owner_csrf"]),
+            "Idempotency-Key": "confirm-runtime-stale",
+        },
+        json={"expected_plan_version": 1},
+    )
+    assert confirmation.status_code == 201, confirmation.text
+
+    factory = runtime["factory"]
+    with factory() as session, session.begin():
+        version_one = session.get(
+            ArtifactVersionModel,
+            runtime["version_ids"]["graph"],  # type: ignore[index]
+        )
+        assert version_one is not None
+        version_two = ArtifactVersionModel(
+            id=uuid4(),
+            artifact_id=version_one.artifact_id,
+            project_id=version_one.project_id,
+            created_by_run_id=version_one.created_by_run_id,
+            run_step_id=version_one.run_step_id,
+            step_attempt_id=version_one.step_attempt_id,
+            producer_execution_id=version_one.producer_execution_id,
+            version_number=2,
+            publication_key="runtime-stale-graph-followup",
+            schema_version=version_one.schema_version,
+            content={"kind": "graph", "revision": 2},
+            content_hash=HASH_A,
+            input_hash=version_one.input_hash,
+            source_mode=version_one.source_mode,
+            producer=dict(version_one.producer),
+            source_snapshot_ids=list(version_one.source_snapshot_ids),
+            evidence_ids=list(version_one.evidence_ids),
+            supersedes_version_id=version_one.id,
+            created_at=NOW,
+        )
+        session.add(version_two)
+        session.flush()
+        artifact = session.get(ResearchArtifactModel, version_one.artifact_id)
+        assert artifact is not None
+        artifact.latest_version_id = version_two.id
+
+    loader = DataRevisionContextLoader(factory)
+    with pytest.raises(DataRevisionError, match="REVISION_DATA_BASELINE_STALE"):
+        loader.load(
+            run_id=UUID(confirmation.json()["data"]["id"]),
+            session_id=str(runtime["owner_session_id"]),
         )
 
 

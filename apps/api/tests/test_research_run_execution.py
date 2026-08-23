@@ -45,6 +45,10 @@ from app.schemas.core import (
 from app.schemas.research_input import ResearchInputCreate
 from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.manifest import load_manifest_bundle
+from app.schemas.data_quality import (
+    DataQualityRuleSet,
+    compute_quality_rule_set_content_hash,
+)
 from app.schemas.paper_collection import (
     PaperSourcePage,
     normalize_paper_query_text,
@@ -53,6 +57,7 @@ from app.schemas.enums import PaperDataLevel, SourceMode, UpstreamFailureClass
 from app.security import canonical_request_hash
 from app.services.artifacts import ArtifactReadService
 from app.services.data_artifacts import DataArtifactReadService
+from app.services.data_artifact_build_inputs import DataArtifactBuildInputRepository
 from app.services.paper_collections import PaperCollectionReadService
 from app.services.model_execution import (
     ModelExecutionRequest,
@@ -70,6 +75,12 @@ from app.services.research_input_store import (
     PersistentResearchInputStore,
 )
 from app.services.research import ResearchApplicationService
+from app.services.revisions import RevisionApplicationService
+from app.schemas.revision import (
+    ConfirmRevisionPlanRequest,
+    CreateRevisionPlanRequest,
+    CreateUserFeedbackRequest,
+)
 from app.services.url_fetcher import UrlFetchConfig
 from app.workflow.persistent_executor import PersistentWorkflowExecutor
 from app.workflow.research_run_worker import ResearchRunWorker
@@ -85,6 +96,8 @@ from services.scientific_skills.astro_acquisition import (
     GAIA_CACHE_VERSION,
     GaiaTapAdapter,
 )
+from services.data_pipeline.data_quality.policy import load_frozen_quality_rule_set
+from data_artifact_test_support import build_input
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
@@ -359,6 +372,207 @@ def test_worker_executes_confirmed_contract_end_to_end(
         _assert_run_events_and_thread(
             session, run_id=UUID(run.id), project_id=UUID(project.id)
         )
+
+
+def test_worker_executes_quality_only_data_revision_end_to_end(
+    postgres_engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    factory = session_factory(postgres_engine)
+    manifests = load_manifest_bundle(
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/case-manifest.json",
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/field-manifest.json",
+    )
+    store = PersistentWorkflowStore(factory)
+    service = ResearchApplicationService(
+        factory=factory,
+        workflow_store=store,
+        manifests=manifests,
+    )
+    session_id = f"session-{uuid4()}"
+    project = service.create_project(
+        session_id=session_id,
+        idempotency_key=f"revision-project-{uuid4()}",
+        request=CreateResearchProjectRequest(
+            name="数据修订执行",
+            description="验证冻结输入上的质量策略局部重算",
+            case_key="exoplanet_host_star",
+        ),
+    )
+    contract_payload = {
+        **_contract_payload(),
+        "output_requirements": [
+            "dataset",
+            "field_dictionary",
+            "source_collection",
+        ],
+    }
+    draft = service.create_draft(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"revision-draft-{uuid4()}",
+        request=CreateResearchContractDraftRequest(
+            intent="发布并修订完整数据产物",
+            contract=contract_payload,  # type: ignore[arg-type]
+        ),
+    )
+    contract = service.confirm_contract(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"revision-contract-{uuid4()}",
+        request=ConfirmResearchContractRequest(
+            draft_id=draft.id,
+            expected_draft_version=draft.version,
+        ),
+    )
+    original = service.create_run(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"revision-original-{uuid4()}",
+        request=CreateRunRequest(
+            contract_id=contract.id,
+            execution_mode=ExecutionMode.live,
+        ),
+    )
+    replay_input = build_input("planet.toi_id", "star.tic_id")
+    assert hasattr(replay_input.authority, "left_acquisition")
+    monkeypatch.setattr(
+        "app.workflow.steps.data_steps.acquire_case_sources",
+        lambda *_args: (
+            replay_input.authority.left_acquisition,  # type: ignore[union-attr]
+            replay_input.authority.right_acquisition,  # type: ignore[union-attr]
+        ),
+    )
+    original_worker = ResearchRunWorker(
+        factory=factory,
+        store=store,
+        executor=PersistentWorkflowExecutor(store),
+        manifests=manifests,
+        model_port=ScriptedStepAgentModel(factory, UUID(original.id)),
+        requested_model="qwen3.8-max",
+        explicit_revision=None,
+    )
+    asyncio.run(original_worker.execute_run(UUID(original.id)))
+    original_snapshot = store.load_snapshot(UUID(original.id))
+    assert original_snapshot.status == "completed"
+
+    with factory() as session:
+        original_versions = {
+            artifact.kind: version
+            for artifact, version in session.execute(
+                select(ResearchArtifactModel, ArtifactVersionModel)
+                .join(
+                    ArtifactVersionModel,
+                    ArtifactVersionModel.id == ResearchArtifactModel.latest_version_id,
+                )
+                .where(ResearchArtifactModel.project_id == UUID(project.id))
+            )
+        }
+    assert set(original_versions) == {
+        "dataset",
+        "field_dictionary",
+        "source_collection",
+    }
+
+    revisions = RevisionApplicationService(
+        factory=factory,
+        workflow_store=store,
+    )
+    dataset_version = original_versions["dataset"]
+    feedback = asyncio.run(
+        revisions.create_feedback(
+            version_id=str(dataset_version.id),
+            session_id=session_id,
+            idempotency_key=f"revision-feedback-{uuid4()}",
+            request=CreateUserFeedbackRequest(
+                expected_version_number=dataset_version.version_number,
+                target_type="artifact_version",
+                target_id=str(dataset_version.id),
+                target_locator={
+                    "artifact_id": str(dataset_version.artifact_id),
+                    "artifact_version_id": str(dataset_version.id),
+                },
+                category="quality",
+                summary="按当前冻结质量规则重新评估数据产物",
+                requested_change="仅执行现有结构化质量策略变更",
+            ),
+        )
+    )
+    plan = revisions.create_plan(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"revision-plan-{uuid4()}",
+        request=CreateRevisionPlanRequest(
+            feedback_ids=(feedback.id,),
+            expected_parent_run_revision=original_snapshot.revision,
+        ),
+    )
+    revision_run_id = revisions.confirm_plan(
+        plan_id=plan.id,
+        session_id=session_id,
+        idempotency_key=f"revision-confirm-{uuid4()}",
+        request=ConfirmRevisionPlanRequest(expected_plan_version=plan.version),
+    )
+
+    quality_payload = load_frozen_quality_rule_set().model_dump(mode="json")
+    quality_payload["maintained_by"] = "xingwen-data-quality-revision-test"
+    quality_payload.pop("content_hash")
+    quality_payload["content_hash"] = compute_quality_rule_set_content_hash(
+        quality_payload
+    )
+    current_quality = DataQualityRuleSet.model_validate(quality_payload)
+    monkeypatch.setattr(
+        "app.services.data_revision_context.load_frozen_quality_rule_set",
+        lambda: current_quality,
+    )
+    monkeypatch.setattr(
+        "app.workflow.data_artifact_publication.load_frozen_quality_rule_set",
+        lambda: current_quality,
+    )
+    monkeypatch.setattr(
+        "services.data_pipeline.data_quality.evaluator.require_frozen_quality_rule_set",
+        lambda candidate: candidate,
+    )
+    monkeypatch.setattr(
+        "services.data_pipeline.data_quality.admission.require_frozen_quality_rule_set",
+        lambda candidate: candidate,
+    )
+    revision_worker = ResearchRunWorker(
+        factory=factory,
+        store=store,
+        executor=PersistentWorkflowExecutor(store),
+        manifests=manifests,
+        model_port=ScriptedStepAgentModel(factory, revision_run_id),
+        requested_model="qwen3.8-max",
+        explicit_revision=None,
+    )
+    asyncio.run(revision_worker.execute_run(revision_run_id))
+    revision_snapshot = store.load_snapshot(revision_run_id)
+    assert revision_snapshot.status == "completed"
+
+    with factory() as session:
+        revised_versions = {
+            artifact.kind: version
+            for artifact, version in session.execute(
+                select(ResearchArtifactModel, ArtifactVersionModel)
+                .join(
+                    ArtifactVersionModel,
+                    ArtifactVersionModel.id == ResearchArtifactModel.latest_version_id,
+                )
+                .where(ResearchArtifactModel.project_id == UUID(project.id))
+            )
+        }
+    assert set(revised_versions) == set(original_versions)
+    for kind in original_versions:
+        before = original_versions[kind]
+        after = revised_versions[kind]
+        assert after.version_number == 2
+        assert after.supersedes_version_id == before.id
+        assert after.content_hash == before.content_hash
+        assert after.input_hash == before.input_hash
+        assert after.quality_projection_hash != before.quality_projection_hash
 
 
 def test_worker_executes_uploaded_csv_scientific_task_end_to_end(
@@ -752,6 +966,24 @@ def test_gaia_scientific_admission_publishes_uuid_cell_evidence_end_to_end(
             evidence.authority.authority_kind == "source_table"
             for evidence in dataset_read.dataset.transformation_evidence
         )
+        replay_repository = DataArtifactBuildInputRepository(factory)
+        for run_id in run_ids:
+            data_versions = tuple(
+                version
+                for version in versions
+                if version.created_by_run_id == run_id
+                and version.content["kind"]
+                in {"dataset", "field_dictionary", "source_collection"}
+            )
+            replay_input_hashes = {version.input_hash for version in data_versions}
+            assert len(data_versions) == 3
+            assert len(replay_input_hashes) == 1
+            replayed_input = replay_repository.get(
+                project_id=UUID(project.id),
+                input_hash=next(iter(replay_input_hashes)),
+            )
+            assert replayed_input.input_hash == data_versions[0].input_hash
+            assert replayed_input.authority.authority_kind == "source_table"
 
 
 def _assert_publication_chain(

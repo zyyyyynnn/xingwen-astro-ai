@@ -196,6 +196,53 @@ def _bundle_commitment(result: DataArtifactBuildResult) -> str:
     )
 
 
+def _seal_build_result(
+    input_value: DataArtifactBuildInput,
+    result: DataArtifactBuildResult,
+) -> DataArtifactBuildResult:
+    input_json = input_value.model_dump_json()
+    snapshot = DataArtifactAdmissionSnapshot(
+        input_json=input_json,
+        input_hash=input_value.input_hash,
+        context_hash=compute_data_artifact_context_hash(
+            input_value, input_json=input_json
+        ),
+        bundle_commitment_hash=_bundle_commitment(result),
+    )
+    for candidate in (
+        result.dataset,
+        result.field_dictionary,
+        result.source_collection,
+    ):
+        seal_data_artifact_candidate(
+            candidate,
+            snapshot,
+            public_payload_hash=compute_data_artifact_public_payload_hash(candidate),
+        )
+    return result
+
+
+def readmit_data_artifact_candidates(
+    input_value: DataArtifactBuildInput,
+    result: DataArtifactBuildResult,
+) -> DataArtifactBuildResult:
+    """Recreate process-local admission only for an exact persisted bundle."""
+
+    validated_input = DataArtifactBuildInput.model_validate_json(
+        input_value.model_dump_json()
+    )
+    persisted = DataArtifactBuildResult.model_validate_json(result.model_dump_json())
+    expected = _assemble_data_artifact_candidates(
+        derive_data_artifact_domain_projection(validated_input)
+    )
+    validate_data_artifact_candidates_against_input(persisted, validated_input)
+    if persisted.model_dump(mode="json") != expected.model_dump(mode="json"):
+        raise ValueError(
+            "persisted Data Artifact bundle differs from the fresh domain projection"
+        )
+    return _seal_build_result(validated_input, persisted)
+
+
 def build_data_artifact_candidates(
     input: DataArtifactBuildInput,
 ) -> DataArtifactBuildResult:
@@ -219,26 +266,7 @@ def build_data_artifact_candidates(
     result = _assemble_data_artifact_candidates(projection)
 
     validate_data_artifact_candidates_against_input(result, validated_input)
-    input_json = validated_input.model_dump_json()
-    snapshot = DataArtifactAdmissionSnapshot(
-        input_json=input_json,
-        input_hash=validated_input.input_hash,
-        context_hash=compute_data_artifact_context_hash(
-            validated_input, input_json=input_json
-        ),
-        bundle_commitment_hash=_bundle_commitment(result),
-    )
-    for candidate in (
-        result.dataset,
-        result.field_dictionary,
-        result.source_collection,
-    ):
-        seal_data_artifact_candidate(
-            candidate,
-            snapshot,
-            public_payload_hash=compute_data_artifact_public_payload_hash(candidate),
-        )
-    return result
+    return _seal_build_result(validated_input, result)
 
 
-__all__ = ["build_data_artifact_candidates"]
+__all__ = ["build_data_artifact_candidates", "readmit_data_artifact_candidates"]

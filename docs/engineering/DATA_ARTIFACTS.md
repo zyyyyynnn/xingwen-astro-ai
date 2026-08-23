@@ -116,7 +116,36 @@ Document observation 是既有 canonical row 的补充值，不是第三个 Cros
 - Data Quality 的 structured source-scope denominator 只统计 Crossmatch 左右两侧；document parse quality 是独立的 `DocumentParseQualityObservation`，不污染结构化分母。
 - Document admission 的 authoritative table/header/body-region quality、unsupported-region reason code、raw candidate 与 locator provenance 必须原样进入 downstream evidence；Dataset projection 不重新解析 free text。
 
-## 6. Quality and Publisher handoff
+## 6. Revision replay and selective recompute
+
+共享的 Data Artifact publication service 在完整 Data Artifact build 与 Data Quality admission
+成功后，将 exact `DataArtifactBuildInput` 写入内部 immutable replay record。记录只以
+现有 `(project_id, input_hash)` 为 identity，payload 必须重新通过
+`DataArtifactBuildInput.model_validate()` 且重算 hash 与 key 一致；同一 key 的不同
+payload、缺失或篡改记录均稳定拒绝。Crossmatch 与 SourceTable authority 使用同一张表；
+public candidate 不携带完整 replay input，也不新增 replay hash。该能力只保证当前代码开始
+产生的记录，不从 Dataset/SourceCollection 反推或补造历史 input。
+
+confirmed data revision 先从 Plan 的三个独立 version decisions 读取 Dataset、
+FieldDictionary、SourceCollection baseline，完成 typed read、SourceSnapshot/Evidence、
+Quality projection、共同 input hash 与 build-result cross-binding 校验，再按 current frozen
+policy 选择最窄合法闭包：
+
+- Quality-only：fresh derive 验证 persisted 三件套 exact equality，重建 process-local seal，
+  保持 candidate scientific content 不变并仅重跑 Data Quality Evaluation；
+- mapping/unit：复用 replay input 中的 acquisition 与 CrossmatchResult，用 current
+  MappingRuleSet/UnitConversionCatalog 重算完整 input 与三件套；
+- crossmatch：复用有效 acquisition，用 current rule/alias/source policy 重新对齐，再执行
+  完整 Data Artifact build 与 Data Quality Evaluation；
+- source：仅在 Plan 明确包含 `fetching_data` 时调用既有 acquisition，然后依次执行
+  crossmatch、Data Artifact build 与 Data Quality Evaluation；
+- unaffected：直接复用 frozen ArtifactVersion，不构建或发布相同内容的副本。
+
+选择性重算只复用 immutable upstream，不 patch serialized candidate、不二次转换 canonical
+值，也不解释 Feedback 自然语言来修改 cell、Manifest 或 policy。结构化语义不存在或 reuse
+验证失败且 Plan 未授权所需 upstream 时返回 replan-required。
+
+## 7. Quality and Publisher handoff
 
 三个 candidate 必须依次通过 schema、domain admission 与 Data Quality Evaluation
 attestation。Publisher 只接受 persistence-ready candidate：每个 declared
@@ -128,7 +157,13 @@ candidate 复用同一个已持久化 snapshot，并把实际投影 cell 的 loc
 candidate 使用 compact lineage binding。replay 必须对 exact input、content、producer 与 provenance 等值
 校验；相同 publication identity 对应不同内容时稳定冲突。
 
-## 7. Stable maintenance rules
+revision handoff 为 Dataset、FieldDictionary、SourceCollection 分别携带 runtime-only
+publication target：candidate identity/hash 必须与本次完整 build result 一致，
+`artifact_id` 与 `supersedes_version_id` 必须来自该 kind 自己的 frozen Plan baseline。
+target 不进入 candidate、input/content/lineage hash。既有 Publisher 在一个事务中锁定三项
+Artifact 并最终校验 supersedes；任一项 stale 时三项都不写入新版本或移动 latest。
+
+## 8. Stable maintenance rules
 
 1. 字段事实、alias、unit、priority 与转换常数只在 Manifest/machine assets 中维护。
 2. `ResearchContract.requested_fields` 只接受 Case Manifest 的 canonical IDs。

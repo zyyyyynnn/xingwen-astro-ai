@@ -10,7 +10,6 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from datetime import timedelta
 import os
-from pathlib import Path
 from threading import Barrier
 from uuid import UUID, uuid4
 
@@ -887,6 +886,150 @@ def test_new_version_must_supersede_the_locked_latest_version(
         latest = session.get(ResearchArtifactModel, artifact.id)
         assert stored is not None and stored.supersedes_version_id == version_one.id
         assert latest is not None and latest.latest_version_id == stored.id
+
+
+def test_revision_bundle_rejects_one_stale_target_atomically(
+    postgres_engine: Engine,
+) -> None:
+    factory = session_factory(postgres_engine)
+    project, contract = _seed_project(factory)
+    artifacts = {
+        kind: _create_artifact(
+            factory,
+            project_id=project.id,
+            logical_key=f"revision-{kind}-{uuid4()}",
+        )
+        for kind in ("dataset", "field_dictionary", "source_collection")
+    }
+    baseline_ids: dict[str, UUID] = {}
+    for kind, artifact in artifacts.items():
+        original = _active_publication(
+            postgres_engine,
+            project=project,
+            contract=contract,
+            artifact=artifact,
+            publication_key=f"{kind}-initial",
+        )
+        baseline_ids[kind] = _publish(original).versions[0].id
+        with factory() as session, session.begin():
+            run = session.get(ResearchRunModel, original.run_id)
+            assert run is not None
+            run.status = "completed"
+
+    revision = _active_publication(
+        postgres_engine,
+        project=project,
+        contract=contract,
+        artifact=artifacts["dataset"],
+        publication_key="dataset-revision",
+    )
+    publications = [
+        replace(
+            revision.publication,
+            supersedes_version_id=baseline_ids["dataset"],
+        )
+    ]
+    for index, kind in enumerate(("field_dictionary", "source_collection"), start=1):
+        candidate = _admit(
+            reference_version_id=revision.reference_version_id,
+            export_format="csv" if index == 1 else "json",
+        )
+        execution = revision.ledger.start_producer_execution(
+            ProducerExecutionRequest(
+                run_id=revision.run_id,
+                step_key="planning",
+                attempt_id=revision.attempt_id,
+                idempotency_key=f"revision-{kind}-{uuid4()}",
+                producer_type="algorithm",
+                producer_name="fixture-data-revision",
+                producer_version="1.0.0",
+                input_hash="sha256:" + f"{index + 3:x}" * 64,
+                parameters={"kind": kind},
+            ),
+            token=revision.token,
+            generation=revision.generation,
+            expected_status=revision.run_status,
+            expected_revision=revision.run_revision,
+        )
+        revision.ledger.finish_producer_execution(
+            execution.id,
+            status="completed",
+            output_hash=candidate.content_hash,
+        )
+        publications.append(
+            ArtifactPublication(
+                artifact_id=artifacts[kind].id,
+                publication_key=f"{kind}-revision",
+                producer_execution_id=execution.id,
+                candidate=candidate,
+                source_mode="fixture",
+                supersedes_version_id=baseline_ids[kind],
+            )
+        )
+
+    with factory() as session, session.begin():
+        baseline = session.get(
+            ArtifactVersionModel,
+            baseline_ids["field_dictionary"],
+        )
+        assert baseline is not None
+        concurrent = ArtifactVersionModel(
+            id=uuid4(),
+            artifact_id=baseline.artifact_id,
+            project_id=baseline.project_id,
+            created_by_run_id=baseline.created_by_run_id,
+            run_step_id=baseline.run_step_id,
+            step_attempt_id=baseline.step_attempt_id,
+            producer_execution_id=baseline.producer_execution_id,
+            version_number=2,
+            publication_key="field-dictionary-concurrent",
+            schema_version=baseline.schema_version,
+            content=dict(baseline.content),
+            content_hash=baseline.content_hash,
+            input_hash=baseline.input_hash,
+            source_mode=baseline.source_mode,
+            producer=dict(baseline.producer),
+            source_snapshot_ids=list(baseline.source_snapshot_ids),
+            evidence_ids=list(baseline.evidence_ids),
+            quality_projection=baseline.quality_projection,
+            quality_projection_hash=baseline.quality_projection_hash,
+            supersedes_version_id=baseline.id,
+        )
+        session.add(concurrent)
+        session.flush()
+        artifact = session.get(ResearchArtifactModel, baseline.artifact_id)
+        assert artifact is not None
+        artifact.latest_version_id = concurrent.id
+        concurrent_id = concurrent.id
+
+    with pytest.raises(PublicationConflictError, match="supersedes"):
+        revision.publisher.publish_step_outputs(
+            revision.run_id,
+            step_key="planning",
+            attempt_id=revision.attempt_id,
+            token=revision.token,
+            generation=revision.generation,
+            expected_status=revision.run_status,
+            expected_revision=revision.run_revision,
+            publications=tuple(publications),
+            public_message="Revision bundle published",
+        )
+
+    expected_latest = {
+        "dataset": baseline_ids["dataset"],
+        "field_dictionary": concurrent_id,
+        "source_collection": baseline_ids["source_collection"],
+    }
+    with factory() as session:
+        assert {
+            kind: session.get(ResearchArtifactModel, artifact.id).latest_version_id
+            for kind, artifact in artifacts.items()
+        } == expected_latest
+        assert session.scalar(
+            select(func.count())
+            .select_from(ArtifactVersionModel)
+            .where(ArtifactVersionModel.created_by_run_id == revision.run_id)
+        ) == 0
 
 
 def test_dataset_crossmatch_evidence_persists_both_source_sides(

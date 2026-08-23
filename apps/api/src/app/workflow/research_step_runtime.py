@@ -10,6 +10,7 @@ from app.db.models import RunStepModel
 from app.schemas.manifest import ManifestBundle
 from app.schemas.scientific_capabilities import capability_for
 from app.services.content_storage import ContentStorage
+from app.services.data_artifact_build_inputs import DataArtifactBuildInputRepository
 from app.services.document_data_admission import DocumentDataAdmissionService
 from app.services.document_parse_store import (
     DocumentParseRepository,
@@ -69,11 +70,13 @@ class ResearchStepRuntime:
         self._model_port = model_port
         self._requested_model = requested_model
         self._explicit_revision = explicit_revision
+        build_inputs = DataArtifactBuildInputRepository(factory)
         self._scientific_steps = (
             ScientificStepService(
                 factory=factory,
                 content_storage=content_storage,
                 publications=self._publications,
+                build_inputs=build_inputs,
             )
             if content_storage is not None
             else None
@@ -110,6 +113,7 @@ class ResearchStepRuntime:
             publications=self._publications,
             store=store,
             document_admission=document_admission,
+            build_inputs=build_inputs,
         )
         self._paper_steps = PaperStepService(
             publications=self._publications,

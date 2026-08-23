@@ -23,6 +23,7 @@
 | UserFeedback | 当前运行时 | 创建后不可变 | 固定具体 ArtifactVersion、基线 hash 与对象定位 |
 | RevisionPlan | 当前运行时 | 创建后不可变 | 固定 UserFeedback、parent Run revision、ArtifactVersion 决策与受影响 Step 闭包 |
 | RevisionPlanConfirmation | 当前运行时 | 创建后不可变 | 一对一固定 Plan、确认请求与 revision Run |
+| DataArtifactBuildInputRecord | 当前运行时内部 | 创建后不可变 | 以 `(project_id, input_hash)` 唯一保存可精确重放的完整 DataArtifactBuildInput |
 
 ## 2. ArtifactVersion 不变量
 
@@ -59,7 +60,9 @@ ShareSnapshot 固定 `artifact_version_ids`、允许公开的 `evidence_ids` 以
 ## 7. 修订与缓存运行时
 
 - RevisionPlan 将同一 completed parent Run 的 UserFeedback 映射为受影响产物闭包，并冻结 parent revision 与 Project 全部 current ArtifactVersion。确认计划时再次验证这些指针，在同一事务创建 Confirmation 与 `derivation_kind=revision` Run；历史 Run 和 ArtifactVersion 保持不可变。
+- revision Run 只通过 `RevisionPlanConfirmation.run_id` 解析其唯一 Plan；执行前重新计算 `plan_hash`，并锁定校验每个 frozen Artifact 的 `latest_version_id`。任一 baseline 漂移以稳定错误终止 Run，且不得调用模型、数据来源或 Producer。Publisher 在提交事务中再次以 `supersedes_version_id` 校验锁定后的 latest，承担并发提交的最终原子围栏。
 - 数据产物影响数据三类与 Graph；PaperCollection 影响 Summary、Claim、Relation、Trace 与 Graph；Summary、Claim、Relation、Trace、Graph 依次只影响自身及其下游。抽象 kind 闭包只在父 Contract 的 canonical RunStep 闭包内生效；只有仍为 latest、确由 parent Run 发布且实际存在的 ArtifactVersion 才能标记 recompute，其他 frozen ArtifactVersion 均作为 reuse identity 暴露给既有 Workflow/Publisher，不复制内容或直接发布新版本。
+- Dataset、FieldDictionary、SourceCollection 的 revision publication target 分别固定自己的 `artifact_id` 与 frozen baseline version；`supersedes_version_id` 不从执行时 latest 或一个全局值推导。三项 publication 仍由同一个 Publisher 事务提交，任一 target stale 时不得部分移动其他 latest 指针。
 - CacheRecord 注册与选择时重新验证 completed Live origin Run、`source_mode=live` ArtifactVersion、ArtifactVersion content canonical hash、completed ProducerExecution、Contract hash、非空 SourceSnapshot/Evidence closure、每个 SourceSnapshot 的 source-owned typed query identity、SourceSnapshot identity hash 与数据产物质量投影；Fixture、recorded/cached version、失败 Run、identity 不闭合或无法按来源契约重建的查询必须拒绝。
 - CacheSelector 只能在 `fallback_on_recoverable_failure` 的 failed Live Run 上，针对 failed/retryable Attempt 与调用方明确指定的 failed ProducerExecution，选择 Contract、input hash、producer/Prompt、来源范围、质量约束、Evidence 要求与有效期全部匹配且 provenance 仍闭合的 CacheRecord。
 - 命中与拒绝均保留原 `run.failed` 事实并追加单调 Event/不可变审计；选择不改变 failed Run 或 origin Run 的终态，不移动 Artifact latest，不生成或复制 cached ArtifactVersion。相同 RunStep/selector request 并发选择只产生一份审计与 Event。

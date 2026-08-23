@@ -39,6 +39,7 @@ from app.security import SecurityProblem, canonical_request_hash
 from app.services.artifacts import ArtifactReadService
 from app.services.feedback_targets import FeedbackTargetAuthority
 from app.services.research_thread import append_thread_entry
+from app.services.revision_plan_hash import compute_revision_plan_hash
 from app.workflow.run_plan import compile_revision_run_plan
 from app.workflow.store import PersistentWorkflowStore, RunStepDefinition
 
@@ -419,15 +420,6 @@ class RevisionApplicationService:
                     "REVISION_BASELINE_OUTSIDE_CONTRACT",
                     "A Feedback baseline has no recomputable parent RunStep",
                 )
-            plan_payload = {
-                "project_id": str(project.id),
-                "parent_run_id": str(parent.id),
-                "parent_run_revision": parent.revision,
-                "contract_id": str(parent.contract_id),
-                "feedback_ids": [str(item) for item in feedback_ids],
-                "recompute_steps": list(recompute_steps),
-                "version_decisions": frozen_decisions,
-            }
             plan = RevisionPlanModel(
                 id=plan_id,
                 project_id=project.id,
@@ -437,7 +429,15 @@ class RevisionApplicationService:
                 contract_id=parent.contract_id,
                 version=1,
                 recompute_steps=list(recompute_steps),
-                plan_hash=canonical_request_hash(plan_payload),
+                plan_hash=compute_revision_plan_hash(
+                    project_id=project.id,
+                    parent_run_id=parent.id,
+                    parent_run_revision=parent.revision,
+                    contract_id=parent.contract_id,
+                    feedback_ids=feedback_ids,
+                    recompute_steps=recompute_steps,
+                    version_decisions=frozen_decisions,
+                ),
                 idempotency_key=idempotency_key,
                 request_hash=request_hash,
             )

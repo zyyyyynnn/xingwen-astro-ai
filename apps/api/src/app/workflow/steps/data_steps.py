@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 from typing import Any
 
 from app.schemas._hashing import compute_canonical_payload_hash
@@ -44,6 +45,7 @@ from app.services.document_data_admission import (
     DocumentDataAdmissionBatch,
     DocumentDataAdmissionService,
 )
+from app.services.data_artifact_build_inputs import DataArtifactBuildInputRepository
 from app.workflow.data_artifact_publication import (
     DataArtifactPublicationConfig,
     DataArtifactPublicationService,
@@ -73,6 +75,7 @@ from services.data_pipeline.data_artifacts.policy import (
     load_unit_conversion_catalog,
 )
 from services.data_pipeline.live_acquisition import acquire_case_sources
+from services.data_pipeline.revision import execute_data_revision
 
 
 class DataStepService:
@@ -84,13 +87,17 @@ class DataStepService:
         manifests: ManifestBundle,
         publications: StepPublicationFactory,
         store: PersistentWorkflowStore,
+        build_inputs: DataArtifactBuildInputRepository,
         document_admission: DocumentDataAdmissionService | None = None,
     ) -> None:
         self._manifests = manifests
         self._publications = publications
         self._store = store
         self._document_admission = document_admission
-        self._data_artifacts = DataArtifactPublicationService(publications)
+        self._data_artifacts = DataArtifactPublicationService(
+            publications,
+            build_inputs,
+        )
 
     def _admit_document_observations(
         self,
@@ -197,6 +204,13 @@ class DataStepService:
         attempt: AttemptHandle,
         lease: LeaseGrant,
     ) -> PreparedStep:
+        if context.data_revision is not None:
+            return self._clean_revision(
+                context,
+                step_key=step_key,
+                attempt=attempt,
+                lease=lease,
+            )
         acquisitions = context.data_acquisitions
         if acquisitions is None:
             raise ValueError("fetching_data must complete before cleaning_data")
@@ -393,6 +407,77 @@ class DataStepService:
             activity_result_summary=(
                 "已完成研究数据对齐与质量校验，共输出 "
                 f"{len(prepared.build_result.dataset.rows)} 条规范化记录"
+            ),
+        )
+
+    def _clean_revision(
+        self,
+        context: RunStepContext,
+        *,
+        step_key: str,
+        attempt: AttemptHandle,
+        lease: LeaseGrant,
+    ) -> PreparedStep:
+        revision = context.data_revision
+        if revision is None:
+            raise ValueError("data revision context is required")
+
+        def acquire_sources():
+            if context.data_acquisitions is None:
+                context.data_acquisitions = acquire_case_sources(
+                    self._manifests,
+                    context.contract,
+                )
+            return context.data_acquisitions
+
+        result = execute_data_revision(
+            replace(revision, acquire_sources=acquire_sources)
+        )
+        if result.disposition == "reuse":
+            return PreparedStep((), "已复用修订计划冻结的数据版本。")
+        if result.data_input is None or result.build_result is None:
+            raise ValueError("data revision recompute returned no complete bundle")
+        authority = result.data_input.authority
+        if not isinstance(authority, CrossmatchDataArtifactAuthority):
+            raise ValueError("cleaning_data revision requires Crossmatch authority")
+        publication_config = DataArtifactPublicationConfig(
+            publish_kinds=(
+                ArtifactKind.dataset,
+                ArtifactKind.field_dictionary,
+                ArtifactKind.source_collection,
+            ),
+            operation_key_prefix="data_artifact_revision",
+            producer_error_code="DATA_ARTIFACT_REVISION_FAILED",
+            producer_version=result.data_input.producer_version,
+            quality_failure_message="修订数据未通过研究协议的数据质量约束",
+            snapshot_bindings_override=derive_document_snapshot_bindings(
+                result.data_input
+            ),
+            source_snapshots=(
+                authority.left_acquisition.snapshot,
+                authority.right_acquisition.snapshot,
+            ),
+        )
+        prepared = self._data_artifacts.prepare(
+            context,
+            step_key=step_key,
+            attempt=attempt,
+            lease=lease,
+            data_input=result.data_input,
+            config=publication_config,
+            build_result=result.build_result,
+        )
+        publications = self._data_artifacts.publish(
+            context,
+            prepared=prepared,
+            config=publication_config,
+            publication_targets=result.publication_targets,
+        )
+        return PreparedStep(
+            publications=publications,
+            activity_result_summary=(
+                "已按冻结修订计划选择性重算研究数据，共输出 "
+                f"{len(result.build_result.dataset.rows)} 条规范化记录"
             ),
         )
 
