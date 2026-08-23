@@ -480,6 +480,83 @@ def test_worker_executes_quality_only_data_revision_end_to_end(
         factory=factory,
         workflow_store=store,
     )
+    source_version = original_versions["source_collection"]
+    source_feedback = asyncio.run(
+        revisions.create_feedback(
+            version_id=str(source_version.id),
+            session_id=session_id,
+            idempotency_key=f"source-feedback-{uuid4()}",
+            request=CreateUserFeedbackRequest(
+                expected_version_number=source_version.version_number,
+                target_type="artifact_version",
+                target_id=str(source_version.id),
+                target_locator={
+                    "artifact_id": str(source_version.artifact_id),
+                    "artifact_version_id": str(source_version.id),
+                },
+                category="correction",
+                summary="重新获取冻结来源并核对来源身份",
+                requested_change="按结构化来源产物目标重新获取",
+            ),
+        )
+    )
+    source_plan = revisions.create_plan(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"source-plan-{uuid4()}",
+        request=CreateRevisionPlanRequest(
+            feedback_ids=(source_feedback.id,),
+            expected_parent_run_revision=original_snapshot.revision,
+        ),
+    )
+    assert "fetching_data" in source_plan.recompute_steps
+    source_run_id = revisions.confirm_plan(
+        plan_id=source_plan.id,
+        session_id=session_id,
+        idempotency_key=f"source-confirm-{uuid4()}",
+        request=ConfirmRevisionPlanRequest(
+            expected_plan_version=source_plan.version
+        ),
+    )
+    assert tuple(
+        step.key for step in store.load_snapshot(source_run_id).steps
+    ) == ("planning", "fetching_data", "cleaning_data")
+
+    def fail_if_crossmatch_reruns(*_args: object, **_kwargs: object) -> object:
+        raise AssertionError(
+            "identical canonical source identity must not rerun Crossmatch"
+        )
+
+    monkeypatch.setattr(
+        "app.workflow.steps.data_steps.DataStepService._align_with_current_repair_authority",
+        fail_if_crossmatch_reruns,
+    )
+    source_worker = ResearchRunWorker(
+        factory=factory,
+        store=store,
+        executor=PersistentWorkflowExecutor(store),
+        manifests=manifests,
+        model_port=ScriptedStepAgentModel(factory, source_run_id),
+        requested_model="qwen3.8-max",
+        explicit_revision=None,
+    )
+    asyncio.run(source_worker.execute_run(source_run_id))
+    original_snapshot = store.load_snapshot(source_run_id)
+    assert original_snapshot.status == "completed"
+    with factory() as session:
+        original_versions = {
+            artifact.kind: version
+            for artifact, version in session.execute(
+                select(ResearchArtifactModel, ArtifactVersionModel)
+                .join(
+                    ArtifactVersionModel,
+                    ArtifactVersionModel.id == ResearchArtifactModel.latest_version_id,
+                )
+                .where(ResearchArtifactModel.project_id == UUID(project.id))
+            )
+        }
+    assert all(version.version_number == 2 for version in original_versions.values())
+
     dataset_version = original_versions["dataset"]
     feedback = asyncio.run(
         revisions.create_feedback(
@@ -568,7 +645,7 @@ def test_worker_executes_quality_only_data_revision_end_to_end(
     for kind in original_versions:
         before = original_versions[kind]
         after = revised_versions[kind]
-        assert after.version_number == 2
+        assert after.version_number == before.version_number + 1
         assert after.supersedes_version_id == before.id
         assert after.content_hash == before.content_hash
         assert after.input_hash == before.input_hash
@@ -737,6 +814,7 @@ def test_gaia_scientific_admission_publishes_uuid_cell_evidence_end_to_end(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    provider_calls: list[str] = []
     response_hash = "sha256:" + "5" * 64
     adapter_query_identity = {
         "query": "SELECT TOP 6 source_id,ra,dec FROM gaiadr3.gaia_source",
@@ -748,6 +826,7 @@ def test_gaia_scientific_admission_publishes_uuid_cell_evidence_end_to_end(
     def acquire_from_recorded_response(
         _adapter: GaiaTapAdapter, _request: object
     ) -> dict[str, object]:
+        provider_calls.append("gaia")
         return {
             "service": "gaia_archive",
             "data_release": "gaiadr3",
@@ -888,6 +967,7 @@ def test_gaia_scientific_admission_publishes_uuid_cell_evidence_end_to_end(
         return run_id
 
     run_ids = (execute_run(), execute_run())
+    assert provider_calls == ["gaia", "gaia"]
     with factory() as session:
         versions = session.scalars(
             select(ArtifactVersionModel).where(
@@ -984,6 +1064,208 @@ def test_gaia_scientific_admission_publishes_uuid_cell_evidence_end_to_end(
             )
             assert replayed_input.input_hash == data_versions[0].input_hash
             assert replayed_input.authority.authority_kind == "source_table"
+
+    revisions = RevisionApplicationService(
+        factory=factory,
+        workflow_store=store,
+    )
+    with factory() as session:
+        latest_before_source = {
+            artifact.kind: version
+            for artifact, version in session.execute(
+                select(ResearchArtifactModel, ArtifactVersionModel)
+                .join(
+                    ArtifactVersionModel,
+                    ArtifactVersionModel.id == ResearchArtifactModel.latest_version_id,
+                )
+                .where(ResearchArtifactModel.project_id == UUID(project.id))
+            )
+        }
+    source_version = latest_before_source["source_collection"]
+    source_feedback = asyncio.run(
+        revisions.create_feedback(
+            version_id=str(source_version.id),
+            session_id=session_id,
+            idempotency_key=f"gaia-source-feedback-{uuid4()}",
+            request=CreateUserFeedbackRequest(
+                expected_version_number=source_version.version_number,
+                target_type="artifact_version",
+                target_id=str(source_version.id),
+                target_locator={
+                    "artifact_id": str(source_version.artifact_id),
+                    "artifact_version_id": str(source_version.id),
+                },
+                category="correction",
+                summary="重新获取 Gaia SourceTable 来源",
+                requested_change="按冻结 Gaia scientific producer 重新获取",
+            ),
+        )
+    )
+    source_parent = store.load_snapshot(run_ids[-1])
+    source_plan = revisions.create_plan(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"gaia-source-plan-{uuid4()}",
+        request=CreateRevisionPlanRequest(
+            feedback_ids=(source_feedback.id,),
+            expected_parent_run_revision=source_parent.revision,
+        ),
+    )
+    source_decisions = {
+        item.artifact_kind: item.decision for item in source_plan.version_decisions
+    }
+    assert source_decisions == {
+        "analysis_report": "recompute",
+        "dataset": "recompute",
+        "field_dictionary": "recompute",
+        "source_collection": "recompute",
+    }
+    source_revision_run = revisions.confirm_plan(
+        plan_id=source_plan.id,
+        session_id=session_id,
+        idempotency_key=f"gaia-source-confirm-{uuid4()}",
+        request=ConfirmRevisionPlanRequest(
+            expected_plan_version=source_plan.version
+        ),
+    )
+    source_worker = ResearchRunWorker(
+        factory=factory,
+        store=store,
+        executor=PersistentWorkflowExecutor(store),
+        manifests=manifests,
+        model_port=ScriptedStepAgentModel(factory, source_revision_run),
+        requested_model="qwen3.8-max",
+        explicit_revision=None,
+        content_storage=content_storage,
+    )
+    asyncio.run(source_worker.execute_run(source_revision_run))
+    assert store.load_snapshot(source_revision_run).status == "completed"
+    assert provider_calls == ["gaia", "gaia", "gaia"]
+
+    with factory() as session:
+        latest_after_source = {
+            artifact.kind: version
+            for artifact, version in session.execute(
+                select(ResearchArtifactModel, ArtifactVersionModel)
+                .join(
+                    ArtifactVersionModel,
+                    ArtifactVersionModel.id == ResearchArtifactModel.latest_version_id,
+                )
+                .where(ResearchArtifactModel.project_id == UUID(project.id))
+            )
+        }
+    assert all(
+        latest_after_source[kind].version_number == 3
+        for kind in (
+            "analysis_report",
+            "dataset",
+            "field_dictionary",
+            "source_collection",
+        )
+    )
+
+    dataset_version = latest_after_source["dataset"]
+    quality_feedback = asyncio.run(
+        revisions.create_feedback(
+            version_id=str(dataset_version.id),
+            session_id=session_id,
+            idempotency_key=f"gaia-quality-feedback-{uuid4()}",
+            request=CreateUserFeedbackRequest(
+                expected_version_number=dataset_version.version_number,
+                target_type="artifact_version",
+                target_id=str(dataset_version.id),
+                target_locator={
+                    "artifact_id": str(dataset_version.artifact_id),
+                    "artifact_version_id": str(dataset_version.id),
+                },
+                category="quality",
+                summary="仅按当前质量规则重评 Gaia 数据",
+                requested_change="不重新请求 Gaia provider",
+            ),
+        )
+    )
+    quality_parent = store.load_snapshot(source_revision_run)
+    quality_plan = revisions.create_plan(
+        project_id=project.id,
+        session_id=session_id,
+        idempotency_key=f"gaia-quality-plan-{uuid4()}",
+        request=CreateRevisionPlanRequest(
+            feedback_ids=(quality_feedback.id,),
+            expected_parent_run_revision=quality_parent.revision,
+        ),
+    )
+    quality_decisions = {
+        item.artifact_kind: item.decision for item in quality_plan.version_decisions
+    }
+    assert quality_decisions == {
+        "analysis_report": "reuse",
+        "dataset": "recompute",
+        "field_dictionary": "recompute",
+        "source_collection": "recompute",
+    }
+    quality_revision_run = revisions.confirm_plan(
+        plan_id=quality_plan.id,
+        session_id=session_id,
+        idempotency_key=f"gaia-quality-confirm-{uuid4()}",
+        request=ConfirmRevisionPlanRequest(
+            expected_plan_version=quality_plan.version
+        ),
+    )
+    quality_payload = load_frozen_quality_rule_set().model_dump(mode="json")
+    quality_payload["maintained_by"] = "gaia-quality-revision-test"
+    quality_payload.pop("content_hash")
+    quality_payload["content_hash"] = compute_quality_rule_set_content_hash(
+        quality_payload
+    )
+    current_quality = DataQualityRuleSet.model_validate(quality_payload)
+    monkeypatch.setattr(
+        "app.services.data_revision_context.load_frozen_quality_rule_set",
+        lambda: current_quality,
+    )
+    monkeypatch.setattr(
+        "app.workflow.data_artifact_publication.load_frozen_quality_rule_set",
+        lambda: current_quality,
+    )
+    monkeypatch.setattr(
+        "services.data_pipeline.data_quality.evaluator.require_frozen_quality_rule_set",
+        lambda candidate: candidate,
+    )
+    monkeypatch.setattr(
+        "services.data_pipeline.data_quality.admission.require_frozen_quality_rule_set",
+        lambda candidate: candidate,
+    )
+    quality_worker = ResearchRunWorker(
+        factory=factory,
+        store=store,
+        executor=PersistentWorkflowExecutor(store),
+        manifests=manifests,
+        model_port=ScriptedStepAgentModel(factory, quality_revision_run),
+        requested_model="qwen3.8-max",
+        explicit_revision=None,
+        content_storage=content_storage,
+    )
+    asyncio.run(quality_worker.execute_run(quality_revision_run))
+    assert store.load_snapshot(quality_revision_run).status == "completed"
+    assert provider_calls == ["gaia", "gaia", "gaia"]
+    with factory() as session:
+        latest_after_quality = {
+            artifact.kind: version
+            for artifact, version in session.execute(
+                select(ResearchArtifactModel, ArtifactVersionModel)
+                .join(
+                    ArtifactVersionModel,
+                    ArtifactVersionModel.id == ResearchArtifactModel.latest_version_id,
+                )
+                .where(ResearchArtifactModel.project_id == UUID(project.id))
+            )
+        }
+    assert latest_after_quality["analysis_report"].id == (
+        latest_after_source["analysis_report"].id
+    )
+    assert all(
+        latest_after_quality[kind].version_number == 4
+        for kind in ("dataset", "field_dictionary", "source_collection")
+    )
 
 
 def _assert_publication_chain(

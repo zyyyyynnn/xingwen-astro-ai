@@ -127,18 +127,28 @@ public candidate 不携带完整 replay input，也不新增 replay hash。该�
 产生的记录，不从 Dataset/SourceCollection 反推或补造历史 input。
 
 confirmed data revision 先从 Plan 的三个独立 version decisions 读取 Dataset、
-FieldDictionary、SourceCollection baseline，完成 typed read、SourceSnapshot/Evidence、
-Quality projection、共同 input hash 与 build-result cross-binding 校验，再按 current frozen
-policy 选择最窄合法闭包：
+FieldDictionary、SourceCollection baseline，并始终核对 frozen version identity 与 latest。
+reuse compatibility 继续校验 typed content/schema/input hash、SourceSnapshot/Evidence、
+Quality projection、共同 input hash、Contract/Manifest/current policy、replay input
+self-validation 与 build-result cross-binding；all-reuse 任一项不兼容均在 Producer 启动前
+返回 replan-required。recompute eligibility 只要求本次 stage 所需的 replay upstream，旧
+public candidate 无法 readmit 不会阻止已由 Plan 授权的完整 Data Artifact/Data Quality rebuild：
 
 - Quality-only：fresh derive 验证 persisted 三件套 exact equality，重建 process-local seal，
   保持 candidate scientific content 不变并仅重跑 Data Quality Evaluation；
 - mapping/unit：复用 replay input 中的 acquisition 与 CrossmatchResult，用 current
   MappingRuleSet/UnitConversionCatalog 重算完整 input 与三件套；
-- crossmatch：复用有效 acquisition，用 current rule/alias/source policy 重新对齐，再执行
-  完整 Data Artifact build 与 Data Quality Evaluation；
-- source：仅在 Plan 明确包含 `fetching_data` 时调用既有 acquisition，然后依次执行
-  crossmatch、Data Artifact build 与 Data Quality Evaluation；
+- crossmatch：复用有效 acquisition，由既有 `DataStepService` repair checkpoint seam 执行
+  current rule/alias/source policy 对齐；Crossmatch 改变后必须用新结果重新执行 document
+  admission，再执行完整 Data Artifact build 与 Data Quality Evaluation；
+- Crossmatch source：仅在 Plan 明确包含 `fetching_data` 时调用既有 acquisition；先重算
+  既有 canonical `source_input_hash`，identity 完全相同则复用 Crossmatch，否则进入上述
+  repair-aware seam；两种情况都执行完整 Data Artifact build 与 Data Quality Evaluation；
+- SourceTable/Gaia：quality-only 由 frozen exact candidate 直接重跑 Data Quality，不调用 provider；
+  只有 Plan-linked structured SourceCollection correction/evidence 授权 source reacquisition
+  时，原 scientific step 才调用既有 Gaia adapter 并执行完整 Data Artifact build 与 Data Quality。persisted
+  SourceTable authority 不支持的 mapping/unit selective stage 在 provider 前返回
+  replan-required；同一步的 AnalysisReport 仍由 scientific owner 与 Plan decision 管理；
 - unaffected：直接复用 frozen ArtifactVersion，不构建或发布相同内容的副本。
 
 选择性重算只复用 immutable upstream，不 patch serialized candidate、不二次转换 canonical
@@ -162,6 +172,8 @@ publication target：candidate identity/hash 必须与本次完整 build result 
 `artifact_id` 与 `supersedes_version_id` 必须来自该 kind 自己的 frozen Plan baseline。
 target 不进入 candidate、input/content/lineage hash。既有 Publisher 在一个事务中锁定三项
 Artifact 并最终校验 supersedes；任一项 stale 时三项都不写入新版本或移动 latest。
+generic publication seam 不推导 revision target；revision caller 缺少显式 revision targets 时
+必须 fail closed，并关闭已启动的 ProducerExecution。
 
 ## 8. Stable maintenance rules
 

@@ -69,7 +69,7 @@ KINDS = (
 ARTIFACT_STEP = {
     "dataset": "cleaning_data",
     "field_dictionary": "cleaning_data",
-    "source_collection": "fetching_data",
+    "source_collection": "cleaning_data",
     "paper_collection": "searching_papers",
     "paper_summary": "summarizing_papers",
     "literature_claims": "reasoning_literature",
@@ -498,6 +498,7 @@ def test_revision_plan_impact_closures(runtime: dict[str, object]) -> None:
         "dataset": {
             "dataset",
             "field_dictionary",
+            "source_collection",
             "paper_collection",
             "paper_summary",
             "literature_claims",
@@ -560,7 +561,7 @@ def test_revision_plan_impact_closures(runtime: dict[str, object]) -> None:
             ("dataset", "field_dictionary", "source_collection"),
             ("graph",),
             "dataset",
-            ("dataset", "field_dictionary"),
+            ("dataset", "field_dictionary", "source_collection"),
             ("planning", "cleaning_data"),
         ),
         (
@@ -777,14 +778,33 @@ def test_confirm_is_idempotent_restart_safe_and_preserves_parent(
     )
 
     factory = runtime["factory"]
-    loaded = DataRevisionContextLoader(factory).load(
-        run_id=UUID(run["id"]),
-        session_id=str(runtime["owner_session_id"]),
-    )
-    assert loaded is not None
-    assert loaded.data_execution is None
-    assert loaded.versions["dataset"] == runtime["version_ids"]["dataset"]  # type: ignore[index]
     with factory() as session:
+        producer_count_before = session.scalar(
+            select(func.count()).select_from(ProducerExecutionModel)
+        )
+        version_count_before = session.scalar(
+            select(func.count()).select_from(ArtifactVersionModel)
+        )
+        latest_before = {
+            artifact.id: artifact.latest_version_id
+            for artifact in session.scalars(select(ResearchArtifactModel))
+        }
+    with pytest.raises(DataRevisionError, match="REVISION_DATA_REPLAN_REQUIRED"):
+        DataRevisionContextLoader(factory).load(
+            run_id=UUID(run["id"]),
+            session_id=str(runtime["owner_session_id"]),
+        )
+    with factory() as session:
+        assert session.scalar(
+            select(func.count()).select_from(ProducerExecutionModel)
+        ) == producer_count_before
+        assert session.scalar(
+            select(func.count()).select_from(ArtifactVersionModel)
+        ) == version_count_before
+        assert {
+            artifact.id: artifact.latest_version_id
+            for artifact in session.scalars(select(ResearchArtifactModel))
+        } == latest_before
         assert (
             session.scalar(
                 select(func.count()).select_from(RevisionPlanConfirmationModel)

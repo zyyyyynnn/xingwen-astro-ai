@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
+from dataclasses import replace
 import json
 from uuid import UUID
 
@@ -18,7 +19,9 @@ from app.schemas.data_artifacts import (
     compute_data_artifact_input_hash,
 )
 from app.schemas.evidence import SourceSnapshotRecord
+from app.schemas.enums import SourceMode
 from app.schemas.scientific_capabilities import capability_for
+from app.schemas.source_table import SourceTableAdmission
 from app.services.content_storage import ContentStorage
 from app.services.data_artifact_build_inputs import DataArtifactBuildInputRepository
 from app.workflow.data_artifact_publication import (
@@ -50,6 +53,12 @@ from services.scientific_skills.astro_acquisition import GaiaTapAdapter
 from services.scientific_skills.registry import (
     ScientificSkillRegistry,
     build_scientific_skill_registry,
+)
+from services.data_pipeline.revision import (
+    DataRevisionError,
+    DataRevisionErrorCode,
+    DataRevisionExecutionResult,
+    execute_data_revision,
 )
 
 
@@ -88,6 +97,26 @@ class ScientificStepService:
         lease: LeaseGrant,
     ) -> PreparedStep:
         task_id, skill_id = self._step_binding(attempt.run_step_id)
+        revision = context.data_revision
+        if revision is not None:
+            if not isinstance(
+                revision.baseline_input.authority,
+                SourceTableDataArtifactAuthority,
+            ) or skill_id != ScientificSkillId.gaia_cone_search.value:
+                raise DataRevisionError(
+                    DataRevisionErrorCode.replan_required,
+                    "scientific data revision is not owned by the Gaia SourceTable seam",
+                )
+            if not revision.acquisition_recompute_authorized:
+                result = execute_data_revision(revision)
+                return self._publish_gaia_revision_result(
+                    context,
+                    step_key=step_key,
+                    attempt=attempt,
+                    lease=lease,
+                    result=result,
+                    source_mode=revision.baseline_source_mode,
+                )
         resolver = DatabaseScientificInputResolver(
             self._factory,
             self._content_storage,
@@ -163,26 +192,28 @@ class ScientificStepService:
             project_id=context.project_id,
             snapshot_id=admission.source_snapshot_id,
         )
-        mapping = load_mapping_rule_set()
-        conversion = load_unit_conversion_catalog()
-        data_payload = {
-            "manifest_pins": admission.manifest_pins,
-            "requested_fields": context.contract.requested_fields,
-            "authority": SourceTableDataArtifactAuthority(
-                source_snapshot=snapshot,
-                source_table_admission=admission,
-            ),
-            "mapping_rule_set": mapping,
-            "conversion_catalog": conversion,
-            "producer_version": mapping.producer_version,
-            "quality_constraints_reference": "research_contract.quality_constraints",
-        }
-        unhashed = DataArtifactBuildInput.model_construct(
-            **data_payload,
-            input_hash="sha256:" + "0" * 64,
+        data_input = self._gaia_data_input(
+            context,
+            admission=admission,
+            snapshot=snapshot,
         )
-        data_payload["input_hash"] = compute_data_artifact_input_hash(unhashed)
-        data_input = DataArtifactBuildInput.model_validate(data_payload)
+        revision = context.data_revision
+        if revision is not None:
+            result = execute_data_revision(
+                replace(
+                    revision,
+                    acquire_source_table_input=lambda: data_input,
+                )
+            )
+            return self._publish_gaia_revision_result(
+                context,
+                step_key=step_key,
+                attempt=attempt,
+                lease=lease,
+                result=result,
+                source_mode=output.source_mode,
+            ).publications
+        mapping = data_input.mapping_rule_set
         publication_config = DataArtifactPublicationConfig(
             publish_kinds=tuple(kind for kind in data_kinds if kind in requested_kinds),
             operation_key_prefix="gaia_data_artifact",
@@ -203,6 +234,96 @@ class ScientificStepService:
             context,
             prepared=prepared,
             config=publication_config,
+        )
+
+    def _gaia_data_input(
+        self,
+        context: RunStepContext,
+        *,
+        admission: SourceTableAdmission,
+        snapshot: SourceSnapshotRecord,
+    ) -> DataArtifactBuildInput:
+        mapping = load_mapping_rule_set()
+        conversion = load_unit_conversion_catalog()
+        data_payload = {
+            "manifest_pins": admission.manifest_pins,
+            "requested_fields": context.contract.requested_fields,
+            "authority": SourceTableDataArtifactAuthority(
+                source_snapshot=snapshot,
+                source_table_admission=admission,
+            ),
+            "mapping_rule_set": mapping,
+            "conversion_catalog": conversion,
+            "producer_version": mapping.producer_version,
+            "quality_constraints_reference": "research_contract.quality_constraints",
+        }
+        unhashed = DataArtifactBuildInput.model_construct(
+            **data_payload,
+            input_hash="sha256:" + "0" * 64,
+        )
+        data_payload["input_hash"] = compute_data_artifact_input_hash(unhashed)
+        return DataArtifactBuildInput.model_validate(data_payload)
+
+    def _publish_gaia_revision_result(
+        self,
+        context: RunStepContext,
+        *,
+        step_key: str,
+        attempt: AttemptHandle,
+        lease: LeaseGrant,
+        result: DataRevisionExecutionResult,
+        source_mode: SourceMode,
+    ) -> PreparedStep:
+        if (
+            result.disposition != "recompute"
+            or result.data_input is None
+            or result.build_result is None
+            or not result.publication_targets
+            or not isinstance(
+                result.data_input.authority,
+                SourceTableDataArtifactAuthority,
+            )
+        ):
+            raise DataRevisionError(
+                DataRevisionErrorCode.replan_required,
+                "Gaia revision did not produce explicit SourceTable revision targets",
+            )
+        authority = result.data_input.authority
+        mapping = result.data_input.mapping_rule_set
+        publication_config = DataArtifactPublicationConfig(
+            publish_kinds=(
+                ArtifactKind.dataset,
+                ArtifactKind.field_dictionary,
+                ArtifactKind.source_collection,
+            ),
+            operation_key_prefix="gaia_data_artifact_revision",
+            producer_error_code="GAIA_DATA_ARTIFACT_REVISION_FAILED",
+            producer_version=mapping.producer_version,
+            quality_failure_message="Gaia revision did not pass Data Quality",
+            source_mode=source_mode,
+            source_snapshots=(authority.source_snapshot,),
+        )
+        prepared = self._data_artifacts.prepare(
+            context,
+            step_key=step_key,
+            attempt=attempt,
+            lease=lease,
+            data_input=result.data_input,
+            config=publication_config,
+            build_result=result.build_result,
+        )
+        publications = self._data_artifacts.publish(
+            context,
+            prepared=prepared,
+            config=publication_config,
+            publication_targets=result.publication_targets,
+        )
+        return PreparedStep(
+            publications=publications,
+            activity_result_summary=(
+                "已按冻结修订计划完成 Gaia 数据重算，共输出 "
+                f"{len(result.build_result.dataset.rows)} 条规范化记录"
+            ),
         )
 
     def _source_snapshot(

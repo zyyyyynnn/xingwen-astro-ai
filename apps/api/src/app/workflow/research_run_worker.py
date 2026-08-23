@@ -128,7 +128,10 @@ class ResearchRunWorker:
         self._explicit_revision = explicit_revision
         self._publisher = ArtifactPublisher(factory)
         self._executions = ProducerExecutionStore(factory)
-        self._revision_contexts = DataRevisionContextLoader(factory)
+        self._revision_contexts = DataRevisionContextLoader(
+            factory,
+            manifests=manifests,
+        )
         self._prompts = prompts or PromptRegistry()
         self._step_runtime = ResearchStepRuntime(
             factory=factory,

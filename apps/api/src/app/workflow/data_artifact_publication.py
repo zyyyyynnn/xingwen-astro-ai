@@ -26,10 +26,7 @@ from app.workflow.publisher import (
 from app.workflow.step_publication import RunStepContext, StepPublicationFactory
 from app.workflow.store import AttemptHandle, LeaseGrant
 from services.data_pipeline.data_artifacts import build_data_artifact_candidates
-from services.data_pipeline.revision import (
-    DataRevisionPublicationTarget,
-    data_revision_publication_targets,
-)
+from services.data_pipeline.revision import DataRevisionPublicationTarget
 from services.data_pipeline.data_artifacts.admission import (
     validate_data_artifact_domain,
     validate_data_artifact_evidence,
@@ -163,9 +160,9 @@ class DataArtifactPublicationService:
             "source_collection": prepared.build_result.source_collection,
         }
         if publication_targets is None and context.data_revision is not None:
-            publication_targets = data_revision_publication_targets(
-                context.data_revision.baselines,
-                prepared.build_result,
+            self._finish_failed(prepared.executions, config.producer_error_code)
+            raise ValueError(
+                "revision data publication requires explicit revision targets"
             )
         target_by_kind = (
             {item.artifact_kind: item for item in publication_targets}

@@ -9,12 +9,10 @@ from typing import Literal
 from uuid import UUID
 
 from app.schemas.crossmatch import (
-    CrossmatchInput,
     CrossmatchRuleSet,
     CrossmatchSourceInput,
     EntityAliasCatalog,
     CrossmatchSourcePolicy,
-    compute_crossmatch_input_hash,
     compute_crossmatch_source_input_hash,
 )
 from app.schemas.data_artifacts import (
@@ -22,11 +20,12 @@ from app.schemas.data_artifacts import (
     DataArtifactBuildInput,
     DataArtifactBuildResult,
     MappingRuleSet,
+    SourceTableDataArtifactAuthority,
     UnitConversionCatalog,
     compute_data_artifact_input_hash,
     compute_data_artifact_public_payload_hash,
 )
-from services.data_pipeline.crossmatch import align_cross_source_records
+from app.schemas.enums import SourceMode
 from services.data_pipeline.data_artifacts import (
     build_data_artifact_candidates,
     readmit_data_artifact_candidates,
@@ -83,24 +82,33 @@ class DataRevisionExecutionInput:
     plan_hash: str
     baselines: tuple[DataRevisionArtifactBaseline, ...]
     baseline_input: DataArtifactBuildInput
-    baseline_result: DataArtifactBuildResult
-    baseline_quality_rule_set_content_hash: str
+    baseline_result: DataArtifactBuildResult | None
+    baseline_quality_rule_set_content_hash: str | None
     current_mapping_rule_set: MappingRuleSet
     current_conversion_catalog: UnitConversionCatalog
     current_crossmatch_rule_set: CrossmatchRuleSet
     current_alias_catalog: EntityAliasCatalog
     current_source_policy: CrossmatchSourcePolicy
     current_quality_rule_set_content_hash: str
+    baseline_source_mode: SourceMode = SourceMode.live
     acquisition_recompute_authorized: bool = False
     acquire_sources: (
         Callable[[], tuple[CrossmatchSourceInput, CrossmatchSourceInput]] | None
     ) = None
+    align_crossmatch_authority: (
+        Callable[
+            [CrossmatchSourceInput, CrossmatchSourceInput],
+            CrossmatchDataArtifactAuthority,
+        ]
+        | None
+    ) = None
+    acquire_source_table_input: Callable[[], DataArtifactBuildInput] | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class DataRevisionExecutionResult:
     disposition: RevisionDisposition
-    executed_stages: tuple[RevisionStage, ...]
+    required_stages: tuple[RevisionStage, ...]
     data_input: DataArtifactBuildInput | None
     build_result: DataArtifactBuildResult | None
     publication_targets: tuple[DataRevisionPublicationTarget, ...]
@@ -114,6 +122,15 @@ def execute_data_revision(
     baselines = _validate_baselines(execution)
     decisions = {item.decision for item in baselines.values()}
     if decisions == {"reuse"}:
+        try:
+            baseline_result = _validate_baseline_payload(execution, baselines)
+            _readmit_quality_baseline(execution.baseline_input, baseline_result)
+            _validate_current_reuse_compatibility(execution)
+        except DataRevisionError as exc:
+            raise DataRevisionError(
+                DataRevisionErrorCode.replan_required,
+                "the frozen data bundle is not compatible with current reuse policy",
+            ) from exc
         return DataRevisionExecutionResult("reuse", (), None, None, ())
     if decisions != {"recompute"}:
         raise DataRevisionError(
@@ -121,12 +138,54 @@ def execute_data_revision(
             "the data bundle has mixed reuse and recompute decisions",
         )
 
-    baseline_result = _validate_baseline_payload(execution, baselines)
     baseline_input = execution.baseline_input
     authority = baseline_input.authority
     stages: list[RevisionStage] = []
 
     if execution.acquisition_recompute_authorized:
+        if isinstance(authority, SourceTableDataArtifactAuthority):
+            if execution.acquire_source_table_input is None:
+                raise DataRevisionError(
+                    DataRevisionErrorCode.replan_required,
+                    "authorized SourceTable acquisition has no scientific owner operation",
+                )
+            try:
+                data_input = execution.acquire_source_table_input()
+                if (
+                    not isinstance(
+                        data_input.authority, SourceTableDataArtifactAuthority
+                    )
+                    or data_input.manifest_pins != baseline_input.manifest_pins
+                    or data_input.requested_fields != baseline_input.requested_fields
+                    or data_input.mapping_rule_set
+                    != execution.current_mapping_rule_set
+                    or data_input.conversion_catalog
+                    != execution.current_conversion_catalog
+                    or data_input.quality_constraints_reference
+                    != baseline_input.quality_constraints_reference
+                ):
+                    raise DataRevisionError(
+                        DataRevisionErrorCode.recompute_failed,
+                        "the scientific owner returned an incompatible SourceTable input",
+                    )
+                build_result = build_data_artifact_candidates(data_input)
+            except DataRevisionError:
+                raise
+            except Exception as exc:
+                raise DataRevisionError(
+                    DataRevisionErrorCode.recompute_failed,
+                    "the authorized SourceTable acquisition could not rebuild data artifacts",
+                ) from exc
+            targets = data_revision_publication_targets(
+                baselines.values(), build_result
+            )
+            return DataRevisionExecutionResult(
+                "recompute",
+                ("source", "mapping_unit", "quality"),
+                data_input,
+                build_result,
+                targets,
+            )
         if not isinstance(authority, CrossmatchDataArtifactAuthority):
             raise DataRevisionError(
                 DataRevisionErrorCode.replan_required,
@@ -147,16 +206,9 @@ def execute_data_revision(
     crossmatch_changed = False
     if isinstance(authority, CrossmatchDataArtifactAuthority):
         context = authority.crossmatch_result.admission_context
-        crossmatch_changed = execution.acquisition_recompute_authorized or (
-            context.rule_set != execution.current_crossmatch_rule_set
-            or context.alias_catalog != execution.current_alias_catalog
-            or context.source_policy != execution.current_source_policy
-        )
-
-    try:
-        if crossmatch_changed:
-            assert left is not None and right is not None
-            crossmatch = _crossmatch(
+        source_identity_changed = (
+            execution.acquisition_recompute_authorized
+            and _crossmatch_source_input_hash(
                 baseline_input=baseline_input,
                 left=left,
                 right=right,
@@ -164,14 +216,33 @@ def execute_data_revision(
                 alias_catalog=execution.current_alias_catalog,
                 source_policy=execution.current_source_policy,
             )
-            authority = CrossmatchDataArtifactAuthority(
-                left_acquisition=left,
-                right_acquisition=right,
-                crossmatch_result=crossmatch,
-                document_observations=authority.document_observations,
-            )
-            stages.append("crossmatch")
+            != context.source_input_hash
+        )
+        crossmatch_changed = source_identity_changed or (
+            context.rule_set != execution.current_crossmatch_rule_set
+            or context.alias_catalog != execution.current_alias_catalog
+            or context.source_policy != execution.current_source_policy
+        )
 
+    if crossmatch_changed:
+        if (
+            left is None
+            or right is None
+            or execution.align_crossmatch_authority is None
+        ):
+            raise DataRevisionError(
+                DataRevisionErrorCode.replan_required,
+                "Crossmatch recompute requires the current workflow repair authority",
+            )
+        authority = execution.align_crossmatch_authority(left, right)
+        if authority.left_acquisition != left or authority.right_acquisition != right:
+            raise DataRevisionError(
+                DataRevisionErrorCode.recompute_failed,
+                "the workflow Crossmatch authority returned different acquisitions",
+            )
+        stages.append("crossmatch")
+
+    try:
         mapping_changed = (
             baseline_input.mapping_rule_set != execution.current_mapping_rule_set
             or baseline_input.conversion_catalog
@@ -181,7 +252,16 @@ def execute_data_revision(
             execution.baseline_quality_rule_set_content_hash
             != execution.current_quality_rule_set_content_hash
         )
-        if crossmatch_changed or mapping_changed:
+        if isinstance(authority, SourceTableDataArtifactAuthority) and mapping_changed:
+            raise DataRevisionError(
+                DataRevisionErrorCode.replan_required,
+                "SourceTable mapping/unit recompute is not supported by its persisted authority",
+            )
+        if (
+            execution.acquisition_recompute_authorized
+            or crossmatch_changed
+            or mapping_changed
+        ):
             data_input = _rebuild_input(
                 baseline_input,
                 authority=authority,
@@ -192,11 +272,23 @@ def execute_data_revision(
             stages.extend(("mapping_unit", "quality"))
         elif quality_changed:
             data_input = baseline_input
-            build_result = _readmit_quality_baseline(
-                baseline_input,
-                baseline_result,
-            )
-            stages.append("quality")
+            try:
+                baseline_result = _validate_baseline_payload(execution, baselines)
+                build_result = _readmit_quality_baseline(
+                    baseline_input,
+                    baseline_result,
+                )
+                stages.append("quality")
+            except DataRevisionError:
+                if {item.step_key for item in baselines.values()} != {
+                    "cleaning_data"
+                }:
+                    raise DataRevisionError(
+                        DataRevisionErrorCode.replan_required,
+                        "candidate reuse failed without an authorized complete rebuild",
+                    )
+                build_result = build_data_artifact_candidates(data_input)
+                stages.extend(("mapping_unit", "quality"))
         else:
             raise DataRevisionError(
                 DataRevisionErrorCode.replan_required,
@@ -328,7 +420,32 @@ def _readmit_quality_baseline(
         ) from exc
 
 
-def _crossmatch(
+def _validate_current_reuse_compatibility(
+    execution: DataRevisionExecutionInput,
+) -> None:
+    baseline = execution.baseline_input
+    incompatible = (
+        baseline.mapping_rule_set != execution.current_mapping_rule_set
+        or baseline.conversion_catalog != execution.current_conversion_catalog
+        or execution.baseline_quality_rule_set_content_hash
+        != execution.current_quality_rule_set_content_hash
+    )
+    authority = baseline.authority
+    if isinstance(authority, CrossmatchDataArtifactAuthority):
+        context = authority.crossmatch_result.admission_context
+        incompatible = incompatible or (
+            context.rule_set != execution.current_crossmatch_rule_set
+            or context.alias_catalog != execution.current_alias_catalog
+            or context.source_policy != execution.current_source_policy
+        )
+    if incompatible:
+        raise DataRevisionError(
+            DataRevisionErrorCode.input_not_replayable,
+            "the frozen data bundle does not satisfy current reuse policy",
+        )
+
+
+def _crossmatch_source_input_hash(
     *,
     baseline_input: DataArtifactBuildInput,
     left: CrossmatchSourceInput,
@@ -336,7 +453,7 @@ def _crossmatch(
     rule_set: CrossmatchRuleSet,
     alias_catalog: EntityAliasCatalog,
     source_policy: CrossmatchSourcePolicy,
-):
+) -> str:
     pins = baseline_input.manifest_pins
     payload = {
         "case_manifest_id": pins.case_manifest_id,
@@ -350,11 +467,8 @@ def _crossmatch(
         "source_policy": source_policy.model_dump(mode="json"),
         "left": left.model_dump(mode="json"),
         "right": right.model_dump(mode="json"),
-        "manual_review_decisions": (),
     }
-    payload["source_input_hash"] = compute_crossmatch_source_input_hash(payload)
-    payload["input_hash"] = compute_crossmatch_input_hash(payload)
-    return align_cross_source_records(CrossmatchInput.model_validate(payload))
+    return compute_crossmatch_source_input_hash(payload)
 
 
 def _rebuild_input(

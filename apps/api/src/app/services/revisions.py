@@ -349,13 +349,58 @@ class RevisionApplicationService:
                 for feedback in ordered_feedback
             }
             affected_step_keys = set(baseline_step_keys)
+            artifact_kind_by_id = {
+                artifact.id: artifact.kind for artifact, _version in latest_rows
+            }
+            source_reacquisition_feedback = tuple(
+                feedback
+                for feedback in ordered_feedback
+                if artifact_kind_by_id.get(feedback.artifact_id)
+                == "source_collection"
+                and feedback.target_type in {"artifact", "artifact_version"}
+                and feedback.category in {"correction", "evidence"}
+            )
+            if source_reacquisition_feedback and "fetching_data" in parent_step_by_key:
+                affected_step_keys.add("fetching_data")
+            data_kinds = {"dataset", "field_dictionary", "source_collection"}
+            data_version_ids = {
+                version.id
+                for artifact, version in latest_rows
+                if artifact.kind in data_kinds
+            }
+            direct_data_feedback = tuple(
+                feedback
+                for feedback in ordered_feedback
+                if feedback.baseline_artifact_version_id in data_version_ids
+            )
+            source_feedback_ids = {
+                feedback.id for feedback in source_reacquisition_feedback
+            }
+            data_only_scientific_steps = {
+                producer_step_key(
+                    baseline_by_id[feedback.baseline_artifact_version_id]
+                )
+                for feedback in direct_data_feedback
+                if feedback.id not in source_feedback_ids
+                and (
+                    step := parent_step_by_key[
+                        producer_step_key(
+                            baseline_by_id[feedback.baseline_artifact_version_id]
+                        )
+                    ]
+                ).skill_id
+                == "gaia_cone_search"
+            }
             changed = True
             while changed:
                 changed = False
                 for step in parent_steps:
                     if step.key in affected_step_keys:
                         continue
-                    if set(step.depends_on_step_keys) & affected_step_keys:
+                    propagating_steps = (
+                        affected_step_keys - data_only_scientific_steps
+                    )
+                    if set(step.depends_on_step_keys) & propagating_steps:
                         affected_step_keys.add(step.key)
                         changed = True
             affected_step_keys.add("planning")
@@ -363,16 +408,31 @@ class RevisionApplicationService:
             decisions: list[RevisionPlanVersionModel] = []
             frozen_decisions: list[dict[str, object]] = []
             for position, (artifact, version) in enumerate(latest_rows):
+                producer_key = (
+                    producer_step_key(version)
+                    if version.created_by_run_id == parent.id
+                    else None
+                )
+                complete_data_bundle_recompute = (
+                    bool(direct_data_feedback) and artifact.kind in data_kinds
+                )
+                data_only_scientific_co_output = (
+                    producer_key in data_only_scientific_steps
+                    and artifact.kind not in data_kinds
+                )
                 decision = (
                     RevisionDecision.recompute
                     if (
-                        version.created_by_run_id == parent.id
-                        and producer_step_key(version) in affected_step_keys
+                        complete_data_bundle_recompute
+                        or (
+                            producer_key in affected_step_keys
+                            and not data_only_scientific_co_output
+                        )
                     )
                     else RevisionDecision.reuse
                 )
                 step_key = (
-                    producer_step_key(version)
+                    producer_key
                     if decision is RevisionDecision.recompute
                     else None
                 )
