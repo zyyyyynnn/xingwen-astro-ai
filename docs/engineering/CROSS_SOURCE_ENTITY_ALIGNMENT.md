@@ -168,6 +168,14 @@ binds sorted manual-decision hashes. `output_hash` covers the stable result and
 equals the canonical result `content_hash`. All hashes exclude wall-clock
 latency, logs, branch names, output paths, and the hash field itself.
 
+Normal and revision `cleaning_data` use the same Workflow repair authority:
+current input alignment, defect derivation, existing repair checkpoint request
+or frozen decision validation, manual-decision rerun, and deterministic repair
+revalidation are one shared seam. The revision domain may decide that
+Crossmatch must recompute, but it cannot bypass that seam with an empty manual
+decision set. Source reacquisition compares this existing `source_input_hash`;
+an identical identity reuses the admitted CrossmatchResult.
+
 Logical match keys are based on source identities and row keys; they are
 separate from mutable result content hashes. Input record order and JSON object
 key order do not affect output ordering or hashes.

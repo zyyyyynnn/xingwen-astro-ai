@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass, replace
 from typing import Any
 
 from app.schemas._hashing import compute_canonical_payload_hash
@@ -23,6 +24,7 @@ from app.schemas.crossmatch import (
     CrossmatchCondition,
     CrossmatchInput,
     CrossmatchResult,
+    CrossmatchSourceInput,
     EntityCandidate,
     ManualReviewDecision,
     MatchDecision,
@@ -44,6 +46,7 @@ from app.services.document_data_admission import (
     DocumentDataAdmissionBatch,
     DocumentDataAdmissionService,
 )
+from app.services.data_artifact_build_inputs import DataArtifactBuildInputRepository
 from app.workflow.data_artifact_publication import (
     DataArtifactPublicationConfig,
     DataArtifactPublicationService,
@@ -57,6 +60,7 @@ from app.workflow.store import (
     AttemptHandle,
     LeaseGrant,
     PersistentWorkflowStore,
+    RepairCheckpointDecisionState,
     WorkflowCheckpointRequested,
 )
 from services.data_pipeline.crossmatch import align_cross_source_records
@@ -73,6 +77,14 @@ from services.data_pipeline.data_artifacts.policy import (
     load_unit_conversion_catalog,
 )
 from services.data_pipeline.live_acquisition import acquire_case_sources
+from services.data_pipeline.revision import execute_data_revision
+
+
+@dataclass(frozen=True, slots=True)
+class _AlignmentOutcome:
+    crossmatch: CrossmatchResult
+    defects: tuple[RepairDefect, ...]
+    repair_state: RepairCheckpointDecisionState | None
 
 
 class DataStepService:
@@ -84,13 +96,17 @@ class DataStepService:
         manifests: ManifestBundle,
         publications: StepPublicationFactory,
         store: PersistentWorkflowStore,
+        build_inputs: DataArtifactBuildInputRepository,
         document_admission: DocumentDataAdmissionService | None = None,
     ) -> None:
         self._manifests = manifests
         self._publications = publications
         self._store = store
         self._document_admission = document_admission
-        self._data_artifacts = DataArtifactPublicationService(publications)
+        self._data_artifacts = DataArtifactPublicationService(
+            publications,
+            build_inputs,
+        )
 
     def _admit_document_observations(
         self,
@@ -189,18 +205,16 @@ class DataStepService:
         )
         return PreparedStep((), activity_result_summary="已按研究协议获取所需数据材料")
 
-    def clean(
+    def _align_with_current_repair_authority(
         self,
         context: RunStepContext,
         *,
+        left: CrossmatchSourceInput,
+        right: CrossmatchSourceInput,
         step_key: str,
         attempt: AttemptHandle,
         lease: LeaseGrant,
-    ) -> PreparedStep:
-        acquisitions = context.data_acquisitions
-        if acquisitions is None:
-            raise ValueError("fetching_data must complete before cleaning_data")
-        left, right = acquisitions
+    ) -> _AlignmentOutcome:
         rules = load_crossmatch_rule_set()
         crossmatch_payload: dict[str, Any] = {
             "case_manifest_id": self._manifests.case_manifest.case_id,
@@ -281,6 +295,67 @@ class DataStepService:
             )
             crossmatch_input = CrossmatchInput.model_validate(crossmatch_payload)
             crossmatch = align_cross_source_records(crossmatch_input)
+        return _AlignmentOutcome(crossmatch, defects, repair_state)
+
+    def _complete_alignment_repair(
+        self,
+        context: RunStepContext,
+        *,
+        alignment: _AlignmentOutcome,
+        quality_result: DataQualityEvaluationResult,
+        step_key: str,
+        attempt: AttemptHandle,
+        lease: LeaseGrant,
+    ) -> RepairOutcome | None:
+        repair_state = alignment.repair_state
+        if repair_state is None:
+            return None
+        outcome = _repair_outcome(
+            repair_state=repair_state,
+            before_defects=alignment.defects,
+            crossmatch=alignment.crossmatch,
+            quality_result=quality_result,
+        )
+        self._store.complete_repair_checkpoint(
+            context.run_id,
+            step_key=step_key,
+            checkpoint_id=repair_state.checkpoint_id,
+            outcome=outcome,
+            token=lease.token,
+            generation=lease.generation,
+            expected_status=attempt.run_status,
+            expected_revision=attempt.run_revision,
+        )
+        return outcome
+
+    def clean(
+        self,
+        context: RunStepContext,
+        *,
+        step_key: str,
+        attempt: AttemptHandle,
+        lease: LeaseGrant,
+    ) -> PreparedStep:
+        if context.data_revision is not None:
+            return self._clean_revision(
+                context,
+                step_key=step_key,
+                attempt=attempt,
+                lease=lease,
+            )
+        acquisitions = context.data_acquisitions
+        if acquisitions is None:
+            raise ValueError("fetching_data must complete before cleaning_data")
+        left, right = acquisitions
+        alignment = self._align_with_current_repair_authority(
+            context,
+            left=left,
+            right=right,
+            step_key=step_key,
+            attempt=attempt,
+            lease=lease,
+        )
+        crossmatch = alignment.crossmatch
         mapping = load_mapping_rule_set()
         conversion = load_unit_conversion_catalog()
         # Document observations enter the existing cleaning chain after
@@ -348,32 +423,23 @@ class DataStepService:
         )
         build_executions_closed = False
         try:
-            if repair_state is not None:
-                outcome = _repair_outcome(
-                    repair_state=repair_state,
-                    before_defects=defects,
-                    crossmatch=crossmatch,
-                    quality_result=prepared.quality.evaluation_result,
-                )
-                self._store.complete_repair_checkpoint(
-                    context.run_id,
-                    step_key=step_key,
-                    checkpoint_id=repair_state.checkpoint_id,
-                    outcome=outcome,
-                    token=lease.token,
-                    generation=lease.generation,
-                    expected_status=attempt.run_status,
-                    expected_revision=attempt.run_revision,
-                )
-                if outcome.status == "false_repair":
-                    for execution in prepared.executions.values():
-                        self._publications.finish_producer(
-                            execution.id,
-                            status="rejected",
-                            error_code="REPAIR_REVALIDATION_FAILED",
-                        )
-                    build_executions_closed = True
-                    raise ValueError("人工修复决定未通过确定性重验证")
+            outcome = self._complete_alignment_repair(
+                context,
+                alignment=alignment,
+                quality_result=prepared.quality.evaluation_result,
+                step_key=step_key,
+                attempt=attempt,
+                lease=lease,
+            )
+            if outcome is not None and outcome.status == "false_repair":
+                for execution in prepared.executions.values():
+                    self._publications.finish_producer(
+                        execution.id,
+                        status="rejected",
+                        error_code="REPAIR_REVALIDATION_FAILED",
+                    )
+                build_executions_closed = True
+                raise ValueError("人工修复决定未通过确定性重验证")
         except Exception:
             if not build_executions_closed:
                 for execution in prepared.executions.values():
@@ -393,6 +459,144 @@ class DataStepService:
             activity_result_summary=(
                 "已完成研究数据对齐与质量校验，共输出 "
                 f"{len(prepared.build_result.dataset.rows)} 条规范化记录"
+            ),
+        )
+
+    def _clean_revision(
+        self,
+        context: RunStepContext,
+        *,
+        step_key: str,
+        attempt: AttemptHandle,
+        lease: LeaseGrant,
+    ) -> PreparedStep:
+        revision = context.data_revision
+        if revision is None:
+            raise ValueError("data revision context is required")
+
+        def acquire_sources():
+            if context.data_acquisitions is None:
+                context.data_acquisitions = acquire_case_sources(
+                    self._manifests,
+                    context.contract,
+                )
+            return context.data_acquisitions
+
+        alignment: _AlignmentOutcome | None = None
+
+        def align_crossmatch_authority(
+            left: CrossmatchSourceInput,
+            right: CrossmatchSourceInput,
+        ) -> CrossmatchDataArtifactAuthority:
+            nonlocal alignment
+            alignment = self._align_with_current_repair_authority(
+                context,
+                left=left,
+                right=right,
+                step_key=step_key,
+                attempt=attempt,
+                lease=lease,
+            )
+            document_batch = self._admit_document_observations(
+                context,
+                crossmatch=alignment.crossmatch,
+                attempt=attempt,
+                lease=lease,
+                step_key=step_key,
+            )
+            return CrossmatchDataArtifactAuthority(
+                left_acquisition=left,
+                right_acquisition=right,
+                crossmatch_result=alignment.crossmatch,
+                document_observations=(
+                    document_batch.accepted if document_batch is not None else ()
+                ),
+            )
+
+        result = execute_data_revision(
+            replace(
+                revision,
+                acquire_sources=acquire_sources,
+                align_crossmatch_authority=align_crossmatch_authority,
+            )
+        )
+        if result.disposition == "reuse":
+            return PreparedStep((), "已复用修订计划冻结的数据版本。")
+        if result.data_input is None or result.build_result is None:
+            raise ValueError("data revision recompute returned no complete bundle")
+        if result.resulting_source_mode is None:
+            raise ValueError("data revision returned no resulting source provenance")
+        authority = result.data_input.authority
+        if not isinstance(authority, CrossmatchDataArtifactAuthority):
+            raise ValueError("cleaning_data revision requires Crossmatch authority")
+        publication_config = DataArtifactPublicationConfig(
+            publish_kinds=(
+                ArtifactKind.dataset,
+                ArtifactKind.field_dictionary,
+                ArtifactKind.source_collection,
+            ),
+            operation_key_prefix="data_artifact_revision",
+            producer_error_code="DATA_ARTIFACT_REVISION_FAILED",
+            producer_version=result.data_input.producer_version,
+            quality_failure_message="修订数据未通过研究协议的数据质量约束",
+            source_mode=result.resulting_source_mode,
+            snapshot_bindings_override=derive_document_snapshot_bindings(
+                result.data_input
+            ),
+            source_snapshots=(
+                authority.left_acquisition.snapshot,
+                authority.right_acquisition.snapshot,
+            ),
+        )
+        prepared = self._data_artifacts.prepare(
+            context,
+            step_key=step_key,
+            attempt=attempt,
+            lease=lease,
+            data_input=result.data_input,
+            config=publication_config,
+            build_result=result.build_result,
+        )
+        build_executions_closed = False
+        try:
+            if alignment is not None:
+                outcome = self._complete_alignment_repair(
+                    context,
+                    alignment=alignment,
+                    quality_result=prepared.quality.evaluation_result,
+                    step_key=step_key,
+                    attempt=attempt,
+                    lease=lease,
+                )
+                if outcome is not None and outcome.status == "false_repair":
+                    for execution in prepared.executions.values():
+                        self._publications.finish_producer(
+                            execution.id,
+                            status="rejected",
+                            error_code="REPAIR_REVALIDATION_FAILED",
+                        )
+                    build_executions_closed = True
+                    raise ValueError("人工修复决定未通过确定性重验证")
+        except Exception:
+            if not build_executions_closed:
+                for execution in prepared.executions.values():
+                    self._publications.finish_producer(
+                        execution.id,
+                        status="failed",
+                        error_code="DATA_ARTIFACT_REVISION_FAILED",
+                    )
+            raise
+        publications = self._data_artifacts.publish(
+            context,
+            prepared=prepared,
+            config=publication_config,
+            publication_targets=result.publication_targets,
+        )
+        return PreparedStep(
+            publications=publications,
+            activity_result_summary=(
+                "已按冻结修订计划选择性重算研究数据，共输出 "
+                f"{len(result.build_result.dataset.rows)} 条规范化记录"
             ),
         )
 

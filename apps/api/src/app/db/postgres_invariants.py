@@ -64,6 +64,26 @@ def install_postgres_invariants(connection: Connection) -> None:
     connection.execute(
         text(
             """
+            CREATE OR REPLACE FUNCTION reject_data_artifact_build_input_update()
+            RETURNS trigger AS $$
+            BEGIN
+              RAISE EXCEPTION 'data artifact build input records are immutable';
+            END;
+            $$ LANGUAGE plpgsql
+            """
+        )
+    )
+    _replace_trigger(
+        connection,
+        name="trg_data_artifact_build_inputs_immutable",
+        table="data_artifact_build_inputs",
+        events="BEFORE UPDATE",
+        function="reject_data_artifact_build_input_update",
+    )
+
+    connection.execute(
+        text(
+            """
             CREATE OR REPLACE FUNCTION reject_paper_candidate_input_binding_update()
             RETURNS trigger AS $$
             BEGIN

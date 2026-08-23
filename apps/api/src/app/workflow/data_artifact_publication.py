@@ -9,6 +9,7 @@ from app.schemas.core import ArtifactKind
 from app.schemas.data_artifacts import (
     DataArtifactBuildInput,
     DataArtifactBuildResult,
+    compute_data_artifact_public_payload_hash,
 )
 from app.schemas.data_quality import (
     DataQualityEvaluationInput,
@@ -16,6 +17,7 @@ from app.schemas.data_quality import (
     compute_data_quality_input_hash,
 )
 from app.schemas.enums import SourceMode
+from app.services.data_artifact_build_inputs import DataArtifactBuildInputRepository
 from app.workflow.publisher import (
     ArtifactPublication,
     ProducerExecutionSnapshot,
@@ -24,6 +26,7 @@ from app.workflow.publisher import (
 from app.workflow.step_publication import RunStepContext, StepPublicationFactory
 from app.workflow.store import AttemptHandle, LeaseGrant
 from services.data_pipeline.data_artifacts import build_data_artifact_candidates
+from services.data_pipeline.revision import DataRevisionPublicationTarget
 from services.data_pipeline.data_artifacts.admission import (
     validate_data_artifact_domain,
     validate_data_artifact_evidence,
@@ -63,8 +66,13 @@ class PreparedDataArtifacts:
 class DataArtifactPublicationService:
     """Own the common Data Artifact lifecycle for all producing RunSteps."""
 
-    def __init__(self, publications: StepPublicationFactory) -> None:
+    def __init__(
+        self,
+        publications: StepPublicationFactory,
+        build_inputs: DataArtifactBuildInputRepository,
+    ) -> None:
         self._publications = publications
+        self._build_inputs = build_inputs
 
     def prepare(
         self,
@@ -75,6 +83,7 @@ class DataArtifactPublicationService:
         lease: LeaseGrant,
         data_input: DataArtifactBuildInput,
         config: DataArtifactPublicationConfig,
+        build_result: DataArtifactBuildResult | None = None,
     ) -> PreparedDataArtifacts:
         if not config.publish_kinds:
             raise ValueError("Data Artifact publication requires at least one kind")
@@ -95,7 +104,7 @@ class DataArtifactPublicationService:
             for kind in config.publish_kinds
         }
         try:
-            build_result = build_data_artifact_candidates(data_input)
+            build_result = build_result or build_data_artifact_candidates(data_input)
             quality_payload = {
                 "data_artifact_input": data_input,
                 "dataset_candidate": build_result.dataset,
@@ -120,6 +129,10 @@ class DataArtifactPublicationService:
                 evaluation_input=quality_input,
                 evaluation_result=quality_result,
             )
+            self._build_inputs.put(
+                project_id=context.project_id,
+                input_value=data_input,
+            )
         except Exception:
             self._finish_failed(executions, config.producer_error_code)
             raise
@@ -136,6 +149,7 @@ class DataArtifactPublicationService:
         *,
         prepared: PreparedDataArtifacts,
         config: DataArtifactPublicationConfig,
+        publication_targets: tuple[DataRevisionPublicationTarget, ...] | None = None,
     ) -> tuple[ArtifactPublication, ...]:
         if config.source_snapshots:
             self._publications.ensure_source_snapshots(context, config.source_snapshots)
@@ -145,12 +159,35 @@ class DataArtifactPublicationService:
             "field_dictionary": prepared.build_result.field_dictionary,
             "source_collection": prepared.build_result.source_collection,
         }
+        if publication_targets is None and context.data_revision is not None:
+            self._finish_failed(prepared.executions, config.producer_error_code)
+            raise ValueError(
+                "revision data publication requires explicit revision targets"
+            )
+        target_by_kind = (
+            {item.artifact_kind: item for item in publication_targets}
+            if publication_targets is not None
+            else {}
+        )
+        if publication_targets is not None and set(target_by_kind) != {
+            item.value for item in config.publish_kinds
+        }:
+            raise ValueError("revision publication targets do not match publish kinds")
         completed_kinds: set[str] = set()
         publications: list[ArtifactPublication] = []
         try:
             for kind in config.publish_kinds:
                 kind_value = kind.value
                 candidate = candidates[kind_value]
+                target = target_by_kind.get(kind_value)
+                if target is not None and (
+                    target.candidate_id != candidate.candidate_id
+                    or target.candidate_content_hash
+                    != compute_data_artifact_public_payload_hash(candidate)
+                ):
+                    raise ValueError(
+                        "revision publication target does not match admitted candidate"
+                    )
                 source_bindings, evidence_bindings = self._publications.data_bindings(
                     context,
                     kind=kind_value,
@@ -184,8 +221,18 @@ class DataArtifactPublicationService:
                     output_hash=admitted.content_hash,
                 )
                 completed_kinds.add(kind_value)
-                publications.append(
+                publication = (
                     self._publications.publication(
+                        context,
+                        kind=kind_value,
+                        candidate=admitted,
+                        producer_execution_id=execution.id,
+                        artifact_id=target.artifact_id,
+                        supersedes_version_id=target.supersedes_version_id,
+                        source_mode=config.source_mode,
+                    )
+                    if target is not None
+                    else self._publications.publication(
                         context,
                         kind=kind_value,
                         candidate=admitted,
@@ -193,6 +240,7 @@ class DataArtifactPublicationService:
                         source_mode=config.source_mode,
                     )
                 )
+                publications.append(publication)
         except Exception:
             for kind, execution in prepared.executions.items():
                 if kind not in completed_kinds:

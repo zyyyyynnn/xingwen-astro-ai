@@ -39,6 +39,7 @@ from app.security import SecurityProblem, canonical_request_hash
 from app.services.artifacts import ArtifactReadService
 from app.services.feedback_targets import FeedbackTargetAuthority
 from app.services.research_thread import append_thread_entry
+from app.services.revision_plan_hash import compute_revision_plan_hash
 from app.workflow.run_plan import compile_revision_run_plan
 from app.workflow.store import PersistentWorkflowStore, RunStepDefinition
 
@@ -348,13 +349,122 @@ class RevisionApplicationService:
                 for feedback in ordered_feedback
             }
             affected_step_keys = set(baseline_step_keys)
+            artifact_kind_by_id = {
+                artifact.id: artifact.kind for artifact, _version in latest_rows
+            }
+            source_reacquisition_feedback = tuple(
+                feedback
+                for feedback in ordered_feedback
+                if artifact_kind_by_id.get(feedback.artifact_id)
+                == "source_collection"
+                and feedback.target_type in {"artifact", "artifact_version"}
+                and feedback.category in {"correction", "evidence"}
+            )
+            if source_reacquisition_feedback and "fetching_data" in parent_step_by_key:
+                affected_step_keys.add("fetching_data")
+            data_kinds = {"dataset", "field_dictionary", "source_collection"}
+            data_version_ids = {
+                version.id
+                for artifact, version in latest_rows
+                if artifact.kind in data_kinds
+            }
+            direct_data_feedback = tuple(
+                feedback
+                for feedback in ordered_feedback
+                if feedback.baseline_artifact_version_id in data_version_ids
+            )
+            if direct_data_feedback:
+                current_data_rows = tuple(
+                    (artifact, version)
+                    for artifact, version in latest_rows
+                    if artifact.kind in data_kinds
+                )
+                data_kind_counts = {
+                    kind: sum(
+                        artifact.kind == kind
+                        for artifact, _version in current_data_rows
+                    )
+                    for kind in data_kinds
+                }
+                coherent = (
+                    data_kind_counts == {kind: 1 for kind in data_kinds}
+                    and all(
+                        version.created_by_run_id == parent.id
+                        for _artifact, version in current_data_rows
+                    )
+                    and len(
+                        {version.input_hash for _artifact, version in current_data_rows}
+                    )
+                    == 1
+                )
+                if coherent:
+                    data_step_keys: set[str] = set()
+                    for _artifact, version in current_data_rows:
+                        producer = producer_by_id.get(version.producer_execution_id)
+                        step = parent_step_by_id.get(version.run_step_id)
+                        if (
+                            producer is None
+                            or step is None
+                            or producer.run_id != parent.id
+                            or producer.run_step_id != step.id
+                            or producer.step_key != step.key
+                            or version.step_attempt_id != producer.step_attempt_id
+                        ):
+                            coherent = False
+                            break
+                        data_step_keys.add(step.key)
+                    coherent = coherent and len(data_step_keys) == 1
+                if not coherent:
+                    raise _conflict(
+                        "REVISION_DATA_BUNDLE_CONFLICT",
+                        "Current data ArtifactVersions do not form one revisable parent bundle",
+                    )
+            source_feedback_ids = {
+                feedback.id for feedback in source_reacquisition_feedback
+            }
+            candidate_data_only_scientific_steps = {
+                producer_step_key(
+                    baseline_by_id[feedback.baseline_artifact_version_id]
+                )
+                for feedback in direct_data_feedback
+                if feedback.id not in source_feedback_ids
+                and (
+                    step := parent_step_by_key[
+                        producer_step_key(
+                            baseline_by_id[feedback.baseline_artifact_version_id]
+                        )
+                    ]
+                ).skill_id
+                == "gaia_cone_search"
+            }
+            direct_non_data_step_keys = {
+                producer_step_key(
+                    baseline_by_id[feedback.baseline_artifact_version_id]
+                )
+                for feedback in ordered_feedback
+                if artifact_kind_by_id.get(feedback.artifact_id) not in data_kinds
+            }
+            source_reacquisition_step_keys = {
+                producer_step_key(
+                    baseline_by_id[feedback.baseline_artifact_version_id]
+                )
+                for feedback in source_reacquisition_feedback
+            }
+            data_only_scientific_steps = (
+                candidate_data_only_scientific_steps
+                - direct_non_data_step_keys
+                - source_reacquisition_step_keys
+            )
             changed = True
             while changed:
                 changed = False
                 for step in parent_steps:
                     if step.key in affected_step_keys:
                         continue
-                    if set(step.depends_on_step_keys) & affected_step_keys:
+                    propagating_steps = (
+                        affected_step_keys - data_only_scientific_steps
+                    )
+                    if set(step.depends_on_step_keys) & propagating_steps:
                         affected_step_keys.add(step.key)
                         changed = True
             affected_step_keys.add("planning")
@@ -362,16 +472,31 @@ class RevisionApplicationService:
             decisions: list[RevisionPlanVersionModel] = []
             frozen_decisions: list[dict[str, object]] = []
             for position, (artifact, version) in enumerate(latest_rows):
+                producer_key = (
+                    producer_step_key(version)
+                    if version.created_by_run_id == parent.id
+                    else None
+                )
+                complete_data_bundle_recompute = (
+                    bool(direct_data_feedback) and artifact.kind in data_kinds
+                )
+                data_only_scientific_co_output = (
+                    producer_key in data_only_scientific_steps
+                    and artifact.kind not in data_kinds
+                )
                 decision = (
                     RevisionDecision.recompute
                     if (
-                        version.created_by_run_id == parent.id
-                        and producer_step_key(version) in affected_step_keys
+                        complete_data_bundle_recompute
+                        or (
+                            producer_key in affected_step_keys
+                            and not data_only_scientific_co_output
+                        )
                     )
                     else RevisionDecision.reuse
                 )
                 step_key = (
-                    producer_step_key(version)
+                    producer_key
                     if decision is RevisionDecision.recompute
                     else None
                 )
@@ -419,15 +544,60 @@ class RevisionApplicationService:
                     "REVISION_BASELINE_OUTSIDE_CONTRACT",
                     "A Feedback baseline has no recomputable parent RunStep",
                 )
-            plan_payload = {
-                "project_id": str(project.id),
-                "parent_run_id": str(parent.id),
-                "parent_run_revision": parent.revision,
-                "contract_id": str(parent.contract_id),
-                "feedback_ids": [str(item) for item in feedback_ids],
-                "recompute_steps": list(recompute_steps),
-                "version_decisions": frozen_decisions,
+            recompute_decision_step_keys = {
+                item.step_key
+                for item in decisions
+                if item.decision == RevisionDecision.recompute.value
             }
+            prerequisite_step_keys = {"planning"}
+            if source_reacquisition_feedback and "fetching_data" in parent_step_by_key:
+                prerequisite_step_keys.add("fetching_data")
+            if (
+                set(recompute_steps) - prerequisite_step_keys
+                != recompute_decision_step_keys
+            ):
+                raise _conflict(
+                    "REVISION_AFFECTED_OUTPUT_CONFLICT",
+                    "The recomputed steps do not close over the frozen recompute decisions",
+                )
+            decision_by_artifact_id = {
+                item.artifact_id: item for item in decisions
+            }
+            publication_artifact_ids_by_step: dict[str, set[UUID]] = {}
+            for step_key, artifact_id in session.execute(
+                select(RunStepModel.key, ArtifactVersionModel.artifact_id)
+                .join(
+                    ArtifactVersionModel,
+                    ArtifactVersionModel.run_step_id == RunStepModel.id,
+                )
+                .where(ArtifactVersionModel.created_by_run_id == parent.id)
+            ):
+                publication_artifact_ids_by_step.setdefault(step_key, set()).add(
+                    artifact_id
+                )
+            recompute_step_keys = set(recompute_steps)
+            for step in parent_steps:
+                if (
+                    step.key not in recompute_step_keys
+                    or step.key in prerequisite_step_keys
+                    or step.skill_id == "gaia_cone_search"
+                ):
+                    continue
+                if any(
+                    (item := decision_by_artifact_id.get(artifact_id)) is None
+                    or item.decision != RevisionDecision.recompute.value
+                    or item.step_key != step.key
+                    for artifact_id in publication_artifact_ids_by_step.get(
+                        step.key, ()
+                    )
+                ):
+                    raise _conflict(
+                        "REVISION_AFFECTED_OUTPUT_CONFLICT",
+                        (
+                            "Re-executing a publishing step would republish "
+                            "a co-output frozen for reuse"
+                        ),
+                    )
             plan = RevisionPlanModel(
                 id=plan_id,
                 project_id=project.id,
@@ -437,7 +607,15 @@ class RevisionApplicationService:
                 contract_id=parent.contract_id,
                 version=1,
                 recompute_steps=list(recompute_steps),
-                plan_hash=canonical_request_hash(plan_payload),
+                plan_hash=compute_revision_plan_hash(
+                    project_id=project.id,
+                    parent_run_id=parent.id,
+                    parent_run_revision=parent.revision,
+                    contract_id=parent.contract_id,
+                    feedback_ids=feedback_ids,
+                    recompute_steps=recompute_steps,
+                    version_decisions=frozen_decisions,
+                ),
                 idempotency_key=idempotency_key,
                 request_hash=request_hash,
             )

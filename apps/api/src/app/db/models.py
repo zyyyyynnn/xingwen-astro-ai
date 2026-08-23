@@ -1021,6 +1021,31 @@ class ArtifactVersionModel(TimestampMixin, Base):
     )
 
 
+class DataArtifactBuildInputRecordModel(Base):
+    """Immutable internal replay authority for one validated build input."""
+
+    __tablename__ = "data_artifact_build_inputs"
+
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    input_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+
+    __table_args__ = (
+        PrimaryKeyConstraint("project_id", "input_hash"),
+        ForeignKeyConstraint(
+            ["project_id"],
+            ["research_projects.id"],
+            name="fk_data_artifact_build_inputs_project",
+            ondelete="CASCADE",
+        ),
+    )
+
+
 class UserFeedbackModel(TimestampMixin, Base):
     """Immutable, owner-scoped feedback bound to one baseline ArtifactVersion."""
 

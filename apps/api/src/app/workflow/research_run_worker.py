@@ -21,6 +21,7 @@ from app.schemas.core import ResearchContract
 from app.schemas.manifest import ManifestBundle
 from app.schemas.scientific_capabilities import capability_for
 from app.services.content_storage import ContentStorage
+from app.services.data_revision_context import DataRevisionContextLoader
 from app.services.scientific_document.ports import DocumentParserPort
 from app.services.model_execution import (
     ModelExecutionError,
@@ -54,6 +55,7 @@ from app.workflow.store import (
 from app.services.research_thread import append_assistant_message
 from packages.prompts.registry import PromptRegistry
 from services.paper_pipeline.errors import PaperSearchExecutionError
+from services.data_pipeline.revision import DataRevisionError, DataRevisionErrorCode
 from services.paper_pipeline.live_collection import LivePaperCollectionRunner
 
 LOGGER = logging.getLogger(__name__)
@@ -126,6 +128,10 @@ class ResearchRunWorker:
         self._explicit_revision = explicit_revision
         self._publisher = ArtifactPublisher(factory)
         self._executions = ProducerExecutionStore(factory)
+        self._revision_contexts = DataRevisionContextLoader(
+            factory,
+            manifests=manifests,
+        )
         self._prompts = prompts or PromptRegistry()
         self._step_runtime = ResearchStepRuntime(
             factory=factory,
@@ -201,7 +207,11 @@ class ResearchRunWorker:
 
     async def execute_run(self, run_id: UUID) -> None:
         snapshot = self._store.load_snapshot(run_id)
-        context = await asyncio.to_thread(self._load_context, run_id, snapshot)
+        context = (
+            None
+            if snapshot.derivation_kind == "revision"
+            else await asyncio.to_thread(self._load_context, run_id, snapshot)
+        )
         lease = self._store.acquire_lease(
             run_id,
             owner=self._worker_id,
@@ -209,6 +219,39 @@ class ResearchRunWorker:
             expected_status=snapshot.status,
             expected_revision=snapshot.revision,
         )
+        if context is None:
+            try:
+                context = await asyncio.to_thread(self._load_context, run_id, snapshot)
+            except DataRevisionError as error:
+                first_step = snapshot.steps[0]
+                attempt = self._store.begin_step(
+                    run_id,
+                    step_key=first_step.key,
+                    attempt_idempotency_key=f"run:{run_id}:revision-preflight",
+                    token=lease.token,
+                    generation=lease.generation,
+                    expected_status=snapshot.status,
+                    expected_revision=lease.revision,
+                    public_message="正在校验修订计划冻结的执行输入。",
+                )
+                public_message = (
+                    "修订计划冻结的数据版本已变化，请重新生成修订计划。"
+                    if error.code is DataRevisionErrorCode.baseline_stale
+                    else "修订计划无法按冻结输入执行，请重新生成修订计划。"
+                )
+                self._store.fail_run(
+                    run_id,
+                    step_key=first_step.key,
+                    attempt_id=attempt.attempt_id,
+                    token=lease.token,
+                    generation=lease.generation,
+                    expected_status=attempt.run_status,
+                    expected_revision=attempt.run_revision,
+                    error_class=type(error).__name__,
+                    error_code=error.code.value,
+                    public_message=public_message,
+                )
+                return
         snapshot = self._store.load_snapshot(run_id)
         await asyncio.to_thread(
             self._append_run_assistant_message,
@@ -385,6 +428,24 @@ class ResearchRunWorker:
                 created_at=contract.created_at,
                 **contract.content,
             )
+            revision = self._revision_contexts.load(
+                run_id=run.id,
+                session_id=project.session_id,
+            )
+            if revision is not None:
+                return RunStepContext(
+                    run_id=run.id,
+                    project_id=run.project_id,
+                    session_id=project.session_id,
+                    contract=contract_value,
+                    artifacts=revision.artifacts,
+                    versions=revision.versions,
+                    data_revision=revision.data_execution,
+                    data_recompute_step_key=revision.data_recompute_step_key,
+                    non_data_recompute_step_keys=(
+                        revision.non_data_recompute_step_keys
+                    ),
+                )
             # Fixed pipeline steps need their stable primary Artifact targets
             # before execution. A Gaia SourceTable is assembled by the
             # scientific step but still publishes through these same primary
@@ -461,6 +522,13 @@ class ResearchRunWorker:
                 public_message=cause.public_message,
                 retryable=cause.code in _RETRYABLE_MODEL_FAILURE_CODES,
                 upstream_request_id=cause.provider_request_id,
+                **activity_fields,
+            )
+        if isinstance(cause, DataRevisionError):
+            return FailureDecision(
+                error_code=cause.code.value,
+                public_message="修订计划无法按冻结输入执行，请重新生成修订计划。",
+                retryable=False,
                 **activity_fields,
             )
         return FailureDecision(

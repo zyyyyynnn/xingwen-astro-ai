@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from pydantic import BaseModel
@@ -55,6 +55,10 @@ from app.workflow.publisher import (
 )
 from app.workflow.store import AttemptHandle, LeaseGrant
 from packages.prompts.registry import PromptRegistry, PromptRecord
+from services.data_pipeline.revision import DataRevisionExecutionInput
+
+
+_SUPERSEDES_UNSET = object()
 
 
 def step_uuid(namespace_seed: str, name: str) -> UUID:
@@ -85,6 +89,9 @@ class RunStepContext:
     versions: dict[str, UUID]
     data_acquisitions: tuple[CrossmatchSourceInput, CrossmatchSourceInput] | None = None
     data_result: DataArtifactBuildResult | None = None
+    data_revision: DataRevisionExecutionInput | None = None
+    data_recompute_step_key: str | None = None
+    non_data_recompute_step_keys: frozenset[str] = frozenset()
     paper_collection: PaperCollection | None = None
     paper_summary: PaperSummaryArtifactContent | None = None
     literature_claims: LiteratureClaimsCandidate | None = None
@@ -266,11 +273,17 @@ class StepPublicationFactory:
         producer_execution_id: UUID,
         artifact_id: UUID | None = None,
         version_id: UUID | None = None,
+        supersedes_version_id: UUID | None | object = _SUPERSEDES_UNSET,
         source_mode: SourceMode = SourceMode.live,
     ) -> ArtifactPublication:
         artifact_id = artifact_id or context.artifacts[kind]
         version_id = version_id or step_uuid(
             str(context.run_id), f"artifact-version:{kind}"
+        )
+        supersedes = (
+            context.versions.get(kind)
+            if supersedes_version_id is _SUPERSEDES_UNSET
+            else cast(UUID | None, supersedes_version_id)
         )
         return ArtifactPublication(
             artifact_id=artifact_id,
@@ -278,7 +291,7 @@ class StepPublicationFactory:
             producer_execution_id=producer_execution_id,
             candidate=candidate,
             source_mode=SourceMode(source_mode),
-            supersedes_version_id=context.versions.get(kind),
+            supersedes_version_id=supersedes,
             version_id=version_id,
         )
 
