@@ -511,6 +511,11 @@ def test_worker_executes_quality_only_data_revision_end_to_end(
         ),
     )
     assert "fetching_data" in source_plan.recompute_steps
+    assert set(source_plan.recompute_steps) - {"planning", "fetching_data"} == {
+        item.step_key
+        for item in source_plan.version_decisions
+        if item.decision == "recompute"
+    }
     source_run_id = revisions.confirm_plan(
         plan_id=source_plan.id,
         session_id=session_id,

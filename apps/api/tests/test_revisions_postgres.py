@@ -13,6 +13,7 @@ from db_bootstrap import reset_current_schema
 from app.config import settings
 from app.db.models import (
     ArtifactVersionModel,
+    ModelExecutionModel,
     ProducerExecutionModel,
     ResearchArtifactModel,
     ResearchRunModel,
@@ -544,6 +545,14 @@ def test_revision_plan_impact_closures(runtime: dict[str, object]) -> None:
         }
         assert actual == affected_kinds
         assert data["recompute_steps"][0] == "planning"
+        assert (
+            set(data["recompute_steps"]) - {"planning", "fetching_data"}
+            == {
+                item["step_key"]
+                for item in data["version_decisions"]
+                if item["decision"] == "recompute"
+            }
+        )
         assert data["conflicts"] == []
 
 
@@ -675,6 +684,233 @@ def test_mixed_current_data_bundle_conflicts_before_plan_persistence(
             ),
         }
     assert after == before
+
+
+def _seed_superseded_report_project(
+    runtime: dict[str, object],
+) -> dict[str, object]:
+    outputs = (
+        "dataset",
+        "field_dictionary",
+        "source_collection",
+        "paper_collection",
+        "paper_summary",
+    )
+    contract_input = ResearchContractInput.model_validate(
+        {**CONTRACT_CONTENT, "output_requirements": list(outputs)}
+    )
+    content = contract_input.model_dump(mode="json")
+    ids = {
+        name: uuid4()
+        for name in ("project", "contract", "parent_run", "report_run")
+    }
+    artifact_ids = {kind: uuid4() for kind in outputs}
+    version_ids = {kind: uuid4() for kind in outputs}
+    superseded_version_ids = {"paper_summary": uuid4()}
+    factory = runtime["factory"]
+    with factory() as session, session.begin():
+        project = build_research_project(
+            project_id=ids["project"],
+            session_id=str(runtime["owner_session_id"]),
+            name="Superseded report revision",
+            case_key="exoplanet_host_star",
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        draft = build_contract_draft(
+            project, content=content, created_at=NOW, updated_at=NOW
+        )
+        contract = build_research_contract(
+            project,
+            draft,
+            contract_id=ids["contract"],
+            content_hash=compute_research_contract_content_hash(contract_input),
+            content=content,
+            created_at=NOW,
+        )
+        persist_authoring_models(
+            session, project=project, draft=draft, contract=contract
+        )
+
+        def seed_run(
+            prefix: str,
+            *,
+            revision: int,
+            derivation_kind: str,
+            parent_run_id: UUID | None,
+        ) -> tuple[UUID, dict[str, tuple[UUID, UUID, UUID]]]:
+            run_id = ids[f"{prefix}_run"]
+            run = ResearchRunModel(
+                id=run_id,
+                project_id=project.id,
+                contract_id=contract.id,
+                execution_mode="live",
+                status="completed",
+                progress=100,
+                derivation_kind=derivation_kind,
+                parent_run_id=parent_run_id,
+                latest_event_sequence=0,
+                revision=revision,
+                idempotency_key=f"{prefix}-run-{run_id}",
+                request_hash=HASH_B,
+                created_at=NOW,
+                updated_at=NOW,
+            )
+            session.add(run)
+            session.flush()
+            return run_id, _seed_completed_steps(
+                session,
+                run=run,
+                contract_input=contract_input,
+                producer_name=f"superseded-{prefix}-seed",
+            )
+
+        def publish(
+            kind: str,
+            *,
+            run_id: UUID,
+            execution: tuple[UUID, UUID, UUID],
+            version_number: int,
+            version_id: UUID,
+            supersedes_version_id: UUID | None,
+        ) -> None:
+            step_id, attempt_id, producer_id = execution[ARTIFACT_STEP[kind]]
+            artifact = session.get(ResearchArtifactModel, artifact_ids[kind])
+            if artifact is None:
+                artifact = ResearchArtifactModel(
+                    id=artifact_ids[kind],
+                    project_id=project.id,
+                    kind=kind,
+                    title=kind,
+                    logical_key=f"superseded.{kind}",
+                    created_at=NOW,
+                )
+                session.add(artifact)
+                session.flush()
+            version = ArtifactVersionModel(
+                id=version_id,
+                artifact_id=artifact.id,
+                project_id=project.id,
+                created_by_run_id=run_id,
+                run_step_id=step_id,
+                step_attempt_id=attempt_id,
+                producer_execution_id=producer_id,
+                version_number=version_number,
+                publication_key=f"superseded-{kind}-v{version_number}",
+                schema_version="2.0.0",
+                content={"kind": kind},
+                content_hash=HASH_C if version_number == 1 else HASH_A,
+                input_hash=HASH_B,
+                source_mode="live",
+                producer={"name": "superseded-seed"},
+                source_snapshot_ids=[],
+                evidence_ids=[],
+                supersedes_version_id=supersedes_version_id,
+                created_at=NOW,
+            )
+            session.add(version)
+            session.flush()
+            artifact.latest_version_id = version.id
+
+        parent_run_id, parent_execution = seed_run(
+            "parent", revision=7, derivation_kind="original", parent_run_id=None
+        )
+        report_run_id, report_execution = seed_run(
+            "report",
+            revision=1,
+            derivation_kind="revision",
+            parent_run_id=parent_run_id,
+        )
+        for kind in outputs:
+            publish(
+                kind,
+                run_id=parent_run_id,
+                execution=parent_execution,
+                version_number=1,
+                version_id=version_ids[kind],
+                supersedes_version_id=None,
+            )
+        publish(
+            "paper_summary",
+            run_id=report_run_id,
+            execution=report_execution,
+            version_number=2,
+            version_id=superseded_version_ids["paper_summary"],
+            supersedes_version_id=version_ids["paper_summary"],
+        )
+    artifact_version_reader = runtime["artifact_version_reader"]
+    assert isinstance(artifact_version_reader, _FrozenRevisionArtifactVersions)
+    artifact_version_reader.allow({**version_ids, **superseded_version_ids})
+    return {
+        **runtime,
+        "project_id": str(ids["project"]),
+        "parent_run_id": str(parent_run_id),
+        "artifact_ids": artifact_ids,
+        "version_ids": version_ids,
+        "superseded_version_ids": superseded_version_ids,
+    }
+
+
+def test_superseded_report_output_conflicts_before_plan_persistence(
+    runtime: dict[str, object],
+) -> None:
+    scoped = _seed_superseded_report_project(runtime)
+    factory = scoped["factory"]
+    project_uuid = UUID(str(scoped["project_id"]))
+
+    def snapshot_counts() -> dict[str, int | dict[str, UUID]]:
+        with factory() as session:
+            return {
+                "plans": session.scalar(
+                    select(func.count()).select_from(RevisionPlanModel)
+                ),
+                "plan_versions": session.scalar(
+                    select(func.count()).select_from(RevisionPlanVersionModel)
+                ),
+                "revision_runs": session.scalar(
+                    select(func.count())
+                    .select_from(ResearchRunModel)
+                    .where(ResearchRunModel.derivation_kind == "revision")
+                ),
+                "producers": session.scalar(
+                    select(func.count()).select_from(ProducerExecutionModel)
+                ),
+                "artifact_versions": session.scalar(
+                    select(func.count()).select_from(ArtifactVersionModel)
+                ),
+                "provider_calls": session.scalar(
+                    select(func.count()).select_from(ModelExecutionModel)
+                ),
+                "latest": dict(
+                    session.execute(
+                        select(
+                            ResearchArtifactModel.kind,
+                            ResearchArtifactModel.latest_version_id,
+                        ).where(ResearchArtifactModel.project_id == project_uuid)
+                    ).all()
+                ),
+            }
+
+    before = snapshot_counts()
+    feedback = _create_feedback(scoped, "dataset", key="superseded-feedback")
+    assert feedback.status_code == 201, feedback.text
+    plan = _create_plan(scoped, feedback.json()["data"]["id"], key="superseded-plan")
+
+    assert plan.status_code == 409, plan.text
+    assert plan.json()["code"] == "REVISION_AFFECTED_OUTPUT_CONFLICT"
+
+    after = snapshot_counts()
+    latest = after.pop("latest")
+    before_counts = dict(before)
+    before_counts.pop("latest")
+    assert after == before_counts
+    version_ids: dict[str, UUID] = scoped["version_ids"]  # type: ignore[assignment]
+    superseded_version_ids: dict[str, UUID] = scoped["superseded_version_ids"]  # type: ignore[assignment]
+    assert latest["dataset"] == version_ids["dataset"]
+    assert latest["field_dictionary"] == version_ids["field_dictionary"]
+    assert latest["source_collection"] == version_ids["source_collection"]
+    assert latest["paper_collection"] == version_ids["paper_collection"]
+    assert latest["paper_summary"] == superseded_version_ids["paper_summary"]
 
 
 def test_feedback_target_admission_fails_closed_without_side_effects(

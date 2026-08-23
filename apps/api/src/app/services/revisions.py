@@ -544,6 +544,22 @@ class RevisionApplicationService:
                     "REVISION_BASELINE_OUTSIDE_CONTRACT",
                     "A Feedback baseline has no recomputable parent RunStep",
                 )
+            recompute_decision_step_keys = {
+                item.step_key
+                for item in decisions
+                if item.decision == RevisionDecision.recompute.value
+            }
+            prerequisite_step_keys = {"planning"}
+            if source_reacquisition_feedback and "fetching_data" in parent_step_by_key:
+                prerequisite_step_keys.add("fetching_data")
+            if (
+                set(recompute_steps) - prerequisite_step_keys
+                != recompute_decision_step_keys
+            ):
+                raise _conflict(
+                    "REVISION_AFFECTED_OUTPUT_CONFLICT",
+                    "The recomputed steps do not close over the frozen recompute decisions",
+                )
             plan = RevisionPlanModel(
                 id=plan_id,
                 project_id=project.id,
