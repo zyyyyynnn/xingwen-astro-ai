@@ -373,10 +373,56 @@ class RevisionApplicationService:
                 for feedback in ordered_feedback
                 if feedback.baseline_artifact_version_id in data_version_ids
             )
+            if direct_data_feedback:
+                current_data_rows = tuple(
+                    (artifact, version)
+                    for artifact, version in latest_rows
+                    if artifact.kind in data_kinds
+                )
+                data_kind_counts = {
+                    kind: sum(
+                        artifact.kind == kind
+                        for artifact, _version in current_data_rows
+                    )
+                    for kind in data_kinds
+                }
+                coherent = (
+                    data_kind_counts == {kind: 1 for kind in data_kinds}
+                    and all(
+                        version.created_by_run_id == parent.id
+                        for _artifact, version in current_data_rows
+                    )
+                    and len(
+                        {version.input_hash for _artifact, version in current_data_rows}
+                    )
+                    == 1
+                )
+                if coherent:
+                    data_step_keys: set[str] = set()
+                    for _artifact, version in current_data_rows:
+                        producer = producer_by_id.get(version.producer_execution_id)
+                        step = parent_step_by_id.get(version.run_step_id)
+                        if (
+                            producer is None
+                            or step is None
+                            or producer.run_id != parent.id
+                            or producer.run_step_id != step.id
+                            or producer.step_key != step.key
+                            or version.step_attempt_id != producer.step_attempt_id
+                        ):
+                            coherent = False
+                            break
+                        data_step_keys.add(step.key)
+                    coherent = coherent and len(data_step_keys) == 1
+                if not coherent:
+                    raise _conflict(
+                        "REVISION_DATA_BUNDLE_CONFLICT",
+                        "Current data ArtifactVersions do not form one revisable parent bundle",
+                    )
             source_feedback_ids = {
                 feedback.id for feedback in source_reacquisition_feedback
             }
-            data_only_scientific_steps = {
+            candidate_data_only_scientific_steps = {
                 producer_step_key(
                     baseline_by_id[feedback.baseline_artifact_version_id]
                 )
@@ -391,6 +437,24 @@ class RevisionApplicationService:
                 ).skill_id
                 == "gaia_cone_search"
             }
+            direct_non_data_step_keys = {
+                producer_step_key(
+                    baseline_by_id[feedback.baseline_artifact_version_id]
+                )
+                for feedback in ordered_feedback
+                if artifact_kind_by_id.get(feedback.artifact_id) not in data_kinds
+            }
+            source_reacquisition_step_keys = {
+                producer_step_key(
+                    baseline_by_id[feedback.baseline_artifact_version_id]
+                )
+                for feedback in source_reacquisition_feedback
+            }
+            data_only_scientific_steps = (
+                candidate_data_only_scientific_steps
+                - direct_non_data_step_keys
+                - source_reacquisition_step_keys
+            )
             changed = True
             while changed:
                 changed = False

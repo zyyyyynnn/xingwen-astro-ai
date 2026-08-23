@@ -422,6 +422,19 @@ def replay_source_table_admission(
 ) -> SourceTableAdmission:
     """Rebuild an attestation from raw cells using the current frozen policies."""
 
+    replayed = rebuild_source_table_admission(admission, contract=contract)
+    if replayed.model_dump(mode="json") != admission.model_dump(mode="json"):
+        raise ValueError("source-table admission drifted from current frozen policies")
+    return replayed
+
+
+def rebuild_source_table_admission(
+    admission: SourceTableAdmission,
+    *,
+    contract: ResearchContract,
+) -> SourceTableAdmission:
+    """Re-admit persisted raw cells through the current frozen policies."""
+
     fields = tuple(column.raw_field for column in admission.columns)
     row_ids = tuple(row.row_id for row in admission.rows)
     if len(row_ids) != len(set(row_ids)):
@@ -442,7 +455,7 @@ def replay_source_table_admission(
             raise ValueError("source-table row cells do not close the admitted columns")
         raw_rows.append({field: raw_values[field] for field in fields})
 
-    replayed = admit_source_table(
+    return admit_source_table(
         source_id=admission.source_id,
         fields=fields,
         rows=raw_rows,
@@ -454,9 +467,6 @@ def replay_source_table_admission(
         evidence_scope_id=admission.evidence_scope_id,
         contract=contract,
     )
-    if replayed.model_dump(mode="json") != admission.model_dump(mode="json"):
-        raise ValueError("source-table admission drifted from current frozen policies")
-    return replayed
 
 
 __all__ = [
@@ -464,5 +474,6 @@ __all__ = [
     "SourceFieldContract",
     "admit_source_table",
     "gaia_source_contract",
+    "rebuild_source_table_admission",
     "replay_source_table_admission",
 ]

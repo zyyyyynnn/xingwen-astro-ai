@@ -168,7 +168,6 @@ def _validate_publication(
             or persisted.quote_or_value != declared.quote_or_value
             or persisted.extraction_method != declared.extraction_method
             or persisted.confidence != declared.confidence
-            or persisted.is_restricted
         ):
             raise _integrity_problem()
 

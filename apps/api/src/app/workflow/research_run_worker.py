@@ -441,6 +441,9 @@ class ResearchRunWorker:
                     artifacts=revision.artifacts,
                     versions=revision.versions,
                     data_revision=revision.data_execution,
+                    revision_recompute_artifact_kinds=(
+                        revision.recompute_artifact_kinds
+                    ),
                 )
             # Fixed pipeline steps need their stable primary Artifact targets
             # before execution. A Gaia SourceTable is assembled by the

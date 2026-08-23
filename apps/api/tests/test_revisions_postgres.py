@@ -18,6 +18,7 @@ from app.db.models import (
     ResearchRunModel,
     RevisionPlanConfirmationModel,
     RevisionPlanModel,
+    RevisionPlanVersionModel,
     RunStepModel,
     StepAttemptModel,
     UserFeedbackModel,
@@ -608,6 +609,72 @@ def test_revision_steps_only_follow_actual_parent_contract_publications(
         if item["artifact_kind"] in set(parent_kinds) - set(recomputed_kinds)
         or item["artifact_kind"] in unrelated_kinds
     )
+
+
+def test_mixed_current_data_bundle_conflicts_before_plan_persistence(
+    runtime: dict[str, object],
+) -> None:
+    scoped = _seed_partial_revision_parent(
+        runtime,
+        outputs=("dataset", "field_dictionary", "source_collection"),
+        parent_kinds=("dataset", "source_collection"),
+        unrelated_kinds=("field_dictionary",),
+    )
+    feedback = _create_feedback(scoped, "dataset", key="mixed-data-feedback")
+    assert feedback.status_code == 201, feedback.text
+    factory = scoped["factory"]
+    with factory() as session:
+        before = {
+            "plans": session.scalar(select(func.count()).select_from(RevisionPlanModel)),
+            "versions": session.scalar(
+                select(func.count()).select_from(RevisionPlanVersionModel)
+            ),
+            "revision_runs": session.scalar(
+                select(func.count())
+                .select_from(ResearchRunModel)
+                .where(ResearchRunModel.derivation_kind == "revision")
+            ),
+            "latest": dict(
+                session.execute(
+                    select(ResearchArtifactModel.kind, ResearchArtifactModel.latest_version_id)
+                    .where(
+                        ResearchArtifactModel.project_id
+                        == UUID(str(scoped["project_id"]))
+                    )
+                ).all()
+            ),
+        }
+
+    plan = _create_plan(
+        scoped,
+        feedback.json()["data"]["id"],
+        key="mixed-data-plan",
+    )
+
+    assert plan.status_code == 409, plan.text
+    assert plan.json()["code"] == "REVISION_DATA_BUNDLE_CONFLICT"
+    with factory() as session:
+        after = {
+            "plans": session.scalar(select(func.count()).select_from(RevisionPlanModel)),
+            "versions": session.scalar(
+                select(func.count()).select_from(RevisionPlanVersionModel)
+            ),
+            "revision_runs": session.scalar(
+                select(func.count())
+                .select_from(ResearchRunModel)
+                .where(ResearchRunModel.derivation_kind == "revision")
+            ),
+            "latest": dict(
+                session.execute(
+                    select(ResearchArtifactModel.kind, ResearchArtifactModel.latest_version_id)
+                    .where(
+                        ResearchArtifactModel.project_id
+                        == UUID(str(scoped["project_id"]))
+                    )
+                ).all()
+            ),
+        }
+    assert after == before
 
 
 def test_feedback_target_admission_fails_closed_without_side_effects(

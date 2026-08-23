@@ -524,6 +524,8 @@ class DataStepService:
             return PreparedStep((), "已复用修订计划冻结的数据版本。")
         if result.data_input is None or result.build_result is None:
             raise ValueError("data revision recompute returned no complete bundle")
+        if result.resulting_source_mode is None:
+            raise ValueError("data revision returned no resulting source provenance")
         authority = result.data_input.authority
         if not isinstance(authority, CrossmatchDataArtifactAuthority):
             raise ValueError("cleaning_data revision requires Crossmatch authority")
@@ -537,6 +539,7 @@ class DataStepService:
             producer_error_code="DATA_ARTIFACT_REVISION_FAILED",
             producer_version=result.data_input.producer_version,
             quality_failure_message="修订数据未通过研究协议的数据质量约束",
+            source_mode=result.resulting_source_mode,
             snapshot_bindings_override=derive_document_snapshot_bindings(
                 result.data_input
             ),

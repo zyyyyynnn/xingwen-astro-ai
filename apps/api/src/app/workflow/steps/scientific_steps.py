@@ -19,7 +19,6 @@ from app.schemas.data_artifacts import (
     compute_data_artifact_input_hash,
 )
 from app.schemas.evidence import SourceSnapshotRecord
-from app.schemas.enums import SourceMode
 from app.schemas.scientific_capabilities import capability_for
 from app.schemas.source_table import SourceTableAdmission
 from app.services.content_storage import ContentStorage
@@ -109,14 +108,18 @@ class ScientificStepService:
                 )
             if not revision.acquisition_recompute_authorized:
                 result = execute_data_revision(revision)
-                return self._publish_gaia_revision_result(
-                    context,
-                    step_key=step_key,
-                    attempt=attempt,
-                    lease=lease,
-                    result=result,
-                    source_mode=revision.baseline_source_mode,
-                )
+                if (
+                    result.disposition == "recompute"
+                    and "analysis_report"
+                    not in context.revision_recompute_artifact_kinds
+                ):
+                    return self._publish_gaia_revision_result(
+                        context,
+                        step_key=step_key,
+                        attempt=attempt,
+                        lease=lease,
+                        result=result,
+                    )
         resolver = DatabaseScientificInputResolver(
             self._factory,
             self._content_storage,
@@ -202,16 +205,21 @@ class ScientificStepService:
             result = execute_data_revision(
                 replace(
                     revision,
-                    acquire_source_table_input=lambda: data_input,
+                    acquire_source_table_input=(
+                        (lambda: (data_input, output.source_mode))
+                        if revision.acquisition_recompute_authorized
+                        else None
+                    ),
                 )
             )
+            if result.disposition == "reuse":
+                return ()
             return self._publish_gaia_revision_result(
                 context,
                 step_key=step_key,
                 attempt=attempt,
                 lease=lease,
                 result=result,
-                source_mode=output.source_mode,
             ).publications
         mapping = data_input.mapping_rule_set
         publication_config = DataArtifactPublicationConfig(
@@ -272,7 +280,6 @@ class ScientificStepService:
         attempt: AttemptHandle,
         lease: LeaseGrant,
         result: DataRevisionExecutionResult,
-        source_mode: SourceMode,
     ) -> PreparedStep:
         if (
             result.disposition != "recompute"
@@ -283,6 +290,7 @@ class ScientificStepService:
                 result.data_input.authority,
                 SourceTableDataArtifactAuthority,
             )
+            or result.resulting_source_mode is None
         ):
             raise DataRevisionError(
                 DataRevisionErrorCode.replan_required,
@@ -300,7 +308,7 @@ class ScientificStepService:
             producer_error_code="GAIA_DATA_ARTIFACT_REVISION_FAILED",
             producer_version=mapping.producer_version,
             quality_failure_message="Gaia revision did not pass Data Quality",
-            source_mode=source_mode,
+            source_mode=result.resulting_source_mode,
             source_snapshots=(authority.source_snapshot,),
         )
         prepared = self._data_artifacts.prepare(

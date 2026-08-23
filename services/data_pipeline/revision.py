@@ -26,9 +26,14 @@ from app.schemas.data_artifacts import (
     compute_data_artifact_public_payload_hash,
 )
 from app.schemas.enums import SourceMode
+from app.schemas.core import ResearchContract
 from services.data_pipeline.data_artifacts import (
     build_data_artifact_candidates,
     readmit_data_artifact_candidates,
+)
+from services.data_pipeline.source_table import (
+    rebuild_source_table_admission,
+    replay_source_table_admission,
 )
 
 
@@ -102,7 +107,10 @@ class DataRevisionExecutionInput:
         ]
         | None
     ) = None
-    acquire_source_table_input: Callable[[], DataArtifactBuildInput] | None = None
+    acquire_source_table_input: (
+        Callable[[], tuple[DataArtifactBuildInput, SourceMode]] | None
+    ) = None
+    research_contract: ResearchContract | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,6 +120,7 @@ class DataRevisionExecutionResult:
     data_input: DataArtifactBuildInput | None
     build_result: DataArtifactBuildResult | None
     publication_targets: tuple[DataRevisionPublicationTarget, ...]
+    resulting_source_mode: SourceMode | None = None
 
 
 def execute_data_revision(
@@ -131,7 +140,14 @@ def execute_data_revision(
                 DataRevisionErrorCode.replan_required,
                 "the frozen data bundle is not compatible with current reuse policy",
             ) from exc
-        return DataRevisionExecutionResult("reuse", (), None, None, ())
+        return DataRevisionExecutionResult(
+            "reuse",
+            (),
+            None,
+            None,
+            (),
+            _resulting_source_mode(execution, execution.baseline_input.authority),
+        )
     if decisions != {"recompute"}:
         raise DataRevisionError(
             DataRevisionErrorCode.replan_required,
@@ -150,7 +166,7 @@ def execute_data_revision(
                     "authorized SourceTable acquisition has no scientific owner operation",
                 )
             try:
-                data_input = execution.acquire_source_table_input()
+                data_input, acquired_source_mode = execution.acquire_source_table_input()
                 if (
                     not isinstance(
                         data_input.authority, SourceTableDataArtifactAuthority
@@ -185,6 +201,7 @@ def execute_data_revision(
                 data_input,
                 build_result,
                 targets,
+                acquired_source_mode,
             )
         if not isinstance(authority, CrossmatchDataArtifactAuthority):
             raise DataRevisionError(
@@ -252,11 +269,54 @@ def execute_data_revision(
             execution.baseline_quality_rule_set_content_hash
             != execution.current_quality_rule_set_content_hash
         )
-        if isinstance(authority, SourceTableDataArtifactAuthority) and mapping_changed:
-            raise DataRevisionError(
-                DataRevisionErrorCode.replan_required,
-                "SourceTable mapping/unit recompute is not supported by its persisted authority",
+        if isinstance(authority, SourceTableDataArtifactAuthority):
+            admission = authority.source_table_admission
+            source_table_policy_changed = (
+                admission.mapping_rule_set_content_hash
+                != execution.current_mapping_rule_set.content_hash
+                or admission.conversion_catalog_content_hash
+                != execution.current_conversion_catalog.content_hash
+                or admission.quality_rule_set_content_hash
+                != execution.current_quality_rule_set_content_hash
             )
+            if source_table_policy_changed:
+                if execution.research_contract is None:
+                    raise DataRevisionError(
+                        DataRevisionErrorCode.replan_required,
+                        "SourceTable replay has no frozen ResearchContract authority",
+                    )
+                try:
+                    rebuilt_admission = rebuild_source_table_admission(
+                        admission,
+                        contract=execution.research_contract,
+                    )
+                except Exception as exc:
+                    raise DataRevisionError(
+                        DataRevisionErrorCode.replan_required,
+                        "persisted SourceTable raw authority cannot satisfy current policy",
+                    ) from exc
+                authority = authority.model_copy(
+                    update={"source_table_admission": rebuilt_admission}
+                )
+                data_input = _rebuild_input(
+                    baseline_input,
+                    authority=authority,
+                    mapping_rule_set=execution.current_mapping_rule_set,
+                    conversion_catalog=execution.current_conversion_catalog,
+                )
+                build_result = build_data_artifact_candidates(data_input)
+                stages.extend(("mapping_unit", "quality"))
+                targets = data_revision_publication_targets(
+                    baselines.values(), build_result
+                )
+                return DataRevisionExecutionResult(
+                    "recompute",
+                    tuple(stages),
+                    data_input,
+                    build_result,
+                    targets,
+                    execution.baseline_source_mode,
+                )
         if (
             execution.acquisition_recompute_authorized
             or crossmatch_changed
@@ -309,7 +369,35 @@ def execute_data_revision(
         data_input,
         build_result,
         targets,
+        _resulting_source_mode(execution, authority),
     )
+
+
+def _resulting_source_mode(
+    execution: DataRevisionExecutionInput,
+    authority: object,
+) -> SourceMode:
+    if not isinstance(authority, CrossmatchDataArtifactAuthority):
+        return execution.baseline_source_mode
+    modes = {
+        authority.left_acquisition.source_mode,
+        authority.right_acquisition.source_mode,
+    }
+    if len(modes) != 1:
+        raise DataRevisionError(
+            DataRevisionErrorCode.replan_required,
+            "Crossmatch acquisition provenance cannot be represented by one source mode",
+        )
+    resulting = next(iter(modes))
+    if (
+        not execution.acquisition_recompute_authorized
+        and resulting is not execution.baseline_source_mode
+    ):
+        raise DataRevisionError(
+            DataRevisionErrorCode.replan_required,
+            "the frozen Crossmatch authority disagrees with ArtifactVersion provenance",
+        )
+    return resulting
 
 
 def data_revision_publication_targets(
@@ -438,6 +526,17 @@ def _validate_current_reuse_compatibility(
             or context.alias_catalog != execution.current_alias_catalog
             or context.source_policy != execution.current_source_policy
         )
+    elif isinstance(authority, SourceTableDataArtifactAuthority):
+        if execution.research_contract is None:
+            incompatible = True
+        else:
+            try:
+                replay_source_table_admission(
+                    authority.source_table_admission,
+                    contract=execution.research_contract,
+                )
+            except Exception:
+                incompatible = True
     if incompatible:
         raise DataRevisionError(
             DataRevisionErrorCode.input_not_replayable,

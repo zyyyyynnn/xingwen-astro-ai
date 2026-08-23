@@ -26,6 +26,7 @@ from app.schemas.data_artifacts import (
     compute_data_artifact_output_hash,
 )
 from app.schemas.data_quality import DataQualityProjection
+from app.schemas.core import ResearchContract
 from app.schemas.enums import SourceMode
 from app.schemas.manifest import ManifestBundle
 from app.services.artifacts import ArtifactReadService
@@ -62,6 +63,7 @@ class RevisionRunContext:
     artifacts: dict[str, UUID]
     versions: dict[str, UUID]
     data_execution: DataRevisionExecutionInput | None
+    recompute_artifact_kinds: frozenset[str]
 
 
 class DataRevisionContextLoader:
@@ -205,6 +207,11 @@ class DataRevisionContextLoader:
                         for item in decisions
                     },
                     data_execution=None,
+                    recompute_artifact_kinds=frozenset(
+                        item.artifact_kind
+                        for item in decisions
+                        if item.decision == "recompute"
+                    ),
                 )
             if set(data_decisions) != set(_DATA_KINDS):
                 raise DataRevisionError(
@@ -404,6 +411,15 @@ class DataRevisionContextLoader:
                 load_frozen_quality_rule_set().content_hash
             ),
             baseline_source_mode=SourceMode(next(iter(source_modes))),
+            research_contract=ResearchContract(
+                id=str(contract.id),
+                project_id=str(contract.project_id),
+                version=contract.version,
+                content_hash=contract.content_hash,
+                created_from_draft_id=str(contract.created_from_draft_id),
+                created_at=contract.created_at,
+                **contract.content,
+            ),
             acquisition_recompute_authorized=(
                 "fetching_data" in plan.recompute_steps
                 or any(
@@ -424,13 +440,17 @@ class DataRevisionContextLoader:
                     "the frozen data quality or contract closure is not reusable",
                 )
             execute_data_revision(data_execution)
-            data_execution = None
         return RevisionRunContext(
             artifacts={item.artifact_kind: item.artifact_id for item in decisions},
             versions={
                 item.artifact_kind: item.artifact_version_id for item in decisions
             },
             data_execution=data_execution,
+            recompute_artifact_kinds=frozenset(
+                item.artifact_kind
+                for item in decisions
+                if item.decision == "recompute"
+            ),
         )
 
 

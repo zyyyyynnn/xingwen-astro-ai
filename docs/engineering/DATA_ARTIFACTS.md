@@ -144,11 +144,12 @@ public candidate 无法 readmit 不会阻止已由 Plan 授权的完整 Data Art
 - Crossmatch source：仅在 Plan 明确包含 `fetching_data` 时调用既有 acquisition；先重算
   既有 canonical `source_input_hash`，identity 完全相同则复用 Crossmatch，否则进入上述
   repair-aware seam；两种情况都执行完整 Data Artifact build 与 Data Quality Evaluation；
-- SourceTable/Gaia：quality-only 由 frozen exact candidate 直接重跑 Data Quality，不调用 provider；
-  只有 Plan-linked structured SourceCollection correction/evidence 授权 source reacquisition
-  时，原 scientific step 才调用既有 Gaia adapter 并执行完整 Data Artifact build 与 Data Quality。persisted
-  SourceTable authority 不支持的 mapping/unit selective stage 在 provider 前返回
-  replan-required；同一步的 AnalysisReport 仍由 scientific owner 与 Plan decision 管理；
+- SourceTable/Gaia：从 persisted Admission 的 raw cells、row identity、locator 与 snapshot/query
+  identity 复用既有 SourceTable admission gate；mapping/unit 或 SourceTable quality policy drift
+  按 current Manifest/policy 重新 admission，再执行完整 Data Artifact build 与 Data Quality，provider
+  调用为零。raw authority 不足时在 provider 前返回 replan-required。只有 Plan-linked structured
+  SourceCollection correction/evidence 授权 source reacquisition 时，原 scientific step 才调用既有
+  Gaia adapter；同一步的 AnalysisReport provider output 未获该授权时不得替换 frozen data input；
 - unaffected：直接复用 frozen ArtifactVersion，不构建或发布相同内容的副本。
 
 选择性重算只复用 immutable upstream，不 patch serialized candidate、不二次转换 canonical
