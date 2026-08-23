@@ -718,18 +718,18 @@ def test_gaia_data_artifact_fields_are_raw_json_array_union() -> None:
     task = ScientificTaskInput(
         task_id="task.primary",
         skill_id=ScientificSkillId.gaia_cone_search,
-        parameters={"fields": ["dec"], "ra_degrees": 10.0},
+        parameters={"fields": ["teff_gspphot"], "ra_degrees": 10.0},
     )
     contract = _contract(
         skill_id=ScientificSkillId.gaia_cone_search,
         output="dataset",
         parameters={"ra_degrees": 10.0, "dec_degrees": 20.0},
-        requested_fields=("system.right_ascension", "system.declination"),
+        requested_fields=("system.right_ascension",),
     )
 
     normalized = _normalize_gaia_data_fields(task, contract)
 
-    assert normalized.parameters["fields"] == ["dec", "ra"]
+    assert normalized.parameters["fields"] == ["teff_gspphot", "ra", "dec"]
 
 
 @pytest.mark.parametrize(

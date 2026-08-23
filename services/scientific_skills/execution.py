@@ -194,6 +194,10 @@ def _normalize_gaia_data_fields(
         raw_by_canonical[field_id] for field_id in contract.requested_fields
     )
     normalized_fields = list(dict.fromkeys((*analysis_fields, *requested_raw_fields)))
+    if "ra" in normalized_fields and "dec" not in normalized_fields:
+        normalized_fields.append("dec")
+    elif "dec" in normalized_fields and "ra" not in normalized_fields:
+        normalized_fields.append("ra")
     return task.model_copy(
         update={
             "parameters": {
