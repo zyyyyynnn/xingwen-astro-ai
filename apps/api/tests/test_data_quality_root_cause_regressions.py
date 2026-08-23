@@ -15,10 +15,15 @@ from app.schemas.core import (
     compute_research_contract_content_hash,
 )
 from app.schemas.crossmatch import AdjudicationDecision
+from app.schemas.data_artifacts import (
+    CrossmatchDataArtifactAuthority,
+    CrossmatchRowAuthority,
+)
 from app.schemas.data_quality import (
     DataQualityEvaluationRejected,
     DataQualityEvaluationResult,
     DataQualityRuleSet,
+    CrossmatchRowQualityAuthority,
     QualityErrorCode,
     QualityMetricResult,
     QualityMetricStatus,
@@ -192,7 +197,7 @@ def test_requested_field_order_is_a_set_semantic_for_contract_gate() -> None:
         "star.name",
         contract=_valid_contract("star.name", "star.tic_id"),
     )
-    assert quality_input.dataset_candidate.requested_fields == ("star.tic_id", "star.name")
+    assert quality_input.dataset_candidate.requested_fields == ("star.name", "star.tic_id")
 
     result = evaluate_data_quality(quality_input)
 
@@ -224,7 +229,10 @@ def test_low_confidence_edge_component_marks_only_its_dataset_row() -> None:
         row.low_confidence.status is QualityMetricStatus.not_applicable for row in ordinary
     )
     ordinary_row = next(
-        row for row in ordinary_result.row_results if row.alignment_status.value == "accepted"
+        row
+        for row in ordinary_result.row_results
+        if isinstance(row.authority, CrossmatchRowQualityAuthority)
+        and row.authority.alignment_status.value == "accepted"
     )
     assert ordinary_row.low_confidence.value == Decimal("0")
     assert ordinary_row.low_confidence.denominator == 1
@@ -266,7 +274,8 @@ def test_conflict_review_required_follows_final_data_artifact_alignment(
         for row in result.row_results
         if row.canonical_row_identity.record_type == "conflict_group"
     )
-    assert conflict_row.alignment_status.value == expected_alignment
+    assert isinstance(conflict_row.authority, CrossmatchRowQualityAuthority)
+    assert conflict_row.authority.alignment_status.value == expected_alignment
     assert conflict_row.low_confidence.status is QualityMetricStatus.not_applicable
     assert conflict_row.low_confidence.denominator == 0
     assert conflict_row.review_required.value == expected_review
@@ -372,7 +381,7 @@ def test_observations_visit_each_row_outcome_sequence_once() -> None:
 
     observations = observe_quality(
         candidate,
-        quality_input.data_artifact_input.crossmatch_result,
+        quality_input.data_artifact_input.authority.crossmatch_result,
         load_frozen_manifest_bundle(),
     )
 

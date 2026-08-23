@@ -7,8 +7,8 @@ from typing import Annotated, Any, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ._hashing import compute_canonical_payload_hash
-from .core import ContentHash, Identifier, JsonValue, UtcDateTime
-from .data_artifacts import ManifestPins, DatabaseCellLocator
+from .core import ContentHash, Identifier, JsonValue, SemanticVersion, UtcDateTime
+from .data_artifact_primitives import DatabaseCellLocator, ManifestPins
 from .data_quality import (
     QualityConstraintResult,
     QualityGateStatus,
@@ -28,6 +28,8 @@ class SourceTableColumnAdmission(BaseModel):
     label_zh: NonEmptyString
     source_unit: Identifier
     canonical_unit: Identifier
+    conversion_rule_id: Identifier
+    conversion_rule_version: SemanticVersion
     source_unit_symbol: str | None = None
     canonical_unit_symbol: str | None = None
 
@@ -221,7 +223,6 @@ def compute_source_table_output_hash(
     payload.pop("output_hash", None)
     return compute_canonical_payload_hash(payload)
 
-
 __all__ = [
     "SourceTableAdmission",
     "SourceTableCellAdmission",
@@ -230,3 +231,10 @@ __all__ = [
     "compute_source_table_input_hash",
     "compute_source_table_output_hash",
 ]
+
+
+# Resolve Data Artifact SourceTable references after this module has finished
+# defining the admission schema; this also breaks the data_quality import cycle.
+from . import data_artifacts as _data_artifacts
+
+_data_artifacts.rebuild_source_table_models(SourceTableAdmission)

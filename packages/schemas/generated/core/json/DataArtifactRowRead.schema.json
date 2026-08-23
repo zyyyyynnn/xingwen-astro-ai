@@ -129,15 +129,61 @@
       "title": "CanonicalRowIdentity",
       "type": "object"
     },
-    "DatasetRow": {
+    "CrossmatchRowAuthority": {
       "additionalProperties": false,
       "properties": {
         "alignment_status": {
           "$ref": "#/$defs/AlignmentStatus"
         },
+        "authority_kind": {
+          "const": "crossmatch",
+          "default": "crossmatch",
+          "title": "Authority Kind",
+          "type": "string"
+        },
         "canonical_row_identity": {
           "$ref": "#/$defs/CanonicalRowIdentity"
         },
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel"
+        },
+        "logical_key": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Logical Key",
+          "type": "string"
+        },
+        "record_type": {
+          "enum": [
+            "paired",
+            "unpaired",
+            "conflict_group"
+          ],
+          "title": "Record Type",
+          "type": "string"
+        },
+        "source_member_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Source Member Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "record_type",
+        "logical_key",
+        "entity_level",
+        "canonical_row_identity",
+        "alignment_status",
+        "source_member_ids"
+      ],
+      "title": "CrossmatchRowAuthority",
+      "type": "object"
+    },
+    "DatasetRow": {
+      "additionalProperties": false,
+      "properties": {
         "conflict_ids": {
           "items": {
             "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
@@ -151,22 +197,10 @@
           "title": "Content Hash",
           "type": "string"
         },
-        "crossmatch_logical_key": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Crossmatch Logical Key",
-          "type": "string"
-        },
-        "crossmatch_record_type": {
-          "minLength": 1,
-          "title": "Crossmatch Record Type",
-          "type": "string"
-        },
-        "entity_level": {
-          "$ref": "#/$defs/EntityLevel"
-        },
         "evidence_ids": {
           "items": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "maxLength": 128,
+            "minLength": 1,
             "type": "string"
           },
           "title": "Evidence Ids",
@@ -210,22 +244,33 @@
           "title": "Projection Policy Version",
           "type": "string"
         },
+        "row_authority": {
+          "discriminator": {
+            "mapping": {
+              "crossmatch": "#/$defs/CrossmatchRowAuthority",
+              "source_table": "#/$defs/SourceTableRowAuthority"
+            },
+            "propertyName": "authority_kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CrossmatchRowAuthority"
+            },
+            {
+              "$ref": "#/$defs/SourceTableRowAuthority"
+            }
+          ],
+          "title": "Row Authority"
+        },
         "row_id": {
           "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
           "title": "Row Id",
           "type": "string"
         },
-        "source_member_ids": {
-          "items": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-            "type": "string"
-          },
-          "title": "Source Member Ids",
-          "type": "array"
-        },
         "source_snapshot_ids": {
           "items": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "maxLength": 128,
+            "minLength": 1,
             "type": "string"
           },
           "title": "Source Snapshot Ids",
@@ -234,14 +279,9 @@
       },
       "required": [
         "row_id",
-        "crossmatch_record_type",
-        "crossmatch_logical_key",
-        "entity_level",
-        "canonical_row_identity",
+        "row_authority",
         "projection_policy_version",
         "projected_field_ids",
-        "alignment_status",
-        "source_member_ids",
         "fields",
         "conflict_ids",
         "evidence_ids",
@@ -278,7 +318,8 @@
         },
         "transformation_evidence_ids": {
           "items": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "maxLength": 128,
+            "minLength": 1,
             "type": "string"
           },
           "title": "Transformation Evidence Ids",
@@ -362,7 +403,8 @@
         },
         "transformation_evidence_ids": {
           "items": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "maxLength": 128,
+            "minLength": 1,
             "type": "string"
           },
           "title": "Transformation Evidence Ids",
@@ -392,6 +434,69 @@
       ],
       "title": "NullReason",
       "type": "string"
+    },
+    "SourceTableCanonicalRowIdentity": {
+      "additionalProperties": false,
+      "description": "Canonical identity derived from one admitted SourceTable row.",
+      "properties": {
+        "canonical_identity": {
+          "minLength": 1,
+          "title": "Canonical Identity",
+          "type": "string"
+        },
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel",
+          "default": "host_star"
+        },
+        "identity_kind": {
+          "const": "source_table",
+          "default": "source_table",
+          "title": "Identity Kind",
+          "type": "string"
+        },
+        "identity_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Identity Version",
+          "type": "string"
+        },
+        "source_table_admission_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Table Admission Id",
+          "type": "string"
+        },
+        "source_table_row_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Table Row Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_table_admission_id",
+        "source_table_row_id",
+        "canonical_identity"
+      ],
+      "title": "SourceTableCanonicalRowIdentity",
+      "type": "object"
+    },
+    "SourceTableRowAuthority": {
+      "additionalProperties": false,
+      "properties": {
+        "authority_kind": {
+          "const": "source_table",
+          "default": "source_table",
+          "title": "Authority Kind",
+          "type": "string"
+        },
+        "canonical_row_identity": {
+          "$ref": "#/$defs/SourceTableCanonicalRowIdentity"
+        }
+      },
+      "required": [
+        "canonical_row_identity"
+      ],
+      "title": "SourceTableRowAuthority",
+      "type": "object"
     },
     "UnresolvedCanonicalValue": {
       "additionalProperties": false,
@@ -430,7 +535,8 @@
         },
         "transformation_evidence_ids": {
           "items": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "maxLength": 128,
+            "minLength": 1,
             "type": "string"
           },
           "title": "Transformation Evidence Ids",

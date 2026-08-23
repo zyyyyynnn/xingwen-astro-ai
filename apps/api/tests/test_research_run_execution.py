@@ -33,6 +33,7 @@ from app.db.models import (
     SourceSnapshotModel,
 )
 from app.db.session import create_engine_from_url, session_factory
+from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import (
     ConfirmResearchContractRequest,
     CreateResearchContractDraftRequest,
@@ -51,6 +52,7 @@ from app.schemas.paper_collection import (
 from app.schemas.enums import PaperDataLevel, SourceMode, UpstreamFailureClass
 from app.security import canonical_request_hash
 from app.services.artifacts import ArtifactReadService
+from app.services.data_artifacts import DataArtifactReadService
 from app.services.paper_collections import PaperCollectionReadService
 from app.services.model_execution import (
     ModelExecutionRequest,
@@ -79,7 +81,10 @@ from services.paper_pipeline.sources.base import (
     SourceFailure,
     SourceSearchResult,
 )
-from services.scientific_skills.astro_acquisition import GaiaTapAdapter
+from services.scientific_skills.astro_acquisition import (
+    GAIA_CACHE_VERSION,
+    GaiaTapAdapter,
+)
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
@@ -519,7 +524,12 @@ def test_gaia_scientific_admission_publishes_uuid_cell_evidence_end_to_end(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     response_hash = "sha256:" + "5" * 64
-    adapter_query_hash = "sha256:" + "6" * 64
+    adapter_query_identity = {
+        "query": "SELECT TOP 6 source_id,ra,dec FROM gaiadr3.gaia_source",
+        "response_format": "csv",
+        "cache_version": GAIA_CACHE_VERSION,
+    }
+    adapter_query_hash = compute_canonical_payload_hash(adapter_query_identity)
 
     def acquire_from_recorded_response(
         _adapter: GaiaTapAdapter, _request: object
@@ -548,7 +558,9 @@ def test_gaia_scientific_admission_publishes_uuid_cell_evidence_end_to_end(
                 "adapter_version": "3.0.0",
                 "endpoint": "https://gea.esac.esa.int/tap-server/tap/sync",
                 "response_content_hash": response_hash,
-                "cache_version": "gaia-dr3-cone:3.0.0:2",
+                "cache_version": GAIA_CACHE_VERSION,
+                "query": adapter_query_identity["query"],
+                "response_format": adapter_query_identity["response_format"],
                 "query_hash": adapter_query_hash,
                 "retrieved_at": _FIXED_NOW.isoformat(),
                 "schema_revision": "gaia-dr3-source-contract:2",
@@ -591,7 +603,12 @@ def test_gaia_scientific_admission_publishes_uuid_cell_evidence_end_to_end(
         ],
         "source_scope": {"allowed_sources": ["esa_gaia_dr3"]},
         "paper_search_scope": {"keywords": (), "source_ids": (), "max_candidates": 1},
-        "output_requirements": ["analysis_report"],
+        "output_requirements": [
+            "dataset",
+            "field_dictionary",
+            "source_collection",
+            "analysis_report",
+        ],
         "evidence_requirements": {"minimum_coverage": 1},
         "quality_constraints": {
             "source_completeness_min": 1,
@@ -663,9 +680,27 @@ def test_gaia_scientific_admission_publishes_uuid_cell_evidence_end_to_end(
                 ArtifactVersionModel.created_by_run_id.in_(run_ids)
             )
         ).all()
-        assert len(versions) == 2
+        assert len(versions) == 8
+        assert {
+            kind: sum(version.content["kind"] == kind for version in versions)
+            for kind in (
+                "analysis_report",
+                "dataset",
+                "field_dictionary",
+                "source_collection",
+            )
+        } == {
+            "analysis_report": 2,
+            "dataset": 2,
+            "field_dictionary": 2,
+            "source_collection": 2,
+        }
+        report_versions = tuple(
+            version for version in versions if version.content["kind"] == "analysis_report"
+        )
         admissions = [
-            version.content["source_table_admissions"][0] for version in versions
+            version.content["source_table_admissions"][0]
+            for version in report_versions
         ]
         assert all(
             admission["source_result_status"] == "complete" for admission in admissions
@@ -675,14 +710,47 @@ def test_gaia_scientific_admission_publishes_uuid_cell_evidence_end_to_end(
         }
         assert len(snapshot_ids) == 1
         snapshot_id = next(iter(snapshot_ids))
+        snapshot_row = session.get(SourceSnapshotModel, snapshot_id)
+        assert snapshot_row is not None
+        assert snapshot_row.query == adapter_query_identity
+        assert snapshot_row.query_hash == adapter_query_hash
+        assert all(
+            item["query_hash"] == adapter_query_hash for item in admissions
+        )
         evidence = session.scalars(
             select(EvidenceModel).where(EvidenceModel.source_snapshot_id == snapshot_id)
         ).all()
-        assert len(evidence) == 6
+        assert len(evidence) == sum(len(version.evidence_ids) for version in versions)
         version_evidence = [set(version.evidence_ids) for version in versions]
-        assert version_evidence[0].isdisjoint(version_evidence[1])
+        assert all(
+            left.isdisjoint(right)
+            for index, left in enumerate(version_evidence)
+            for right in version_evidence[index + 1 :]
+        )
         assert {str(item.id) for item in evidence} == set.union(*version_evidence)
         assert all(item.source_snapshot_id == snapshot_id for item in evidence)
+        dataset_version = next(
+            version for version in versions if version.content["kind"] == "dataset"
+        )
+        dataset_read = DataArtifactReadService(ArtifactReadService(factory)).get_dataset(
+            version_id=str(dataset_version.id),
+            session_id=session_id,
+        )
+        assert dataset_read.dataset.authority.authority_kind == "source_table"
+        assert dataset_read.dataset.source_snapshot_ids == (str(snapshot_id),)
+        assert len(dataset_read.dataset.rows) == 1
+        assert all(
+            value.evidence_locator.source_role == "single"
+            for value in dataset_read.dataset.source_values
+        )
+        assert all(
+            value.evidence_locator.query_hash == adapter_query_hash
+            for value in dataset_read.dataset.source_values
+        )
+        assert all(
+            evidence.authority.authority_kind == "source_table"
+            for evidence in dataset_read.dataset.transformation_evidence
+        )
 
 
 def _assert_publication_chain(
@@ -1224,5 +1292,3 @@ def test_worker_handles_unsupported_paper_search_source_failure(
         )
         assert producer_exec is None
         _assert_no_paper_collection_publication(session, project_id=UUID(project.id))
-
-

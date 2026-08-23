@@ -8,6 +8,7 @@ from typing import Annotated, Any, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from .core import Identifier as RuntimeIdentifier
 from .manifest import ContentHash, Identifier
 
 
@@ -60,7 +61,7 @@ class SourceSnapshotRecord(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    snapshot_id: Identifier
+    snapshot_id: RuntimeIdentifier
     source_id: Identifier
     source_type: str = Field(min_length=1)
     retrieved_at: datetime

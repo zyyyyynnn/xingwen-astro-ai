@@ -386,14 +386,27 @@ class ResearchRunWorker:
                 **contract.content,
             )
             # Fixed pipeline steps need their stable primary Artifact targets
-            # before execution. Scientific steps create exact candidate-owned
-            # targets in ScientificStepAdmission after candidate assembly.
+            # before execution. A Gaia SourceTable is assembled by the
+            # scientific step but still publishes through these same primary
+            # data targets.
+            fixed_steps = tuple(step for step in snapshot.steps if step.skill_id is None)
+            scientific_steps = tuple(
+                step for step in snapshot.steps if step.skill_id is not None
+            )
             required_kinds = {
                 kind.value
                 for kind in artifact_kinds_for_steps(
-                    tuple(step for step in snapshot.steps if step.skill_id is None)
+                    fixed_steps
                 )
             }
+            required_kinds.update(
+                kind.value
+                for kind in artifact_kinds_for_steps(
+                    scientific_steps,
+                    requested_outputs=frozenset(contract_value.output_requirements),
+                )
+                if kind.value in {"dataset", "field_dictionary", "source_collection"}
+            )
 
             artifacts: dict[str, UUID] = {}
             versions: dict[str, UUID] = {}

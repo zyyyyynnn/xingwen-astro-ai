@@ -7,6 +7,8 @@ from pydantic import ValidationError
 
 from app.schemas.data_artifacts import (
     AlignmentStatus,
+    CrossmatchDataArtifactAuthority,
+    CrossmatchRowAuthority,
     DataArtifactBuildInput,
     DataArtifactAdmissionSnapshot,
     DatasetArtifactCandidate,
@@ -90,10 +92,12 @@ def _input_from_crossmatch(crossmatch_input, *requested_fields: str) -> DataArti
     unhashed = DataArtifactBuildInput.model_construct(
         manifest_pins=pins,
         requested_fields=requested_fields,
-        left_acquisition=crossmatch_input.left,
-        right_acquisition=crossmatch_input.right,
-        crossmatch_result=crossmatch_result,
-        document_observations=(),
+        authority=CrossmatchDataArtifactAuthority(
+            left_acquisition=crossmatch_input.left,
+            right_acquisition=crossmatch_input.right,
+            crossmatch_result=crossmatch_result,
+            document_observations=(),
+        ),
         mapping_rule_set=baseline.mapping_rule_set,
         conversion_catalog=baseline.conversion_catalog,
         producer_version=baseline.producer_version,
@@ -472,12 +476,17 @@ def test_projection_admission_rejects_uncertainty_and_limit_drift(monkeypatch) -
 def test_projection_admission_rejects_row_alignment_drift(monkeypatch) -> None:
     def mutate(result):
         row = result.dataset.rows[0]
+        assert isinstance(row.row_authority, CrossmatchRowAuthority)
         replacement = (
             AlignmentStatus.rejected
-            if row.alignment_status is not AlignmentStatus.rejected
+            if row.row_authority.alignment_status is not AlignmentStatus.rejected
             else AlignmentStatus.accepted
         )
-        object.__setattr__(row, "alignment_status", replacement)
+        object.__setattr__(
+            row,
+            "row_authority",
+            row.row_authority.model_copy(update={"alignment_status": replacement}),
+        )
 
     _install_broken_assembler(monkeypatch, mutate)
     with pytest.raises(ValueError, match="Dataset rows.*complete domain projection"):
@@ -516,8 +525,10 @@ def test_dataset_hashes_separate_scientific_semantics_from_raw_lineage() -> None
     raw_drift["source_values"][0]["raw_value"] = -0.0
     raw_drift["source_values"][0]["raw_record_content_hash"] = "sha256:" + "1" * 64
     raw_drift["rows"][0]["row_id"] = "dataset_row.lineage-drift"
-    raw_drift["rows"][0]["crossmatch_logical_key"] = "sha256:" + "2" * 64
-    raw_drift["rows"][0]["source_member_ids"] = ["candidate.lineage-drift"]
+    raw_drift["rows"][0]["row_authority"]["logical_key"] = "sha256:" + "2" * 64
+    raw_drift["rows"][0]["row_authority"]["source_member_ids"] = [
+        "candidate.lineage-drift"
+    ]
     raw_drift["rows"][0]["source_snapshot_ids"] = ["snapshot.lineage-drift"]
 
     assert compute_data_artifact_canonical_content_hash(raw_drift) == (
@@ -527,7 +538,7 @@ def test_dataset_hashes_separate_scientific_semantics_from_raw_lineage() -> None
 
     scientific_variants = []
     entity_identity = deepcopy(baseline)
-    entity_identity["rows"][0]["canonical_row_identity"]["member_entities"][0][
+    entity_identity["rows"][0]["row_authority"]["canonical_row_identity"]["member_entities"][0][
         "identity_values"
     ][0]["normalized_value"] = "different normalized entity"
     scientific_variants.append(entity_identity)
@@ -805,11 +816,11 @@ def test_dataset_rejects_synchronized_missing_snapshot() -> None:
     result = build_data_artifact_candidates(build_input("star.tic_id"))
     payload = result.dataset.model_dump(mode="json")
     payload["source_snapshot_ids"] = payload["source_snapshot_ids"][:1]
-    payload["crossmatch_source_snapshot_ids"] = payload[
-        "crossmatch_source_snapshot_ids"
+    payload["authority"]["source_snapshot_ids"] = payload["authority"][
+        "source_snapshot_ids"
     ][:1]
 
-    with pytest.raises(ValidationError, match="two crossmatch SourceSnapshots"):
+    with pytest.raises(ValidationError, match="exactly two snapshots"):
         DatasetArtifactCandidate.model_validate(_rehash_dataset_tree(payload))
 
 

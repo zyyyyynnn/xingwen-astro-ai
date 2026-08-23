@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from app.schemas.data_artifact_identity import derive_canonical_row_identity
+from app.schemas.data_artifact_identity import (
+    dataset_scientific_projection,
+    derive_canonical_row_identity,
+)
 
 
 _RECORD = {
@@ -90,3 +93,23 @@ def test_canonical_assertion_identity_requires_non_identity_discriminator() -> N
         match="non-identity row-key discriminator",
     ):
         _identity(_member(include_discriminator=False))
+
+
+def test_dataset_projection_rejects_legacy_top_level_row_identity() -> None:
+    with pytest.raises(ValueError, match="typed row_authority"):
+        dataset_scientific_projection(
+            {
+                "rows": [
+                    {
+                        "canonical_row_identity": {
+                            "identity_kind": "source_table",
+                            "identity_version": "1.0.0",
+                            "source_table_admission_id": "admission_01",
+                            "source_table_row_id": "row_01",
+                            "canonical_identity": "source-row-01",
+                        },
+                        "fields": [],
+                    }
+                ]
+            }
+        )

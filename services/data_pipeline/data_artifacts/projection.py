@@ -25,7 +25,10 @@ from app.schemas.crossmatch import (
 from app.schemas.data_artifact_identity import derive_canonical_row_identity
 from app.schemas.data_artifacts import (
     AlignmentStatus,
+    CrossmatchArtifactAuthority,
+    CrossmatchDataArtifactAuthority,
     DataArtifactBuildInput,
+    DataArtifactAuthority,
     DataArtifactErrorCode,
     DataArtifactProducer,
     DatabaseCellLocator,
@@ -41,6 +44,11 @@ from app.schemas.data_artifacts import (
     MappedCanonicalValue,
     RawSourceRecordReference,
     SelectionStatus,
+    SourceTableArtifactAuthority,
+    SourceTableCanonicalRowIdentity,
+    SourceTableDataArtifactAuthority,
+    SourceTableRowAuthority,
+    SourceTableSourceCollectionMember,
     SourceCollectionMember,
     SourceValueCandidate,
     StructuredDatabaseOrigin,
@@ -89,16 +97,9 @@ class DataArtifactDomainProjection:
     conflicts: tuple[FieldConflictRecord, ...]
     source_members: tuple[SourceCollectionMember, ...]
     producer: DataArtifactProducer
+    authority: DataArtifactAuthority
     source_snapshot_ids: tuple[str, ...]
-    crossmatch_source_snapshot_ids: tuple[str, ...]
-    document_source_snapshot_bindings: dict[str, str]
-    crossmatch_evidence: tuple[CrossmatchEvidence, ...]
-    crossmatch_evidence_ids: tuple[str, ...]
     evidence_ids: tuple[str, ...]
-    alignment_record_keys: tuple[str, ...]
-    conflict_record_keys: tuple[str, ...]
-    review_required_record_keys: tuple[str, ...]
-    inconclusive_record_keys: tuple[str, ...]
     quality_metric_input_declarations: tuple[str, ...]
 
 
@@ -168,12 +169,17 @@ def validate_policy_bindings(input_value: DataArtifactBuildInput):
         raise DataArtifactError(
             DataArtifactErrorCode.capacity_exceeded, "field capacity exceeded"
         )
-    if len(input_value.crossmatch_result.records) > capacity.max_rows:
+    row_count = (
+        len(input_value.authority.crossmatch_result.records)
+        if isinstance(input_value.authority, CrossmatchDataArtifactAuthority)
+        else len(input_value.authority.source_table_admission.rows)
+    )
+    if row_count > capacity.max_rows:
         raise DataArtifactError(
             DataArtifactErrorCode.capacity_exceeded, "row capacity exceeded"
         )
     if (
-        len(requested) * len(input_value.crossmatch_result.records)
+        len(requested) * row_count
         > capacity.max_total_cell_outcomes
     ):
         raise DataArtifactError(
@@ -226,9 +232,56 @@ def validate_policy_bindings(input_value: DataArtifactBuildInput):
                     DataArtifactErrorCode.conversion_catalog_mismatch,
                     "conversion declaration and implementation unit pairs disagree",
                 )
-    return bundle, tuple(
-        field for field in manifest.fields if field.field_id in requested
-    )
+    fields = {field.field_id: field for field in manifest.fields}
+    if isinstance(input_value.authority, SourceTableDataArtifactAuthority):
+        admission = input_value.authority.source_table_admission
+        if admission.manifest_pins != input_value.manifest_pins:
+            raise DataArtifactError(
+                DataArtifactErrorCode.manifest_pin_mismatch,
+                "SourceTable admission is not bound to the Data Artifact Manifest pins",
+            )
+        if (
+            admission.mapping_rule_set_id != input_value.mapping_rule_set.rule_set_id
+            or admission.mapping_rule_set_version
+            != input_value.mapping_rule_set.version
+            or admission.mapping_rule_set_content_hash
+            != input_value.mapping_rule_set.content_hash
+            or admission.conversion_catalog_id
+            != input_value.conversion_catalog.catalog_id
+            or admission.conversion_catalog_version
+            != input_value.conversion_catalog.version
+            or admission.conversion_catalog_content_hash
+            != input_value.conversion_catalog.content_hash
+        ):
+            raise DataArtifactError(
+                DataArtifactErrorCode.source_table_admission_mismatch,
+                "SourceTable admission is not bound to the frozen mapping/conversion policies",
+            )
+        column_by_field = {
+            column.canonical_field_id: column for column in admission.columns
+        }
+        if set(column_by_field) != requested:
+            raise DataArtifactError(
+                DataArtifactErrorCode.unsupported_requested_field,
+                "requested fields do not exactly match the admitted SourceTable columns",
+            )
+        for field_id, column in column_by_field.items():
+            field = fields[field_id]
+            aliases = tuple(
+                alias
+                for alias in field.source_aliases_for(admission.source_id)
+                if alias.raw_field == column.raw_field
+            )
+            if len(aliases) != 1 or (
+                aliases[0].conversion_rule_id != column.conversion_rule_id
+                or aliases[0].source_unit != column.source_unit
+                or field.canonical_unit != column.canonical_unit
+            ):
+                raise DataArtifactError(
+                    DataArtifactErrorCode.source_table_admission_mismatch,
+                    "SourceTable column conversion binding disagrees with the Manifest",
+                )
+    return bundle, tuple(fields[field_id] for field_id in input_value.requested_fields)
 
 
 def validate_runtime_input_integrity(input_value: DataArtifactBuildInput) -> None:
@@ -248,7 +301,47 @@ def validate_runtime_input_integrity(input_value: DataArtifactBuildInput) -> Non
                 else DataArtifactErrorCode.conversion_catalog_mismatch
             )
             raise DataArtifactError(code, f"{label} content hash is invalid")
-    result = input_value.crossmatch_result
+    if isinstance(input_value.authority, SourceTableDataArtifactAuthority):
+        admission = input_value.authority.source_table_admission
+        if (
+            admission.source_result_status != "complete"
+            or admission.overall_status.value != "pass"
+        ):
+            raise DataArtifactError(
+                DataArtifactErrorCode.source_table_admission_mismatch,
+                "only a complete, passing SourceTableAdmission can build a Dataset",
+            )
+        cells_by_row: dict[str, list[Any]] = {
+            row.row_id: [] for row in admission.rows
+        }
+        for cell in admission.cells:
+            cells_by_row.setdefault(cell.row_id, []).append(cell)
+        for row_id, cells in cells_by_row.items():
+            payload = {cell.locator.raw_field: cell.raw_value for cell in cells}
+            if any(
+                record_hash != compute_raw_data_record_hash(
+                    source_id=admission.source_id,
+                    row_key=row_key,
+                    payload=payload,
+                )
+                for row_key, record_hash in {
+                    cell.locator.row_key: cell.locator.raw_record_content_hash
+                    for cell in cells
+                }.items()
+            ):
+                raise DataArtifactError(
+                    DataArtifactErrorCode.source_record_hash_mismatch,
+                    "SourceTable cell locators do not bind their admitted raw record",
+                )
+        return
+
+    if not isinstance(input_value.authority, CrossmatchDataArtifactAuthority):
+        raise DataArtifactError(
+            DataArtifactErrorCode.crossmatch_result_mismatch,
+            "Crossmatch runtime validation requires Crossmatch authority",
+        )
+    authority = input_value.authority
+    result = authority.crossmatch_result
     if (
         result.content_hash != compute_crossmatch_content_hash(result)
         or result.output_hash != result.content_hash
@@ -261,14 +354,14 @@ def validate_runtime_input_integrity(input_value: DataArtifactBuildInput) -> Non
         )
     for acquisition, snapshot, mode, level, completion in (
         (
-            input_value.left_acquisition,
+            authority.left_acquisition,
             result.left_source_snapshot,
             result.left_source_mode,
             result.left_data_level,
             result.left_completion,
         ),
         (
-            input_value.right_acquisition,
+            authority.right_acquisition,
             result.right_source_snapshot,
             result.right_source_mode,
             result.right_data_level,
@@ -291,7 +384,7 @@ def validate_runtime_input_integrity(input_value: DataArtifactBuildInput) -> Non
             )
     acquired = {
         (record.source_id, record.row_key): record
-        for acquisition in (input_value.left_acquisition, input_value.right_acquisition)
+        for acquisition in (authority.left_acquisition, authority.right_acquisition)
         for record in acquisition.records
     }
     if any(
@@ -329,7 +422,14 @@ def validate_runtime_input_integrity(input_value: DataArtifactBuildInput) -> Non
 
 
 def validate_frozen_crossmatch_handoff(input_value: DataArtifactBuildInput) -> None:
-    result = input_value.crossmatch_result
+    if isinstance(input_value.authority, SourceTableDataArtifactAuthority):
+        return
+    if not isinstance(input_value.authority, CrossmatchDataArtifactAuthority):
+        raise DataArtifactError(
+            DataArtifactErrorCode.crossmatch_result_mismatch,
+            "Crossmatch handoff validation requires Crossmatch authority",
+        )
+    result = input_value.authority.crossmatch_result
     context = result.admission_context
     rule_set = load_crossmatch_rule_set()
     aliases = load_entity_alias_catalog()
@@ -794,7 +894,12 @@ def _build_evidence(
     status: SelectionStatus,
     reason: str,
 ) -> TransformationEvidence:
-    result = input_value.crossmatch_result
+    if not isinstance(input_value.authority, CrossmatchDataArtifactAuthority):
+        raise DataArtifactError(
+            DataArtifactErrorCode.crossmatch_result_mismatch,
+            "Crossmatch Evidence derivation requires Crossmatch authority",
+        )
+    result = input_value.authority.crossmatch_result
     origin = source_value.origin
     structured = isinstance(origin, StructuredDatabaseOrigin)
     reference_field = origin.reference_field if structured else None
@@ -853,10 +958,130 @@ def _build_evidence(
         ).model_dump(mode="json")
         if provenance_field is not None
         else None,
-        "crossmatch_result_id": result.result_id,
-        "crossmatch_result_content_hash": result.content_hash,
-        "crossmatch_logical_key": logical_key,
-        "crossmatch_evidence_ids": tuple(getattr(record, "evidence_ids", ())),
+        "authority": {
+            "authority_kind": "crossmatch",
+            "result_id": result.result_id,
+            "result_content_hash": result.content_hash,
+            "logical_key": logical_key,
+            "evidence_ids": tuple(getattr(record, "evidence_ids", ())),
+        },
+        "selection_status": status,
+        "selection_reason": reason,
+    }
+    return _hashed(TransformationEvidence, payload)
+
+
+def _source_table_source_value(
+    *,
+    row_id: str,
+    cell,
+    column,
+    field: FieldDefinition,
+    input_value: DataArtifactBuildInput,
+) -> SourceValueCandidate:
+    """Project an already-admitted SourceTable cell without re-conversion."""
+
+    locator = cell.locator
+    source_value_id = f"source_value.{cell.evidence_id}"
+    payload = {
+        "source_value_id": source_value_id,
+        "canonical_field_id": field.field_id,
+        "source_id": locator.source_id,
+        "source_snapshot_id": locator.source_snapshot_id,
+        "source_snapshot_content_hash": locator.source_snapshot_content_hash,
+        "query_hash": locator.query_hash,
+        "raw_value": cell.raw_value,
+        "source_unit": column.source_unit,
+        "canonical_value": cell.canonical_value,
+        "canonical_unit": cell.canonical_unit,
+        "alias_priority": 1,
+        "source_priority": 1,
+        "transformation_rule_version": field.transformation_rule_version,
+        "conversion_rule_id": column.conversion_rule_id,
+        "conversion_rule_version": column.conversion_rule_version,
+        "uncertainty": UncertaintyValue(
+            status=UncertaintyStatus.not_applicable
+        ).model_dump(mode="json"),
+        "limit": LimitValue(status=LimitStatus.not_applicable).model_dump(
+            mode="json"
+        ),
+        "null_status": NullReason.not_measured
+        if cell.canonical_value is None
+        else None,
+        "evidence_locator": locator.model_dump(mode="json"),
+        "origin": {
+            "kind": "structured_database",
+            "source_table": input_value.authority.source_table_admission.source_table,
+            "raw_record_row_key": locator.row_key,
+            "raw_record_content_hash": locator.raw_record_content_hash,
+            "raw_field": locator.raw_field,
+        },
+    }
+    return _hashed(SourceValueCandidate, payload)
+
+
+def _source_table_evidence(
+    source_value: SourceValueCandidate,
+    *,
+    row_id: str,
+    input_value: DataArtifactBuildInput,
+    status: SelectionStatus,
+    reason: str,
+) -> TransformationEvidence:
+    locator = source_value.evidence_locator
+    origin = source_value.origin
+    if not isinstance(locator, DatabaseCellLocator) or not isinstance(
+        origin, StructuredDatabaseOrigin
+    ):
+        raise DataArtifactError(
+            DataArtifactErrorCode.source_table_admission_mismatch,
+            "SourceTable transformation requires a structured database cell",
+        )
+    admission = input_value.authority.source_table_admission
+    uncertainty_locators = tuple(
+        item
+        for item in (
+            source_value.uncertainty.positive_locator,
+            source_value.uncertainty.negative_locator,
+        )
+        if item is not None
+    )
+    payload = {
+        "evidence_id": source_value.source_value_id.removeprefix("source_value."),
+        "target_candidate_kind": "dataset",
+        "dataset_row_id": row_id,
+        "canonical_field_id": source_value.canonical_field_id,
+        "source_value_id": source_value.source_value_id,
+        "locator": locator.model_dump(mode="json"),
+        "raw_value": source_value.raw_value,
+        "source_unit": source_value.source_unit,
+        "canonical_value": source_value.canonical_value,
+        "canonical_unit": source_value.canonical_unit,
+        "conversion_rule_id": source_value.conversion_rule_id,
+        "conversion_rule_version": source_value.conversion_rule_version,
+        "conversion_catalog_id": input_value.conversion_catalog.catalog_id,
+        "conversion_catalog_version": input_value.conversion_catalog.version,
+        "conversion_catalog_content_hash": input_value.conversion_catalog.content_hash,
+        "transformation_rule_version": source_value.transformation_rule_version,
+        "uncertainty": source_value.uncertainty.model_dump(mode="json"),
+        "limit": source_value.limit.model_dump(mode="json"),
+        "uncertainty_locators": [
+            item.model_dump(mode="json") for item in uncertainty_locators
+        ],
+        "limit_locator": source_value.limit.locator.model_dump(mode="json")
+        if source_value.limit.locator is not None
+        else None,
+        "reference_field": origin.reference_field,
+        "reference_value": origin.reference_value,
+        "reference_locator": None,
+        "provenance_field": origin.provenance_field,
+        "provenance_value": origin.provenance_value,
+        "provenance_locator": None,
+        "authority": {
+            "authority_kind": "source_table",
+            "admission_id": admission.admission_id,
+            "row_id": row_id,
+        },
         "selection_status": status,
         "selection_reason": reason,
     }
@@ -953,13 +1178,208 @@ def derive_field_conflicts(
     return (FieldConflictRecord.model_validate(normalized),)
 
 
+def _derive_source_table_domain_projection(
+    input_value: DataArtifactBuildInput,
+    *,
+    fields: tuple[FieldDefinition, ...],
+) -> DataArtifactDomainProjection:
+    """Derive the canonical Data Artifact surface from one admitted source table."""
+
+    authority_input = input_value.authority
+    if not isinstance(authority_input, SourceTableDataArtifactAuthority):
+        raise AssertionError("SourceTable projection requires SourceTable authority")
+    admission = authority_input.source_table_admission
+    columns_by_field = {
+        column.canonical_field_id: column for column in admission.columns
+    }
+    cells_by_row_field = {
+        (cell.row_id, cell.canonical_field_id): cell for cell in admission.cells
+    }
+    if set(columns_by_field) != {field.field_id for field in fields}:
+        raise DataArtifactError(
+            DataArtifactErrorCode.source_table_admission_mismatch,
+            "SourceTable admission fields do not close the requested projection",
+        )
+
+    source_values: list[SourceValueCandidate] = []
+    transformation_evidence: list[TransformationEvidence] = []
+    selections: list[FieldSelectionRecord] = []
+    rows: list[DatasetRow] = []
+    reason = "SourceTable admission retains the canonical source value"
+    for admitted_row in admission.rows:
+        row_id = admitted_row.row_id
+        outcomes = []
+        row_evidence_ids: list[str] = []
+        for field in fields:
+            column = columns_by_field[field.field_id]
+            cell = cells_by_row_field.get((row_id, field.field_id))
+            if cell is None:
+                raise DataArtifactError(
+                    DataArtifactErrorCode.source_table_admission_mismatch,
+                    "SourceTable admission is missing a requested cell",
+                )
+            source_value = _source_table_source_value(
+                row_id=row_id,
+                cell=cell,
+                column=column,
+                field=field,
+                input_value=input_value,
+            )
+            status = (
+                SelectionStatus.selected
+                if source_value.canonical_value is not None
+                else SelectionStatus.unselected
+            )
+            evidence = _source_table_evidence(
+                source_value,
+                row_id=row_id,
+                input_value=input_value,
+                status=status,
+                reason=reason,
+            )
+            source_values.append(source_value)
+            transformation_evidence.append(evidence)
+            row_evidence_ids.append(evidence.evidence_id)
+            if source_value.canonical_value is None:
+                outcome = DeclaredNullValue(
+                    canonical_field_id=field.field_id,
+                    reason=NullReason.not_measured,
+                    candidate_source_value_ids=(source_value.source_value_id,),
+                    transformation_evidence_ids=(evidence.evidence_id,),
+                )
+            else:
+                selection = _hashed(
+                    FieldSelectionRecord,
+                    {
+                        "selection_id": _stable_id(
+                            "selection.field",
+                            {"row_id": row_id, "field": field.field_id},
+                        ),
+                        "dataset_row_id": row_id,
+                        "canonical_field_id": field.field_id,
+                        "selected_source_value_id": source_value.source_value_id,
+                        "candidate_source_value_ids": (source_value.source_value_id,),
+                        "strategy": "prefer_source_priority_preserve_all",
+                        "reason": reason,
+                    },
+                )
+                selections.append(selection)
+                outcome = MappedCanonicalValue(
+                    canonical_field_id=field.field_id,
+                    canonical_value=source_value.canonical_value,
+                    canonical_unit=source_value.canonical_unit,
+                    selected_source_value_id=source_value.source_value_id,
+                    candidate_source_value_ids=(source_value.source_value_id,),
+                    transformation_evidence_ids=(evidence.evidence_id,),
+                    selection_id=selection.selection_id,
+                    conflict_ids=(),
+                )
+            outcomes.append(outcome)
+        rows.append(
+            _hashed(
+                DatasetRow,
+                {
+                    "row_id": row_id,
+                    "row_authority": SourceTableRowAuthority(
+                        canonical_row_identity=SourceTableCanonicalRowIdentity(
+                            source_table_admission_id=admission.admission_id,
+                            source_table_row_id=row_id,
+                            canonical_identity=admitted_row.canonical_identity,
+                        )
+                    ).model_dump(mode="json"),
+                    "projection_policy_version": input_value.mapping_rule_set.entity_projection_policy.version,
+                    "projected_field_ids": tuple(item.canonical_field_id for item in outcomes),
+                    "fields": [item.model_dump(mode="json") for item in outcomes],
+                    "conflict_ids": (),
+                    "evidence_ids": tuple(sorted(row_evidence_ids)),
+                    "source_snapshot_ids": (admission.source_snapshot_id,),
+                },
+            )
+        )
+
+    references_by_row: dict[tuple[tuple[str, str], ...], RawSourceRecordReference] = {}
+    for cell in admission.cells:
+        reference = RawSourceRecordReference(
+            source_id=admission.source_id,
+            source_snapshot_id=admission.source_snapshot_id,
+            source_snapshot_content_hash=admission.source_snapshot_content_hash,
+            query_hash=admission.query_hash,
+            row_key=cell.locator.row_key,
+            raw_record_content_hash=cell.locator.raw_record_content_hash,
+        )
+        previous = references_by_row.setdefault(reference.row_key, reference)
+        if previous.raw_record_content_hash != reference.raw_record_content_hash:
+            raise DataArtifactError(
+                DataArtifactErrorCode.source_table_admission_mismatch,
+                "SourceTable cells disagree about raw-record content identity",
+            )
+    raw_references = tuple(
+        sorted(
+            references_by_row.values(),
+            key=lambda item: (item.source_id, item.row_key, item.raw_record_content_hash),
+        )
+    )
+    source_snapshot = authority_input.source_snapshot
+    source_member = SourceTableSourceCollectionMember(
+        source_snapshot=source_snapshot,
+        source_table_admission=admission,
+        source_id=admission.source_id,
+        source_snapshot_id=admission.source_snapshot_id,
+        source_snapshot_content_hash=admission.source_snapshot_content_hash,
+        query_hash=admission.query_hash,
+        license_note=source_snapshot.license_note,
+        raw_record_references=raw_references,
+        raw_record_count=len(raw_references),
+    )
+    producer = DataArtifactProducer(
+        producer_name=input_value.mapping_rule_set.producer_name,
+        producer_version=input_value.producer_version,
+        mapping_rule_set_id=input_value.mapping_rule_set.rule_set_id,
+        mapping_rule_set_version=input_value.mapping_rule_set.version,
+        mapping_rule_set_content_hash=input_value.mapping_rule_set.content_hash,
+        conversion_catalog_id=input_value.conversion_catalog.catalog_id,
+        conversion_catalog_version=input_value.conversion_catalog.version,
+        conversion_catalog_content_hash=input_value.conversion_catalog.content_hash,
+    )
+    evidence_ids = tuple(sorted(item.evidence_id for item in transformation_evidence))
+    artifact_authority = SourceTableArtifactAuthority(
+        source_table_admission=admission,
+        source_snapshot_id=admission.source_snapshot_id,
+        source_snapshot_content_hash=admission.source_snapshot_content_hash,
+        evidence_ids=evidence_ids,
+    )
+    return DataArtifactDomainProjection(
+        input_value=input_value,
+        fields=fields,
+        rows=tuple(rows),
+        source_values=tuple(source_values),
+        transformation_evidence=tuple(transformation_evidence),
+        selections=tuple(selections),
+        conflicts=(),
+        source_members=(source_member,),
+        producer=producer,
+        authority=artifact_authority,
+        source_snapshot_ids=(admission.source_snapshot_id,),
+        evidence_ids=evidence_ids,
+        quality_metric_input_declarations=tuple(
+            sorted(
+                {
+                    metric.value
+                    for field in fields
+                    for metric in field.quality_metric_inputs
+                }
+            )
+        ),
+    )
+
+
 def _source_members(
     input_value: DataArtifactBuildInput,
 ) -> tuple[SourceCollectionMember, ...]:
     members: list[SourceCollectionMember] = []
     for side, acquisition in (
-        ("left", input_value.left_acquisition),
-        ("right", input_value.right_acquisition),
+        ("left", input_value.authority.left_acquisition),
+        ("right", input_value.authority.right_acquisition),
     ):
         snapshot = acquisition.snapshot
         references = tuple(
@@ -1010,7 +1430,12 @@ def _document_members(
     """Group admitted document observations into one supplemental member per input."""
 
     grouped: dict[str, list[TypedDocumentObservation]] = {}
-    for observation in input_value.document_observations:
+    document_observations = (
+        input_value.authority.document_observations
+        if isinstance(input_value.authority, CrossmatchDataArtifactAuthority)
+        else ()
+    )
+    for observation in document_observations:
         grouped.setdefault(str(observation.research_input_id), []).append(observation)
     members: list[DocumentSourceCollectionMember] = []
     for research_input_id in sorted(grouped):
@@ -1047,8 +1472,13 @@ def derive_document_snapshot_bindings(
     """Derive the exact persisted snapshot binding from validated observations."""
 
     bindings: dict[str, str] = {}
+    document_observations = (
+        input_value.authority.document_observations
+        if isinstance(input_value.authority, CrossmatchDataArtifactAuthority)
+        else ()
+    )
     for observation in sorted(
-        input_value.document_observations,
+        document_observations,
         key=lambda item: (item.pipeline_snapshot_id, item.observation_id),
     ):
         pipeline_id = observation.pipeline_snapshot_id
@@ -1070,7 +1500,17 @@ def derive_data_artifact_domain_projection(
     validate_runtime_input_integrity(input_value)
     validate_frozen_crossmatch_handoff(input_value)
     bundle, fields = validate_policy_bindings(input_value)
-    result = input_value.crossmatch_result
+    if isinstance(input_value.authority, SourceTableDataArtifactAuthority):
+        return _derive_source_table_domain_projection(
+            input_value,
+            fields=fields,
+        )
+    if not isinstance(input_value.authority, CrossmatchDataArtifactAuthority):
+        raise DataArtifactError(
+            DataArtifactErrorCode.crossmatch_result_mismatch,
+            "Crossmatch projection requires Crossmatch authority",
+        )
+    result = input_value.authority.crossmatch_result
     conversion_versions = {
         rule.rule_id: rule.rule_version
         for rule in bundle.field_manifest.conversion_rules
@@ -1087,7 +1527,10 @@ def derive_data_artifact_domain_projection(
     }
     raw_by_reference = {
         (record.source_id, record.row_key): record
-        for acquisition in (input_value.left_acquisition, input_value.right_acquisition)
+        for acquisition in (
+            input_value.authority.left_acquisition,
+            input_value.authority.right_acquisition,
+        )
         for record in acquisition.records
     }
 
@@ -1099,7 +1542,8 @@ def derive_data_artifact_domain_projection(
     document_observations_by_key: dict[
         tuple[str, str], tuple[TypedDocumentObservation, ...]
     ] = {}
-    for observation in input_value.document_observations:
+    document_observations = input_value.authority.document_observations
+    for observation in document_observations:
         key = (observation.crossmatch_logical_key, observation.canonical_field_id)
         document_observations_by_key.setdefault(key, ())
         document_observations_by_key[key] = (
@@ -1365,20 +1809,23 @@ def derive_data_artifact_domain_projection(
                 DatasetRow,
                 {
                     "row_id": row_id,
-                    "crossmatch_record_type": record.record_type,
-                    "crossmatch_logical_key": logical_key,
-                    "entity_level": record.entity_level,
-                    "canonical_row_identity": derive_canonical_row_identity(
-                        record,
-                        members,
-                        alignment_status=alignment,
-                    ),
+                    "row_authority": {
+                        "authority_kind": "crossmatch",
+                        "record_type": record.record_type,
+                        "logical_key": logical_key,
+                        "entity_level": record.entity_level.value,
+                        "canonical_row_identity": derive_canonical_row_identity(
+                            record,
+                            members,
+                            alignment_status=alignment,
+                        ),
+                        "alignment_status": alignment.value,
+                        "source_member_ids": member_ids,
+                    },
                     "projection_policy_version": input_value.mapping_rule_set.entity_projection_policy.version,
                     "projected_field_ids": tuple(
                         item.canonical_field_id for item in outcomes
                     ),
-                    "alignment_status": alignment,
-                    "source_member_ids": member_ids,
                     "fields": [item.model_dump(mode="json") for item in outcomes],
                     "conflict_ids": tuple(sorted(set(row_conflict_ids))),
                     "evidence_ids": tuple(sorted(set(row_evidence_ids))),
@@ -1416,7 +1863,6 @@ def derive_data_artifact_domain_projection(
     source_snapshot_ids = tuple(
         sorted({*crossmatch_snapshot_ids, *document_snapshot_ids})
     )
-    document_snapshot_bindings = derive_document_snapshot_bindings(input_value)
     crossmatch_evidence_ids = tuple(
         sorted(
             {
@@ -1429,6 +1875,31 @@ def derive_data_artifact_domain_projection(
     crossmatch_evidence_by_id = {item.evidence_id: item for item in result.evidence}
     crossmatch_evidence = tuple(
         crossmatch_evidence_by_id[item] for item in crossmatch_evidence_ids
+    )
+    artifact_authority = CrossmatchArtifactAuthority(
+        result_id=result.result_id,
+        input_hash=result.input_hash,
+        output_hash=result.output_hash,
+        content_hash=result.content_hash,
+        source_snapshot_ids=crossmatch_snapshot_ids,
+        evidence=crossmatch_evidence,
+        evidence_ids=crossmatch_evidence_ids,
+        alignment_record_keys=tuple(_record_key(record) for record in result.records),
+        conflict_record_keys=tuple(
+            _record_key(record)
+            for record in result.records
+            if _alignment_status(record) is AlignmentStatus.conflict
+        ),
+        review_required_record_keys=tuple(
+            _record_key(record)
+            for record in result.records
+            if _alignment_status(record) is AlignmentStatus.review_required
+        ),
+        inconclusive_record_keys=tuple(
+            _record_key(record)
+            for record in result.records
+            if _alignment_status(record) is AlignmentStatus.inconclusive
+        ),
     )
     evidence_ids = tuple(
         sorted(
@@ -1448,28 +1919,9 @@ def derive_data_artifact_domain_projection(
         conflicts=tuple(all_conflicts),
         source_members=_source_members(input_value) + _document_members(input_value),
         producer=producer,
+        authority=artifact_authority,
         source_snapshot_ids=source_snapshot_ids,
-        crossmatch_source_snapshot_ids=crossmatch_snapshot_ids,
-        document_source_snapshot_bindings=document_snapshot_bindings,
-        crossmatch_evidence=crossmatch_evidence,
-        crossmatch_evidence_ids=crossmatch_evidence_ids,
         evidence_ids=evidence_ids,
-        alignment_record_keys=tuple(_record_key(record) for record in result.records),
-        conflict_record_keys=tuple(
-            _record_key(record)
-            for record in result.records
-            if _alignment_status(record) is AlignmentStatus.conflict
-        ),
-        review_required_record_keys=tuple(
-            _record_key(record)
-            for record in result.records
-            if _alignment_status(record) is AlignmentStatus.review_required
-        ),
-        inconclusive_record_keys=tuple(
-            _record_key(record)
-            for record in result.records
-            if _alignment_status(record) is AlignmentStatus.inconclusive
-        ),
         quality_metric_input_declarations=tuple(
             sorted(
                 {

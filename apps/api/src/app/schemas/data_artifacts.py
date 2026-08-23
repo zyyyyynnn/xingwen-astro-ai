@@ -25,6 +25,7 @@ from .data_artifact_identity import (
     compute_dataset_canonical_content_hash,
     compute_dataset_lineage_hash,
 )
+from .data_artifact_primitives import DatabaseCellLocator, ManifestPins
 from .data_artifact_seal import (
     DataArtifactAdmissionSnapshot,
     DataArtifactPublicationSeal,
@@ -89,6 +90,7 @@ class DataArtifactErrorCode(StrEnum):
     capacity_exceeded = "CAPACITY_EXCEEDED"
     publication_admission_not_sealed = "PUBLICATION_ADMISSION_NOT_SEALED"
     input_hash_mismatch = "INPUT_HASH_MISMATCH"
+    source_table_admission_mismatch = "SOURCE_TABLE_ADMISSION_MISMATCH"
 
 
 class UncertaintyStatus(StrEnum):
@@ -309,17 +311,6 @@ class UnitConversionCatalog(BaseModel):
         return self
 
 
-class ManifestPins(BaseModel):
-    model_config = MODEL_CONFIG
-
-    case_manifest_id: Identifier
-    case_manifest_version: SemanticVersion
-    case_manifest_content_hash: ContentHash
-    field_manifest_id: Identifier
-    field_manifest_version: SemanticVersion
-    field_manifest_content_hash: ContentHash
-
-
 class DataArtifactProducer(BaseModel):
     model_config = MODEL_CONFIG
 
@@ -332,22 +323,6 @@ class DataArtifactProducer(BaseModel):
     conversion_catalog_id: Identifier
     conversion_catalog_version: SemanticVersion
     conversion_catalog_content_hash: ContentHash
-
-
-class DatabaseCellLocator(BaseModel):
-    """Locator for one structured database cell (left/right Crossmatch side)."""
-
-    model_config = MODEL_CONFIG
-
-    kind: Literal["database_cell"] = "database_cell"
-    source_role: Literal["left", "right", "single"]
-    source_snapshot_id: RuntimeIdentifier
-    source_snapshot_content_hash: ContentHash
-    source_id: Identifier
-    query_hash: ContentHash
-    row_key: tuple[tuple[NonEmptyString, NonEmptyString], ...] = Field(min_length=1)
-    raw_record_content_hash: ContentHash
-    raw_field: NonEmptyString
 
 
 class DocumentObservationLocator(BaseModel):
@@ -473,7 +448,7 @@ class SourceValueCandidate(BaseModel):
     source_value_id: Identifier
     canonical_field_id: CanonicalFieldId
     source_id: RuntimeIdentifier
-    source_snapshot_id: Identifier
+    source_snapshot_id: RuntimeIdentifier
     source_snapshot_content_hash: ContentHash
     query_hash: ContentHash
     raw_value: RawScalar | None = None
@@ -600,10 +575,38 @@ class SourceValueCandidate(BaseModel):
         return self
 
 
+class CrossmatchTransformationAuthority(BaseModel):
+    """Crossmatch-only execution binding for one transformation Evidence."""
+
+    model_config = MODEL_CONFIG
+
+    authority_kind: Literal["crossmatch"] = "crossmatch"
+    result_id: Identifier
+    result_content_hash: ContentHash
+    logical_key: ContentHash
+    evidence_ids: tuple[RuntimeIdentifier, ...]
+
+
+class SourceTableTransformationAuthority(BaseModel):
+    """SourceTable-only execution binding for one transformation Evidence."""
+
+    model_config = MODEL_CONFIG
+
+    authority_kind: Literal["source_table"] = "source_table"
+    admission_id: Identifier
+    row_id: Identifier
+
+
+TransformationAuthority = Annotated[
+    CrossmatchTransformationAuthority | SourceTableTransformationAuthority,
+    Field(discriminator="authority_kind"),
+]
+
+
 class TransformationEvidence(BaseModel):
     model_config = MODEL_CONFIG
 
-    evidence_id: Identifier
+    evidence_id: RuntimeIdentifier
     target_candidate_kind: Literal["dataset"] = "dataset"
     dataset_row_id: Identifier
     canonical_field_id: CanonicalFieldId
@@ -629,10 +632,7 @@ class TransformationEvidence(BaseModel):
     provenance_field: NonEmptyString | None = None
     provenance_value: RawScalar | None = None
     provenance_locator: DatabaseCellLocator | None = None
-    crossmatch_result_id: Identifier
-    crossmatch_result_content_hash: ContentHash
-    crossmatch_logical_key: ContentHash
-    crossmatch_evidence_ids: tuple[Identifier, ...]
+    authority: TransformationAuthority
     selection_status: SelectionStatus
     selection_reason: NonEmptyString
     content_hash: ContentHash
@@ -643,15 +643,19 @@ class TransformationEvidence(BaseModel):
             raise ValueError(
                 "transformation Evidence contains duplicate uncertainty locator"
             )
-        if len(self.crossmatch_evidence_ids) != len(set(self.crossmatch_evidence_ids)):
-            raise ValueError(
-                "transformation Evidence contains duplicate crossmatch Evidence"
-            )
-        if self.crossmatch_evidence_ids != tuple(sorted(self.crossmatch_evidence_ids)):
-            raise ValueError("crossmatch Evidence IDs must use canonical order")
+        if isinstance(self.authority, CrossmatchTransformationAuthority):
+            if len(self.authority.evidence_ids) != len(
+                set(self.authority.evidence_ids)
+            ):
+                raise ValueError(
+                    "transformation Evidence contains duplicate crossmatch Evidence"
+                )
+            if self.authority.evidence_ids != tuple(
+                sorted(self.authority.evidence_ids)
+            ):
+                raise ValueError("crossmatch Evidence IDs must use canonical order")
         _validate_content_hash(self)
         return self
-
 
 class FieldSelectionRecord(BaseModel):
     model_config = MODEL_CONFIG
@@ -714,7 +718,7 @@ class MappedCanonicalValue(BaseModel):
     canonical_unit: Identifier
     selected_source_value_id: Identifier | None = None
     candidate_source_value_ids: tuple[Identifier, ...]
-    transformation_evidence_ids: tuple[Identifier, ...]
+    transformation_evidence_ids: tuple[RuntimeIdentifier, ...]
     selection_id: Identifier
     conflict_ids: tuple[Identifier, ...]
 
@@ -726,7 +730,7 @@ class DeclaredNullValue(BaseModel):
     canonical_field_id: CanonicalFieldId
     reason: NullReason
     candidate_source_value_ids: tuple[Identifier, ...]
-    transformation_evidence_ids: tuple[Identifier, ...]
+    transformation_evidence_ids: tuple[RuntimeIdentifier, ...]
 
 
 class UnresolvedCanonicalValue(BaseModel):
@@ -736,7 +740,7 @@ class UnresolvedCanonicalValue(BaseModel):
     canonical_field_id: CanonicalFieldId
     reason: NonEmptyString
     candidate_source_value_ids: tuple[Identifier, ...]
-    transformation_evidence_ids: tuple[Identifier, ...]
+    transformation_evidence_ids: tuple[RuntimeIdentifier, ...]
     conflict_ids: tuple[Identifier, ...]
 
 
@@ -800,29 +804,61 @@ class CanonicalRowIdentity(BaseModel):
         return self
 
 
+class SourceTableCanonicalRowIdentity(BaseModel):
+    """Canonical identity derived from one admitted SourceTable row."""
+
+    model_config = MODEL_CONFIG
+
+    identity_kind: Literal["source_table"] = "source_table"
+    identity_version: Literal["1.0.0"] = "1.0.0"
+    entity_level: EntityLevel = EntityLevel.host_star
+    source_table_admission_id: Identifier
+    source_table_row_id: Identifier
+    canonical_identity: NonEmptyString
+
+
+class CrossmatchRowAuthority(BaseModel):
+    model_config = MODEL_CONFIG
+
+    authority_kind: Literal["crossmatch"] = "crossmatch"
+    record_type: Literal["paired", "unpaired", "conflict_group"]
+    logical_key: ContentHash
+    entity_level: EntityLevel
+    canonical_row_identity: CanonicalRowIdentity
+    alignment_status: AlignmentStatus
+    source_member_ids: tuple[Identifier, ...]
+
+
+class SourceTableRowAuthority(BaseModel):
+    model_config = MODEL_CONFIG
+
+    authority_kind: Literal["source_table"] = "source_table"
+    canonical_row_identity: SourceTableCanonicalRowIdentity
+
+
+DatasetRowAuthority = Annotated[
+    CrossmatchRowAuthority | SourceTableRowAuthority,
+    Field(discriminator="authority_kind"),
+]
+
+
 class DatasetRow(BaseModel):
     model_config = MODEL_CONFIG
 
     row_id: Identifier
-    crossmatch_record_type: NonEmptyString
-    crossmatch_logical_key: ContentHash
-    entity_level: EntityLevel
-    canonical_row_identity: CanonicalRowIdentity
+    row_authority: DatasetRowAuthority
     projection_policy_version: SemanticVersion
     projected_field_ids: tuple[CanonicalFieldId, ...]
-    alignment_status: AlignmentStatus
-    source_member_ids: tuple[Identifier, ...]
     fields: tuple[CanonicalValueOutcome, ...]
     conflict_ids: tuple[Identifier, ...]
-    evidence_ids: tuple[Identifier, ...]
-    source_snapshot_ids: tuple[Identifier, ...]
+    evidence_ids: tuple[RuntimeIdentifier, ...]
+    source_snapshot_ids: tuple[RuntimeIdentifier, ...]
     content_hash: ContentHash
 
     @model_validator(mode="after")
     def validate_hash(self) -> Self:
         for values, label in (
             (self.projected_field_ids, "projected field"),
-            (self.source_member_ids, "source member"),
             (self.conflict_ids, "conflict"),
             (self.evidence_ids, "Evidence"),
             (self.source_snapshot_ids, "SourceSnapshot"),
@@ -833,17 +869,33 @@ class DatasetRow(BaseModel):
             outcome.canonical_field_id for outcome in self.fields
         ):
             raise ValueError("Dataset row projection does not match its field outcomes")
-        if (
-            self.canonical_row_identity.record_type != self.crossmatch_record_type
-            or self.canonical_row_identity.entity_level is not self.entity_level
-            or self.canonical_row_identity.alignment_status is not self.alignment_status
+        if isinstance(self.row_authority, CrossmatchRowAuthority):
+            if (
+                self.row_authority.record_type
+                != self.row_authority.canonical_row_identity.record_type
+                or self.row_authority.entity_level
+                is not self.row_authority.canonical_row_identity.entity_level
+                or self.row_authority.alignment_status
+                is not self.row_authority.canonical_row_identity.alignment_status
+            ):
+                raise ValueError(
+                    "Dataset row fields disagree with its canonical row identity"
+                )
+        elif (
+            self.row_authority.canonical_row_identity.source_table_row_id
+            != self.row_id
         ):
-            raise ValueError(
-                "Dataset row fields disagree with its canonical row identity"
-            )
+            raise ValueError("SourceTable row identity does not bind its row_id")
         _validate_content_hash(self)
         return self
 
+    @property
+    def entity_level(self) -> EntityLevel:
+        return self.row_authority.canonical_row_identity.entity_level
+
+    @property
+    def canonical_row_identity(self) -> CanonicalRowIdentity | SourceTableCanonicalRowIdentity:
+        return self.row_authority.canonical_row_identity
 
 class _PublisherReadyCandidate(BaseModel):
     model_config = MODEL_CONFIG
@@ -864,17 +916,76 @@ class _PublisherReadyCandidate(BaseModel):
         )
 
 
+class CrossmatchArtifactAuthority(BaseModel):
+    """Crossmatch-specific identity and Evidence authority for a candidate."""
+
+    model_config = MODEL_CONFIG
+
+    authority_kind: Literal["crossmatch"] = "crossmatch"
+    result_id: Identifier
+    input_hash: ContentHash
+    output_hash: ContentHash
+    content_hash: ContentHash
+    source_snapshot_ids: tuple[RuntimeIdentifier, ...]
+    evidence: tuple[CrossmatchEvidence, ...]
+    evidence_ids: tuple[RuntimeIdentifier, ...]
+    alignment_record_keys: tuple[ContentHash, ...] = ()
+    conflict_record_keys: tuple[ContentHash, ...] = ()
+    review_required_record_keys: tuple[ContentHash, ...] = ()
+    inconclusive_record_keys: tuple[ContentHash, ...] = ()
+
+    @model_validator(mode="after")
+    def validate_authority(self) -> Self:
+        if len(self.source_snapshot_ids) != 2:
+            raise ValueError("Crossmatch authority requires exactly two snapshots")
+        if self.source_snapshot_ids != tuple(sorted(self.source_snapshot_ids)):
+            raise ValueError("Crossmatch authority snapshots must use canonical order")
+        evidence_by_id = {item.evidence_id: item for item in self.evidence}
+        if len(evidence_by_id) != len(self.evidence):
+            raise ValueError("Crossmatch authority contains duplicate Evidence")
+        if self.evidence_ids != tuple(sorted(evidence_by_id)):
+            raise ValueError("Crossmatch authority Evidence registry is not closed")
+        return self
+
+
+class SourceTableArtifactAuthority(BaseModel):
+    """SourceTable-specific admission and Evidence authority for a candidate."""
+
+    model_config = {**MODEL_CONFIG, "defer_build": True}
+
+    authority_kind: Literal["source_table"] = "source_table"
+    source_table_admission: "SourceTableAdmission"
+    source_snapshot_id: RuntimeIdentifier
+    source_snapshot_content_hash: ContentHash
+    evidence_ids: tuple[RuntimeIdentifier, ...]
+
+    @model_validator(mode="after")
+    def validate_authority(self) -> Self:
+        admission = self.source_table_admission
+        if (
+            self.source_snapshot_id != admission.source_snapshot_id
+            or self.source_snapshot_content_hash
+            != admission.source_snapshot_content_hash
+        ):
+            raise ValueError("SourceTable authority disagrees with its admission")
+        expected = tuple(sorted(cell.evidence_id for cell in admission.cells))
+        if self.evidence_ids != expected:
+            raise ValueError("SourceTable authority Evidence registry is not closed")
+        return self
+
+
+DataArtifactAuthority = Annotated[
+    CrossmatchArtifactAuthority | SourceTableArtifactAuthority,
+    Field(discriminator="authority_kind"),
+]
+
+
 class DatasetArtifactCandidate(_PublisherReadyCandidate):
     kind: Literal["dataset"] = "dataset"
     schema_version: Literal["2.0.0"] = "2.0.0"
     candidate_id: Identifier
     manifest_pins: ManifestPins
-    crossmatch_result_id: Identifier
-    crossmatch_input_hash: ContentHash
-    crossmatch_output_hash: ContentHash
-    crossmatch_content_hash: ContentHash
-    crossmatch_source_snapshot_ids: tuple[Identifier, ...]
-    crossmatch_evidence: tuple[CrossmatchEvidence, ...]
+    authority: DataArtifactAuthority
     requested_fields: tuple[CanonicalFieldId, ...]
     columns: tuple[DatasetColumn, ...]
     rows: tuple[DatasetRow, ...]
@@ -884,9 +995,8 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
     conflicts: tuple[FieldConflictRecord, ...]
     row_count: int = Field(ge=0)
     field_count: int = Field(ge=0)
-    source_snapshot_ids: tuple[Identifier, ...]
-    evidence_ids: tuple[Identifier, ...]
-    crossmatch_evidence_ids: tuple[Identifier, ...]
+    source_snapshot_ids: tuple[RuntimeIdentifier, ...]
+    evidence_ids: tuple[RuntimeIdentifier, ...]
     mapping_rule_set_id: Identifier
     mapping_rule_set_version: SemanticVersion
     mapping_rule_set_content_hash: ContentHash
@@ -918,49 +1028,108 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
             (self.requested_fields, "requested field"),
             (self.source_snapshot_ids, "SourceSnapshot"),
             (self.evidence_ids, "Evidence"),
-            (self.crossmatch_evidence_ids, "crossmatch Evidence"),
         ):
             if len(values) != len(set(values)):
                 raise ValueError(f"Dataset contains duplicate {label} reference")
-        if len(self.crossmatch_source_snapshot_ids) != 2:
+        if self.source_snapshot_ids != tuple(sorted(self.source_snapshot_ids)):
             raise ValueError(
-                "Dataset requires exactly the two crossmatch SourceSnapshots"
+                "Dataset SourceSnapshot registry must use canonical order"
             )
-        if self.source_snapshot_ids != tuple(sorted(self.source_snapshot_ids)) or set(
-            self.crossmatch_source_snapshot_ids
-        ) - set(self.source_snapshot_ids):
-            raise ValueError(
-                "Dataset SourceSnapshot registry must contain the crossmatch snapshots"
-            )
-        if self.evidence_ids != tuple(
-            sorted(self.evidence_ids)
-        ) or self.crossmatch_evidence_ids != tuple(
-            sorted(self.crossmatch_evidence_ids)
-        ):
+        if self.evidence_ids != tuple(sorted(self.evidence_ids)):
             raise ValueError("Dataset top-level references must use canonical order")
         source_values = {item.source_value_id: item for item in self.source_values}
         evidence = {item.evidence_id: item for item in self.transformation_evidence}
-        crossmatch_evidence = {
-            item.evidence_id: item for item in self.crossmatch_evidence
-        }
-        if len(crossmatch_evidence) != len(self.crossmatch_evidence):
-            raise ValueError("Dataset contains duplicate CrossmatchEvidence records")
-        if tuple(sorted(crossmatch_evidence)) != self.crossmatch_evidence_ids:
-            raise ValueError(
-                "Dataset CrossmatchEvidence records must exactly cover their registry"
-            )
+        if isinstance(self.authority, CrossmatchArtifactAuthority):
+            if (
+                self.authority.source_snapshot_ids
+                and not set(self.authority.source_snapshot_ids)
+                <= set(self.source_snapshot_ids)
+            ):
+                raise ValueError("Dataset authority snapshots are not registered")
+        else:
+            if self.authority.source_snapshot_id not in self.source_snapshot_ids:
+                raise ValueError("Dataset SourceTable snapshot is not registered")
+            if self.authority.source_table_admission.source_result_status != "complete":
+                raise ValueError("Dataset cannot be built from an incomplete SourceTable")
+            if self.authority.source_table_admission.overall_status.value != "pass":
+                raise ValueError("Dataset cannot be built from a failing SourceTable")
+            admission = self.authority.source_table_admission
+            columns_by_field = {
+                column.canonical_field_id: column for column in admission.columns
+            }
+            cells_by_locator = {
+                (cell.locator.row_key, cell.locator.raw_field): cell
+                for cell in admission.cells
+            }
+            for source_value in self.source_values:
+                if not isinstance(source_value.origin, StructuredDatabaseOrigin):
+                    raise ValueError(
+                        "SourceTable Dataset values require structured database origin"
+                    )
+                locator = source_value.evidence_locator
+                if not isinstance(locator, DatabaseCellLocator) or locator.source_role != "single":
+                    raise ValueError(
+                        "SourceTable Dataset values require single-source cell locators"
+                    )
+                cell = cells_by_locator.get((locator.row_key, locator.raw_field))
+                column = columns_by_field.get(source_value.canonical_field_id)
+                if cell is None or column is None:
+                    raise ValueError(
+                        "SourceTable Dataset value is not bound to an admitted cell"
+                    )
+                if (
+                    source_value.source_id != admission.source_id
+                    or source_value.source_snapshot_id != admission.source_snapshot_id
+                    or source_value.source_snapshot_content_hash
+                    != admission.source_snapshot_content_hash
+                    or source_value.query_hash != admission.query_hash
+                    or source_value.origin.source_table != admission.source_table
+                    or source_value.origin.raw_field != locator.raw_field
+                    or source_value.raw_value != cell.raw_value
+                    or source_value.canonical_value != cell.canonical_value
+                    or source_value.canonical_unit != cell.canonical_unit
+                    or source_value.source_unit != column.source_unit
+                    or source_value.conversion_rule_id != column.conversion_rule_id
+                    or source_value.conversion_rule_version
+                    != column.conversion_rule_version
+                ):
+                    raise ValueError(
+                        "SourceTable Dataset value disagrees with its admitted cell"
+                    )
+            rows_by_id = {row.row_id: row for row in admission.rows}
+            for row in self.rows:
+                if not isinstance(row.row_authority, SourceTableRowAuthority):
+                    raise ValueError("SourceTable Dataset requires SourceTable row authority")
+                identity = row.row_authority.canonical_row_identity
+                admitted_row = rows_by_id.get(identity.source_table_row_id)
+                if (
+                    admitted_row is None
+                    or identity.source_table_admission_id != admission.admission_id
+                    or identity.canonical_identity != admitted_row.canonical_identity
+                ):
+                    raise ValueError("SourceTable Dataset row identity is not admitted")
         selections = {item.selection_id: item for item in self.selections}
         conflicts = {item.conflict_id: item for item in self.conflicts}
-        expected_evidence_ids = {*evidence, *self.crossmatch_evidence_ids}
+        expected_evidence_ids = set(evidence)
+        if isinstance(self.authority, CrossmatchArtifactAuthority):
+            expected_evidence_ids |= set(self.authority.evidence_ids)
+        else:
+            if self.authority.evidence_ids != self.evidence_ids:
+                raise ValueError("SourceTable Dataset Evidence registry is not closed")
+            expected_evidence_ids = set(evidence)
         if expected_evidence_ids != set(self.evidence_ids):
             raise ValueError(
                 "Dataset Evidence references must be the exact retained set"
             )
-        if not {
+        if isinstance(self.authority, CrossmatchArtifactAuthority) and not {
             crossmatch_id
             for item in evidence.values()
-            for crossmatch_id in item.crossmatch_evidence_ids
-        } <= set(self.crossmatch_evidence_ids):
+            for crossmatch_id in (
+                item.authority.evidence_ids
+                if isinstance(item.authority, CrossmatchTransformationAuthority)
+                else ()
+            )
+        } <= set(self.authority.evidence_ids):
             raise ValueError(
                 "transformation Evidence refers to undeclared crossmatch Evidence"
             )
@@ -1082,10 +1251,21 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                 or item.conversion_catalog_version != self.conversion_catalog_version
                 or item.conversion_catalog_content_hash
                 != self.conversion_catalog_content_hash
-                or item.crossmatch_result_id != self.crossmatch_result_id
-                or item.crossmatch_result_content_hash != self.crossmatch_content_hash
             ):
                 raise ValueError("transformation Evidence execution bindings drifted")
+            if isinstance(self.authority, CrossmatchArtifactAuthority):
+                if not isinstance(item.authority, CrossmatchTransformationAuthority):
+                    raise ValueError("Crossmatch Dataset requires Crossmatch Evidence authority")
+                if (
+                    item.authority.result_id != self.authority.result_id
+                    or item.authority.result_content_hash != self.authority.content_hash
+                ):
+                    raise ValueError("transformation Evidence Crossmatch binding drifted")
+            else:
+                if not isinstance(item.authority, SourceTableTransformationAuthority):
+                    raise ValueError("SourceTable Dataset requires SourceTable Evidence authority")
+                if item.authority.admission_id != self.authority.source_table_admission.admission_id:
+                    raise ValueError("transformation Evidence SourceTable binding drifted")
         for row in self.rows:
             row_evidence = {
                 evidence_id
@@ -1162,7 +1342,11 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                             raise ValueError(
                                 "mapped outcome winner is not a retained source value"
                             )
-                        expected_reason = "highest declared source and alias priority; every candidate is retained"
+                        expected_reason = (
+                            "SourceTable admission retains the canonical source value"
+                            if isinstance(self.authority, SourceTableArtifactAuthority)
+                            else "highest declared source and alias priority; every candidate is retained"
+                        )
                         selected = source_values[outcome.selected_source_value_id]
                         if (
                             selected.canonical_value != outcome.canonical_value
@@ -1253,7 +1437,10 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                 ):
                     raise ValueError("transformation Evidence selection status drifted")
                 expected_reason = (
-                    f"crossmatch alignment remains {row.alignment_status.value}; no field winner is selected"
+                    f"crossmatch alignment remains {row.row_authority.alignment_status.value}; no field winner is selected"
+                    if isinstance(outcome, UnresolvedCanonicalValue)
+                    and isinstance(row.row_authority, CrossmatchRowAuthority)
+                    else "SourceTable admission retains the canonical source value"
                     if isinstance(outcome, UnresolvedCanonicalValue)
                     else (
                         "equal admitted document values form the canonical consensus; "
@@ -1261,6 +1448,9 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                     )
                     if isinstance(outcome, MappedCanonicalValue)
                     and outcome.selected_source_value_id is None
+                    else "SourceTable admission retains the canonical source value"
+                    if isinstance(self.authority, SourceTableArtifactAuthority)
+                    and isinstance(outcome, MappedCanonicalValue)
                     else "highest declared source and alias priority; every candidate is retained"
                 )
                 if any(
@@ -1381,17 +1571,16 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
         _validate_candidate_id(self)
         return self
 
-
 class FieldDictionaryArtifactCandidate(_PublisherReadyCandidate):
     kind: Literal["field_dictionary"] = "field_dictionary"
     schema_version: Literal["2.0.0"] = "2.0.0"
     candidate_id: Identifier
     manifest_pins: ManifestPins
+    authority: DataArtifactAuthority
     requested_fields: tuple[CanonicalFieldId, ...]
     field_definitions: tuple[FieldDefinition, ...]
-    source_snapshot_ids: tuple[Identifier, ...]
-    crossmatch_source_snapshot_ids: tuple[Identifier, ...]
-    evidence_ids: tuple[Identifier, ...]
+    source_snapshot_ids: tuple[RuntimeIdentifier, ...]
+    evidence_ids: tuple[RuntimeIdentifier, ...]
     mapping_rule_set_id: Identifier
     mapping_rule_set_version: SemanticVersion
     mapping_rule_set_content_hash: ContentHash
@@ -1409,10 +1598,6 @@ class FieldDictionaryArtifactCandidate(_PublisherReadyCandidate):
             field.field_id for field in self.field_definitions
         ):
             raise ValueError("FieldDictionary must exactly project requested fields")
-        if len(self.crossmatch_source_snapshot_ids) != 2:
-            raise ValueError(
-                "FieldDictionary requires exactly the two crossmatch SourceSnapshots"
-            )
         for values, label in (
             (self.requested_fields, "requested field"),
             (self.source_snapshot_ids, "SourceSnapshot"),
@@ -1422,9 +1607,7 @@ class FieldDictionaryArtifactCandidate(_PublisherReadyCandidate):
                 raise ValueError(
                     f"FieldDictionary contains duplicate {label} reference"
                 )
-        if self.source_snapshot_ids != tuple(sorted(self.source_snapshot_ids)) or set(
-            self.crossmatch_source_snapshot_ids
-        ) - set(self.source_snapshot_ids):
+        if self.source_snapshot_ids != tuple(sorted(self.source_snapshot_ids)):
             raise ValueError("FieldDictionary references must use canonical order")
         if self.evidence_ids != tuple(sorted(self.evidence_ids)):
             raise ValueError("FieldDictionary references must use canonical order")
@@ -1432,12 +1615,11 @@ class FieldDictionaryArtifactCandidate(_PublisherReadyCandidate):
         _validate_candidate_id(self)
         return self
 
-
 class RawSourceRecordReference(BaseModel):
     model_config = MODEL_CONFIG
 
     source_id: Identifier
-    source_snapshot_id: Identifier
+    source_snapshot_id: RuntimeIdentifier
     source_snapshot_content_hash: ContentHash
     query_hash: ContentHash
     row_key: tuple[tuple[NonEmptyString, NonEmptyString], ...] = Field(min_length=1)
@@ -1459,7 +1641,7 @@ class StructuredSourceCollectionMember(BaseModel):
     side: CrossmatchSide
     source_snapshot: SourceSnapshotRecord
     source_id: Identifier
-    source_snapshot_id: Identifier
+    source_snapshot_id: RuntimeIdentifier
     source_snapshot_content_hash: ContentHash
     query_hash: ContentHash
     source_mode: SourceMode
@@ -1537,6 +1719,70 @@ class StructuredSourceCollectionMember(BaseModel):
         return self
 
 
+class SourceTableSourceCollectionMember(BaseModel):
+    """One persisted SourceTable and its admitted raw-record registry."""
+
+    model_config = {**MODEL_CONFIG, "defer_build": True}
+
+    member_kind: Literal["source_table"] = "source_table"
+    source_snapshot: SourceSnapshotRecord
+    source_table_admission: "SourceTableAdmission"
+    source_id: Identifier
+    source_snapshot_id: RuntimeIdentifier
+    source_snapshot_content_hash: ContentHash
+    query_hash: ContentHash
+    license_note: NonEmptyString
+    raw_record_references: tuple[RawSourceRecordReference, ...]
+    raw_record_count: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_member(self) -> Self:
+        admission = self.source_table_admission
+        if (
+            self.source_id != admission.source_id
+            or self.source_snapshot_id != admission.source_snapshot_id
+            or self.source_snapshot_content_hash
+            != admission.source_snapshot_content_hash
+            or self.query_hash != admission.query_hash
+            or self.source_snapshot.snapshot_id != self.source_snapshot_id
+            or self.source_snapshot.source_id != self.source_id
+            or self.source_snapshot.content_hash != self.source_snapshot_content_hash
+            or self.source_snapshot.query_hash != self.query_hash
+            or self.license_note != self.source_snapshot.license_note
+        ):
+            raise ValueError("SourceTable member disagrees with its Snapshot/admission")
+        references_by_row: dict[tuple[tuple[str, str], ...], RawSourceRecordReference] = {}
+        for cell in admission.cells:
+            reference = RawSourceRecordReference(
+                source_id=self.source_id,
+                source_snapshot_id=self.source_snapshot_id,
+                source_snapshot_content_hash=self.source_snapshot_content_hash,
+                query_hash=self.query_hash,
+                row_key=cell.locator.row_key,
+                raw_record_content_hash=cell.locator.raw_record_content_hash,
+            )
+            previous = references_by_row.setdefault(reference.row_key, reference)
+            if previous.raw_record_content_hash != reference.raw_record_content_hash:
+                raise ValueError("SourceTable cells disagree about a raw record hash")
+        expected_references = tuple(references_by_row.values())
+        expected_references = tuple(
+            sorted(
+                expected_references,
+                key=lambda item: (
+                    item.source_id,
+                    item.row_key,
+                    item.raw_record_content_hash,
+                ),
+            )
+        )
+        if (
+            self.raw_record_references != expected_references
+            or self.raw_record_count != len(expected_references)
+        ):
+            raise ValueError("SourceTable raw record registry is not closed")
+        return self
+
+
 class DataSourceSnapshotProjection(BaseModel):
     """Logical data-pipeline projection of one scientific source snapshot."""
 
@@ -1564,7 +1810,7 @@ class DocumentSourceCollectionMember(BaseModel):
     source_class: Literal["document_research_input"]
     source_snapshot: DataSourceSnapshotProjection
     source_id: RuntimeIdentifier
-    source_snapshot_id: Identifier
+    source_snapshot_id: RuntimeIdentifier
     source_snapshot_content_hash: ContentHash
     query_hash: ContentHash
     research_input_id: RuntimeIdentifier
@@ -1591,7 +1837,9 @@ class DocumentSourceCollectionMember(BaseModel):
 
 
 SourceCollectionMember = Annotated[
-    StructuredSourceCollectionMember | DocumentSourceCollectionMember,
+    StructuredSourceCollectionMember
+    | SourceTableSourceCollectionMember
+    | DocumentSourceCollectionMember,
     Field(discriminator="member_kind"),
 ]
 
@@ -1601,17 +1849,11 @@ class SourceCollectionArtifactCandidate(_PublisherReadyCandidate):
     schema_version: Literal["2.0.0"] = "2.0.0"
     candidate_id: Identifier
     manifest_pins: ManifestPins
-    source_snapshot_ids: tuple[Identifier, ...]
-    crossmatch_source_snapshot_ids: tuple[Identifier, ...]
-    evidence_ids: tuple[Identifier, ...]
+    authority: DataArtifactAuthority
+    source_snapshot_ids: tuple[RuntimeIdentifier, ...]
+    evidence_ids: tuple[RuntimeIdentifier, ...]
     members: tuple[SourceCollectionMember, ...]
     source_value_ids: tuple[Identifier, ...]
-    crossmatch_result_id: Identifier
-    crossmatch_content_hash: ContentHash
-    alignment_record_keys: tuple[ContentHash, ...]
-    conflict_record_keys: tuple[ContentHash, ...]
-    review_required_record_keys: tuple[ContentHash, ...]
-    inconclusive_record_keys: tuple[ContentHash, ...]
     mapping_rule_set_id: Identifier
     mapping_rule_set_version: SemanticVersion
     mapping_rule_set_content_hash: ContentHash
@@ -1630,31 +1872,50 @@ class SourceCollectionArtifactCandidate(_PublisherReadyCandidate):
             for member in self.members
             if isinstance(member, StructuredSourceCollectionMember)
         )
+        source_table_members = tuple(
+            member
+            for member in self.members
+            if isinstance(member, SourceTableSourceCollectionMember)
+        )
         document_members = tuple(
             member
             for member in self.members
             if isinstance(member, DocumentSourceCollectionMember)
         )
-        if len(structured_members) != len(self.members) - len(document_members) or (
-            len(structured_members) != 2
-            or tuple(member.side for member in structured_members)
-            != (CrossmatchSide.left, CrossmatchSide.right)
-        ):
-            raise ValueError(
-                "SourceCollection requires one canonical left/right structured pair"
-            )
-        source_ids = tuple(member.source_id for member in structured_members)
-        snapshot_ids = tuple(member.source_snapshot_id for member in structured_members)
-        if len(set(source_ids)) != 2 or len(set(snapshot_ids)) != 2:
-            raise ValueError(
-                "SourceCollection requires two independent sources and snapshots"
-            )
-        if len(self.crossmatch_source_snapshot_ids) != 2 or set(
-            self.crossmatch_source_snapshot_ids
-        ) != set(snapshot_ids):
-            raise ValueError(
-                "SourceCollection crossmatch snapshots must be the left/right pair"
-            )
+        if isinstance(self.authority, CrossmatchArtifactAuthority):
+            if len(source_table_members) or len(structured_members) != len(
+                self.members
+            ) - len(document_members) or (
+                len(structured_members) != 2
+                or tuple(member.side for member in structured_members)
+                != (CrossmatchSide.left, CrossmatchSide.right)
+            ):
+                raise ValueError(
+                    "SourceCollection requires one canonical left/right structured pair"
+                )
+            source_ids = tuple(member.source_id for member in structured_members)
+            snapshot_ids = tuple(member.source_snapshot_id for member in structured_members)
+            if len(set(source_ids)) != 2 or len(set(snapshot_ids)) != 2:
+                raise ValueError(
+                    "SourceCollection requires two independent sources and snapshots"
+                )
+            if set(self.authority.source_snapshot_ids) != set(snapshot_ids):
+                raise ValueError(
+                    "SourceCollection Crossmatch snapshots must be the left/right pair"
+                )
+        else:
+            if len(source_table_members) != 1 or structured_members or document_members:
+                raise ValueError(
+                    "SourceTable SourceCollection requires exactly one source-table member"
+                )
+            source_ids = (source_table_members[0].source_id,)
+            snapshot_ids = (source_table_members[0].source_snapshot_id,)
+            if (
+                self.authority.source_snapshot_id != snapshot_ids[0]
+                or self.authority.source_table_admission.admission_id
+                != source_table_members[0].source_table_admission.admission_id
+            ):
+                raise ValueError("SourceCollection SourceTable authority drifted")
         if document_members and any(
             member.source_snapshot_id in snapshot_ids for member in document_members
         ):
@@ -1676,36 +1937,28 @@ class SourceCollectionArtifactCandidate(_PublisherReadyCandidate):
         for values, label in (
             (self.evidence_ids, "Evidence"),
             (self.source_value_ids, "source value"),
-            (self.alignment_record_keys, "alignment record key"),
-            (self.conflict_record_keys, "conflict record key"),
-            (self.review_required_record_keys, "review-required record key"),
-            (self.inconclusive_record_keys, "inconclusive record key"),
         ):
             if len(values) != len(set(values)):
                 raise ValueError(f"SourceCollection contains duplicate {label}")
-        if not (
-            set(self.conflict_record_keys)
-            | set(self.review_required_record_keys)
-            | set(self.inconclusive_record_keys)
-        ) <= set(self.alignment_record_keys):
-            raise ValueError(
-                "SourceCollection status keys must resolve to alignment records"
+        if isinstance(self.authority, CrossmatchArtifactAuthority):
+            status_sets = (
+                set(self.authority.conflict_record_keys),
+                set(self.authority.review_required_record_keys),
+                set(self.authority.inconclusive_record_keys),
             )
-        status_sets = (
-            set(self.conflict_record_keys),
-            set(self.review_required_record_keys),
-            set(self.inconclusive_record_keys),
-        )
-        if any(
-            left & right
-            for index, left in enumerate(status_sets)
-            for right in status_sets[index + 1 :]
-        ):
-            raise ValueError("SourceCollection status registries must be disjoint")
+            if not set().union(*status_sets) <= set(
+                self.authority.alignment_record_keys
+            ):
+                raise ValueError("SourceCollection status keys must resolve to alignment records")
+            if any(
+                left & right
+                for index, left in enumerate(status_sets)
+                for right in status_sets[index + 1 :]
+            ):
+                raise ValueError("SourceCollection status registries must be disjoint")
         _validate_output_hash(self)
         _validate_candidate_id(self)
         return self
-
 
 class DocumentObservationAdmissionStatus(StrEnum):
     accepted = "accepted"
@@ -1792,15 +2045,54 @@ class TypedDocumentObservation(BaseModel):
         return self.pipeline_source_snapshot.snapshot_id
 
 
+class CrossmatchDataArtifactAuthority(BaseModel):
+    """Existing Crossmatch-backed Data Artifact input authority."""
+
+    model_config = MODEL_CONFIG
+
+    authority_kind: Literal["crossmatch"] = "crossmatch"
+    left_acquisition: CrossmatchSourceInput
+    right_acquisition: CrossmatchSourceInput
+    crossmatch_result: CrossmatchResult
+    document_observations: tuple[TypedDocumentObservation, ...] = ()
+
+
+class SourceTableDataArtifactAuthority(BaseModel):
+    """One persisted SourceSnapshot plus its admitted SourceTable."""
+
+    model_config = {**MODEL_CONFIG, "defer_build": True}
+
+    authority_kind: Literal["source_table"] = "source_table"
+    source_snapshot: SourceSnapshotRecord
+    source_table_admission: "SourceTableAdmission"
+
+    @model_validator(mode="after")
+    def validate_authority(self) -> Self:
+        admission = self.source_table_admission
+        if (
+            str(self.source_snapshot.snapshot_id) != str(admission.source_snapshot_id)
+            or self.source_snapshot.source_id != admission.source_id
+            or self.source_snapshot.content_hash
+            != admission.source_snapshot_content_hash
+            or self.source_snapshot.query_hash != admission.query_hash
+            or self.source_snapshot.retrieved_at != admission.retrieved_at
+        ):
+            raise ValueError("SourceTable authority disagrees with its SourceSnapshot")
+        return self
+
+
+DataArtifactInputAuthority = Annotated[
+    CrossmatchDataArtifactAuthority | SourceTableDataArtifactAuthority,
+    Field(discriminator="authority_kind"),
+]
+
+
 class DataArtifactBuildInput(BaseModel):
     model_config = MODEL_CONFIG
 
     manifest_pins: ManifestPins
     requested_fields: tuple[CanonicalFieldId, ...] = Field(min_length=1)
-    left_acquisition: CrossmatchSourceInput
-    right_acquisition: CrossmatchSourceInput
-    crossmatch_result: CrossmatchResult
-    document_observations: tuple[TypedDocumentObservation, ...]
+    authority: DataArtifactInputAuthority
     mapping_rule_set: MappingRuleSet
     conversion_catalog: UnitConversionCatalog
     producer_version: SemanticVersion
@@ -1816,8 +2108,13 @@ class DataArtifactBuildInput(BaseModel):
     def validate_input(self) -> Self:
         if len(self.requested_fields) != len(set(self.requested_fields)):
             raise ValueError("requested fields must be unique")
-        observation_ids = [item.observation_id for item in self.document_observations]
-        candidate_ids = [item.raw_candidate_id for item in self.document_observations]
+        document_observations = (
+            self.authority.document_observations
+            if isinstance(self.authority, CrossmatchDataArtifactAuthority)
+            else ()
+        )
+        observation_ids = [item.observation_id for item in document_observations]
+        candidate_ids = [item.raw_candidate_id for item in document_observations]
         if len(observation_ids) != len(set(observation_ids)):
             raise ValueError("document observations must have unique observation_id")
         if len(candidate_ids) != len(set(candidate_ids)):
@@ -1825,23 +2122,35 @@ class DataArtifactBuildInput(BaseModel):
         requested_fields = set(self.requested_fields)
         if any(
             item.canonical_field_id not in requested_fields
-            for item in self.document_observations
+            for item in document_observations
         ):
             raise ValueError("document observation field is not requested")
-        result = self.crossmatch_result
-        record_keys = {
-            compute_crossmatch_record_logical_key(record) for record in result.records
-        }
-        if any(
-            item.crossmatch_logical_key not in record_keys
-            for item in self.document_observations
-        ):
-            raise ValueError(
-                "document observation references an unknown Crossmatch row"
-            )
+        if isinstance(self.authority, CrossmatchDataArtifactAuthority):
+            result = self.authority.crossmatch_result
+            record_keys = {
+                compute_crossmatch_record_logical_key(record)
+                for record in result.records
+            }
+            if any(
+                item.crossmatch_logical_key not in record_keys
+                for item in document_observations
+            ):
+                raise ValueError(
+                    "document observation references an unknown Crossmatch row"
+                )
+        else:
+            admission = self.authority.source_table_admission
+            if document_observations:
+                raise ValueError("SourceTable authority cannot carry document observations")
+            if self.requested_fields != tuple(
+                sorted(column.canonical_field_id for column in admission.columns)
+            ):
+                raise ValueError(
+                    "SourceTable Data Artifact must project the admitted columns exactly"
+                )
         snapshot_bindings: dict[str, str] = {}
         snapshot_facts: dict[str, DataSourceSnapshotProjection] = {}
-        for item in self.document_observations:
+        for item in document_observations:
             pipeline_id = item.pipeline_snapshot_id
             persisted_id = str(item.persisted_source_snapshot_id)
             previous = snapshot_bindings.setdefault(pipeline_id, persisted_id)
@@ -1865,14 +2174,6 @@ class DataArtifactBuildInput(BaseModel):
             pins.field_manifest_version,
             pins.field_manifest_content_hash,
         )
-        result_pins = (
-            result.case_manifest_id,
-            result.case_manifest_version,
-            result.case_manifest_content_hash,
-            result.field_manifest_id,
-            result.field_manifest_version,
-            result.field_manifest_content_hash,
-        )
         rule_pins = (
             self.mapping_rule_set.case_manifest_id,
             self.mapping_rule_set.case_manifest_version,
@@ -1881,8 +2182,6 @@ class DataArtifactBuildInput(BaseModel):
             self.mapping_rule_set.field_manifest_version,
             self.mapping_rule_set.field_manifest_content_hash,
         )
-        if result_pins != expected_pins or rule_pins != expected_pins:
-            raise ValueError("Manifest pins disagree across Data Artifact inputs")
         if (
             self.conversion_catalog.field_manifest_id != pins.field_manifest_id
             or self.conversion_catalog.field_manifest_version
@@ -1891,10 +2190,45 @@ class DataArtifactBuildInput(BaseModel):
             != pins.field_manifest_content_hash
         ):
             raise ValueError("conversion catalog disagrees with Field Manifest pin")
+        if rule_pins != expected_pins:
+            raise ValueError("Manifest pins disagree across Data Artifact inputs")
+        if isinstance(self.authority, SourceTableDataArtifactAuthority):
+            pins = self.manifest_pins
+            admission = self.authority.source_table_admission
+            if admission.source_result_status != "complete":
+                raise ValueError("SourceTable Data Artifact requires a complete source")
+            if admission.overall_status.value != "pass":
+                raise ValueError("SourceTable Data Artifact requires a passing source")
+            if admission.manifest_pins != pins:
+                raise ValueError("SourceTable admission disagrees with manifest pins")
+            if (
+                admission.mapping_rule_set_content_hash
+                != self.mapping_rule_set.content_hash
+                or admission.conversion_catalog_content_hash
+                != self.conversion_catalog.content_hash
+            ):
+                raise ValueError("SourceTable admission disagrees with execution policies")
+            expected = compute_data_artifact_input_hash(self)
+            if self.input_hash != expected:
+                raise ValueError(f"input_hash does not match build input: {expected}")
+            return self
+        if not isinstance(self.authority, CrossmatchDataArtifactAuthority):
+            raise ValueError("Crossmatch input authority is required for this branch")
+        result = self.authority.crossmatch_result
+        result_pins = (
+            result.case_manifest_id,
+            result.case_manifest_version,
+            result.case_manifest_content_hash,
+            result.field_manifest_id,
+            result.field_manifest_version,
+            result.field_manifest_content_hash,
+        )
+        if result_pins != expected_pins or rule_pins != expected_pins:
+            raise ValueError("Manifest pins disagree across Data Artifact inputs")
         for side, acquisition, snapshot, source_mode, data_level, completion in (
             (
                 CrossmatchSide.left,
-                self.left_acquisition,
+                self.authority.left_acquisition,
                 result.left_source_snapshot,
                 result.left_source_mode,
                 result.left_data_level,
@@ -1902,7 +2236,7 @@ class DataArtifactBuildInput(BaseModel):
             ),
             (
                 CrossmatchSide.right,
-                self.right_acquisition,
+                self.authority.right_acquisition,
                 result.right_source_snapshot,
                 result.right_source_mode,
                 result.right_data_level,
@@ -1938,7 +2272,6 @@ class DataArtifactBuildInput(BaseModel):
             raise ValueError(f"input_hash does not match build input: {expected}")
         return self
 
-
 class DataArtifactBuildResult(BaseModel):
     model_config = MODEL_CONFIG
     __artifact_publication_requires_admission__: ClassVar[bool] = True
@@ -1957,7 +2290,7 @@ class DataArtifactBuildResult(BaseModel):
             (
                 candidate.manifest_pins,
                 candidate.source_snapshot_ids,
-                candidate.crossmatch_source_snapshot_ids,
+                candidate.authority.model_dump_json(),
                 candidate.evidence_ids,
                 candidate.mapping_rule_set_id,
                 candidate.mapping_rule_set_version,
@@ -1985,17 +2318,39 @@ class DataArtifactBuildResult(BaseModel):
             item.source_value_id for item in self.dataset.source_values
         ):
             raise ValueError("SourceCollection source values disagree with Dataset")
-        if (
-            self.source_collection.crossmatch_result_id
-            != self.dataset.crossmatch_result_id
-            or self.source_collection.crossmatch_content_hash
-            != self.dataset.crossmatch_content_hash
-        ):
-            raise ValueError("Dataset and SourceCollection crossmatch identity drifted")
-        if set(self.source_collection.alignment_record_keys) != {
-            row.crossmatch_logical_key for row in self.dataset.rows
-        }:
-            raise ValueError("SourceCollection alignments do not cover Dataset rows")
+        if isinstance(self.dataset.authority, CrossmatchArtifactAuthority):
+            if not isinstance(self.source_collection.authority, CrossmatchArtifactAuthority):
+                raise ValueError("Dataset and SourceCollection authority kinds drifted")
+            dataset_authority = self.dataset.authority
+            collection_authority = self.source_collection.authority
+            if (
+                collection_authority.result_id != dataset_authority.result_id
+                or collection_authority.content_hash != dataset_authority.content_hash
+            ):
+                raise ValueError("Dataset and SourceCollection crossmatch identity drifted")
+            if set(collection_authority.alignment_record_keys) != {
+                row.row_authority.logical_key
+                for row in self.dataset.rows
+                if isinstance(row.row_authority, CrossmatchRowAuthority)
+            }:
+                raise ValueError("SourceCollection alignments do not cover Dataset rows")
+        else:
+            if not isinstance(self.source_collection.authority, SourceTableArtifactAuthority):
+                raise ValueError("Dataset and SourceCollection authority kinds drifted")
+            if (
+                self.source_collection.authority.source_table_admission.admission_id
+                != self.dataset.authority.source_table_admission.admission_id
+                or self.source_collection.authority.source_snapshot_id
+                != self.dataset.authority.source_snapshot_id
+            ):
+                raise ValueError("Dataset and SourceCollection SourceTable identity drifted")
+            if any(
+                not isinstance(row.row_authority, SourceTableRowAuthority)
+                or row.row_authority.canonical_row_identity.source_table_admission_id
+                != self.dataset.authority.source_table_admission.admission_id
+                for row in self.dataset.rows
+            ):
+                raise ValueError("Dataset rows do not bind the admitted SourceTable")
         collection_records = {
             (
                 reference.source_id,
@@ -2009,6 +2364,21 @@ class DataArtifactBuildResult(BaseModel):
             if isinstance(member, StructuredSourceCollectionMember)
             for reference in member.raw_record_references
         }
+        collection_records.update(
+            {
+                (
+                    reference.source_id,
+                    reference.source_snapshot_id,
+                    reference.source_snapshot_content_hash,
+                    reference.query_hash,
+                    reference.row_key,
+                    reference.raw_record_content_hash,
+                )
+                for member in self.source_collection.members
+                if isinstance(member, SourceTableSourceCollectionMember)
+                for reference in member.raw_record_references
+            }
+        )
         dataset_records = {
             (
                 value.source_id,
@@ -2087,12 +2457,7 @@ def compute_data_artifact_context_hash(
                 "version": value.conversion_catalog.version,
                 "content_hash": value.conversion_catalog.content_hash,
             },
-            "crossmatch": {
-                "result_id": value.crossmatch_result.result_id,
-                "content_hash": value.crossmatch_result.content_hash,
-                "input_hash": value.crossmatch_result.input_hash,
-                "output_hash": value.crossmatch_result.output_hash,
-            },
+            "authority": value.authority.model_dump(mode="json"),
         }
     )
 
@@ -2160,6 +2525,37 @@ def _require_unique(values: tuple[BaseModel, ...], attribute: str, label: str) -
         raise ValueError(f"candidate contains duplicate {label}")
 
 
+def rebuild_source_table_models(source_table_admission: type[BaseModel]) -> None:
+    """Resolve SourceTable references after its schema module is initialized."""
+
+    namespace = {"SourceTableAdmission": source_table_admission}
+    for model in (
+        SourceTableArtifactAuthority,
+        SourceTableDataArtifactAuthority,
+        SourceTableSourceCollectionMember,
+    ):
+        model.model_rebuild(_types_namespace=namespace, force=True)
+    for model in (
+        DatasetArtifactCandidate,
+        FieldDictionaryArtifactCandidate,
+        SourceCollectionArtifactCandidate,
+        DataArtifactBuildInput,
+        DataArtifactBuildResult,
+    ):
+        model.model_rebuild(force=True)
+
+
+# Resolve the source-table authority after both schema modules have been
+# initialized.  The conditional avoids importing SourceTable while
+# data_quality is still defining the shared quality result models.
+import sys as _sys
+
+if "app.schemas.data_quality" not in _sys.modules:
+    from .source_table import SourceTableAdmission as _SourceTableAdmission
+
+    rebuild_source_table_models(_SourceTableAdmission)
+
+
 __all__ = [
     "AlignmentStatus",
     "CanonicalEntityIdentity",
@@ -2191,6 +2587,12 @@ __all__ = [
     "RawSourceRecordReference",
     "SourceCollectionArtifactCandidate",
     "SourceCollectionMember",
+    "SourceTableArtifactAuthority",
+    "SourceTableCanonicalRowIdentity",
+    "SourceTableDataArtifactAuthority",
+    "SourceTableRowAuthority",
+    "SourceTableSourceCollectionMember",
+    "SourceTableTransformationAuthority",
     "SourceValueCandidate",
     "SourceValueOrigin",
     "StructuredDatabaseOrigin",
@@ -2207,4 +2609,5 @@ __all__ = [
     "compute_data_artifact_lineage_hash",
     "compute_data_artifact_output_hash",
     "compute_data_artifact_public_payload_hash",
+    "rebuild_source_table_models",
 ]

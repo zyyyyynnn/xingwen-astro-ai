@@ -113,7 +113,7 @@ export interface FieldDictionaryArtifactReview extends DataArtifactReviewBase {
 }
 
 export interface SourceCollectionMemberReview {
-  readonly memberKind: "structured" | "document";
+  readonly memberKind: "structured" | "source_table" | "document";
   readonly sourceId: DomainEntityId | null;
   readonly sourceSnapshotId: DomainEntityId;
   readonly sourceSnapshotContentHash: ContentHash;

@@ -5,7 +5,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.schemas.data_artifacts import LimitStatus, MappedCanonicalValue, UncertaintyStatus
+from app.schemas.data_artifacts import (
+    CrossmatchRowAuthority,
+    LimitStatus,
+    MappedCanonicalValue,
+    UncertaintyStatus,
+)
 from services.data_pipeline.data_artifacts import build_data_artifact_candidates
 from services.data_pipeline.data_artifacts.errors import DataArtifactError
 from services.data_pipeline.data_artifacts.projection import (
@@ -21,7 +26,12 @@ from data_artifact_test_support import build_input
 
 def test_mapping_uses_entity_alignment_normalized_identity_and_preserves_all_sources() -> None:
     result = build_data_artifact_candidates(build_input("star.tic_id"))
-    paired = next(row for row in result.dataset.rows if row.crossmatch_record_type == "paired")
+    paired = next(
+        row
+        for row in result.dataset.rows
+        if isinstance(row.row_authority, CrossmatchRowAuthority)
+        and row.row_authority.record_type == "paired"
+    )
     outcome = paired.fields[0]
 
     assert isinstance(outcome, MappedCanonicalValue)
@@ -53,7 +63,7 @@ def test_requested_field_order_is_canonical_and_hash_invariant() -> None:
 
     assert first_input.input_hash == second_input.input_hash
     assert first == second
-    assert first.dataset.requested_fields == ("star.tic_id", "star.name")
+    assert first.dataset.requested_fields == ("star.name", "star.tic_id")
     assert any(field.status == "declared_null" for row in first.dataset.rows for field in row.fields)
 
 
@@ -68,7 +78,7 @@ def _radius_context():
     )
     candidate = next(
         item
-        for item in input_value.crossmatch_result.candidates
+        for item in input_value.authority.crossmatch_result.candidates
         if item.side.value == "right"
     )
     return input_value, bundle, field, alias, candidate
@@ -155,16 +165,27 @@ def test_accepted_non_one_to_one_topology_retains_every_member(
     result = build_data_artifact_candidates(
         build_input("star.tic_id", scenario_id=scenario_id)
     )
-    accepted = next(row for row in result.dataset.rows if row.alignment_status == "accepted")
+    accepted = next(
+        row
+        for row in result.dataset.rows
+        if isinstance(row.row_authority, CrossmatchRowAuthority)
+        and row.row_authority.alignment_status == "accepted"
+    )
 
-    assert len(accepted.source_member_ids) == member_count
+    assert isinstance(accepted.row_authority, CrossmatchRowAuthority)
+    assert len(accepted.row_authority.source_member_ids) == member_count
 
 
 def test_identity_conflict_remains_unresolved_without_field_selection() -> None:
     result = build_data_artifact_candidates(
         build_input("star.tic_id", scenario_id="identifier_conflict")
     )
-    conflict = next(row for row in result.dataset.rows if row.alignment_status == "conflict")
+    conflict = next(
+        row
+        for row in result.dataset.rows
+        if isinstance(row.row_authority, CrossmatchRowAuthority)
+        and row.row_authority.alignment_status == "conflict"
+    )
 
     assert conflict.fields[0].status == "unresolved"
     conflict_evidence = [
@@ -183,11 +204,17 @@ def test_valid_manual_adjudication_accepts_coordinate_pair_without_rerunning_cro
     result = build_data_artifact_candidates(
         build_input("system.right_ascension", scenario_id="manual_decision_valid")
     )
-    paired = next(row for row in result.dataset.rows if row.crossmatch_record_type == "paired")
+    paired = next(
+        row
+        for row in result.dataset.rows
+        if isinstance(row.row_authority, CrossmatchRowAuthority)
+        and row.row_authority.record_type == "paired"
+    )
 
-    assert paired.alignment_status == "accepted"
+    assert isinstance(paired.row_authority, CrossmatchRowAuthority)
+    assert paired.row_authority.alignment_status == "accepted"
     assert paired.fields[0].status == "mapped"
-    assert len(paired.source_member_ids) == 2
+    assert len(paired.row_authority.source_member_ids) == 2
     assert result.dataset.conflicts
 
 
@@ -195,7 +222,12 @@ def test_numeric_cross_source_conflict_selects_display_but_retains_both_values()
     result = build_data_artifact_candidates(
         build_input("system.right_ascension", scenario_id="manual_decision_valid")
     )
-    paired = next(row for row in result.dataset.rows if row.crossmatch_record_type == "paired")
+    paired = next(
+        row
+        for row in result.dataset.rows
+        if isinstance(row.row_authority, CrossmatchRowAuthority)
+        and row.row_authority.record_type == "paired"
+    )
     outcome = paired.fields[0]
 
     assert outcome.status == "mapped"

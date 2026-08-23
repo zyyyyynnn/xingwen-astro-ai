@@ -129,6 +129,42 @@
       "title": "CanonicalRowIdentity",
       "type": "object"
     },
+    "CrossmatchRowQualityAuthority": {
+      "additionalProperties": false,
+      "description": "Quality row binding for one Crossmatch alignment record.",
+      "properties": {
+        "alignment_status": {
+          "$ref": "#/$defs/AlignmentStatus"
+        },
+        "authority_kind": {
+          "const": "crossmatch",
+          "default": "crossmatch",
+          "title": "Authority Kind",
+          "type": "string"
+        },
+        "logical_key": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Logical Key",
+          "type": "string"
+        },
+        "record_type": {
+          "enum": [
+            "paired",
+            "unpaired",
+            "conflict_group"
+          ],
+          "title": "Record Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "logical_key",
+        "record_type",
+        "alignment_status"
+      ],
+      "title": "CrossmatchRowQualityAuthority",
+      "type": "object"
+    },
     "EntityLevel": {
       "enum": [
         "host_star",
@@ -279,20 +315,117 @@
       ],
       "title": "QualityMetricStatus",
       "type": "string"
+    },
+    "SourceTableCanonicalRowIdentity": {
+      "additionalProperties": false,
+      "description": "Canonical identity derived from one admitted SourceTable row.",
+      "properties": {
+        "canonical_identity": {
+          "minLength": 1,
+          "title": "Canonical Identity",
+          "type": "string"
+        },
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel",
+          "default": "host_star"
+        },
+        "identity_kind": {
+          "const": "source_table",
+          "default": "source_table",
+          "title": "Identity Kind",
+          "type": "string"
+        },
+        "identity_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Identity Version",
+          "type": "string"
+        },
+        "source_table_admission_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Table Admission Id",
+          "type": "string"
+        },
+        "source_table_row_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Table Row Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_table_admission_id",
+        "source_table_row_id",
+        "canonical_identity"
+      ],
+      "title": "SourceTableCanonicalRowIdentity",
+      "type": "object"
+    },
+    "SourceTableRowQualityAuthority": {
+      "additionalProperties": false,
+      "description": "Quality row binding for one admitted SourceTable row.",
+      "properties": {
+        "admission_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Admission Id",
+          "type": "string"
+        },
+        "authority_kind": {
+          "const": "source_table",
+          "default": "source_table",
+          "title": "Authority Kind",
+          "type": "string"
+        },
+        "row_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Row Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "admission_id",
+        "row_id"
+      ],
+      "title": "SourceTableRowQualityAuthority",
+      "type": "object"
     }
   },
   "additionalProperties": false,
   "properties": {
-    "alignment_status": {
-      "$ref": "#/$defs/AlignmentStatus"
-    },
     "applicable_field_count": {
       "minimum": 0,
       "title": "Applicable Field Count",
       "type": "integer"
     },
+    "authority": {
+      "discriminator": {
+        "mapping": {
+          "crossmatch": "#/$defs/CrossmatchRowQualityAuthority",
+          "source_table": "#/$defs/SourceTableRowQualityAuthority"
+        },
+        "propertyName": "authority_kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/CrossmatchRowQualityAuthority"
+        },
+        {
+          "$ref": "#/$defs/SourceTableRowQualityAuthority"
+        }
+      ],
+      "title": "Authority"
+    },
     "canonical_row_identity": {
-      "$ref": "#/$defs/CanonicalRowIdentity"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CanonicalRowIdentity"
+        },
+        {
+          "$ref": "#/$defs/SourceTableCanonicalRowIdentity"
+        }
+      ],
+      "title": "Canonical Row Identity"
     },
     "completeness": {
       "$ref": "#/$defs/QualityMetricResult"
@@ -312,11 +445,6 @@
     "content_hash": {
       "pattern": "^sha256:[0-9a-f]{64}$",
       "title": "Content Hash",
-      "type": "string"
-    },
-    "crossmatch_logical_key": {
-      "pattern": "^sha256:[0-9a-f]{64}$",
-      "title": "Crossmatch Logical Key",
       "type": "string"
     },
     "declared_null_count": {
@@ -399,7 +527,7 @@
     "row_id",
     "canonical_row_identity",
     "entity_level",
-    "alignment_status",
+    "authority",
     "applicable_field_count",
     "mapped_count",
     "declared_null_count",
@@ -418,7 +546,6 @@
     "conflict_ids",
     "evidence_ids",
     "source_snapshot_ids",
-    "crossmatch_logical_key",
     "content_hash"
   ],
   "title": "RowQualityResult",

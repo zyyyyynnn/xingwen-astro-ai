@@ -19,6 +19,7 @@ from app.schemas.core import (
     SourceSnapshotDetail,
 )
 from app.schemas.data_artifacts import (
+    CrossmatchArtifactAuthority,
     DatasetArtifactCandidate,
     FieldDictionaryArtifactCandidate,
 )
@@ -753,7 +754,16 @@ def _validated_data_mappings(
     transformations = {
         item.evidence_id: item for item in semantic_dataset.transformation_evidence
     }
-    crossmatch_ids = set(semantic_dataset.crossmatch_evidence_ids)
+    crossmatch_authority = (
+        semantic_dataset.authority
+        if isinstance(semantic_dataset.authority, CrossmatchArtifactAuthority)
+        else None
+    )
+    crossmatch_ids = (
+        set(crossmatch_authority.evidence_ids)
+        if crossmatch_authority is not None
+        else set()
+    )
     for item in ordered:
         transformation = transformations.get(item.pipeline_evidence_id)
         if transformation is not None:
@@ -769,7 +779,8 @@ def _validated_data_mappings(
         else:
             locator_hash = item.pipeline_locator.get("crossmatch_content_hash")
             valid = (
-                item.pipeline_evidence_id in crossmatch_ids
+                crossmatch_authority is not None
+                and item.pipeline_evidence_id in crossmatch_ids
                 and item.pipeline_target_type == "crossmatch"
                 and item.pipeline_target_id == item.pipeline_evidence_id
                 and set(item.pipeline_locator)
@@ -781,7 +792,7 @@ def _validated_data_mappings(
                 and len(locator_hash) == 71
                 and locator_hash == item.pipeline_evidence_content_hash
                 and item.pipeline_source_snapshot_id
-                in set(semantic_dataset.crossmatch_source_snapshot_ids)
+                in set(crossmatch_authority.source_snapshot_ids)
             )
         if not valid:
             raise GraphInputIntegrityError(

@@ -45,6 +45,8 @@ from app.schemas.core import (
     ResearchContract,
 )
 from app.schemas.data_artifacts import (
+    CrossmatchArtifactAuthority,
+    CrossmatchDataArtifactAuthority,
     DataArtifactBuildInput,
     DataArtifactBuildResult,
     DatasetArtifactCandidate,
@@ -263,13 +265,16 @@ def _build_fixture_data_input(
     )
     mapping_rule_set = load_mapping_rule_set()
     conversion_catalog = load_unit_conversion_catalog()
+    authority = CrossmatchDataArtifactAuthority(
+        left_acquisition=crossmatch_input.left,
+        right_acquisition=crossmatch_input.right,
+        crossmatch_result=crossmatch_result,
+        document_observations=(),
+    )
     payload = {
         "manifest_pins": pins.model_dump(mode="json"),
         "requested_fields": requested_fields,
-        "left_acquisition": crossmatch_input.left.model_dump(mode="json"),
-        "right_acquisition": crossmatch_input.right.model_dump(mode="json"),
-        "crossmatch_result": crossmatch_result.model_dump(mode="json"),
-        "document_observations": [],
+        "authority": authority.model_dump(mode="json"),
         "mapping_rule_set": mapping_rule_set.model_dump(mode="json"),
         "conversion_catalog": conversion_catalog.model_dump(mode="json"),
         "producer_version": mapping_rule_set.producer_version,
@@ -278,10 +283,7 @@ def _build_fixture_data_input(
     unhashed = DataArtifactBuildInput.model_construct(
         manifest_pins=pins,
         requested_fields=requested_fields,
-        left_acquisition=crossmatch_input.left,
-        right_acquisition=crossmatch_input.right,
-        crossmatch_result=crossmatch_result,
-        document_observations=(),
+        authority=authority,
         mapping_rule_set=mapping_rule_set,
         conversion_catalog=conversion_catalog,
         producer_version=mapping_rule_set.producer_version,
@@ -335,9 +337,14 @@ def _publication_bindings(
     transformations = {
         item.evidence_id: item for item in candidate.transformation_evidence
     }
-    crossmatch_evidence = {
-        item.evidence_id: item for item in candidate.crossmatch_evidence
-    }
+    crossmatch_evidence = (
+        {
+            item.evidence_id: item
+            for item in candidate.authority.evidence
+        }
+        if isinstance(candidate.authority, CrossmatchArtifactAuthority)
+        else {}
+    )
 
     evidence_bindings: list[ArtifactEvidenceBinding] = []
     for pipeline_id in candidate.evidence_ids:
@@ -430,9 +437,14 @@ def _publish_fixture_version(
             or artifact.logical_key != "dataset.primary"
         ):
             raise RuntimeError("Bootstrap Dataset artifact identity is not consistent")
+        if not isinstance(
+            data_input.authority,
+            CrossmatchDataArtifactAuthority,
+        ):
+            raise RuntimeError("Demo replay bootstrap requires Crossmatch authority")
         for source in (
-            data_input.left_acquisition.snapshot,
-            data_input.right_acquisition.snapshot,
+            data_input.authority.left_acquisition.snapshot,
+            data_input.authority.right_acquisition.snapshot,
         ):
             source_id = _seed_uuid(run_id, f"source-snapshot:{source.snapshot_id}")
             existing = session.get(SourceSnapshotModel, source_id)

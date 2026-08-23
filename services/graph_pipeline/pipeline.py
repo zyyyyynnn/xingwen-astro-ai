@@ -50,6 +50,7 @@ from app.schemas.graph_artifact import (
 )
 from app.schemas.literature_claim import LiteratureClaimStatus
 from app.schemas.literature_relation import LiteratureRelationStatus
+from app.schemas.data_artifacts import CrossmatchArtifactAuthority
 from app.security import SecurityProblem
 
 from .admission import (
@@ -867,9 +868,15 @@ def _data_evidence_bindings(
         else:
             locator = binding.pipeline_locator
             locator_hash = locator.get("crossmatch_content_hash")
+            crossmatch_authority = (
+                dataset.authority
+                if isinstance(dataset.authority, CrossmatchArtifactAuthority)
+                else None
+            )
             valid = (
                 persisted_matches_pipeline
-                and evidence_id in set(dataset.crossmatch_evidence_ids)
+                and crossmatch_authority is not None
+                and evidence_id in set(crossmatch_authority.evidence_ids)
                 and binding.pipeline_target_type == "crossmatch"
                 and binding.pipeline_target_id == evidence_id
                 and set(locator)
@@ -880,7 +887,7 @@ def _data_evidence_bindings(
                 and len(locator_hash) == 71
                 and locator_hash == binding.pipeline_evidence_content_hash
                 and binding.pipeline_source_snapshot_id
-                in set(dataset.crossmatch_source_snapshot_ids)
+                in set(crossmatch_authority.source_snapshot_ids)
             )
         if not valid:
             raise GraphAdmissionFailure(
@@ -973,7 +980,12 @@ def _data_field_closure(
                         "TransformationEvidence belongs to another canonical field",
                     )
                 )
-            evidence_ids.update(transformation.crossmatch_evidence_ids)
+            if isinstance(dataset.authority, CrossmatchArtifactAuthority):
+                evidence_ids.update(
+                    transformation.authority.evidence_ids
+                    if hasattr(transformation.authority, "evidence_ids")
+                    else ()
+                )
     if not evidence_ids:
         failures.append(
             GraphAdmissionFailure(

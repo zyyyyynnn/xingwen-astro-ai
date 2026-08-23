@@ -13,10 +13,15 @@ from app.schemas.core import (
     compute_research_contract_content_hash,
 )
 from app.schemas.data_quality import QualityGateStatus, QualityMetricStatus
+from app.schemas.source_table import (
+    compute_source_table_input_hash,
+    compute_source_table_output_hash,
+)
 from app.workflow.scientific_admission import _validate_source_table_admission
 from services.data_pipeline.source_table import (
     GAIA_SOURCE_ID,
     admit_source_table,
+    load_frozen_manifest_bundle,
     replay_source_table_admission,
 )
 
@@ -27,7 +32,11 @@ QUERY_HASH = "sha256:" + "b" * 64
 RETRIEVED_AT = datetime(2026, 8, 20, 1, 2, 3, tzinfo=UTC)
 
 
-def _contract() -> ResearchContract:
+def _contract(
+    *,
+    allowed_sources: tuple[str, ...] = ("esa_gaia_dr3",),
+    contract_id: str = "contract.gaia",
+) -> ResearchContract:
     contract_input = ResearchContractInput.model_validate(
         {
             "research_goal": "Admit a bounded Gaia source table",
@@ -39,7 +48,7 @@ def _contract() -> ResearchContract:
                 "system.declination",
                 "star.effective_temperature",
             ],
-            "source_scope": {"allowed_sources": ["esa_gaia_dr3"]},
+            "source_scope": {"allowed_sources": list(allowed_sources)},
             "paper_search_scope": {},
             "output_requirements": ["dataset"],
             "evidence_requirements": {"minimum_coverage": 1},
@@ -50,7 +59,7 @@ def _contract() -> ResearchContract:
         }
     )
     payload = contract_input.model_dump(mode="json") | {
-        "id": "contract.gaia",
+        "id": contract_id,
         "project_id": "project.gaia",
         "version": 1,
         "created_from_draft_id": "draft.gaia",
@@ -107,6 +116,42 @@ def test_source_table_reuses_manifest_conversion_quality_and_precise_evidence() 
     assert len({cell.evidence_id for cell in admitted.cells}) == 4
     for cell in admitted.cells:
         UUID(cell.evidence_id)
+
+    bundle = load_frozen_manifest_bundle()
+    teff_field = next(
+        field for field in bundle.field_manifest.fields if field.field_id == "star.effective_temperature"
+    )
+    teff_alias = next(
+        alias
+        for alias in teff_field.source_aliases
+        if alias.source_id == GAIA_SOURCE_ID and alias.raw_field == "teff_gspphot"
+    )
+    teff_rule_version = next(
+        rule.rule_version
+        for rule in bundle.field_manifest.conversion_rules
+        if rule.rule_id == teff_alias.conversion_rule_id
+    )
+    teff_column = next(
+        column for column in admitted.columns if column.raw_field == "teff_gspphot"
+    )
+    assert teff_column.conversion_rule_id == teff_alias.conversion_rule_id
+    assert teff_column.conversion_rule_version == teff_rule_version
+
+
+def test_source_table_rejects_a_contract_without_gaia_source_scope() -> None:
+    with pytest.raises(ValueError, match="outside the ResearchContract source scope"):
+        admit_source_table(
+            source_id=GAIA_SOURCE_ID,
+            fields=("source_id",),
+            rows=({"source_id": "65214061869072512"},),
+            result_status="complete",
+            source_snapshot_id=SNAPSHOT_ID,
+            source_snapshot_content_hash=CONTENT_HASH,
+            query_hash=QUERY_HASH,
+            retrieved_at=RETRIEVED_AT,
+            evidence_scope_id="request.gaia.unauthorized",
+            contract=_contract(allowed_sources=("nasa_exoplanet_archive",)),
+        )
 
 
 @pytest.mark.parametrize("result_status", ["empty", "truncated"])
@@ -184,3 +229,13 @@ def test_source_table_replay_rejects_self_reported_policy_drift() -> None:
 
     with pytest.raises(ValueError, match="drifted from current frozen policies"):
         replay_source_table_admission(drifted, contract=_contract())
+
+
+def test_source_table_replay_closes_conversion_provenance_and_hashes() -> None:
+    admitted = _admit()
+
+    replayed = replay_source_table_admission(admitted, contract=_contract())
+
+    assert replayed == admitted
+    assert replayed.input_hash == compute_source_table_input_hash(replayed)
+    assert replayed.output_hash == compute_source_table_output_hash(replayed)

@@ -696,6 +696,42 @@
       "title": "CrossmatchCondition",
       "type": "object"
     },
+    "CrossmatchDataArtifactAuthority": {
+      "additionalProperties": false,
+      "description": "Existing Crossmatch-backed Data Artifact input authority.",
+      "properties": {
+        "authority_kind": {
+          "const": "crossmatch",
+          "default": "crossmatch",
+          "title": "Authority Kind",
+          "type": "string"
+        },
+        "crossmatch_result": {
+          "$ref": "#/$defs/CrossmatchResult"
+        },
+        "document_observations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TypedDocumentObservation"
+          },
+          "title": "Document Observations",
+          "type": "array"
+        },
+        "left_acquisition": {
+          "$ref": "#/$defs/CrossmatchSourceInput"
+        },
+        "right_acquisition": {
+          "$ref": "#/$defs/CrossmatchSourceInput"
+        }
+      },
+      "required": [
+        "left_acquisition",
+        "right_acquisition",
+        "crossmatch_result"
+      ],
+      "title": "CrossmatchDataArtifactAuthority",
+      "type": "object"
+    },
     "CrossmatchEvidence": {
       "additionalProperties": false,
       "properties": {
@@ -1731,6 +1767,90 @@
         "license_note"
       ],
       "title": "DataSourceSnapshotProjection",
+      "type": "object"
+    },
+    "DatabaseCellLocator": {
+      "additionalProperties": false,
+      "description": "Locator for one structured database cell.",
+      "properties": {
+        "kind": {
+          "const": "database_cell",
+          "default": "database_cell",
+          "title": "Kind",
+          "type": "string"
+        },
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "raw_field": {
+          "minLength": 1,
+          "title": "Raw Field",
+          "type": "string"
+        },
+        "raw_record_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Raw Record Content Hash",
+          "type": "string"
+        },
+        "row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Row Key",
+          "type": "array"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_role": {
+          "enum": [
+            "left",
+            "right",
+            "single"
+          ],
+          "title": "Source Role",
+          "type": "string"
+        },
+        "source_snapshot_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Snapshot Content Hash",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Snapshot Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_role",
+        "source_snapshot_id",
+        "source_snapshot_content_hash",
+        "source_id",
+        "query_hash",
+        "row_key",
+        "raw_record_content_hash",
+        "raw_field"
+      ],
+      "title": "DatabaseCellLocator",
       "type": "object"
     },
     "DecimalCapacity": {
@@ -2895,6 +3015,266 @@
       "title": "PairedMatch",
       "type": "object"
     },
+    "QualityConstraintResult": {
+      "additionalProperties": false,
+      "properties": {
+        "constraint_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Constraint Id",
+          "type": "string"
+        },
+        "input_locator": {
+          "minLength": 1,
+          "title": "Input Locator",
+          "type": "string"
+        },
+        "metric_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QualityMetricId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observation_key": {
+          "minLength": 1,
+          "title": "Observation Key",
+          "type": "string"
+        },
+        "observed_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QualityMetricStatus"
+            },
+            {
+              "const": "not_checked",
+              "type": "string"
+            }
+          ],
+          "title": "Observed Status"
+        },
+        "observed_value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Observed Value"
+        },
+        "operator": {
+          "enum": [
+            "gte",
+            "equals"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "result": {
+          "$ref": "#/$defs/QualityGateStatus"
+        },
+        "rule_binding_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Rule Binding Version",
+          "type": "string"
+        },
+        "source_field": {
+          "minLength": 1,
+          "title": "Source Field",
+          "type": "string"
+        },
+        "threshold": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Threshold"
+        }
+      },
+      "required": [
+        "constraint_id",
+        "source_field",
+        "metric_id",
+        "observation_key",
+        "observed_status",
+        "observed_value",
+        "threshold",
+        "operator",
+        "result",
+        "rule_binding_version",
+        "input_locator"
+      ],
+      "title": "QualityConstraintResult",
+      "type": "object"
+    },
+    "QualityGateStatus": {
+      "enum": [
+        "pass",
+        "fail",
+        "insufficient"
+      ],
+      "title": "QualityGateStatus",
+      "type": "string"
+    },
+    "QualityMetricId": {
+      "enum": [
+        "field_completeness",
+        "field_missingness",
+        "field_unresolved_rate",
+        "field_provenance_coverage",
+        "field_evidence_coverage",
+        "field_unit_consistency",
+        "field_same_source_conflict_rate",
+        "field_cross_source_conflict_rate",
+        "row_completeness",
+        "row_missingness",
+        "row_unresolved_rate",
+        "row_provenance_coverage",
+        "row_evidence_coverage",
+        "row_unit_consistency",
+        "row_conflict_rate",
+        "row_low_confidence_flag",
+        "row_review_required_flag",
+        "row_inconclusive_flag",
+        "dataset_completeness",
+        "dataset_missingness",
+        "dataset_unresolved_rate",
+        "dataset_provenance_coverage",
+        "dataset_evidence_coverage",
+        "dataset_unit_consistency",
+        "dataset_cross_source_conflict_rate",
+        "dataset_same_source_conflict_rate",
+        "object_match_coverage",
+        "low_confidence_edge_rate",
+        "review_required_record_rate",
+        "inconclusive_record_rate",
+        "source_scope_completeness",
+        "validation_integrity"
+      ],
+      "title": "QualityMetricId",
+      "type": "string"
+    },
+    "QualityMetricResult": {
+      "additionalProperties": false,
+      "properties": {
+        "denominator": {
+          "minimum": 0,
+          "title": "Denominator",
+          "type": "integer"
+        },
+        "formula_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Formula Id",
+          "type": "string"
+        },
+        "formula_scope": {
+          "$ref": "#/$defs/QualityMetricScope"
+        },
+        "formula_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Formula Version",
+          "type": "string"
+        },
+        "input_locator": {
+          "minLength": 1,
+          "title": "Input Locator",
+          "type": "string"
+        },
+        "metric_id": {
+          "$ref": "#/$defs/QualityMetricId"
+        },
+        "numerator": {
+          "minimum": 0,
+          "title": "Numerator",
+          "type": "integer"
+        },
+        "precision_digits": {
+          "exclusiveMinimum": 0,
+          "maximum": 64,
+          "title": "Precision Digits",
+          "type": "integer"
+        },
+        "scope": {
+          "$ref": "#/$defs/QualityMetricScope"
+        },
+        "status": {
+          "$ref": "#/$defs/QualityMetricStatus"
+        },
+        "target_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "metric_id",
+        "scope",
+        "target_id",
+        "status",
+        "numerator",
+        "denominator",
+        "formula_id",
+        "formula_version",
+        "formula_scope",
+        "precision_digits",
+        "input_locator"
+      ],
+      "title": "QualityMetricResult",
+      "type": "object"
+    },
+    "QualityMetricScope": {
+      "enum": [
+        "field",
+        "row",
+        "dataset"
+      ],
+      "title": "QualityMetricScope",
+      "type": "string"
+    },
+    "QualityMetricStatus": {
+      "enum": [
+        "determinate",
+        "insufficient",
+        "not_applicable"
+      ],
+      "title": "QualityMetricStatus",
+      "type": "string"
+    },
     "QuantityKind": {
       "description": "Physical dimensions used for static compatibility checks only.",
       "enum": [
@@ -3167,7 +3547,8 @@
           "type": "string"
         },
         "snapshot_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "maxLength": 128,
+          "minLength": 1,
           "title": "Snapshot Id",
           "type": "string"
         },
@@ -3205,6 +3586,449 @@
         "license_note"
       ],
       "title": "SourceSnapshotRecord",
+      "type": "object"
+    },
+    "SourceTableAdmission": {
+      "additionalProperties": false,
+      "description": "Hash-closed mapping, quality and Evidence result for one source table.",
+      "properties": {
+        "admission_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Admission Id",
+          "type": "string"
+        },
+        "cells": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SourceTableCellAdmission"
+          },
+          "title": "Cells",
+          "type": "array"
+        },
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/QualityConstraintResult"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Checks",
+          "type": "array"
+        },
+        "columns": {
+          "items": {
+            "$ref": "#/$defs/SourceTableColumnAdmission"
+          },
+          "minItems": 1,
+          "title": "Columns",
+          "type": "array"
+        },
+        "conversion_catalog_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Conversion Catalog Content Hash",
+          "type": "string"
+        },
+        "conversion_catalog_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Conversion Catalog Id",
+          "type": "string"
+        },
+        "conversion_catalog_version": {
+          "minLength": 1,
+          "title": "Conversion Catalog Version",
+          "type": "string"
+        },
+        "evidence_scope_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Evidence Scope Id",
+          "type": "string"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "kind": {
+          "const": "source_table_admission",
+          "default": "source_table_admission",
+          "title": "Kind",
+          "type": "string"
+        },
+        "manifest_pins": {
+          "$ref": "#/$defs/ManifestPins"
+        },
+        "mapping_rule_set_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Mapping Rule Set Content Hash",
+          "type": "string"
+        },
+        "mapping_rule_set_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Mapping Rule Set Id",
+          "type": "string"
+        },
+        "mapping_rule_set_version": {
+          "minLength": 1,
+          "title": "Mapping Rule Set Version",
+          "type": "string"
+        },
+        "metrics": {
+          "items": {
+            "$ref": "#/$defs/QualityMetricResult"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Metrics",
+          "type": "array"
+        },
+        "output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Hash",
+          "type": "string"
+        },
+        "overall_status": {
+          "$ref": "#/$defs/QualityGateStatus"
+        },
+        "quality_rule_set_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Quality Rule Set Content Hash",
+          "type": "string"
+        },
+        "quality_rule_set_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Quality Rule Set Id",
+          "type": "string"
+        },
+        "quality_rule_set_version": {
+          "minLength": 1,
+          "title": "Quality Rule Set Version",
+          "type": "string"
+        },
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "research_contract_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Research Contract Content Hash",
+          "type": "string"
+        },
+        "research_contract_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Research Contract Id",
+          "type": "string"
+        },
+        "research_contract_version": {
+          "minimum": 1,
+          "title": "Research Contract Version",
+          "type": "integer"
+        },
+        "retrieved_at": {
+          "format": "date-time",
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "rows": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SourceTableRowAdmission"
+          },
+          "title": "Rows",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_result_status": {
+          "enum": [
+            "complete",
+            "empty",
+            "truncated"
+          ],
+          "title": "Source Result Status",
+          "type": "string"
+        },
+        "source_snapshot_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Snapshot Content Hash",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Snapshot Id",
+          "type": "string"
+        },
+        "source_table": {
+          "minLength": 1,
+          "title": "Source Table",
+          "type": "string"
+        }
+      },
+      "required": [
+        "admission_id",
+        "source_id",
+        "source_table",
+        "source_result_status",
+        "source_snapshot_id",
+        "source_snapshot_content_hash",
+        "query_hash",
+        "retrieved_at",
+        "evidence_scope_id",
+        "manifest_pins",
+        "mapping_rule_set_id",
+        "mapping_rule_set_version",
+        "mapping_rule_set_content_hash",
+        "conversion_catalog_id",
+        "conversion_catalog_version",
+        "conversion_catalog_content_hash",
+        "quality_rule_set_id",
+        "quality_rule_set_version",
+        "quality_rule_set_content_hash",
+        "research_contract_id",
+        "research_contract_version",
+        "research_contract_content_hash",
+        "columns",
+        "metrics",
+        "checks",
+        "overall_status",
+        "input_hash",
+        "output_hash"
+      ],
+      "title": "SourceTableAdmission",
+      "type": "object"
+    },
+    "SourceTableCellAdmission": {
+      "additionalProperties": false,
+      "properties": {
+        "canonical_field_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Canonical Field Id",
+          "type": "string"
+        },
+        "canonical_unit": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Canonical Unit",
+          "type": "string"
+        },
+        "canonical_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Canonical Value"
+        },
+        "evidence_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "locator": {
+          "$ref": "#/$defs/DatabaseCellLocator"
+        },
+        "raw_value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "row_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Row Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "row_id",
+        "canonical_field_id",
+        "raw_value",
+        "canonical_value",
+        "canonical_unit",
+        "evidence_id",
+        "locator"
+      ],
+      "title": "SourceTableCellAdmission",
+      "type": "object"
+    },
+    "SourceTableColumnAdmission": {
+      "additionalProperties": false,
+      "properties": {
+        "canonical_field_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Canonical Field Id",
+          "type": "string"
+        },
+        "canonical_unit": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Canonical Unit",
+          "type": "string"
+        },
+        "canonical_unit_symbol": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Canonical Unit Symbol"
+        },
+        "conversion_rule_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Conversion Rule Id",
+          "type": "string"
+        },
+        "conversion_rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Conversion Rule Version",
+          "type": "string"
+        },
+        "label_zh": {
+          "minLength": 1,
+          "title": "Label Zh",
+          "type": "string"
+        },
+        "raw_field": {
+          "minLength": 1,
+          "title": "Raw Field",
+          "type": "string"
+        },
+        "source_unit": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Unit",
+          "type": "string"
+        },
+        "source_unit_symbol": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Unit Symbol"
+        }
+      },
+      "required": [
+        "raw_field",
+        "canonical_field_id",
+        "label_zh",
+        "source_unit",
+        "canonical_unit",
+        "conversion_rule_id",
+        "conversion_rule_version"
+      ],
+      "title": "SourceTableColumnAdmission",
+      "type": "object"
+    },
+    "SourceTableDataArtifactAuthority": {
+      "additionalProperties": false,
+      "description": "One persisted SourceSnapshot plus its admitted SourceTable.",
+      "properties": {
+        "authority_kind": {
+          "const": "source_table",
+          "default": "source_table",
+          "title": "Authority Kind",
+          "type": "string"
+        },
+        "source_snapshot": {
+          "$ref": "#/$defs/SourceSnapshotRecord"
+        },
+        "source_table_admission": {
+          "$ref": "#/$defs/SourceTableAdmission"
+        }
+      },
+      "required": [
+        "source_snapshot",
+        "source_table_admission"
+      ],
+      "title": "SourceTableDataArtifactAuthority",
+      "type": "object"
+    },
+    "SourceTableRowAdmission": {
+      "additionalProperties": false,
+      "properties": {
+        "canonical_identity": {
+          "minLength": 1,
+          "title": "Canonical Identity",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "row_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Row Id",
+          "type": "string"
+        },
+        "values": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "propertyNames": {
+            "maxLength": 128,
+            "minLength": 1
+          },
+          "title": "Values",
+          "type": "object"
+        }
+      },
+      "required": [
+        "row_id",
+        "canonical_identity",
+        "values",
+        "evidence_ids"
+      ],
+      "title": "SourceTableRowAdmission",
       "type": "object"
     },
     "SupplementalDataQueryCursor": {
@@ -3674,26 +4498,31 @@
   },
   "additionalProperties": false,
   "properties": {
+    "authority": {
+      "discriminator": {
+        "mapping": {
+          "crossmatch": "#/$defs/CrossmatchDataArtifactAuthority",
+          "source_table": "#/$defs/SourceTableDataArtifactAuthority"
+        },
+        "propertyName": "authority_kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/CrossmatchDataArtifactAuthority"
+        },
+        {
+          "$ref": "#/$defs/SourceTableDataArtifactAuthority"
+        }
+      ],
+      "title": "Authority"
+    },
     "conversion_catalog": {
       "$ref": "#/$defs/UnitConversionCatalog"
-    },
-    "crossmatch_result": {
-      "$ref": "#/$defs/CrossmatchResult"
-    },
-    "document_observations": {
-      "items": {
-        "$ref": "#/$defs/TypedDocumentObservation"
-      },
-      "title": "Document Observations",
-      "type": "array"
     },
     "input_hash": {
       "pattern": "^sha256:[0-9a-f]{64}$",
       "title": "Input Hash",
       "type": "string"
-    },
-    "left_acquisition": {
-      "$ref": "#/$defs/CrossmatchSourceInput"
     },
     "manifest_pins": {
       "$ref": "#/$defs/ManifestPins"
@@ -3727,18 +4556,12 @@
       "minItems": 1,
       "title": "Requested Fields",
       "type": "array"
-    },
-    "right_acquisition": {
-      "$ref": "#/$defs/CrossmatchSourceInput"
     }
   },
   "required": [
     "manifest_pins",
     "requested_fields",
-    "left_acquisition",
-    "right_acquisition",
-    "crossmatch_result",
-    "document_observations",
+    "authority",
     "mapping_rule_set",
     "conversion_catalog",
     "producer_version",

@@ -190,6 +190,10 @@ def admit_source_table(
             "label_zh": field_registry[raw_field][0].meaning_zh,
             "source_unit": field_registry[raw_field][1].source_unit,
             "canonical_unit": field_registry[raw_field][0].canonical_unit,
+            "conversion_rule_id": field_registry[raw_field][1].conversion_rule_id,
+            "conversion_rule_version": conversion_versions[
+                field_registry[raw_field][1].conversion_rule_id
+            ],
             "source_unit_symbol": units[field_registry[raw_field][1].source_unit].symbol
             or None,
             "canonical_unit_symbol": units[

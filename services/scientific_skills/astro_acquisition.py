@@ -407,13 +407,12 @@ class GaiaTapAdapter:
             max_results=max_results + 1,
         )
         upstream_format = "csv" if response_format == "csv" else "votable"
-        query_hash = compute_canonical_payload_hash(
-            {
-                "query": query,
-                "response_format": response_format,
-                "cache_version": GAIA_CACHE_VERSION,
-            }
-        )
+        query_identity = {
+            "query": query,
+            "response_format": response_format,
+            "cache_version": GAIA_CACHE_VERSION,
+        }
+        query_hash = compute_canonical_payload_hash(query_identity)
         cached = (
             self._cache.get(project_id=request.project_id, query_hash=query_hash)
             if self._cache is not None
@@ -425,6 +424,7 @@ class GaiaTapAdapter:
                 fields=fields,
                 response_format=response_format,
                 query_hash=query_hash,
+                query_identity=query_identity,
             )
 
         started = monotonic()
@@ -502,6 +502,8 @@ class GaiaTapAdapter:
             )
             | {
                 "cache_version": GAIA_CACHE_VERSION,
+                "query": query,
+                "response_format": response_format,
                 "query_hash": query_hash,
                 "retrieved_at": retrieved_at.isoformat(),
                 "schema_revision": GAIA_SCHEMA_REVISION,
@@ -890,6 +892,7 @@ def _cached_gaia_output(
     fields: tuple[str, ...],
     response_format: str,
     query_hash: str,
+    query_identity: Mapping[str, str],
 ) -> dict[str, object]:
     if (
         payload.get("fields") != list(fields)
@@ -899,6 +902,19 @@ def _cached_gaia_output(
     acquisition = payload.get("acquisition")
     if not isinstance(acquisition, dict):
         raise _invalid_response("GAIA_TAP_CACHE_PAYLOAD_INVALID")
+    stored_query_identity = {
+        "query": acquisition.get("query"),
+        "response_format": acquisition.get("response_format"),
+        "cache_version": acquisition.get("cache_version"),
+    }
+    stored_query = stored_query_identity["query"]
+    stored_response_format = stored_query_identity["response_format"]
+    if stored_query is not None or stored_response_format is not None:
+        if (
+            not all(isinstance(value, str) for value in stored_query_identity.values())
+            or compute_canonical_payload_hash(stored_query_identity) != query_hash
+        ):
+            raise _invalid_response("GAIA_TAP_CACHE_IDENTITY_MISMATCH")
     if (
         acquisition.get("cache_version") != GAIA_CACHE_VERSION
         or acquisition.get("query_hash") != query_hash
@@ -906,7 +922,11 @@ def _cached_gaia_output(
         raise _invalid_response("GAIA_TAP_CACHE_IDENTITY_MISMATCH")
     return {
         **payload,
-        "acquisition": {**acquisition, "source_mode": "cached"},
+        "acquisition": {
+            **acquisition,
+            **query_identity,
+            "source_mode": "cached",
+        },
     }
 
 

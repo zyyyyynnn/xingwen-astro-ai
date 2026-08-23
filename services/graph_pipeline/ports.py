@@ -23,6 +23,7 @@ from app.schemas.core import (
     SourceSnapshotDetail,
 )
 from app.schemas.data_artifacts import (
+    CrossmatchArtifactAuthority,
     DatasetArtifactCandidate,
     FieldDictionaryArtifactCandidate,
 )
@@ -641,7 +642,16 @@ def _validate_data_evidence_semantics(
     transformations = {
         item.evidence_id: item for item in candidate.transformation_evidence
     }
-    crossmatch_ids = set(candidate.crossmatch_evidence_ids)
+    crossmatch_authority = (
+        candidate.authority
+        if isinstance(candidate.authority, CrossmatchArtifactAuthority)
+        else None
+    )
+    crossmatch_ids = (
+        set(crossmatch_authority.evidence_ids)
+        if crossmatch_authority is not None
+        else set()
+    )
     for binding in evidence_bindings:
         evidence_id = binding.pipeline_evidence_id
         transformation = transformations.get(evidence_id)
@@ -665,6 +675,11 @@ def _validate_data_evidence_semantics(
                 evidence_id,
                 "persisted data Evidence does not resolve to a retained Data Artifact identity",
             )
+        if crossmatch_authority is None:
+            raise _data_evidence_error(
+                evidence_id,
+                "non-Transformation data Evidence requires the Crossmatch authority",
+            )
         locator = binding.pipeline_locator
         content_hash = locator.get("crossmatch_content_hash")
         if (
@@ -680,7 +695,7 @@ def _validate_data_evidence_semantics(
             or not content_hash.startswith("sha256:")
             or len(content_hash) != 71
             or binding.pipeline_source_snapshot_id
-            not in set(candidate.crossmatch_source_snapshot_ids)
+            not in set(crossmatch_authority.source_snapshot_ids)
         ):
             raise _data_evidence_error(
                 evidence_id,

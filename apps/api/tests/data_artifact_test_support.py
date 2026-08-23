@@ -3,9 +3,12 @@ from __future__ import annotations
 from uuid import NAMESPACE_URL, uuid5
 
 from app.schemas.data_artifacts import (
+    CrossmatchArtifactAuthority,
+    CrossmatchDataArtifactAuthority,
     DataArtifactBuildInput,
     DatasetArtifactCandidate,
     ManifestPins,
+    SourceTableArtifactAuthority,
     compute_data_artifact_input_hash,
 )
 from app.workflow.publisher import ArtifactEvidenceBinding, ArtifactSourceSnapshotBinding
@@ -41,10 +44,12 @@ def build_input(
     payload = {
         "manifest_pins": pins.model_dump(mode="json"),
         "requested_fields": requested_fields,
-        "left_acquisition": crossmatch_input.left.model_dump(mode="json"),
-        "right_acquisition": crossmatch_input.right.model_dump(mode="json"),
-        "crossmatch_result": crossmatch_result.model_dump(mode="json"),
-        "document_observations": [],
+        "authority": CrossmatchDataArtifactAuthority(
+            left_acquisition=crossmatch_input.left,
+            right_acquisition=crossmatch_input.right,
+            crossmatch_result=crossmatch_result,
+            document_observations=(),
+        ).model_dump(mode="json"),
         "mapping_rule_set": mapping_rule_set.model_dump(mode="json"),
         "conversion_catalog": conversion_catalog.model_dump(mode="json"),
         "producer_version": mapping_rule_set.producer_version,
@@ -53,10 +58,12 @@ def build_input(
     unhashed = DataArtifactBuildInput.model_construct(
         manifest_pins=pins,
         requested_fields=requested_fields,
-        left_acquisition=crossmatch_input.left,
-        right_acquisition=crossmatch_input.right,
-        crossmatch_result=crossmatch_result,
-        document_observations=(),
+        authority=CrossmatchDataArtifactAuthority(
+            left_acquisition=crossmatch_input.left,
+            right_acquisition=crossmatch_input.right,
+            crossmatch_result=crossmatch_result,
+            document_observations=(),
+        ),
         mapping_rule_set=mapping_rule_set,
         conversion_catalog=conversion_catalog,
         producer_version=mapping_rule_set.producer_version,
@@ -73,10 +80,16 @@ def build_data_publication_bindings(
     tuple[ArtifactSourceSnapshotBinding, ...],
     tuple[ArtifactEvidenceBinding, ...],
 ]:
-    persisted_snapshots = {
-        pipeline_id: str(uuid5(NAMESPACE_URL, f"test-source-snapshot:{pipeline_id}"))
-        for pipeline_id in candidate.source_snapshot_ids
-    }
+    if isinstance(candidate.authority, SourceTableArtifactAuthority):
+        persisted_snapshots = {
+            pipeline_id: str(candidate.authority.source_snapshot_id)
+            for pipeline_id in candidate.source_snapshot_ids
+        }
+    else:
+        persisted_snapshots = {
+            pipeline_id: str(uuid5(NAMESPACE_URL, f"test-source-snapshot:{pipeline_id}"))
+            for pipeline_id in candidate.source_snapshot_ids
+        }
     snapshots = tuple(
         ArtifactSourceSnapshotBinding(
             pipeline_source_snapshot_id=pipeline_id,
@@ -87,9 +100,13 @@ def build_data_publication_bindings(
     transformations = {
         item.evidence_id: item for item in candidate.transformation_evidence
     }
-    crossmatch_evidence = {
-        item.evidence_id: item for item in candidate.crossmatch_evidence
-    }
+    crossmatch_evidence = (
+        {
+            item.evidence_id: item for item in candidate.authority.evidence
+        }
+        if isinstance(candidate.authority, CrossmatchArtifactAuthority)
+        else {}
+    )
     evidence_bindings: list[ArtifactEvidenceBinding] = []
     for pipeline_id in candidate.evidence_ids:
         transformation = transformations.get(pipeline_id)

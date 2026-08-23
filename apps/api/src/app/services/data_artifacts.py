@@ -28,9 +28,12 @@ from app.schemas.data_artifact_api import (
     SourceCollectionArtifactRead,
 )
 from app.schemas.data_artifacts import (
+    CrossmatchArtifactAuthority,
     DatasetArtifactCandidate,
     DatasetRow,
     FieldDictionaryArtifactCandidate,
+    SourceTableArtifactAuthority,
+    SourceTableTransformationAuthority,
     SourceCollectionArtifactCandidate,
 )
 from app.schemas.manifest import DataType
@@ -393,19 +396,23 @@ def _validate_dataset_provenance(
         item.evidence_id: item for item in candidate.transformation_evidence
     }
     crossmatch_identity: dict[str, tuple[str, str]] = {}
-    for transformation in transformations.values():
-        for evidence_id in transformation.crossmatch_evidence_ids:
-            identity = (
-                transformation.crossmatch_result_id,
-                transformation.crossmatch_result_content_hash,
-            )
-            existing = crossmatch_identity.get(evidence_id)
-            if existing is not None and existing != identity:
+    crossmatch_evidence = {}
+    if isinstance(candidate.authority, CrossmatchArtifactAuthority):
+        for transformation in transformations.values():
+            if not hasattr(transformation.authority, "result_id"):
                 raise _schema_problem()
-            crossmatch_identity[evidence_id] = identity
-    crossmatch_evidence = {
-        item.evidence_id: item for item in candidate.crossmatch_evidence
-    }
+            for evidence_id in transformation.authority.evidence_ids:
+                identity = (
+                    transformation.authority.result_id,
+                    transformation.authority.result_content_hash,
+                )
+                existing = crossmatch_identity.get(evidence_id)
+                if existing is not None and existing != identity:
+                    raise _schema_problem()
+                crossmatch_identity[evidence_id] = identity
+        crossmatch_evidence = {
+            item.evidence_id: item for item in candidate.authority.evidence
+        }
     if set(transformations) | set(crossmatch_evidence) != set(candidate.evidence_ids):
         raise _schema_problem()
 
@@ -413,6 +420,18 @@ def _validate_dataset_provenance(
     for pipeline_id in candidate.evidence_ids:
         transformation = transformations.get(pipeline_id)
         if transformation is not None:
+            if isinstance(candidate.authority, SourceTableArtifactAuthority):
+                if not isinstance(
+                    transformation.authority, SourceTableTransformationAuthority
+                ) or (
+                    transformation.authority.admission_id
+                    != candidate.authority.source_table_admission.admission_id
+                    or transformation.authority.row_id
+                    != transformation.dataset_row_id
+                    or transformation.locator.source_snapshot_id
+                    != candidate.authority.source_snapshot_id
+                ):
+                    raise _schema_problem()
             pipeline_snapshot_id = transformation.locator.source_snapshot_id
             locator = transformation.locator.model_dump(mode="json")
             quote_or_value = (
@@ -428,7 +447,11 @@ def _validate_dataset_provenance(
                     source_snapshot_id=persisted_by_pipeline[pipeline_snapshot_id],
                     locator=locator,
                     quote_or_value=quote_or_value,
-                    extraction_method="data_artifact_admission",
+                    extraction_method=(
+                        "source_table_admission"
+                        if isinstance(candidate.authority, SourceTableArtifactAuthority)
+                        else "data_artifact_admission"
+                    ),
                     confidence=1.0,
                 )
             )

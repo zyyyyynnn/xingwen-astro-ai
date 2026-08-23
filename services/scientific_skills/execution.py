@@ -91,7 +91,7 @@ class ScientificTaskExecutionOutcome:
 class ScientificStepOutput:
     task_id: str
     skill_id: ScientificSkillId
-    source_mode: Literal["live", "cached"]
+    source_mode: Literal["fixture", "live", "cached"]
     artifact_candidates: tuple[
         AnalysisReportArtifactContent
         | VisualizationArtifactContent
@@ -101,15 +101,26 @@ class ScientificStepOutput:
         | ModelArtifactContent,
         ...,
     ]
+    source_snapshot_ids: tuple[str, ...] = ()
+    source_table_admissions: tuple[SourceTableAdmission, ...] = ()
 
 
 def _publication_source_mode(
     outcome: ScientificTaskExecutionOutcome,
-) -> Literal["live", "cached"]:
+) -> Literal["fixture", "live", "cached"]:
     acquisition = outcome.result.output.get("acquisition")
-    if isinstance(acquisition, Mapping) and acquisition.get("source_mode") == "cached":
+    if not isinstance(acquisition, Mapping):
+        if outcome.task.skill_id is ScientificSkillId.gaia_cone_search:
+            raise ValueError("Gaia acquisition provenance is missing")
+        return "live"
+    source_mode = acquisition.get("source_mode")
+    if source_mode == "live":
+        return "live"
+    if source_mode == "cached":
         return "cached"
-    return "live"
+    if source_mode in {"fixture", "recorded"}:
+        return "fixture"
+    raise ValueError("scientific acquisition source_mode is unknown")
 
 
 class ScientificProducedSourceRecorder(Protocol):
@@ -223,6 +234,8 @@ class ScientificStepAdapter:
             skill_id=task.skill_id,
             source_mode=_publication_source_mode(outcome),
             artifact_candidates=candidates,
+            source_snapshot_ids=outcome.source_snapshot_ids,
+            source_table_admissions=_source_table_admissions(outcome),
         )
 
     async def _execute_task(
@@ -341,6 +354,13 @@ def _admit_gaia_output(
         truncated, bool
     ):
         raise ValueError("Gaia result completion status is invalid")
+    if (
+        (status == "empty") != (not raw_rows)
+        or (status == "truncated") != truncated
+    ):
+        raise ValueError(
+            "Gaia result completion status is inconsistent with rows and truncated"
+        )
     admission = admit_source_table(
         source_id=source.source_id,
         fields=raw_fields,

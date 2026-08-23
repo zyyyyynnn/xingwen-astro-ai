@@ -37,6 +37,12 @@ from app.schemas.artifact_publication import (
     normalize_artifact_kind,
 )
 from app.schemas.data_quality import DataQualityProjection
+from app.schemas.data_artifacts import (
+    CrossmatchArtifactAuthority,
+    CrossmatchTransformationAuthority,
+    SourceTableArtifactAuthority,
+    SourceTableTransformationAuthority,
+)
 from app.services.research_thread import append_assistant_message
 from app.workflow.store import TERMINAL_RUN_STATUSES
 
@@ -2329,22 +2335,29 @@ def _data_publication_references(
         for item in getattr(semantic_candidate, "transformation_evidence", ())
     }
     crossmatch_identity: dict[str, tuple[str, str]] = {}
-    for item in transformations.values():
-        for evidence_id in item.crossmatch_evidence_ids:
-            identity = (
-                item.crossmatch_result_id,
-                item.crossmatch_result_content_hash,
-            )
-            existing = crossmatch_identity.get(evidence_id)
-            if existing is not None and existing != identity:
+    crossmatch_evidence = {}
+    if isinstance(semantic_candidate.authority, CrossmatchArtifactAuthority):
+        for item in transformations.values():
+            if not isinstance(item.authority, CrossmatchTransformationAuthority):
                 raise PublicationAdmissionError(
-                    "Data Artifact crossmatch Evidence has conflicting result identity"
+                    "Crossmatch Data Artifact transformation Evidence has the wrong authority"
                 )
-            crossmatch_identity[evidence_id] = identity
-    crossmatch_evidence = {
-        item.evidence_id: item
-        for item in getattr(semantic_candidate, "crossmatch_evidence", ())
-    }
+            for evidence_id in item.authority.evidence_ids:
+                identity = (
+                    item.authority.result_id,
+                    item.authority.result_content_hash,
+                )
+                existing = crossmatch_identity.get(evidence_id)
+                if existing is not None and existing != identity:
+                    raise PublicationAdmissionError(
+                        "Data Artifact crossmatch Evidence has conflicting result identity"
+                    )
+                crossmatch_identity[evidence_id] = identity
+        crossmatch_evidence = {
+            item.evidence_id: item for item in semantic_candidate.authority.evidence
+        }
+    elif not isinstance(semantic_candidate.authority, SourceTableArtifactAuthority):
+        raise PublicationAdmissionError("Data Artifact candidate has an unsupported authority")
 
     candidate_evidence_ids = set(transformations) | set(crossmatch_evidence)
     if candidate_evidence_ids != set(evidence_ids):
@@ -2384,7 +2397,28 @@ def _data_publication_references(
                 if transformation.canonical_value is not None
                 else transformation.raw_value
             )
-            extraction_method = "data_artifact_admission"
+            if isinstance(semantic_candidate.authority, SourceTableArtifactAuthority):
+                if not isinstance(
+                    transformation.authority, SourceTableTransformationAuthority
+                ) or (
+                    transformation.authority.admission_id
+                    != semantic_candidate.authority.source_table_admission.admission_id
+                    or transformation.authority.row_id != transformation.dataset_row_id
+                    or transformation.locator.source_snapshot_id
+                    != semantic_candidate.authority.source_snapshot_id
+                ):
+                    raise PublicationAdmissionError(
+                        "SourceTable transformation Evidence authority disagrees with the admitted table"
+                    )
+                extraction_method = "source_table_admission"
+            else:
+                if not isinstance(
+                    transformation.authority, CrossmatchTransformationAuthority
+                ):
+                    raise PublicationAdmissionError(
+                        "Crossmatch transformation Evidence has the wrong authority"
+                    )
+                extraction_method = "data_artifact_admission"
         else:
             evidence = crossmatch_evidence.get(pipeline_id)
             identity = crossmatch_identity.get(pipeline_id)

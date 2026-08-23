@@ -14,6 +14,7 @@ from app.schemas.core import (
     ScientificSkillId,
     UtcDateTime,
 )
+from app.schemas.evidence import SourceSnapshotRecord
 
 
 MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
@@ -40,6 +41,25 @@ class ScientificSourceReference(BaseModel):
     source_id: Identifier | None = None
     query_hash: ContentHash | None = None
     retrieved_at: UtcDateTime | None = None
+    source_snapshot: SourceSnapshotRecord | None = None
+
+    @model_validator(mode="after")
+    def validate_snapshot_binding(self) -> Self:
+        snapshot = self.source_snapshot
+        if snapshot is None:
+            return self
+        if (
+            str(snapshot.snapshot_id) != str(self.source_snapshot_id)
+            or self.source_id is not None
+            and snapshot.source_id != self.source_id
+            or self.query_hash is not None
+            and snapshot.query_hash != self.query_hash
+            or snapshot.content_hash != self.content_hash
+            or self.retrieved_at is not None
+            and snapshot.retrieved_at != self.retrieved_at
+        ):
+            raise ValueError("scientific source reference disagrees with its Snapshot")
+        return self
 
 
 class ScientificSkillRequest(BaseModel):

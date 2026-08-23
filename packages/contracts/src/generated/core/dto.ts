@@ -166,6 +166,7 @@ export type NullReason =
   | "not_applicable"
   | "unresolved_conflict"
   | "below_detection_limit";
+export type EntityLevel1 = "host_star" | "planet_candidate" | "planet_assertion";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "EvidenceType".
@@ -971,7 +972,7 @@ export interface SourceTableCellAdmission {
   row_id: string;
 }
 /**
- * Locator for one structured database cell (left/right Crossmatch side).
+ * Locator for one structured database cell.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "DatabaseCellLocator".
@@ -1015,6 +1016,8 @@ export interface SourceTableColumnAdmission {
   canonical_field_id: string;
   canonical_unit: string;
   canonical_unit_symbol?: string | null;
+  conversion_rule_id: string;
+  conversion_rule_version: string;
   label_zh: string;
   raw_field: string;
   source_unit: string;
@@ -1399,19 +1402,14 @@ export interface DataArtifactRowRead {
  * via the `definition` "DatasetRow".
  */
 export interface DatasetRow {
-  alignment_status: AlignmentStatus;
-  canonical_row_identity: CanonicalRowIdentity;
   conflict_ids: string[];
   content_hash: string;
-  crossmatch_logical_key: string;
-  crossmatch_record_type: string;
-  entity_level: EntityLevel;
   evidence_ids: string[];
   fields: (MappedCanonicalValue | DeclaredNullValue | UnresolvedCanonicalValue)[];
   projected_field_ids: string[];
   projection_policy_version: string;
+  row_authority: CrossmatchRowAuthority | SourceTableRowAuthority;
   row_id: string;
-  source_member_ids: string[];
   source_snapshot_ids: string[];
 }
 /**
@@ -1451,6 +1449,41 @@ export interface UnresolvedCanonicalValue {
   reason: string;
   status?: "unresolved";
   transformation_evidence_ids: string[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CrossmatchRowAuthority".
+ */
+export interface CrossmatchRowAuthority {
+  alignment_status: AlignmentStatus;
+  authority_kind?: "crossmatch";
+  canonical_row_identity: CanonicalRowIdentity;
+  entity_level: EntityLevel;
+  logical_key: string;
+  record_type: "paired" | "unpaired" | "conflict_group";
+  source_member_ids: string[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SourceTableRowAuthority".
+ */
+export interface SourceTableRowAuthority {
+  authority_kind?: "source_table";
+  canonical_row_identity: SourceTableCanonicalRowIdentity;
+}
+/**
+ * Canonical identity derived from one admitted SourceTable row.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SourceTableCanonicalRowIdentity".
+ */
+export interface SourceTableCanonicalRowIdentity {
+  canonical_identity: string;
+  entity_level?: EntityLevel1;
+  identity_kind?: "source_table";
+  identity_version?: "1.0.0";
+  source_table_admission_id: string;
+  source_table_row_id: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -2440,19 +2473,24 @@ export interface CreateUserFeedbackRequest {
   target_type: FeedbackTargetType;
 }
 /**
+ * Crossmatch-specific identity and Evidence authority for a candidate.
+ *
  * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "CrossmatchCondition".
+ * via the `definition` "CrossmatchArtifactAuthority".
  */
-export interface CrossmatchCondition {
-  condition_id: string;
-  field_id?: string | null;
-  left_value?: string | number | boolean | null;
-  manual_review_threshold_arcsec?: number | null;
-  operator: ConditionOperator;
-  right_value?: string | number | boolean | null;
-  rule_reference: string;
-  separation_arcsec?: number | null;
-  strict_threshold_arcsec?: number | null;
+export interface CrossmatchArtifactAuthority {
+  alignment_record_keys?: string[];
+  authority_kind?: "crossmatch";
+  conflict_record_keys?: string[];
+  content_hash: string;
+  evidence: CrossmatchEvidence[];
+  evidence_ids: string[];
+  inconclusive_record_keys?: string[];
+  input_hash: string;
+  output_hash: string;
+  result_id: string;
+  review_required_record_keys?: string[];
+  source_snapshot_ids: string[];
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -2486,6 +2524,21 @@ export interface CrossmatchEvidence {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CrossmatchCondition".
+ */
+export interface CrossmatchCondition {
+  condition_id: string;
+  field_id?: string | null;
+  left_value?: string | number | boolean | null;
+  manual_review_threshold_arcsec?: number | null;
+  operator: ConditionOperator;
+  right_value?: string | number | boolean | null;
+  rule_reference: string;
+  separation_arcsec?: number | null;
+  strict_threshold_arcsec?: number | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "EvidenceLocator".
  */
 export interface EvidenceLocator {
@@ -2498,6 +2551,19 @@ export interface EvidenceLocator {
   side: CrossmatchSide;
   source_id: string;
   source_snapshot_id: string;
+}
+/**
+ * Crossmatch-only execution binding for one transformation Evidence.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CrossmatchTransformationAuthority".
+ */
+export interface CrossmatchTransformationAuthority {
+  authority_kind?: "crossmatch";
+  evidence_ids: string[];
+  logical_key: string;
+  result_content_hash: string;
+  result_id: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -2601,6 +2667,7 @@ export interface DataSourceSnapshotProjection {
  * via the `definition` "DatasetArtifactCandidate".
  */
 export interface DatasetArtifactCandidate {
+  authority: CrossmatchArtifactAuthority | SourceTableArtifactAuthority;
   candidate_id: string;
   canonical_content_hash: string;
   columns: DatasetColumn[];
@@ -2608,13 +2675,6 @@ export interface DatasetArtifactCandidate {
   conversion_catalog_content_hash: string;
   conversion_catalog_id: string;
   conversion_catalog_version: string;
-  crossmatch_content_hash: string;
-  crossmatch_evidence: CrossmatchEvidence[];
-  crossmatch_evidence_ids: string[];
-  crossmatch_input_hash: string;
-  crossmatch_output_hash: string;
-  crossmatch_result_id: string;
-  crossmatch_source_snapshot_ids: string[];
   evidence_ids: string[];
   field_count: number;
   input_hash: string;
@@ -2637,6 +2697,19 @@ export interface DatasetArtifactCandidate {
   source_snapshot_ids: string[];
   source_values: SourceValueCandidate[];
   transformation_evidence: TransformationEvidence[];
+}
+/**
+ * SourceTable-specific admission and Evidence authority for a candidate.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SourceTableArtifactAuthority".
+ */
+export interface SourceTableArtifactAuthority {
+  authority_kind?: "source_table";
+  evidence_ids: string[];
+  source_snapshot_content_hash: string;
+  source_snapshot_id: string;
+  source_table_admission: SourceTableAdmission;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -2961,6 +3034,7 @@ export interface UncertaintyValue {
  * via the `definition` "TransformationEvidence".
  */
 export interface TransformationEvidence {
+  authority: CrossmatchTransformationAuthority | SourceTableTransformationAuthority;
   canonical_field_id: string;
   canonical_unit: string;
   canonical_value?: string | null;
@@ -2970,10 +3044,6 @@ export interface TransformationEvidence {
   conversion_catalog_version: string;
   conversion_rule_id: string;
   conversion_rule_version: string;
-  crossmatch_evidence_ids: string[];
-  crossmatch_logical_key: string;
-  crossmatch_result_content_hash: string;
-  crossmatch_result_id: string;
   dataset_row_id: string;
   evidence_id: string;
   limit: LimitValue;
@@ -2994,6 +3064,17 @@ export interface TransformationEvidence {
   transformation_rule_version: string;
   uncertainty: UncertaintyValue;
   uncertainty_locators: DatabaseCellLocator[];
+}
+/**
+ * SourceTable-only execution binding for one transformation Evidence.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SourceTableTransformationAuthority".
+ */
+export interface SourceTableTransformationAuthority {
+  admission_id: string;
+  authority_kind?: "source_table";
+  row_id: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -3127,11 +3208,11 @@ export interface FieldDictionaryArtifactRead {
  * via the `definition` "FieldDictionaryArtifactCandidate".
  */
 export interface FieldDictionaryArtifactCandidate {
+  authority: CrossmatchArtifactAuthority | SourceTableArtifactAuthority;
   candidate_id: string;
   conversion_catalog_content_hash: string;
   conversion_catalog_id: string;
   conversion_catalog_version: string;
-  crossmatch_source_snapshot_ids: string[];
   evidence_ids: string[];
   field_definitions: FieldDefinition[];
   input_hash: string;
@@ -5190,28 +5271,26 @@ export interface SourceCollectionArtifactRead {
  * via the `definition` "SourceCollectionArtifactCandidate".
  */
 export interface SourceCollectionArtifactCandidate {
-  alignment_record_keys: string[];
+  authority: CrossmatchArtifactAuthority | SourceTableArtifactAuthority;
   candidate_id: string;
-  conflict_record_keys: string[];
   conversion_catalog_content_hash: string;
   conversion_catalog_id: string;
   conversion_catalog_version: string;
-  crossmatch_content_hash: string;
-  crossmatch_result_id: string;
-  crossmatch_source_snapshot_ids: string[];
   evidence_ids: string[];
-  inconclusive_record_keys: string[];
   input_hash: string;
   kind?: "source_collection";
   manifest_pins: ManifestPins;
   mapping_rule_set_content_hash: string;
   mapping_rule_set_id: string;
   mapping_rule_set_version: string;
-  members: (StructuredSourceCollectionMember | DocumentSourceCollectionMember)[];
+  members: (
+    | StructuredSourceCollectionMember
+    | SourceTableSourceCollectionMember
+    | DocumentSourceCollectionMember
+  )[];
   output_hash: string;
   producer: DataArtifactProducer;
   quality_evaluation_status?: "not_evaluated";
-  review_required_record_keys: string[];
   schema_version?: "2.0.0";
   source_snapshot_ids: string[];
   source_value_ids: string[];
@@ -5250,6 +5329,24 @@ export interface RawSourceRecordReference {
   source_id: string;
   source_snapshot_content_hash: string;
   source_snapshot_id: string;
+}
+/**
+ * One persisted SourceTable and its admitted raw-record registry.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SourceTableSourceCollectionMember".
+ */
+export interface SourceTableSourceCollectionMember {
+  license_note: string;
+  member_kind?: "source_table";
+  query_hash: string;
+  raw_record_count: number;
+  raw_record_references: RawSourceRecordReference[];
+  source_id: string;
+  source_snapshot: SourceSnapshotRecord;
+  source_snapshot_content_hash: string;
+  source_snapshot_id: string;
+  source_table_admission: SourceTableAdmission;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema

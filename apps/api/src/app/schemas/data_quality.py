@@ -30,6 +30,7 @@ from .data_artifacts import (
     DatasetArtifactCandidate,
     FieldDictionaryArtifactCandidate,
     ManifestPins,
+    SourceTableCanonicalRowIdentity,
     SourceCollectionArtifactCandidate,
 )
 from .crossmatch import EntityLevel
@@ -640,13 +641,70 @@ class FieldQualityResult(BaseModel):
         return self
 
 
+class CrossmatchQualityAuthority(BaseModel):
+    """Quality input binding for the existing Crossmatch authority."""
+
+    model_config = MODEL_CONFIG
+
+    authority_kind: Literal["crossmatch"] = "crossmatch"
+    result_id: Identifier
+    input_hash: ContentHash
+    output_hash: ContentHash
+    content_hash: ContentHash
+
+
+class SourceTableQualityAuthority(BaseModel):
+    """Quality input binding for one admitted persisted SourceTable."""
+
+    model_config = MODEL_CONFIG
+
+    authority_kind: Literal["source_table"] = "source_table"
+    admission_id: Identifier
+    source_snapshot_id: RuntimeIdentifier
+    source_snapshot_content_hash: ContentHash
+    evidence_ids: tuple[RuntimeIdentifier, ...]
+
+
+QualityInputAuthority = Annotated[
+    CrossmatchQualityAuthority | SourceTableQualityAuthority,
+    Field(discriminator="authority_kind"),
+]
+
+
+class CrossmatchRowQualityAuthority(BaseModel):
+    """Quality row binding for one Crossmatch alignment record."""
+
+    model_config = MODEL_CONFIG
+
+    authority_kind: Literal["crossmatch"] = "crossmatch"
+    logical_key: ContentHash
+    record_type: Literal["paired", "unpaired", "conflict_group"]
+    alignment_status: AlignmentStatus
+
+
+class SourceTableRowQualityAuthority(BaseModel):
+    """Quality row binding for one admitted SourceTable row."""
+
+    model_config = MODEL_CONFIG
+
+    authority_kind: Literal["source_table"] = "source_table"
+    admission_id: Identifier
+    row_id: Identifier
+
+
+RowQualityAuthority = Annotated[
+    CrossmatchRowQualityAuthority | SourceTableRowQualityAuthority,
+    Field(discriminator="authority_kind"),
+]
+
+
 class RowQualityResult(BaseModel):
     model_config = MODEL_CONFIG
 
     row_id: Identifier
-    canonical_row_identity: CanonicalRowIdentity
+    canonical_row_identity: CanonicalRowIdentity | SourceTableCanonicalRowIdentity
     entity_level: EntityLevel
-    alignment_status: AlignmentStatus
+    authority: RowQualityAuthority
     applicable_field_count: int = Field(ge=0)
     mapped_count: int = Field(ge=0)
     declared_null_count: int = Field(ge=0)
@@ -665,7 +723,6 @@ class RowQualityResult(BaseModel):
     conflict_ids: tuple[Identifier, ...]
     evidence_ids: tuple[Identifier, ...]
     source_snapshot_ids: tuple[Identifier, ...]
-    crossmatch_logical_key: ContentHash
     content_hash: ContentHash
 
     @model_validator(mode="after")
@@ -812,10 +869,7 @@ class QualityInputReferences(BaseModel):
     candidates: tuple[QualityArtifactReference, ...] = Field(min_length=3, max_length=3)
     requested_field_ids: tuple[Identifier, ...] = Field(min_length=1)
     row_ids: tuple[Identifier, ...]
-    crossmatch_result_id: Identifier
-    crossmatch_input_hash: ContentHash
-    crossmatch_output_hash: ContentHash
-    crossmatch_content_hash: ContentHash
+    authority: QualityInputAuthority
     research_contract_id: Identifier
     research_contract_version: int = Field(ge=1)
     research_contract_content_hash: ContentHash
@@ -1182,6 +1236,12 @@ def compute_data_quality_result_id(input_hash: ContentHash, rule_set_content_has
 __all__ = [
     "DocumentParseQualityObservation",
     "DocumentParseQualityStatus",
+    "CrossmatchQualityAuthority",
+    "SourceTableQualityAuthority",
+    "QualityInputAuthority",
+    "CrossmatchRowQualityAuthority",
+    "SourceTableRowQualityAuthority",
+    "RowQualityAuthority",
     "DataQualityEvaluationInput",
     "DataQualityEvaluationOutcome",
     "DataQualityEvaluationRejected",
@@ -1221,3 +1281,14 @@ __all__ = [
     "compute_quality_output_hash",
     "compute_quality_rule_set_content_hash",
 ]
+
+
+# Resolve SourceTable-backed Data Artifact references only after this module's
+# quality primitives are fully initialized.
+import sys as _sys
+
+if "app.schemas.source_table" not in _sys.modules:
+    from .source_table import SourceTableAdmission as _SourceTableAdmission
+    from .data_artifacts import rebuild_source_table_models as _rebuild_source_table_models
+
+    _rebuild_source_table_models(_SourceTableAdmission)

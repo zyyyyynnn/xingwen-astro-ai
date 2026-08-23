@@ -4,6 +4,8 @@ import pytest
 
 from app.schemas.crossmatch import AdjudicationDecision
 from app.schemas.data_artifacts import (
+    CrossmatchRowAuthority,
+    CrossmatchDataArtifactAuthority,
     DataArtifactBuildInput,
     DataArtifactBuildResult,
     ManifestPins,
@@ -68,10 +70,12 @@ def _build_input_from_crossmatch(
     unhashed = DataArtifactBuildInput.model_construct(
         manifest_pins=pins,
         requested_fields=requested_fields,
-        left_acquisition=crossmatch_input.left,
-        right_acquisition=crossmatch_input.right,
-        crossmatch_result=crossmatch_result,
-        document_observations=(),
+        authority=CrossmatchDataArtifactAuthority(
+            left_acquisition=crossmatch_input.left,
+            right_acquisition=crossmatch_input.right,
+            crossmatch_result=crossmatch_result,
+            document_observations=(),
+        ),
         mapping_rule_set=baseline.mapping_rule_set,
         conversion_catalog=baseline.conversion_catalog,
         producer_version=baseline.producer_version,
@@ -196,13 +200,19 @@ def test_pipeline_canonical_row_identity_covers_alignment_semantics(
         build_input("planet.name", scenario_id=scenario_id)
     ).dataset
 
-    rows = [row for row in dataset.rows if row.alignment_status == alignment_status]
+    rows = [
+        row
+        for row in dataset.rows
+        if isinstance(row.row_authority, CrossmatchRowAuthority)
+        and row.row_authority.alignment_status.value == alignment_status
+    ]
     assert rows
     assert all(row.canonical_row_identity.member_entities for row in rows)
     assert all(
-        row.canonical_row_identity.alignment_status == row.alignment_status
+        row.canonical_row_identity.alignment_status
+        == row.row_authority.alignment_status
         and row.canonical_row_identity.entity_level == row.entity_level
-        and row.canonical_row_identity.record_type == row.crossmatch_record_type
+        and row.canonical_row_identity.record_type == row.row_authority.record_type
         for row in rows
     )
 
@@ -216,7 +226,12 @@ def test_pipeline_canonical_row_identity_covers_rejected_empty_row() -> None:
         _build_input_from_crossmatch(_scenario_input(scenario), "planet.name")
     ).dataset
 
-    rejected = next(row for row in dataset.rows if row.alignment_status == "rejected")
+    rejected = next(
+        row
+        for row in dataset.rows
+        if isinstance(row.row_authority, CrossmatchRowAuthority)
+        and row.row_authority.alignment_status.value == "rejected"
+    )
     assert rejected.fields == ()
     assert rejected.canonical_row_identity.alignment_status == "rejected"
     assert rejected.canonical_row_identity.member_entities
@@ -256,22 +271,30 @@ def test_incomplete_crossmatch_scope_stays_inconclusive() -> None:
         build_input("star.tic_id", scenario_id="truncated_inconclusive")
     )
 
-    assert any(row.alignment_status == "inconclusive" for row in result.dataset.rows)
-    assert result.source_collection.inconclusive_record_keys
+    assert any(
+        isinstance(row.row_authority, CrossmatchRowAuthority)
+        and row.row_authority.alignment_status.value == "inconclusive"
+        for row in result.dataset.rows
+    )
+    assert result.source_collection.authority.inconclusive_record_keys
 
 
 def test_acquisition_payload_tamper_is_rejected_even_with_recomputed_input_hash() -> None:
     from app.schemas.data_artifacts import compute_data_artifact_input_hash
 
     input_value = build_input("star.tic_id")
-    record = input_value.left_acquisition.records[0]
+    assert isinstance(input_value.authority, CrossmatchDataArtifactAuthority)
+    record = input_value.authority.left_acquisition.records[0]
     tampered_record = record.model_copy(
         update={"payload": {**record.payload, "tid": 999}}
     )
-    tampered_left = input_value.left_acquisition.model_copy(
+    tampered_left = input_value.authority.left_acquisition.model_copy(
         update={"records": (tampered_record,)}
     )
-    tampered = input_value.model_copy(update={"left_acquisition": tampered_left})
+    tampered_authority = input_value.authority.model_copy(
+        update={"left_acquisition": tampered_left}
+    )
+    tampered = input_value.model_copy(update={"authority": tampered_authority})
     tampered = tampered.model_copy(
         update={"input_hash": compute_data_artifact_input_hash(tampered)}
     )
@@ -400,7 +423,11 @@ def test_source_collection_members_bind_each_source_and_all_raw_records() -> Non
         "left",
         "right",
     )
-    acquisitions = (input_value.left_acquisition, input_value.right_acquisition)
+    assert isinstance(input_value.authority, CrossmatchDataArtifactAuthority)
+    acquisitions = (
+        input_value.authority.left_acquisition,
+        input_value.authority.right_acquisition,
+    )
     for member, acquisition in zip(result.source_collection.members, acquisitions):
         assert member.source_id == acquisition.snapshot.source_id
         assert member.source_snapshot_id == acquisition.snapshot.snapshot_id
@@ -470,7 +497,11 @@ def test_planet_radius_assertions_are_not_merged_into_host_rows(
     assert all(
         row.projected_field_ids == ("planet.radius",) for row in assertion_rows
     )
-    assert all(len(row.source_member_ids) == 1 for row in assertion_rows)
+    assert all(
+        isinstance(row.row_authority, CrossmatchRowAuthority)
+        and len(row.row_authority.source_member_ids) == 1
+        for row in assertion_rows
+    )
 
 
 def test_host_row_projection_contains_only_star_and_system_fields() -> None:
@@ -492,7 +523,10 @@ def test_source_collection_keeps_one_record_reference_for_multi_field_use() -> N
 
     for member, acquisition in zip(
         result.source_collection.members,
-        (input_value.left_acquisition, input_value.right_acquisition),
+        (
+            input_value.authority.left_acquisition,
+            input_value.authority.right_acquisition,
+        ),
     ):
         assert len(member.raw_record_references) == len(acquisition.records)
 
@@ -502,8 +536,8 @@ def test_dataset_rejects_synchronized_extra_snapshot() -> None:
     payload = result.dataset.model_dump(mode="json")
     extra = "snapshot.forged"
     payload["source_snapshot_ids"].append(extra)
-    payload["crossmatch_source_snapshot_ids"].append(extra)
-    with pytest.raises(ValidationError, match="two crossmatch SourceSnapshots"):
+    payload["authority"]["source_snapshot_ids"].append(extra)
+    with pytest.raises(ValidationError, match="exactly two snapshots"):
         DatasetArtifactCandidate.model_validate(_rehash_dataset_tree(payload))
 
 
@@ -518,7 +552,7 @@ def test_source_collection_members_survive_reversed_snapshot_sort_order() -> Non
             reference["source_snapshot_id"] = replacement
         _refresh_raw_record_registry(member)
     payload["source_snapshot_ids"] = sorted(replacements)
-    payload["crossmatch_source_snapshot_ids"] = sorted(replacements)
+    payload["authority"]["source_snapshot_ids"] = sorted(replacements)
     _rehash_candidate_payload(payload)
 
     reparsed = SourceCollectionArtifactCandidate.model_validate(payload)

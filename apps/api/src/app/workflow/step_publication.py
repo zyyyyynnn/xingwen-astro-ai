@@ -26,7 +26,11 @@ from app.db.models import SourceSnapshotModel
 from app.schemas.core import ResearchContract
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.crossmatch import CrossmatchSourceInput
-from app.schemas.data_artifacts import DataArtifactBuildResult, DatasetArtifactCandidate
+from app.schemas.data_artifacts import (
+    DataArtifactBuildResult,
+    DatasetArtifactCandidate,
+    SourceTableArtifactAuthority,
+)
 from app.schemas.literature_claim import LiteratureClaimsCandidate
 from app.schemas.literature_relation import LiteratureRelationsCandidate
 from app.schemas.paper_collection import PaperCollection
@@ -261,6 +265,7 @@ class StepPublicationFactory:
         producer_execution_id: UUID,
         artifact_id: UUID | None = None,
         version_id: UUID | None = None,
+        source_mode: str = "live",
     ) -> ArtifactPublication:
         artifact_id = artifact_id or context.artifacts[kind]
         version_id = version_id or step_uuid(
@@ -271,7 +276,7 @@ class StepPublicationFactory:
             publication_key=f"run:{context.run_id}:artifact:{kind}",
             producer_execution_id=producer_execution_id,
             candidate=candidate,
-            source_mode="live",
+            source_mode=source_mode,
             supersedes_version_id=context.versions.get(kind),
             version_id=version_id,
         )
@@ -408,6 +413,9 @@ class StepPublicationFactory:
             bound = overrides.get(pipeline_snapshot_id)
             if bound is not None:
                 return str(bound)
+            if isinstance(candidate.authority, SourceTableArtifactAuthority):
+                if pipeline_snapshot_id == candidate.authority.source_snapshot_id:
+                    return str(pipeline_snapshot_id)
             return self.persisted_snapshot_id(context, pipeline_snapshot_id)
 
         snapshots = tuple(
@@ -420,7 +428,10 @@ class StepPublicationFactory:
         transformations = {
             item.evidence_id: item for item in candidate.transformation_evidence
         }
-        crossmatch = {item.evidence_id: item for item in candidate.crossmatch_evidence}
+        crossmatch = {
+            item.evidence_id: item
+            for item in getattr(candidate.authority, "evidence", ())
+        }
         evidence: list[ArtifactEvidenceBinding] = []
         for pipeline_id in candidate.evidence_ids:
             transformation = transformations.get(pipeline_id)

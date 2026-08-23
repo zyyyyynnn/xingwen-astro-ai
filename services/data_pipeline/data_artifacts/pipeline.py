@@ -85,6 +85,7 @@ def _common_payload(projection: DataArtifactDomainProjection) -> dict[str, Any]:
     input_value = projection.input_value
     return {
         "manifest_pins": input_value.manifest_pins.model_dump(mode="json"),
+        "authority": projection.authority.model_dump(mode="json"),
         "source_snapshot_ids": projection.source_snapshot_ids,
         "evidence_ids": projection.evidence_ids,
         "mapping_rule_set_id": input_value.mapping_rule_set.rule_set_id,
@@ -104,23 +105,12 @@ def _assemble_data_artifact_candidates(
     """Serialize a domain projection without performing scientific derivation."""
 
     input_value = projection.input_value
-    result = input_value.crossmatch_result
     common = _common_payload(projection)
     dataset = _candidate(
         DatasetArtifactCandidate,
         {
             "kind": "dataset",
             **common,
-            "crossmatch_result_id": result.result_id,
-            "crossmatch_input_hash": result.input_hash,
-            "crossmatch_output_hash": result.output_hash,
-            "crossmatch_content_hash": result.content_hash,
-            "crossmatch_source_snapshot_ids": projection.crossmatch_source_snapshot_ids,
-            "crossmatch_evidence": [
-                evidence.model_dump(mode="json")
-                for evidence in projection.crossmatch_evidence
-            ],
-            "crossmatch_evidence_ids": projection.crossmatch_evidence_ids,
             "requested_fields": tuple(field.field_id for field in projection.fields),
             "columns": [
                 DatasetColumn(field=field).model_dump(mode="json")
@@ -152,7 +142,6 @@ def _assemble_data_artifact_candidates(
         {
             "kind": "field_dictionary",
             **common,
-            "crossmatch_source_snapshot_ids": projection.crossmatch_source_snapshot_ids,
             "requested_fields": tuple(field.field_id for field in projection.fields),
             "field_definitions": [
                 field.model_dump(mode="json") for field in projection.fields
@@ -170,13 +159,6 @@ def _assemble_data_artifact_candidates(
             "source_value_ids": tuple(
                 value.source_value_id for value in projection.source_values
             ),
-            "crossmatch_result_id": result.result_id,
-            "crossmatch_content_hash": result.content_hash,
-            "crossmatch_source_snapshot_ids": projection.crossmatch_source_snapshot_ids,
-            "alignment_record_keys": projection.alignment_record_keys,
-            "conflict_record_keys": projection.conflict_record_keys,
-            "review_required_record_keys": projection.review_required_record_keys,
-            "inconclusive_record_keys": projection.inconclusive_record_keys,
         },
     )
     payload = {

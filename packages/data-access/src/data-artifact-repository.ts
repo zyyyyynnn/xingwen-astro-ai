@@ -15,6 +15,7 @@ import type {
   SourceCollectionArtifactCandidate,
   SourceCollectionArtifactRead as SourceCollectionArtifactReadDto,
   DocumentSourceCollectionMember,
+  SourceTableSourceCollectionMember,
   StructuredSourceCollectionMember,
 } from "@xingwen/contracts";
 import {
@@ -153,14 +154,26 @@ function mapCell(field: DatasetRow["fields"][number]): DatasetCellReview {
 }
 
 function mapRow(dto: DatasetRow): DatasetRowReview {
-  const identity = dto.canonical_row_identity.member_entities
-    .flatMap((entity) => entity.identity_values)
-    .map((value) => `${value.field_id}=${value.normalized_value}`)
-    .join(" · ");
+  const authority = dto.row_authority;
+  const identity =
+    "logical_key" in authority
+      ? authority.canonical_row_identity.member_entities
+          .flatMap((entity) => entity.identity_values)
+          .map((value) => `${value.field_id}=${value.normalized_value}`)
+          .join(" · ")
+      : authority.canonical_row_identity.canonical_identity;
   return {
     rowId: dto.row_id,
-    entityLevel: String(dto.entity_level),
-    alignmentStatus: String(dto.alignment_status),
+    entityLevel:
+      "entity_level" in authority
+        ? String(authority.entity_level)
+        : String(
+            authority.canonical_row_identity.entity_level ?? "source_table",
+          ),
+    alignmentStatus:
+      "alignment_status" in authority
+        ? String(authority.alignment_status)
+        : "not_applicable",
     identity,
     cells: dto.fields.map(mapCell),
     sourceSnapshotIds: dto.source_snapshot_ids.map(id),
@@ -197,8 +210,26 @@ function mapFieldDictionary(
 }
 
 function mapSourceMember(
-  member: StructuredSourceCollectionMember | DocumentSourceCollectionMember,
+  member:
+    | StructuredSourceCollectionMember
+    | SourceTableSourceCollectionMember
+    | DocumentSourceCollectionMember,
 ): SourceCollectionMemberReview {
+  if ("source_table_admission" in member) {
+    return {
+      memberKind: "source_table",
+      sourceId: id(member.source_id),
+      sourceSnapshotId: id(member.source_snapshot_id),
+      sourceSnapshotContentHash:
+        member.source_snapshot_content_hash as ContentHash,
+      side: null,
+      dataLevel: null,
+      sourceMode: null,
+      rawRecordCount: member.raw_record_count,
+      completionStatus: null,
+      licenseNote: member.license_note,
+    };
+  }
   if ("research_input_id" in member) {
     return {
       memberKind: "document",
@@ -235,15 +266,31 @@ function mapSourceCollection(
   dto: SourceCollectionArtifactReadDto,
 ): SourceCollectionArtifactReview {
   const candidate: SourceCollectionArtifactCandidate = dto.source_collection;
+  const alignmentRecordKeys =
+    "alignment_record_keys" in candidate.authority
+      ? (candidate.authority.alignment_record_keys ?? [])
+      : [];
+  const conflictRecordKeys =
+    "conflict_record_keys" in candidate.authority
+      ? (candidate.authority.conflict_record_keys ?? [])
+      : [];
+  const inconclusiveRecordKeys =
+    "inconclusive_record_keys" in candidate.authority
+      ? (candidate.authority.inconclusive_record_keys ?? [])
+      : [];
+  const reviewRequiredRecordKeys =
+    "review_required_record_keys" in candidate.authority
+      ? (candidate.authority.review_required_record_keys ?? [])
+      : [];
   return {
     ...mapBase(dto),
     kind: "source_collection",
     candidateId: id(candidate.candidate_id),
     members: candidate.members.map(mapSourceMember),
-    alignedRecordCount: candidate.alignment_record_keys.length,
-    conflictRecordCount: candidate.conflict_record_keys.length,
-    inconclusiveRecordCount: candidate.inconclusive_record_keys.length,
-    reviewRequiredRecordCount: candidate.review_required_record_keys.length,
+    alignedRecordCount: alignmentRecordKeys.length,
+    conflictRecordCount: conflictRecordKeys.length,
+    inconclusiveRecordCount: inconclusiveRecordKeys.length,
+    reviewRequiredRecordCount: reviewRequiredRecordKeys.length,
   };
 }
 
