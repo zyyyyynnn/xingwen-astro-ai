@@ -60,11 +60,15 @@ def _revalidate(candidate: Candidate) -> Candidate:
 def _publication_input(candidate: Candidate) -> DataArtifactBuildInput:
     snapshot = getattr(candidate, "_artifact_publication_context", None)
     if snapshot is None or not hasattr(snapshot, "input_json"):
-        raise ValueError("candidate lacks its immutable Data Artifact admission snapshot")
+        raise ValueError(
+            "candidate lacks its immutable Data Artifact admission snapshot"
+        )
     try:
         input_value = DataArtifactBuildInput.model_validate_json(snapshot.input_json)
     except ValidationError as exc:
-        raise ValueError("immutable Data Artifact admission snapshot is invalid") from exc
+        raise ValueError(
+            "immutable Data Artifact admission snapshot is invalid"
+        ) from exc
     if (
         snapshot.input_hash != input_value.input_hash
         or input_value.input_hash != candidate.input_hash
@@ -113,14 +117,18 @@ def _validate_common(
         candidate.quality_evaluation_status,
     )
     if actual != expected:
-        raise ValueError("candidate common bindings differ from the frozen domain projection")
+        raise ValueError(
+            "candidate common bindings differ from the frozen domain projection"
+        )
 
 
 def _validate_identity(candidate: Candidate) -> None:
     if isinstance(candidate, DatasetArtifactCandidate):
         expected_canonical = compute_data_artifact_canonical_content_hash(candidate)
         if candidate.canonical_content_hash != expected_canonical:
-            raise ValueError("Dataset canonical_content_hash is not strictly recomputed")
+            raise ValueError(
+                "Dataset canonical_content_hash is not strictly recomputed"
+            )
         expected_lineage = compute_data_artifact_lineage_hash(candidate)
         if candidate.lineage_hash != expected_lineage:
             raise ValueError("Dataset lineage_hash is not strictly recomputed")
@@ -144,23 +152,34 @@ def _validate_dataset(
 ) -> None:
     input_value = projection.input_value
     expected_columns = tuple(field for field in projection.fields)
-    if candidate.requested_fields != tuple(field.field_id for field in projection.fields):
+    if candidate.requested_fields != tuple(
+        field.field_id for field in projection.fields
+    ):
         raise ValueError("Dataset requested fields differ from the domain projection")
     if tuple(column.field for column in candidate.columns) != expected_columns:
-        raise ValueError("Dataset columns differ from the frozen Field Manifest projection")
+        raise ValueError(
+            "Dataset columns differ from the frozen Field Manifest projection"
+        )
     if candidate.rows != projection.rows:
         raise ValueError("Dataset rows differ from the complete domain projection")
     if candidate.source_values != projection.source_values:
-        raise ValueError("Dataset SourceValue set differs from the complete domain projection")
+        raise ValueError(
+            "Dataset SourceValue set differs from the complete domain projection"
+        )
     if candidate.transformation_evidence != projection.transformation_evidence:
-        raise ValueError("Dataset Evidence set differs from the complete domain projection")
+        raise ValueError(
+            "Dataset Evidence set differs from the complete domain projection"
+        )
     if candidate.selections != projection.selections:
-        raise ValueError("Dataset selection set differs from the complete domain projection")
+        raise ValueError(
+            "Dataset selection set differs from the complete domain projection"
+        )
     if candidate.conflicts != projection.conflicts:
-        raise ValueError("Dataset conflict set differs from the complete domain projection")
-    if (
-        candidate.row_count != len(projection.rows)
-        or candidate.field_count != len(projection.fields)
+        raise ValueError(
+            "Dataset conflict set differs from the complete domain projection"
+        )
+    if candidate.row_count != len(projection.rows) or candidate.field_count != len(
+        projection.fields
     ):
         raise ValueError("Dataset dimensions differ from the domain projection")
     if candidate.authority != projection.authority:
@@ -171,7 +190,9 @@ def _validate_dataset(
         or candidate.quality_constraints_reference
         != input_value.quality_constraints_reference
     ):
-        raise ValueError("Dataset quality declarations differ from the domain projection")
+        raise ValueError(
+            "Dataset quality declarations differ from the domain projection"
+        )
 
 
 def _validate_field_dictionary(
@@ -183,7 +204,9 @@ def _validate_field_dictionary(
         candidate.requested_fields != expected_fields
         or candidate.field_definitions != projection.fields
     ):
-        raise ValueError("FieldDictionary differs from the frozen Field Manifest projection")
+        raise ValueError(
+            "FieldDictionary differs from the frozen Field Manifest projection"
+        )
 
 
 def _validate_source_collection(
@@ -201,7 +224,9 @@ def _validate_source_collection(
     else:
         expected_status_keys = ((), (), (), ())
     expected = (
-        projection.source_members,
+        projection.crossmatch_sources,
+        projection.source_table_sources,
+        projection.supplemental_document_sources,
         tuple(value.source_value_id for value in projection.source_values),
         expected_authority,
         *expected_status_keys,
@@ -217,7 +242,9 @@ def _validate_source_collection(
     else:
         actual_status_keys = ((), (), (), ())
     actual = (
-        candidate.members,
+        candidate.crossmatch_sources,
+        candidate.source_table_sources,
+        candidate.supplemental_document_sources,
         candidate.source_value_ids,
         candidate.authority,
         *actual_status_keys,

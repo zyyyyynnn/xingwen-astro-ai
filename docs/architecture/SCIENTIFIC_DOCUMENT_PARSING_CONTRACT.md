@@ -97,17 +97,21 @@ textual payload。
 ## 5. Data admission and provenance
 
 Raw extraction candidate 只保留 raw value/unit/text、field/entity hints、
-ResearchInput/SourceSnapshot/DocumentParse identity、parse quality 与一个
+ResearchInput identity/content hash、persisted DocumentParse identity、明确区分的
+`pipeline_source_snapshot_id` / `persisted_source_snapshot_id`、parse quality 与一个
 `DocumentLocator`。它不负责 canonical mapping、单位归一化、科学选择或发布。
 
 准入规则如下：
 
-- field 只能通过 Field Manifest 的 canonical field id 或 exact normalized
-  `DocumentFieldAlias` 解析；禁止 fuzzy、LLM 或动态 alias；
+- field 只能通过 Field Manifest 的 canonical field id 或完全相等的
+  `DocumentFieldAlias` 解析；大小写折叠、空白归一化、括号后缀剥离、fuzzy、
+  LLM 或动态 alias 均不是 mapping authority；
 - entity 只能 exact-match 到 frozen Crossmatch identity row；不创建文档侧
   canonical object；
 - uncertainty、upper/lower limit、explicit null 只在 document admission
   解析一次，Dataset projection 不重新读取 free text；
+- 首版只读取 paragraph/list、table cell，以及 figure title/caption/axis/legend/
+  visible OCR labels；不得从 figure pixels 反演曲线、散点或数值；
 - outcome 只能是 `accepted`、`review_required` 或 `rejected`，并带稳定
   reason code；`review_required` 不得自动选择；
 - 授权必须同时具备 Contract 的 `document_source_policy = research_input`、

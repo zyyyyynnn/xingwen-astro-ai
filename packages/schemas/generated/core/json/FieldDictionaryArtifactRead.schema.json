@@ -1060,8 +1060,8 @@
           "type": "array"
         },
         "schema_version": {
-          "const": "3.0.0",
-          "default": "3.0.0",
+          "const": "4.0.0",
+          "default": "4.0.0",
           "title": "Schema Version",
           "type": "string"
         },

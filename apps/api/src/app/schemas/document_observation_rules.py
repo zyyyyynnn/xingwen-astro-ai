@@ -82,8 +82,7 @@ class DocumentObservationRuleSet(BaseModel):
     field_manifest_id: Identifier
     field_manifest_version: SemanticVersion
     field_manifest_content_hash: ContentHash
-    #: Allowed: Unicode NFKC, trim, whitespace collapse, casefold. Nothing else.
-    field_label_normalization: Literal["nfkc_trim_collapse_casefold"]
+    field_label_normalization: Literal["exact"]
     numeric_syntax_version: SemanticVersion
     null_tokens: tuple[NonEmptyString, ...] = Field(min_length=1)
     asymmetric_pattern: NonEmptyString

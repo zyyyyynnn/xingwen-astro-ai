@@ -37,7 +37,7 @@ from .projection import (
 
 
 def _candidate(model_type, payload: dict[str, Any]):
-    payload.setdefault("schema_version", "3.0.0")
+    payload.setdefault("schema_version", "4.0.0")
     payload.setdefault("quality_evaluation_status", "not_evaluated")
     normalized: dict[str, Any] = {}
     deferred = {
@@ -66,8 +66,8 @@ def _candidate(model_type, payload: dict[str, Any]):
         ),
     ).model_dump(mode="json", exclude_none=True)
     if model_type is DatasetArtifactCandidate:
-        payload["canonical_content_hash"] = compute_data_artifact_canonical_content_hash(
-            payload
+        payload["canonical_content_hash"] = (
+            compute_data_artifact_canonical_content_hash(payload)
         )
         payload["lineage_hash"] = compute_data_artifact_lineage_hash(payload)
     output_hash = compute_data_artifact_output_hash(payload)
@@ -125,8 +125,7 @@ def _assemble_data_artifact_candidates(
                 for evidence in projection.transformation_evidence
             ],
             "selections": [
-                selection.model_dump(mode="json")
-                for selection in projection.selections
+                selection.model_dump(mode="json") for selection in projection.selections
             ],
             "conflicts": [
                 conflict.model_dump(mode="json") for conflict in projection.conflicts
@@ -153,8 +152,17 @@ def _assemble_data_artifact_candidates(
         {
             "kind": "source_collection",
             **common,
-            "members": [
-                member.model_dump(mode="json") for member in projection.source_members
+            "crossmatch_sources": [
+                member.model_dump(mode="json")
+                for member in projection.crossmatch_sources
+            ],
+            "source_table_sources": [
+                member.model_dump(mode="json")
+                for member in projection.source_table_sources
+            ],
+            "supplemental_document_sources": [
+                member.model_dump(mode="json")
+                for member in projection.supplemental_document_sources
             ],
             "source_value_ids": tuple(
                 value.source_value_id for value in projection.source_values
@@ -162,7 +170,7 @@ def _assemble_data_artifact_candidates(
         },
     )
     payload = {
-        "schema_version": "3.0.0",
+        "schema_version": "4.0.0",
         "dataset": dataset,
         "field_dictionary": field_dictionary,
         "source_collection": source_collection,
@@ -185,7 +193,9 @@ def _bundle_commitment(result: DataArtifactBuildResult) -> str:
             {
                 "kind": candidate.kind,
                 "candidate_id": candidate.candidate_id,
-                "public_payload_hash": compute_data_artifact_public_payload_hash(candidate),
+                "public_payload_hash": compute_data_artifact_public_payload_hash(
+                    candidate
+                ),
             }
             for candidate in (
                 result.dataset,
@@ -249,7 +259,9 @@ def build_data_artifact_candidates(
     """Derive, serialize, independently admit, and finally seal one Data Artifact bundle."""
 
     try:
-        validated_input = DataArtifactBuildInput.model_validate_json(input.model_dump_json())
+        validated_input = DataArtifactBuildInput.model_validate_json(
+            input.model_dump_json()
+        )
     except (ValidationError, PydanticSerializationError) as exc:
         for check in (validate_runtime_input_integrity, validate_policy_bindings):
             try:

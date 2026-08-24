@@ -49,7 +49,6 @@ from app.schemas.data_artifacts import (
     SourceTableDataArtifactAuthority,
     SourceTableRowAuthority,
     SourceTableSourceCollectionMember,
-    SourceCollectionMember,
     SourceValueCandidate,
     StructuredDatabaseOrigin,
     StructuredSourceCollectionMember,
@@ -95,7 +94,9 @@ class DataArtifactDomainProjection:
     transformation_evidence: tuple[TransformationEvidence, ...]
     selections: tuple[FieldSelectionRecord, ...]
     conflicts: tuple[FieldConflictRecord, ...]
-    source_members: tuple[SourceCollectionMember, ...]
+    crossmatch_sources: tuple[StructuredSourceCollectionMember, ...]
+    source_table_sources: tuple[SourceTableSourceCollectionMember, ...]
+    supplemental_document_sources: tuple[DocumentSourceCollectionMember, ...]
     producer: DataArtifactProducer
     authority: DataArtifactAuthority
     source_snapshot_ids: tuple[str, ...]
@@ -178,10 +179,7 @@ def validate_policy_bindings(input_value: DataArtifactBuildInput):
         raise DataArtifactError(
             DataArtifactErrorCode.capacity_exceeded, "row capacity exceeded"
         )
-    if (
-        len(requested) * row_count
-        > capacity.max_total_cell_outcomes
-    ):
+    if len(requested) * row_count > capacity.max_total_cell_outcomes:
         raise DataArtifactError(
             DataArtifactErrorCode.capacity_exceeded, "cell capacity exceeded"
         )
@@ -312,15 +310,14 @@ def validate_runtime_input_integrity(input_value: DataArtifactBuildInput) -> Non
                 DataArtifactErrorCode.source_table_admission_mismatch,
                 "only a complete, passing SourceTableAdmission can build a Dataset",
             )
-        cells_by_row: dict[str, list[Any]] = {
-            row.row_id: [] for row in admission.rows
-        }
+        cells_by_row: dict[str, list[Any]] = {row.row_id: [] for row in admission.rows}
         for cell in admission.cells:
             cells_by_row.setdefault(cell.row_id, []).append(cell)
         for row_id, cells in cells_by_row.items():
             payload = {cell.locator.raw_field: cell.raw_value for cell in cells}
             if any(
-                record_hash != compute_raw_data_record_hash(
+                record_hash
+                != compute_raw_data_record_hash(
                     source_id=admission.source_id,
                     row_key=row_key,
                     payload=payload,
@@ -870,8 +867,19 @@ def _document_source_value(
         "origin": {
             "kind": "document_research_input",
             "research_input_id": str(observation.research_input_id),
+            "research_input_content_hash": observation.research_input_content_hash,
             "document_parse_id": str(observation.document_parse_id),
+            "persisted_source_snapshot_id": str(
+                observation.persisted_source_snapshot_id
+            ),
+            "pipeline_source_snapshot_id": str(
+                observation.pipeline_source_snapshot.snapshot_id
+            ),
+            "pipeline_source_snapshot_content_hash": (
+                observation.pipeline_source_snapshot.content_hash
+            ),
             "raw_candidate_id": observation.raw_candidate_id,
+            "observation_id": observation.observation_id,
             "parse_quality": observation.parse_quality.value,
             "document_locator": observation.document_locator.model_dump(mode="json"),
         },
@@ -1003,9 +1011,7 @@ def _source_table_source_value(
         "uncertainty": UncertaintyValue(
             status=UncertaintyStatus.not_applicable
         ).model_dump(mode="json"),
-        "limit": LimitValue(status=LimitStatus.not_applicable).model_dump(
-            mode="json"
-        ),
+        "limit": LimitValue(status=LimitStatus.not_applicable).model_dump(mode="json"),
         "null_status": NullReason.not_measured
         if cell.canonical_value is None
         else None,
@@ -1208,9 +1214,7 @@ def _derive_source_table_domain_projection(
     )
     identity_raw_field = source.row_key_fields[0]
     identity_column = next(
-        column
-        for column in admission.columns
-        if column.raw_field == identity_raw_field
+        column for column in admission.columns if column.raw_field == identity_raw_field
     )
 
     source_values: list[SourceValueCandidate] = []
@@ -1298,10 +1302,12 @@ def _derive_source_table_domain_projection(
                         canonical_row_identity=SourceTableCanonicalRowIdentity(
                             identity_field_id=identity_column.canonical_field_id,
                             canonical_identity=admitted_row.canonical_identity,
-                        )
+                        ),
                     ).model_dump(mode="json"),
                     "projection_policy_version": input_value.mapping_rule_set.entity_projection_policy.version,
-                    "projected_field_ids": tuple(item.canonical_field_id for item in outcomes),
+                    "projected_field_ids": tuple(
+                        item.canonical_field_id for item in outcomes
+                    ),
                     "fields": [item.model_dump(mode="json") for item in outcomes],
                     "conflict_ids": (),
                     "evidence_ids": tuple(sorted(row_evidence_ids)),
@@ -1329,7 +1335,11 @@ def _derive_source_table_domain_projection(
     raw_references = tuple(
         sorted(
             references_by_row.values(),
-            key=lambda item: (item.source_id, item.row_key, item.raw_record_content_hash),
+            key=lambda item: (
+                item.source_id,
+                item.row_key,
+                item.raw_record_content_hash,
+            ),
         )
     )
     source_snapshot = authority_input.source_snapshot
@@ -1374,7 +1384,9 @@ def _derive_source_table_domain_projection(
         transformation_evidence=tuple(transformation_evidence),
         selections=tuple(selections),
         conflicts=(),
-        source_members=(source_member,),
+        crossmatch_sources=(),
+        source_table_sources=(source_member,),
+        supplemental_document_sources=(),
         producer=producer,
         authority=artifact_authority,
         source_snapshot_ids=(admission.source_snapshot_id,),
@@ -1393,8 +1405,10 @@ def _derive_source_table_domain_projection(
 
 def _source_members(
     input_value: DataArtifactBuildInput,
-) -> tuple[SourceCollectionMember, ...]:
-    members: list[SourceCollectionMember] = []
+) -> tuple[StructuredSourceCollectionMember | SourceTableSourceCollectionMember, ...]:
+    members: list[
+        StructuredSourceCollectionMember | SourceTableSourceCollectionMember
+    ] = []
     for side, acquisition in (
         ("left", input_value.authority.left_acquisition),
         ("right", input_value.authority.right_acquisition),
@@ -1466,15 +1480,26 @@ def _document_members(
                 DataArtifactErrorCode.snapshot_mismatch,
                 "document observations disagree about their pipeline snapshot",
             )
+        persisted_snapshot_id = str(observations[0].persisted_source_snapshot_id)
+        research_input_content_hash = observations[0].research_input_content_hash
+        if any(
+            str(item.persisted_source_snapshot_id) != persisted_snapshot_id
+            or item.research_input_content_hash != research_input_content_hash
+            for item in observations
+        ):
+            raise DataArtifactError(
+                DataArtifactErrorCode.snapshot_mismatch,
+                "document observations disagree about persisted provenance",
+            )
         members.append(
             DocumentSourceCollectionMember(
                 source_class="document_research_input",
-                source_snapshot=snapshot,
-                source_id=snapshot.source_id,
-                source_snapshot_id=snapshot.snapshot_id,
-                source_snapshot_content_hash=snapshot.content_hash,
-                query_hash=snapshot.query_hash,
+                pipeline_source_snapshot=snapshot,
+                pipeline_source_snapshot_id=snapshot.snapshot_id,
+                pipeline_source_snapshot_content_hash=snapshot.content_hash,
+                persisted_source_snapshot_id=persisted_snapshot_id,
                 research_input_id=research_input_id,
+                research_input_content_hash=research_input_content_hash,
                 document_parse_ids=tuple(
                     dict.fromkeys(str(item.document_parse_id) for item in observations)
                 ),
@@ -1927,6 +1952,7 @@ def derive_data_artifact_domain_projection(
             }
         )
     )
+    source_members = _source_members(input_value)
     return DataArtifactDomainProjection(
         input_value=input_value,
         fields=fields,
@@ -1935,7 +1961,17 @@ def derive_data_artifact_domain_projection(
         transformation_evidence=tuple(all_evidence),
         selections=tuple(all_selections),
         conflicts=tuple(all_conflicts),
-        source_members=_source_members(input_value) + _document_members(input_value),
+        crossmatch_sources=tuple(
+            item
+            for item in source_members
+            if isinstance(item, StructuredSourceCollectionMember)
+        ),
+        source_table_sources=tuple(
+            item
+            for item in source_members
+            if isinstance(item, SourceTableSourceCollectionMember)
+        ),
+        supplemental_document_sources=_document_members(input_value),
         producer=producer,
         authority=artifact_authority,
         source_snapshot_ids=source_snapshot_ids,

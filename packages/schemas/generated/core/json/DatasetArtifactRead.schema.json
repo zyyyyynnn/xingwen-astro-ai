@@ -1073,8 +1073,8 @@
           "type": "array"
         },
         "schema_version": {
-          "const": "3.0.0",
-          "default": "3.0.0",
+          "const": "4.0.0",
+          "default": "4.0.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1561,12 +1561,38 @@
           "title": "Kind",
           "type": "string"
         },
+        "observation_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Observation Id",
+          "type": "string"
+        },
         "parse_quality": {
           "$ref": "#/$defs/DocumentParseQuality"
+        },
+        "persisted_source_snapshot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Persisted Source Snapshot Id",
+          "type": "string"
+        },
+        "pipeline_source_snapshot_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Pipeline Source Snapshot Content Hash",
+          "type": "string"
+        },
+        "pipeline_source_snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Pipeline Source Snapshot Id",
+          "type": "string"
         },
         "raw_candidate_id": {
           "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
           "title": "Raw Candidate Id",
+          "type": "string"
+        },
+        "research_input_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Research Input Content Hash",
           "type": "string"
         },
         "research_input_id": {
@@ -1578,8 +1604,13 @@
       },
       "required": [
         "research_input_id",
+        "research_input_content_hash",
         "document_parse_id",
+        "persisted_source_snapshot_id",
+        "pipeline_source_snapshot_id",
+        "pipeline_source_snapshot_content_hash",
         "raw_candidate_id",
+        "observation_id",
         "parse_quality",
         "document_locator"
       ],

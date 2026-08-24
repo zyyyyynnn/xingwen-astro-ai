@@ -48,7 +48,7 @@ from .research_input import ResearchInputType
 
 
 #: Schema version for the Scientific Document Parsing contract.
-SCIENTIFIC_DOCUMENT_SCHEMA_VERSION = "1.2.0"
+SCIENTIFIC_DOCUMENT_SCHEMA_VERSION = "1.3.0"
 
 #: ResearchInput image MIME types accepted by the canonical document parser.
 SCIENTIFIC_DOCUMENT_IMAGE_MIME_TYPES = frozenset(
@@ -749,8 +749,11 @@ class ScientificDataExtractionCandidate(BaseModel):
     field_hint: Identifier | None = None
     object_hint: Identifier | None = None
     research_input_id: Identifier
-    source_snapshot_id: Identifier | None = None
-    document_parse_id: Identifier | None = None
+    research_input_content_hash: ContentHash
+    pipeline_source_snapshot_id: Identifier
+    pipeline_source_snapshot_content_hash: ContentHash
+    persisted_source_snapshot_id: Identifier
+    document_parse_id: Identifier
     parse_quality: DocumentParseQuality
     locator: DocumentLocator
     created_at: UtcDateTime

@@ -2874,8 +2874,8 @@
             "type": "array"
           },
           "schema_version": {
-            "const": "3.0.0",
-            "default": "3.0.0",
+            "const": "4.0.0",
+            "default": "4.0.0",
             "title": "Schema Version",
             "type": "string"
           },
@@ -3452,12 +3452,38 @@
             "title": "Kind",
             "type": "string"
           },
+          "observation_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Observation Id",
+            "type": "string"
+          },
           "parse_quality": {
             "$ref": "#/components/schemas/DocumentParseQuality"
+          },
+          "persisted_source_snapshot_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Persisted Source Snapshot Id",
+            "type": "string"
+          },
+          "pipeline_source_snapshot_content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Pipeline Source Snapshot Content Hash",
+            "type": "string"
+          },
+          "pipeline_source_snapshot_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Pipeline Source Snapshot Id",
+            "type": "string"
           },
           "raw_candidate_id": {
             "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
             "title": "Raw Candidate Id",
+            "type": "string"
+          },
+          "research_input_content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Research Input Content Hash",
             "type": "string"
           },
           "research_input_id": {
@@ -3469,8 +3495,13 @@
         },
         "required": [
           "research_input_id",
+          "research_input_content_hash",
           "document_parse_id",
+          "persisted_source_snapshot_id",
+          "pipeline_source_snapshot_id",
+          "pipeline_source_snapshot_content_hash",
           "raw_candidate_id",
+          "observation_id",
           "parse_quality",
           "document_locator"
         ],
@@ -3505,9 +3536,28 @@
             "title": "Observation Ids",
             "type": "array"
           },
-          "query_hash": {
+          "persisted_source_snapshot_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Persisted Source Snapshot Id",
+            "type": "string"
+          },
+          "pipeline_source_snapshot": {
+            "$ref": "#/components/schemas/DataSourceSnapshotProjection"
+          },
+          "pipeline_source_snapshot_content_hash": {
             "pattern": "^sha256:[0-9a-f]{64}$",
-            "title": "Query Hash",
+            "title": "Pipeline Source Snapshot Content Hash",
+            "type": "string"
+          },
+          "pipeline_source_snapshot_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Pipeline Source Snapshot Id",
+            "type": "string"
+          },
+          "research_input_content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Research Input Content Hash",
             "type": "string"
           },
           "research_input_id": {
@@ -3520,36 +3570,16 @@
             "const": "document_research_input",
             "title": "Source Class",
             "type": "string"
-          },
-          "source_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Source Id",
-            "type": "string"
-          },
-          "source_snapshot": {
-            "$ref": "#/components/schemas/DataSourceSnapshotProjection"
-          },
-          "source_snapshot_content_hash": {
-            "pattern": "^sha256:[0-9a-f]{64}$",
-            "title": "Source Snapshot Content Hash",
-            "type": "string"
-          },
-          "source_snapshot_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Source Snapshot Id",
-            "type": "string"
           }
         },
         "required": [
           "source_class",
-          "source_snapshot",
-          "source_id",
-          "source_snapshot_id",
-          "source_snapshot_content_hash",
-          "query_hash",
+          "pipeline_source_snapshot",
+          "pipeline_source_snapshot_id",
+          "pipeline_source_snapshot_content_hash",
+          "persisted_source_snapshot_id",
           "research_input_id",
+          "research_input_content_hash",
           "document_parse_ids",
           "observation_ids"
         ],
@@ -5044,8 +5074,8 @@
             "type": "array"
           },
           "schema_version": {
-            "const": "3.0.0",
-            "default": "3.0.0",
+            "const": "4.0.0",
+            "default": "4.0.0",
             "title": "Schema Version",
             "type": "string"
           },
@@ -17007,6 +17037,14 @@
             "title": "Conversion Catalog Version",
             "type": "string"
           },
+          "crossmatch_sources": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/StructuredSourceCollectionMember"
+            },
+            "title": "Crossmatch Sources",
+            "type": "array"
+          },
           "evidence_ids": {
             "items": {
               "maxLength": 128,
@@ -17045,31 +17083,6 @@
             "title": "Mapping Rule Set Version",
             "type": "string"
           },
-          "members": {
-            "items": {
-              "discriminator": {
-                "mapping": {
-                  "document": "#/components/schemas/DocumentSourceCollectionMember",
-                  "source_table": "#/components/schemas/SourceTableSourceCollectionMember",
-                  "structured": "#/components/schemas/StructuredSourceCollectionMember"
-                },
-                "propertyName": "member_kind"
-              },
-              "oneOf": [
-                {
-                  "$ref": "#/components/schemas/StructuredSourceCollectionMember"
-                },
-                {
-                  "$ref": "#/components/schemas/SourceTableSourceCollectionMember"
-                },
-                {
-                  "$ref": "#/components/schemas/DocumentSourceCollectionMember"
-                }
-              ]
-            },
-            "title": "Members",
-            "type": "array"
-          },
           "output_hash": {
             "pattern": "^sha256:[0-9a-f]{64}$",
             "title": "Output Hash",
@@ -17085,8 +17098,8 @@
             "type": "string"
           },
           "schema_version": {
-            "const": "3.0.0",
-            "default": "3.0.0",
+            "const": "4.0.0",
+            "default": "4.0.0",
             "title": "Schema Version",
             "type": "string"
           },
@@ -17099,12 +17112,28 @@
             "title": "Source Snapshot Ids",
             "type": "array"
           },
+          "source_table_sources": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SourceTableSourceCollectionMember"
+            },
+            "title": "Source Table Sources",
+            "type": "array"
+          },
           "source_value_ids": {
             "items": {
               "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
               "type": "string"
             },
             "title": "Source Value Ids",
+            "type": "array"
+          },
+          "supplemental_document_sources": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/DocumentSourceCollectionMember"
+            },
+            "title": "Supplemental Document Sources",
             "type": "array"
           }
         },
@@ -17114,7 +17143,6 @@
           "authority",
           "source_snapshot_ids",
           "evidence_ids",
-          "members",
           "source_value_ids",
           "mapping_rule_set_id",
           "mapping_rule_set_version",

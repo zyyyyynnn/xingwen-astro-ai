@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID, uuid4
@@ -54,6 +55,7 @@ from app.schemas.scientific_document import (
     DocumentBBox,
     DocumentBlock,
     DocumentBlockKind,
+    DocumentFigure,
     DocumentParseCandidate,
     DocumentParseProfile,
     DocumentParseQuality,
@@ -136,8 +138,11 @@ def host_token(crossmatch) -> str:
 def _context() -> PersistedDocumentContext:
     return PersistedDocumentContext(
         research_input_id=str(INPUT_ID),
+        research_input_content_hash=INPUT_CONTENT_HASH,
         document_parse_id=str(PARSE_ID),
-        source_snapshot_id=str(SNAPSHOT_ID),
+        persisted_source_snapshot_id=str(SNAPSHOT_ID),
+        pipeline_source_snapshot_id=f"research-input.{INPUT_ID}",
+        pipeline_source_snapshot_content_hash=INPUT_CONTENT_HASH,
     )
 
 
@@ -254,12 +259,8 @@ def _table_quality_parse(
     parse = _parse([(host_token, "5600")], header=("star.tic_id", value_header))
     table = parse.tables[0]
     header_row = list(table.rows[0])
-    header_row[0] = header_row[0].model_copy(
-        update={"quality": entity_header_quality}
-    )
-    header_row[1] = header_row[1].model_copy(
-        update={"quality": value_header_quality}
-    )
+    header_row[0] = header_row[0].model_copy(update={"quality": entity_header_quality})
+    header_row[1] = header_row[1].model_copy(update={"quality": value_header_quality})
     body_row = list(table.rows[1])
     body_row[0] = body_row[0].model_copy(update={"quality": entity_quality})
     body_row[1] = body_row[1].model_copy(update={"quality": value_quality})
@@ -541,9 +542,7 @@ def test_table_observation_quality_propagates_from_all_regions(
         assert observations[0].parse_quality is expected_quality
 
 
-def test_body_row_cannot_be_promoted_to_table_header(
-    crossmatch, host_token
-) -> None:
+def test_body_row_cannot_be_promoted_to_table_header(crossmatch, host_token) -> None:
     parse = _parse(
         [
             ("star.tic_id", "Teff [K]"),
@@ -860,6 +859,61 @@ def test_text_observation_patterns_admit_multiple_and_preserve_geometry(
     assert all(item.document_locator.text_span is not None for item in batch.accepted)
 
 
+def test_figure_visible_text_is_extracted_without_plot_digitization(
+    crossmatch, host_token
+) -> None:
+    base = _parse([])
+    block = DocumentBlock(
+        block_id="doc-figure-block",
+        page_index=0,
+        reading_order=2,
+        kind=DocumentBlockKind.figure,
+        bbox=DocumentBBox(x1=20, y1=280, x2=580, y2=600),
+        text="visible figure text",
+        quality=DocumentParseQuality.accepted,
+        parser_backend=ParserBackend.native,
+        parser_profile_id="native-default",
+    )
+    figure = DocumentFigure(
+        block_id=block.block_id,
+        page_index=0,
+        bbox=block.bbox,
+        caption=f"Teff = 5600 K for {host_token}",
+        quality=DocumentParseQuality.accepted,
+        parser_backend=ParserBackend.native,
+        parser_profile_id="native-default",
+    )
+    payload = base.model_dump(mode="json")
+    payload.update(
+        pages=[
+            base.pages[0]
+            .model_copy(update={"block_ids": (block.block_id,)})
+            .model_dump(mode="json")
+        ],
+        blocks=[block.model_dump(mode="json")],
+        tables=[],
+        figures=[figure.model_dump(mode="json")],
+    )
+    parse = DocumentParseCandidate.model_validate(payload)
+
+    batch = extract_document_observations(
+        parse=parse,
+        context=_context(),
+        snapshot_projection=_projection(),
+        contract_policy=DocumentSourcePolicy.research_input,
+        case_capability=True,
+        requested_fields=REQUESTED_FIELDS,
+        manifests=BUNDLE,
+        crossmatch=crossmatch,
+        rules=RULES,
+    )
+
+    assert len(batch.accepted) == 1
+    assert batch.accepted[0].canonical_field_id == "star.effective_temperature"
+    assert batch.accepted[0].document_locator.block_id == block.block_id
+    assert batch.accepted[0].document_locator.bbox == block.bbox
+
+
 def test_text_unknown_field_missing_unit_partial_and_unsupported_are_explicit(
     crossmatch, host_token
 ) -> None:
@@ -939,6 +993,26 @@ def test_field_resolution_authority(crossmatch, host_token) -> None:
     )
     assert _accepted_for(canonical_batch, "star.effective_temperature")
 
+    # Exact means exact: case folding and undeclared suffix removal are not
+    # alternative mapping authorities.
+    case_changed = _parse([(host_token, "5100")], header=("star.tic_id", "teff [K]"))
+    case_changed_batch = extract_document_observations(
+        parse=case_changed,
+        context=_context(),
+        snapshot_projection=_projection(),
+        contract_policy=DocumentSourcePolicy.research_input,
+        case_capability=True,
+        requested_fields=REQUESTED_FIELDS,
+        manifests=BUNDLE,
+        crossmatch=crossmatch,
+        rules=RULES,
+    )
+    assert not case_changed_batch.accepted
+    assert any(
+        outcome.code is DocumentObservationAdmissionCode.document_field_unresolved
+        for outcome in case_changed_batch.outcomes
+    )
+
     # An unregistered header label maps nothing for that column while every
     # registered column still resolves deterministically.
     unknown_batch = _extract([(host_token, "5100", "--")], crossmatch)
@@ -1013,13 +1087,41 @@ def test_context_mismatch_fails_closed(crossmatch) -> None:
     parse = _parse([("TIC 101", "5100", "--")])
     wrong_context = Ctx(
         research_input_id=str(uuid4()),
+        research_input_content_hash=INPUT_CONTENT_HASH,
         document_parse_id=str(PARSE_ID),
-        source_snapshot_id=str(SNAPSHOT_ID),
+        persisted_source_snapshot_id=str(SNAPSHOT_ID),
+        pipeline_source_snapshot_id=f"research-input.{INPUT_ID}",
+        pipeline_source_snapshot_content_hash=INPUT_CONTENT_HASH,
     )
     with pytest.raises(DocumentObservationError):
         extract_document_observations(
             parse=parse,
             context=wrong_context,
+            snapshot_projection=_projection(),
+            contract_policy=DocumentSourcePolicy.research_input,
+            case_capability=True,
+            requested_fields=REQUESTED_FIELDS,
+            manifests=BUNDLE,
+            crossmatch=crossmatch,
+            rules=RULES,
+        )
+
+
+@pytest.mark.parametrize(
+    "context_update",
+    (
+        {"research_input_content_hash": "sha256:" + "f" * 64},
+        {"pipeline_source_snapshot_id": "research-input.foreign"},
+        {"pipeline_source_snapshot_content_hash": "sha256:" + "f" * 64},
+    ),
+)
+def test_document_provenance_hash_and_snapshot_mismatch_fail_closed(
+    crossmatch, context_update
+) -> None:
+    with pytest.raises(DocumentObservationError, match="content hash|projection"):
+        extract_document_observations(
+            parse=_parse([("TIC 101", "5100", "--")]),
+            context=replace(_context(), **context_update),
             snapshot_projection=_projection(),
             contract_policy=DocumentSourcePolicy.research_input,
             case_capability=True,
@@ -1037,6 +1139,16 @@ def test_determinism_and_sensitivity(crossmatch, host_token) -> None:
         item.candidate_id for item in second.raw_candidates
     ]
     assert first.producer_output_summary == second.producer_output_summary
+    raw = first.raw_candidates[0]
+    assert raw.research_input_content_hash == INPUT_CONTENT_HASH
+    assert raw.pipeline_source_snapshot_id == _projection().snapshot_id
+    assert raw.pipeline_source_snapshot_content_hash == INPUT_CONTENT_HASH
+    assert raw.persisted_source_snapshot_id == str(SNAPSHOT_ID)
+    typed = first.accepted[0]
+    assert typed.schema_version == "1.0.0"
+    assert typed.content_hash == compute_canonical_payload_hash(
+        typed.model_dump(mode="json", exclude={"content_hash"})
+    )
 
     changed = _extract([(host_token, "5200", "--")], crossmatch)
     assert changed.raw_candidates[0].candidate_id != (
@@ -1058,10 +1170,12 @@ def _observation(
     unit: str,
 ) -> TypedDocumentObservation:
     research_input_id = uuid4()
-    return TypedDocumentObservation(
+    payload = dict(
+        schema_version="1.0.0",
         observation_id=f"obs.test-{index}",
         raw_candidate_id=f"cand.test-{index}",
         research_input_id=str(research_input_id),
+        research_input_content_hash=INPUT_CONTENT_HASH,
         document_parse_id=str(uuid4()),
         persisted_source_snapshot_id=str(uuid4()),
         pipeline_source_snapshot=DataSourceSnapshotProjection(
@@ -1087,6 +1201,13 @@ def _observation(
         parsed_scalar=Decimal(scalar),
         source_unit=unit,
     )
+    unhashed = TypedDocumentObservation.model_construct(
+        **payload, content_hash="sha256:" + "0" * 64
+    )
+    payload["content_hash"] = compute_canonical_payload_hash(
+        unhashed.model_dump(mode="json", exclude={"content_hash"})
+    )
+    return TypedDocumentObservation.model_validate(payload)
 
 
 def _with_documents(
@@ -1147,9 +1268,7 @@ def _structured_orbital_baseline() -> DataArtifactBuildInput:
             "right": add_measurement(crossmatch_input.right),
         }
     )
-    return (
-        _baseline_from_injected(injected)
-    )
+    return _baseline_from_injected(injected)
 
 
 def _baseline_from_injected(crossmatch_input) -> DataArtifactBuildInput:
@@ -1300,6 +1419,18 @@ def test_document_fills_structured_missing_value() -> None:
         if item.source_value_id == merged.selected_source_value_id
     )
     assert winner.origin.kind == "document_research_input"
+    assert len(result.source_collection.crossmatch_sources) == 2
+    assert len(result.source_collection.supplemental_document_sources) == 1
+    supplemental = result.source_collection.supplemental_document_sources[0]
+    assert supplemental.pipeline_source_snapshot_id == (
+        documents[0].pipeline_source_snapshot.snapshot_id
+    )
+    assert supplemental.persisted_source_snapshot_id == (
+        documents[0].persisted_source_snapshot_id
+    )
+    assert supplemental.research_input_content_hash == (
+        documents[0].research_input_content_hash
+    )
 
 
 def _document_pair(field_id: str, unit: str, scalars: list[str]):
@@ -1595,9 +1726,7 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
             "document_source_policy": "research_input",
         },
         "requested_fields": list(REQUESTED_FIELDS),
-        "source_scope": {
-            "allowed_sources": ["nasa_exoplanet_archive", "esa_gaia_dr3"]
-        },
+        "source_scope": {"allowed_sources": ["nasa_exoplanet_archive", "esa_gaia_dr3"]},
         "paper_search_scope": {"max_candidates": 20},
         "output_requirements": ["dataset"],
         "evidence_requirements": {},
@@ -1956,9 +2085,12 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
     )
     assert unsupported_batch.raw_candidates == ()
     assert unsupported_batch.accepted == ()
-    assert admission.execute(unsupported_plan).producer_output_summary[
-        "unsupported_regions"
-    ] == unsupported_regions
+    assert (
+        admission.execute(unsupported_plan).producer_output_summary[
+            "unsupported_regions"
+        ]
+        == unsupported_regions
+    )
 
     # The single persisted upload SourceSnapshot is reused, never duplicated.
     bindings = {

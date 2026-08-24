@@ -2208,8 +2208,17 @@ def _data_snapshot_references(
                 "Data Artifact SourceSnapshot identity is ambiguous"
             )
         references[value.source_snapshot_id] = reference
-    for member in getattr(candidate, "members", ()):
-        snapshot = member.source_snapshot
+    collection_members = (
+        *getattr(candidate, "crossmatch_sources", ()),
+        *getattr(candidate, "source_table_sources", ()),
+        *getattr(candidate, "supplemental_document_sources", ()),
+    )
+    for member in collection_members:
+        snapshot = (
+            member.pipeline_source_snapshot
+            if member.member_kind == "document"
+            else member.source_snapshot
+        )
         reference = (snapshot.source_id, snapshot.query_hash, snapshot.content_hash)
         existing = references.get(snapshot.snapshot_id)
         if existing is not None and existing != reference:
@@ -2358,7 +2367,9 @@ def _data_publication_references(
             item.evidence_id: item for item in semantic_candidate.authority.evidence
         }
     elif not isinstance(semantic_candidate.authority, SourceTableArtifactAuthority):
-        raise PublicationAdmissionError("Data Artifact candidate has an unsupported authority")
+        raise PublicationAdmissionError(
+            "Data Artifact candidate has an unsupported authority"
+        )
 
     candidate_evidence_ids = set(transformations) | set(crossmatch_evidence)
     if candidate_evidence_ids != set(evidence_ids):

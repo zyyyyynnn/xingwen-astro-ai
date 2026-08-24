@@ -125,8 +125,13 @@ def test_source_table_enters_quality_without_constructing_crossmatch_result() ->
     assert result.contract_gate.overall_status.value == "pass"
     assert result.dataset_result.completeness.value == 1
     assert result.dataset_result.evidence_coverage.value == 1
-    assert result.dataset_result.object_match_coverage.status is QualityMetricStatus.not_applicable
-    assert all(item.authority.authority_kind == "source_table" for item in result.row_results)
+    assert (
+        result.dataset_result.object_match_coverage.status
+        is QualityMetricStatus.not_applicable
+    )
+    assert all(
+        item.authority.authority_kind == "source_table" for item in result.row_results
+    )
 
 
 def test_source_table_projects_requested_fields_from_an_acquisition_superset() -> None:
@@ -135,15 +140,23 @@ def test_source_table_projects_requested_fields_from_an_acquisition_superset() -
     build_result = build_data_artifact_candidates(data_input)
 
     assert build_result.dataset.requested_fields == requested_fields
-    assert tuple(column.field.field_id for column in build_result.dataset.columns) == requested_fields
+    assert (
+        tuple(column.field.field_id for column in build_result.dataset.columns)
+        == requested_fields
+    )
     assert build_result.field_dictionary.requested_fields == requested_fields
     assert build_result.dataset.rows[0].projected_field_ids == requested_fields
-    assert build_result.dataset.rows[0].row_authority.canonical_row_identity.canonical_identity.startswith(
-        "Gaia DR3 "
-    )
+    assert build_result.dataset.rows[
+        0
+    ].row_authority.canonical_row_identity.canonical_identity.startswith("Gaia DR3 ")
     assert "star.gaia_dr3_id" not in build_result.dataset.requested_fields
     assert len(build_result.dataset.evidence_ids) == 1
-    assert len(build_result.source_collection.members[0].raw_record_references) == 1
+    assert (
+        len(
+            build_result.source_collection.source_table_sources[0].raw_record_references
+        )
+        == 1
+    )
 
     quality_result = evaluate_data_quality(
         _quality_input(
@@ -162,9 +175,14 @@ def test_source_table_projects_requested_fields_from_an_acquisition_superset() -
         build_result.field_dictionary,
         build_result.source_collection,
     ):
-        assert "source_table_admission" not in candidate.authority.model_dump(mode="json")
-    assert "source_table_admission" not in build_result.source_collection.members[0].model_dump(
-        mode="json"
+        assert "source_table_admission" not in candidate.authority.model_dump(
+            mode="json"
+        )
+    assert (
+        "source_table_admission"
+        not in build_result.source_collection.source_table_sources[0].model_dump(
+            mode="json"
+        )
     )
 
 
@@ -189,7 +207,9 @@ def test_source_table_scientific_identity_excludes_retrieval_lineage() -> None:
     assert first.dataset.source_snapshot_ids != second.dataset.source_snapshot_ids
 
 
-def test_source_table_quality_rejects_admission_transplant_to_another_contract() -> None:
+def test_source_table_quality_rejects_admission_transplant_to_another_contract() -> (
+    None
+):
     data_input = _source_table_data_input()
     build_result = build_data_artifact_candidates(data_input)
     quality_input = _quality_input(
@@ -209,7 +229,9 @@ def test_source_table_quality_rejects_incomplete_admission_before_evaluation() -
         _source_table_data_input(_admit(result_status="truncated"))
 
 
-def test_source_table_candidates_close_existing_quality_and_publisher_admission() -> None:
+def test_source_table_candidates_close_existing_quality_and_publisher_admission() -> (
+    None
+):
     data_input = _source_table_data_input()
     build_result = build_data_artifact_candidates(data_input)
     quality_input = _quality_input(data_input, build_result)
@@ -226,14 +248,11 @@ def test_source_table_candidates_close_existing_quality_and_publisher_admission(
         build_result.source_collection,
     )
     assert all(
-        candidate.authority.authority_kind == "source_table"
-        for candidate in candidates
+        candidate.authority.authority_kind == "source_table" for candidate in candidates
     )
-    assert (
-        build_result.dataset.rows[0].row_authority.authority_kind == "source_table"
-    )
+    assert build_result.dataset.rows[0].row_authority.authority_kind == "source_table"
     assert build_result.field_dictionary.field_definitions
-    source_member = build_result.source_collection.members[0]
+    source_member = build_result.source_collection.source_table_sources[0]
     assert source_member.member_kind == "source_table"
     assert source_member.admission_id == build_result.dataset.authority.admission_id
     assert source_member.source_table == build_result.dataset.authority.source_table

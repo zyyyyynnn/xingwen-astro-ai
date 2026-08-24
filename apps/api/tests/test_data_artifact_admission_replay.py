@@ -29,15 +29,22 @@ from app.schemas.data_artifacts import (
 )
 from app.schemas.manifest import NullReason
 from app.workflow.publisher import PublicationAdmissionError, admit_artifact_candidate
-from app.schemas.source_acquisition import RawDataSourceRecord, compute_raw_data_record_hash
+from app.schemas.source_acquisition import (
+    RawDataSourceRecord,
+    compute_raw_data_record_hash,
+)
 from services.data_pipeline.crossmatch import align_cross_source_records
 from services.data_pipeline.crossmatch.benchmark import (
     _scenario_input,
     load_crossmatch_benchmark,
 )
 from services.data_pipeline.data_artifacts import build_data_artifact_candidates
-from services.data_pipeline.data_artifacts import build_data_artifact_candidates as package_entry
-from services.data_pipeline.data_artifacts.pipeline import build_data_artifact_candidates as module_entry
+from services.data_pipeline.data_artifacts import (
+    build_data_artifact_candidates as package_entry,
+)
+from services.data_pipeline.data_artifacts.pipeline import (
+    build_data_artifact_candidates as module_entry,
+)
 from services.data_pipeline.data_artifacts.admission import (
     validate_data_artifact_candidates_against_input,
     validate_data_artifact_domain,
@@ -74,11 +81,15 @@ def _admit(candidate):
     )
 
 
-def test_package_and_module_builder_are_one_import_order_independent_entrypoint() -> None:
+def test_package_and_module_builder_are_one_import_order_independent_entrypoint() -> (
+    None
+):
     assert package_entry is module_entry
 
 
-def _input_from_crossmatch(crossmatch_input, *requested_fields: str) -> DataArtifactBuildInput:
+def _input_from_crossmatch(
+    crossmatch_input, *requested_fields: str
+) -> DataArtifactBuildInput:
     crossmatch_result = align_cross_source_records(crossmatch_input)
     baseline = build_input(*requested_fields)
     pins = ManifestPins(
@@ -179,7 +190,9 @@ def _replace_public_fields(original, replacement) -> None:
         object.__setattr__(original, field_name, getattr(replacement, field_name))
 
 
-def test_public_build_rejects_self_consistent_non_frozen_entity_alignment_result() -> None:
+def test_public_build_rejects_self_consistent_non_frozen_entity_alignment_result() -> (
+    None
+):
     benchmark = load_crossmatch_benchmark()
     scenario = next(
         item for item in benchmark.scenarios if item.scenario_id == "exact_one_to_one"
@@ -238,9 +251,7 @@ def test_publisher_replay_rejects_synchronized_dataset_semantic_tamper() -> None
                 outcome_found = True
     assert outcome_found
 
-    damaged = DatasetArtifactCandidate.model_validate(
-        _rehash_dataset_payload(payload)
-    )
+    damaged = DatasetArtifactCandidate.model_validate(_rehash_dataset_payload(payload))
     _replace_public_fields(original, damaged)
 
     with pytest.raises(PublicationAdmissionError):
@@ -253,7 +264,7 @@ def test_publisher_replay_rejects_missing_unused_acquisition_record() -> None:
     )
     original = result.source_collection
     payload = original.model_dump(mode="json")
-    left_member = payload["members"][0]
+    left_member = payload["crossmatch_sources"][0]
     assert left_member["raw_record_references"]
 
     dataset_record_keys = {
@@ -292,7 +303,11 @@ def test_publisher_replay_rejects_missing_unused_acquisition_record() -> None:
 def test_original_candidates_retain_immutable_replay_snapshot() -> None:
     result = build_data_artifact_candidates(build_input("star.tic_id"))
 
-    for candidate in (result.dataset, result.field_dictionary, result.source_collection):
+    for candidate in (
+        result.dataset,
+        result.field_dictionary,
+        result.source_collection,
+    ):
         context = getattr(candidate, "_artifact_publication_context", None)
         assert isinstance(context, DataArtifactAdmissionSnapshot)
         assert context.input_hash == candidate.input_hash
@@ -313,7 +328,9 @@ def test_reparsed_candidate_still_cannot_recreate_replay_context() -> None:
         _admit(reparsed)
 
 
-def test_six_public_data_artifact_models_round_trip_without_publication_authority() -> None:
+def test_six_public_data_artifact_models_round_trip_without_publication_authority() -> (
+    None
+):
     input_value = build_input("star.tic_id")
     result = build_data_artifact_candidates(input_value)
     public_models = (
@@ -336,9 +353,13 @@ def test_six_public_data_artifact_models_round_trip_without_publication_authorit
         assert not candidate.__artifact_publication_is_admitted__()
 
 
-@pytest.mark.parametrize("candidate_name", ["dataset", "field_dictionary", "source_collection"])
+@pytest.mark.parametrize(
+    "candidate_name", ["dataset", "field_dictionary", "source_collection"]
+)
 @pytest.mark.parametrize("mutation", ["context", "payload", "payload_context", "seal"])
-def test_publisher_rejects_cross_build_candidate_transplant(candidate_name, mutation) -> None:
+def test_publisher_rejects_cross_build_candidate_transplant(
+    candidate_name, mutation
+) -> None:
     first = build_data_artifact_candidates(build_input("star.tic_id"))
     second = build_data_artifact_candidates(build_input("planet.name"))
     original = getattr(first, candidate_name)
@@ -398,12 +419,18 @@ def _install_broken_assembler(monkeypatch, mutate) -> None:
         mutate(result)
         return result
 
-    monkeypatch.setattr(pipeline, "_assemble_data_artifact_candidates", broken_assembler)
+    monkeypatch.setattr(
+        pipeline, "_assemble_data_artifact_candidates", broken_assembler
+    )
 
 
-def test_projection_admission_rejects_producer_omitted_source_value(monkeypatch) -> None:
+def test_projection_admission_rejects_producer_omitted_source_value(
+    monkeypatch,
+) -> None:
     def mutate(result):
-        object.__setattr__(result.dataset, "source_values", result.dataset.source_values[1:])
+        object.__setattr__(
+            result.dataset, "source_values", result.dataset.source_values[1:]
+        )
 
     _install_broken_assembler(monkeypatch, mutate)
     with pytest.raises(ValueError, match="SourceValue set.*complete domain projection"):
@@ -418,7 +445,8 @@ def test_projection_admission_rejects_wrong_winner(monkeypatch) -> None:
             outcome
             for row in result.dataset.rows
             for outcome in row.fields
-            if outcome.status == "mapped" and len(outcome.candidate_source_value_ids) > 1
+            if outcome.status == "mapped"
+            and len(outcome.candidate_source_value_ids) > 1
         )
         object.__setattr__(
             outcome,
@@ -499,7 +527,9 @@ def test_projection_admission_rejects_hidden_conflict(monkeypatch) -> None:
         object.__setattr__(result.dataset, "conflicts", ())
 
     _install_broken_assembler(monkeypatch, mutate)
-    with pytest.raises(ValueError, match="Dataset conflict set.*complete domain projection"):
+    with pytest.raises(
+        ValueError, match="Dataset conflict set.*complete domain projection"
+    ):
         build_data_artifact_candidates(
             build_input("planet.name", scenario_id="alias_conflict")
         )
@@ -538,9 +568,9 @@ def test_dataset_hashes_separate_scientific_semantics_from_raw_lineage() -> None
 
     scientific_variants = []
     entity_identity = deepcopy(baseline)
-    entity_identity["rows"][0]["row_authority"]["canonical_row_identity"]["member_entities"][0][
-        "identity_values"
-    ][0]["normalized_value"] = "different normalized entity"
+    entity_identity["rows"][0]["row_authority"]["canonical_row_identity"][
+        "member_entities"
+    ][0]["identity_values"][0]["normalized_value"] = "different normalized entity"
     scientific_variants.append(entity_identity)
 
     canonical_value = deepcopy(baseline)
@@ -594,7 +624,9 @@ def test_dataset_model_strictly_recomputes_lineage_hash() -> None:
     evidence["raw_value"] = "raw-lineage-drift"
     evidence["content_hash"] = compute_data_artifact_content_hash(evidence)
 
-    with pytest.raises(ValidationError, match="lineage_hash.*complete raw/input lineage"):
+    with pytest.raises(
+        ValidationError, match="lineage_hash.*complete raw/input lineage"
+    ):
         DatasetArtifactCandidate.model_validate(payload)
 
 
@@ -646,26 +678,28 @@ def test_canonical_hash_covers_selection_null_and_conflict_semantics() -> None:
     )
 
 
-def test_negative_zero_preserves_raw_provenance_but_not_canonical_dataset_identity() -> None:
+def test_negative_zero_preserves_raw_provenance_but_not_canonical_dataset_identity() -> (
+    None
+):
     positive = build_data_artifact_candidates(_negative_zero_build_input(0.0))
     negative = build_data_artifact_candidates(_negative_zero_build_input(-0.0))
 
-    assert {
-        value.canonical_value for value in positive.dataset.source_values
-    } == {"0"}
-    assert {
-        value.canonical_value for value in negative.dataset.source_values
-    } == {"0"}
-    assert positive.dataset.canonical_content_hash == negative.dataset.canonical_content_hash
+    assert {value.canonical_value for value in positive.dataset.source_values} == {"0"}
+    assert {value.canonical_value for value in negative.dataset.source_values} == {"0"}
+    assert (
+        positive.dataset.canonical_content_hash
+        == negative.dataset.canonical_content_hash
+    )
     assert positive.dataset.candidate_id == negative.dataset.candidate_id
-    assert tuple(
-        row.canonical_row_identity for row in positive.dataset.rows
-    ) == tuple(row.canonical_row_identity for row in negative.dataset.rows)
+    assert tuple(row.canonical_row_identity for row in positive.dataset.rows) == tuple(
+        row.canonical_row_identity for row in negative.dataset.rows
+    )
     assert positive.dataset.lineage_hash != negative.dataset.lineage_hash
     assert positive.dataset.output_hash != negative.dataset.output_hash
-    assert positive.source_collection.output_hash != negative.source_collection.output_hash
+    assert (
+        positive.source_collection.output_hash != negative.source_collection.output_hash
+    )
     assert positive.input_hash != negative.input_hash
-
 
 
 # --- durable data-artifact semantics moved from the removed review-history suite ---
@@ -756,14 +790,19 @@ def test_source_collection_json_reparse_preserves_member_bindings() -> None:
         candidate.model_dump_json()
     )
 
-    assert reparsed.members == candidate.members
-    assert reparsed.members[0].completion != reparsed.members[1].completion
+    assert reparsed.crossmatch_sources == candidate.crossmatch_sources
+    assert (
+        reparsed.crossmatch_sources[0].completion
+        != reparsed.crossmatch_sources[1].completion
+    )
 
 
 def test_source_collection_rejects_license_source_mismatch() -> None:
-    candidate = build_data_artifact_candidates(build_input("star.tic_id")).source_collection
+    candidate = build_data_artifact_candidates(
+        build_input("star.tic_id")
+    ).source_collection
     payload = candidate.model_dump(mode="json")
-    payload["members"][0]["license_note"] = "forged license binding"
+    payload["crossmatch_sources"][0]["license_note"] = "forged license binding"
     _rehash_candidate_payload(payload)
 
     with pytest.raises(ValidationError, match="SourceSnapshot"):
@@ -825,13 +864,17 @@ def test_dataset_rejects_synchronized_missing_snapshot() -> None:
 
 
 def test_source_collection_rejects_missing_or_duplicate_member() -> None:
-    candidate = build_data_artifact_candidates(build_input("star.tic_id")).source_collection
+    candidate = build_data_artifact_candidates(
+        build_input("star.tic_id")
+    ).source_collection
     for members in (
-        candidate.members[:1],
-        (candidate.members[0], candidate.members[0]),
+        candidate.crossmatch_sources[:1],
+        (candidate.crossmatch_sources[0], candidate.crossmatch_sources[0]),
     ):
         payload = candidate.model_dump(mode="json")
-        payload["members"] = [item.model_dump(mode="json") for item in members]
+        payload["crossmatch_sources"] = [
+            item.model_dump(mode="json") for item in members
+        ]
         payload["source_snapshot_ids"] = sorted(
             {item.source_snapshot_id for item in members}
         )
@@ -863,8 +906,8 @@ def test_build_result_json_reparse_cannot_recreate_bundle_seals() -> None:
 def test_build_result_rejects_source_collection_missing_used_raw_record() -> None:
     result = build_data_artifact_candidates(build_input("star.tic_id"))
     collection_payload = result.source_collection.model_dump(mode="json")
-    collection_payload["members"][0]["raw_record_references"] = []
-    _refresh_raw_record_registry(collection_payload["members"][0])
+    collection_payload["crossmatch_sources"][0]["raw_record_references"] = []
+    _refresh_raw_record_registry(collection_payload["crossmatch_sources"][0])
     collection = SourceCollectionArtifactCandidate.model_validate(
         _rehash_candidate_payload(collection_payload)
     )
@@ -892,7 +935,9 @@ def test_dataset_rejects_orphan_and_missing_conflict_references() -> None:
     missing_payload = candidate.model_dump(mode="json")
     row = next(item for item in missing_payload["rows"] if item["conflict_ids"])
     row["conflict_ids"] = []
-    conflicted_outcome = next(item for item in row["fields"] if item.get("conflict_ids"))
+    conflicted_outcome = next(
+        item for item in row["fields"] if item.get("conflict_ids")
+    )
     conflicted_outcome["conflict_ids"] = []
     _rehash_dataset_tree(missing_payload)
     with pytest.raises(ValidationError, match="selection status|conflict registry"):

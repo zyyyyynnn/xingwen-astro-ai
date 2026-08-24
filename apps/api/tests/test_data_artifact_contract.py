@@ -90,7 +90,6 @@ def test_mapping_rule_set_tamper_fails_content_hash_validation() -> None:
         type(rule_set).model_validate(payload)
 
 
-
 # --- durable data-artifact semantics moved from the removed review-history suite ---
 def _rehash_policy_input(
     input_value: DataArtifactBuildInput,
@@ -275,9 +274,11 @@ def test_public_build_rejects_self_consistent_jupiter_mass_factor_tamper() -> No
 
 @pytest.mark.parametrize("tamper", ("row_key", "record_hash"))
 def test_source_collection_rejects_raw_record_reference_tamper(tamper: str) -> None:
-    candidate = build_data_artifact_candidates(build_input("star.tic_id")).source_collection
+    candidate = build_data_artifact_candidates(
+        build_input("star.tic_id")
+    ).source_collection
     payload = candidate.model_dump(mode="json")
-    reference = payload["members"][0]["raw_record_references"][0]
+    reference = payload["crossmatch_sources"][0]["raw_record_references"][0]
     if tamper == "row_key":
         reference["row_key"][0][1] = f"{reference['row_key'][0][1]}-tampered"
     else:

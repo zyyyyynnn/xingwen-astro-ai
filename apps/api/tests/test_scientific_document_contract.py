@@ -362,7 +362,9 @@ def test_candidate_rejects_bbox_outside_page_for_block_and_cell() -> None:
         block_ids=(block.block_id,),
     )
     with pytest.raises(ValidationError):
-        _candidate(pages=(page,), blocks=(block,), quality=DocumentParseQuality.accepted)
+        _candidate(
+            pages=(page,), blocks=(block,), quality=DocumentParseQuality.accepted
+        )
 
     table_block = _block("tb", kind=DocumentBlockKind.table)
     table_page = DocumentPage(
@@ -498,6 +500,14 @@ def test_scientific_extraction_candidate_is_raw_and_locator_only() -> None:
         "cell_id",
     }
     assert forbidden & set(ScientificDataExtractionCandidate.model_fields) == set()
+    assert set(ScientificDataExtractionCandidate.model_fields) >= {
+        "research_input_content_hash",
+        "pipeline_source_snapshot_id",
+        "pipeline_source_snapshot_content_hash",
+        "persisted_source_snapshot_id",
+        "document_parse_id",
+    }
+    assert "source_snapshot_id" not in ScientificDataExtractionCandidate.model_fields
 
     candidate = ScientificDataExtractionCandidate(
         candidate_id="sc1",
@@ -507,6 +517,10 @@ def test_scientific_extraction_candidate_is_raw_and_locator_only() -> None:
         field_hint="planet.period",
         object_hint="exoplanet_candidate",
         research_input_id="ri1",
+        research_input_content_hash=_HASH_A,
+        pipeline_source_snapshot_id="pipeline_snapshot_1",
+        pipeline_source_snapshot_content_hash=_HASH_A,
+        persisted_source_snapshot_id="persisted_snapshot_1",
         document_parse_id="parse_1",
         parse_quality=DocumentParseQuality.accepted,
         locator=DocumentLocator(page_index=0, block_id="b1"),
@@ -544,8 +558,9 @@ def test_canonical_schema_imports_are_vendor_free() -> None:
     forbidden_roots = {"docling_parse", "paddleocr", "paddle", "mineru", "grobid"}
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            assert not {
-                alias.name.split(".", 1)[0] for alias in node.names
-            } & forbidden_roots
+            assert (
+                not {alias.name.split(".", 1)[0] for alias in node.names}
+                & forbidden_roots
+            )
         elif isinstance(node, ast.ImportFrom) and node.module:
             assert node.module.split(".", 1)[0] not in forbidden_roots

@@ -122,9 +122,7 @@ def _same_measurement_for_scenario(scenario_id: str) -> DataArtifactBuildInput:
             "right": add_measurement(crossmatch_input.right),
         }
     )
-    return _build_input_from_crossmatch(
-        crossmatch_input, "planet.orbital_period"
-    )
+    return _build_input_from_crossmatch(crossmatch_input, "planet.orbital_period")
 
 
 def test_pipeline_builds_three_deterministic_evidence_first_candidates() -> None:
@@ -148,7 +146,9 @@ def test_pipeline_builds_three_deterministic_evidence_first_candidates() -> None
     assert projected
     assert all(isinstance(field, MappedCanonicalValue) for field in projected)
     assert all(
-        not row.fields for row in first.dataset.rows if row.entity_level == "planet_candidate"
+        not row.fields
+        for row in first.dataset.rows
+        if row.entity_level == "planet_candidate"
     )
     assert {
         evidence.locator.source_snapshot_id
@@ -156,7 +156,9 @@ def test_pipeline_builds_three_deterministic_evidence_first_candidates() -> None
     } == set(first.dataset.source_snapshot_ids)
 
 
-def test_pipeline_dataset_identity_distinguishes_entities_with_same_measurement() -> None:
+def test_pipeline_dataset_identity_distinguishes_entities_with_same_measurement() -> (
+    None
+):
     first = build_data_artifact_candidates(
         _same_measurement_for_scenario("exact_one_to_one")
     ).dataset
@@ -243,9 +245,7 @@ def test_projection_requires_non_nullable_fields_only_for_applicable_sources() -
     toi_row = next(
         row for row in dataset.rows if row.entity_level == "planet_candidate"
     )
-    ps_row = next(
-        row for row in dataset.rows if row.entity_level == "planet_assertion"
-    )
+    ps_row = next(row for row in dataset.rows if row.entity_level == "planet_assertion")
 
     assert toi_row.projected_field_ids == ("planet.toi_id",)
     assert ps_row.projected_field_ids == ()
@@ -279,7 +279,9 @@ def test_incomplete_crossmatch_scope_stays_inconclusive() -> None:
     assert result.source_collection.authority.inconclusive_record_keys
 
 
-def test_acquisition_payload_tamper_is_rejected_even_with_recomputed_input_hash() -> None:
+def test_acquisition_payload_tamper_is_rejected_even_with_recomputed_input_hash() -> (
+    None
+):
     from app.schemas.data_artifacts import compute_data_artifact_input_hash
 
     input_value = build_input("star.tic_id")
@@ -303,8 +305,6 @@ def test_acquisition_payload_tamper_is_rejected_even_with_recomputed_input_hash(
         build_data_artifact_candidates(tampered)
 
     assert exc_info.value.code == "SOURCE_RECORD_HASH_MISMATCH"
-
-
 
 
 # --- durable data-artifact semantics moved from the removed review-history suite ---
@@ -357,8 +357,6 @@ def _numeric_values(*values: str):
         )
         for index, value in enumerate(values)
     )
-
-
 
 
 def test_output_hash_ignores_nested_nulls_for_dict_and_model_inputs() -> None:
@@ -419,7 +417,9 @@ def test_source_collection_members_bind_each_source_and_all_raw_records() -> Non
     input_value = build_input("star.tic_id")
     result = build_data_artifact_candidates(input_value)
 
-    assert tuple(member.side.value for member in result.source_collection.members) == (
+    assert tuple(
+        member.side.value for member in result.source_collection.crossmatch_sources
+    ) == (
         "left",
         "right",
     )
@@ -428,7 +428,9 @@ def test_source_collection_members_bind_each_source_and_all_raw_records() -> Non
         input_value.authority.left_acquisition,
         input_value.authority.right_acquisition,
     )
-    for member, acquisition in zip(result.source_collection.members, acquisitions):
+    for member, acquisition in zip(
+        result.source_collection.crossmatch_sources, acquisitions
+    ):
         assert member.source_id == acquisition.snapshot.source_id
         assert member.source_snapshot_id == acquisition.snapshot.snapshot_id
         assert member.completion == acquisition.completion
@@ -494,9 +496,7 @@ def test_planet_radius_assertions_are_not_merged_into_host_rows(
 
     assert host_rows and all(not row.fields for row in host_rows)
     assert assertion_rows
-    assert all(
-        row.projected_field_ids == ("planet.radius",) for row in assertion_rows
-    )
+    assert all(row.projected_field_ids == ("planet.radius",) for row in assertion_rows)
     assert all(
         isinstance(row.row_authority, CrossmatchRowAuthority)
         and len(row.row_authority.source_member_ids) == 1
@@ -522,7 +522,7 @@ def test_source_collection_keeps_one_record_reference_for_multi_field_use() -> N
     result = build_data_artifact_candidates(input_value)
 
     for member, acquisition in zip(
-        result.source_collection.members,
+        result.source_collection.crossmatch_sources,
         (
             input_value.authority.left_acquisition,
             input_value.authority.right_acquisition,
@@ -542,10 +542,12 @@ def test_dataset_rejects_synchronized_extra_snapshot() -> None:
 
 
 def test_source_collection_members_survive_reversed_snapshot_sort_order() -> None:
-    candidate = build_data_artifact_candidates(build_input("star.tic_id")).source_collection
+    candidate = build_data_artifact_candidates(
+        build_input("star.tic_id")
+    ).source_collection
     payload = candidate.model_dump(mode="json")
     replacements = ("snapshot.z-left", "snapshot.a-right")
-    for member, replacement in zip(payload["members"], replacements):
+    for member, replacement in zip(payload["crossmatch_sources"], replacements):
         member["source_snapshot_id"] = replacement
         member["source_snapshot"]["snapshot_id"] = replacement
         for reference in member["raw_record_references"]:
@@ -557,8 +559,14 @@ def test_source_collection_members_survive_reversed_snapshot_sort_order() -> Non
 
     reparsed = SourceCollectionArtifactCandidate.model_validate(payload)
 
-    assert tuple(member.side.value for member in reparsed.members) == ("left", "right")
-    assert tuple(member.source_snapshot_id for member in reparsed.members) == replacements
+    assert tuple(member.side.value for member in reparsed.crossmatch_sources) == (
+        "left",
+        "right",
+    )
+    assert (
+        tuple(member.source_snapshot_id for member in reparsed.crossmatch_sources)
+        == replacements
+    )
     assert reparsed.source_snapshot_ids == tuple(sorted(replacements))
 
 
@@ -607,8 +615,14 @@ def test_numeric_collection_tolerance_semantics(
     assert bool(conflicts) is has_conflict
     assert bool(reversed_conflicts) is has_conflict
     if conflicts:
-        assert conflicts[0].absolute_difference == reversed_conflicts[0].absolute_difference
-        assert conflicts[0].relative_difference == reversed_conflicts[0].relative_difference
+        assert (
+            conflicts[0].absolute_difference
+            == reversed_conflicts[0].absolute_difference
+        )
+        assert (
+            conflicts[0].relative_difference
+            == reversed_conflicts[0].relative_difference
+        )
 
 
 @pytest.mark.parametrize(

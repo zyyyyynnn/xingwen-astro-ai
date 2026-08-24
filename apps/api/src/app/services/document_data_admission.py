@@ -173,10 +173,14 @@ class DocumentDataAdmissionService:
                 project_id=project_id,
                 document_parse_id=document_parse_id,
             )
+            pipeline_snapshot_id = f"research-input.{research_input_id}"
             context = PersistedDocumentContext(
                 research_input_id=str(research_input_id),
+                research_input_content_hash=snapshot.content_hash,
                 document_parse_id=str(document_parse_id),
-                source_snapshot_id=str(snapshot.id),
+                persisted_source_snapshot_id=str(snapshot.id),
+                pipeline_source_snapshot_id=pipeline_snapshot_id,
+                pipeline_source_snapshot_content_hash=snapshot.content_hash,
             )
             prepared_inputs.append(
                 PreparedDocumentDataInput(
@@ -301,7 +305,8 @@ class DocumentDataAdmissionService:
                 }
                 for item in ordered_outcomes
                 if item.code is not None
-                and item.code is DocumentObservationAdmissionCode.document_parse_unsupported
+                and item.code
+                is DocumentObservationAdmissionCode.document_parse_unsupported
             ],
         }
         return DocumentDataAdmissionBatch(
@@ -369,7 +374,7 @@ class DocumentDataAdmissionService:
         """Project every persisted SourceSnapshot fact without synthesis."""
 
         return DataSourceSnapshotProjection(
-            snapshot_id=f"research-input.{context.research_input_id}",
+            snapshot_id=context.pipeline_source_snapshot_id,
             source_id=snapshot.source_id,
             source_type=snapshot.source_type,
             retrieved_at=snapshot.retrieved_at,

@@ -2,7 +2,7 @@
   "rule_set_id": "exoplanet_host_star.document_observation_rules",
   "schema_version": "1.1.0",
   "version": "1.1.0",
-  "configuration_hash": "sha256:921de14756ee201c44c3d6dfe41571574fd6478da7a736cd61d66ab8ab90b644",
+  "configuration_hash": "sha256:f6888d999a540f4a7d7b2ef44b69796b62af9bce5f65e53bee946df92cf2fdec",
   "producer_name": "xingwen.document-data-admission",
   "producer_version": "1.1.0",
   "case_manifest_id": "exoplanet_host_star",
@@ -11,7 +11,7 @@
   "field_manifest_id": "exoplanet_host_star.fields",
   "field_manifest_version": "3.0.0",
   "field_manifest_content_hash": "sha256:a922748dee1a51f616e256d1fe71a7e2b94596bcdfa465906046734bbf90118d",
-  "field_label_normalization": "nfkc_trim_collapse_casefold",
+  "field_label_normalization": "exact",
   "numeric_syntax_version": "1.1.0",
   "null_tokens": [
     "--",

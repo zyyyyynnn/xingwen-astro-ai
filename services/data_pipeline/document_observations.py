@@ -53,6 +53,7 @@ from app.schemas.manifest import (
 )
 from app.schemas.scientific_document import (
     DocumentLocator,
+    DocumentFigure,
     DocumentParseCandidate,
     DocumentParseQuality,
     DocumentTable,
@@ -68,6 +69,10 @@ from .crossmatch.identity import (
 )
 from .data_artifacts.conversion import decimal_from_source
 from .data_artifacts.errors import DataArtifactError
+from .document_authorization import (
+    DocumentAuthorizationDecision,
+    authorize_document_source,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,9 +80,11 @@ class PersistedDocumentContext:
     """Frozen persisted identities binding one parse to its provenance."""
 
     research_input_id: str
+    research_input_content_hash: str
     document_parse_id: str
-    #: Persisted SourceSnapshot UUID reused through ArtifactSourceSnapshotBinding.
-    source_snapshot_id: str
+    persisted_source_snapshot_id: str
+    pipeline_source_snapshot_id: str
+    pipeline_source_snapshot_content_hash: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,6 +144,21 @@ def extract_document_observations(
         raise DocumentObservationError(
             "persisted ResearchInput does not match the canonical parse"
         )
+    if context.research_input_content_hash != parse.content_hash:
+        raise DocumentObservationError(
+            "persisted ResearchInput content hash does not match the canonical parse"
+        )
+    if (
+        context.pipeline_source_snapshot_id != snapshot_projection.snapshot_id
+        or context.pipeline_source_snapshot_content_hash
+        != snapshot_projection.content_hash
+        or snapshot_projection.content_hash != context.research_input_content_hash
+        or snapshot_projection.source_id
+        != f"research_input:{context.research_input_id}"
+    ):
+        raise DocumentObservationError(
+            "pipeline SourceSnapshot projection does not close persisted document provenance"
+        )
     resolver = _Resolver(
         manifests=manifests,
         requested_fields=requested_fields,
@@ -152,7 +174,6 @@ def extract_document_observations(
     authorization_code = _authorization_rejection(
         policy=contract_policy,
         case_capability=case_capability,
-        manifests=manifests,
     )
     raw_candidates: list[ScientificDataExtractionCandidate] = []
     accepted: list[TypedDocumentObservation] = []
@@ -191,6 +212,18 @@ def extract_document_observations(
                 rules=rules,
             )
     for draft in extractor.text_drafts(parse):
+        _record_draft(
+            draft,
+            parse=parse,
+            context=context,
+            snapshot_projection=snapshot_projection,
+            authorization_code=authorization_code,
+            raw_candidates=raw_candidates,
+            accepted=accepted,
+            outcomes=outcomes,
+            rules=rules,
+        )
+    for draft in extractor.figure_drafts(parse):
         _record_draft(
             draft,
             parse=parse,
@@ -247,11 +280,15 @@ def _authorization_rejection(
     *,
     policy: DocumentSourcePolicy,
     case_capability: bool,
-    manifests: ManifestBundle,
 ) -> DocumentObservationAdmissionCode | None:
-    if policy is DocumentSourcePolicy.disabled:
+    decision = authorize_document_source(
+        policy=policy,
+        case_capability=case_capability,
+        provenance_closed=True,
+    )
+    if decision is DocumentAuthorizationDecision.policy_disabled:
         return DocumentObservationAdmissionCode.document_source_disabled
-    if not case_capability:
+    if decision is DocumentAuthorizationDecision.case_capability_unsupported:
         return DocumentObservationAdmissionCode.document_source_capability_unsupported
     return None
 
@@ -522,7 +559,12 @@ class _Draft:
             field_hint=self.header_context,
             object_hint=self.entity_token,
             research_input_id=str(self.context.research_input_id),
-            source_snapshot_id=str(self.context.source_snapshot_id),
+            research_input_content_hash=self.context.research_input_content_hash,
+            pipeline_source_snapshot_id=self.context.pipeline_source_snapshot_id,
+            pipeline_source_snapshot_content_hash=(
+                self.context.pipeline_source_snapshot_content_hash
+            ),
+            persisted_source_snapshot_id=self.context.persisted_source_snapshot_id,
             document_parse_id=str(self.context.document_parse_id),
             parse_quality=self.parse_quality,
             locator=self.locator,
@@ -537,26 +579,35 @@ class _Draft:
     ) -> TypedDocumentObservation:
         assert self.resolved_field is not None and self.logical_key is not None
         assert self.unit_id is not None
-        return TypedDocumentObservation(
-            observation_id=f"obs.{self.candidate_id.removeprefix('cand.')}",
-            raw_candidate_id=self.candidate_id,
-            research_input_id=context.research_input_id,
-            document_parse_id=context.document_parse_id,
-            persisted_source_snapshot_id=context.source_snapshot_id,
-            pipeline_source_snapshot=snapshot_projection,
-            document_locator=self.locator,
-            parse_quality=self.parse_quality,
-            canonical_field_id=self.resolved_field.field_id,
-            crossmatch_logical_key=self.logical_key,
-            raw_value=self.raw_text,
-            raw_text=self.raw_text,
-            parsed_scalar=self.parsed_scalar,
-            source_unit=self.unit_id,
-            uncertainty_positive_raw=self.positive_error,
-            uncertainty_negative_raw=self.negative_error,
-            limit_status=self.limit_status,
-            null_status=self.null_status,
+        payload = {
+            "schema_version": "1.0.0",
+            "observation_id": f"obs.{self.candidate_id.removeprefix('cand.')}",
+            "raw_candidate_id": self.candidate_id,
+            "research_input_id": context.research_input_id,
+            "research_input_content_hash": context.research_input_content_hash,
+            "document_parse_id": context.document_parse_id,
+            "persisted_source_snapshot_id": context.persisted_source_snapshot_id,
+            "pipeline_source_snapshot": snapshot_projection,
+            "document_locator": self.locator,
+            "parse_quality": self.parse_quality,
+            "canonical_field_id": self.resolved_field.field_id,
+            "crossmatch_logical_key": self.logical_key,
+            "raw_value": self.raw_text,
+            "raw_text": self.raw_text,
+            "parsed_scalar": self.parsed_scalar,
+            "source_unit": self.unit_id,
+            "uncertainty_positive_raw": self.positive_error,
+            "uncertainty_negative_raw": self.negative_error,
+            "limit_status": self.limit_status,
+            "null_status": self.null_status,
+        }
+        unhashed = TypedDocumentObservation.model_construct(
+            **payload, content_hash="sha256:" + "0" * 64
         )
+        payload["content_hash"] = compute_canonical_payload_hash(
+            unhashed.model_dump(mode="json", exclude={"content_hash"})
+        )
+        return TypedDocumentObservation.model_validate(payload)
 
 
 class _Resolver:
@@ -576,8 +627,7 @@ class _Resolver:
         units_by_id = {unit.unit_id: unit for unit in manifests.field_manifest.units}
         self._unit_ids = frozenset(units_by_id)
         self._unit_labels = {
-            normalize_document_alias_label(unit.label): unit_id
-            for unit_id, unit in units_by_id.items()
+            unit.label: unit_id for unit_id, unit in units_by_id.items()
         }
         self._unit_symbols = {
             unit.symbol: unit_id for unit_id, unit in units_by_id.items()
@@ -585,35 +635,15 @@ class _Resolver:
         self._quantity_kinds = {
             unit_id: unit.quantity_kind for unit_id, unit in units_by_id.items()
         }
-        self._conversion_rule_ids = {
-            field.field_id: {
-                unit_id: frozenset(
-                    alias.conversion_rule_id
-                    for alias in field.source_aliases
-                    if alias.source_unit == unit_id
-                )
-                for unit_id in self._unit_ids
-            }
-            for field in self._fields
-        }
         self._alias_index: dict[str, list[FieldDefinition]] = {}
         for field in self._fields:
-            keys = {normalize_document_alias_label(field.field_id)}
-            keys.update(
-                normalize_document_alias_label(alias.alias)
-                for alias in field.document_aliases
-            )
+            keys = {field.field_id}
+            keys.update(alias.alias for alias in field.document_aliases)
             for key in keys:
                 self._alias_index.setdefault(key, []).append(field)
 
     def fields_for_label(self, label: str) -> list[FieldDefinition]:
-        normalized = normalize_document_alias_label(label)
-        stripped = re.sub(r"\s*[\[(].*?[\])]\s*$", "", normalized).strip()
-        for candidate in (normalized, stripped):
-            matched = self._alias_index.get(candidate)
-            if matched:
-                return sorted(matched, key=lambda item: item.field_id)
-        return []
+        return sorted(self._alias_index.get(label, ()), key=lambda item: item.field_id)
 
     def split_header_unit(self, label: str) -> tuple[str, str | None]:
         """Return (base label, bracketed unit token) for one header cell."""
@@ -631,14 +661,12 @@ class _Resolver:
         if cleaned in self._unit_ids:
             unit_id = cleaned
         else:
-            unit_id = self._unit_labels.get(normalize_document_alias_label(cleaned))
+            unit_id = self._unit_labels.get(cleaned)
             if unit_id is None:
                 unit_id = self._unit_symbols.get(cleaned)
         if unit_id is None:
             return None
         if self._quantity_kinds[unit_id] != self._quantity_kinds[field.canonical_unit]:
-            return None
-        if len(self._conversion_rule_ids[field.field_id][unit_id]) != 1:
             return None
         return unit_id
 
@@ -862,41 +890,99 @@ class _Extractor:
                     continue
                 if block.text is None:
                     continue
-                for match in compiled.finditer(block.text):
-                    groups = match.groupdict()
-                    if any(
-                        groups.get(name) in (None, "")
-                        for name in ("field", "value", "entity")
-                    ):
-                        continue
-                    quality = (
-                        DocumentParseQuality.accepted
-                        if block.quality is DocumentParseQuality.accepted
-                        else DocumentParseQuality.partial
+                drafts.extend(
+                    self._text_region_drafts(
+                        text=block.text,
+                        quality=block.quality,
+                        locator=DocumentLocator(
+                            page_index=block.page_index,
+                            block_id=block.block_id,
+                            bbox=block.bbox,
+                            reading_order=block.reading_order,
+                        ),
+                        compiled=compiled,
+                        region_context=("block", block.block_id),
+                        pattern_id=pattern.pattern_id,
                     )
-                    start, end = match.span()
-                    drafts.append(
-                        _Draft(
-                            context=self._context,
-                            resolver=self._resolver,
-                            entities=self._entities,
-                            rules=self._rules,
+                )
+        return drafts
+
+    def figure_drafts(self, parse: DocumentParseCandidate) -> list[_Draft]:
+        """Read persisted visible figure text without interpreting pixels."""
+
+        drafts: list[_Draft] = []
+        for figure in parse.figures:
+            if figure.quality is DocumentParseQuality.unsupported:
+                continue
+            for region_name, text in self._figure_text_regions(figure):
+                for pattern in self._rules.declared_text_patterns:
+                    drafts.extend(
+                        self._text_region_drafts(
+                            text=text,
+                            quality=figure.quality,
                             locator=DocumentLocator(
-                                page_index=block.page_index,
-                                block_id=block.block_id,
-                                bbox=block.bbox,
-                                reading_order=block.reading_order,
-                                text_span=TextSpan(start=start, end=end),
+                                page_index=figure.page_index,
+                                block_id=figure.block_id,
+                                bbox=figure.bbox,
                             ),
-                            parse_quality=quality,
-                            raw_text=groups["value"].strip(),
-                            header_context=groups["field"].strip(),
-                            header_unit_token=(groups.get("unit") or "").strip()
-                            or None,
-                            entity_token=groups["entity"].strip(),
-                            row_context=(("pattern", pattern.pattern_id),),
+                            compiled=re.compile(pattern.pattern),
+                            region_context=(
+                                "figure",
+                                f"{figure.block_id}:{region_name}",
+                            ),
+                            pattern_id=pattern.pattern_id,
                         )
                     )
+        return drafts
+
+    @staticmethod
+    def _figure_text_regions(figure: DocumentFigure) -> tuple[tuple[str, str], ...]:
+        values: list[tuple[str, str]] = []
+        for name in ("title", "caption", "axis_text", "legend_text"):
+            text = getattr(figure, name)
+            if text is not None:
+                values.append((name, text))
+        values.extend(
+            (f"visible_ocr_label:{index}", text)
+            for index, text in enumerate(figure.visible_ocr_labels)
+        )
+        return tuple(values)
+
+    def _text_region_drafts(
+        self,
+        *,
+        text: str,
+        quality: DocumentParseQuality,
+        locator: DocumentLocator,
+        compiled: re.Pattern[str],
+        region_context: tuple[str, str],
+        pattern_id: str,
+    ) -> list[_Draft]:
+        drafts: list[_Draft] = []
+        for match in compiled.finditer(text):
+            groups = match.groupdict()
+            if any(
+                groups.get(name) in (None, "") for name in ("field", "value", "entity")
+            ):
+                continue
+            start, end = match.span()
+            drafts.append(
+                _Draft(
+                    context=self._context,
+                    resolver=self._resolver,
+                    entities=self._entities,
+                    rules=self._rules,
+                    locator=locator.model_copy(
+                        update={"text_span": TextSpan(start=start, end=end)}
+                    ),
+                    parse_quality=quality,
+                    raw_text=groups["value"].strip(),
+                    header_context=groups["field"].strip(),
+                    header_unit_token=(groups.get("unit") or "").strip() or None,
+                    entity_token=groups["entity"].strip(),
+                    row_context=(region_context, ("pattern", pattern_id)),
+                )
+            )
         return drafts
 
 

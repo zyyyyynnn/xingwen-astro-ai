@@ -175,18 +175,10 @@
       "type": "string"
     },
     "document_parse_id": {
-      "anyOf": [
-        {
-          "maxLength": 128,
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Document Parse Id"
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Document Parse Id",
+      "type": "string"
     },
     "field_hint": {
       "anyOf": [
@@ -221,6 +213,23 @@
     },
     "parse_quality": {
       "$ref": "#/$defs/DocumentParseQuality"
+    },
+    "persisted_source_snapshot_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Persisted Source Snapshot Id",
+      "type": "string"
+    },
+    "pipeline_source_snapshot_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Pipeline Source Snapshot Content Hash",
+      "type": "string"
+    },
+    "pipeline_source_snapshot_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Pipeline Source Snapshot Id",
+      "type": "string"
     },
     "raw_text": {
       "anyOf": [
@@ -261,30 +270,26 @@
       "default": null,
       "title": "Raw Value"
     },
+    "research_input_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Research Input Content Hash",
+      "type": "string"
+    },
     "research_input_id": {
       "maxLength": 128,
       "minLength": 1,
       "title": "Research Input Id",
       "type": "string"
-    },
-    "source_snapshot_id": {
-      "anyOf": [
-        {
-          "maxLength": 128,
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Source Snapshot Id"
     }
   },
   "required": [
     "candidate_id",
     "research_input_id",
+    "research_input_content_hash",
+    "pipeline_source_snapshot_id",
+    "pipeline_source_snapshot_content_hash",
+    "persisted_source_snapshot_id",
+    "document_parse_id",
     "parse_quality",
     "locator",
     "created_at"

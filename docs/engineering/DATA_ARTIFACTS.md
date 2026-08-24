@@ -111,6 +111,12 @@ Document observation 是既有 canonical row 的补充值，不是第三个 Cros
 
 - `CrossmatchDataArtifactAuthority.document_observations` 只接受 typed observations，不接受 raw parse candidate 或任意 dict。
 - `SourceValueCandidate.origin` 是 structured database 与 document research input 的 discriminated union；document locator 同时绑定 ResearchInput、DocumentParse、SourceSnapshot 与 cell/page geometry。
+- `SourceCollectionArtifactCandidate` 分别持有 `crossmatch_sources`、
+  `source_table_sources` 与 `supplemental_document_sources`；Crossmatch authority 的
+  前者严格为 left/right 两侧，Document 只能进入 supplemental 集合。
+- document provenance 显式保留 ResearchInput content hash、persisted
+  DocumentParse、persisted SourceSnapshot、pipeline logical SourceSnapshot
+  projection 与 `DocumentLocator`，不得填入 database table/row/raw-field 字段。
 - approved structured value 有合法值时优先于 document；structured 缺值时 admitted document 可补充；相等 document 值形成 consensus，冲突且无 structured winner 时保持 unresolved。
 - Crossmatch Dataset 的 SourceSnapshot registry 包含两个 Crossmatch snapshots 与实际保留的 document snapshots；Publisher 通过唯一 binding 映射到既有 persisted rows，不复制 snapshot。SourceTable Dataset 只绑定其 admission 的一个 persisted snapshot。
 - Data Quality 的 structured source-scope denominator 只统计 Crossmatch 左右两侧；document parse quality 是独立的 `DocumentParseQualityObservation`，不污染结构化分母。

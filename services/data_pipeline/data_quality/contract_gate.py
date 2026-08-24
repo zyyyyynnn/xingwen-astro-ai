@@ -10,10 +10,7 @@ from app.schemas.data_artifacts import (
     DocumentObservationLocator,
     DocumentResearchInputOrigin,
     DatasetArtifactCandidate,
-    DocumentSourceCollectionMember,
     SourceCollectionArtifactCandidate,
-    SourceTableSourceCollectionMember,
-    StructuredSourceCollectionMember,
 )
 from app.schemas.data_quality import (
     DatasetQualityResult,
@@ -26,6 +23,10 @@ from app.schemas.data_quality import (
     compute_quality_content_hash,
 )
 from app.schemas.manifest import ManifestBundle
+from services.data_pipeline.document_authorization import (
+    DocumentAuthorizationDecision,
+    authorize_document_source,
+)
 
 
 def evaluate_contract_gate(
@@ -81,10 +82,9 @@ def _collect_observations(
     )
     actual_sources = {
         member.source_id
-        for member in source_collection_candidate.members
-        if isinstance(
-            member,
-            (StructuredSourceCollectionMember, SourceTableSourceCollectionMember),
+        for member in (
+            *source_collection_candidate.crossmatch_sources,
+            *source_collection_candidate.source_table_sources,
         )
     }
     document_source_values = [
@@ -136,22 +136,19 @@ def _document_source_authorized(
 
     if not document_source_values:
         return True
-    if contract.data_requirements.document_source_policy.value != "research_input":
-        return False
-    if "document_research_input" not in manifests.case_manifest.document_source_classes:
-        return False
-    document_members = tuple(
-        member
-        for member in source_collection_candidate.members
-        if isinstance(member, DocumentSourceCollectionMember)
+    case_capability = (
+        "document_research_input" in manifests.case_manifest.document_source_classes
     )
+    document_members = source_collection_candidate.supplemental_document_sources
+    provenance_closed = True
     for source_value in document_source_values:
         origin = source_value.origin
         locator = source_value.evidence_locator
-        if not isinstance(origin, DocumentResearchInputOrigin):
-            return False
-        if not isinstance(locator, DocumentObservationLocator):
-            return False
+        if not isinstance(origin, DocumentResearchInputOrigin) or not isinstance(
+            locator, DocumentObservationLocator
+        ):
+            provenance_closed = False
+            break
         if (
             source_value.source_id != f"research_input:{origin.research_input_id}"
             or source_value.source_snapshot_id != locator.source_snapshot_id
@@ -163,18 +160,32 @@ def _document_source_authorized(
             or locator.raw_candidate_id != origin.raw_candidate_id
             or locator.document_locator != origin.document_locator
         ):
-            return False
+            provenance_closed = False
+            break
         if not any(
-            member.source_id == source_value.source_id
-            and member.source_snapshot_id == source_value.source_snapshot_id
-            and member.source_snapshot_content_hash
+            member.pipeline_source_snapshot.source_id == source_value.source_id
+            and member.pipeline_source_snapshot_id == source_value.source_snapshot_id
+            and member.pipeline_source_snapshot_content_hash
             == source_value.source_snapshot_content_hash
-            and member.query_hash == source_value.query_hash
+            and member.pipeline_source_snapshot.query_hash == source_value.query_hash
+            and member.research_input_id == origin.research_input_id
+            and member.research_input_content_hash == origin.research_input_content_hash
+            and member.persisted_source_snapshot_id
+            == origin.persisted_source_snapshot_id
             and origin.document_parse_id in member.document_parse_ids
+            and origin.observation_id in member.observation_ids
             for member in document_members
         ):
-            return False
-    return True
+            provenance_closed = False
+            break
+    return (
+        authorize_document_source(
+            policy=contract.data_requirements.document_source_policy,
+            case_capability=case_capability,
+            provenance_closed=provenance_closed,
+        )
+        is DocumentAuthorizationDecision.authorized
+    )
 
 
 def _evaluate_binding(
