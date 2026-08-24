@@ -161,7 +161,7 @@ def _confirm_and_run(runtime: dict[str, object], *, key_suffix: str) -> tuple[st
 
 def _publish_fixture_artifact(
     runtime: dict[str, object], run_id: str
-) -> tuple[str, str]:
+) -> tuple[str, tuple[str, ...]]:
     """Publish the canonical Dataset fixture onto the target demo_replay Run."""
 
     result = bootstrap_fixture_artifacts(
@@ -172,7 +172,7 @@ def _publish_fixture_artifact(
         workflow_store=runtime["workflow_store"],  # type: ignore[arg-type]
     )
     assert result.evidence_ids
-    return result.artifact_version_id, result.evidence_ids[0]
+    return result.artifact_version_id, result.evidence_ids
 
 
 def test_draft_and_contract_payloads_never_carry_execution_mode(
@@ -286,7 +286,7 @@ def test_share_freeze_private_list_redaction_and_revoke(
     csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
     project_id = runtime["project_id"]
     _contract_id, run_id = _confirm_and_run(runtime, key_suffix="share-chain")
-    version_id, evidence_id = _publish_fixture_artifact(runtime, run_id)
+    version_id, evidence_ids = _publish_fixture_artifact(runtime, run_id)
 
     created = client.post(
         f"/api/projects/{project_id}/shares",
@@ -294,7 +294,7 @@ def test_share_freeze_private_list_redaction_and_revoke(
         json={
             "title": "Real Compose and Browser Integration gap share",
             "artifact_version_ids": [version_id],
-            "evidence_ids": [evidence_id],
+            "evidence_ids": list(evidence_ids),
             "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
             "redaction_policy": "redacted_public_snapshot",
         },
@@ -323,7 +323,7 @@ def test_share_freeze_private_list_redaction_and_revoke(
     public_data = public.json()["data"]
     assert public_data["artifact_versions"][0]["id"] == version_id
     assert public_data["artifact_versions"][0]["source_mode"] == "fixture"
-    assert public_data["evidence"][0]["id"] == evidence_id
+    assert {item["id"] for item in public_data["evidence"]} == set(evidence_ids)
 
     # Public projection carries no session, project credential, private
     # provenance, or editing surface. Locator/source fields are an explicit
@@ -340,8 +340,11 @@ def test_share_freeze_private_list_redaction_and_revoke(
     assert forbidden_keys.isdisjoint(public_data.keys())
     for version in public_data["artifact_versions"]:
         assert forbidden_keys.isdisjoint(version.keys())
+    assert {item["locator"]["kind"] for item in public_data["evidence"]} == {
+        "database_cell",
+        "source",
+    }
     for evidence in public_data["evidence"]:
-        assert evidence["locator"]["kind"] == "source"
         assert "row" not in evidence["locator"]
         assert forbidden_keys.isdisjoint(evidence.keys())
         assert forbidden_keys.isdisjoint(evidence["source"].keys())

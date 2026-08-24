@@ -661,6 +661,7 @@
           "paragraphs": [
             {
               "text": "The paper delivers The Revised TESS Input Catalog and Candidate Target List to prioritize TESS targets.",
+              "status": "supported",
               "evidence_ids": ["evd_papsum_03"]
             }
           ]
@@ -670,6 +671,7 @@
           "paragraphs": [
             {
               "text": "The catalog compiles stellar parameters from photometric catalogs and parallax measurements.",
+              "status": "unverifiable",
               "evidence_ids": ["evd_papsum_04"]
             }
           ]
@@ -679,6 +681,7 @@
           "paragraphs": [
             {
               "text": "The catalog release analyzed here dates to 2019.",
+              "status": "supported",
               "evidence_ids": ["evd_papsum_01"]
             }
           ]
@@ -688,6 +691,7 @@
           "paragraphs": [
             {
               "text": "The published catalog is registered under DOI 10.3847/1538-3881/ab3467.",
+              "status": "supported",
               "evidence_ids": ["evd_papsum_02"]
             }
           ]
@@ -697,12 +701,14 @@
           "paragraphs": [
             {
               "text": "The catalog is claimed to be complete for all dwarf stars, without any cited evidence.",
+              "status": "unsupported",
               "evidence_ids": []
             }
           ]
         }
       ],
       "entries": [],
+      "tables": [],
       "graph_nodes": [],
       "graph_edges": []
     },
