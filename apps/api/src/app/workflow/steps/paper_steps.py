@@ -20,7 +20,9 @@ from app.schemas.paper_summary import (
     PaperSummarySourceSnapshotReference,
 )
 from app.schemas.scientific_document import DocumentParseInput, DocumentParseQuality
+from app.services.artifacts import ArtifactReadService
 from app.services.content_storage import ContentStorage
+from app.services.paper_collections import PaperCollectionReadService
 from app.services.document_parse_store import (
     DocumentParseService,
     PersistDocumentParseRequest,
@@ -54,6 +56,21 @@ from services.paper_pipeline.summary import (
 
 #: Governed generation parameters shared by the paper summary model call.
 MODEL_PARAMETERS: dict[str, float | int] = {"temperature": 0.6, "top_p": 0.8}
+
+
+def _summary_parameters_hash(
+    parameters: dict[str, float | int],
+) -> str:
+    """Mirror the PaperSummary pipeline's governed parameter-hash identity."""
+    from services.paper_pipeline.constants import SUMMARY_PARAMETERS_VERSION
+
+    return compute_canonical_payload_hash(
+        {
+            "parameters_version": SUMMARY_PARAMETERS_VERSION,
+            "parameters": dict(parameters),
+        }
+    )
+
 _RETRYABLE_SOURCE_FAILURES = frozenset(
     {
         UpstreamFailureClass.timeout,
@@ -298,9 +315,18 @@ class PaperStepService:
         model_execution: ModelExecutionPort,
     ) -> PreparedStep:
         collection = context.paper_collection
+        collection_version_id = context.versions.get("paper_collection")
+        if collection is None and collection_version_id is not None:
+            read = PaperCollectionReadService(
+                ArtifactReadService(self._publications.factory)
+            ).get_collection(
+                version_id=str(collection_version_id),
+                session_id=context.session_id,
+            )
+            collection = read.collection
+            context.paper_collection = collection
         if collection is None:
             raise ValueError("paper_collection must be prepared first")
-        collection_version_id = context.versions.get("paper_collection")
         if collection_version_id is None:
             raise ValueError("paper_collection must be published first")
         candidate = _selected_candidate(collection)
@@ -347,6 +373,7 @@ class PaperStepService:
             parameters=MODEL_PARAMETERS,
             producer_name=SUMMARY_PRODUCER_NAME,
             producer_version=SUMMARY_PRODUCER_VERSION,
+            parameters_hash=_summary_parameters_hash(MODEL_PARAMETERS),
         )
         result = PaperSummaryPipeline().admit(
             paper_collection=collection,
@@ -356,7 +383,9 @@ class PaperStepService:
             model_name=model_caller.requested_model,
             parameters=MODEL_PARAMETERS,
             evidence_candidates=evidence_candidates,
-            execution_id=str(execution_id),
+            # Producer metadata requires lowercase dotted identifiers; a raw
+            # UUID can start with a digit and would fail admission.
+            execution_id=f"paper-summary-execution-{execution_id}",
             run_id=str(context.run_id),
         )
         if (
@@ -402,9 +431,14 @@ class PaperStepService:
             version_id=summary_version_id,
         )
         context.paper_summary = summary
+        summary_title = summary.paper.title if summary.paper is not None else None
         return PreparedStep(
             publications=(publication,),
-            activity_result_summary=f"已归纳《{summary.paper.title}》的核心科研发现与支持证据",
+            activity_result_summary=(
+                f"已归纳论文《{summary_title}》的核心科研发现与支持证据"
+                if summary_title is not None
+                else "已归纳所选论文的核心科研发现与支持证据"
+            ),
         )
 
     def _summarize_document(
@@ -498,7 +532,7 @@ class PaperStepService:
         snapshot_reference = PaperSummarySourceSnapshotReference(
             source_snapshot_id=str(snapshot.id),
             source_id=snapshot.source_id,
-            source_version=snapshot.source_version,
+            source_version=snapshot.source_version_or_etag or snapshot.content_hash,
             content_hash=snapshot.content_hash,
         )
         paper = PaperSummaryPaperMetadata(
@@ -565,7 +599,7 @@ class PaperStepService:
             model_revision=model_caller.explicit_revision,
             parameters=MODEL_PARAMETERS,
             run_id=str(context.run_id),
-            producer_execution_id=str(summary_execution.id),
+            producer_execution_id=f"paper-summary-execution-{summary_execution.id}",
         )
         try:
             result = ChunkedDocumentSummaryService(model_execution).execute(request)

@@ -15,6 +15,7 @@ specialized step service:
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Callable, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
@@ -120,6 +121,10 @@ class StepPublicationFactory:
     ) -> None:
         self._factory = factory
         self._executions = executions or ProducerExecutionStore(factory)
+
+    @property
+    def factory(self) -> Callable[[], Session]:
+        return self._factory
 
     def start_producer(
         self,
@@ -350,11 +355,16 @@ class StepPublicationFactory:
         self,
         context: RunStepContext,
         pipeline_ids: tuple[str, ...],
+        *,
+        snapshot_bindings_override: Mapping[str, str] | None = None,
     ) -> tuple[ArtifactSourceSnapshotBinding, ...]:
+        overrides = snapshot_bindings_override or {}
         return tuple(
             ArtifactSourceSnapshotBinding(
                 pipeline_source_snapshot_id=item,
-                persisted_source_snapshot_id=self.persisted_snapshot_id(context, item),
+                persisted_source_snapshot_id=overrides.get(
+                    item, self.persisted_snapshot_id(context, item)
+                ),
             )
             for item in pipeline_ids
         )
@@ -380,10 +390,19 @@ class StepPublicationFactory:
             if source_snapshots_are_persisted
             else self.source_bindings(context, summary.source_snapshot_ids)
         )
+
+        def statement_for(evidence_id: str) -> str:
+            for statement in summary.statements():
+                if evidence_id in statement.evidence_ids:
+                    return statement.statement_id
+            raise ValueError(
+                f"PaperSummary Evidence {evidence_id} is not referenced by any statement"
+            )
+
         evidence_bindings = tuple(
             ArtifactEvidenceBinding(
-                target_type="evidence",
-                target_id=item.evidence_id,
+                target_type="paper_summary",
+                target_id=statement_for(item.evidence_id),
                 pipeline_evidence_id=item.evidence_id,
                 pipeline_source_snapshot_id=item.source_snapshot_id,
                 persisted_evidence_id=str(
@@ -485,7 +504,9 @@ class StepPublicationFactory:
         *,
         kind: str,
         candidate: BaseModel,
+        snapshot_bindings_override: Mapping[str, str] | None = None,
     ) -> tuple[ArtifactEvidenceBinding, ...]:
+        overrides = snapshot_bindings_override or {}
         bindings: dict[tuple[str, str, str, str], ArtifactEvidenceBinding] = {}
         for reference in getattr(candidate, "evidence_references", ()):
             targets = (
@@ -516,9 +537,12 @@ class StepPublicationFactory:
                                 f"{kind}:evidence:{':'.join(key)}",
                             )
                         ),
-                        persisted_source_snapshot_id=self.persisted_snapshot_id(
-                            context,
+                        persisted_source_snapshot_id=overrides.get(
                             reference.source_snapshot_id,
+                            self.persisted_snapshot_id(
+                                context,
+                                reference.source_snapshot_id,
+                            ),
                         ),
                     ),
                 )
@@ -560,8 +584,10 @@ class TrackedStepModelExecutionPort:
         *,
         producer_name: str,
         producer_version: str,
+        parameters_hash_override: str | None = None,
         resume_completed: bool = False,
     ) -> tuple[ModelExecutionResponse, UUID]:
+        parameters_hash = parameters_hash_override or request.parameters_hash
         if resume_completed:
             completed = self._publications.find_completed_model(
                 self._context,
@@ -589,7 +615,7 @@ class TrackedStepModelExecutionPort:
                 for key, value in request.parameters.items()
                 if isinstance(value, (str, int, float, bool))
             },
-            parameters_hash=request.parameters_hash,
+            parameters_hash=parameters_hash,
             model_provider=request.provider,
             requested_model=request.requested_model,
             explicit_revision=request.explicit_revision,
@@ -911,6 +937,7 @@ class StepModelCaller:
         parameters: dict[str, float | int],
         producer_name: str | None = None,
         producer_version: str | None = None,
+        parameters_hash: str | None = None,
     ) -> tuple[str, ModelExecutionResponse, UUID]:
         prompt = self._prompts.get(prompt_name)
         request = ModelExecutionRequest(
@@ -931,6 +958,7 @@ class StepModelCaller:
                 request,
                 producer_name=producer_name,
                 producer_version=producer_version,
+                parameters_hash_override=parameters_hash,
             )
             if producer_name is not None and producer_version is not None
             else self._model_port.start(request)

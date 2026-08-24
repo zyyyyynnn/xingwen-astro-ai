@@ -365,12 +365,7 @@ class ArtifactVersionGraphInputReadAdapter:
                     ),
                     pipeline_target_type=evidence.target_type,
                     pipeline_target_id=evidence.target_id,
-                    pipeline_locator={
-                        "summary_evidence_id": pipeline_id,
-                        "source_record_id": candidate_evidence[
-                            pipeline_id
-                        ].source_record_id,
-                    },
+                    pipeline_locator=dict(evidence.locator),
                     evidence=evidence,
                     is_restricted=restrictions[evidence.id].is_restricted,
                 )

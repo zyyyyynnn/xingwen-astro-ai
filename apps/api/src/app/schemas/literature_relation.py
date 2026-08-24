@@ -265,7 +265,7 @@ class LiteratureClaimArtifactVersionReference(BaseModel):
     project_id: PersistedUuid | None = None
     claim_ids: tuple[Identifier, ...] = ()
     paper_summary_artifact_version_ids: tuple[PersistedUuid, ...] = ()
-    source_snapshot_ids: tuple[Identifier, ...] = ()
+    source_snapshot_ids: tuple[Identifier | PersistedUuid, ...] = ()
 
     @model_validator(mode="after")
     def validate_stable_sets(self) -> Self:
@@ -330,7 +330,7 @@ class LiteratureRelationEvidenceReference(BaseModel):
     paper_summary_artifact_version_id: PersistedUuid
     evidence_id: Identifier
     paper_id: Identifier
-    source_snapshot_id: Identifier
+    source_snapshot_id: Identifier | PersistedUuid
     source_snapshot_version: ShortString
     source_snapshot_content_hash: ContentHash
     status: Literal["supported", "unsupported", "unverifiable"]
@@ -392,7 +392,7 @@ class LiteratureRelationCandidate(BaseModel):
     condition_uncertainties: tuple[NonEmptyString, ...]
     comparability: LiteratureRelationComparabilityCandidate
     evidence_ids: tuple[Identifier, ...]
-    source_snapshot_ids: tuple[Identifier, ...]
+    source_snapshot_ids: tuple[Identifier | PersistedUuid, ...]
     reasoning_trace_id: Identifier | None = None
     confidence: LiteratureRelationConfidenceAssessment | None = None
     fingerprint: ContentHash
@@ -551,7 +551,7 @@ class LiteratureRelationsCandidate(BaseModel):
     evidence: tuple[PaperSummaryEvidence, ...]
     evidence_references: tuple[LiteratureRelationEvidenceReference, ...]
     evidence_ids: tuple[Identifier, ...]
-    source_snapshot_ids: tuple[Identifier, ...]
+    source_snapshot_ids: tuple[Identifier | PersistedUuid, ...]
     status_counts: LiteratureRelationStatusCounts
     producer: LiteratureRelationProducerExecution
     input_hash: ContentHash

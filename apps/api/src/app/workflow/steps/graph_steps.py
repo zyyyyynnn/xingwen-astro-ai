@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from sqlalchemy.orm import Session
+
 from app.schemas.enums import GraphNodeType
-from app.schemas.literature_relation import LiteratureRelationStatus
+from app.schemas.literature_relation import (
+    LiteratureRelationStatus,
+    LiteratureRelationsCandidate,
+)
 from app.schemas.graph_artifact import (
+    compute_graph_algorithm_parameters_hash,
+    graph_algorithm_parameters,
     GraphBuildRequest,
     GraphBuildScope,
     GraphIntegrityStatus,
@@ -17,7 +25,11 @@ from app.services.graph_inputs import (
     ArtifactVersionGraphInputReadAdapter,
     PostgresEvidenceRestrictionReadAdapter,
 )
-from app.workflow.publisher import ArtifactEvidenceBinding, admit_artifact_candidate
+from app.workflow.publisher import (
+    ArtifactEvidenceBinding,
+    ArtifactSourceSnapshotBinding,
+    admit_artifact_candidate,
+)
 from app.workflow.step_publication import (
     PreparedStep,
     RunStepContext,
@@ -29,12 +41,18 @@ from services.graph_pipeline import (
     GraphPipeline,
     build_complete_progressive_input,
 )
+from services.graph_pipeline.pipeline import build_graph_taxonomy
 
 
 class GraphStepService:
     """Build an admitted Graph from the exact published Relation version."""
 
-    def __init__(self, *, factory, publications: StepPublicationFactory) -> None:
+    def __init__(
+        self,
+        *,
+        factory: Callable[[], Session],
+        publications: StepPublicationFactory,
+    ) -> None:
         self._factory = factory
         self._publications = publications
 
@@ -48,6 +66,13 @@ class GraphStepService:
     ) -> PreparedStep:
         relations_version_id = context.versions.get("literature_relations")
         relations = context.literature_relations
+        if relations is None and relations_version_id is not None:
+            version = ArtifactReadService(self._factory).get_version(
+                version_id=str(relations_version_id),
+                session_id=context.session_id,
+            )
+            relations = LiteratureRelationsCandidate.model_validate(version.content)
+            context.literature_relations = relations
         if relations_version_id is None or relations is None:
             raise ValueError("literature_relations must be published before graph build")
 
@@ -99,7 +124,12 @@ class GraphStepService:
             producer_name="evidence-graph-pipeline",
             producer_version="2.0.0",
             input_hash=request_hash,
-            parameters={},
+            parameters=graph_algorithm_parameters(
+                request.policies, build_graph_taxonomy()
+            ),
+            parameters_hash=compute_graph_algorithm_parameters_hash(
+                request.policies, build_graph_taxonomy()
+            ),
             attempt=attempt,
             lease=lease,
         )
@@ -119,12 +149,25 @@ class GraphStepService:
             self._publications.finish_producer(
                 execution.id, status="rejected", error_code="GRAPH_ADMISSION_REJECTED"
             )
-            raise ValueError(
-                f"证据图谱未通过准入: {result.report.first_rejection_reason}"
+            finding = result.report.findings[0] if result.report.findings else None
+            detail = (
+                f"{result.report.first_rejection_reason.value}: {finding.message} "
+                f"({finding.path})"
+                if finding is not None and result.report.first_rejection_reason
+                else "unknown graph admission failure"
             )
+            raise ValueError(f"证据图谱未通过准入: {detail}")
         graph = result.candidate
-        source_bindings = self._publications.source_bindings(
-            context, graph.source_snapshot_ids
+        snapshot_bindings_override = {
+            item.source_snapshot_id: str(item.persisted_source_snapshot_id)
+            for item in graph.source_snapshots
+        }
+        source_bindings = tuple(
+            ArtifactSourceSnapshotBinding(
+                pipeline_source_snapshot_id=item.source_snapshot_id,
+                persisted_source_snapshot_id=str(item.persisted_source_snapshot_id),
+            )
+            for item in graph.source_snapshots
         )
         evidence_bindings = tuple(
             ArtifactEvidenceBinding(
@@ -138,9 +181,9 @@ class GraphStepService:
                         f"graph:evidence:{item.evidence_use_id}",
                     )
                 ),
-                persisted_source_snapshot_id=self._publications.persisted_snapshot_id(
-                    context, item.source_snapshot_id
-                ),
+                persisted_source_snapshot_id=snapshot_bindings_override[
+                    item.source_snapshot_id
+                ],
             )
             for item in graph.evidence_uses
         )

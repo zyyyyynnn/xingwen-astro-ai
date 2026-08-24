@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
+
+from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.artifact_publication import canonical_artifact_content_payload
 from app.schemas.literature_claim import LiteratureClaimStatus
 from app.schemas.literature_relation import LiteratureRelationStatus
+from app.services.paper_summaries import PaperSummaryReadPort
 from app.workflow.publisher import admit_artifact_candidate
 from app.workflow.step_publication import (
     PreparedStep,
@@ -17,6 +22,14 @@ from services.paper_pipeline.claim import (
     LiteratureClaimPipeline,
     PaperSummaryArtifactVersionInput,
 )
+from services.paper_pipeline.constants import (
+    CLAIM_PARAMETERS_VERSION,
+    CLAIM_PRODUCER_NAME,
+    CLAIM_PRODUCER_VERSION,
+    RELATION_PARAMETERS_VERSION,
+    RELATION_PRODUCER_NAME,
+    RELATION_PRODUCER_VERSION,
+)
 from services.paper_pipeline.relation import (
     LiteratureClaimsArtifactVersionInput,
     LiteratureRelationPipeline,
@@ -29,6 +42,32 @@ from services.paper_pipeline.relation_confidence import (
 MODEL_PARAMETERS: dict[str, float | int] = {"temperature": 0.6, "top_p": 0.8}
 
 
+def _claim_parameters_hash(
+    parameters: dict[str, float | int],
+) -> str:
+    """Mirror the Claim pipeline's governed parameter-hash identity."""
+
+    return compute_canonical_payload_hash(
+        {
+            "parameters_version": CLAIM_PARAMETERS_VERSION,
+            "parameters": dict(parameters),
+        }
+    )
+
+
+def _relation_parameters_hash(
+    parameters: dict[str, float | int],
+) -> str:
+    """Mirror the Relation pipeline's governed parameter-hash identity."""
+
+    return compute_canonical_payload_hash(
+        {
+            "parameters_version": RELATION_PARAMETERS_VERSION,
+            "parameters": dict(parameters),
+        }
+    )
+
+
 class LiteratureStepService:
     """Extract and admit literature claims and relations for one Run."""
 
@@ -36,8 +75,10 @@ class LiteratureStepService:
         self,
         *,
         publications: StepPublicationFactory,
+        summary_reader: PaperSummaryReadPort,
     ) -> None:
         self._publications = publications
+        self._summary_reader = summary_reader
 
     def reason(
         self,
@@ -49,15 +90,34 @@ class LiteratureStepService:
         model_caller: StepModelCaller,
     ) -> PreparedStep:
         summary = context.paper_summary
+        summary_version_id = context.versions.get("paper_summary")
+        if summary is None and summary_version_id is not None:
+            read = asyncio.run(
+                self._summary_reader.get_summary(
+                    version_id=str(summary_version_id),
+                    session_id=context.session_id,
+                )
+            )
+            summary = read.summary
+            context.paper_summary = summary
         if summary is None:
             raise ValueError("paper_summary must be prepared first")
-        summary_version_id = context.versions.get("paper_summary") or step_uuid(
-            str(context.run_id), "artifact-version:paper_summary"
-        )
+        if summary_version_id is None:
+            summary_version_id = step_uuid(
+                str(context.run_id), "artifact-version:paper_summary"
+            )
         claims_version_id = step_uuid(
             str(context.run_id), "artifact-version:literature_claims"
         )
 
+        snapshot_bindings_override: dict[str, str] = {}
+        if summary.input_versions.document_parses:
+            for snap in summary.input_versions.source_snapshots:
+                snapshot_bindings_override[str(snap.source_snapshot_id)] = str(
+                    snap.source_snapshot_id
+                )
+
+        # Claims execution, admission, bindings, terminalization, and publication prep
         claims_model_response, claims_response, claims_execution_id = model_caller.execute_json(
             prompt_name="literature_claim",
             input_payload={
@@ -65,6 +125,9 @@ class LiteratureStepService:
                 "paper_summary": summary.model_dump(mode="json"),
             },
             parameters=MODEL_PARAMETERS,
+            producer_name=CLAIM_PRODUCER_NAME,
+            producer_version=CLAIM_PRODUCER_VERSION,
+            parameters_hash=_claim_parameters_hash(MODEL_PARAMETERS),
         )
         claims_result = LiteratureClaimPipeline().admit(
             paper_summary_artifact_version_id=str(summary_version_id),
@@ -98,10 +161,49 @@ class LiteratureStepService:
             )
             raise ValueError(f"文献论点未通过准入: {claims_result.failure_stage}")
 
+        claims_source_bindings = self._publications.source_bindings(
+            context,
+            claims.source_snapshot_ids,
+            snapshot_bindings_override=snapshot_bindings_override,
+        )
+        claims_evidence_bindings = self._publications.literature_bindings(
+            context,
+            kind="literature_claims",
+            candidate=claims,
+            snapshot_bindings_override=snapshot_bindings_override,
+        )
+        admitted_claims = admit_artifact_candidate(
+            claims,
+            schema_version=claims.schema_version,
+            source_snapshot_ids=claims.source_snapshot_ids,
+            evidence_ids=claims.evidence_ids,
+            evidence_validator=lambda _context: None,
+            domain_validator=lambda _context: None,
+            quality_validator=lambda _context: None,
+            source_snapshot_bindings=claims_source_bindings,
+            evidence_bindings=claims_evidence_bindings,
+        )
+        model_caller.complete(
+            claims_execution_id,
+            input_hash=claims.input_hash,
+            output_hash=admitted_claims.content_hash,
+            response=claims_response,
+        )
+        claims_publication = self._publications.publication(
+            context,
+            kind="literature_claims",
+            candidate=admitted_claims,
+            producer_execution_id=claims_execution_id,
+            version_id=claims_version_id,
+        )
+
+        # Relations execution, admission, bindings, terminalization, and publication prep
         relation_input = LiteratureClaimsArtifactVersionInput(
             artifact_version_id=str(claims_version_id),
             schema_version=claims.schema_version,
-            content_hash=claims.output_hash,
+            content_hash=compute_canonical_payload_hash(
+                canonical_artifact_content_payload(claims)
+            ),
             project_id=str(context.project_id),
             content=claims,
         )
@@ -117,6 +219,9 @@ class LiteratureStepService:
                     "claims": claims.model_dump(mode="json"),
                 },
                 parameters=MODEL_PARAMETERS,
+                producer_name=RELATION_PRODUCER_NAME,
+                producer_version=RELATION_PRODUCER_VERSION,
+                parameters_hash=_relation_parameters_hash(MODEL_PARAMETERS),
             )
         )
         relations_result = LiteratureRelationPipeline().admit(
@@ -149,50 +254,47 @@ class LiteratureStepService:
             )
             raise ValueError(f"文献关系未通过准入: {relations_result.failure_stage}")
 
-        publications = []
-        for kind, candidate, version_id, response, execution_id in (
-            ("literature_claims", claims, claims_version_id, claims_response, claims_execution_id),
-            ("literature_relations", relations, None, relations_response, relations_execution_id),
-        ):
-            source_bindings = self._publications.source_bindings(
-                context, candidate.source_snapshot_ids
-            )
-            evidence_bindings = self._publications.literature_bindings(
-                context,
-                kind=kind,
-                candidate=candidate,
-            )
-            admitted = admit_artifact_candidate(
-                candidate,
-                schema_version=candidate.schema_version,
-                source_snapshot_ids=candidate.source_snapshot_ids,
-                evidence_ids=candidate.evidence_ids,
-                evidence_validator=lambda _context: None,
-                domain_validator=lambda _context: None,
-                quality_validator=lambda _context: None,
-                source_snapshot_bindings=source_bindings,
-                evidence_bindings=evidence_bindings,
-            )
-            model_caller.complete(
-                execution_id,
-                input_hash=candidate.input_hash,
-                output_hash=admitted.content_hash,
-                response=response,
-            )
-            publications.append(
-                self._publications.publication(
-                    context,
-                    kind=kind,
-                    candidate=admitted,
-                    producer_execution_id=execution_id,
-                    version_id=version_id,
-                )
-            )
+        relations_source_bindings = self._publications.source_bindings(
+            context,
+            relations.source_snapshot_ids,
+            snapshot_bindings_override=snapshot_bindings_override,
+        )
+        relations_evidence_bindings = self._publications.literature_bindings(
+            context,
+            kind="literature_relations",
+            candidate=relations,
+            snapshot_bindings_override=snapshot_bindings_override,
+        )
+        admitted_relations = admit_artifact_candidate(
+            relations,
+            schema_version=relations.schema_version,
+            source_snapshot_ids=relations.source_snapshot_ids,
+            evidence_ids=relations.evidence_ids,
+            evidence_validator=lambda _context: None,
+            domain_validator=lambda _context: None,
+            quality_validator=lambda _context: None,
+            source_snapshot_bindings=relations_source_bindings,
+            evidence_bindings=relations_evidence_bindings,
+        )
+        model_caller.complete(
+            relations_execution_id,
+            input_hash=relations.input_hash,
+            output_hash=admitted_relations.content_hash,
+            response=relations_response,
+        )
+        relations_publication = self._publications.publication(
+            context,
+            kind="literature_relations",
+            candidate=admitted_relations,
+            producer_execution_id=relations_execution_id,
+            version_id=None,
+        )
 
+        # Atomic co-output publication set
         context.literature_claims = claims
         context.literature_relations = relations
         return PreparedStep(
-            publications=tuple(publications),
+            publications=(claims_publication, relations_publication),
             activity_result_summary=(
                 f"已提取 {len(claims_result.records)} 条科学论点与 "
                 f"{len(relations_result.records)} 条论点关系"

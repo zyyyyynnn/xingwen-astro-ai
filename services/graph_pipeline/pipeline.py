@@ -212,6 +212,12 @@ def _taxonomy() -> GraphTaxonomy:
     )
 
 
+def build_graph_taxonomy() -> GraphTaxonomy:
+    """Public seam: the canonical Evidence Graph taxonomy identity."""
+
+    return _taxonomy()
+
+
 def _node(
     identity: GraphNodeIdentity,
     *,
