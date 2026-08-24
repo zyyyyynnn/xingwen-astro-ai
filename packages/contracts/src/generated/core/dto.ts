@@ -371,7 +371,7 @@ export type RunStepStatus =
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ShareRedactionPolicy".
  */
-export type ShareRedactionPolicy = "public_metadata_only";
+export type ShareRedactionPolicy = "redacted_public_snapshot";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ShareStatus".
@@ -393,6 +393,11 @@ export type ConditionOperator =
  * via the `definition` "ConfidenceBand".
  */
 export type ConfidenceBand = "high" | "medium" | "low" | "not_applicable";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelProviderPreset".
+ */
+export type ModelProviderPreset = "dashscope" | "custom";
 /**
  * The only Case and Field Manifest selection declaration approved for this case.
  *
@@ -631,6 +636,11 @@ export type GraphNodeType =
   | "relation"
   | "reasoning_trace"
   | "evidence";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelProviderConfigurationSource".
+ */
+export type ModelProviderConfigurationSource = "deployment" | "workspace";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "PaperAccessEvidenceKind".
@@ -2262,6 +2272,18 @@ export interface ShareSnapshot {
   title: string;
 }
 /**
+ * Configure and verify the instance-wide Chat Completions provider.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ConfigureModelProviderRequest".
+ */
+export interface ConfigureModelProviderRequest {
+  api_key: string;
+  base_url?: string | null;
+  model: string;
+  preset: ModelProviderPreset;
+}
+/**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ConfirmResearchContractRequest".
  */
@@ -2445,7 +2467,7 @@ export interface CreateShareSnapshotRequest {
    */
   evidence_ids?: string[];
   expires_at: string;
-  redaction_policy: "public_metadata_only";
+  redaction_policy: "redacted_public_snapshot";
   title: string;
 }
 /**
@@ -3495,6 +3517,34 @@ export interface Envelope_LiteratureRelationRead_ {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_ModelProviderConfigurationStatus_".
+ */
+export interface Envelope_ModelProviderConfigurationStatus_ {
+  data: ModelProviderConfigurationStatus;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * Write-only credentials are represented only by a non-secret suffix hint.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelProviderConfigurationStatus".
+ */
+export interface ModelProviderConfigurationStatus {
+  api_key_hint: string | null;
+  base_url: string | null;
+  dashscope_base_url: string;
+  editable: boolean;
+  model: string | null;
+  preset: ModelProviderPreset | null;
+  revision: number;
+  source: ModelProviderConfigurationSource | null;
+  status: "unconfigured" | "ready";
+  updated_at: string | null;
+  verified_at: string | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "Envelope_PaperCandidateInputBinding_".
  */
 export interface Envelope_PaperCandidateInputBinding_ {
@@ -4055,6 +4105,7 @@ export interface PaperSummaryProducerExecution {
   prompt_version: string;
   provider?: string | null;
   provider_request_id?: string | null;
+  provider_returned_model?: string | null;
   run_id?: string | null;
   started_at: string;
   status: "completed" | "rejected";
@@ -4107,15 +4158,19 @@ export interface PublicShareSnapshot {
   title: string;
 }
 /**
- * Redacted immutable version metadata safe for an anonymous share response.
+ * Redacted immutable result projection safe for anonymous presentation.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "PublicArtifactVersion".
  */
 export interface PublicArtifactVersion {
   artifact_id: string;
+  content: {
+    [k: string]: JsonValue;
+  };
   content_hash: string;
   created_at: string;
+  evidence_ids: string[];
   id: string;
   kind: ArtifactKind;
   schema_version: string;
@@ -4124,15 +4179,36 @@ export interface PublicArtifactVersion {
   version_number: number;
 }
 /**
- * Minimal Evidence identity bound to a shared immutable version.
+ * Redacted Evidence detail frozen with a shared immutable result.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "PublicEvidence".
  */
 export interface PublicEvidence {
   artifact_version_id: string;
+  created_at: string;
   id: string;
+  locator: {
+    [k: string]: JsonValue;
+  };
+  quote_or_value: JsonValue;
+  source: PublicSourceSnapshot;
   source_snapshot_id: string;
+}
+/**
+ * Public source facts required by the shared Evidence inspector.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PublicSourceSnapshot".
+ */
+export interface PublicSourceSnapshot {
+  license_note: string;
+  request_metadata: {
+    [k: string]: JsonValue;
+  };
+  retrieved_at: string;
+  source_id: string;
+  source_type: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema

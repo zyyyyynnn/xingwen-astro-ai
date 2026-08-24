@@ -33,6 +33,19 @@
 - **未授权保护**：会话缺失/过期返回 `401`；无权访问或不存在的私有资源统一返回 `404`（不泄露资源存在性）；CSRF 校验失败返回 `403`。
 - **会话恢复**：配置 PostgreSQL 时，匿名会话凭据、有限 CSRF 令牌集合、状态与有效期由数据库持久化；浏览器刷新、多标签和 API 进程重启必须恢复同一 Session 所有权，不得创建无法读取既有项目的平行会话。
 
+### 3.1 模型服务配置资源
+
+- `GET /api/model-provider/configuration` 返回实例级模型服务状态、当前 revision、来源、兼容端点、模型身份、
+  DashScope 默认 Base URL、掩码凭据尾号与可编辑性；不得返回原始 API Key。
+- `PUT /api/model-provider/configuration` 使用 `ConfigureModelProviderRequest` 测试并保存一个
+  DashScope Qwen 或自定义 OpenAI Chat Completions-compatible 配置；`DELETE` 移除工作台 override
+  并回到部署 baseline。
+- 写操作要求有效 Session、CSRF 与独立限流。当前只有 development/test/integration 可写；
+  production 返回只读状态，直到存在正式管理员授权边界。`PUT` / `DELETE` 必须携带当前 revision 的
+  `If-Match`；过期 revision 在连接探测或写入前以 `409` 拒绝。
+- DashScope preset 不接受浏览器覆盖其官方 Base URL；custom preset 受 HTTPS、部署 host allowlist
+  与本地开发例外约束。连接测试失败不得改变当前运行配置。
+
 ## 4. 通用响应结构
 
 ### 4.1 成功 Envelope
@@ -108,23 +121,23 @@ ArtifactVersion -> UserFeedback -> RevisionPlan -> revision Run
   不使用第三种持久化 outcome。服务端必须在 URL fetch、CAS 或 ResearchInput 创建前原子
   预留 Project-scoped bridge `Idempotency-Key`；不同请求复用同一 key 必须在副作用前冲突，
   相同并发请求最多只有一个 lease owner 执行摄取，完成 binding 时原子关闭 reservation。
-   任何未证明访问、paywall、受限/部分元数据、非法 URL、
-   SSRF、redirect、MIME、大小、超时或上游失败均 fail closed，且不执行 parser。
-   所有 PaperSummary 读取（摘要 API、导出、Literature/Graph 派生读取与 Feedback 目标
-   准入）都先复用同一异步读取边界完成完整 provenance 校验；DocumentParse-backed 摘要
-   必须在返回任何内容前重放持久化 DocumentParse/CAS、SourceSnapshot、locator 与引文闭包。
-   全文只通过 `GET /api/artifact-versions/{version_id}/paper-summary/document-source` 解析：
-   PaperCollection-backed 摘要按
-   `(paper_collection_version_id, canonical_paper_id)` 解析最新 `accepted` 桥接绑定，
-   DocumentParse-backed 摘要先按持久化 `document_parse_id` 重放同一 Project 的
-   DocumentParse/CAS 与 SourceSnapshot，再逐项核对冻结的 ResearchInput、content hash、
-   parser profile/config、canonical output hash、Evidence locator 和 block text span 引文闭包，
-   最后按 `(research_input_id, input_content_hash)` 解析原始 ResearchInput；任何持久化身份或
-   Evidence 漂移均 fail closed。两条路径都重新校验 ResearchInput 的 ownership、未过期、
-   content hash，以及 `pdf + application/pdf` 或 `image +` 受支持科研文档图片 MIME 的严格
-   类型配对；禁止仅因 type 或 MIME 其中之一合法而放行。无绑定与未配置读取运行时返回
-   `research_input: null`，禁止从标题、DOI、candidate 顺序或数组首项推断 ResearchInput
-   或原文 URL。
+  任何未证明访问、paywall、受限/部分元数据、非法 URL、
+  SSRF、redirect、MIME、大小、超时或上游失败均 fail closed，且不执行 parser。
+  所有 PaperSummary 读取（摘要 API、导出、Literature/Graph 派生读取与 Feedback 目标
+  准入）都先复用同一异步读取边界完成完整 provenance 校验；DocumentParse-backed 摘要
+  必须在返回任何内容前重放持久化 DocumentParse/CAS、SourceSnapshot、locator 与引文闭包。
+  全文只通过 `GET /api/artifact-versions/{version_id}/paper-summary/document-source` 解析：
+  PaperCollection-backed 摘要按
+  `(paper_collection_version_id, canonical_paper_id)` 解析最新 `accepted` 桥接绑定，
+  DocumentParse-backed 摘要先按持久化 `document_parse_id` 重放同一 Project 的
+  DocumentParse/CAS 与 SourceSnapshot，再逐项核对冻结的 ResearchInput、content hash、
+  parser profile/config、canonical output hash、Evidence locator 和 block text span 引文闭包，
+  最后按 `(research_input_id, input_content_hash)` 解析原始 ResearchInput；任何持久化身份或
+  Evidence 漂移均 fail closed。两条路径都重新校验 ResearchInput 的 ownership、未过期、
+  content hash，以及 `pdf + application/pdf` 或 `image +` 受支持科研文档图片 MIME 的严格
+  类型配对；禁止仅因 type 或 MIME 其中之一合法而放行。无绑定与未配置读取运行时返回
+  `research_input: null`，禁止从标题、DOI、candidate 顺序或数组首项推断 ResearchInput
+  或原文 URL。
 
 ## 6. Research Turn
 
@@ -142,7 +155,7 @@ ArtifactVersion -> UserFeedback -> RevisionPlan -> revision Run
   - `POST /api/runs/{run_id}/cancel`：条件状态写入，未完成 Step 与运行中 Attempt 一致 `cancelled`，追加单调 Event，拒绝 late publish，重复取消幂等。
   - `POST /api/runs/{run_id}/retry`：Application Service 验证 Run failed、存在 retryable failed step 与合法 `retry_from_step` 后创建 `derivation_kind=retry` 派生 Run（`parent_run_id`、`retry_from_step`），不复活/覆盖 failed Attempt，不静默从头全跑。
   - `GET /api/runs/{run_id}/checkpoint` 读取当前等待中的 Checkpoint；`POST /api/runs/{run_id}/checkpoint-decision` 原子写入不可变 Decision 并将同一 Run 从 `waiting_for_input` 恢复到合法可执行状态，不创建新 Run、新 Contract 或 review session。重复相同 Decision 按既有 idempotency convention 幂等或明确 conflict。
-  未实现的能力不得先声明成功。
+    未实现的能力不得先声明成功。
 - 同一 Project 同时最多一个 non-terminal ResearchRun：Application Service 对并发创建返回用户友好 `409`，PostgreSQL partial unique index 是权威并发围栏；不得仅靠前端按钮限制。
 - `GET /api/artifacts/{artifact_id}/versions` 按稳定 newest-first 顺序分页读取一个逻辑 Artifact 的全部不可变 ArtifactVersion；要求 Project/Session ownership，不创建第二版本存储。
 

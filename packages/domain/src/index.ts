@@ -317,3 +317,10 @@ export type {
   RevisionVersionDecision,
   UserFeedback,
 } from "./revision";
+
+export type {
+  ConfigureModelProviderInput,
+  ModelProviderConfigurationSource,
+  ModelProviderConfigurationStatus,
+  ModelProviderPreset,
+} from "./model-provider";

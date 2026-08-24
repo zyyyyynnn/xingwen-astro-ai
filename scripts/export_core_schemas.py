@@ -29,6 +29,8 @@ CORE_MODELS: tuple[str, ...] = (
     "ResearchCatalogOption",
     "ResearchPlanningCatalog",
     "ModelExecutionRecord",
+    "ConfigureModelProviderRequest",
+    "ModelProviderConfigurationStatus",
     "PlannerClarificationRequired",
     "PlannerDraftReady",
     "PlannerPartial",

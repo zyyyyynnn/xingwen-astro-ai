@@ -2,7 +2,7 @@
   "$defs": {
     "ShareRedactionPolicy": {
       "enum": [
-        "public_metadata_only"
+        "redacted_public_snapshot"
       ],
       "title": "ShareRedactionPolicy",
       "type": "string"

@@ -631,6 +631,7 @@ export function toGraphArtifactViewModel(
     })),
     edges: review.edges.map((edge) => ({
       ...edge,
+      evidenceIds: [...edge.evidenceIds],
       evidenceUseIds: [...edge.evidenceUseIds],
       dataAggregation: edge.dataAggregation
         ? { ...edge.dataAggregation }

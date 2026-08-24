@@ -135,7 +135,14 @@ function ScientificArtifactContent({
     );
   }
   if (review.kind === "graph") {
-    return <GraphContent review={review} title={title} surface={surface} />;
+    return (
+      <GraphContent
+        review={review}
+        title={title}
+        surface={surface}
+        onSelectEvidence={onSelectEvidence}
+      />
+    );
   }
   return (
     <LiteratureContent

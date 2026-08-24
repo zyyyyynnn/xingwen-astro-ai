@@ -26,6 +26,7 @@ export type {
   DataArtifactRepository,
   GraphArtifactRepository,
   LiteratureArtifactRepository,
+  ModelProviderRepository,
   PaperAcquisitionRepository,
   PaperSummaryRepository,
   ProjectRepository,
@@ -112,6 +113,7 @@ export {
   type HttpRepositorySet,
 } from "./http-adapter";
 export { createResearchInputRepository } from "./research-input-repository";
+export { createModelProviderRepository } from "./model-provider-repository";
 export {
   createSessionManager,
   type SessionInfo,

@@ -21,6 +21,7 @@ from app.schemas.core import (
 )
 from app.security import SecurityProblem
 from app.services.snapshots import InMemorySnapshotStore, SnapshotService
+from app.services.resource_authority import _public_artifact_content
 
 
 NOW = datetime(2026, 7, 22, 8, tzinfo=UTC)
@@ -38,6 +39,8 @@ def _version(*, title: str = "Frozen dataset") -> PublicArtifactVersion:
         content_hash=HASH,
         source_mode="live",
         created_at=NOW,
+        content={"kind": "dataset", "title": title},
+        evidence_ids=("ev_01",),
     )
 
 
@@ -46,6 +49,16 @@ def _evidence() -> PublicEvidence:
         id="ev_01",
         artifact_version_id="artv_01",
         source_snapshot_id="srcs_01",
+        locator={"kind": "database_cell", "field": "host_name"},
+        quote_or_value="TOI-700",
+        created_at=NOW,
+        source={
+            "source_id": "gaia",
+            "source_type": "database",
+            "retrieved_at": NOW,
+            "license_note": "Gaia archive terms",
+            "request_metadata": {},
+        },
     )
 
 
@@ -71,6 +84,51 @@ def _workspace_payload(*, layout_preset: str = "research-default") -> dict[str, 
             "active_evidence_id": "ev_01",
         },
         "layout_preset": layout_preset,
+    }
+
+
+def test_public_projection_preserves_allowed_nulls_and_drops_private_keys() -> None:
+    projected = _public_artifact_content(
+        "dataset",
+        {
+            "kind": "dataset",
+            "optional_value": None,
+            "producer": {"model": "private"},
+            "content_hash": HASH,
+            "rows": [{"value": None, "source_snapshot_id": "private"}],
+        },
+    )
+
+    assert projected == {
+        "kind": "dataset",
+        "rows": [{"value": None}],
+    }
+
+
+def test_public_projection_drops_binary_storage_references() -> None:
+    projected = _public_artifact_content(
+        "visualization",
+        {
+            "kind": "visualization",
+            "title": "Frozen sky view",
+            "description": "A public description remains available.",
+            "spec": {
+                "mode": "wwt_scene",
+                "fits_layers": [
+                    {
+                        "content_ref": "private/fits/source.fits",
+                        "content_hash": HASH,
+                    }
+                ],
+            },
+            "producer": {"model": "private"},
+        },
+    )
+
+    assert projected == {
+        "kind": "visualization",
+        "title": "Frozen sky view",
+        "description": "A public description remains available.",
     }
 
 
@@ -235,7 +293,7 @@ def test_share_freezes_redacted_scope_and_never_lists_token_material() -> None:
         "title": "Public dataset evidence",
         "artifact_version_ids": ["artv_01"],
         "evidence_ids": ["ev_01"],
-        "redaction_policy": "public_metadata_only",
+        "redaction_policy": "redacted_public_snapshot",
         "expires_at": expires_at.isoformat(),
     }
     missing_csrf = client.post("/api/projects/proj_01/shares", json=payload)
@@ -279,7 +337,13 @@ def test_share_freezes_redacted_scope_and_never_lists_token_material() -> None:
     assert public.status_code == 200
     public_data = public.json()["data"]
     assert public_data["artifact_versions"][0]["title"] == "Frozen dataset"
-    assert "content" not in public_data["artifact_versions"][0]
+    assert public_data["artifact_versions"][0]["content"] == {
+        "kind": "dataset",
+        "title": "Frozen dataset",
+    }
+    assert public_data["artifact_versions"][0]["evidence_ids"] == ["ev_01"]
+    assert public_data["evidence"][0]["quote_or_value"] == "TOI-700"
+    assert public_data["evidence"][0]["source"]["source_id"] == "gaia"
     assert "project_id" not in public_data
     assert "session_id" not in public.text
     assert raw_token not in public.text
@@ -313,7 +377,7 @@ def test_share_create_has_an_independent_per_session_rate_limit() -> None:
     payload = {
         "title": "Rate-limited share",
         "artifact_version_ids": ["artv_01"],
-        "redaction_policy": "public_metadata_only",
+        "redaction_policy": "redacted_public_snapshot",
         "expires_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
     }
 
@@ -352,7 +416,7 @@ def test_share_rejects_cross_project_versions_and_unselected_evidence() -> None:
         title="Invalid scope",
         artifact_version_ids=("artv_01",),
         evidence_ids=(),
-        redaction_policy="public_metadata_only",
+        redaction_policy="redacted_public_snapshot",
         expires_at=NOW + timedelta(hours=1),
     )
     with pytest.raises(SecurityProblem) as cross_project:
@@ -370,6 +434,16 @@ def test_share_rejects_cross_project_versions_and_unselected_evidence() -> None:
         id="ev_02",
         artifact_version_id="artv_other",
         source_snapshot_id="srcs_02",
+        locator={"kind": "database_cell", "field": "host_name"},
+        quote_or_value="unrelated",
+        created_at=NOW,
+        source={
+            "source_id": "gaia",
+            "source_type": "database",
+            "retrieved_at": NOW,
+            "license_note": "Gaia archive terms",
+            "request_metadata": {},
+        },
     )
     store.register_evidence(project_id="proj_01", projection=unrelated)
     with pytest.raises(SecurityProblem) as invalid_scope:
@@ -394,7 +468,7 @@ def test_expired_and_invalid_share_tokens_have_identical_public_errors() -> None
         request=CreateShareSnapshotRequest(
             title="Expiring share",
             artifact_version_ids=("artv_01",),
-            redaction_policy="public_metadata_only",
+            redaction_policy="redacted_public_snapshot",
             expires_at=NOW + timedelta(seconds=1),
         ),
         now=NOW,
@@ -418,7 +492,7 @@ def test_private_share_cursor_is_stable_and_invalid_cursor_is_rejected() -> None
     request = CreateShareSnapshotRequest(
         title="Share",
         artifact_version_ids=("artv_01",),
-        redaction_policy="public_metadata_only",
+        redaction_policy="redacted_public_snapshot",
         expires_at=NOW + timedelta(hours=1),
     )
     service.create_share(

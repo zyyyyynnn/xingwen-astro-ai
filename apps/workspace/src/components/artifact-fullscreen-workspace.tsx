@@ -4,6 +4,10 @@ import type {
   DomainEntityId,
   RevisionPlan,
 } from "@xingwen/domain";
+import type {
+  ArtifactVersionMetadataViewModel,
+  ResearchArtifactViewModel,
+} from "@xingwen/research-adapter";
 import {
   Alert,
   AlertDescription,
@@ -22,14 +26,24 @@ import {
   SheetHeader,
   SheetTitle,
   Skeleton,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Textarea,
 } from "@xingwen/ui";
-import { ArrowLeft, ChevronDown } from "@xingwen/ui/icons";
+import { ArrowLeft, ChevronDown, Share2 } from "@xingwen/ui/icons";
 import { useEffect, useRef, useState } from "react";
 
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
-import { resolveArtifactRenderer } from "../presentation/artifact-renderer-registry";
+import { artifactKindLabel } from "../presentation/artifact-presentation-labels";
+import {
+  resolveArtifactRenderer,
+  type ArtifactRendererDescriptor,
+} from "../presentation/artifact-renderer-registry";
 import { ArtifactEvidenceSheet } from "./artifact-evidence-sheet";
+import { ArtifactShareDialog } from "./artifact-share-dialog";
 
 export interface ArtifactFullscreenWorkspaceProps {
   readonly runtime: WorkspaceRuntimeBoundaries;
@@ -115,6 +129,115 @@ function VersionSelector({
   );
 }
 
+function ArtifactDiffSheet({
+  runtime,
+  projectId,
+  artifact,
+  currentVersion,
+  versions,
+  descriptor,
+  open,
+  onOpenChange,
+}: {
+  readonly runtime: WorkspaceRuntimeBoundaries;
+  readonly projectId: DomainEntityId;
+  readonly artifact: ResearchArtifactViewModel;
+  readonly currentVersion: ArtifactVersionMetadataViewModel;
+  readonly versions: readonly ArtifactVersionSummary[];
+  readonly descriptor: ArtifactRendererDescriptor;
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+}) {
+  const candidates = [...versions]
+    .filter((version) => version.id !== currentVersion.id)
+    .sort((left, right) => right.versionNumber - left.versionNumber);
+  const [baselineVersionId, setBaselineVersionId] =
+    useState<DomainEntityId | null>(null);
+  const effectiveBaselineVersionId = candidates.some(
+    (version) => version.id === baselineVersionId,
+  )
+    ? baselineVersionId
+    : (candidates[0]?.id ?? null);
+
+  const baselineQuery = useQuery({
+    ...runtime.application.queries.artifactVersion(
+      projectId,
+      effectiveBaselineVersionId as DomainEntityId,
+    ),
+    enabled: open && effectiveBaselineVersionId !== null,
+  });
+  const DiffRenderer = descriptor.DiffRenderer;
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="result-side-sheet">
+        <SheetHeader>
+          <SheetTitle>比较研究结果</SheetTitle>
+          <SheetDescription>
+            按科学含义查看结论、证据、关系、限制与冲突的变化。
+          </SheetDescription>
+        </SheetHeader>
+        <div className="result-sheet-body">
+          <div className="scientific-diff-controls">
+            <label>
+              <span>作为比较基准的历史结果</span>
+              <Select
+                value={effectiveBaselineVersionId ?? undefined}
+                onValueChange={(value) =>
+                  setBaselineVersionId(value as DomainEntityId)
+                }
+              >
+                <SelectTrigger aria-label="选择比较基准">
+                  <SelectValue placeholder="选择历史结果" />
+                </SelectTrigger>
+                <SelectContent>
+                  {candidates.map((candidate) => (
+                    <SelectItem key={candidate.id} value={candidate.id}>
+                      历史结果 · {versionTimestamp(candidate.createdAt)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+            <p>当前结果 · {versionTimestamp(currentVersion.createdAt)}</p>
+          </div>
+          {baselineQuery.isPending ? (
+            <p aria-busy="true">正在读取历史结果…</p>
+          ) : baselineQuery.isError ? (
+            <Alert variant="destructive">
+              <AlertDescription>
+                {safeError(runtime, baselineQuery.error)}
+              </AlertDescription>
+            </Alert>
+          ) : baselineQuery.data ? (
+            <DiffRenderer
+              runtime={runtime}
+              projectId={projectId}
+              artifact={artifact}
+              baselineVersion={baselineQuery.data}
+              currentVersion={currentVersion}
+            />
+          ) : null}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function revisionImpact(plan: RevisionPlan): {
+  readonly recompute: readonly string[];
+  readonly reuse: readonly string[];
+} {
+  const labels = (decision: "recompute" | "reuse") => [
+    ...new Set(
+      plan.versionDecisions
+        .filter((item) => item.decision === decision)
+        .map((item) => artifactKindLabel(item.artifactKind)),
+    ),
+  ];
+  return { recompute: labels("recompute"), reuse: labels("reuse") };
+}
+
 function RevisionSheet({
   runtime,
   projectId,
@@ -124,6 +247,7 @@ function RevisionSheet({
   parentRunRevision,
   open,
   onOpenChange,
+  onRevisionStarted,
 }: {
   readonly runtime: WorkspaceRuntimeBoundaries;
   readonly projectId: DomainEntityId;
@@ -133,6 +257,7 @@ function RevisionSheet({
   readonly parentRunRevision: number;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
+  readonly onRevisionStarted: () => void;
 }) {
   const [requestedChange, setRequestedChange] = useState("");
   const [plan, setPlan] = useState<RevisionPlan | null>(null);
@@ -175,6 +300,7 @@ function RevisionSheet({
     setPlan(null);
     setRequestedChange("");
     onOpenChange(false);
+    onRevisionStarted();
   };
 
   const error =
@@ -188,26 +314,22 @@ function RevisionSheet({
         if (!next && !confirmMutation.isPending) setPlan(null);
       }}
     >
-      <SheetContent
-        side="right"
-        className="w-[min(32rem,92vw)] overflow-y-auto"
-      >
+      <SheetContent side="right" className="result-side-sheet">
         <SheetHeader>
           <SheetTitle>基于此结果重新分析</SheetTitle>
           <SheetDescription>
-            新约束会形成修订计划；确认后创建派生研究，不修改当前结果或原 Run。
+            新约束会形成修订计划；确认后创建派生研究，不修改当前结果或原研究。
           </SheetDescription>
         </SheetHeader>
-        <div className="space-y-4 px-4 pb-6">
+        <div className="result-sheet-body">
           {plan === null ? (
             <>
-              <label className="ui-text-body block space-y-2 font-medium">
+              <label className="result-form-field">
                 <span>希望调整什么？</span>
                 <Textarea
                   value={requestedChange}
                   onChange={(event) => setRequestedChange(event.target.value)}
                   placeholder="例如：加入刚上传的新论文，并重新核对核心结论。"
-                  rows={6}
                   maxLength={4000}
                 />
               </label>
@@ -223,18 +345,22 @@ function RevisionSheet({
               </Button>
             </>
           ) : (
-            <section className="ui-text-body space-y-4">
+            <section className="revision-plan-impact">
               <div>
                 <h3 className="font-medium">修订计划</h3>
-                <p className="mt-1 text-muted-foreground">
-                  将重新执行 {plan.recomputeSteps.length} 个研究步骤，复用{" "}
-                  {plan.reusableArtifactVersionIds.length} 个已验证结果。
-                </p>
+                {revisionImpact(plan).recompute.length > 0 ? (
+                  <p>
+                    将重新生成：{revisionImpact(plan).recompute.join("、")}。
+                  </p>
+                ) : null}
+                {revisionImpact(plan).reuse.length > 0 ? (
+                  <p>保持不变：{revisionImpact(plan).reuse.join("、")}。</p>
+                ) : null}
               </div>
               {plan.conflicts.length > 0 ? (
                 <Alert variant="destructive">
                   <AlertDescription>
-                    {plan.conflicts.map((item) => item.detail).join("；")}
+                    修订计划检测到冲突，暂时无法开始派生研究。请调整反馈内容后重试。
                   </AlertDescription>
                 </Alert>
               ) : null}
@@ -268,6 +394,8 @@ export function ArtifactFullscreenWorkspace({
   const [selectedEvidenceId, setSelectedEvidenceId] =
     useState<DomainEntityId | null>(null);
   const [revisionOpen, setRevisionOpen] = useState(false);
+  const [diffOpen, setDiffOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [paperPageRequest, setPaperPageRequest] = useState<{
     readonly pageIndex: number;
     readonly nonce: number;
@@ -369,6 +497,25 @@ export function ArtifactFullscreenWorkspace({
                 证据
               </Button>
             ) : null}
+            {descriptor?.capabilities.compare && versions.length > 1 ? (
+              <Button
+                size="small"
+                variant="ghost"
+                onClick={() => setDiffOpen(true)}
+              >
+                比较结果
+              </Button>
+            ) : null}
+            {descriptor?.capability === "supported" && artifact && version ? (
+              <Button
+                size="small"
+                variant="ghost"
+                onClick={() => setShareOpen(true)}
+              >
+                <Share2 className="size-4" aria-hidden="true" />
+                分享
+              </Button>
+            ) : null}
             {descriptor?.capabilities.revision &&
             version &&
             parentRunQuery.data ? (
@@ -431,6 +578,29 @@ export function ArtifactFullscreenWorkspace({
             setPaperPageRequest({ pageIndex, nonce: Date.now() })
           }
         />
+        {artifact && version && descriptor ? (
+          <ArtifactDiffSheet
+            runtime={runtime}
+            projectId={projectId}
+            artifact={artifact}
+            currentVersion={version}
+            versions={versions}
+            descriptor={descriptor}
+            open={diffOpen}
+            onOpenChange={setDiffOpen}
+          />
+        ) : null}
+        {artifact && version ? (
+          <ArtifactShareDialog
+            runtime={runtime}
+            projectId={projectId}
+            artifactVersionId={version.id}
+            artifactTitle={artifact.title}
+            evidenceIds={evidenceIds}
+            open={shareOpen}
+            onOpenChange={setShareOpen}
+          />
+        ) : null}
         {version && parentRunQuery.data ? (
           <RevisionSheet
             runtime={runtime}
@@ -441,6 +611,7 @@ export function ArtifactFullscreenWorkspace({
             parentRunRevision={parentRunQuery.data.revision}
             open={revisionOpen}
             onOpenChange={setRevisionOpen}
+            onRevisionStarted={onClose}
           />
         ) : null}
       </DialogContent>

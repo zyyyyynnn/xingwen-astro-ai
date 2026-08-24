@@ -283,11 +283,23 @@ def _authority(
         content_hash="sha256:" + "a" * 64,
         source_mode="live",
         created_at=NOW,
+        content={"kind": "dataset", "title": "Frozen dataset"},
+        evidence_ids=(),
     )
     evidence = PublicEvidence(
         id=str(uuid4()),
         artifact_version_id=version.id,
         source_snapshot_id=str(uuid4()),
+        locator={"kind": "database_cell", "field": "host_name"},
+        quote_or_value="TOI-700",
+        created_at=NOW,
+        source={
+            "source_id": "gaia",
+            "source_type": "database",
+            "retrieved_at": NOW,
+            "license_note": "Gaia archive terms",
+            "request_metadata": {},
+        },
     )
     authority.register_artifact_version(project_id=project_id, projection=version)
     authority.register_evidence(project_id=project_id, projection=evidence)
@@ -304,7 +316,7 @@ def _share_request(
         title="Restart-safe public share",
         artifact_version_ids=(version.id,),
         evidence_ids=(evidence.id,),
-        redaction_policy="public_metadata_only",
+        redaction_policy="redacted_public_snapshot",
         expires_at=expires_at,
     )
 
@@ -512,7 +524,7 @@ def test_http_persistent_authority_conceals_resources_and_freezes_share(
                     "title": "Must remain concealed",
                     "artifact_version_ids": [str(references["version"])],
                     "evidence_ids": [str(references["evidence"])],
-                    "redaction_policy": "public_metadata_only",
+                    "redaction_policy": "redacted_public_snapshot",
                     "expires_at": expires_at.isoformat(),
                 },
                 headers={"X-CSRF-Token": attacker_csrf},
@@ -544,7 +556,7 @@ def test_http_persistent_authority_conceals_resources_and_freezes_share(
                 "title": "Frozen production share",
                 "artifact_version_ids": [str(victim["version"])],
                 "evidence_ids": [str(victim["evidence"])],
-                "redaction_policy": "public_metadata_only",
+                "redaction_policy": "redacted_public_snapshot",
                 "expires_at": expires_at.isoformat(),
             },
             headers={"X-CSRF-Token": victim_csrf},
@@ -605,6 +617,8 @@ def test_http_persistent_authority_conceals_resources_and_freezes_share(
             "content_hash": HASH_C,
             "source_mode": "live",
             "created_at": NOW.isoformat().replace("+00:00", "Z"),
+            "content": {"kind": "dataset", "rows": []},
+            "evidence_ids": [str(victim["evidence"])],
         }
     ]
     assert projection["evidence"] == [
@@ -612,6 +626,16 @@ def test_http_persistent_authority_conceals_resources_and_freezes_share(
             "id": str(victim["evidence"]),
             "artifact_version_id": str(victim["version"]),
             "source_snapshot_id": str(victim["snapshot"]),
+            "locator": {},
+            "quote_or_value": "victim",
+            "created_at": NOW.isoformat().replace("+00:00", "Z"),
+            "source": {
+                "source_id": "victim-source",
+                "source_type": "catalog",
+                "retrieved_at": NOW.isoformat().replace("+00:00", "Z"),
+                "license_note": "Public metadata only.",
+                "request_metadata": {},
+            },
         }
     ]
 

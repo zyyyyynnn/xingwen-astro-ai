@@ -22,6 +22,11 @@
       "path": "json/ArtifactVersionSummary.schema.json"
     },
     {
+      "module": "app.schemas.core",
+      "name": "ConfigureModelProviderRequest",
+      "path": "json/ConfigureModelProviderRequest.schema.json"
+    },
+    {
       "module": "app.schemas.revision",
       "name": "ConfirmRevisionPlanRequest",
       "path": "json/ConfirmRevisionPlanRequest.schema.json"
@@ -115,6 +120,11 @@
       "module": "app.schemas.core",
       "name": "ModelExecutionRecord",
       "path": "json/ModelExecutionRecord.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ModelProviderConfigurationStatus",
+      "path": "json/ModelProviderConfigurationStatus.schema.json"
     },
     {
       "module": "app.schemas.paper_collection_api",

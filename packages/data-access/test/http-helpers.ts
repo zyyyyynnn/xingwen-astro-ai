@@ -122,7 +122,7 @@ const WORKSPACE_ARTIFACT_VERSION = {
 const PUBLIC_SHARE = {
   id: "share_01",
   title: "Public dataset evidence",
-  redaction_policy: "public_metadata_only",
+  redaction_policy: "redacted_public_snapshot",
   created_at: "2026-07-21T09:00:00Z",
   expires_at: "2026-07-22T09:00:00Z",
   artifact_versions: [WORKSPACE_ARTIFACT_VERSION],
@@ -541,7 +541,7 @@ export const defaultHandlers = [
           project_id: "proj_01JEXAMPLE",
           title: "Public dataset evidence",
           status: "active",
-          redaction_policy: "public_metadata_only",
+          redaction_policy: "redacted_public_snapshot",
           artifact_version_ids: ["artv_dataset_01"],
           evidence_ids: ["evd_01"],
           created_at: "2026-07-21T09:00:00Z",

@@ -42,7 +42,10 @@ def contract_input() -> dict[str, object]:
     return {
         "research_goal": "Integrate exoplanet candidates and host-star parameters",
         "target_objects": ["exoplanet_candidate", "host_star"],
-        "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
+        "data_requirements": {
+            "unit_policy": "canonical",
+            "document_source_policy": "disabled",
+        },
         "requested_fields": ["planet.toi_id", "star.tic_id"],
         "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
         "paper_search_scope": {"year_from": 2015, "max_candidates": 20},
@@ -210,7 +213,10 @@ def test_fixture_contract_hash_matches_pydantic_canonical_payload() -> None:
     payload = {
         "research_goal": "Integrate exoplanet candidates and host-star parameters",
         "target_objects": ["exoplanet_candidate", "host_star"],
-        "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
+        "data_requirements": {
+            "unit_policy": "canonical",
+            "document_source_policy": "disabled",
+        },
         "requested_fields": ["planet.toi_id", "star.tic_id"],
         "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
         "paper_search_scope": {
@@ -438,6 +444,9 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
         "getResearchInputContent",
         "deleteResearchInput",
         "bindResearchInput",
+        "getModelProviderConfiguration",
+        "configureModelProvider",
+        "removeModelProviderConfiguration",
     } == set(operation_ids)
 
     create_run = document["paths"]["/api/projects/{project_id}/runs"]["post"]
@@ -518,6 +527,13 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
     assert {parameter["name"] for parameter in share_create["parameters"]} >= {
         "X-CSRF-Token"
     }
+    for method in ("put", "delete"):
+        provider_write = document["paths"]["/api/model-provider/configuration"][method]
+        provider_headers = {
+            parameter["name"]: parameter for parameter in provider_write["parameters"]
+        }
+        assert provider_headers["If-Match"]["required"] is True
+        assert provider_headers["X-CSRF-Token"]["required"] is True
 
 
 def test_envelope_cursor_and_problem_details_are_strict_schemas() -> None:

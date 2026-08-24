@@ -10,6 +10,7 @@ import {
   type DataArtifactKind,
   type DomainEntityId,
   type PaperSummaryReview,
+  type PublicArtifactVersion,
   type ScientificArtifactReview,
 } from "@xingwen/domain";
 import type {
@@ -37,9 +38,28 @@ import type { WorkspaceRuntimeBoundaries } from "../boundaries";
 import { ArtifactExportActions } from "../components/artifact-export-actions";
 import { DataArtifactRenderer } from "../components/data-artifact-renderer";
 import { PaperResultWorkspace } from "../components/paper-result-workspace";
+import {
+  PublicDataArtifactContent,
+  PublicGeneralArtifactContent,
+  PublicGraphArtifactContent,
+  PublicLiteratureArtifactContent,
+  PublicPaperSummaryArtifactContent,
+} from "../components/public-artifact-content";
 import { ScientificArtifactRenderer } from "../components/scientific-artifact-renderer";
+import { ScientificDiffView } from "../components/scientific-diff-view";
 import { artifactKindLabel } from "./artifact-presentation-labels";
 import { workspaceQueryKeys } from "../application/query-keys";
+import {
+  buildDataArtifactDiffSnapshot,
+  buildGraphDiffSnapshot,
+  buildLiteratureDiffSnapshot,
+  buildPaperCollectionDiffSnapshot,
+  buildPaperSummaryDiffSnapshot,
+  buildScientificArtifactDiffSnapshot,
+  compareScientificSnapshots,
+  type ArtifactReviewForDiff,
+  type ScientificDiffSnapshot,
+} from "./scientific-diff";
 
 export type ArtifactContentFamily =
   | "data"
@@ -56,6 +76,15 @@ export interface ArtifactRendererCapabilities {
   readonly history: boolean;
   readonly revision: boolean;
   readonly pdf: boolean;
+  readonly compare: boolean;
+}
+
+export interface ArtifactDiffRendererProps {
+  readonly runtime: WorkspaceRuntimeBoundaries;
+  readonly projectId: DomainEntityId;
+  readonly artifact: ResearchArtifactViewModel;
+  readonly baselineVersion: ArtifactVersionMetadataViewModel;
+  readonly currentVersion: ArtifactVersionMetadataViewModel;
 }
 
 export interface ArtifactThreadRendererProps {
@@ -77,6 +106,11 @@ export interface ArtifactFullscreenRendererProps {
   } | null;
 }
 
+export interface PublicArtifactRendererProps {
+  readonly version: PublicArtifactVersion;
+  readonly onSelectEvidence: (evidenceId: DomainEntityId) => void;
+}
+
 interface LoadedRendererProps<
   ViewModel,
 > extends ArtifactFullscreenRendererProps {
@@ -85,7 +119,7 @@ interface LoadedRendererProps<
 
 interface TypedRendererDefinition<
   Kind extends ArtifactKind,
-  ViewModel,
+  ViewModel extends ArtifactReviewForDiff,
   QueryKey extends readonly unknown[],
 > {
   readonly kind: Kind;
@@ -100,6 +134,8 @@ interface TypedRendererDefinition<
   ) => UseQueryOptions<ViewModel, Error, ViewModel, QueryKey>;
   readonly fullscreen: (props: LoadedRendererProps<ViewModel>) => ReactNode;
   readonly textFallback: (viewModel: ViewModel) => string;
+  readonly buildDiffSnapshot: (viewModel: ViewModel) => ScientificDiffSnapshot;
+  readonly PublicRenderer: ComponentType<PublicArtifactRendererProps>;
   readonly accepts?: (viewModel: ViewModel) => boolean;
 }
 
@@ -114,6 +150,8 @@ export interface ArtifactRendererDescriptor {
   readonly ThreadRenderer: ComponentType<ArtifactThreadRendererProps>;
   readonly FullscreenRenderer: ComponentType<ArtifactFullscreenRendererProps>;
   readonly TextFallback: ComponentType<ArtifactFullscreenRendererProps>;
+  readonly DiffRenderer: ComponentType<ArtifactDiffRendererProps>;
+  readonly PublicRenderer: ComponentType<PublicArtifactRendererProps>;
 }
 
 function PublicLoadError({
@@ -174,7 +212,7 @@ function ThreadResultBlock({
 
 function defineRenderer<
   Kind extends Exclude<ArtifactKind, "export">,
-  ViewModel,
+  ViewModel extends ArtifactReviewForDiff,
   QueryKey extends readonly unknown[],
 >(
   definition: TypedRendererDefinition<Kind, ViewModel, QueryKey>,
@@ -246,6 +284,65 @@ function defineRenderer<
     );
   }
 
+  function DiffRenderer(props: ArtifactDiffRendererProps) {
+    if (props.artifact.kind !== definition.kind) {
+      return <p>当前结果类型无法比较。</p>;
+    }
+    return (
+      <LoadedDiff
+        {...props}
+        artifact={{ ...props.artifact, kind: definition.kind }}
+      />
+    );
+  }
+
+  function LoadedDiff(
+    props: ArtifactDiffRendererProps & {
+      readonly artifact: ResearchArtifactViewModel & { readonly kind: Kind };
+    },
+  ) {
+    const baselineQuery = useQuery(
+      definition.load({
+        ...props,
+        version: props.baselineVersion,
+        onSelectEvidence: () => undefined,
+      }),
+    );
+    const currentQuery = useQuery(
+      definition.load({
+        ...props,
+        version: props.currentVersion,
+        onSelectEvidence: () => undefined,
+      }),
+    );
+
+    if (baselineQuery.isPending || currentQuery.isPending) {
+      return <p aria-busy="true">正在比较科学结果…</p>;
+    }
+    if (baselineQuery.isError || currentQuery.isError) {
+      return (
+        <PublicLoadError
+          runtime={props.runtime}
+          error={baselineQuery.error ?? currentQuery.error}
+        />
+      );
+    }
+    if (
+      (definition.accepts && !definition.accepts(baselineQuery.data)) ||
+      (definition.accepts && !definition.accepts(currentQuery.data))
+    ) {
+      return <p>所选结果无法安全比较。</p>;
+    }
+
+    const baseline = definition.buildDiffSnapshot(baselineQuery.data);
+    const current = definition.buildDiffSnapshot(currentQuery.data);
+    return (
+      <ScientificDiffView
+        results={compareScientificSnapshots(baseline, current)}
+      />
+    );
+  }
+
   return {
     kind: definition.kind,
     label: artifactKindLabel(definition.kind),
@@ -257,6 +354,8 @@ function defineRenderer<
     ThreadRenderer: ThreadResultBlock,
     FullscreenRenderer,
     TextFallback,
+    DiffRenderer,
+    PublicRenderer: definition.PublicRenderer,
   };
 }
 
@@ -266,6 +365,7 @@ const commonCapabilities: ArtifactRendererCapabilities = {
   history: true,
   revision: true,
   pdf: false,
+  compare: true,
 };
 
 function data(kind: DataArtifactKind, displayPriority: number) {
@@ -306,6 +406,8 @@ function data(kind: DataArtifactKind, displayPriority: number) {
     ),
     textFallback: (viewModel: DataArtifactReviewViewModel) =>
       `${artifactKindLabel(kind)}，证据 ${viewModel.evidenceIds.length} 条。`,
+    buildDiffSnapshot: buildDataArtifactDiffSnapshot,
+    PublicRenderer: PublicDataArtifactContent,
   });
 }
 
@@ -352,6 +454,8 @@ const paperSummary = defineRenderer({
   fullscreen: (props) => <PaperSummaryFullscreen {...props} />,
   textFallback: (viewModel: PaperSummaryReview) =>
     `${viewModel.paper.title}，包含结构化论文摘要章节。`,
+  buildDiffSnapshot: buildPaperSummaryDiffSnapshot,
+  PublicRenderer: PublicPaperSummaryArtifactContent,
 });
 
 function PaperCollectionFullscreen({
@@ -490,6 +594,8 @@ const paperCollection = defineRenderer({
   fullscreen: (props) => <PaperCollectionFullscreen {...props} />,
   textFallback: (viewModel: PaperAcquisitionReviewViewModel) =>
     `论文集合，候选 ${viewModel.candidates.length} 篇。`,
+  buildDiffSnapshot: buildPaperCollectionDiffSnapshot,
+  PublicRenderer: PublicGeneralArtifactContent,
 });
 
 type LiteratureKind = "literature_claims" | "literature_relations";
@@ -518,6 +624,8 @@ function literature(kind: LiteratureKind, displayPriority: number) {
       </div>
     ),
     textFallback: () => `${artifactKindLabel(kind)}。`,
+    buildDiffSnapshot: buildLiteratureDiffSnapshot,
+    PublicRenderer: PublicLiteratureArtifactContent,
   });
 }
 
@@ -529,17 +637,20 @@ const graph = defineRenderer({
   capabilities: commonCapabilities,
   load: ({ runtime, projectId, version }) =>
     runtime.application.queries.graphArtifact(projectId, version.id),
-  fullscreen: ({ viewModel, artifact }) => (
+  fullscreen: ({ viewModel, artifact, onSelectEvidence }) => (
     <div className="p-5">
       <ScientificArtifactRenderer
         review={viewModel}
         title={artifact.title}
         surface="fullscreen"
+        onSelectEvidence={onSelectEvidence}
       />
     </div>
   ),
   textFallback: (viewModel: GraphArtifactReviewViewModel) =>
     `证据关系，${viewModel.nodeCount} 个节点，${viewModel.edgeCount} 条关系。`,
+  buildDiffSnapshot: buildGraphDiffSnapshot,
+  PublicRenderer: PublicGraphArtifactContent,
 });
 
 const exportUnsupported: ArtifactRendererDescriptor = {
@@ -555,6 +666,7 @@ const exportUnsupported: ArtifactRendererDescriptor = {
     history: true,
     revision: false,
     pdf: false,
+    compare: false,
   },
   ThreadRenderer: ThreadResultBlock,
   FullscreenRenderer: () => (
@@ -565,6 +677,10 @@ const exportUnsupported: ArtifactRendererDescriptor = {
     </Alert>
   ),
   TextFallback: () => <p>导出数据暂无专属读取契约。</p>,
+  DiffRenderer: () => <p>导出数据不支持科学内容比较。</p>,
+  PublicRenderer: () => (
+    <p className="public-artifact__empty">导出文件不包含公开预览正文。</p>
+  ),
 };
 
 type ScientificKind =
@@ -640,6 +756,8 @@ function scientific(
       </div>
     ),
     textFallback: scientificTextFallback,
+    buildDiffSnapshot: buildScientificArtifactDiffSnapshot,
+    PublicRenderer: PublicGeneralArtifactContent,
   });
 }
 

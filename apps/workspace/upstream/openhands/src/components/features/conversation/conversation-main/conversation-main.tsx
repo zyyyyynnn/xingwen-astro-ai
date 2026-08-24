@@ -173,6 +173,11 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
           <div className="flex min-w-0 flex-1 items-center">
             <ConversationNameWithStatus runtime={runtime} />
           </div>
+          {runtime.headerActions ? (
+            <div className="workspace-topbar-actions">
+              {runtime.headerActions}
+            </div>
+          ) : null}
         </header>
         <div
           className="relative flex min-h-0 flex-1 flex-col overflow-hidden"

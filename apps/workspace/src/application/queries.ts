@@ -8,6 +8,7 @@ import type {
   DomainEntityId,
   GraphArtifactReview,
   LiteratureArtifactReview,
+  ModelProviderConfigurationStatus,
   PaperAcquisitionReview,
   PaperSummaryDocumentSourceReview,
   PaperSummaryReview,
@@ -51,6 +52,7 @@ interface WorkspaceQueriesDependencies {
     | "literatureArtifacts"
     | "graphArtifacts"
     | "scientificArtifacts"
+    | "modelProvider"
   >;
   readonly researchAdapter: ResearchAdapter;
 }
@@ -96,6 +98,12 @@ export function createWorkspaceQueries({
   researchAdapter,
 }: WorkspaceQueriesDependencies) {
   return Object.freeze({
+    modelProviderConfiguration: () =>
+      queryOptions({
+        queryKey: workspaceQueryKeys.modelProviderConfiguration(),
+        queryFn: (): Promise<ModelProviderConfigurationStatus> =>
+          repositories.modelProvider.getConfiguration(),
+      }),
     projects: () =>
       queryOptions({
         queryKey: workspaceQueryKeys.projects(),

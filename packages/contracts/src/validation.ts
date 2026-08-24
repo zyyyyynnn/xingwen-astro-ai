@@ -23,6 +23,7 @@ import literatureReasoningTraceReadSchema from "./generated/core/json/Literature
 import literatureRelationReadSchema from "./generated/core/json/LiteratureRelationRead.schema.json";
 import manifest from "./generated/core/manifest.json";
 import modelExecutionRecordSchema from "./generated/core/json/ModelExecutionRecord.schema.json";
+import modelProviderConfigurationStatusSchema from "./generated/core/json/ModelProviderConfigurationStatus.schema.json";
 import researchPlanningCatalogSchema from "./generated/core/json/ResearchPlanningCatalog.schema.json";
 import paperCollectionCandidateReadSchema from "./generated/core/json/PaperCollectionCandidateRead.schema.json";
 import paperCollectionReadSchema from "./generated/core/json/PaperCollectionRead.schema.json";
@@ -71,6 +72,7 @@ export const CORE_MODEL_NAMES = [
   "ResearchTurnResult",
   "RunStepRead",
   "ModelExecutionRecord",
+  "ModelProviderConfigurationStatus",
   "ResearchPlanningCatalog",
   "ArtifactVersion",
   "ArtifactVersionSummary",
@@ -136,6 +138,7 @@ const schemas: SchemaMap = {
   ResearchTurnResult: researchTurnResultSchema,
   RunStepRead: runStepReadSchema,
   ModelExecutionRecord: modelExecutionRecordSchema,
+  ModelProviderConfigurationStatus: modelProviderConfigurationStatusSchema,
   ResearchPlanningCatalog: researchPlanningCatalogSchema,
   ArtifactVersion: artifactVersionSchema,
   ArtifactVersionSummary: artifactVersionSummarySchema,

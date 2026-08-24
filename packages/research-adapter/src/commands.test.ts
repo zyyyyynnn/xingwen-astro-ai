@@ -97,7 +97,7 @@ describe("UI intent to ApplicationCommand", () => {
           artifactVersionIds: [asEntityId("version_shared")],
           evidenceIds: [asEntityId("evidence_shared")],
           expiresAt: "2026-08-12T00:00:00Z",
-          redactionPolicy: "public_metadata_only",
+          redactionPolicy: "redacted_public_snapshot",
         },
       },
       {

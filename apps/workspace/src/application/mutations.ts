@@ -9,6 +9,8 @@ import type {
   UpdateResearchContractDraftInput,
 } from "@xingwen/data-access/ports";
 import type {
+  ConfigureModelProviderInput,
+  CreateShareSnapshotRequest,
   DomainEntityId,
   ExecutionMode,
   RunCheckpointDecisionRequest,
@@ -34,6 +36,8 @@ interface WorkspaceMutationDependencies {
     | "researchThread"
     | "researchInputs"
     | "revisions"
+    | "modelProvider"
+    | "shares"
   >;
   readonly researchAdapter: ResearchAdapter;
   readonly queryClient: QueryClient;
@@ -171,6 +175,16 @@ export interface ConfirmRevisionPlanVariables {
   readonly expectedPlanVersion: number;
 }
 
+export interface ConfigureModelProviderVariables {
+  readonly input: ConfigureModelProviderInput;
+  readonly expectedRevision: number;
+}
+
+export interface CreateShareVariables {
+  readonly projectId: DomainEntityId;
+  readonly request: CreateShareSnapshotRequest;
+}
+
 function _invalidateRunState(
   queryClient: QueryClient,
   projectId: DomainEntityId,
@@ -209,6 +223,54 @@ export function createWorkspaceMutations({
 }: WorkspaceMutationDependencies) {
   const idempotency = createIdempotencyLedger(createIdempotencyKey);
   return Object.freeze({
+    modelProviderConfigure: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "model-provider", "configure"],
+        retry: false,
+        mutationFn: ({
+          input,
+          expectedRevision,
+        }: ConfigureModelProviderVariables) =>
+          repositories.modelProvider.configure(input, expectedRevision),
+        onSuccess: (configuration) => {
+          queryClient.setQueryData(
+            workspaceQueryKeys.modelProviderConfiguration(),
+            configuration,
+          );
+        },
+        onError: () => {
+          void queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.modelProviderConfiguration(),
+            exact: true,
+          });
+        },
+      }),
+    modelProviderRemove: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "model-provider", "remove"],
+        retry: false,
+        mutationFn: (expectedRevision: number) =>
+          repositories.modelProvider.removeConfiguration(expectedRevision),
+        onSuccess: (configuration) => {
+          queryClient.setQueryData(
+            workspaceQueryKeys.modelProviderConfiguration(),
+            configuration,
+          );
+        },
+        onError: () => {
+          void queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.modelProviderConfiguration(),
+            exact: true,
+          });
+        },
+      }),
+    shareCreate: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "share", "create"],
+        retry: false,
+        mutationFn: ({ projectId, request }: CreateShareVariables) =>
+          repositories.shares.create(projectId, request),
+      }),
     researchInputCreate: () =>
       mutationOptions({
         mutationKey: ["workspace", "research-input", "create"],

@@ -28,25 +28,33 @@ Copy-Item .env.example .env
 `.env.example` 只声明当前运行时实际消费的配置。严禁提交 `.env`、密钥、Cookie 或其他凭据。
 
 真实研究助手使用千问 AI 平台的 OpenAI 兼容接口。根目录 `.env` 或 Windows 用户
-环境变量使用平台官方名称 `DASHSCOPE_API_KEY`。`DASHSCOPE_MODEL` 指定批准池内的
-模型身份（默认 `qwen3.8-max`）；`DASHSCOPE_EXPLICIT_MODEL_REVISION` 仅在显式日期快照时填写，
+环境变量使用平台官方名称 `DASHSCOPE_API_KEY`。`DASHSCOPE_MODEL` 指定 Qwen 模型身份
+（默认 `qwen3.8-max`）；`DASHSCOPE_EXPLICIT_MODEL_REVISION` 仅在显式日期快照时填写，
 浮动别名必须留空，不得伪造 revision。这些变量只由 API 读取，不得使用
 `PUBLIC_*` 或 `VITE_*` 前缀。双击 `start-dev.bat` 时，健康门禁要求研究助手状态为
 `ready`；未配置凭据会明确停止启动，不会用 fixture 或模板回答伪装真实 Agent。
 
-| 变量                        | 默认值                                | 作用                                                        |
-| --------------------------- | ------------------------------------- | ----------------------------------------------------------- |
-| `PUBLIC_WORKSPACE_URL`      | `http://localhost:5173/workspace`     | Site 主入口链接                                             |
-| `VITE_API_BASE_URL`         | `http://localhost:8000`               | Workspace 可访问的 API origin                               |
-| `VITE_SITE_URL`             | `http://localhost:4321`               | Workspace “退出系统”返回的 Brand Site origin                |
-| `SESSION_COOKIE_SECURE`     | `false`                               | 本地 HTTP 设为 false，生产部署必须显式为 true               |
-| `SESSION_TTL_SECONDS`       | `86400`                               | 匿名 Session 有效期                                         |
-| `SESSION_RETENTION_SECONDS` | `2592000`                             | 无 Project 引用的过期/撤销 Session 保留期                   |
-| `SHARE_RETENTION_SECONDS`   | `2592000`                             | 过期/撤销 ShareSnapshot 保留期                              |
-| `CURSOR_SIGNING_KEY`        | `development-only-cursor-signing-key` | 不透明分页 cursor HMAC 密钥                                 |
-| `DATABASE_URL`              | Docker Compose PostgreSQL URL         | ResearchRun、Artifact、Evidence 与 ResearchInput 的权威存储 |
-| `RESEARCH_INPUT_UPLOAD_DIR` | `.data/research-inputs`               | ResearchInput 内容寻址存储目录                              |
-| `URL_FETCH_ALLOWED_HOSTS`   | 空                                    | URL ResearchInput host allowlist；空值 fail closed          |
+development/test/integration 也可在 Workspace 顶栏“模型服务”中配置默认 DashScope Qwen，或自定义
+OpenAI Chat Completions-compatible 服务。Base URL 始终可见；该配置是实例级、跨 Project 复用的
+PostgreSQL override，保存前会调用 `/chat/completions`
+验证；入口不会自动打断工作台，“后续配置”直接关闭弹窗。production 只显示部署配置状态，不允许匿名 Session 修改。
+
+| 变量                               | 默认值                                | 作用                                                        |
+| ---------------------------------- | ------------------------------------- | ----------------------------------------------------------- |
+| `PUBLIC_WORKSPACE_URL`             | `http://localhost:5173/workspace`     | Site 主入口链接                                             |
+| `VITE_API_BASE_URL`                | `http://localhost:8000`               | Workspace 可访问的 API origin                               |
+| `VITE_SITE_URL`                    | `http://localhost:4321`               | Workspace “退出系统”返回的 Brand Site origin                |
+| `SESSION_COOKIE_SECURE`            | `false`                               | 本地 HTTP 设为 false，生产部署必须显式为 true               |
+| `SESSION_TTL_SECONDS`              | `86400`                               | 匿名 Session 有效期                                         |
+| `SESSION_RETENTION_SECONDS`        | `2592000`                             | 无 Project 引用的过期/撤销 Session 保留期                   |
+| `SHARE_RETENTION_SECONDS`          | `2592000`                             | 过期/撤销 ShareSnapshot 保留期                              |
+| `CURSOR_SIGNING_KEY`               | `development-only-cursor-signing-key` | 不透明分页 cursor HMAC 密钥                                 |
+| `DATABASE_URL`                     | Docker Compose PostgreSQL URL         | ResearchRun、Artifact、Evidence 与 ResearchInput 的权威存储 |
+| `RESEARCH_INPUT_UPLOAD_DIR`        | `.data/research-inputs`               | ResearchInput 内容寻址存储目录                              |
+| `URL_FETCH_ALLOWED_HOSTS`          | 空                                    | URL ResearchInput host allowlist；空值 fail closed          |
+| `MODEL_PROVIDER_CONFIG_KEY`        | 空                                    | 实例级模型凭据加密根密钥；空值回退稳定 `CURSOR_SIGNING_KEY` |
+| `MODEL_PROVIDER_ALLOWED_HOSTS`     | 空                                    | custom OpenAI-compatible 远程 host allowlist                |
+| `MODEL_PROVIDER_CONFIG_RATE_LIMIT` | `10`                                  | 每 Session 模型配置写限流                                   |
 
 ## 3. Docker Compose 启动
 
@@ -68,13 +76,13 @@ docker compose up --build --wait
 端口的容器，但保留 PostgreSQL 与数据卷。关闭本地服务时，在 Backend/Frontend 窗口按
 `Ctrl+C`，再执行 `docker compose -p xingwen-astro-ai-dev stop postgres`。
 
-| 服务        | 职责                            | 默认地址                |
-| ----------- | ------------------------------- | ----------------------- |
-| `site`      | Astro Brand Site                | `http://localhost:4321` |
-| `workspace` | React Research Workspace        | `http://localhost:5173` |
-| `api`       | FastAPI `/api`                  | `http://localhost:8000` |
+| 服务        | 职责                              | 默认地址                |
+| ----------- | --------------------------------- | ----------------------- |
+| `site`      | Astro Brand Site                  | `http://localhost:4321` |
+| `workspace` | React Research Workspace          | `http://localhost:5173` |
+| `api`       | FastAPI `/api`                    | `http://localhost:8000` |
 | `schema`    | 当前 SQLAlchemy 模型建表 one-shot | 无端口                  |
-| `postgres`  | PostgreSQL 17                   | `localhost:5432`        |
+| `postgres`  | PostgreSQL 17                     | `localhost:5432`        |
 
 完整容器栈的依赖顺序为 `postgres healthy -> schema exited 0 -> api healthy -> workspace`。
 分窗口启动时，前置检查显式从当前 SQLAlchemy 模型建立 schema，应用进程不隐式改表。

@@ -10,6 +10,7 @@ dependencies = [
     "aiofiles>=24.1.0",
     "astropy>=8.0.0,<9",
     "astroquery>=0.4.11,<0.5",
+    "cryptography>=45.0.0,<51",
     "docling-parse==7.11.0",
     "fastapi>=0.139.0",
     "httpx>=0.28.0",

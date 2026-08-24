@@ -19,6 +19,15 @@
   --workspace-content-max-inline-size: 44rem;
   --workspace-min-inline-size: 1024px;
 
+  /* Scientific result workspace geometry. */
+  --workspace-result-reading-max-inline-size: 72ch;
+  --workspace-result-graph-block-size: min(42rem, 66dvh);
+  --workspace-result-inspector-inline-size: 22rem;
+  --workspace-result-sheet-inline-size: min(32rem, 92vw);
+  --workspace-result-public-max-inline-size: 72rem;
+  --workspace-result-node-inline-size: 14rem;
+  --workspace-result-node-block-size: 4.5rem;
+
   --workspace-composer-max-block-size: 15rem;
   --workspace-composer-input-min-block-size: 1.25rem;
   --workspace-composer-padding-inline: var(--space-3);
@@ -51,6 +60,9 @@
 
   /* Workspace overlays and motion. */
   --workspace-command-menu-max-inline-size: 36rem;
+  --workspace-provider-dialog-max-inline-size: 36rem;
+  --workspace-provider-dialog-max-block-size: calc(100dvh - var(--space-8));
+  --workspace-provider-status-indicator-size: 0.5rem;
   --workspace-command-menu-max-block-size: 70vh;
   --workspace-command-menu-viewport-offset: 12vh;
   --workspace-tab-overflow-min-inline-size: 8rem;

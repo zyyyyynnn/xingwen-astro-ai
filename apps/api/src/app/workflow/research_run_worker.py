@@ -27,6 +27,7 @@ from app.services.model_execution import (
     ModelExecutionError,
     ModelExecutionPort,
 )
+from app.services.model_provider_configuration import ModelRuntimeSnapshot
 from app.workflow.agent_runtime import AgentActivityError
 from app.workflow.capacity import PersistentWorkerRegistry
 from app.workflow.persistent_executor import (
@@ -114,6 +115,7 @@ class ResearchRunWorker:
         model_port: ModelExecutionPort,
         requested_model: str,
         explicit_revision: str | None,
+        model_runtime_resolver: Callable[[], ModelRuntimeSnapshot] | None = None,
         prompts: PromptRegistry | None = None,
         paper_collection_runner: LivePaperCollectionRunner | None = None,
         content_storage: ContentStorage | None = None,
@@ -140,6 +142,7 @@ class ResearchRunWorker:
             model_port=model_port,
             requested_model=requested_model,
             explicit_revision=explicit_revision,
+            model_runtime_resolver=model_runtime_resolver,
             prompts=self._prompts,
             paper_collection_runner=paper_collection_runner,
             content_storage=content_storage,

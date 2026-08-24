@@ -21,15 +21,23 @@
       "title": "ArtifactKind",
       "type": "string"
     },
+    "JsonValue": {},
     "PublicArtifactVersion": {
       "additionalProperties": false,
-      "description": "Redacted immutable version metadata safe for an anonymous share response.",
+      "description": "Redacted immutable result projection safe for anonymous presentation.",
       "properties": {
         "artifact_id": {
           "maxLength": 128,
           "minLength": 1,
           "title": "Artifact Id",
           "type": "string"
+        },
+        "content": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Content",
+          "type": "object"
         },
         "content_hash": {
           "pattern": "^sha256:[0-9a-f]{64}$",
@@ -40,6 +48,15 @@
           "format": "date-time",
           "title": "Created At",
           "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
         },
         "id": {
           "maxLength": 128,
@@ -78,14 +95,16 @@
         "schema_version",
         "content_hash",
         "source_mode",
-        "created_at"
+        "created_at",
+        "content",
+        "evidence_ids"
       ],
       "title": "PublicArtifactVersion",
       "type": "object"
     },
     "PublicEvidence": {
       "additionalProperties": false,
-      "description": "Minimal Evidence identity bound to a shared immutable version.",
+      "description": "Redacted Evidence detail frozen with a shared immutable result.",
       "properties": {
         "artifact_version_id": {
           "maxLength": 128,
@@ -93,11 +112,29 @@
           "title": "Artifact Version Id",
           "type": "string"
         },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
         "id": {
           "maxLength": 128,
           "minLength": 1,
           "title": "Id",
           "type": "string"
+        },
+        "locator": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Locator",
+          "type": "object"
+        },
+        "quote_or_value": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "source": {
+          "$ref": "#/$defs/PublicSourceSnapshot"
         },
         "source_snapshot_id": {
           "maxLength": 128,
@@ -109,14 +146,60 @@
       "required": [
         "id",
         "artifact_version_id",
-        "source_snapshot_id"
+        "source_snapshot_id",
+        "locator",
+        "quote_or_value",
+        "created_at",
+        "source"
       ],
       "title": "PublicEvidence",
       "type": "object"
     },
+    "PublicSourceSnapshot": {
+      "additionalProperties": false,
+      "description": "Public source facts required by the shared Evidence inspector.",
+      "properties": {
+        "license_note": {
+          "minLength": 1,
+          "title": "License Note",
+          "type": "string"
+        },
+        "request_metadata": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Request Metadata",
+          "type": "object"
+        },
+        "retrieved_at": {
+          "format": "date-time",
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "source_id": {
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_type": {
+          "minLength": 1,
+          "title": "Source Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_type",
+        "retrieved_at",
+        "license_note",
+        "request_metadata"
+      ],
+      "title": "PublicSourceSnapshot",
+      "type": "object"
+    },
     "ShareRedactionPolicy": {
       "enum": [
-        "public_metadata_only"
+        "redacted_public_snapshot"
       ],
       "title": "ShareRedactionPolicy",
       "type": "string"

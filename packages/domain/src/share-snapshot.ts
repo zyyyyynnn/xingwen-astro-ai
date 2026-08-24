@@ -8,8 +8,9 @@
  * Key security invariants enforced by the adapter:
  * - Raw share tokens only appear in the one-time `ShareSnapshotCreated`
  *   response; private list and public projection never include the token.
- * - `PublicShareSnapshot` is a redacted read-only projection — no Artifact
- *   content, no Evidence locator, no Project/Session info, no producer data.
+ * - `PublicShareSnapshot` is a redacted read-only projection containing only
+ *   admitted public Artifact content and Evidence fields; no Project/Session,
+ *   producer, binary, execution or private provenance data crosses the boundary.
  * - Invalid, revoked and expired tokens all map to `404 SHARE_NOT_FOUND`.
  *
  * Transport DTO mapping lives in `@xingwen/data-access`.
@@ -22,6 +23,7 @@ import type {
   SourceMode,
 } from "./enums";
 import type { DomainEntityId } from "./identifiers";
+import type { JsonValue } from "./research-contract";
 import type {
   ContentHash,
   NonEmptyString,
@@ -69,9 +71,9 @@ export interface CreateShareSnapshotRequest {
 }
 
 /**
- * Redacted immutable version metadata safe for an anonymous share response.
- * Does NOT include content, content hash details, producer, or source snapshot
- * ids — only identity and version metadata.
+ * Redacted immutable result projection safe for anonymous presentation. The
+ * content is the admitted Artifact payload after the public boundary removes
+ * execution, hash, binary and private provenance fields.
  */
 export interface PublicArtifactVersion {
   readonly id: DomainEntityId;
@@ -83,25 +85,38 @@ export interface PublicArtifactVersion {
   readonly contentHash: ContentHash;
   readonly sourceMode: SourceMode;
   readonly createdAt: UtcIsoTimestamp;
+  readonly content: Readonly<Record<string, JsonValue>>;
+  readonly evidenceIds: readonly DomainEntityId[];
+}
+
+export interface PublicSourceSnapshot {
+  readonly sourceId: string;
+  readonly sourceType: string;
+  readonly retrievedAt: UtcIsoTimestamp;
+  readonly licenseNote: string;
+  readonly requestMetadata: Readonly<Record<string, JsonValue>>;
 }
 
 /**
- * Minimal Evidence identity bound to a shared immutable version. Does NOT
- * include the locator, quote/value, extraction method, or confidence — only
- * the binding to the artifact version and source snapshot.
+ * Redacted Evidence detail bound to a shared immutable version. Only source
+ * fields needed by the shared inspector survive the public projection.
  */
 export interface PublicEvidence {
   readonly id: DomainEntityId;
   readonly artifactVersionId: DomainEntityId;
   readonly sourceSnapshotId: DomainEntityId;
+  readonly locator: Readonly<Record<string, JsonValue>>;
+  readonly quoteOrValue: JsonValue;
+  readonly createdAt: UtcIsoTimestamp;
+  readonly source: PublicSourceSnapshot;
 }
 
 /**
  * Anonymous read-only projection frozen when the share is created.
  *
  * This is what the public `GET /api/shares/{share_token}` endpoint returns.
- * It contains only the share metadata and the redacted artifact version +
- * evidence identity — never the full content, locator, or session info.
+ * It contains only the share metadata and redacted presentation/evidence
+ * projections — never private session, producer, binary or execution facts.
  */
 export interface PublicShareSnapshot {
   readonly id: DomainEntityId;

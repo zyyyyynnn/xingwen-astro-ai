@@ -133,6 +133,25 @@ function isJsonValue(value: unknown): value is JsonValue {
   }
 }
 
+function mapJsonValue(value: unknown, label: string): JsonValue {
+  if (!isJsonValue(value)) {
+    throw new TypeError(`${label} is not JSON-compatible`);
+  }
+  return value;
+}
+
+function mapJsonRecord(
+  value: Readonly<Record<string, unknown>>,
+  label: string,
+): Readonly<Record<string, JsonValue>> {
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      mapJsonValue(item, `${label}.${key}`),
+    ]),
+  );
+}
+
 function mapScientificTaskParameters(
   parameters: ScientificTaskInputDto["parameters"],
 ): Readonly<Record<string, JsonValue>> {
@@ -844,11 +863,29 @@ export function mapPublicShareSnapshot(
       contentHash: v.content_hash as ContentHash,
       sourceMode: v.source_mode,
       createdAt: v.created_at as UtcIsoTimestamp,
+      content: mapJsonRecord(v.content, "PublicArtifactVersion.content"),
+      evidenceIds: v.evidence_ids.map(mapId),
     })),
     evidence: dto.evidence.map((e) => ({
       id: mapId(e.id),
       artifactVersionId: mapId(e.artifact_version_id),
       sourceSnapshotId: mapId(e.source_snapshot_id),
+      locator: mapJsonRecord(e.locator, "PublicEvidence.locator"),
+      quoteOrValue: mapJsonValue(
+        e.quote_or_value,
+        "PublicEvidence.quote_or_value",
+      ),
+      createdAt: e.created_at as UtcIsoTimestamp,
+      source: {
+        sourceId: e.source.source_id,
+        sourceType: e.source.source_type,
+        retrievedAt: e.source.retrieved_at as UtcIsoTimestamp,
+        licenseNote: e.source.license_note,
+        requestMetadata: mapJsonRecord(
+          e.source.request_metadata,
+          "PublicSourceSnapshot.request_metadata",
+        ),
+      },
     })),
   };
 }

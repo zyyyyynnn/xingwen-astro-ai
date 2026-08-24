@@ -10,26 +10,28 @@ private state.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol
 from uuid import UUID
 
-from pydantic import ValidationError
+from pydantic import JsonValue, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
     ArtifactVersionModel,
     DocumentParseModel,
-    EvidenceModel,
     ResearchArtifactModel,
     ResearchInputContentModel,
     ResearchProjectModel,
     ResearchRunModel,
 )
 from app.schemas.core import PublicArtifactVersion, PublicEvidence
+from app.schemas.core import PublicSourceSnapshot
+from app.security import SecurityProblem
+from app.services.artifacts import ArtifactReadService
 from app.schemas.scientific_skills import (
     FitsImageVisualizationSpec,
     ModelArtifactContent,
@@ -166,6 +168,7 @@ class PersistentResourceAuthority:
 
     def __init__(self, factory: Callable[[], Session]) -> None:
         self._factory = factory
+        self._artifacts = ArtifactReadService(factory)
 
     def project_owner(self, project_id: str) -> str | None:
         pid = _uuid_or_none(project_id)
@@ -191,55 +194,80 @@ class PersistentResourceAuthority:
     def public_artifact_version(
         self, project_id: str, version_id: str
     ) -> PublicArtifactVersion | None:
-        pid, vid = _uuid_or_none(project_id), _uuid_or_none(version_id)
-        if pid is None or vid is None:
+        if _uuid_or_none(project_id) is None or _uuid_or_none(version_id) is None:
             return None
-        with self._factory() as session:
-            row = session.execute(
-                select(
-                    ArtifactVersionModel,
-                    ResearchArtifactModel.kind,
-                    ResearchArtifactModel.title,
-                )
-                .join(
-                    ResearchArtifactModel,
-                    ResearchArtifactModel.id == ArtifactVersionModel.artifact_id,
-                )
-                .where(
-                    ArtifactVersionModel.id == vid,
-                    ArtifactVersionModel.project_id == pid,
-                )
-            ).first()
-        if row is None:
+        owner_session_id = self.project_owner(project_id)
+        if owner_session_id is None:
             return None
-        version, kind, title = row
+        try:
+            version = self._artifacts.get_version(
+                version_id=version_id,
+                session_id=owner_session_id,
+                full_content=True,
+            )
+            artifact = self._artifacts.get_artifact(
+                artifact_id=version.artifact_id,
+                session_id=owner_session_id,
+            )
+        except SecurityProblem:
+            return None
+        if version.project_id != project_id:
+            return None
         return PublicArtifactVersion(
-            id=str(version.id),
-            artifact_id=str(version.artifact_id),
-            kind=kind,
-            title=title,
+            id=version.id,
+            artifact_id=version.artifact_id,
+            kind=artifact.kind,
+            title=artifact.title,
             version_number=version.version_number,
             schema_version=version.schema_version,
             content_hash=version.content_hash,
             source_mode=version.source_mode,
-            created_at=_utc(version.created_at),
+            created_at=version.created_at,
+            content=_public_artifact_content(artifact.kind, version.content),
+            evidence_ids=tuple(item.id for item in version.evidence),
         )
 
     def public_evidence(
         self, project_id: str, evidence_id: str
     ) -> PublicEvidence | None:
-        pid, eid = _uuid_or_none(project_id), _uuid_or_none(evidence_id)
-        if pid is None or eid is None:
+        if _uuid_or_none(project_id) is None or _uuid_or_none(evidence_id) is None:
             return None
-        with self._factory() as session:
-            row = session.get(EvidenceModel, eid)
-            if row is None or str(row.project_id) != project_id:
-                return None
-            return PublicEvidence(
-                id=str(row.id),
-                artifact_version_id=str(row.artifact_version_id),
-                source_snapshot_id=str(row.source_snapshot_id),
+        owner_session_id = self.project_owner(project_id)
+        if owner_session_id is None:
+            return None
+        try:
+            read = self._artifacts.get_evidence(
+                evidence_id=evidence_id,
+                session_id=owner_session_id,
             )
+        except SecurityProblem:
+            return None
+        locator = _public_locator(read.locator)
+        quote = read.quote_or_value
+        if not isinstance(quote, (str, int, float, bool)) and quote is not None:
+            quote = None
+        source = read.source_snapshot
+        metadata = {
+            key: value
+            for key, value in source.request_metadata.items()
+            if key in {"source_url", "url", "original_url", "landing_url"}
+            and isinstance(value, str)
+        }
+        return PublicEvidence(
+            id=read.id,
+            artifact_version_id=read.artifact_version_id,
+            source_snapshot_id=read.source_snapshot_id,
+            locator=locator,
+            quote_or_value=quote,
+            created_at=read.created_at,
+            source=PublicSourceSnapshot(
+                source_id=source.source_id,
+                source_type=source.source_type,
+                retrieved_at=source.retrieved_at,
+                license_note=source.license_note,
+                request_metadata=metadata,
+            ),
+        )
 
     def content_reference_closure(self) -> ContentReferenceClosure:
         """Read the complete PostgreSQL-owned blob reference closure.
@@ -383,6 +411,147 @@ def _scientific_binary_references(
         model = ModelArtifactContent.model_validate(raw_content)
         return ((model.model_binary.content_hash, model.model_binary.content_ref),)
     return ()
+
+
+_PUBLIC_ARTIFACT_BLOCKED_KEYS = {
+    "cache_version",
+    "dependency_revisions",
+    "input_versions",
+    "model_binary",
+    "opset_imports",
+    "parameters",
+    "producer",
+    "producer_execution",
+    "request_metadata",
+    "source_snapshots",
+}
+_PUBLIC_ARTIFACT_FIELDS_BY_KIND = {
+    "analysis_report": frozenset(
+        {"kind", "title", "summary", "metrics", "findings", "limitations"}
+    ),
+    "dataset": frozenset(
+        {
+            "kind",
+            "title",
+            "row_count",
+            "field_count",
+            "rows",
+            "columns",
+            "field_definitions",
+        }
+    ),
+    "field_dictionary": frozenset(
+        {"kind", "title", "field_count", "columns", "field_definitions"}
+    ),
+    "graph": frozenset({"kind", "graph", "nodes", "edges"}),
+    "light_curve": frozenset(
+        {"kind", "title", "description", "object_name", "best_period", "time_unit"}
+    ),
+    "literature_claims": frozenset({"kind", "claims"}),
+    "literature_relations": frozenset({"kind", "relations", "reasoning_traces"}),
+    "model_artifact": frozenset(
+        {"kind", "title", "description", "algorithm", "limitations"}
+    ),
+    "model_evaluation": frozenset(
+        {"kind", "title", "description", "metrics", "limitations"}
+    ),
+    "paper_collection": frozenset({"kind", "title", "candidates"}),
+    "paper_summary": frozenset(
+        {
+            "kind",
+            "title",
+            "background",
+            "methodology",
+            "dataset",
+            "experiments",
+            "discussion",
+            "limitations",
+            "research_questions",
+        }
+    ),
+    "source_collection": frozenset(
+        {"kind", "title", "members", "conflict_record_count"}
+    ),
+    "spectrum": frozenset(
+        {"kind", "title", "description", "object_name", "detected_lines"}
+    ),
+    # Binary-backed visualization specs are deliberately absent. Anonymous
+    # shares present the authored title/description without exposing storage
+    # references or creating a public blob-download capability.
+    "visualization": frozenset({"kind", "title", "description"}),
+}
+_PUBLIC_LOCATOR_KEYS = {
+    "field",
+    "kind",
+    "page",
+    "paragraph",
+    "range",
+    "row_key",
+    "section",
+}
+
+
+class _DropPublicValue:
+    pass
+
+
+_DROP_PUBLIC_VALUE = _DropPublicValue()
+
+
+def _public_artifact_content(
+    artifact_kind: str, value: Mapping[str, object]
+) -> dict[str, JsonValue]:
+    """Project an Artifact kind through its explicit anonymous field allowlist."""
+
+    allowed_fields = _PUBLIC_ARTIFACT_FIELDS_BY_KIND.get(
+        artifact_kind, frozenset({"kind"})
+    )
+    projected = _public_json(
+        {key: item for key, item in value.items() if key in allowed_fields}
+    )
+    return projected if isinstance(projected, dict) else {}
+
+
+def _public_json(
+    value: object, *, key: str | None = None
+) -> JsonValue | _DropPublicValue:
+    if key is not None and (
+        key in _PUBLIC_ARTIFACT_BLOCKED_KEYS
+        or key.endswith("_ref")
+        or key.endswith("_hash")
+        or key.endswith("_version_id")
+        or key.endswith("_execution_id")
+        or key.endswith("_snapshot_id")
+        or key.endswith("_snapshot_ids")
+    ):
+        return _DROP_PUBLIC_VALUE
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, Mapping):
+        projected: dict[str, JsonValue] = {}
+        for item_key, item_value in value.items():
+            normalized_key = str(item_key)
+            item = _public_json(item_value, key=normalized_key)
+            if item is not _DROP_PUBLIC_VALUE:
+                projected[normalized_key] = item
+        return projected
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        projected_items: list[JsonValue] = []
+        for value_item in value:
+            item = _public_json(value_item)
+            if item is not _DROP_PUBLIC_VALUE:
+                projected_items.append(item)
+        return projected_items
+    return _DROP_PUBLIC_VALUE
+
+
+def _public_locator(value: Mapping[str, object]) -> dict[str, JsonValue]:
+    return {
+        key: item
+        for key, item in value.items()
+        if key in _PUBLIC_LOCATOR_KEYS
+        and (item is None or isinstance(item, (bool, int, float, str)))
+    }
 
 
 def _uuid_or_none(value: str) -> UUID | None:

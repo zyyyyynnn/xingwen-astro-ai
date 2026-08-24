@@ -289,7 +289,7 @@ def test_share_freeze_private_list_redaction_and_revoke(
             "artifact_version_ids": [version_id],
             "evidence_ids": [evidence_id],
             "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
-            "redaction_policy": "public_metadata_only",
+            "redaction_policy": "redacted_public_snapshot",
         },
     )
     assert created.status_code == 201, created.text
@@ -318,8 +318,9 @@ def test_share_freeze_private_list_redaction_and_revoke(
     assert public_data["artifact_versions"][0]["source_mode"] == "fixture"
     assert public_data["evidence"][0]["id"] == evidence_id
 
-    # Public projection carries no session, project credential, locator, or
-    # editing surface.
+    # Public projection carries no session, project credential, private
+    # provenance, or editing surface. Locator/source fields are an explicit
+    # redacted allowlist used by the read-only Evidence inspector.
     forbidden_keys = {
         "session_id",
         "project_id",
@@ -333,9 +334,10 @@ def test_share_freeze_private_list_redaction_and_revoke(
     for version in public_data["artifact_versions"]:
         assert forbidden_keys.isdisjoint(version.keys())
     for evidence in public_data["evidence"]:
-        assert "locator" not in evidence
-        assert "quote_or_value" not in evidence
+        assert evidence["locator"] == {}
         assert forbidden_keys.isdisjoint(evidence.keys())
+        assert forbidden_keys.isdisjoint(evidence["source"].keys())
+        assert "quote_or_value" in evidence
 
     # Revoke: public read degrades to the same 404 as an invalid token.
     revoked = client.delete(

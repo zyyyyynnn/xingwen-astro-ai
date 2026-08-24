@@ -929,7 +929,7 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
             "artifact_version_ids": [version_id],
             "evidence_ids": [evidence_id],
             "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
-            "redaction_policy": "public_metadata_only",
+            "redaction_policy": "redacted_public_snapshot",
         },
     )
     assert shared.status_code == 201, shared.text

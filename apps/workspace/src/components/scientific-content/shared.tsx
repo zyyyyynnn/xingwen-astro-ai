@@ -55,6 +55,7 @@ const TAXONOMY_LABELS: Record<string, string> = {
   measurement: "测量",
   method: "方法",
   limitation: "局限",
+  effective_temperature: "有效温度",
   uses_dataset: "使用数据集",
   provides_field: "提供字段",
   supports_finding: "支持发现",
@@ -72,9 +73,10 @@ export function taxonomyLabel(value: string): string {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  accepted: "已接受",
-  rejected: "已拒绝",
-  pending: "待处理",
+  accepted: "已纳入结论",
+  candidate: "候选观点",
+  rejected: "未纳入结论",
+  pending: "仍待核验",
   verified: "已核实",
   unverified: "未核实",
   failed: "失败",
@@ -82,7 +84,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function reviewStatusLabel(value: string): string {
-  return STATUS_LABELS[value] ?? humanizeToken(value);
+  return STATUS_LABELS[value] ?? "状态待核验";
 }
 
 const COMPARABILITY_LABELS: Record<string, string> = {
@@ -93,7 +95,7 @@ const COMPARABILITY_LABELS: Record<string, string> = {
 };
 
 export function comparabilityLabel(value: string): string {
-  return COMPARABILITY_LABELS[value] ?? humanizeToken(value);
+  return COMPARABILITY_LABELS[value] ?? "尚未评估";
 }
 
 const POLARITY_LABELS: Record<string, string> = {
@@ -103,7 +105,7 @@ const POLARITY_LABELS: Record<string, string> = {
 };
 
 export function polarityLabel(value: string): string {
-  return POLARITY_LABELS[value] ?? humanizeToken(value);
+  return POLARITY_LABELS[value] ?? "方向未明确";
 }
 
 export function ScientificContentHeader({
@@ -117,15 +119,13 @@ export function ScientificContentHeader({
   readonly alerts?: readonly ReactNode[];
 }) {
   return (
-    <header className="scientific-artifact__header mb-2 flex items-start justify-between gap-2">
+    <header className="scientific-content-header">
       <div>
-        <h3 className="text-sm font-semibold text-[var(--oh-foreground)]">
-          {title}
-        </h3>
-        <p className="text-xs text-[var(--oh-muted)] mt-0.5">{subtitle}</p>
+        <h3>{title}</h3>
+        <p>{subtitle}</p>
       </div>
       {alerts.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">{alerts}</div>
+        <div className="scientific-content-header__alerts">{alerts}</div>
       ) : null}
     </header>
   );

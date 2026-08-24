@@ -29,6 +29,8 @@ import {
   type ShareSnapshot,
   type WorkspaceSnapshot,
   type ContentHash,
+  type JsonValue,
+  type ModelProviderConfigurationStatus,
   type UtcIsoTimestamp,
 } from "@xingwen/domain";
 
@@ -74,6 +76,78 @@ import type { FixtureBundle } from "./fixture/bundle";
 export interface FixtureAdapterOptions {
   readonly clock?: () => UtcIsoTimestamp;
   readonly idFactory?: (prefix: string) => DomainEntityId;
+}
+
+const PUBLIC_ARTIFACT_BLOCKED_KEYS = new Set([
+  "cache_version",
+  "dependency_revisions",
+  "input_versions",
+  "model_binary",
+  "opset_imports",
+  "parameters",
+  "producer",
+  "producer_execution",
+  "request_metadata",
+  "source_snapshots",
+]);
+const PUBLIC_LOCATOR_KEYS = new Set([
+  "field",
+  "kind",
+  "page",
+  "paragraph",
+  "range",
+  "row_key",
+  "section",
+]);
+const PUBLIC_SOURCE_URL_KEYS = new Set([
+  "source_url",
+  "url",
+  "original_url",
+  "landing_url",
+]);
+
+function redactPublicValue(
+  value: JsonValue,
+  key?: string,
+): JsonValue | undefined {
+  if (
+    key &&
+    (PUBLIC_ARTIFACT_BLOCKED_KEYS.has(key) ||
+      key.endsWith("_hash") ||
+      key.endsWith("_version_id") ||
+      key.endsWith("_execution_id") ||
+      key.endsWith("_snapshot_id") ||
+      key.endsWith("_snapshot_ids"))
+  ) {
+    return undefined;
+  }
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => {
+      const projected = redactPublicValue(item);
+      return projected === undefined ? [] : [projected];
+    });
+  }
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([itemKey, itemValue]) => {
+      const projected = redactPublicValue(itemValue, itemKey);
+      return projected === undefined ? [] : [[itemKey, projected]];
+    }),
+  );
+}
+
+function publicScalarRecord(
+  value: object,
+  allowedKeys: ReadonlySet<string>,
+): Readonly<Record<string, JsonValue>> {
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([key, item]) =>
+      allowedKeys.has(key) &&
+      (item === null || ["boolean", "number", "string"].includes(typeof item))
+        ? [[key, item as JsonValue]]
+        : [],
+    ),
+  );
 }
 
 function validateBundleSemantics(bundle: FixtureBundle): void {
@@ -389,6 +463,103 @@ export function createFixtureRepositories(
 
   const shares = new Map<DomainEntityId, ShareRecord>();
   const shareByToken = new Map<string, DomainEntityId>();
+  const fixtureModelProvider: ModelProviderConfigurationStatus = {
+    status: "ready",
+    revision: 0,
+    source: "deployment",
+    preset: null,
+    baseUrl: null,
+    dashscopeBaseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    model: "演示回放",
+    apiKeyHint: null,
+    verifiedAt: null,
+    updatedAt: null,
+    editable: false,
+  };
+
+  function publicContent(
+    kind: PublicArtifactVersion["kind"],
+    versionId: DomainEntityId,
+  ): Readonly<Record<string, JsonValue>> {
+    const identifier = String(versionId);
+    const datasetRead = bundle.data.dataArtifactReads.find(
+      (item) => item.artifact_version_id === identifier,
+    );
+    const value =
+      kind === "dataset"
+        ? datasetRead && "dataset" in datasetRead
+          ? datasetRead.dataset
+          : undefined
+        : kind === "field_dictionary"
+          ? bundle.data.fieldDictionaryArtifactReads.find(
+              (item) => item.artifact_version_id === identifier,
+            )?.field_dictionary
+          : kind === "source_collection"
+            ? bundle.data.sourceCollectionArtifactReads.find(
+                (item) => item.artifact_version_id === identifier,
+              )?.source_collection
+            : kind === "paper_collection"
+              ? bundle.data.paperAcquisitions.find(
+                  (item) => item.collection.artifact_version_id === identifier,
+                )?.collection.collection
+              : kind === "paper_summary"
+                ? bundle.data.paperSummaries.find(
+                    (item) => item.summary.artifact_version_id === identifier,
+                  )?.summary.summary
+                : kind === "literature_claims"
+                  ? {
+                      kind,
+                      claims: bundle.data.literatureClaimReads
+                        .filter(
+                          (item) =>
+                            item.version.artifact_version_id === identifier,
+                        )
+                        .map((item) => item.claim),
+                    }
+                  : kind === "literature_relations"
+                    ? {
+                        kind,
+                        relations: bundle.data.literatureRelationReads
+                          .filter(
+                            (item) =>
+                              item.version.artifact_version_id === identifier,
+                          )
+                          .map((item) => item.relation),
+                        reasoning_traces: bundle.data.literatureRelationReads
+                          .filter(
+                            (item) =>
+                              item.version.artifact_version_id === identifier,
+                          )
+                          .flatMap((item) =>
+                            item.reasoning_trace ? [item.reasoning_trace] : [],
+                          ),
+                      }
+                    : kind === "graph"
+                      ? {
+                          kind,
+                          graph: bundle.data.graphArtifactReads.find(
+                            (item) =>
+                              item.version.artifact_version_id === identifier,
+                          ),
+                          nodes: bundle.data.graphNodeReads.filter(
+                            (item) =>
+                              item.version.artifact_version_id === identifier,
+                          ),
+                          edges: bundle.data.graphEdgeReads.filter(
+                            (item) =>
+                              item.version.artifact_version_id === identifier,
+                          ),
+                        }
+                      : { kind };
+    const projected = redactPublicValue(
+      (value ?? { kind }) as Readonly<Record<string, JsonValue>>,
+    );
+    return projected &&
+      !Array.isArray(projected) &&
+      typeof projected === "object"
+      ? (projected as Readonly<Record<string, JsonValue>>)
+      : { kind };
+  }
   const runsByIdempotencyKey = new Map<
     string,
     { readonly request: string; readonly run: ResearchRun }
@@ -430,6 +601,8 @@ export function createFixtureRepositories(
       contentHash: version.contentHash,
       sourceMode: version.sourceMode,
       createdAt: version.createdAt,
+      content: publicContent(artifact.kind, version.id),
+      evidenceIds: [...version.evidenceIds],
     };
   }
 
@@ -444,6 +617,7 @@ export function createFixtureRepositories(
       entity === null ||
       entity.sourceSnapshotId === null ||
       version === null ||
+      entity?.source === null ||
       version.projectId !== projectId
     ) {
       throw new NotFoundError(
@@ -460,6 +634,21 @@ export function createFixtureRepositories(
       id: entity.id,
       artifactVersionId: entity.artifactVersionId,
       sourceSnapshotId: entity.sourceSnapshotId,
+      locator: entity.locator
+        ? publicScalarRecord(entity.locator, PUBLIC_LOCATOR_KEYS)
+        : {},
+      quoteOrValue: entity.quoteOrValue,
+      createdAt: entity.createdAt,
+      source: {
+        sourceId: entity.source.sourceId,
+        sourceType: entity.source.sourceType,
+        retrievedAt: entity.source.retrievedAt,
+        licenseNote: entity.source.licenseNote,
+        requestMetadata: publicScalarRecord(
+          entity.source.requestMetadata,
+          PUBLIC_SOURCE_URL_KEYS,
+        ),
+      },
     };
   }
 
@@ -490,8 +679,8 @@ export function createFixtureRepositories(
     if (request.evidenceIds.length > 500) {
       errors.push("evidenceIds must contain at most 500 values");
     }
-    if (request.redactionPolicy !== "public_metadata_only") {
-      errors.push('redactionPolicy must be "public_metadata_only"');
+    if (request.redactionPolicy !== "redacted_public_snapshot") {
+      errors.push('redactionPolicy must be "redacted_public_snapshot"');
     }
     const expiry = Date.parse(request.expiresAt);
     if (Number.isNaN(expiry) || !/(?:Z|[+-]00:00)$/u.test(request.expiresAt)) {
@@ -1278,6 +1467,11 @@ export function createFixtureRepositories(
       },
     },
     revisions: createFixtureRevisionRepository(),
+    modelProvider: {
+      getConfiguration: async () => fixtureModelProvider,
+      configure: async () => fixtureModelProvider,
+      removeConfiguration: async () => fixtureModelProvider,
+    },
     provenance: {
       state: buildFixtureProvenance(
         bundle.schemaVersion,

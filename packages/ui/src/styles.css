@@ -292,6 +292,11 @@
   color: var(--color-ink-primary);
 }
 
+/* Radix Select portals opened from a modal must remain above its overlay. */
+.xw-select__popover {
+  z-index: calc(var(--layer-skip-link) + 1);
+}
+
 .xw-select__viewport {
   padding: var(--space-1);
 }

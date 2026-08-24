@@ -257,6 +257,32 @@ Thread 中结果作为研究叙事的一部分出现。
 
 结果详情只有 Fullscreen 一个产品入口；右栏不得承载结果详情预览。
 
+### 10.1 结果比较与公开分享
+
+- 支持比较的历史结果从 Fullscreen 的单一版本入口打开；比较面板必须按科学语义展示
+  结论、证据、关系、限制与冲突的变化，不展示原始 JSON 或内部 ID。
+- Fullscreen 的“分享”入口冻结当前 ArtifactVersion 与关联 Evidence；用户选择有效期后创建一次性公开
+  链接，并可直接复制。创建流程不得要求用户理解 API 路径、token 或内部资源标识。
+- `/share/$shareToken` 只读取创建时冻结的公开副本；有效链接展示分享标题、公开结果、
+  证据摘录、locator 与安全来源链接，不加载私有 Project shell、Composer、运行活动、修订或下载动作。
+- 公开结果类型、排序和布局能力复用 Workspace 的唯一 Artifact Renderer Registry；不得建立
+  第二套类型注册表。公开投影可以使用专属只读 renderer，但不得重新读取私有 Artifact API。
+- 无效、撤销、过期和读取失败使用同一不可区分边界；页面与错误文案不得回显 share token。
+
+### 10.2 模型服务配置
+
+- 模型服务是工作台实例级基础设施配置，不属于 Project、Research Thread、Chat session 或单次 Run。
+- 已验证配置由所有项目与后续模型调用复用。配置更新不打断正在执行的单次模型调用；新调用读取
+  最新已安装配置。
+- 工作台顶栏提供常驻“模型服务”入口和连接状态，不在进入工作台或进入会话时自动弹窗；用户主动打开后可用
+  “后续配置”直接关闭，不创建虚假配置，也不阻塞研究浏览。
+- 默认服务是 DashScope Qwen；备选是自定义 OpenAI Chat Completions-compatible 接口。Base URL
+  始终可见：DashScope 地址只读，自定义地址可编辑。模型 ID 由用户填写，不向产品界面暴露仓库测试 fixture。
+- 提交前必须通过 `/chat/completions` 真实连接测试；测试失败不保存。自定义接口只承诺基础协议连通性，
+  不宣称项目已验证其模型质量或 provider 私有能力。
+- API Key 不回显、不进入浏览器持久化；界面只显示掩码尾号。部署环境配置只读，生产环境在没有
+  管理员身份体系时不得允许匿名 Session 修改实例级配置。
+
 ## 11. 全屏科研结果
 
 Fullscreen 是真正的结果工作区，不是放大的 Dialog。

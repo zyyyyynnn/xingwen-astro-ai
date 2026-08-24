@@ -61,6 +61,22 @@ test("real Compose exposes the current empty Research Workspace without provider
   await expect(page.getByRole("button", { name: "新建研究" })).toHaveCount(1);
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
+  await page.getByRole("button", { name: "配置模型服务" }).click();
+  await expect(page.getByRole("dialog", { name: "模型服务" })).toBeVisible();
+  await expect(page.getByLabel("Base URL")).toHaveValue(
+    "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  );
+  await expect(page.getByLabel("Base URL")).toHaveAttribute("readonly");
+  await page.getByRole("combobox", { name: "连接方式" }).click();
+  await page.getByRole("option", { name: "自定义 OpenAI 兼容接口" }).click();
+  await expect(page.getByLabel("Base URL")).not.toHaveAttribute("readonly");
+  await expect(page.getByText("qwen3.7-max")).toHaveCount(0);
+  await expect(
+    page.getByRole("textbox", { name: "API 密钥", exact: true }),
+  ).toHaveValue("");
+  await page.getByRole("button", { name: "后续配置" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
   for (const viewport of [
     { width: 1440, height: 900 },
     { width: 1280, height: 800 },
@@ -148,7 +164,7 @@ test("mandatory browser path establishes a Project, exposes public analysis, con
   expect(runtimeErrors).toEqual([]);
 });
 
-test("mandatory real HTTP fixture path publishes one result, opens Fullscreen, and reads real Evidence", async ({
+test("mandatory real HTTP fixture path renders private Evidence and a frozen public share", async ({
   page,
 }) => {
   const runtimeErrors = collectRuntimeErrors(page);
@@ -275,6 +291,45 @@ test("mandatory real HTTP fixture path publishes one result, opens Fullscreen, a
   await expect(page.getByText(/获取于/)).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("heading", { name: "研究证据" })).toHaveCount(0);
+
+  await fullscreen.getByRole("button", { name: "分享", exact: true }).click();
+  await expect(
+    page.getByRole("dialog", { name: "分享研究结果" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "创建链接" }).click();
+  const shareLink = page.getByLabel("分享链接");
+  await expect(shareLink).toHaveValue(/\/share\/[^/]+$/);
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"], {
+    origin: new URL(page.url()).origin,
+  });
+  await page.getByRole("button", { name: "复制链接" }).click();
+  await expect(page.getByText("已复制", { exact: true })).toBeVisible();
+  const shareUrl = await shareLink.inputValue();
+
+  await page.goto(shareUrl);
+  await expect(
+    page.getByRole("heading", { name: "Exoplanet host-star dataset" }).first(),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByLabel("共享科研结果")
+      .getByRole("heading", { name: "Exoplanet host-star dataset" }),
+  ).toBeVisible();
+  await expect(page.getByText(/创建分享时冻结的公开副本/)).toBeVisible();
+  await expect(page.locator('meta[name="referrer"]')).toHaveAttribute(
+    "content",
+    "no-referrer",
+  );
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
+  await page.getByRole("button", { name: "查看证据 1", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "证据 1" })).toBeVisible();
+  await expect(page.getByText("来源类型", { exact: true })).toBeVisible();
   expect(runtimeErrors).toEqual([]);
 });
 

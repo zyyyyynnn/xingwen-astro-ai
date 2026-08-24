@@ -1,7 +1,7 @@
 # Security
 
-| 元数据 | 值 |
-| --- | --- |
+| 元数据    | 值                                               |
+| --------- | ------------------------------------------------ |
 | Authority | 密钥、信任边界、输入、会话、分享、日志与安全要求 |
 
 本文定义系统必须满足的稳定安全控制。部署拓扑见 [Deployment](DEPLOYMENT.md)，HTTP 授权与错误响应见 [API Contract](docs/architecture/API_CONTRACT.md)，模型调用准入见 [Model Policy](docs/ai/MODEL_POLICY.md)。
@@ -9,6 +9,7 @@
 ## 1. 信任边界
 
 不可信输入包括：
+
 - 用户研究意图、项目名称、反馈和导出参数；
 - 浏览器 URL、search params 和分享 token；
 - 外部天文数据、论文元数据、摘要和开放文本；
@@ -18,11 +19,14 @@
 
 ## 2. 密钥与配置
 
-- 模型、论文源、数据源、数据库和内部服务凭据只存在于后端环境或部署平台 Secrets。
+- 模型、论文源、数据源、数据库和内部服务凭据只存在于后端控制边界：部署平台 Secrets，或
+  development/test/integration 中经连接验证、应用级加密后写入 PostgreSQL 的实例级模型配置。
 - 不提交 `.env`、token、私钥、真实密码或连接串；`.env.example` 只使用占位值。
 - 前端与构建变量（`VITE_` / `PUBLIC_`）均视为公开信息，不得包含 Secrets。
 - 日志、截图、导出、错误详情和测试 Fixture 严格禁止包含原始凭据。
 - 生产配置必须拒绝 DEBUG 模式、默认数据库凭据和通配 CORS。
+- 实例级模型 API Key 不得回显或进入浏览器持久化；服务端只返回掩码尾号。加密根密钥只来自
+  server-only 配置并保持稳定，生产环境在没有管理员授权模型时禁止通过工作台修改全局配置。
 
 ## 3. 匿名 Session 与授权
 
@@ -38,6 +42,8 @@
 - 分享默认只读、最小范围、可撤销、可过期；Share token 服务端仅保存不可逆 hash。
 - 原 token 只在创建时返回一次，不写入日志、Referer 或 Project 聚合。
 - 分享响应严格过滤会话信息、内部错误、受限全文与敏感来源字段。
+- 公开分享页面只消费冻结的公开投影；不得凭 share token 调用私有 Artifact、Evidence、下载或修订接口。
+- Workspace 文档使用 `no-referrer`，含 share token 的 URL 不得随同源或跨源导航进入 `Referer`。
 - Share 持久化创建时已脱敏的 ArtifactVersion/Evidence/SourceSnapshot identity 投影；公开读取不回查动态 latest，也不因进程重启改变冻结内容。
 - 无效、撤销和过期 token 不泄露底层资源存在性。
 

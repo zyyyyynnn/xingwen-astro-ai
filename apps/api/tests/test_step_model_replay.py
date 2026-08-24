@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from typing import cast
 from uuid import uuid4
 
@@ -9,10 +10,12 @@ from app.services.model_execution import ModelExecutionRequest, ModelExecutionRe
 from app.workflow.publisher import ProducerExecutionSnapshot
 from app.workflow.step_publication import (
     RunStepContext,
+    StepModelCaller,
     StepPublicationFactory,
     TrackedStepModelExecutionPort,
 )
 from app.workflow.store import AttemptHandle, LeaseGrant
+from packages.prompts.registry import PromptRegistry
 
 
 def test_completed_agent_model_execution_replays_without_provider_call() -> None:
@@ -220,3 +223,222 @@ def test_resumable_child_model_call_reuses_an_earlier_attempt() -> None:
 
     assert replayed.payload == response_payload
     assert replayed.provider_request_id == "provider-request-chunk-1"
+
+
+def test_each_new_step_model_call_resolves_current_runtime_and_provenance() -> None:
+    run_id = uuid4()
+    step_id = uuid4()
+    attempt_id = uuid4()
+    now = datetime.now(UTC)
+    provider_requests: list[tuple[str, str, str]] = []
+    producer_requests: list[dict[str, object]] = []
+
+    class Provider:
+        def __init__(self, name: str) -> None:
+            self._name = name
+
+        def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
+            provider_requests.append(
+                (self._name, request.provider, request.requested_model)
+            )
+            return ModelExecutionResponse(
+                payload={"provider": self._name},
+                output_hash=compute_canonical_payload_hash({"provider": self._name}),
+                token_usage=None,
+                latency_ms=1,
+                provider_request_id=f"request-{self._name}",
+            )
+
+    class Publications:
+        def start_producer(self, *_args: object, **kwargs: object):  # noqa: ANN201
+            producer_requests.append(kwargs)
+            return SimpleNamespace(id=uuid4(), replayed=False)
+
+        def finish_producer(self, *_args: object, **_kwargs: object) -> None:
+            return None
+
+    runtimes = iter(
+        (
+            SimpleNamespace(
+                port=Provider("first"),
+                provider="qwen",
+                requested_model="qwen-first",
+                explicit_revision=None,
+            ),
+            SimpleNamespace(
+                port=Provider("second"),
+                provider="openai_compatible",
+                requested_model="qwen-second",
+                explicit_revision="qwen-second-202608",
+            ),
+        )
+    )
+    port = TrackedStepModelExecutionPort(
+        base=Provider("stale"),
+        publications=cast(StepPublicationFactory, Publications()),
+        context=cast(RunStepContext, object()),
+        step_key="reasoning_literature",
+        attempt=AttemptHandle(
+            run_id=run_id,
+            run_step_id=step_id,
+            attempt_id=attempt_id,
+            attempt_number=1,
+            run_status="reasoning_literature",
+            run_revision=2,
+            event_sequence=2,
+        ),
+        lease=LeaseGrant(
+            run_id=run_id,
+            token=uuid4(),
+            generation=1,
+            revision=2,
+            expires_at=now + timedelta(minutes=5),
+            active_attempt_ids=(attempt_id,),
+        ),
+        runtime_resolver=lambda: next(runtimes),
+    )
+    request = ModelExecutionRequest(
+        provider="qwen",
+        requested_model="stale-model",
+        explicit_revision=None,
+        prompt_name="literature_claim",
+        prompt_version="1.0.0",
+        prompt_hash="sha256:" + "a" * 64,
+        prompt="Extract claims.",
+        input_payload={"paper": "one"},
+        parameters={"temperature": 0},
+    )
+
+    port.execute(request)
+    port.execute(request)
+
+    assert provider_requests == [
+        ("first", "qwen", "qwen-first"),
+        ("second", "openai_compatible", "qwen-second"),
+    ]
+    assert [item["model_provider"] for item in producer_requests] == [
+        "qwen",
+        "openai_compatible",
+    ]
+    assert [item["requested_model"] for item in producer_requests] == [
+        "qwen-first",
+        "qwen-second",
+    ]
+    assert producer_requests[1]["explicit_revision"] == "qwen-second-202608"
+
+
+def test_chunked_summary_pins_one_runtime_until_the_parent_call_finishes() -> None:
+    run_id = uuid4()
+    step_id = uuid4()
+    attempt_id = uuid4()
+    now = datetime.now(UTC)
+    provider_models: list[str] = []
+    producer_models: list[str] = []
+
+    class Provider:
+        def __init__(self, model: str) -> None:
+            self._model = model
+
+        def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
+            provider_models.append(request.requested_model)
+            assert request.requested_model == self._model
+            return ModelExecutionResponse(
+                payload={"model": self._model},
+                output_hash=compute_canonical_payload_hash({"model": self._model}),
+                token_usage=None,
+                latency_ms=1,
+                provider_request_id=f"request-{self._model}",
+            )
+
+    class Publications:
+        def find_completed_model(self, *_args: object, **_kwargs: object):  # noqa: ANN201
+            return None
+
+        def start_producer(self, *_args: object, **kwargs: object):  # noqa: ANN201
+            producer_models.append(cast(str, kwargs["requested_model"]))
+            return SimpleNamespace(id=uuid4(), replayed=False)
+
+        def finish_producer(self, *_args: object, **_kwargs: object) -> None:
+            return None
+
+    runtimes = iter(
+        (
+            SimpleNamespace(
+                port=Provider("qwen-pinned"),
+                provider="qwen",
+                requested_model="qwen-pinned",
+                explicit_revision=None,
+            ),
+            SimpleNamespace(
+                port=Provider("qwen-next"),
+                provider="qwen",
+                requested_model="qwen-next",
+                explicit_revision=None,
+            ),
+        )
+    )
+    tracked = TrackedStepModelExecutionPort(
+        base=Provider("stale-model"),
+        publications=cast(StepPublicationFactory, Publications()),
+        context=cast(RunStepContext, object()),
+        step_key="summarizing_papers",
+        attempt=AttemptHandle(
+            run_id=run_id,
+            run_step_id=step_id,
+            attempt_id=attempt_id,
+            attempt_number=1,
+            run_status="summarizing_papers",
+            run_revision=2,
+            event_sequence=2,
+        ),
+        lease=LeaseGrant(
+            run_id=run_id,
+            token=uuid4(),
+            generation=1,
+            revision=2,
+            expires_at=now + timedelta(minutes=5),
+            active_attempt_ids=(attempt_id,),
+        ),
+        runtime_resolver=lambda: next(runtimes),
+    )
+    caller = StepModelCaller(
+        model_port=tracked,
+        provider="qwen",
+        requested_model="stale-model",
+        explicit_revision=None,
+        prompts=cast(PromptRegistry, object()),
+    )
+    chunks = caller.pin_resumable_port()
+    assert caller.requested_model == "qwen-pinned"
+
+    for chunk_id in ("chunk.0001", "chunk.0002"):
+        chunks.execute(
+            ModelExecutionRequest(
+                provider="qwen",
+                requested_model="stale-model",
+                explicit_revision=None,
+                prompt_name="paper_summary",
+                prompt_version="1.0.0",
+                prompt_hash="sha256:" + "a" * 64,
+                prompt="Summarize one chunk.",
+                input_payload={"chunk_id": chunk_id},
+                parameters={"temperature": 0},
+            )
+        )
+
+    tracked.execute(
+        ModelExecutionRequest(
+            provider="qwen",
+            requested_model="stale-model",
+            explicit_revision=None,
+            prompt_name="literature_claim",
+            prompt_version="1.0.0",
+            prompt_hash="sha256:" + "b" * 64,
+            prompt="Start the next independent call.",
+            input_payload={"paper": "one"},
+            parameters={"temperature": 0},
+        )
+    )
+
+    assert provider_models == ["qwen-pinned", "qwen-pinned", "qwen-next"]
+    assert producer_models == ["qwen-pinned", "qwen-pinned", "qwen-next"]

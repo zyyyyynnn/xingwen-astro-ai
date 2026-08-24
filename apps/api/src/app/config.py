@@ -10,19 +10,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _MIME_PATTERN = re.compile(r"^[a-zA-Z0-9!#$&^_\-\.\+]+/[a-zA-Z0-9!#$&^_\-\.\+]+$")
 
-# The approved Qwen model pool. The model name is itself the version
-# identity: floating aliases stay unpinned, explicit dated snapshots pin
-# themselves. A floating alias must never carry a fabricated revision.
-QWEN_APPROVED_MODELS = frozenset(
-    {
-        "qwen3.8-max",
-        "qwen3.7-max",
-        "qwen3.7-max-2026-06-08",
-        "qwen3.7-max-2026-05-20",
-        "qwen3.7-max-2026-05-17",
-        "qwen3.7-max-preview",
-    }
-)
 QWEN_FLOATING_ALIASES = frozenset({"qwen3.8-max", "qwen3.7-max"})
 
 
@@ -85,10 +72,10 @@ class Settings(BaseSettings):
     DATABASE_URL: SecretStr | None = None
     POSTGRES_PASSWORD: SecretStr | None = None
 
-    # Qwen is the sole Research Assistant provider. The model name is itself
-    # the version identity: floating aliases (qwen3.8-max, qwen3.7-max) or
-    # explicit dated snapshots from the approved pool. An explicit revision
-    # must never be fabricated for a floating alias.
+    # Deployment baseline for the Research Assistant. The workbench may install
+    # one verified DashScope or custom OpenAI-compatible override only in local,
+    # test or integration environments; production remains deployment-managed.
+    # For Qwen, a floating alias must never carry a fabricated revision.
     DASHSCOPE_API_KEY: SecretStr | None = None
     DASHSCOPE_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     DASHSCOPE_MODEL: str = "qwen3.8-max"
@@ -96,6 +83,9 @@ class Settings(BaseSettings):
     DASHSCOPE_TIMEOUT_SECONDS: float = Field(default=45.0, gt=0)
     DASHSCOPE_MAX_RETRIES: int = Field(default=2, ge=0, le=4)
     MODEL_EXECUTION_LEASE_GRACE_SECONDS: float = Field(default=30.0, gt=0)
+    MODEL_PROVIDER_CONFIG_KEY: SecretStr | None = None
+    MODEL_PROVIDER_ALLOWED_HOSTS: tuple[str, ...] | str | None = None
+    MODEL_PROVIDER_CONFIG_RATE_LIMIT: int = Field(default=10, gt=0)
 
     # Research Input ingestion. The content-addressed local store is the
     # reference boundary; uploads are capped, MIME-sniffed and never executed.
@@ -187,7 +177,9 @@ class Settings(BaseSettings):
                 normalized.append(lowered)
         return tuple(normalized)
 
-    @field_validator("URL_FETCH_ALLOWED_HOSTS", mode="before")
+    @field_validator(
+        "URL_FETCH_ALLOWED_HOSTS", "MODEL_PROVIDER_ALLOWED_HOSTS", mode="before"
+    )
     @classmethod
     def _validate_allowed_hosts(cls, value: Any) -> list[str] | None:  # noqa: ANN401
         if value is None:
@@ -208,10 +200,6 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_safety(self) -> Settings:
-        if self.DASHSCOPE_MODEL not in QWEN_APPROVED_MODELS:
-            raise ValueError(
-                "DASHSCOPE_MODEL must belong to the approved Qwen model pool"
-            )
         revision = (self.DASHSCOPE_EXPLICIT_MODEL_REVISION or "").strip()
         self.DASHSCOPE_EXPLICIT_MODEL_REVISION = revision or None
         if self.DASHSCOPE_MODEL in QWEN_FLOATING_ALIASES and revision:
@@ -296,6 +284,12 @@ class Settings(BaseSettings):
     @property
     def research_assistant_ready(self) -> bool:
         return bool(self._secret_value(self.DASHSCOPE_API_KEY))
+
+    @property
+    def model_provider_config_writable(self) -> bool:
+        """Interactive instance configuration is local-only without an admin role."""
+
+        return self.APP_ENV.lower() in {"development", "test", "integration"}
 
     @property
     def cors_origin_regex(self) -> str | None:

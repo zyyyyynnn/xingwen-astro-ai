@@ -3,6 +3,8 @@ import type { DomainEntityId } from "@xingwen/domain";
 const PRIVATE_QUERY_ROOT = "workspace" as const;
 
 export const workspaceQueryKeys = Object.freeze({
+  modelProviderConfiguration: () =>
+    [PRIVATE_QUERY_ROOT, "model-provider", "configuration"] as const,
   projects: () => [PRIVATE_QUERY_ROOT, "projects"] as const,
   projectScope: (projectId: DomainEntityId) =>
     [PRIVATE_QUERY_ROOT, "project", projectId] as const,

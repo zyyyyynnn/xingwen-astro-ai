@@ -14,6 +14,7 @@ from pydantic import (
     ConfigDict,
     Field,
     JsonValue,
+    SecretStr,
     StringConstraints,
     model_validator,
 )
@@ -311,7 +312,10 @@ class ResearchContractInput(BaseModel):
                 ArtifactKind.source_collection,
             }
         )
-        if selected_outputs & support_outputs and ArtifactKind.dataset not in selected_outputs:
+        if (
+            selected_outputs & support_outputs
+            and ArtifactKind.dataset not in selected_outputs
+        ):
             raise ValueError(
                 "field_dictionary and source_collection require dataset output"
             )
@@ -424,7 +428,10 @@ class ResearchContractDraft(BaseModel):
                     "contract": {
                         "research_goal": "Integrate exoplanet candidates and host-star parameters",
                         "target_objects": ["exoplanet_candidate", "host_star"],
-                        "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
+                        "data_requirements": {
+                            "unit_policy": "canonical",
+                            "document_source_policy": "disabled",
+                        },
                         "requested_fields": ["planet.toi_id", "star.tic_id"],
                         "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
                         "paper_search_scope": {"max_candidates": 20},
@@ -465,7 +472,10 @@ class ResearchContract(ResearchContractInput):
                     "version": 1,
                     "research_goal": "Integrate exoplanet candidates and host-star parameters",
                     "target_objects": ["exoplanet_candidate", "host_star"],
-                    "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
+                    "data_requirements": {
+                        "unit_policy": "canonical",
+                        "document_source_policy": "disabled",
+                    },
                     "requested_fields": ["planet.toi_id", "star.tic_id"],
                     "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
                     "paper_search_scope": {"max_candidates": 20},
@@ -1313,7 +1323,7 @@ class ShareStatus(StrEnum):
 
 
 class ShareRedactionPolicy(StrEnum):
-    public_metadata_only = "public_metadata_only"
+    redacted_public_snapshot = "redacted_public_snapshot"
 
 
 class CreateShareSnapshotRequest(BaseModel):
@@ -1322,7 +1332,7 @@ class CreateShareSnapshotRequest(BaseModel):
     title: NonEmptyString = Field(max_length=200)
     artifact_version_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=100)
     evidence_ids: tuple[Identifier, ...] = Field(default=(), max_length=500)
-    redaction_policy: Literal[ShareRedactionPolicy.public_metadata_only]
+    redaction_policy: Literal[ShareRedactionPolicy.redacted_public_snapshot]
     expires_at: UtcDateTime
 
     @model_validator(mode="after")
@@ -1359,7 +1369,7 @@ class ShareSnapshotCreated(ShareSnapshot):
 
 
 class PublicArtifactVersion(BaseModel):
-    """Redacted immutable version metadata safe for an anonymous share response."""
+    """Redacted immutable result projection safe for anonymous presentation."""
 
     model_config = CORE_MODEL_CONFIG
 
@@ -1372,16 +1382,34 @@ class PublicArtifactVersion(BaseModel):
     content_hash: ContentHash
     source_mode: SourceMode
     created_at: UtcDateTime
+    content: dict[str, JsonValue]
+    evidence_ids: tuple[Identifier, ...]
+
+
+class PublicSourceSnapshot(BaseModel):
+    """Public source facts required by the shared Evidence inspector."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    source_id: NonEmptyString
+    source_type: NonEmptyString
+    retrieved_at: UtcDateTime
+    license_note: NonEmptyString
+    request_metadata: dict[str, JsonValue]
 
 
 class PublicEvidence(BaseModel):
-    """Minimal Evidence identity bound to a shared immutable version."""
+    """Redacted Evidence detail frozen with a shared immutable result."""
 
     model_config = CORE_MODEL_CONFIG
 
     id: Identifier
     artifact_version_id: Identifier
     source_snapshot_id: Identifier
+    locator: dict[str, JsonValue]
+    quote_or_value: JsonValue
+    created_at: UtcDateTime
+    source: PublicSourceSnapshot
 
 
 class PublicShareSnapshot(BaseModel):
@@ -1542,6 +1570,54 @@ class ResearchSession(BaseModel):
 
 class SessionCreated(ResearchSession):
     csrf_token: NonEmptyString
+
+
+class ModelProviderPreset(StrEnum):
+    dashscope = "dashscope"
+    custom = "custom"
+
+
+class ModelProviderConfigurationSource(StrEnum):
+    deployment = "deployment"
+    workspace = "workspace"
+
+
+class ModelProviderConfigurationStatus(BaseModel):
+    """Write-only credentials are represented only by a non-secret suffix hint."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    status: Literal["unconfigured", "ready"]
+    revision: int = Field(ge=0)
+    source: ModelProviderConfigurationSource | None
+    preset: ModelProviderPreset | None
+    base_url: str | None
+    dashscope_base_url: str
+    model: str | None
+    api_key_hint: str | None
+    verified_at: UtcDateTime | None
+    updated_at: UtcDateTime | None
+    editable: bool
+
+
+class ConfigureModelProviderRequest(BaseModel):
+    """Configure and verify the instance-wide Chat Completions provider."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    preset: ModelProviderPreset
+    base_url: Annotated[
+        str | None,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=500),
+    ] = None
+    model: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
+    ]
+    api_key: SecretStr = Field(
+        min_length=1,
+        max_length=2048,
+        json_schema_extra={"writeOnly": True},
+    )
 
 
 __all__ = ["PlannerOutcome"]

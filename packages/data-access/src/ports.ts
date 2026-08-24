@@ -21,6 +21,7 @@ import type {
   ArtifactVersionSummary,
   CaseKey,
   CreateShareSnapshotRequest,
+  ConfigureModelProviderInput,
   DatasetArtifactReview,
   DomainEntityId,
   Evidence,
@@ -28,6 +29,7 @@ import type {
   FieldDictionaryArtifactReview,
   GraphArtifactReview,
   LiteratureArtifactReview,
+  ModelProviderConfigurationStatus,
   PaperAcquisitionReview,
   PaperSummaryDocumentSourceReview,
   PaperSummaryReview,
@@ -399,6 +401,17 @@ export interface ShareRepository {
   getPublic(shareToken: string): Promise<PublicShareSnapshot | null>;
 }
 
+export interface ModelProviderRepository {
+  getConfiguration(): Promise<ModelProviderConfigurationStatus>;
+  configure(
+    input: ConfigureModelProviderInput,
+    expectedRevision: number,
+  ): Promise<ModelProviderConfigurationStatus>;
+  removeConfiguration(
+    expectedRevision: number,
+  ): Promise<ModelProviderConfigurationStatus>;
+}
+
 /**
  * The complete set of repository ports a workspace consumes. Both adapters
  * produce a ready-to-use `RepositorySet`; Evidence reads live on the artifact
@@ -422,6 +435,7 @@ export interface RepositorySet {
   readonly revisions: RevisionRepository;
   readonly workspaces: WorkspaceSnapshotRepository;
   readonly shares: ShareRepository;
+  readonly modelProvider: ModelProviderRepository;
 }
 
 /**

@@ -809,7 +809,29 @@ export const graphNodeReads: readonly GraphNodeRead[] = [
 export const graphEdgeReads: readonly GraphEdgeRead[] = [
   {
     version: graphVersion,
-    evidence: [],
+    evidence: [
+      {
+        use: {
+          evidence_type: "database_query",
+          evidence_use_id: "evidence_use_01",
+          graph_edge_id: "edge_01",
+          source_snapshot_id: sourceSnapshot.id,
+          upstream_artifact_version_id: DATASET_VERSION_ID,
+          upstream_evidence_hash: hash("graph-evidence"),
+          upstream_evidence_id: "ev_graph_edge_01",
+          upstream_is_restricted: false,
+          upstream_target_id: "dataset_candidate_01",
+          upstream_target_type: "dataset",
+        },
+        evidence: evidence(
+          GRAPH_VERSION_ID,
+          "graph_edge",
+          "edge_01",
+          "The selected dataset record supports this graph relation.",
+        ),
+        source_snapshot: sourceSnapshot,
+      },
+    ],
     edge: {
       edge_id: "edge_01",
       edge_type: "supports_finding",

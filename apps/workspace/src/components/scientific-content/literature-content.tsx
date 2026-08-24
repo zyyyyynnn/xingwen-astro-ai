@@ -1,19 +1,24 @@
 import type {
   DomainEntityId,
   LiteratureClaimReferenceReview,
+  LiteratureClaimReview,
   LiteratureReasoningTraceReview,
+  LiteratureRelationReview,
 } from "@xingwen/domain";
 import type { LiteratureArtifactReviewViewModel } from "@xingwen/research-adapter";
-import { Button } from "@xingwen/ui";
+import {
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@xingwen/ui";
+import { ChevronDown, Quote } from "@xingwen/ui/icons";
 
 import {
   comparabilityLabel,
-  humanizeToken,
-  limitNote,
+  polarityLabel,
   reviewStatusLabel,
   ScientificContentHeader,
-  SURFACE_LIMITS,
-  sourceModeLabel,
   taxonomyLabel,
   type ScientificContentSurface,
 } from "./shared";
@@ -27,246 +32,289 @@ type LiteratureRelationsReview = Extract<
   { readonly kind: "literature_relations" }
 >;
 
-function ClaimLabel({
-  claim,
-}: {
-  readonly claim: LiteratureClaimReferenceReview | null;
-}) {
-  return <span>{claim?.text || "未提供声明"}</span>;
+function meaningful(values: readonly (string | null | undefined)[]): string[] {
+  return values.filter(
+    (value): value is string =>
+      typeof value === "string" && value.trim() !== "",
+  );
 }
 
-function EvidenceAction({
+function confidenceLabel(relation: LiteratureRelationReview): string {
+  const score = relation.confidence?.score;
+  if (score === null || score === undefined) return "尚无独立可信度评估";
+  if (score >= 0.8) return "可信程度较高";
+  if (score >= 0.6) return "可信程度中等";
+  return "可信程度需要谨慎看待";
+}
+
+function rejectionExplanation(
+  status: string,
+  rejectionReason: string | null,
+): string | null {
+  if (status === "accepted") return null;
+  const known: Record<string, string> = {
+    duplicate_claim: "与已有论点重复，因此未重复纳入结论。",
+    evidence_missing: "缺少可定位证据，因此未纳入结论。",
+    evidence_snapshot_missing: "来源快照不完整，因此无法复核。",
+    comparability_failed: "研究条件不可直接比较，因此未形成关系结论。",
+    condition_conflict: "适用条件存在冲突，因此未纳入结论。",
+    confidence_below_threshold: "现有证据不足以支持可靠结论。",
+    invalid_json: "抽取结果无法形成可复核的结构化论点。",
+    schema_invalid: "抽取结果缺少形成科学论点所需的信息。",
+  };
+  return rejectionReason
+    ? (known[rejectionReason] ?? "证据或可比性未达到纳入结论的要求。")
+    : "仍需更多证据或人工核验后才能纳入结论。";
+}
+
+function EvidenceActions({
   evidenceIds,
   onSelectEvidence,
 }: {
   readonly evidenceIds: readonly DomainEntityId[];
   readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
 }) {
-  const evidenceId = evidenceIds[0] ?? null;
-  return evidenceId && onSelectEvidence ? (
-    <Button
-      size="small"
-      variant="ghost"
-      onClick={() => onSelectEvidence(evidenceId)}
-    >
-      查看来源
-    </Button>
-  ) : (
-    <span className="text-xs text-[var(--oh-muted)]">未提供公开证据</span>
+  if (evidenceIds.length === 0 || !onSelectEvidence) {
+    return <p className="dossier__empty">没有可公开核验的证据。</p>;
+  }
+  return (
+    <div className="dossier__evidence-actions" aria-label="可核验证据">
+      {evidenceIds.map((evidenceId, index) => (
+        <Button
+          key={evidenceId}
+          size="small"
+          variant="ghost"
+          onClick={() => onSelectEvidence(evidenceId)}
+        >
+          <Quote aria-hidden="true" />
+          查看证据 {index + 1}
+        </Button>
+      ))}
+    </div>
   );
 }
 
-function ClaimsTable({
-  review,
-  surface,
+function DossierFacts({
+  facts,
+}: {
+  readonly facts: readonly {
+    readonly label: string;
+    readonly values: readonly (string | null | undefined)[];
+  }[];
+}) {
+  const visible = facts
+    .map((fact) => ({ ...fact, values: meaningful(fact.values) }))
+    .filter((fact) => fact.values.length > 0);
+  if (visible.length === 0) return null;
+  return (
+    <dl className="dossier__facts">
+      {visible.map((fact) => (
+        <div key={fact.label}>
+          <dt>{fact.label}</dt>
+          <dd>{fact.values.join("；")}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function ClaimLabel({
+  claim,
+}: {
+  readonly claim: LiteratureClaimReferenceReview | null;
+}) {
+  return <span>{claim?.text || "论点内容未公开"}</span>;
+}
+
+function ClaimDossier({
+  claim,
   onSelectEvidence,
 }: {
-  readonly review: LiteratureClaimsReview;
-  readonly surface: ScientificContentSurface;
+  readonly claim: LiteratureClaimReview;
   readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
 }) {
-  const claims = review.claims.slice(0, SURFACE_LIMITS[surface]);
+  const scientificMeasure = claim.metric
+    ? [
+        taxonomyLabel(claim.metric),
+        claim.unit ? `单位 ${claim.unit}` : null,
+        claim.uncertainty ? `不确定度 ${claim.uncertainty}` : null,
+        claim.comparisonBasis ? `比较依据 ${claim.comparisonBasis}` : null,
+      ]
+    : [];
+  const explanation = rejectionExplanation(claim.status, claim.rejectionReason);
   return (
-    <div className="scientific-artifact__table-scroll my-3 overflow-x-auto rounded border border-[var(--oh-border)]">
-      <table className="ui-text-body w-full border-collapse text-left">
-        <caption className="sr-only">文献论点与公开证据</caption>
-        <thead>
-          <tr className="border-b border-[var(--oh-border)] bg-[var(--oh-surface-subtle)]">
-            <th scope="col" className="p-2.5 font-medium">
-              论点
-            </th>
-            <th scope="col" className="p-2.5 font-medium">
-              关键科学量
-            </th>
-            <th scope="col" className="p-2.5 font-medium">
-              证据 / 异常
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[var(--oh-border)]">
-          {claims.map((claim) => (
-            <tr key={claim.claimId}>
-              <th
-                scope="row"
-                className="p-2.5 align-top font-medium leading-5 text-[var(--oh-foreground)]"
-              >
-                {claim.text || "未提供公开论点"}
-                {claim.status !== "accepted" ? (
-                  <div className="mt-1 text-xs font-normal text-[var(--oh-warning)]">
-                    {reviewStatusLabel(claim.status)}
-                  </div>
-                ) : null}
-              </th>
-              <td className="p-2.5 align-top">
-                {claim.metric ? (
-                  <>
-                    <div>{humanizeToken(claim.metric)}</div>
-                    <div className="mt-1 text-xs text-[var(--oh-muted)]">
-                      {[claim.unit, claim.uncertainty]
-                        .filter(Boolean)
-                        .join(" · ") || "单位 / 不确定度未提供"}
-                    </div>
-                  </>
-                ) : (
-                  <span className="text-[var(--oh-muted)]">
-                    未提供结构化科学量
-                  </span>
-                )}
-              </td>
-              <td className="p-2.5 align-top">
-                <EvidenceAction
-                  evidenceIds={claim.evidenceIds}
-                  onSelectEvidence={onSelectEvidence}
-                />
-                {claim.failureStage || claim.rejectionReason ? (
-                  <div className="mt-1 text-xs text-[var(--oh-danger)]">
-                    {claim.rejectionReason ?? claim.failureStage}
-                  </div>
-                ) : null}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {limitNote(review.claims.length, claims.length, "条论点") ? (
-        <p className="border-t border-[var(--oh-border)] bg-[var(--oh-surface-subtle)] p-2 text-xs text-[var(--oh-muted)]">
-          {limitNote(review.claims.length, claims.length, "条论点")}
+    <article className="dossier__entry" data-status={claim.status}>
+      <header className="dossier__entry-header">
+        <div>
+          <p className="dossier__status">{reviewStatusLabel(claim.status)}</p>
+          <h4>{claim.text || "论点内容未公开"}</h4>
+        </div>
+        <p className="dossier__assessment">
+          {taxonomyLabel(claim.claimType)} · {polarityLabel(claim.polarity)}
         </p>
-      ) : null}
-    </div>
+      </header>
+      <DossierFacts
+        facts={[
+          { label: "研究对象", values: claim.objects },
+          { label: "适用范围", values: claim.scope },
+          { label: "成立条件", values: claim.conditions },
+          { label: "限定说明", values: claim.qualifiers },
+          { label: "关键科学量", values: scientificMeasure },
+          { label: "限制", values: claim.limitations },
+          { label: "未纳入原因", values: [explanation] },
+        ]}
+      />
+      <EvidenceActions
+        evidenceIds={claim.evidenceIds}
+        onSelectEvidence={onSelectEvidence}
+      />
+    </article>
   );
 }
 
 function ReasoningTrace({
   trace,
+  onSelectEvidence,
 }: {
   readonly trace: LiteratureReasoningTraceReview;
+  readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
 }) {
   return (
-    <details className="rounded border border-[var(--oh-border)] bg-[var(--oh-surface-subtle)] p-3">
-      <summary className="ui-text-body cursor-pointer font-medium text-[var(--oh-foreground)]">
-        {trace.conclusion || "查看公开推导过程"}
-      </summary>
-      <div className="ui-text-body mt-3 space-y-2">
-        {trace.steps.length > 0 ? (
-          <ol className="list-decimal space-y-1 pl-5 text-[var(--oh-muted)]">
-            {trace.steps.map((step) => (
-              <li key={step.order}>{step.statement || "未提供公开步骤说明"}</li>
-            ))}
-          </ol>
-        ) : (
-          <p className="text-[var(--oh-muted)]">未提供公开推导步骤。</p>
-        )}
-        {trace.conflicts.length > 0 ? (
-          <p className="text-[var(--oh-danger)]">
-            冲突：{trace.conflicts.join("；")}
-          </p>
-        ) : null}
-        {trace.limitations.length > 0 ? (
-          <p className="text-[var(--oh-muted)]">
-            限制：{trace.limitations.join("；")}
-          </p>
-        ) : null}
-      </div>
-    </details>
+    <Collapsible className="reasoning-trace">
+      <CollapsibleTrigger asChild>
+        <Button variant="ghost" className="reasoning-trace__trigger">
+          <span>{trace.conclusion || "查看公开推导"}</span>
+          <ChevronDown aria-hidden="true" />
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="reasoning-trace__content">
+          {trace.steps.length > 0 ? (
+            <ol>
+              {trace.steps.map((step) => (
+                <li key={step.order}>{step.statement || "公开步骤说明缺失"}</li>
+              ))}
+            </ol>
+          ) : (
+            <p>没有可公开展示的推导步骤。</p>
+          )}
+          <DossierFacts
+            facts={[
+              { label: "成立条件", values: trace.conditions },
+              { label: "冲突", values: trace.conflicts },
+              { label: "限制", values: trace.limitations },
+            ]}
+          />
+          <EvidenceActions
+            evidenceIds={trace.evidenceIds}
+            onSelectEvidence={onSelectEvidence}
+          />
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
-function RelationsTable({
+function RelationDossier({
+  relation,
+  onSelectEvidence,
+}: {
+  readonly relation: LiteratureRelationReview;
+  readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
+}) {
+  const explanation = rejectionExplanation(
+    relation.status,
+    relation.rejectionReason,
+  );
+  const comparable = [
+    `研究对象${comparabilityLabel(relation.comparability.objectStatus)}`,
+    `科学指标${comparabilityLabel(relation.comparability.metricStatus)}`,
+    `单位${comparabilityLabel(relation.comparability.unitStatus)}`,
+  ];
+  return (
+    <article className="dossier__entry" data-status={relation.status}>
+      <header className="dossier__entry-header">
+        <div>
+          <p className="dossier__status">
+            {reviewStatusLabel(relation.status)} ·{" "}
+            {taxonomyLabel(relation.relationType)}
+          </p>
+          <h4 className="dossier__relation-title">
+            <ClaimLabel claim={relation.sourceClaim} />
+            <span aria-hidden="true">→</span>
+            <ClaimLabel claim={relation.targetClaim} />
+          </h4>
+        </div>
+        <p className="dossier__assessment">{confidenceLabel(relation)}</p>
+      </header>
+      <DossierFacts
+        facts={[
+          { label: "可比性", values: comparable },
+          { label: "成立条件", values: relation.conditions },
+          { label: "条件冲突", values: relation.conditionConflicts },
+          { label: "仍待确认", values: relation.conditionUncertainties },
+          { label: "方向依据", values: [relation.direction.basis] },
+          { label: "未纳入原因", values: [explanation] },
+        ]}
+      />
+      <EvidenceActions
+        evidenceIds={relation.evidenceIds}
+        onSelectEvidence={onSelectEvidence}
+      />
+      {relation.reasoningTrace ? (
+        <ReasoningTrace
+          trace={relation.reasoningTrace}
+          onSelectEvidence={onSelectEvidence}
+        />
+      ) : relation.status === "accepted" ? (
+        <p className="dossier__empty">这条关系没有可公开核验的推导记录。</p>
+      ) : null}
+    </article>
+  );
+}
+
+function ClaimsDossier({
   review,
-  surface,
+  onSelectEvidence,
+}: {
+  readonly review: LiteratureClaimsReview;
+  readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
+}) {
+  if (review.claims.length === 0) {
+    return <p className="dossier__empty">当前结果没有可展示的文献论点。</p>;
+  }
+  return (
+    <ol className="candidate-dossier" aria-label="文献论点档案">
+      {review.claims.map((claim) => (
+        <li key={claim.claimId}>
+          <ClaimDossier claim={claim} onSelectEvidence={onSelectEvidence} />
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function RelationsDossier({
+  review,
   onSelectEvidence,
 }: {
   readonly review: LiteratureRelationsReview;
-  readonly surface: ScientificContentSurface;
   readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
 }) {
-  const relations = review.relations.slice(0, SURFACE_LIMITS[surface]);
-  const traces = relations.flatMap((relation) =>
-    relation.reasoningTrace ? [relation.reasoningTrace] : [],
-  );
+  if (review.relations.length === 0) {
+    return <p className="dossier__empty">当前结果没有可展示的文献关系。</p>;
+  }
   return (
-    <div className="space-y-4">
-      <div className="scientific-artifact__table-scroll my-3 overflow-x-auto rounded border border-[var(--oh-border)]">
-        <table className="ui-text-body w-full border-collapse text-left">
-          <caption className="sr-only">文献论点关系与证据</caption>
-          <thead>
-            <tr className="border-b border-[var(--oh-border)] bg-[var(--oh-surface-subtle)]">
-              <th scope="col" className="p-2.5 font-medium">
-                关系
-              </th>
-              <th scope="col" className="p-2.5 font-medium">
-                可比性
-              </th>
-              <th scope="col" className="p-2.5 font-medium">
-                证据 / 异常
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--oh-border)]">
-            {relations.map((relation) => (
-              <tr key={relation.relationId}>
-                <th
-                  scope="row"
-                  className="p-2.5 align-top font-medium leading-5 text-[var(--oh-foreground)]"
-                >
-                  <div className="flex items-start gap-1.5">
-                    <ClaimLabel claim={relation.sourceClaim} />
-                    <span className="text-[var(--oh-muted)]">→</span>
-                    <ClaimLabel claim={relation.targetClaim} />
-                  </div>
-                  <div className="mt-1 text-xs font-normal text-[var(--oh-muted)]">
-                    {taxonomyLabel(relation.relationType)}
-                    {relation.status !== "accepted"
-                      ? ` · ${reviewStatusLabel(relation.status)}`
-                      : ""}
-                    {relation.confidence?.score !== null && relation.confidence
-                      ? ` · 置信度 ${relation.confidence.score.toFixed(2)}`
-                      : ""}
-                  </div>
-                </th>
-                <td className="p-2.5 align-top">
-                  <div>
-                    {comparabilityLabel(relation.comparability.objectStatus)}
-                  </div>
-                  <div className="mt-1 text-xs text-[var(--oh-muted)]">
-                    指标{" "}
-                    {comparabilityLabel(relation.comparability.metricStatus)} ·
-                    单位 {comparabilityLabel(relation.comparability.unitStatus)}
-                  </div>
-                </td>
-                <td className="p-2.5 align-top">
-                  <EvidenceAction
-                    evidenceIds={relation.evidenceIds}
-                    onSelectEvidence={onSelectEvidence}
-                  />
-                  {relation.failureStage || relation.rejectionReason ? (
-                    <div className="mt-1 text-xs text-[var(--oh-danger)]">
-                      {relation.rejectionReason ?? relation.failureStage}
-                    </div>
-                  ) : null}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {limitNote(review.relations.length, relations.length, "条关系") ? (
-          <p className="border-t border-[var(--oh-border)] bg-[var(--oh-surface-subtle)] p-2 text-xs text-[var(--oh-muted)]">
-            {limitNote(review.relations.length, relations.length, "条关系")}
-          </p>
-        ) : null}
-      </div>
-      {traces.length > 0 ? (
-        <section className="space-y-2" aria-label="公开推导过程">
-          <h3 className="text-sm font-medium text-[var(--oh-foreground)]">
-            公开推导过程
-          </h3>
-          {traces.map((trace) => (
-            <ReasoningTrace key={trace.traceId} trace={trace} />
-          ))}
-        </section>
-      ) : null}
-    </div>
+    <ol className="candidate-dossier" aria-label="文献关系档案">
+      {review.relations.map((relation) => (
+        <li key={relation.relationId}>
+          <RelationDossier
+            relation={relation}
+            onSelectEvidence={onSelectEvidence}
+          />
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -281,7 +329,7 @@ export function LiteratureContent({
   readonly surface: ScientificContentSurface;
   readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
 }) {
-  const label = review.kind === "literature_claims" ? "文献论点" : "文献关系";
+  const label = review.kind === "literature_claims" ? "论点档案" : "关系档案";
   const count =
     review.kind === "literature_claims"
       ? review.claims.length
@@ -291,26 +339,14 @@ export function LiteratureContent({
       className={`scientific-artifact scientific-artifact--${review.kind}`}
       data-surface={surface}
     >
-      <ScientificContentHeader title={title} subtitle={label} />
-      <div
-        className="ui-text-body my-2 flex flex-wrap gap-x-4 gap-y-1 text-[var(--oh-muted)]"
-        aria-label={`${label}摘要`}
-      >
-        <span>共 {count} 条</span>
-        <span>{sourceModeLabel(review.sourceMode)}</span>
-      </div>
+      <ScientificContentHeader
+        title={title}
+        subtitle={`${label}，共 ${count} 条`}
+      />
       {review.kind === "literature_claims" ? (
-        <ClaimsTable
-          review={review}
-          surface={surface}
-          onSelectEvidence={onSelectEvidence}
-        />
+        <ClaimsDossier review={review} onSelectEvidence={onSelectEvidence} />
       ) : (
-        <RelationsTable
-          review={review}
-          surface={surface}
-          onSelectEvidence={onSelectEvidence}
-        />
+        <RelationsDossier review={review} onSelectEvidence={onSelectEvidence} />
       )}
     </article>
   );
