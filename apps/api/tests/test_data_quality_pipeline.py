@@ -26,7 +26,10 @@ def _contract(*requested_fields: str, source_min: float = 1.0) -> ResearchContra
         "version": 1,
         "research_goal": "Evaluate evidence-bound exoplanet data quality",
         "target_objects": ["exoplanet_candidate", "host_star"],
-        "data_requirements": {"unit_policy": "canonical"},
+        "data_requirements": {
+            "unit_policy": "canonical",
+            "document_source_policy": "disabled",
+        },
         "requested_fields": list(requested_fields),
         "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
         "paper_search_scope": {"max_candidates": 20},
@@ -77,7 +80,9 @@ def test_normal_case_produces_stable_three_layer_result() -> None:
     quality_input, _ = make_quality_input("star.tic_id")
 
     first = evaluate_data_quality(quality_input)
-    second = evaluate_data_quality(quality_input.model_validate_json(quality_input.model_dump_json()))
+    second = evaluate_data_quality(
+        quality_input.model_validate_json(quality_input.model_dump_json())
+    )
 
     assert isinstance(first, DataQualityEvaluationResult)
     assert first == second
@@ -88,7 +93,10 @@ def test_normal_case_produces_stable_three_layer_result() -> None:
     assert first.dataset_result.object_match_coverage.denominator == 4
     assert first.dataset_result.evidence_coverage.value == 1
     assert first.field_results[0].field_id == "star.tic_id"
-    assert DataQualityEvaluationResult.model_validate_json(first.model_dump_json()) == first
+    assert (
+        DataQualityEvaluationResult.model_validate_json(first.model_dump_json())
+        == first
+    )
 
 
 def test_projected_field_scope_excludes_inapplicable_planet_rows() -> None:
@@ -98,10 +106,14 @@ def test_projected_field_scope_excludes_inapplicable_planet_rows() -> None:
 
     assert isinstance(result, DataQualityEvaluationResult)
     assert [row.applicable_field_count for row in result.row_results] == [1, 1, 0]
-    assert result.row_results[-1].completeness.status is QualityMetricStatus.not_applicable
+    assert (
+        result.row_results[-1].completeness.status is QualityMetricStatus.not_applicable
+    )
 
 
-def test_manifest_declared_unit_metric_uses_data_artifact_canonical_unit_admission() -> None:
+def test_manifest_declared_unit_metric_uses_data_artifact_canonical_unit_admission() -> (
+    None
+):
     quality_input, _ = make_quality_input(
         "system.right_ascension",
         scenario_id="coordinate_only",
@@ -110,7 +122,9 @@ def test_manifest_declared_unit_metric_uses_data_artifact_canonical_unit_admissi
     result = evaluate_data_quality(quality_input)
 
     assert isinstance(result, DataQualityEvaluationResult)
-    assert result.dataset_result.unit_consistency.status is QualityMetricStatus.determinate
+    assert (
+        result.dataset_result.unit_consistency.status is QualityMetricStatus.determinate
+    )
     assert result.dataset_result.unit_consistency.numerator == 1
     assert result.dataset_result.unit_consistency.denominator == 1
 
@@ -124,7 +138,10 @@ def test_truncated_source_is_insufficient_not_zero_or_failure() -> None:
     result = evaluate_data_quality(quality_input)
 
     assert isinstance(result, DataQualityEvaluationResult)
-    assert result.dataset_result.source_scope_completeness.status is QualityMetricStatus.insufficient
+    assert (
+        result.dataset_result.source_scope_completeness.status
+        is QualityMetricStatus.insufficient
+    )
     assert result.dataset_result.source_scope_completeness.value is None
     assert result.contract_gate.overall_status.value == "insufficient"
 
@@ -140,7 +157,10 @@ def test_conflict_and_review_are_retained_as_raw_dataset_metrics() -> None:
     assert isinstance(result, DataQualityEvaluationResult)
     assert result.dataset_result.cross_source_conflict_rate.numerator == 1
     assert result.dataset_result.review_required_record_rate.numerator == 1
-    assert result.dataset_result.evidence_coverage.status is QualityMetricStatus.determinate
+    assert (
+        result.dataset_result.evidence_coverage.status
+        is QualityMetricStatus.determinate
+    )
 
 
 def test_inconclusive_unpaired_scope_does_not_become_evidence_gap() -> None:
@@ -153,15 +173,23 @@ def test_inconclusive_unpaired_scope_does_not_become_evidence_gap() -> None:
 
     assert isinstance(result, DataQualityEvaluationResult)
     assert result.dataset_result.inconclusive_record_rate.numerator > 0
-    assert result.dataset_result.inconclusive_record_rate.status is QualityMetricStatus.insufficient
-    assert result.dataset_result.evidence_coverage.status is QualityMetricStatus.insufficient
+    assert (
+        result.dataset_result.inconclusive_record_rate.status
+        is QualityMetricStatus.insufficient
+    )
+    assert (
+        result.dataset_result.evidence_coverage.status
+        is QualityMetricStatus.insufficient
+    )
 
 
 def test_recomputed_tampered_rule_set_is_rejected_as_non_frozen() -> None:
     frozen = load_frozen_quality_rule_set()
     tampered_payload = frozen.model_dump(mode="json")
     tampered_payload["precision_digits"] = 27
-    tampered_payload["content_hash"] = compute_quality_rule_set_content_hash(tampered_payload)
+    tampered_payload["content_hash"] = compute_quality_rule_set_content_hash(
+        tampered_payload
+    )
     tampered = type(frozen).model_validate(tampered_payload)
     quality_input, _ = make_quality_input("star.tic_id", rules=tampered)
 
@@ -208,4 +236,6 @@ def test_valid_candidate_from_another_data_artifact_build_cannot_be_reused() -> 
     result = evaluate_data_quality(quality_input)
 
     assert isinstance(result, DataQualityEvaluationRejected)
-    assert result.error_code is QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH
+    assert (
+        result.error_code is QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH
+    )

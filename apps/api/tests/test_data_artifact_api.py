@@ -30,8 +30,12 @@ from data_artifact_test_support import build_input
 from services.data_pipeline.data_artifacts import build_data_artifact_candidates
 
 
-def _service_for_dataset() -> tuple[DataArtifactReadService, str]:
-    candidate = build_data_artifact_candidates(build_input("star.tic_id")).dataset
+def _service_for_dataset(
+    candidate: DatasetArtifactCandidate | None = None,
+) -> tuple[DataArtifactReadService, str]:
+    candidate = (
+        candidate or build_data_artifact_candidates(build_input("star.tic_id")).dataset
+    )
     content = canonical_artifact_content_payload(candidate)
     projection_payload = {
         "schema_version": "1.0.0",
@@ -65,17 +69,28 @@ def _service_for_dataset() -> tuple[DataArtifactReadService, str]:
         content_hash=compute_canonical_payload_hash(projection_payload),
     )
     version_id = "version-1"
-    source_identity = {
-        value.source_snapshot_id: (
-            value.source_id,
-            value.query_hash,
-            value.source_snapshot_content_hash,
+    source_identity: dict[str, tuple[str, str, str]] = {}
+    persisted_snapshot_id: dict[str, str] = {}
+    for value in candidate.source_values:
+        provenance = value.provenance
+        pipeline_id = provenance.pipeline_source_snapshot_id
+        source_identity[pipeline_id] = (
+            provenance.source_id
+            if provenance.kind == "structured"
+            else provenance.pipeline_source_id,
+            provenance.query_hash
+            if provenance.kind == "structured"
+            else provenance.pipeline_query_hash,
+            provenance.pipeline_source_snapshot_content_hash,
         )
-        for value in candidate.source_values
-    }
+        persisted_snapshot_id[pipeline_id] = (
+            pipeline_id
+            if provenance.kind == "structured"
+            else provenance.persisted_source_snapshot_id
+        )
     snapshots = tuple(
         SourceSnapshotDetail.model_construct(
-            id=snapshot_id,
+            id=persisted_snapshot_id[snapshot_id],
             source_id=source_identity[snapshot_id][0],
             source_type="fixture",
             retrieved_at=datetime.now(UTC),
@@ -108,14 +123,20 @@ def _service_for_dataset() -> tuple[DataArtifactReadService, str]:
                     target_type="canonical_field",
                     target_id=transformation.canonical_field_id,
                     evidence_type="data_transformation",
-                    source_snapshot_id=transformation.locator.source_snapshot_id,
-                    locator=transformation.locator.model_dump(mode="json"),
+                    source_snapshot_id=persisted_snapshot_id[
+                        transformation.provenance.pipeline_source_snapshot_id
+                    ],
+                    locator=transformation.provenance.model_dump(mode="json"),
                     quote_or_value=(
                         transformation.canonical_value
                         if transformation.canonical_value is not None
                         else transformation.raw_value
                     ),
-                    extraction_method="data_artifact_admission",
+                    extraction_method=(
+                        "document_data_admission"
+                        if transformation.provenance.kind == "document"
+                        else "data_artifact_admission"
+                    ),
                     confidence=1.0,
                     created_at=datetime.now(UTC),
                 )
@@ -123,7 +144,9 @@ def _service_for_dataset() -> tuple[DataArtifactReadService, str]:
             continue
         identity = crossmatch_identity[evidence_id]
         crossmatch = next(
-            item for item in candidate.crossmatch_evidence if item.evidence_id == evidence_id
+            item
+            for item in candidate.crossmatch_evidence
+            if item.evidence_id == evidence_id
         )
         left_snapshot_ids = {
             item.source_snapshot_id for item in crossmatch.left_locators
@@ -149,11 +172,15 @@ def _service_for_dataset() -> tuple[DataArtifactReadService, str]:
                     "source_provenance": {
                         "left": {
                             "pipeline_source_snapshot_id": left_snapshot_id,
-                            "persisted_source_snapshot_id": left_snapshot_id,
+                            "persisted_source_snapshot_id": persisted_snapshot_id[
+                                left_snapshot_id
+                            ],
                         },
                         "right": {
                             "pipeline_source_snapshot_id": right_snapshot_id,
-                            "persisted_source_snapshot_id": right_snapshot_id,
+                            "persisted_source_snapshot_id": persisted_snapshot_id[
+                                right_snapshot_id
+                            ],
                         },
                     },
                 },

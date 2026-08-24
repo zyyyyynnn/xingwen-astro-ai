@@ -16,9 +16,7 @@ from app.schemas.data_artifacts import (
     DatasetArtifactCandidate,
     DatasetRow,
     DeclaredNullValue,
-    FieldConflictRecord,
     MappedCanonicalValue,
-    SourceValueCandidate,
     UnresolvedCanonicalValue,
 )
 from app.schemas.manifest import FieldDefinition, ManifestBundle
@@ -181,14 +179,19 @@ def observe_quality(
                     evidence[item] for item in outcome.transformation_evidence_ids
                 ]
                 provenance_ok = bool(source_items) and all(
-                    item.evidence_locator.source_snapshot_id in source_snapshot_ids
-                    and item.evidence_locator.source_snapshot_content_hash
+                    item.provenance.pipeline_source_snapshot_id in source_snapshot_ids
+                    and item.provenance.pipeline_source_snapshot_content_hash
                     for item in source_items
                 )
-                evidence_ok = provenance_ok and bool(evidence_items) and all(
-                    item.locator.source_snapshot_id in source_snapshot_ids
-                    and item.evidence_id in retained_evidence_ids
-                    for item in evidence_items
+                evidence_ok = (
+                    provenance_ok
+                    and bool(evidence_items)
+                    and all(
+                        item.provenance.pipeline_source_snapshot_id
+                        in source_snapshot_ids
+                        and item.evidence_id in retained_evidence_ids
+                        for item in evidence_items
+                    )
                 )
                 non_null_source_items = (
                     [item for item in source_items if item.canonical_value is not None]
@@ -219,8 +222,12 @@ def observe_quality(
                 dataset_mapped_count += 1
                 dataset_provenance_count += provenance_ok
                 dataset_evidence_count += evidence_ok
-                dataset_unit_applicable_assertion_count += unit_applicable_assertion_count
-                dataset_unit_consistent_assertion_count += unit_consistent_assertion_count
+                dataset_unit_applicable_assertion_count += (
+                    unit_applicable_assertion_count
+                )
+                dataset_unit_consistent_assertion_count += (
+                    unit_consistent_assertion_count
+                )
                 conflict_ids = tuple(outcome.conflict_ids)
             elif isinstance(outcome, DeclaredNullValue):
                 reason = outcome.reason.value
@@ -298,8 +305,13 @@ def observe_quality(
         for field_id in candidate.requested_fields
     )
     metrics = crossmatch_result.metrics
-    source_members = (crossmatch_result.left_completion, crossmatch_result.right_completion)
-    source_scope_insufficient = any(item.status.value != "complete" for item in source_members)
+    source_members = (
+        crossmatch_result.left_completion,
+        crossmatch_result.right_completion,
+    )
+    source_scope_insufficient = any(
+        item.status.value != "complete" for item in source_members
+    )
     dataset_observation = DatasetObservation(
         row_count=len(candidate.rows),
         field_count=len(candidate.columns),
@@ -310,12 +322,15 @@ def observe_quality(
         null_reasons=tuple(sorted(dataset_null_reasons.items())),
         provenance_numerator=dataset_provenance_count,
         evidence_numerator=dataset_evidence_count + metrics.evidence_coverage.numerator,
-        evidence_denominator=dataset_mapped_count + metrics.evidence_coverage.denominator,
+        evidence_denominator=dataset_mapped_count
+        + metrics.evidence_coverage.denominator,
         unit_consistent_assertion_count=dataset_unit_consistent_assertion_count,
         unit_applicable_assertion_count=dataset_unit_applicable_assertion_count,
         same_source_conflict_cell_count=dataset_same_source_conflict_count,
         cross_source_conflict_cell_count=dataset_cross_source_conflict_count,
-        source_scope_numerator=sum(item.status.value == "complete" for item in source_members),
+        source_scope_numerator=sum(
+            item.status.value == "complete" for item in source_members
+        ),
         source_scope_denominator=len(source_members),
         source_scope_insufficient=source_scope_insufficient,
         crossmatch_metrics=metrics,

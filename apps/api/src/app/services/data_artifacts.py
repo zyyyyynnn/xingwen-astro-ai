@@ -361,15 +361,21 @@ def _validate_dataset_provenance(
 
     snapshot_references: dict[str, tuple[str, str, str]] = {}
     for value in candidate.source_values:
+        provenance = value.provenance
         identity = (
-            value.source_id,
-            value.query_hash,
-            value.source_snapshot_content_hash,
+            provenance.source_id
+            if provenance.kind == "structured"
+            else provenance.pipeline_source_id,
+            provenance.query_hash
+            if provenance.kind == "structured"
+            else provenance.pipeline_query_hash,
+            provenance.pipeline_source_snapshot_content_hash,
         )
-        existing = snapshot_references.get(value.source_snapshot_id)
+        pipeline_snapshot_id = provenance.pipeline_source_snapshot_id
+        existing = snapshot_references.get(pipeline_snapshot_id)
         if existing is not None and existing != identity:
             raise _schema_problem()
-        snapshot_references[value.source_snapshot_id] = identity
+        snapshot_references[pipeline_snapshot_id] = identity
     if set(snapshot_references) != set(candidate.source_snapshot_ids):
         raise _schema_problem()
 
@@ -387,6 +393,13 @@ def _validate_dataset_provenance(
     except KeyError as exc:
         raise _schema_problem() from exc
     if set(persisted_by_pipeline.values()) != set(version.source_snapshot_ids):
+        raise _schema_problem()
+    if any(
+        provenance.kind == "document"
+        and persisted_by_pipeline.get(provenance.pipeline_source_snapshot_id)
+        != provenance.persisted_source_snapshot_id
+        for provenance in (item.provenance for item in candidate.source_values)
+    ):
         raise _schema_problem()
 
     transformations = {
@@ -413,8 +426,9 @@ def _validate_dataset_provenance(
     for pipeline_id in candidate.evidence_ids:
         transformation = transformations.get(pipeline_id)
         if transformation is not None:
-            pipeline_snapshot_id = transformation.locator.source_snapshot_id
-            locator = transformation.locator.model_dump(mode="json")
+            provenance = transformation.provenance
+            pipeline_snapshot_id = provenance.pipeline_source_snapshot_id
+            locator = provenance.model_dump(mode="json")
             quote_or_value = (
                 transformation.canonical_value
                 if transformation.canonical_value is not None
@@ -428,7 +442,11 @@ def _validate_dataset_provenance(
                     source_snapshot_id=persisted_by_pipeline[pipeline_snapshot_id],
                     locator=locator,
                     quote_or_value=quote_or_value,
-                    extraction_method="data_artifact_admission",
+                    extraction_method=(
+                        "document_data_admission"
+                        if provenance.kind == "document"
+                        else "data_artifact_admission"
+                    ),
                     confidence=1.0,
                 )
             )
@@ -437,12 +455,8 @@ def _validate_dataset_provenance(
         identity = crossmatch_identity.get(pipeline_id)
         if evidence is None or identity is None:
             raise _schema_problem()
-        left_source_ids = {
-            item.source_snapshot_id for item in evidence.left_locators
-        }
-        right_source_ids = {
-            item.source_snapshot_id for item in evidence.right_locators
-        }
+        left_source_ids = {item.source_snapshot_id for item in evidence.left_locators}
+        right_source_ids = {item.source_snapshot_id for item in evidence.right_locators}
         if (
             len(left_source_ids) != 1
             or len(right_source_ids) != 1

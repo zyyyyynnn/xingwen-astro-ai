@@ -1,0 +1,58 @@
+{
+  "$defs": {
+    "DocumentParseQuality": {
+      "description": "Lifecycle quality of a parsed region / whole document.\n\n``accepted`` does NOT mean a scientific fact is verified. It means the\ncurrent parser/profile reached admission conditions for the usable region\nand it may become downstream Evidence / input.\n\n``partial`` means only part of the content was reliably parsed. Downstream\nmay use the clearly valid part, but MUST keep ``unparsed != absent``: a\nmissing recognition must never be read as \"does not exist in the paper\".\n\n``unsupported`` means the current parser/profile cannot reliably process\nthe region. No fabricated full text may be emitted and no downstream model\nmay auto-complete the gap.",
+      "enum": [
+        "accepted",
+        "partial",
+        "unsupported"
+      ],
+      "title": "DocumentParseQuality",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Parser quality is observed independently from scientific-value quality.",
+  "properties": {
+    "admission_status": {
+      "const": "admitted",
+      "default": "admitted",
+      "title": "Admission Status",
+      "type": "string"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "document_parse_id": {
+      "minLength": 1,
+      "title": "Document Parse Id",
+      "type": "string"
+    },
+    "observation_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Observation Id",
+      "type": "string"
+    },
+    "parse_quality": {
+      "$ref": "#/$defs/DocumentParseQuality"
+    },
+    "pipeline_source_snapshot_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Pipeline Source Snapshot Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "observation_id",
+    "document_parse_id",
+    "pipeline_source_snapshot_id",
+    "parse_quality",
+    "content_hash"
+  ],
+  "title": "DocumentParseQualityObservation",
+  "type": "object"
+}

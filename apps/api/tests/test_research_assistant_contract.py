@@ -36,7 +36,7 @@ def _contract_input() -> ResearchContractInput:
     return ResearchContractInput(
         research_goal="Integrate exoplanet candidates and host-star parameters",
         target_objects=("exoplanet_candidate",),
-        data_requirements=DataRequirements(),
+        data_requirements=DataRequirements(document_source_policy="disabled"),
         requested_fields=("planet.toi_id",),
         source_scope=SourceScope(allowed_sources=("nasa_exoplanet_archive",)),
         paper_search_scope=PaperSearchScope(),

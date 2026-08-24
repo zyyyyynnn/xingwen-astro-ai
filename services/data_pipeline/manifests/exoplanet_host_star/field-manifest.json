@@ -3,8 +3,8 @@
   "case_id": "exoplanet_host_star",
   "name": "Exoplanet candidate and host-star field manifest",
   "description": "Canonical fields for the fixed TESS exoplanet candidate and host-star research case.",
-  "schema_version": "2.0.0",
-  "manifest_version": "2.0.0",
+  "schema_version": "3.0.0",
+  "manifest_version": "3.0.0",
   "sources": [
     {
       "source_id": "nasa_exoplanet_archive.ps",
@@ -1223,6 +1223,7 @@
       "object_type": "star",
       "data_type": "number",
       "canonical_unit": "kelvin",
+      "document_aliases": [{"alias": "T_eff"}],
       "source_aliases": [
         {
           "source_id": "nasa_exoplanet_archive.ps",
@@ -1604,5 +1605,5 @@
     "module": "data_pipeline",
     "role": "data_pipeline"
   },
-  "content_hash": "sha256:b0ce150bebbfa9549273ecbb5e26ed302f64b9925d768bb42f944554d011a86f"
+  "content_hash": "sha256:47a43ebec1e340a806b186da1d2abfda8e9b258212093a0be49b1a9e1469f25f"
 }

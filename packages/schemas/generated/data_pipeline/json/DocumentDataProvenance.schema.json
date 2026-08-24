@@ -161,55 +161,21 @@
     }
   },
   "additionalProperties": false,
-  "description": "Candidate describing one raw scientific-value observation.\n\nHARD BOUNDARY: this candidate describes only the *observed*\nraw value and where it came from. It MUST NOT carry canonical mapping,\nunit normalization, accepted scientific value or dataset publication\nstatus — those belong to the data pipeline (Field Manifest → mapping\n→ unit normalization → quality/admission → Dataset candidate → Publisher).\n\nCorrect chain:\n``ScientificDataExtractionCandidate`` → existing Field Manifest → existing\nmapping → unit normalization → quality/admission → Dataset candidate.\nNever ``OCR → final Dataset``.\n\nLocation is expressed ONLY through ``locator`` (the single-source-of-truth\n``DocumentLocator``). No parallel page_index/block_id/bbox/cell_id fields\nexist, so a contradictory locator is impossible.",
   "properties": {
-    "candidate_id": {
-      "maxLength": 128,
-      "minLength": 1,
-      "title": "Candidate Id",
-      "type": "string"
-    },
-    "created_at": {
-      "format": "date-time",
-      "title": "Created At",
-      "type": "string"
-    },
     "document_parse_id": {
       "maxLength": 128,
       "minLength": 1,
       "title": "Document Parse Id",
       "type": "string"
     },
-    "field_hint": {
-      "anyOf": [
-        {
-          "maxLength": 128,
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Field Hint"
+    "kind": {
+      "const": "document",
+      "default": "document",
+      "title": "Kind",
+      "type": "string"
     },
     "locator": {
       "$ref": "#/$defs/DocumentLocator"
-    },
-    "object_hint": {
-      "anyOf": [
-        {
-          "maxLength": 128,
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Object Hint"
     },
     "parse_quality": {
       "$ref": "#/$defs/DocumentParseQuality"
@@ -218,6 +184,17 @@
       "maxLength": 128,
       "minLength": 1,
       "title": "Persisted Source Snapshot Id",
+      "type": "string"
+    },
+    "pipeline_query_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Pipeline Query Hash",
+      "type": "string"
+    },
+    "pipeline_source_id": {
+      "const": "research_input",
+      "default": "research_input",
+      "title": "Pipeline Source Id",
       "type": "string"
     },
     "pipeline_source_snapshot_content_hash": {
@@ -231,44 +208,11 @@
       "title": "Pipeline Source Snapshot Id",
       "type": "string"
     },
-    "raw_text": {
-      "anyOf": [
-        {
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Raw Text"
-    },
-    "raw_unit": {
-      "anyOf": [
-        {
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Raw Unit"
-    },
-    "raw_value": {
-      "anyOf": [
-        {
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Raw Value"
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
     },
     "research_input_content_hash": {
       "pattern": "^sha256:[0-9a-f]{64}$",
@@ -283,17 +227,17 @@
     }
   },
   "required": [
-    "candidate_id",
+    "project_id",
     "research_input_id",
     "research_input_content_hash",
-    "pipeline_source_snapshot_id",
-    "pipeline_source_snapshot_content_hash",
-    "persisted_source_snapshot_id",
     "document_parse_id",
-    "parse_quality",
+    "persisted_source_snapshot_id",
+    "pipeline_source_snapshot_id",
+    "pipeline_query_hash",
+    "pipeline_source_snapshot_content_hash",
     "locator",
-    "created_at"
+    "parse_quality"
   ],
-  "title": "ScientificDataExtractionCandidate",
+  "title": "DocumentDataProvenance",
   "type": "object"
 }

@@ -11,7 +11,7 @@ from pydantic import ValidationError
 
 from app.schemas._graph_seal import _bind_graph_pipeline_authority
 from app.schemas._hashing import compute_canonical_payload_hash
-from app.schemas.enums import EvidenceType, GraphEdgeType, GraphNodeType
+from app.schemas.enums import EvidenceType, GraphEdgeType
 from app.schemas.graph_artifact import (
     GRAPH_TAXONOMY_EDGE_TYPES,
     GRAPH_TAXONOMY_NODE_TYPES,
@@ -31,7 +31,6 @@ from app.schemas.graph_artifact import (
     GraphIntegrityFinding,
     GraphIntegrityStage,
     GraphIntegrityStatus,
-    GraphLayoutHint,
     GraphLogicalReferencePart,
     GraphNodeVersionBinding,
     GraphPolicySet,
@@ -140,7 +139,9 @@ def build_complete_progressive_input(
         scope=scope,
     )
     chunks = tuple(
-        GraphProgressiveChunk(chunk_index=index, item_ids=item_ids[offset : offset + chunk_size])
+        GraphProgressiveChunk(
+            chunk_index=index, item_ids=item_ids[offset : offset + chunk_size]
+        )
         for index, offset in enumerate(range(0, len(item_ids), chunk_size))
     )
     supplied = tuple(reversed(chunks)) if reverse_chunks else chunks
@@ -348,7 +349,9 @@ class _Assembly:
 
 
 def _literature_claim_version_id(inputs: PublishedGraphInputs, claim_id: str) -> str:
-    for reference in inputs.literature_relations.candidate.input_versions.claim_artifact_versions:
+    for (
+        reference
+    ) in inputs.literature_relations.candidate.input_versions.claim_artifact_versions:
         if claim_id in reference.claim_ids:
             return reference.artifact_version_id
     raise GraphAdmissionFailure(
@@ -750,9 +753,7 @@ def _add_literature_relations(
         if failure is not None:
             raise failure
         try:
-            edge_type = graph_edge_type_for_literature_relation(
-                relation.relation_type
-            )
+            edge_type = graph_edge_type_for_literature_relation(relation.relation_type)
         except GraphIdentityError as exc:
             raise GraphAdmissionFailure(
                 GraphIntegrityStage.taxonomy,
@@ -866,12 +867,11 @@ def _data_evidence_bindings(
                 and binding.pipeline_evidence_content_hash
                 == transformation.content_hash
                 and binding.pipeline_target_type == "canonical_field"
-                and binding.pipeline_target_id
-                == transformation.canonical_field_id
+                and binding.pipeline_target_id == transformation.canonical_field_id
                 and binding.pipeline_locator
-                == transformation.locator.model_dump(mode="json")
+                == transformation.provenance.model_dump(mode="json")
                 and binding.pipeline_source_snapshot_id
-                == transformation.locator.source_snapshot_id
+                == transformation.provenance.pipeline_source_snapshot_id
             )
         else:
             locator = binding.pipeline_locator
@@ -1064,9 +1064,7 @@ def _add_data(assembly: _Assembly) -> None:
             label=f"Field {field_id}",
             bindings=(
                 GraphNodeVersionBinding(
-                    artifact_version_id=(
-                        published_dictionary.pins.artifact_version_id
-                    ),
+                    artifact_version_id=(published_dictionary.pins.artifact_version_id),
                     domain_object_id=field_id,
                 ),
             ),
@@ -1080,9 +1078,7 @@ def _add_data(assembly: _Assembly) -> None:
 
         uses: list[GraphEvidenceUse] = []
         for evidence_id in closure.evidence_ids:
-            for pins, binding in _data_evidence_bindings(
-                assembly.inputs, evidence_id
-            ):
+            for pins, binding in _data_evidence_bindings(assembly.inputs, evidence_id):
                 snapshot = snapshot_bindings.get(binding.pipeline_source_snapshot_id)
                 if snapshot is None:
                     raise GraphAdmissionFailure(
@@ -1137,7 +1133,9 @@ def _input_versions(inputs: PublishedGraphInputs) -> GraphInputVersionClosure:
     )
 
 
-def _producer(policies: GraphPolicySet, taxonomy: GraphTaxonomy) -> GraphAlgorithmProducer:
+def _producer(
+    policies: GraphPolicySet, taxonomy: GraphTaxonomy
+) -> GraphAlgorithmProducer:
     return GraphAlgorithmProducer(
         parameters_hash=compute_graph_algorithm_parameters_hash(policies, taxonomy)
     )
@@ -1167,7 +1165,11 @@ def _collect_progressive_failures(
         scope=request.scope,
     )
     actual = tuple(
-        sorted(item_id for chunk in request.progressive.chunks for item_id in chunk.item_ids)
+        sorted(
+            item_id
+            for chunk in request.progressive.chunks
+            for item_id in chunk.item_ids
+        )
     )
     if actual != expected:
         failures.append(
@@ -1179,12 +1181,9 @@ def _collect_progressive_failures(
             )
         )
     capacity = request.policies.capacity_policy
-    if (
-        len(request.progressive.chunks) > capacity.max_progressive_chunks
-        or any(
-            len(chunk.item_ids) > capacity.max_items_per_chunk
-            for chunk in request.progressive.chunks
-        )
+    if len(request.progressive.chunks) > capacity.max_progressive_chunks or any(
+        len(chunk.item_ids) > capacity.max_items_per_chunk
+        for chunk in request.progressive.chunks
     ):
         failures.append(
             GraphAdmissionFailure(
@@ -1419,9 +1418,7 @@ def _collect_literature_gate_failures(
                         for reference in candidate.evidence_references
                         if reference.claim_id == claim.claim_id
                         and reference.evidence_id == evidence_id
-                        and (
-                            relation := relations.get(reference.relation_id)
-                        )
+                        and (relation := relations.get(reference.relation_id))
                         is not None
                         and relation.status is LiteratureRelationStatus.accepted
                     }
@@ -1682,8 +1679,7 @@ class GraphPipeline:
                         stage=GraphIntegrityStage.input_schema,
                         reason=GraphRejectionReason.schema_invalid,
                         priority=100,
-                        path="request."
-                        + ".".join(str(part) for part in error["loc"]),
+                        path="request." + ".".join(str(part) for part in error["loc"]),
                         message=(
                             "Graph build field failed strict validation: "
                             f"{error['type']}"

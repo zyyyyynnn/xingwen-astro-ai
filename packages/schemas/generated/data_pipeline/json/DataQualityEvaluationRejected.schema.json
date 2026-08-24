@@ -167,7 +167,7 @@
       "default": null
     },
     "schema_version": {
-      "const": "2.0.0",
+      "const": "3.0.0",
       "title": "Schema Version",
       "type": "string"
     }

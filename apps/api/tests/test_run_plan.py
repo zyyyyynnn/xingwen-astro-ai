@@ -16,7 +16,10 @@ def contract_for(*outputs: str) -> ResearchContractInput:
         {
             "research_goal": "Compare a bounded astronomical sample",
             "target_objects": ["host_star"],
-            "data_requirements": {"unit_policy": "canonical"},
+            "data_requirements": {
+                "unit_policy": "canonical",
+                "document_source_policy": "disabled",
+            },
             "requested_fields": ["star.mass"],
             "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
             "paper_search_scope": {"max_candidates": 20},
@@ -64,7 +67,10 @@ def test_compile_run_plan_freezes_the_minimum_prerequisite_closure(
 
     assert tuple(step.key for step in plan) == expected_steps
     assert tuple(step.enter_status for step in plan) == expected_steps
-    assert tuple(step.success_status for step in plan) == (*expected_steps[1:], "completed")
+    assert tuple(step.success_status for step in plan) == (
+        *expected_steps[1:],
+        "completed",
+    )
 
 
 def test_compile_run_plan_includes_data_closure_only_when_requested() -> None:

@@ -14,7 +14,10 @@ const CONTRACT = {
   version: 1,
   researchGoal: "比较太阳型恒星与红矮星宜居带行星的观测偏差。",
   targetObjects: ["host_star", "exoplanet_candidate"],
-  dataRequirements: { unitPolicy: "canonical" },
+  dataRequirements: {
+    unitPolicy: "canonical",
+    documentSourcePolicy: "disabled",
+  },
   requestedFields: ["planet.toi_id", "star.gaia_dr3_id"],
   sourceScope: { allowedSources: ["nasa_exoplanet_archive"] },
   paperSearchScope: {

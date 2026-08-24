@@ -62,6 +62,16 @@
       "path": "json/DatasetQualityResult.schema.json"
     },
     {
+      "module": "app.schemas.data_provenance",
+      "name": "DocumentDataProvenance",
+      "path": "json/DocumentDataProvenance.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "DocumentParseQualityObservation",
+      "path": "json/DocumentParseQualityObservation.schema.json"
+    },
+    {
       "module": "app.schemas.data_artifacts",
       "name": "FieldDictionaryArtifactCandidate",
       "path": "json/FieldDictionaryArtifactCandidate.schema.json"
@@ -107,9 +117,19 @@
       "path": "json/RowQualityResult.schema.json"
     },
     {
+      "module": "app.schemas.document_observation",
+      "name": "ScientificDocumentObservation",
+      "path": "json/ScientificDocumentObservation.schema.json"
+    },
+    {
       "module": "app.schemas.data_artifacts",
       "name": "SourceCollectionArtifactCandidate",
       "path": "json/SourceCollectionArtifactCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.data_provenance",
+      "name": "StructuredDataProvenance",
+      "path": "json/StructuredDataProvenance.schema.json"
     },
     {
       "module": "app.schemas.data_artifacts",

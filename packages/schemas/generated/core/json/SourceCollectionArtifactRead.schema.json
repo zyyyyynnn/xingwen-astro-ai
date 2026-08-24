@@ -8,6 +8,85 @@
       "title": "CrossmatchSide",
       "type": "string"
     },
+    "CrossmatchSourceCollectionMember": {
+      "additionalProperties": false,
+      "properties": {
+        "completion": {
+          "$ref": "#/$defs/DataSourceCompletion"
+        },
+        "data_level": {
+          "$ref": "#/$defs/DataSourceDataLevel"
+        },
+        "license_note": {
+          "minLength": 1,
+          "title": "License Note",
+          "type": "string"
+        },
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "raw_record_count": {
+          "minimum": 0,
+          "title": "Raw Record Count",
+          "type": "integer"
+        },
+        "raw_record_reference_registry_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Raw Record Reference Registry Hash",
+          "type": "string"
+        },
+        "raw_record_references": {
+          "items": {
+            "$ref": "#/$defs/RawSourceRecordReference"
+          },
+          "title": "Raw Record References",
+          "type": "array"
+        },
+        "side": {
+          "$ref": "#/$defs/CrossmatchSide"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_mode": {
+          "$ref": "#/$defs/app__schemas__enums__SourceMode"
+        },
+        "source_snapshot": {
+          "$ref": "#/$defs/SourceSnapshotRecord"
+        },
+        "source_snapshot_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Snapshot Content Hash",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Snapshot Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "side",
+        "source_snapshot",
+        "source_id",
+        "source_snapshot_id",
+        "source_snapshot_content_hash",
+        "query_hash",
+        "source_mode",
+        "data_level",
+        "completion",
+        "license_note",
+        "raw_record_references",
+        "raw_record_count",
+        "raw_record_reference_registry_hash"
+      ],
+      "title": "CrossmatchSourceCollectionMember",
+      "type": "object"
+    },
     "DataArtifactProducer": {
       "additionalProperties": false,
       "properties": {
@@ -810,6 +889,13 @@
           "title": "Crossmatch Result Id",
           "type": "string"
         },
+        "crossmatch_sources": {
+          "items": {
+            "$ref": "#/$defs/CrossmatchSourceCollectionMember"
+          },
+          "title": "Crossmatch Sources",
+          "type": "array"
+        },
         "evidence_ids": {
           "items": {
             "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
@@ -855,13 +941,6 @@
           "title": "Mapping Rule Set Version",
           "type": "string"
         },
-        "members": {
-          "items": {
-            "$ref": "#/$defs/SourceCollectionMember"
-          },
-          "title": "Members",
-          "type": "array"
-        },
         "output_hash": {
           "pattern": "^sha256:[0-9a-f]{64}$",
           "title": "Output Hash",
@@ -885,8 +964,8 @@
           "type": "array"
         },
         "schema_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -905,6 +984,13 @@
           },
           "title": "Source Value Ids",
           "type": "array"
+        },
+        "supplemental_document_sources": {
+          "items": {
+            "$ref": "#/$defs/SupplementalDocumentSource"
+          },
+          "title": "Supplemental Document Sources",
+          "type": "array"
         }
       },
       "required": [
@@ -912,7 +998,8 @@
         "manifest_pins",
         "source_snapshot_ids",
         "evidence_ids",
-        "members",
+        "crossmatch_sources",
+        "supplemental_document_sources",
         "source_value_ids",
         "crossmatch_result_id",
         "crossmatch_content_hash",
@@ -931,85 +1018,6 @@
         "output_hash"
       ],
       "title": "SourceCollectionArtifactCandidate",
-      "type": "object"
-    },
-    "SourceCollectionMember": {
-      "additionalProperties": false,
-      "properties": {
-        "completion": {
-          "$ref": "#/$defs/DataSourceCompletion"
-        },
-        "data_level": {
-          "$ref": "#/$defs/DataSourceDataLevel"
-        },
-        "license_note": {
-          "minLength": 1,
-          "title": "License Note",
-          "type": "string"
-        },
-        "query_hash": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Query Hash",
-          "type": "string"
-        },
-        "raw_record_count": {
-          "minimum": 0,
-          "title": "Raw Record Count",
-          "type": "integer"
-        },
-        "raw_record_reference_registry_hash": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Raw Record Reference Registry Hash",
-          "type": "string"
-        },
-        "raw_record_references": {
-          "items": {
-            "$ref": "#/$defs/RawSourceRecordReference"
-          },
-          "title": "Raw Record References",
-          "type": "array"
-        },
-        "side": {
-          "$ref": "#/$defs/CrossmatchSide"
-        },
-        "source_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Source Id",
-          "type": "string"
-        },
-        "source_mode": {
-          "$ref": "#/$defs/app__schemas__enums__SourceMode"
-        },
-        "source_snapshot": {
-          "$ref": "#/$defs/SourceSnapshotRecord"
-        },
-        "source_snapshot_content_hash": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Source Snapshot Content Hash",
-          "type": "string"
-        },
-        "source_snapshot_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Source Snapshot Id",
-          "type": "string"
-        }
-      },
-      "required": [
-        "side",
-        "source_snapshot",
-        "source_id",
-        "source_snapshot_id",
-        "source_snapshot_content_hash",
-        "query_hash",
-        "source_mode",
-        "data_level",
-        "completion",
-        "license_note",
-        "raw_record_references",
-        "raw_record_count",
-        "raw_record_reference_registry_hash"
-      ],
-      "title": "SourceCollectionMember",
       "type": "object"
     },
     "SourceSnapshotDetail": {
@@ -1210,6 +1218,70 @@
         "pl_refname"
       ],
       "title": "SupplementalDataQueryCursor",
+      "type": "object"
+    },
+    "SupplementalDocumentSource": {
+      "additionalProperties": false,
+      "properties": {
+        "document_parse_id": {
+          "minLength": 1,
+          "title": "Document Parse Id",
+          "type": "string"
+        },
+        "observation_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Observation Ids",
+          "type": "array"
+        },
+        "parse_quality": {
+          "enum": [
+            "accepted",
+            "partial"
+          ],
+          "title": "Parse Quality",
+          "type": "string"
+        },
+        "persisted_source_snapshot_id": {
+          "minLength": 1,
+          "title": "Persisted Source Snapshot Id",
+          "type": "string"
+        },
+        "pipeline_source_snapshot_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Pipeline Source Snapshot Content Hash",
+          "type": "string"
+        },
+        "pipeline_source_snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Pipeline Source Snapshot Id",
+          "type": "string"
+        },
+        "research_input_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Research Input Content Hash",
+          "type": "string"
+        },
+        "research_input_id": {
+          "minLength": 1,
+          "title": "Research Input Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "research_input_id",
+        "research_input_content_hash",
+        "document_parse_id",
+        "persisted_source_snapshot_id",
+        "pipeline_source_snapshot_id",
+        "pipeline_source_snapshot_content_hash",
+        "parse_quality",
+        "observation_ids"
+      ],
+      "title": "SupplementalDocumentSource",
       "type": "object"
     },
     "app__schemas__core__SourceMode": {

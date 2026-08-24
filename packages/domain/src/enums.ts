@@ -99,6 +99,9 @@ export type ContractDraftStatus = (typeof CONTRACT_DRAFT_STATUSES)[number];
 export const UNIT_POLICIES = ["canonical"] as const;
 export type UnitPolicy = (typeof UNIT_POLICIES)[number];
 
+export const DOCUMENT_SOURCE_POLICIES = ["disabled", "research_input"] as const;
+export type DocumentSourcePolicy = (typeof DOCUMENT_SOURCE_POLICIES)[number];
+
 export const CACHE_POLICIES = [
   "disabled",
   "fallback_on_recoverable_failure",

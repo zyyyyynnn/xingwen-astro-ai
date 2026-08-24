@@ -55,7 +55,10 @@ function hash(char: string): string {
 const contractInput: ResearchContractInputDto = {
   research_goal: "Integrate exoplanet candidates and host-star parameters",
   target_objects: ["exoplanet_candidate", "host_star"],
-  data_requirements: { unit_policy: "canonical" },
+  data_requirements: {
+    unit_policy: "canonical",
+    document_source_policy: "disabled",
+  },
   requested_fields: ["planet.toi_id", "star.tic_id"],
   source_scope: { allowed_sources: ["nasa_exoplanet_archive"] },
   paper_search_scope: {
@@ -125,7 +128,7 @@ const contract: ResearchContractDto = {
   created_from_draft_id: "rcd_01JEXAMPLE",
   created_at: T2,
   content_hash:
-    "sha256:d43c90e165cbe6b068f2c95247703ff5bfed6e371a4826831afa17ee733b9986",
+    "sha256:8ad6bd981308c8aa536df76e63bc7cdb31a064109782103bd5c2b2576b301985",
 };
 
 const run: ResearchRunDto = {

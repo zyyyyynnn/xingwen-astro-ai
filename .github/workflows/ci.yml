@@ -171,6 +171,10 @@ jobs:
           --include ResearchContractQualityGate
           --include QualityConstraintResult
           --include QualityMetricResult
+          --include ScientificDocumentObservation
+          --include StructuredDataProvenance
+          --include DocumentDataProvenance
+          --include DocumentParseQualityObservation
           --check
 
       - name: Check LiteratureClaim pipeline contracts

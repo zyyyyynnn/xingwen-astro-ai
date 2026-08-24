@@ -362,7 +362,9 @@ def test_candidate_rejects_bbox_outside_page_for_block_and_cell() -> None:
         block_ids=(block.block_id,),
     )
     with pytest.raises(ValidationError):
-        _candidate(pages=(page,), blocks=(block,), quality=DocumentParseQuality.accepted)
+        _candidate(
+            pages=(page,), blocks=(block,), quality=DocumentParseQuality.accepted
+        )
 
     table_block = _block("tb", kind=DocumentBlockKind.table)
     table_page = DocumentPage(
@@ -507,6 +509,10 @@ def test_scientific_extraction_candidate_is_raw_and_locator_only() -> None:
         field_hint="planet.period",
         object_hint="exoplanet_candidate",
         research_input_id="ri1",
+        research_input_content_hash="sha256:" + "1" * 64,
+        pipeline_source_snapshot_id="snapshot.pipeline.1",
+        pipeline_source_snapshot_content_hash="sha256:" + "2" * 64,
+        persisted_source_snapshot_id="00000000-0000-0000-0000-000000000001",
         document_parse_id="parse_1",
         parse_quality=DocumentParseQuality.accepted,
         locator=DocumentLocator(page_index=0, block_id="b1"),
@@ -544,8 +550,9 @@ def test_canonical_schema_imports_are_vendor_free() -> None:
     forbidden_roots = {"docling_parse", "paddleocr", "paddle", "mineru", "grobid"}
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            assert not {
-                alias.name.split(".", 1)[0] for alias in node.names
-            } & forbidden_roots
+            assert (
+                not {alias.name.split(".", 1)[0] for alias in node.names}
+                & forbidden_roots
+            )
         elif isinstance(node, ast.ImportFrom) and node.module:
             assert node.module.split(".", 1)[0] not in forbidden_roots

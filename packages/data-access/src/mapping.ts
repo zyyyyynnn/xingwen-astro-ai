@@ -93,6 +93,7 @@ function mapDataRequirements(
 ): ResearchContractInput["dataRequirements"] {
   return {
     unitPolicy: dto.unit_policy ?? "canonical",
+    documentSourcePolicy: dto.document_source_policy,
   };
 }
 
@@ -805,6 +806,7 @@ export function mapDomainContractInputToDto(
     ],
     data_requirements: {
       unit_policy: input.dataRequirements.unitPolicy,
+      document_source_policy: input.dataRequirements.documentSourcePolicy,
     },
     requested_fields: [...input.requestedFields] as unknown as [
       string,

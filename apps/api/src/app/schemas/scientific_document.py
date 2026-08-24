@@ -47,7 +47,7 @@ from .core import (
 
 
 #: Schema version for the Scientific Document Parsing contract.
-SCIENTIFIC_DOCUMENT_SCHEMA_VERSION = "1.2.0"
+SCIENTIFIC_DOCUMENT_SCHEMA_VERSION = "2.0.0"
 
 #: Every canonical model that participates in the Scientific Document Parsing contract. The schema
 #: hash is computed over the JSON Schema of exactly these models, in this
@@ -347,7 +347,9 @@ class DocumentFormula(BaseModel):
         if self.quality == DocumentParseQuality.unsupported and (
             self.raw_text is not None or self.latex is not None
         ):
-            raise ValueError("unsupported formula must not carry recognized formula text")
+            raise ValueError(
+                "unsupported formula must not carry recognized formula text"
+            )
         return self
 
 
@@ -384,7 +386,9 @@ class DocumentFigure(BaseModel):
                 self.visible_ocr_labels,
             )
         ):
-            raise ValueError("unsupported figure must not carry recognized textual content")
+            raise ValueError(
+                "unsupported figure must not carry recognized textual content"
+            )
         return self
 
 
@@ -431,9 +435,7 @@ class _ReferentialIntegrityError(ValueError):
     """Sentinel error type for aggregate referential validation."""
 
 
-def _check_bbox_in_page(
-    bbox: DocumentBBox, page: DocumentPage, where: str
-) -> None:
+def _check_bbox_in_page(bbox: DocumentBBox, page: DocumentPage, where: str) -> None:
     if bbox.x2 > page.width_points or bbox.y2 > page.height_points:
         raise _ReferentialIntegrityError(
             f"{where} bbox escapes page geometry: "
@@ -452,7 +454,9 @@ def _check_block_backed(
 ) -> DocumentBlock:
     block = next((item for item in candidate.blocks if item.block_id == block_id), None)
     if block is None:
-        raise _ReferentialIntegrityError(f"{label} references unknown block_id {block_id}")
+        raise _ReferentialIntegrityError(
+            f"{label} references unknown block_id {block_id}"
+        )
     if block.page_index != page_index:
         raise _ReferentialIntegrityError(
             f"{label} page_index {page_index} != block {block_id} page_index "
@@ -480,7 +484,10 @@ def _check_identity_consistency(candidate: DocumentParseCandidate) -> None:
         raise _ReferentialIntegrityError(
             "candidate visual_engine presence must match profile.visual_backend"
         )
-    if candidate.visual_engine is not None and candidate.visual_engine != profile_visual:
+    if (
+        candidate.visual_engine is not None
+        and candidate.visual_engine != profile_visual
+    ):
         raise _ReferentialIntegrityError(
             "candidate visual_engine must equal profile.visual_backend"
         )
@@ -493,7 +500,9 @@ def _check_identity_consistency(candidate: DocumentParseCandidate) -> None:
             "visual_model_id and visual_model_revision must be present together"
         )
     if candidate.visual_model_id is not None and candidate.visual_engine is None:
-        raise _ReferentialIntegrityError("visual model provenance requires visual_engine")
+        raise _ReferentialIntegrityError(
+            "visual model provenance requires visual_engine"
+        )
 
 
 def _check_referential_integrity(candidate: DocumentParseCandidate) -> None:
@@ -627,8 +636,13 @@ def _check_referential_integrity(candidate: DocumentParseCandidate) -> None:
 
 def _check_quality_invariants(candidate: DocumentParseCandidate) -> None:
     """Quality semantics must not be self-contradictory."""
-    if candidate.overall_quality == DocumentParseQuality.accepted and not candidate.blocks:
-        raise _ReferentialIntegrityError("accepted document parse must contain usable blocks")
+    if (
+        candidate.overall_quality == DocumentParseQuality.accepted
+        and not candidate.blocks
+    ):
+        raise _ReferentialIntegrityError(
+            "accepted document parse must contain usable blocks"
+        )
     if candidate.overall_quality == DocumentParseQuality.unsupported:
         accepted = [
             block
@@ -716,8 +730,11 @@ class ScientificDataExtractionCandidate(BaseModel):
     field_hint: Identifier | None = None
     object_hint: Identifier | None = None
     research_input_id: Identifier
-    source_snapshot_id: Identifier | None = None
-    document_parse_id: Identifier | None = None
+    research_input_content_hash: ContentHash
+    pipeline_source_snapshot_id: Identifier
+    pipeline_source_snapshot_content_hash: ContentHash
+    persisted_source_snapshot_id: Identifier
+    document_parse_id: Identifier
     parse_quality: DocumentParseQuality
     locator: DocumentLocator
     created_at: UtcDateTime

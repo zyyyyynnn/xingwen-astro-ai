@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal, ROUND_HALF_EVEN, localcontext
 from enum import StrEnum
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -28,9 +28,9 @@ from .data_artifacts import (
     DataArtifactBuildInput,
     DatasetArtifactCandidate,
     FieldDictionaryArtifactCandidate,
-    ManifestPins,
     SourceCollectionArtifactCandidate,
 )
+from .scientific_document import DocumentParseQuality
 from .crossmatch import EntityLevel
 
 
@@ -160,7 +160,9 @@ class QualityGateStatus(StrEnum):
 
 class QualityErrorCode(StrEnum):
     QUALITY_INPUT_INVALID = "QUALITY_INPUT_INVALID"
-    QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH = "QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH"
+    QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH = (
+        "QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH"
+    )
     QUALITY_CROSSMATCH_METRICS_MISMATCH = "QUALITY_CROSSMATCH_METRICS_MISMATCH"
     QUALITY_RESEARCH_CONTRACT_MISMATCH = "QUALITY_RESEARCH_CONTRACT_MISMATCH"
     QUALITY_RULE_SET_MISMATCH = "QUALITY_RULE_SET_MISMATCH"
@@ -334,7 +336,9 @@ def _validate_formula_execution_binding(
     if not numerator_observation.value.startswith(
         prefix
     ) or not denominator_observation.value.startswith(prefix):
-        raise ValueError("quality formula observation scope does not match metric scope")
+        raise ValueError(
+            "quality formula observation scope does not match metric scope"
+        )
 
 
 class QualityMetricPlan(BaseModel):
@@ -385,10 +389,20 @@ class QualityEvaluationPlan(BaseModel):
         observation_keys = tuple(item.observation_key for item in self.gate_bindings)
         if len(observation_keys) != len(set(observation_keys)):
             raise ValueError("quality plan contains duplicate gate observation_key")
-        if any(item.result_field not in _QUALITY_RESULT_FIELDS[item.scope] for item in self.metrics):
-            raise ValueError("quality plan metric result_field does not match its scope")
-        if any(item.applicability != _QUALITY_APPLICABILITY[item.scope] for item in self.metrics):
-            raise ValueError("quality plan metric applicability does not match its scope")
+        if any(
+            item.result_field not in _QUALITY_RESULT_FIELDS[item.scope]
+            for item in self.metrics
+        ):
+            raise ValueError(
+                "quality plan metric result_field does not match its scope"
+            )
+        if any(
+            item.applicability != _QUALITY_APPLICABILITY[item.scope]
+            for item in self.metrics
+        ):
+            raise ValueError(
+                "quality plan metric applicability does not match its scope"
+            )
         for item in self.metrics:
             _validate_formula_execution_binding(
                 metric_id=item.metric_id,
@@ -406,14 +420,20 @@ class QualityEvaluationPlan(BaseModel):
             for result_field in result_fields_for_scope
         }
         if set(result_fields) != expected_result_fields:
-            raise ValueError("quality plan does not cover the complete public result domain")
+            raise ValueError(
+                "quality plan does not cover the complete public result domain"
+            )
         by_metric = {item.metric_id: item for item in self.metrics}
         for binding in self.gate_bindings:
             if binding.rule_binding_version != self.rule_set_version:
-                raise ValueError("quality gate binding version does not match RuleSet version")
+                raise ValueError(
+                    "quality gate binding version does not match RuleSet version"
+                )
             if binding.metric_id is None:
                 if binding.result_field is not None:
-                    raise ValueError("non-metric gate binding must not carry result_field")
+                    raise ValueError(
+                        "non-metric gate binding must not carry result_field"
+                    )
                 if binding.operator != "equals":
                     raise ValueError("non-metric gate binding must use equals")
                 continue
@@ -423,7 +443,9 @@ class QualityEvaluationPlan(BaseModel):
                 or metric.scope is not QualityMetricScope.dataset
                 or binding.result_field != metric.result_field
             ):
-                raise ValueError("gate binding does not reference its compiled metric field")
+                raise ValueError(
+                    "gate binding does not reference its compiled metric field"
+                )
         expected = compute_quality_evaluation_plan_content_hash(self)
         if self.content_hash != expected:
             raise ValueError(f"quality plan content_hash mismatch: {expected}")
@@ -501,10 +523,20 @@ class DataQualityRuleSet(BaseModel):
             raise ValueError("quality RuleSet contains duplicate metric_id")
         if len(binding_ids) != len(set(binding_ids)):
             raise ValueError("quality RuleSet contains duplicate constraint_id")
-        if any(item.result_field not in _QUALITY_RESULT_FIELDS[item.scope] for item in self.formula_registry):
-            raise ValueError("quality RuleSet formula result_field does not match its scope")
-        if any(item.applicability != _QUALITY_APPLICABILITY[item.scope] for item in self.formula_registry):
-            raise ValueError("quality RuleSet formula applicability does not match its scope")
+        if any(
+            item.result_field not in _QUALITY_RESULT_FIELDS[item.scope]
+            for item in self.formula_registry
+        ):
+            raise ValueError(
+                "quality RuleSet formula result_field does not match its scope"
+            )
+        if any(
+            item.applicability != _QUALITY_APPLICABILITY[item.scope]
+            for item in self.formula_registry
+        ):
+            raise ValueError(
+                "quality RuleSet formula applicability does not match its scope"
+            )
         for item in self.formula_registry:
             _validate_formula_execution_binding(
                 metric_id=item.metric_id,
@@ -513,20 +545,28 @@ class DataQualityRuleSet(BaseModel):
                 numerator_observation=item.numerator_observation,
                 denominator_observation=item.denominator_observation,
             )
-        formula_scopes = tuple((item.scope, item.result_field) for item in self.formula_registry)
+        formula_scopes = tuple(
+            (item.scope, item.result_field) for item in self.formula_registry
+        )
         expected_result_fields = {
             (scope, result_field)
             for scope, result_fields_for_scope in _QUALITY_RESULT_FIELDS.items()
             for result_field in result_fields_for_scope
         }
         if set(formula_scopes) != expected_result_fields:
-            raise ValueError("quality RuleSet formula registry does not cover the result domain")
+            raise ValueError(
+                "quality RuleSet formula registry does not cover the result domain"
+            )
         for binding in self.gate_bindings:
             if binding.rule_binding_version != self.version:
-                raise ValueError("quality gate binding version does not match RuleSet version")
+                raise ValueError(
+                    "quality gate binding version does not match RuleSet version"
+                )
             if binding.metric_id is None:
                 if binding.result_field is not None:
-                    raise ValueError("non-metric quality gate binding must not carry result_field")
+                    raise ValueError(
+                        "non-metric quality gate binding must not carry result_field"
+                    )
                 if binding.operator != "equals":
                     raise ValueError("non-metric quality gate binding must use equals")
                 continue
@@ -538,7 +578,9 @@ class DataQualityRuleSet(BaseModel):
             ):
                 raise ValueError("quality gate binds an unknown metric or result field")
         if self.aggregate_score_policy.enabled is not False:
-            raise ValueError("Data Quality Evaluation aggregate score must remain disabled")
+            raise ValueError(
+                "Data Quality Evaluation aggregate score must remain disabled"
+            )
         expected = compute_quality_rule_set_content_hash(self)
         if self.content_hash != expected:
             raise ValueError(f"quality RuleSet content_hash mismatch: {expected}")
@@ -566,12 +608,16 @@ class QualityMetricResult(BaseModel):
         if self.formula_scope is not self.scope:
             raise ValueError("quality metric formula scope does not match result scope")
         if self.value is not None and "e" in str(self.value).lower():
-            raise ValueError("quality metric Decimal values must use plain serialization")
+            raise ValueError(
+                "quality metric Decimal values must use plain serialization"
+            )
         if self.numerator > self.denominator:
             raise ValueError("quality metric numerator must not exceed denominator")
         if self.status is QualityMetricStatus.determinate:
             if self.denominator <= 0 or self.value is None:
-                raise ValueError("determinate quality metric requires denominator and value")
+                raise ValueError(
+                    "determinate quality metric requires denominator and value"
+                )
             with localcontext() as context:
                 context.prec = self.precision_digits
                 context.rounding = ROUND_HALF_EVEN
@@ -583,7 +629,9 @@ class QualityMetricResult(BaseModel):
         elif self.status is QualityMetricStatus.not_applicable and (
             self.numerator != 0 or self.denominator != 0
         ):
-            raise ValueError("not-applicable quality metric must have an empty denominator")
+            raise ValueError(
+                "not-applicable quality metric must have an empty denominator"
+            )
         return self
 
 
@@ -629,7 +677,10 @@ class FieldQualityResult(BaseModel):
 
     @model_validator(mode="after")
     def validate_counts_and_hash(self) -> FieldQualityResult:
-        if self.mapped_count + self.declared_null_count + self.unresolved_count != self.applicable_row_count:
+        if (
+            self.mapped_count + self.declared_null_count + self.unresolved_count
+            != self.applicable_row_count
+        ):
             raise ValueError("field quality outcome counts do not close")
         if self.field_manifest_reference.field_id != self.field_id:
             raise ValueError("field manifest reference disagrees with field_id")
@@ -669,10 +720,15 @@ class RowQualityResult(BaseModel):
 
     @model_validator(mode="after")
     def validate_counts_and_hash(self) -> RowQualityResult:
-        if self.mapped_count + self.declared_null_count + self.unresolved_count != self.applicable_field_count:
+        if (
+            self.mapped_count + self.declared_null_count + self.unresolved_count
+            != self.applicable_field_count
+        ):
             raise ValueError("row quality outcome counts do not close")
         if len(self.field_ids) != self.applicable_field_count:
-            raise ValueError("row quality field_ids do not close applicable_field_count")
+            raise ValueError(
+                "row quality field_ids do not close applicable_field_count"
+            )
         if len(self.field_ids) != len(set(self.field_ids)):
             raise ValueError("row quality field_ids must be unique")
         expected = compute_quality_content_hash(self)
@@ -714,7 +770,10 @@ class DatasetQualityResult(BaseModel):
 
     @model_validator(mode="after")
     def validate_counts_and_hash(self) -> DatasetQualityResult:
-        if self.mapped_count + self.declared_null_count + self.unresolved_count != self.applicable_cell_count:
+        if (
+            self.mapped_count + self.declared_null_count + self.unresolved_count
+            != self.applicable_cell_count
+        ):
             raise ValueError("dataset quality outcome counts do not close")
         if self.row_count != len(self.row_result_ids):
             raise ValueError("dataset row_result_ids do not close row_count")
@@ -799,9 +858,13 @@ class QualityInputReferences(BaseModel):
             "field_dictionary",
             "source_collection",
         ):
-            raise ValueError("quality input references must use canonical Data Artifact candidate order")
+            raise ValueError(
+                "quality input references must use canonical Data Artifact candidate order"
+            )
         if len(self.requested_field_ids) != len(set(self.requested_field_ids)):
-            raise ValueError("quality input references contain duplicate requested fields")
+            raise ValueError(
+                "quality input references contain duplicate requested fields"
+            )
         if len(self.row_ids) != len(set(self.row_ids)):
             raise ValueError("quality input references contain duplicate row ids")
         return self
@@ -813,6 +876,30 @@ class QualityProducerReference(BaseModel):
     producer_type: Literal["algorithm"] = "algorithm"
     producer_name: NonEmptyString
     producer_version: SemanticVersion
+
+
+class DocumentParseQualityObservation(BaseModel):
+    """Parser quality is observed independently from scientific-value quality."""
+
+    model_config = MODEL_CONFIG
+
+    observation_id: Identifier
+    document_parse_id: NonEmptyString
+    pipeline_source_snapshot_id: Identifier
+    parse_quality: DocumentParseQuality
+    admission_status: Literal["admitted"] = "admitted"
+    content_hash: ContentHash
+
+    @model_validator(mode="after")
+    def validate_hash(self) -> Self:
+        expected = compute_canonical_payload_hash(
+            self.model_dump(mode="json", exclude={"content_hash"})
+        )
+        if self.content_hash != expected:
+            raise ValueError(
+                f"document parse quality observation hash mismatch: {expected}"
+            )
+        return self
 
 
 class DataQualityEvaluationInput(BaseModel):
@@ -842,7 +929,7 @@ class DataQualityEvaluationResult(BaseModel):
     model_config = MODEL_CONFIG
 
     kind: Literal["data_quality"] = "data_quality"
-    schema_version: Literal["2.0.0"]
+    schema_version: Literal["3.0.0"]
     result_id: Identifier
     input_references: QualityInputReferences
     evaluation_plan: QualityEvaluationPlan
@@ -851,6 +938,7 @@ class DataQualityEvaluationResult(BaseModel):
     field_results: tuple[FieldQualityResult, ...]
     row_results: tuple[RowQualityResult, ...]
     dataset_result: DatasetQualityResult
+    document_parse_quality_observations: tuple[DocumentParseQualityObservation, ...]
     contract_gate: ResearchContractQualityGate
     aggregate_score: Decimal | None
     aggregate_score_policy: QualityAggregateScorePolicy
@@ -863,23 +951,36 @@ class DataQualityEvaluationResult(BaseModel):
 
     @model_validator(mode="after")
     def validate_result_hashes(self) -> DataQualityEvaluationResult:
-        if self.aggregate_score_policy.enabled is not False or self.aggregate_score is not None:
-            raise ValueError("Data Quality Evaluation aggregate score must be disabled and null")
-        if self.contract_gate.rule_binding_version != self.evaluation_plan.rule_set_version:
-            raise ValueError("quality Contract gate is not bound to the evaluation plan version")
+        if (
+            self.aggregate_score_policy.enabled is not False
+            or self.aggregate_score is not None
+        ):
+            raise ValueError(
+                "Data Quality Evaluation aggregate score must be disabled and null"
+            )
+        if (
+            self.contract_gate.rule_binding_version
+            != self.evaluation_plan.rule_set_version
+        ):
+            raise ValueError(
+                "quality Contract gate is not bound to the evaluation plan version"
+            )
         if self.result_id != compute_data_quality_result_id(
             self.input_hash,
             self.input_references.quality_rule_set_content_hash,
         ):
             raise ValueError("quality result_id is not bound to input and RuleSet")
         if (
-            self.evaluation_plan.rule_set_id != self.input_references.quality_rule_set_id
+            self.evaluation_plan.rule_set_id
+            != self.input_references.quality_rule_set_id
             or self.evaluation_plan.rule_set_version
             != self.input_references.quality_rule_set_version
             or self.evaluation_plan.rule_set_content_hash
             != self.input_references.quality_rule_set_content_hash
         ):
-            raise ValueError("quality result evaluation plan is not bound to its RuleSet")
+            raise ValueError(
+                "quality result evaluation plan is not bound to its RuleSet"
+            )
         expected_rule_reference = QualityArtifactReference(
             kind="quality_rule_set",
             candidate_id=self.input_references.quality_rule_set_id,
@@ -912,7 +1013,7 @@ class DataQualityEvaluationRejected(BaseModel):
     model_config = MODEL_CONFIG
 
     kind: Literal["data_quality_rejected"] = "data_quality_rejected"
-    schema_version: Literal["2.0.0"]
+    schema_version: Literal["3.0.0"]
     failure_stage: QualityFailureStage
     error_code: QualityErrorCode
     message: NonEmptyString
@@ -928,10 +1029,14 @@ class DataQualityEvaluationRejected(BaseModel):
     def validate_rejection_hashes(self) -> DataQualityEvaluationRejected:
         expected_output = compute_quality_output_hash(self)
         if self.output_hash != expected_output:
-            raise ValueError(f"rejected quality output_hash mismatch: {expected_output}")
+            raise ValueError(
+                f"rejected quality output_hash mismatch: {expected_output}"
+            )
         expected_content = compute_quality_content_hash(self)
         if self.content_hash != expected_content:
-            raise ValueError(f"rejected quality content_hash mismatch: {expected_content}")
+            raise ValueError(
+                f"rejected quality content_hash mismatch: {expected_content}"
+            )
         return self
 
 
@@ -966,7 +1071,9 @@ def _validate_quality_result_coverage(result: DataQualityEvaluationResult) -> No
     if row_ids != result.input_references.row_ids:
         raise ValueError("quality row_results do not exactly cover input rows")
     if result.dataset_result.field_result_ids != field_ids:
-        raise ValueError("dataset field_result_ids do not reference exact field results")
+        raise ValueError(
+            "dataset field_result_ids do not reference exact field results"
+        )
     if result.dataset_result.row_result_ids != row_ids:
         raise ValueError("dataset row_result_ids do not reference exact row results")
     if result.dataset_result.field_count != len(field_ids):
@@ -977,10 +1084,9 @@ def _validate_quality_result_coverage(result: DataQualityEvaluationResult) -> No
         raise ValueError("quality top-level SourceSnapshot references are not closed")
     if result.evidence_ids != result.dataset_result.evidence_ids:
         raise ValueError("quality top-level Evidence references are not closed")
-    if (
-        len(result.source_snapshot_ids) != len(set(result.source_snapshot_ids))
-        or len(result.evidence_ids) != len(set(result.evidence_ids))
-    ):
+    if len(result.source_snapshot_ids) != len(set(result.source_snapshot_ids)) or len(
+        result.evidence_ids
+    ) != len(set(result.evidence_ids)):
         raise ValueError("quality top-level references must be unique")
     all_row_ids = set(row_ids)
     all_field_ids = set(field_ids)
@@ -992,26 +1098,35 @@ def _validate_quality_result_coverage(result: DataQualityEvaluationResult) -> No
         if not set(field.row_ids) <= all_row_ids:
             raise ValueError("field quality row reference escapes result coverage")
         if not set(field.source_snapshot_ids) <= set(result.source_snapshot_ids):
-            raise ValueError("field quality SourceSnapshot reference escapes result coverage")
+            raise ValueError(
+                "field quality SourceSnapshot reference escapes result coverage"
+            )
         if not set(field.evidence_ids) <= set(result.evidence_ids):
             raise ValueError("field quality Evidence reference escapes result coverage")
     for row in result.row_results:
         if not set(row.field_ids) <= all_field_ids:
             raise ValueError("row quality field reference escapes result coverage")
         if not set(row.source_snapshot_ids) <= set(result.source_snapshot_ids):
-            raise ValueError("row quality SourceSnapshot reference escapes result coverage")
+            raise ValueError(
+                "row quality SourceSnapshot reference escapes result coverage"
+            )
         if not set(row.evidence_ids) <= set(result.evidence_ids):
             raise ValueError("row quality Evidence reference escapes result coverage")
 
 
 def _validate_quality_result_metrics(result: DataQualityEvaluationResult) -> None:
-    by_scope: dict[QualityMetricScope, tuple[FieldQualityResult | RowQualityResult | DatasetQualityResult, ...]] = {
+    by_scope: dict[
+        QualityMetricScope,
+        tuple[FieldQualityResult | RowQualityResult | DatasetQualityResult, ...],
+    ] = {
         QualityMetricScope.field: result.field_results,
         QualityMetricScope.row: result.row_results,
         QualityMetricScope.dataset: (result.dataset_result,),
     }
     for scope, layer_results in by_scope.items():
-        plans = tuple(item for item in result.evaluation_plan.metrics if item.scope is scope)
+        plans = tuple(
+            item for item in result.evaluation_plan.metrics if item.scope is scope
+        )
         expected_fields = {item.result_field for item in plans}
         for layer_result in layer_results:
             target_id = (
@@ -1032,11 +1147,14 @@ def _validate_quality_result_metrics(result: DataQualityEvaluationResult) -> Non
                     or metric.formula_id != plan.formula_id
                     or metric.formula_version != plan.formula_version
                     or metric.formula_scope is not plan.scope
-                    or metric.precision_digits != result.evaluation_plan.precision_digits
+                    or metric.precision_digits
+                    != result.evaluation_plan.precision_digits
                 ):
                     raise ValueError("quality metric does not match its compiled plan")
             if actual_fields != expected_fields:
-                raise ValueError("quality result metric fields do not close compiled plan")
+                raise ValueError(
+                    "quality result metric fields do not close compiled plan"
+                )
 
 
 def _validate_quality_gate_bindings(result: DataQualityEvaluationResult) -> None:
@@ -1062,17 +1180,23 @@ def _validate_quality_gate_bindings(result: DataQualityEvaluationResult) -> None
                 or check.observed_value is not None
                 or check.threshold is not None
             ):
-                raise ValueError("boolean Contract gate check carries metric observations")
+                raise ValueError(
+                    "boolean Contract gate check carries metric observations"
+                )
         else:
             metric = getattr(result.dataset_result, binding.result_field or "", None)
             if not isinstance(metric, QualityMetricResult):
-                raise ValueError("metric Contract gate binding does not resolve to a dataset metric")
+                raise ValueError(
+                    "metric Contract gate binding does not resolve to a dataset metric"
+                )
             if (
                 check.observed_status != metric.status
                 or check.observed_value != metric.value
                 or check.threshold is None
             ):
-                raise ValueError("metric Contract gate check is not bound to dataset metric")
+                raise ValueError(
+                    "metric Contract gate check is not bound to dataset metric"
+                )
     expected_status = (
         QualityGateStatus.fail
         if any(item.result is QualityGateStatus.fail for item in checks)
@@ -1084,9 +1208,13 @@ def _validate_quality_gate_bindings(result: DataQualityEvaluationResult) -> None
         raise ValueError("Contract gate overall status does not close its checks")
 
 
-def _payload(value: BaseModel | dict[str, Any], *, exclude: set[str] | None = None) -> Any:
+def _payload(
+    value: BaseModel | dict[str, Any], *, exclude: set[str] | None = None
+) -> Any:
     if isinstance(value, BaseModel):
-        return value.model_dump(mode="json", exclude_none=True, exclude=exclude or set())
+        return value.model_dump(
+            mode="json", exclude_none=True, exclude=exclude or set()
+        )
     result = dict(value)
     for key in exclude or set():
         result.pop(key, None)
@@ -1095,7 +1223,9 @@ def _payload(value: BaseModel | dict[str, Any], *, exclude: set[str] | None = No
 
 def _drop_none(value: Any) -> Any:
     if isinstance(value, dict):
-        return {key: _drop_none(item) for key, item in value.items() if item is not None}
+        return {
+            key: _drop_none(item) for key, item in value.items() if item is not None
+        }
     if isinstance(value, list):
         return [_drop_none(item) for item in value]
     if isinstance(value, tuple):
@@ -1109,7 +1239,9 @@ def compute_quality_evaluation_plan_content_hash(
     return compute_canonical_payload_hash(_payload(value, exclude={"content_hash"}))
 
 
-def compute_quality_rule_set_content_hash(value: DataQualityRuleSet | dict[str, Any]) -> str:
+def compute_quality_rule_set_content_hash(
+    value: DataQualityRuleSet | dict[str, Any],
+) -> str:
     return compute_canonical_payload_hash(_payload(value, exclude={"content_hash"}))
 
 
@@ -1140,9 +1272,15 @@ def compute_quality_content_hash(
     return compute_canonical_payload_hash(_payload(value, exclude={"content_hash"}))
 
 
-def compute_data_quality_result_id(input_hash: ContentHash, rule_set_content_hash: ContentHash) -> str:
+def compute_data_quality_result_id(
+    input_hash: ContentHash, rule_set_content_hash: ContentHash
+) -> str:
     identity = compute_canonical_payload_hash(
-        {"kind": "data_quality", "input_hash": input_hash, "rule_set_content_hash": rule_set_content_hash}
+        {
+            "kind": "data_quality",
+            "input_hash": input_hash,
+            "rule_set_content_hash": rule_set_content_hash,
+        }
     )
     return f"quality.{identity.removeprefix('sha256:')[:24]}"
 

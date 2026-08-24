@@ -10,10 +10,10 @@
   "license_note": "NASA Exoplanet Archive Planetary Systems metadata is publicly queryable; preserve archive attribution and follow the archive acknowledgement and citation guidance.",
   "source_mode": "fixture",
   "data_level": "recorded_response",
-  "case_manifest_version": "2.0.0",
-  "case_manifest_content_hash": "sha256:efbee5ec7d9e9e450a1b08685eb27e0a600f58faec5524d37dc05a9b1f28276c",
-  "field_manifest_version": "2.0.0",
-  "field_manifest_content_hash": "sha256:b0ce150bebbfa9549273ecbb5e26ed302f64b9925d768bb42f944554d011a86f",
+  "case_manifest_version": "3.0.0",
+  "case_manifest_content_hash": "sha256:c4aed9194fb1f92375809bbb11c70fd834b383e69304a539232cbb821b5a4240",
+  "field_manifest_version": "3.0.0",
+  "field_manifest_content_hash": "sha256:47a43ebec1e340a806b186da1d2abfda8e9b258212093a0be49b1a9e1469f25f",
   "column_contract_snapshot_id": "nasa_exoplanet_archive.column_adjudications.2026-07-19",
   "column_contract_snapshot_version": "1.0.0",
   "column_contract_content_hash": "sha256:a4351598b4cc9ec0537a95e30f6abaa1af6e6c8e015f1d7a8662a4ce4708625a",
@@ -27,8 +27,8 @@
     "max_pages": 1,
     "record_limit": 2
   },
-  "input_hash": "sha256:29433dc3cd93c27fc9a59132895dbd7b43c7054a115bb08a1871edebe517e662",
-  "query_hash": "sha256:8ab5444cb0000fc7533ef5511fc00a428b458f82f7c402c35d7705ea0eef8995",
+  "input_hash": "sha256:7eb19de4ec9dcdb7285e9d5618eb4a57f66da7eb0bcc90c941178e0f98f0984f",
+  "query_hash": "sha256:5311a054abab8f57730795f781a4b7b457d0128ea8a92a7f99e8cfc9c996952b",
   "schema_response_hash": "sha256:a28e495ee8ee1d22d4d3d312cccf9e0e61ec68684454c83724ac5f7e4ba3151a",
   "page_response_hash": "sha256:d79407c7c9385291a58fdd02037e87b70270ba8880c95eb08976f7a117c176e9",
   "provenance_note": "Recorded from a successful bounded supplemental source acquisition metadata request to the official NASA Exoplanet Archive TAP sync endpoint. The request used the normalized TIC inputs and pagination stored here; schema_response_hash and page_response_hash bind the two captured JSON responses. Replay is fixture evidence and must never be labeled live or cached.",
@@ -382,5 +382,5 @@
   "page_safe_response_headers": {
     "date": "Thu, 30 Jul 2026 05:56:12 GMT"
   },
-  "content_hash": "sha256:07621a53faf7320afdd93eb3b312df20aa05b9bfb43c3f767c7fb43d0e916c26"
+  "content_hash": "sha256:afe231d301605feb7ef973f001816e89133768c48109d12ad140088d626d27e5"
 }

@@ -8,7 +8,11 @@ from app.schemas.data_artifacts import (
     ManifestPins,
     compute_data_artifact_input_hash,
 )
-from app.workflow.publisher import ArtifactEvidenceBinding, ArtifactSourceSnapshotBinding
+from app.schemas.core import DataRequirements, DocumentSourcePolicy
+from app.workflow.publisher import (
+    ArtifactEvidenceBinding,
+    ArtifactSourceSnapshotBinding,
+)
 from services.data_pipeline.crossmatch import align_cross_source_records
 from services.data_pipeline.crossmatch.benchmark import (
     _scenario_input,
@@ -25,7 +29,9 @@ def build_input(
     scenario_id: str = "exact_one_to_one",
 ) -> DataArtifactBuildInput:
     benchmark = load_crossmatch_benchmark()
-    scenario = next(item for item in benchmark.scenarios if item.scenario_id == scenario_id)
+    scenario = next(
+        item for item in benchmark.scenarios if item.scenario_id == scenario_id
+    )
     crossmatch_input = _scenario_input(scenario)
     crossmatch_result = align_cross_source_records(crossmatch_input)
     pins = ManifestPins(
@@ -39,6 +45,10 @@ def build_input(
     mapping_rule_set = load_mapping_rule_set()
     conversion_catalog = load_unit_conversion_catalog()
     payload = {
+        "data_requirements": DataRequirements(
+            document_source_policy=DocumentSourcePolicy.disabled,
+        ).model_dump(mode="json"),
+        "document_observations": (),
         "manifest_pins": pins.model_dump(mode="json"),
         "requested_fields": requested_fields,
         "left_acquisition": crossmatch_input.left.model_dump(mode="json"),
@@ -50,6 +60,10 @@ def build_input(
         "quality_constraints_reference": "research_contract.quality_constraints.fixture",
     }
     unhashed = DataArtifactBuildInput.model_construct(
+        data_requirements=DataRequirements(
+            document_source_policy=DocumentSourcePolicy.disabled,
+        ),
+        document_observations=(),
         manifest_pins=pins,
         requested_fields=requested_fields,
         left_acquisition=crossmatch_input.left,
@@ -75,6 +89,11 @@ def build_data_publication_bindings(
         pipeline_id: str(uuid5(NAMESPACE_URL, f"test-source-snapshot:{pipeline_id}"))
         for pipeline_id in candidate.source_snapshot_ids
     }
+    for value in candidate.source_values:
+        if value.provenance.kind == "document":
+            persisted_snapshots[value.provenance.pipeline_source_snapshot_id] = (
+                value.provenance.persisted_source_snapshot_id
+            )
     snapshots = tuple(
         ArtifactSourceSnapshotBinding(
             pipeline_source_snapshot_id=pipeline_id,
@@ -94,7 +113,7 @@ def build_data_publication_bindings(
         if transformation is not None:
             target_type = "canonical_field"
             target_id = transformation.canonical_field_id
-            pipeline_snapshot_id = transformation.locator.source_snapshot_id
+            pipeline_snapshot_id = transformation.provenance.pipeline_source_snapshot_id
         else:
             crossmatch = crossmatch_evidence[pipeline_id]
             left_snapshot_ids = {
@@ -114,9 +133,7 @@ def build_data_publication_bindings(
                 persisted_evidence_id=str(
                     uuid5(NAMESPACE_URL, f"test-evidence:{pipeline_id}")
                 ),
-                persisted_source_snapshot_id=persisted_snapshots[
-                    pipeline_snapshot_id
-                ],
+                persisted_source_snapshot_id=persisted_snapshots[pipeline_snapshot_id],
             )
         )
     return snapshots, tuple(evidence_bindings)

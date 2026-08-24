@@ -39,6 +39,8 @@ def _build_input_from_crossmatch(
         field_manifest_content_hash=crossmatch_result.field_manifest_content_hash,
     )
     unhashed = DataArtifactBuildInput.model_construct(
+        data_requirements=baseline.data_requirements,
+        document_observations=(),
         manifest_pins=pins,
         requested_fields=requested_fields,
         left_acquisition=crossmatch_input.left,
@@ -90,9 +92,7 @@ def _same_measurement_for_scenario(scenario_id: str) -> DataArtifactBuildInput:
             "right": add_measurement(crossmatch_input.right),
         }
     )
-    return _build_input_from_crossmatch(
-        crossmatch_input, "planet.orbital_period"
-    )
+    return _build_input_from_crossmatch(crossmatch_input, "planet.orbital_period")
 
 
 def test_pipeline_builds_three_deterministic_evidence_first_candidates() -> None:
@@ -116,15 +116,19 @@ def test_pipeline_builds_three_deterministic_evidence_first_candidates() -> None
     assert projected
     assert all(isinstance(field, MappedCanonicalValue) for field in projected)
     assert all(
-        not row.fields for row in first.dataset.rows if row.entity_level == "planet_candidate"
+        not row.fields
+        for row in first.dataset.rows
+        if row.entity_level == "planet_candidate"
     )
     assert {
-        evidence.locator.source_snapshot_id
+        evidence.provenance.pipeline_source_snapshot_id
         for evidence in first.dataset.transformation_evidence
     } == set(first.dataset.source_snapshot_ids)
 
 
-def test_pipeline_dataset_identity_distinguishes_entities_with_same_measurement() -> None:
+def test_pipeline_dataset_identity_distinguishes_entities_with_same_measurement() -> (
+    None
+):
     first = build_data_artifact_candidates(
         _same_measurement_for_scenario("exact_one_to_one")
     ).dataset
@@ -218,7 +222,9 @@ def test_incomplete_crossmatch_scope_stays_inconclusive() -> None:
     assert result.source_collection.inconclusive_record_keys
 
 
-def test_acquisition_payload_tamper_is_rejected_even_with_recomputed_input_hash() -> None:
+def test_acquisition_payload_tamper_is_rejected_even_with_recomputed_input_hash() -> (
+    None
+):
     from app.schemas.data_artifacts import compute_data_artifact_input_hash
 
     input_value = build_input("star.tic_id")

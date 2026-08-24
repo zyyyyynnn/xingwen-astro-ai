@@ -171,7 +171,7 @@ def _rehash_candidate_payload(payload: dict) -> dict:
     payload["output_hash"] = compute_data_artifact_output_hash(payload)
     identity_hash = payload.get("canonical_content_hash", payload["output_hash"])
     payload["candidate_id"] = compute_data_artifact_candidate_id(
-        payload["kind"], identity_hash
+        payload["kind"], identity_hash, schema_version=payload["schema_version"]
     )
     return payload
 
@@ -191,12 +191,16 @@ def test_source_collection_members_bind_each_source_and_all_raw_records() -> Non
     input_value = build_input("star.tic_id")
     result = build_data_artifact_candidates(input_value)
 
-    assert tuple(member.side.value for member in result.source_collection.members) == (
+    assert tuple(
+        member.side.value for member in result.source_collection.crossmatch_sources
+    ) == (
         "left",
         "right",
     )
     acquisitions = (input_value.left_acquisition, input_value.right_acquisition)
-    for member, acquisition in zip(result.source_collection.members, acquisitions):
+    for member, acquisition in zip(
+        result.source_collection.crossmatch_sources, acquisitions
+    ):
         assert member.source_id == acquisition.snapshot.source_id
         assert member.source_snapshot_id == acquisition.snapshot.snapshot_id
         assert member.completion == acquisition.completion
@@ -261,7 +265,7 @@ def test_numeric_conflict_uses_collection_span_not_selected_representative() -> 
     values = tuple(
         SimpleNamespace(
             source_value_id=f"source.{index}",
-            source_id=f"source-{index}",
+            provenance=SimpleNamespace(kind="structured", source_id=f"source-{index}"),
             canonical_value=value,
         )
         for index, value in enumerate(("0.09", "0", "0.18"))
@@ -302,9 +306,7 @@ def test_planet_radius_assertions_are_not_merged_into_host_rows(
 
     assert host_rows and all(not row.fields for row in host_rows)
     assert assertion_rows
-    assert all(
-        row.projected_field_ids == ("planet.radius",) for row in assertion_rows
-    )
+    assert all(row.projected_field_ids == ("planet.radius",) for row in assertion_rows)
     assert all(len(row.source_member_ids) == 1 for row in assertion_rows)
 
 
@@ -418,14 +420,19 @@ def test_source_collection_json_reparse_preserves_member_bindings() -> None:
         candidate.model_dump_json()
     )
 
-    assert reparsed.members == candidate.members
-    assert reparsed.members[0].completion != reparsed.members[1].completion
+    assert reparsed.crossmatch_sources == candidate.crossmatch_sources
+    assert (
+        reparsed.crossmatch_sources[0].completion
+        != reparsed.crossmatch_sources[1].completion
+    )
 
 
 def test_source_collection_rejects_license_source_mismatch() -> None:
-    candidate = build_data_artifact_candidates(build_input("star.tic_id")).source_collection
+    candidate = build_data_artifact_candidates(
+        build_input("star.tic_id")
+    ).source_collection
     payload = candidate.model_dump(mode="json")
-    payload["members"][0]["license_note"] = "forged license binding"
+    payload["crossmatch_sources"][0]["license_note"] = "forged license binding"
     _rehash_candidate_payload(payload)
 
     with pytest.raises(ValidationError, match="SourceSnapshot"):
@@ -437,7 +444,7 @@ def test_source_collection_keeps_one_record_reference_for_multi_field_use() -> N
     result = build_data_artifact_candidates(input_value)
 
     for member, acquisition in zip(
-        result.source_collection.members,
+        result.source_collection.crossmatch_sources,
         (input_value.left_acquisition, input_value.right_acquisition),
     ):
         assert len(member.raw_record_references) == len(acquisition.records)
@@ -521,10 +528,12 @@ def test_dataset_rejects_synchronized_missing_snapshot() -> None:
 
 
 def test_source_collection_members_survive_reversed_snapshot_sort_order() -> None:
-    candidate = build_data_artifact_candidates(build_input("star.tic_id")).source_collection
+    candidate = build_data_artifact_candidates(
+        build_input("star.tic_id")
+    ).source_collection
     payload = candidate.model_dump(mode="json")
     replacements = ("snapshot.z-left", "snapshot.a-right")
-    for member, replacement in zip(payload["members"], replacements):
+    for member, replacement in zip(payload["crossmatch_sources"], replacements):
         member["source_snapshot_id"] = replacement
         member["source_snapshot"]["snapshot_id"] = replacement
         for reference in member["raw_record_references"]:
@@ -535,19 +544,29 @@ def test_source_collection_members_survive_reversed_snapshot_sort_order() -> Non
 
     reparsed = SourceCollectionArtifactCandidate.model_validate(payload)
 
-    assert tuple(member.side.value for member in reparsed.members) == ("left", "right")
-    assert tuple(member.source_snapshot_id for member in reparsed.members) == replacements
+    assert tuple(member.side.value for member in reparsed.crossmatch_sources) == (
+        "left",
+        "right",
+    )
+    assert (
+        tuple(member.source_snapshot_id for member in reparsed.crossmatch_sources)
+        == replacements
+    )
     assert reparsed.source_snapshot_ids == tuple(sorted(replacements))
 
 
 def test_source_collection_rejects_missing_or_duplicate_member() -> None:
-    candidate = build_data_artifact_candidates(build_input("star.tic_id")).source_collection
+    candidate = build_data_artifact_candidates(
+        build_input("star.tic_id")
+    ).source_collection
     for members in (
-        candidate.members[:1],
-        (candidate.members[0], candidate.members[0]),
+        candidate.crossmatch_sources[:1],
+        (candidate.crossmatch_sources[0], candidate.crossmatch_sources[0]),
     ):
         payload = candidate.model_dump(mode="json")
-        payload["members"] = [item.model_dump(mode="json") for item in members]
+        payload["crossmatch_sources"] = [
+            item.model_dump(mode="json") for item in members
+        ]
         payload["source_snapshot_ids"] = sorted(
             {item.source_snapshot_id for item in members}
         )
@@ -579,8 +598,8 @@ def test_build_result_json_reparse_cannot_recreate_bundle_seals() -> None:
 def test_build_result_rejects_source_collection_missing_used_raw_record() -> None:
     result = build_data_artifact_candidates(build_input("star.tic_id"))
     collection_payload = result.source_collection.model_dump(mode="json")
-    collection_payload["members"][0]["raw_record_references"] = []
-    _refresh_raw_record_registry(collection_payload["members"][0])
+    collection_payload["crossmatch_sources"][0]["raw_record_references"] = []
+    _refresh_raw_record_registry(collection_payload["crossmatch_sources"][0])
     collection = SourceCollectionArtifactCandidate.model_validate(
         _rehash_candidate_payload(collection_payload)
     )
@@ -594,9 +613,11 @@ def test_build_result_rejects_source_collection_missing_used_raw_record() -> Non
 
 @pytest.mark.parametrize("tamper", ("row_key", "record_hash"))
 def test_source_collection_rejects_raw_record_reference_tamper(tamper: str) -> None:
-    candidate = build_data_artifact_candidates(build_input("star.tic_id")).source_collection
+    candidate = build_data_artifact_candidates(
+        build_input("star.tic_id")
+    ).source_collection
     payload = candidate.model_dump(mode="json")
-    reference = payload["members"][0]["raw_record_references"][0]
+    reference = payload["crossmatch_sources"][0]["raw_record_references"][0]
     if tamper == "row_key":
         reference["row_key"][0][1] = f"{reference['row_key'][0][1]}-tampered"
     else:
@@ -623,7 +644,9 @@ def test_dataset_rejects_orphan_and_missing_conflict_references() -> None:
     missing_payload = candidate.model_dump(mode="json")
     row = next(item for item in missing_payload["rows"] if item["conflict_ids"])
     row["conflict_ids"] = []
-    conflicted_outcome = next(item for item in row["fields"] if item.get("conflict_ids"))
+    conflicted_outcome = next(
+        item for item in row["fields"] if item.get("conflict_ids")
+    )
     conflicted_outcome["conflict_ids"] = []
     _rehash_dataset_tree(missing_payload)
     with pytest.raises(ValidationError, match="selection status|conflict registry"):
@@ -674,7 +697,7 @@ def _numeric_values(*values: str):
     return tuple(
         SimpleNamespace(
             source_value_id=f"source.{index}",
-            source_id=f"source-{index}",
+            provenance=SimpleNamespace(kind="structured", source_id=f"source-{index}"),
             canonical_value=value,
         )
         for index, value in enumerate(values)
@@ -726,8 +749,14 @@ def test_numeric_collection_tolerance_semantics(
     assert bool(conflicts) is has_conflict
     assert bool(reversed_conflicts) is has_conflict
     if conflicts:
-        assert conflicts[0].absolute_difference == reversed_conflicts[0].absolute_difference
-        assert conflicts[0].relative_difference == reversed_conflicts[0].relative_difference
+        assert (
+            conflicts[0].absolute_difference
+            == reversed_conflicts[0].absolute_difference
+        )
+        assert (
+            conflicts[0].relative_difference
+            == reversed_conflicts[0].relative_difference
+        )
 
 
 @pytest.mark.parametrize(

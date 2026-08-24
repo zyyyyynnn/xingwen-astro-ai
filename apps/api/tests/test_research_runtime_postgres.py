@@ -199,7 +199,10 @@ def _contract_input() -> dict[str, object]:
     return {
         "research_goal": "Integrate exoplanet candidates and host-star parameters",
         "target_objects": ["exoplanet_candidate", "host_star"],
-        "data_requirements": {"unit_policy": "canonical"},
+        "data_requirements": {
+            "unit_policy": "canonical",
+            "document_source_policy": "disabled",
+        },
         "requested_fields": ["planet.toi_id", "star.tic_id"],
         "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
         "paper_search_scope": {"year_from": 2015, "max_candidates": 20},
@@ -1193,9 +1196,10 @@ def test_contract_driven_run_plan_rejects_unsupported_output_without_a_run(
     )
     assert rejected.status_code == 409, rejected.text
     assert rejected.json()["code"] == "RUN_PLAN_UNSUPPORTED_OUTPUT"
-    assert client.get(f"/api/projects/{project_id}").json()["data"][
-        "latest_run_id"
-    ] is None
+    assert (
+        client.get(f"/api/projects/{project_id}").json()["data"]["latest_run_id"]
+        is None
+    )
 
 
 def test_create_draft_hides_missing_and_cross_session_projects(
@@ -1371,12 +1375,15 @@ def test_project_reads_include_a_batchable_thread_summary(
         "latest_thread_actor": "assistant",
         "has_unanswered_clarification": True,
     }
-    assert client.get(f"/api/projects/{project_id}").json()["data"][
-        "thread_summary"
-    ] == listed_project["thread_summary"]
+    assert (
+        client.get(f"/api/projects/{project_id}").json()["data"]["thread_summary"]
+        == listed_project["thread_summary"]
+    )
 
     other_project = next(
-        item for item in listing.json()["data"] if item["id"] == other.json()["data"]["id"]
+        item
+        for item in listing.json()["data"]
+        if item["id"] == other.json()["data"]["id"]
     )
     assert other_project["thread_summary"] == {
         "has_thread_entries": False,

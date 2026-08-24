@@ -195,7 +195,9 @@ def build_literature_graph_fixture(
         LiteratureRelationStatus.accepted,
         LiteratureRelationStatus.candidate,
     }:
-        raise ValueError("fixture requires a LiteratureRelation Pipeline publishable relation status")
+        raise ValueError(
+            "fixture requires a LiteratureRelation Pipeline publishable relation status"
+        )
 
     benchmark = load_frozen_benchmark()
     claim_inputs = _uuid_ready_claim_inputs(benchmark)
@@ -245,7 +247,10 @@ def build_literature_graph_fixture(
             model_response=json.dumps(
                 {
                     "schema_version": "1.0.0",
-                    "relations": [literature_relation_fixture.payload, shared_fixture.payload],
+                    "relations": [
+                        literature_relation_fixture.payload,
+                        shared_fixture.payload,
+                    ],
                 },
                 ensure_ascii=False,
                 sort_keys=True,
@@ -263,12 +268,16 @@ def build_literature_graph_fixture(
         admission = _admit(fixture=literature_relation_fixture)
     candidate = admission.publisher_candidate
     if candidate is None:
-        raise AssertionError("selected real LiteratureRelation Pipeline case did not publish a candidate")
+        raise AssertionError(
+            "selected real LiteratureRelation Pipeline case did not publish a candidate"
+        )
     selected = tuple(
         item for item in candidate.relations if item.status is relation_status
     )
     if len(selected) != 1:
-        raise AssertionError("real LiteratureRelation Pipeline fixture relation status drifted")
+        raise AssertionError(
+            "real LiteratureRelation Pipeline fixture relation status drifted"
+        )
     relation = selected[0]
 
     relation_version_id = stable_uuid(
@@ -469,7 +478,9 @@ def _quality_projection(
     )
     projection = admitted_candidate.quality_projection
     if projection is None:
-        raise AssertionError("passing Data Quality Evaluation admission did not expose its projection")
+        raise AssertionError(
+            "passing Data Quality Evaluation admission did not expose its projection"
+        )
     return projection
 
 
@@ -528,7 +539,8 @@ def _data_source_snapshot_bindings(
     candidate: DatasetArtifactCandidate,
 ) -> tuple[PersistedSourceSnapshotBinding, ...]:
     values_by_snapshot = {
-        value.source_snapshot_id: value for value in candidate.source_values
+        value.provenance.pipeline_source_snapshot_id: value
+        for value in candidate.source_values
     }
     bindings = []
     for pipeline_snapshot_id in candidate.source_snapshot_ids:
@@ -538,13 +550,13 @@ def _data_source_snapshot_bindings(
                 pipeline_source_snapshot_id=pipeline_snapshot_id,
                 source_snapshot=SourceSnapshotDetail(
                     id=stable_uuid(f"source-snapshot:data:{pipeline_snapshot_id}"),
-                    source_id=source_value.source_id,
+                    source_id=source_value.provenance.source_id,
                     source_type="database",
                     retrieved_at=NOW,
                     query={"fixture": pipeline_snapshot_id},
-                    query_hash=source_value.query_hash,
+                    query_hash=source_value.provenance.query_hash,
                     source_version_or_etag="fixture-etag",
-                    content_hash=source_value.source_snapshot_content_hash,
+                    content_hash=source_value.provenance.pipeline_source_snapshot_content_hash,
                     license_note="Frozen Data Artifact/Data Quality Evaluation fixture provenance",
                     request_metadata={"data_level": "fixture"},
                 ),
@@ -575,8 +587,8 @@ def _data_evidence_bindings(
         if evidence_id in transformations:
             transformation = transformations[evidence_id]
             pipeline_content_hash = transformation.content_hash
-            pipeline_snapshot_id = transformation.locator.source_snapshot_id
-            locator = transformation.locator.model_dump(mode="json")
+            pipeline_snapshot_id = transformation.provenance.pipeline_source_snapshot_id
+            locator = transformation.provenance.model_dump(mode="json")
             target_type = "canonical_field"
             target_id = transformation.canonical_field_id
         else:
@@ -592,9 +604,7 @@ def _data_evidence_bindings(
             }
             target_type = "crossmatch"
             target_id = item.evidence_id
-        persisted_id = stable_uuid(
-            f"evidence:{candidate_kind}:{evidence_id}"
-        )
+        persisted_id = stable_uuid(f"evidence:{candidate_kind}:{evidence_id}")
         bindings.append(
             PersistedEvidenceBinding(
                 pipeline_evidence_id=evidence_id,
@@ -640,9 +650,9 @@ def _uuid_ready_claim_inputs(benchmark: object) -> dict[str, object]:
         summary_version_id = stable_uuid(
             f"artifact-version:paper-summary:{old_summary_version_id}"
         )
-        content_payload["input_versions"][
-            "paper_summary_artifact_version_id"
-        ] = summary_version_id
+        content_payload["input_versions"]["paper_summary_artifact_version_id"] = (
+            summary_version_id
+        )
         content_payload["producer"]["input_versions"][
             "paper_summary_artifact_version_id"
         ] = summary_version_id

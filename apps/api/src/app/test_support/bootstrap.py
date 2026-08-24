@@ -50,6 +50,7 @@ from app.schemas.data_artifacts import (
     ManifestPins,
     compute_data_artifact_input_hash,
 )
+from app.schemas.core import DataRequirements, DocumentSourcePolicy
 from app.schemas.data_quality import (
     DataQualityEvaluationInput,
     DataQualityEvaluationResult,
@@ -262,6 +263,11 @@ def _build_fixture_data_input(
     mapping_rule_set = load_mapping_rule_set()
     conversion_catalog = load_unit_conversion_catalog()
     payload = {
+        "data_requirements": {
+            "unit_policy": "canonical",
+            "document_source_policy": "disabled",
+        },
+        "document_observations": (),
         "manifest_pins": pins.model_dump(mode="json"),
         "requested_fields": requested_fields,
         "left_acquisition": crossmatch_input.left.model_dump(mode="json"),
@@ -273,6 +279,10 @@ def _build_fixture_data_input(
         "quality_constraints_reference": "research_contract.quality_constraints.fixture",
     }
     unhashed = DataArtifactBuildInput.model_construct(
+        data_requirements=DataRequirements(
+            document_source_policy=DocumentSourcePolicy.disabled
+        ),
+        document_observations=(),
         manifest_pins=pins,
         requested_fields=requested_fields,
         left_acquisition=crossmatch_input.left,
@@ -341,7 +351,7 @@ def _publication_bindings(
         if transformation is not None:
             target_type = "canonical_field"
             target_id = transformation.canonical_field_id
-            pipeline_snapshot_id = transformation.locator.source_snapshot_id
+            pipeline_snapshot_id = transformation.provenance.pipeline_source_snapshot_id
         else:
             evidence = crossmatch_evidence.get(pipeline_id)
             if evidence is None:

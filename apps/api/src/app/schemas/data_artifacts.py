@@ -28,6 +28,11 @@ from .data_artifact_seal import (
     DataArtifactPublicationSeal,
     data_artifact_candidate_is_sealed,
 )
+from .data_provenance import (
+    DataValueProvenance,
+)
+from .document_observation import ScientificDocumentObservation
+from .core import DataRequirements
 from .crossmatch import (
     CrossmatchEvidence,
     CrossmatchResult,
@@ -330,19 +335,6 @@ class DataArtifactProducer(BaseModel):
     conversion_catalog_content_hash: ContentHash
 
 
-class SourceCellLocator(BaseModel):
-    model_config = MODEL_CONFIG
-
-    side: CrossmatchSide
-    source_snapshot_id: Identifier
-    source_snapshot_content_hash: ContentHash
-    source_id: Identifier
-    query_hash: ContentHash
-    row_key: tuple[tuple[NonEmptyString, NonEmptyString], ...] = Field(min_length=1)
-    raw_record_content_hash: ContentHash
-    raw_field: NonEmptyString
-
-
 class UncertaintyValue(BaseModel):
     model_config = MODEL_CONFIG
 
@@ -351,8 +343,8 @@ class UncertaintyValue(BaseModel):
     source_negative: Decimal | None = None
     canonical_positive: Decimal | None = None
     canonical_negative: Decimal | None = None
-    positive_locator: SourceCellLocator | None = None
-    negative_locator: SourceCellLocator | None = None
+    positive_provenance: DataValueProvenance | None = None
+    negative_provenance: DataValueProvenance | None = None
 
     @model_validator(mode="after")
     def validate_status(self) -> Self:
@@ -371,8 +363,8 @@ class UncertaintyValue(BaseModel):
             if (
                 source_count
                 or canonical_count
-                or self.positive_locator
-                or self.negative_locator
+                or self.positive_provenance
+                or self.negative_provenance
             ):
                 raise ValueError("not-applicable uncertainty cannot carry values")
         elif self.status is not expected or source_count != canonical_count:
@@ -385,14 +377,14 @@ class LimitValue(BaseModel):
 
     status: LimitStatus
     raw_flag: int | None = None
-    locator: SourceCellLocator | None = None
+    provenance: DataValueProvenance | None = None
 
     @model_validator(mode="after")
     def validate_status(self) -> Self:
         if self.status is LimitStatus.not_applicable:
-            if self.raw_flag is not None or self.locator is not None:
+            if self.raw_flag is not None or self.provenance is not None:
                 raise ValueError("not-applicable limit cannot carry a flag")
-        elif self.raw_flag is None or self.locator is None:
+        elif self.raw_flag is None or self.provenance is None:
             raise ValueError("applicable limit requires raw flag and locator")
         return self
 
@@ -402,14 +394,6 @@ class SourceValueCandidate(BaseModel):
 
     source_value_id: Identifier
     canonical_field_id: CanonicalFieldId
-    source_id: Identifier
-    source_table: NonEmptyString
-    source_snapshot_id: Identifier
-    source_snapshot_content_hash: ContentHash
-    query_hash: ContentHash
-    raw_record_row_key: tuple[tuple[NonEmptyString, NonEmptyString], ...]
-    raw_record_content_hash: ContentHash
-    raw_field: NonEmptyString
     raw_value: RawScalar | None = None
     source_unit: Identifier
     canonical_value: str | None = None
@@ -419,14 +403,10 @@ class SourceValueCandidate(BaseModel):
     transformation_rule_version: SemanticVersion
     conversion_rule_id: Identifier
     conversion_rule_version: SemanticVersion
-    reference_field: NonEmptyString | None = None
-    reference_value: RawScalar | None = None
-    provenance_field: NonEmptyString | None = None
-    provenance_value: RawScalar | None = None
     uncertainty: UncertaintyValue
     limit: LimitValue
     null_status: NullReason | None = None
-    evidence_locator: SourceCellLocator
+    provenance: DataValueProvenance
     content_hash: ContentHash
 
     @model_validator(mode="after")
@@ -437,53 +417,17 @@ class SourceValueCandidate(BaseModel):
             )
         if self.raw_value is None and self.canonical_value is not None:
             raise ValueError("null source value cannot carry a canonical value")
-        expected_record = (
-            self.source_id,
-            self.source_snapshot_id,
-            self.source_snapshot_content_hash,
-            self.query_hash,
-            self.raw_record_row_key,
-            self.raw_record_content_hash,
-        )
-        locator_record = (
-            self.evidence_locator.source_id,
-            self.evidence_locator.source_snapshot_id,
-            self.evidence_locator.source_snapshot_content_hash,
-            self.evidence_locator.query_hash,
-            self.evidence_locator.row_key,
-            self.evidence_locator.raw_record_content_hash,
-        )
-        if (
-            locator_record != expected_record
-            or self.evidence_locator.raw_field != self.raw_field
-        ):
-            raise ValueError("source value locator disagrees with its raw record")
-        companion_locators = tuple(
-            locator
+        companion_provenance = tuple(
+            provenance
             for locator in (
-                self.uncertainty.positive_locator,
-                self.uncertainty.negative_locator,
-                self.limit.locator,
+                self.uncertainty.positive_provenance,
+                self.uncertainty.negative_provenance,
+                self.limit.provenance,
             )
-            if locator is not None
+            if (provenance := locator) is not None
         )
-        if any(
-            (
-                locator.source_id,
-                locator.source_snapshot_id,
-                locator.source_snapshot_content_hash,
-                locator.query_hash,
-                locator.row_key,
-                locator.raw_record_content_hash,
-            )
-            != expected_record
-            for locator in companion_locators
-        ):
-            raise ValueError("source value companion locator refers to another record")
-        if self.reference_field is None and self.reference_value is not None:
-            raise ValueError("source reference value requires a reference field")
-        if self.provenance_field is None and self.provenance_value is not None:
-            raise ValueError("source provenance value requires a provenance field")
+        if any(item.kind != self.provenance.kind for item in companion_provenance):
+            raise ValueError("source value companion provenance kind drifted")
         _validate_content_hash(self)
         return self
 
@@ -496,7 +440,7 @@ class TransformationEvidence(BaseModel):
     dataset_row_id: Identifier
     canonical_field_id: CanonicalFieldId
     source_value_id: Identifier
-    locator: SourceCellLocator
+    provenance: DataValueProvenance
     raw_value: RawScalar | None = None
     source_unit: Identifier
     canonical_value: str | None = None
@@ -509,14 +453,8 @@ class TransformationEvidence(BaseModel):
     transformation_rule_version: SemanticVersion
     uncertainty: UncertaintyValue
     limit: LimitValue
-    uncertainty_locators: tuple[SourceCellLocator, ...]
-    limit_locator: SourceCellLocator | None = None
-    reference_field: NonEmptyString | None = None
-    reference_value: RawScalar | None = None
-    reference_locator: SourceCellLocator | None = None
-    provenance_field: NonEmptyString | None = None
-    provenance_value: RawScalar | None = None
-    provenance_locator: SourceCellLocator | None = None
+    uncertainty_provenance: tuple[DataValueProvenance, ...]
+    limit_provenance: DataValueProvenance | None = None
     crossmatch_result_id: Identifier
     crossmatch_result_content_hash: ContentHash
     crossmatch_logical_key: ContentHash
@@ -527,10 +465,6 @@ class TransformationEvidence(BaseModel):
 
     @model_validator(mode="after")
     def validate_hash(self) -> Self:
-        if len(self.uncertainty_locators) != len(set(self.uncertainty_locators)):
-            raise ValueError(
-                "transformation Evidence contains duplicate uncertainty locator"
-            )
         if len(self.crossmatch_evidence_ids) != len(set(self.crossmatch_evidence_ids)):
             raise ValueError(
                 "transformation Evidence contains duplicate crossmatch Evidence"
@@ -754,7 +688,7 @@ class _PublisherReadyCandidate(BaseModel):
 
 class DatasetArtifactCandidate(_PublisherReadyCandidate):
     kind: Literal["dataset"] = "dataset"
-    schema_version: Literal["1.0.0"] = "1.0.0"
+    schema_version: Literal["2.0.0"] = "2.0.0"
     candidate_id: Identifier
     manifest_pins: ManifestPins
     crossmatch_result_id: Identifier
@@ -810,8 +744,8 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
         ):
             if len(values) != len(set(values)):
                 raise ValueError(f"Dataset contains duplicate {label} reference")
-        if len(self.source_snapshot_ids) != 2:
-            raise ValueError("Dataset requires the two crossmatch SourceSnapshots")
+        if len(self.crossmatch_source_snapshot_ids) != 2:
+            raise ValueError("Dataset requires exactly two crossmatch SourceSnapshots")
         if (
             self.source_snapshot_ids != tuple(sorted(self.source_snapshot_ids))
             or self.evidence_ids != tuple(sorted(self.evidence_ids))
@@ -846,8 +780,14 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                 "transformation Evidence refers to undeclared crossmatch Evidence"
             )
         used_snapshot_ids = {
-            *[item.source_snapshot_id for item in self.source_values],
-            *[item.locator.source_snapshot_id for item in self.transformation_evidence],
+            *[
+                item.provenance.pipeline_source_snapshot_id
+                for item in self.source_values
+            ],
+            *[
+                item.provenance.pipeline_source_snapshot_id
+                for item in self.transformation_evidence
+            ],
             *[
                 snapshot_id
                 for row in self.rows
@@ -855,7 +795,9 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
             ],
         }
         if (
-            self.source_snapshot_ids != self.crossmatch_source_snapshot_ids
+            len(self.crossmatch_source_snapshot_ids) != 2
+            or not set(self.crossmatch_source_snapshot_ids)
+            <= set(self.source_snapshot_ids)
             or not used_snapshot_ids <= set(self.source_snapshot_ids)
         ):
             raise ValueError(
@@ -870,7 +812,7 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                 )
             expected_evidence_binding = (
                 source_value.canonical_field_id,
-                source_value.evidence_locator,
+                source_value.provenance,
                 source_value.raw_value,
                 source_value.source_unit,
                 source_value.canonical_value,
@@ -880,14 +822,10 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                 source_value.transformation_rule_version,
                 source_value.uncertainty,
                 source_value.limit,
-                source_value.reference_field,
-                source_value.reference_value,
-                source_value.provenance_field,
-                source_value.provenance_value,
             )
             actual_evidence_binding = (
                 item.canonical_field_id,
-                item.locator,
+                item.provenance,
                 item.raw_value,
                 item.source_unit,
                 item.canonical_value,
@@ -897,45 +835,24 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                 item.transformation_rule_version,
                 item.uncertainty,
                 item.limit,
-                item.reference_field,
-                item.reference_value,
-                item.provenance_field,
-                item.provenance_value,
             )
             if actual_evidence_binding != expected_evidence_binding:
                 raise ValueError(
                     "transformation Evidence values disagree with source value"
                 )
-            if item.uncertainty_locators != tuple(
-                locator
-                for locator in (
-                    source_value.uncertainty.positive_locator,
-                    source_value.uncertainty.negative_locator,
+            if item.uncertainty_provenance != tuple(
+                provenance
+                for provenance in (
+                    source_value.uncertainty.positive_provenance,
+                    source_value.uncertainty.negative_provenance,
                 )
-                if locator is not None
+                if provenance is not None
             ):
-                raise ValueError("transformation Evidence uncertainty locators drifted")
-            if item.limit_locator != source_value.limit.locator:
-                raise ValueError("transformation Evidence limit locator drifted")
-            expected_reference_locator = (
-                None
-                if source_value.reference_field is None
-                else source_value.evidence_locator.model_copy(
-                    update={"raw_field": source_value.reference_field}
+                raise ValueError(
+                    "transformation Evidence uncertainty provenance drifted"
                 )
-            )
-            expected_provenance_locator = (
-                None
-                if source_value.provenance_field is None
-                else source_value.evidence_locator.model_copy(
-                    update={"raw_field": source_value.provenance_field}
-                )
-            )
-            if (
-                item.reference_locator != expected_reference_locator
-                or item.provenance_locator != expected_provenance_locator
-            ):
-                raise ValueError("transformation Evidence companion locators drifted")
+            if item.limit_provenance != source_value.limit.provenance:
+                raise ValueError("transformation Evidence limit provenance drifted")
             if (
                 item.conversion_catalog_id != self.conversion_catalog_id
                 or item.conversion_catalog_version != self.conversion_catalog_version
@@ -1031,12 +948,6 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                         raise ValueError(
                             "mapped outcome disagrees with its selection record"
                         )
-                    if selection.reason != (
-                        "highest declared source and alias priority; every candidate is retained"
-                    ):
-                        raise ValueError(
-                            "mapped outcome selection reason is not frozen"
-                        )
                     selected = source_values[outcome.selected_source_value_id]
                     if (
                         selected.canonical_value != outcome.canonical_value
@@ -1087,15 +998,7 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                     for item in outcome_evidence
                 ):
                     raise ValueError("transformation Evidence selection status drifted")
-                expected_reason = (
-                    f"crossmatch alignment remains {row.alignment_status.value}; no field winner is selected"
-                    if isinstance(outcome, UnresolvedCanonicalValue)
-                    else "highest declared source and alias priority; every candidate is retained"
-                )
-                if any(
-                    item.selection_reason != expected_reason
-                    for item in outcome_evidence
-                ):
+                if len({item.selection_reason for item in outcome_evidence}) > 1:
                     raise ValueError("transformation Evidence selection reason drifted")
                 for conflict_id in getattr(outcome, "conflict_ids", ()):
                     conflict = conflicts[conflict_id]
@@ -1118,7 +1021,9 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                         "same_source"
                         if len(
                             {
-                                item.source_id
+                                item.provenance.source_id
+                                if item.provenance.kind == "structured"
+                                else item.provenance.research_input_id
                                 for item in outcome_source_values
                                 if item.canonical_value is not None
                             }
@@ -1213,7 +1118,7 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
 
 class FieldDictionaryArtifactCandidate(_PublisherReadyCandidate):
     kind: Literal["field_dictionary"] = "field_dictionary"
-    schema_version: Literal["1.0.0"] = "1.0.0"
+    schema_version: Literal["2.0.0"] = "2.0.0"
     candidate_id: Identifier
     manifest_pins: ManifestPins
     requested_fields: tuple[CanonicalFieldId, ...]
@@ -1246,9 +1151,9 @@ class FieldDictionaryArtifactCandidate(_PublisherReadyCandidate):
                 raise ValueError(
                     f"FieldDictionary contains duplicate {label} reference"
                 )
-        if len(self.source_snapshot_ids) != 2:
+        if len(self.source_snapshot_ids) < 2:
             raise ValueError(
-                "FieldDictionary requires the two crossmatch SourceSnapshots"
+                "FieldDictionary requires at least the two crossmatch SourceSnapshots"
             )
         if self.source_snapshot_ids != tuple(
             sorted(self.source_snapshot_ids)
@@ -1278,7 +1183,7 @@ def compute_raw_record_reference_registry_hash(
     )
 
 
-class SourceCollectionMember(BaseModel):
+class CrossmatchSourceCollectionMember(BaseModel):
     model_config = MODEL_CONFIG
 
     side: CrossmatchSide
@@ -1364,12 +1269,13 @@ class SourceCollectionMember(BaseModel):
 
 class SourceCollectionArtifactCandidate(_PublisherReadyCandidate):
     kind: Literal["source_collection"] = "source_collection"
-    schema_version: Literal["1.0.0"] = "1.0.0"
+    schema_version: Literal["2.0.0"] = "2.0.0"
     candidate_id: Identifier
     manifest_pins: ManifestPins
     source_snapshot_ids: tuple[Identifier, ...]
     evidence_ids: tuple[Identifier, ...]
-    members: tuple[SourceCollectionMember, ...]
+    crossmatch_sources: tuple[CrossmatchSourceCollectionMember, ...]
+    supplemental_document_sources: tuple["SupplementalDocumentSource", ...]
     source_value_ids: tuple[Identifier, ...]
     crossmatch_result_id: Identifier
     crossmatch_content_hash: ContentHash
@@ -1390,20 +1296,28 @@ class SourceCollectionArtifactCandidate(_PublisherReadyCandidate):
 
     @model_validator(mode="after")
     def validate_candidate(self) -> Self:
-        if tuple(member.side for member in self.members) != (
+        if tuple(member.side for member in self.crossmatch_sources) != (
             CrossmatchSide.left,
             CrossmatchSide.right,
         ):
             raise ValueError(
                 "SourceCollection requires one canonical left/right member"
             )
-        source_ids = tuple(member.source_id for member in self.members)
-        snapshot_ids = tuple(member.source_snapshot_id for member in self.members)
-        if len(set(source_ids)) != 2 or len(set(snapshot_ids)) != 2:
+        source_ids = tuple(member.source_id for member in self.crossmatch_sources)
+        crossmatch_snapshot_ids = tuple(
+            member.source_snapshot_id for member in self.crossmatch_sources
+        )
+        document_snapshot_ids = tuple(
+            member.pipeline_source_snapshot_id
+            for member in self.supplemental_document_sources
+        )
+        if len(set(source_ids)) != 2 or len(set(crossmatch_snapshot_ids)) != 2:
             raise ValueError(
                 "SourceCollection requires two independent sources and snapshots"
             )
-        if self.source_snapshot_ids != tuple(sorted(snapshot_ids)):
+        if self.source_snapshot_ids != tuple(
+            sorted({*crossmatch_snapshot_ids, *document_snapshot_ids})
+        ):
             raise ValueError(
                 "SourceCollection snapshot projection disagrees with members"
             )
@@ -1441,11 +1355,34 @@ class SourceCollectionArtifactCandidate(_PublisherReadyCandidate):
         return self
 
 
+class SupplementalDocumentSource(BaseModel):
+    model_config = MODEL_CONFIG
+
+    research_input_id: NonEmptyString
+    research_input_content_hash: ContentHash
+    document_parse_id: NonEmptyString
+    persisted_source_snapshot_id: NonEmptyString
+    pipeline_source_snapshot_id: Identifier
+    pipeline_source_snapshot_content_hash: ContentHash
+    parse_quality: Literal["accepted", "partial"]
+    observation_ids: tuple[Identifier, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_source(self) -> Self:
+        if self.observation_ids != tuple(sorted(set(self.observation_ids))):
+            raise ValueError(
+                "supplemental document observations must be unique and ordered"
+            )
+        return self
+
+
 class DataArtifactBuildInput(BaseModel):
     model_config = MODEL_CONFIG
 
     manifest_pins: ManifestPins
+    data_requirements: DataRequirements
     requested_fields: tuple[CanonicalFieldId, ...] = Field(min_length=1)
+    document_observations: tuple[ScientificDocumentObservation, ...]
     left_acquisition: CrossmatchSourceInput
     right_acquisition: CrossmatchSourceInput
     crossmatch_result: CrossmatchResult
@@ -1460,10 +1397,33 @@ class DataArtifactBuildInput(BaseModel):
     def canonicalize_requested_fields(cls, value: tuple[str, ...]) -> tuple[str, ...]:
         return tuple(sorted(value))
 
+    @field_validator("document_observations")
+    @classmethod
+    def canonicalize_document_observations(
+        cls, value: tuple[ScientificDocumentObservation, ...]
+    ) -> tuple[ScientificDocumentObservation, ...]:
+        return tuple(
+            sorted(
+                value,
+                key=lambda item: (
+                    item.canonical_row_id,
+                    item.canonical_field_id,
+                    item.observation_id,
+                ),
+            )
+        )
+
     @model_validator(mode="after")
     def validate_input(self) -> Self:
         if len(self.requested_fields) != len(set(self.requested_fields)):
             raise ValueError("requested fields must be unique")
+        observation_ids = [item.observation_id for item in self.document_observations]
+        if len(observation_ids) != len(set(observation_ids)):
+            raise ValueError("document observations must be unique")
+        if not {item.canonical_field_id for item in self.document_observations} <= set(
+            self.requested_fields
+        ):
+            raise ValueError("document observations must target requested fields")
         result = self.crossmatch_result
         pins = self.manifest_pins
         expected_pins = (
@@ -1552,7 +1512,7 @@ class DataArtifactBuildResult(BaseModel):
     model_config = MODEL_CONFIG
     __artifact_publication_requires_admission__: ClassVar[bool] = True
 
-    schema_version: Literal["1.0.0"] = "1.0.0"
+    schema_version: Literal["2.0.0"] = "2.0.0"
     dataset: DatasetArtifactCandidate
     field_dictionary: FieldDictionaryArtifactCandidate
     source_collection: SourceCollectionArtifactCandidate
@@ -1613,19 +1573,20 @@ class DataArtifactBuildResult(BaseModel):
                 reference.row_key,
                 reference.raw_record_content_hash,
             )
-            for member in self.source_collection.members
+            for member in self.source_collection.crossmatch_sources
             for reference in member.raw_record_references
         }
         dataset_records = {
             (
-                value.source_id,
-                value.source_snapshot_id,
-                value.source_snapshot_content_hash,
-                value.query_hash,
-                value.raw_record_row_key,
-                value.raw_record_content_hash,
+                value.provenance.source_id,
+                value.provenance.pipeline_source_snapshot_id,
+                value.provenance.pipeline_source_snapshot_content_hash,
+                value.provenance.query_hash,
+                value.provenance.row_key,
+                value.provenance.raw_record_content_hash,
             )
             for value in self.dataset.source_values
+            if value.provenance.kind == "structured"
         }
         if not dataset_records <= collection_records:
             raise ValueError("Dataset uses raw records absent from SourceCollection")
@@ -1669,6 +1630,15 @@ def compute_data_artifact_input_hash(
     payload.pop("input_hash", None)
     if "requested_fields" in payload:
         payload["requested_fields"] = sorted(payload["requested_fields"])
+    if "document_observations" in payload:
+        payload["document_observations"] = sorted(
+            payload["document_observations"],
+            key=lambda item: (
+                item["canonical_row_id"],
+                item["canonical_field_id"],
+                item["observation_id"],
+            ),
+        )
     return compute_canonical_payload_hash(payload)
 
 
@@ -1784,7 +1754,8 @@ __all__ = [
     "MappingRuleSet",
     "RawSourceRecordReference",
     "SourceCollectionArtifactCandidate",
-    "SourceCollectionMember",
+    "CrossmatchSourceCollectionMember",
+    "SupplementalDocumentSource",
     "UnitConversionCatalog",
     "UnitConversionImplementation",
     "UnresolvedCanonicalValue",

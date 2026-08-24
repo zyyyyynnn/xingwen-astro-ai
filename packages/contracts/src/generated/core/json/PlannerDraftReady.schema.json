@@ -19,13 +19,27 @@
     "DataRequirements": {
       "additionalProperties": false,
       "properties": {
+        "document_source_policy": {
+          "$ref": "#/$defs/DocumentSourcePolicy"
+        },
         "unit_policy": {
           "$ref": "#/$defs/UnitPolicy",
           "default": "canonical"
         }
       },
+      "required": [
+        "document_source_policy"
+      ],
       "title": "DataRequirements",
       "type": "object"
+    },
+    "DocumentSourcePolicy": {
+      "enum": [
+        "disabled",
+        "research_input"
+      ],
+      "title": "DocumentSourcePolicy",
+      "type": "string"
     },
     "EvidenceRequirements": {
       "additionalProperties": false,

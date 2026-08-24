@@ -57,7 +57,7 @@ def test_quality_metric_rejects_empty_determinate_ratio() -> None:
 def test_rejected_quality_outcome_carries_no_fake_metrics() -> None:
     payload = {
         "kind": "data_quality_rejected",
-        "schema_version": "2.0.0",
+        "schema_version": "3.0.0",
         "failure_stage": "input_validation",
         "error_code": QualityErrorCode.QUALITY_INPUT_INVALID,
         "message": "quality input is invalid",

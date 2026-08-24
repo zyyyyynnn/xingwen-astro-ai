@@ -5,7 +5,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.schemas.data_artifacts import LimitStatus, MappedCanonicalValue, UncertaintyStatus
+from app.schemas.data_artifacts import (
+    LimitStatus,
+    MappedCanonicalValue,
+    UncertaintyStatus,
+)
 from services.data_pipeline.data_artifacts import build_data_artifact_candidates
 from services.data_pipeline.data_artifacts.errors import DataArtifactError
 from services.data_pipeline.data_artifacts.projection import (
@@ -19,9 +23,13 @@ from services.data_pipeline.manifest import load_frozen_manifest_bundle
 from data_artifact_test_support import build_input
 
 
-def test_mapping_uses_entity_alignment_normalized_identity_and_preserves_all_sources() -> None:
+def test_mapping_uses_entity_alignment_normalized_identity_and_preserves_all_sources() -> (
+    None
+):
     result = build_data_artifact_candidates(build_input("star.tic_id"))
-    paired = next(row for row in result.dataset.rows if row.crossmatch_record_type == "paired")
+    paired = next(
+        row for row in result.dataset.rows if row.crossmatch_record_type == "paired"
+    )
     outcome = paired.fields[0]
 
     assert isinstance(outcome, MappedCanonicalValue)
@@ -33,15 +41,21 @@ def test_mapping_uses_entity_alignment_normalized_identity_and_preserves_all_sou
         for value in result.dataset.source_values
         if value.source_value_id in outcome.candidate_source_value_ids
     }
-    assert {value.raw_field for value in retained.values()} == {"tid", "tic_id"}
-    assert {value.source_id for value in retained.values()} == {
+    assert {value.provenance.raw_field for value in retained.values()} == {
+        "tid",
+        "tic_id",
+    }
+    assert {value.provenance.source_id for value in retained.values()} == {
         "nasa_exoplanet_archive.toi",
         "nasa_exoplanet_archive.ps",
     }
-    assert all(value.source_id != "nasa_exoplanet_archive.pscomppars" for value in retained.values())
+    assert all(
+        value.provenance.source_id != "nasa_exoplanet_archive.pscomppars"
+        for value in retained.values()
+    )
     selected = retained[outcome.selected_source_value_id]
     assert selected.source_priority == 1
-    assert selected.source_id == "nasa_exoplanet_archive.toi"
+    assert selected.provenance.source_id == "nasa_exoplanet_archive.toi"
 
 
 def test_requested_field_order_is_canonical_and_hash_invariant() -> None:
@@ -54,13 +68,21 @@ def test_requested_field_order_is_canonical_and_hash_invariant() -> None:
     assert first_input.input_hash == second_input.input_hash
     assert first == second
     assert first.dataset.requested_fields == ("star.tic_id", "star.name")
-    assert any(field.status == "declared_null" for row in first.dataset.rows for field in row.fields)
+    assert any(
+        field.status == "declared_null"
+        for row in first.dataset.rows
+        for field in row.fields
+    )
 
 
 def _radius_context():
     input_value = build_input("star.tic_id")
     bundle = load_frozen_manifest_bundle()
-    field = next(item for item in bundle.field_manifest.fields if item.field_id == "planet.radius")
+    field = next(
+        item
+        for item in bundle.field_manifest.fields
+        if item.field_id == "planet.radius"
+    )
     alias = next(
         item
         for item in field.source_aliases
@@ -76,9 +98,7 @@ def _radius_context():
 
 def test_asymmetric_uncertainty_preserves_signs_null_locator_and_conversion() -> None:
     input_value, bundle, field, alias, candidate = _radius_context()
-    record = SimpleNamespace(
-        payload={"pl_radjerr1": "0.1", "pl_radjerr2": None}
-    )
+    record = SimpleNamespace(payload={"pl_radjerr1": "0.1", "pl_radjerr2": None})
 
     uncertainty = _uncertainty(record, candidate, field, alias, input_value, bundle)
 
@@ -86,8 +106,8 @@ def test_asymmetric_uncertainty_preserves_signs_null_locator_and_conversion() ->
     assert str(uncertainty.source_positive) == "0.1"
     assert uncertainty.source_negative is None
     assert str(uncertainty.canonical_positive) == "1.120898073093868079835687744"
-    assert uncertainty.positive_locator is not None
-    assert uncertainty.negative_locator is not None
+    assert uncertainty.positive_provenance is not None
+    assert uncertainty.negative_provenance is not None
 
 
 def test_invalid_uncertainty_fails_with_stable_local_code() -> None:
@@ -103,9 +123,15 @@ def test_invalid_uncertainty_fails_with_stable_local_code() -> None:
 
 @pytest.mark.parametrize(
     ("flag", "expected"),
-    ((0, LimitStatus.measured), (1, LimitStatus.lower_limit), (-1, LimitStatus.upper_limit)),
+    (
+        (0, LimitStatus.measured),
+        (1, LimitStatus.lower_limit),
+        (-1, LimitStatus.upper_limit),
+    ),
 )
-def test_manifest_limit_flags_are_closed_and_preserved(flag: int, expected: LimitStatus) -> None:
+def test_manifest_limit_flags_are_closed_and_preserved(
+    flag: int, expected: LimitStatus
+) -> None:
     _, _, _, alias, candidate = _radius_context()
     record = SimpleNamespace(payload={"pl_radjlim": flag})
 
@@ -113,7 +139,7 @@ def test_manifest_limit_flags_are_closed_and_preserved(flag: int, expected: Limi
 
     assert limit.status is expected
     assert limit.raw_flag == flag
-    assert limit.locator is not None
+    assert limit.provenance is not None
 
 
 def test_unknown_limit_and_limit_without_value_fail_closed() -> None:
@@ -155,7 +181,9 @@ def test_accepted_non_one_to_one_topology_retains_every_member(
     result = build_data_artifact_candidates(
         build_input("star.tic_id", scenario_id=scenario_id)
     )
-    accepted = next(row for row in result.dataset.rows if row.alignment_status == "accepted")
+    accepted = next(
+        row for row in result.dataset.rows if row.alignment_status == "accepted"
+    )
 
     assert len(accepted.source_member_ids) == member_count
 
@@ -164,7 +192,9 @@ def test_identity_conflict_remains_unresolved_without_field_selection() -> None:
     result = build_data_artifact_candidates(
         build_input("star.tic_id", scenario_id="identifier_conflict")
     )
-    conflict = next(row for row in result.dataset.rows if row.alignment_status == "conflict")
+    conflict = next(
+        row for row in result.dataset.rows if row.alignment_status == "conflict"
+    )
 
     assert conflict.fields[0].status == "unresolved"
     conflict_evidence = [
@@ -179,11 +209,15 @@ def test_identity_conflict_remains_unresolved_without_field_selection() -> None:
     )
 
 
-def test_valid_manual_adjudication_accepts_coordinate_pair_without_rerunning_crossmatch() -> None:
+def test_valid_manual_adjudication_accepts_coordinate_pair_without_rerunning_crossmatch() -> (
+    None
+):
     result = build_data_artifact_candidates(
         build_input("system.right_ascension", scenario_id="manual_decision_valid")
     )
-    paired = next(row for row in result.dataset.rows if row.crossmatch_record_type == "paired")
+    paired = next(
+        row for row in result.dataset.rows if row.crossmatch_record_type == "paired"
+    )
 
     assert paired.alignment_status == "accepted"
     assert paired.fields[0].status == "mapped"
@@ -191,11 +225,15 @@ def test_valid_manual_adjudication_accepts_coordinate_pair_without_rerunning_cro
     assert result.dataset.conflicts
 
 
-def test_numeric_cross_source_conflict_selects_display_but_retains_both_values() -> None:
+def test_numeric_cross_source_conflict_selects_display_but_retains_both_values() -> (
+    None
+):
     result = build_data_artifact_candidates(
         build_input("system.right_ascension", scenario_id="manual_decision_valid")
     )
-    paired = next(row for row in result.dataset.rows if row.crossmatch_record_type == "paired")
+    paired = next(
+        row for row in result.dataset.rows if row.crossmatch_record_type == "paired"
+    )
     outcome = paired.fields[0]
 
     assert outcome.status == "mapped"
@@ -206,5 +244,8 @@ def test_numeric_cross_source_conflict_selects_display_but_retains_both_values()
         for value in result.dataset.source_values
         if value.source_value_id in outcome.candidate_source_value_ids
     }
-    assert retained[outcome.selected_source_value_id].source_id == "nasa_exoplanet_archive.toi"
+    assert (
+        retained[outcome.selected_source_value_id].provenance.source_id
+        == "nasa_exoplanet_archive.toi"
+    )
     assert {value.canonical_value for value in retained.values()} == {"10", "10.00025"}

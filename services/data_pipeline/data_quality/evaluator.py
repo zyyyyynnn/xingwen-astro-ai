@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from collections import Counter
-from decimal import Decimal
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
@@ -29,29 +28,30 @@ from app.schemas.data_quality import (
     DataQualityEvaluationResult,
     DataQualityRuleSet,
     DatasetQualityResult,
+    DocumentParseQualityObservation,
     FieldQualityResult,
     QualityArtifactReference,
-    QualityCount,
     QualityEvaluationPlan,
     QualityErrorCode,
     QualityFailureStage,
-    QualityGateStatus,
     QualityInputReferences,
     QualityManifestFieldReference,
     QualityMetricResult,
     QualityMetricScope,
-    QualityProducerReference,
     ResearchContractQualityGate,
     RowQualityResult,
     compute_data_quality_result_id,
     compute_quality_content_hash,
     compute_quality_output_hash,
 )
-from app.schemas.manifest import ManifestBundle, load_manifest_bundle
+from app.schemas.manifest import ManifestBundle
 from services.data_pipeline.data_artifacts.admission import (
     validate_data_artifact_candidates_against_input,
 )
 from services.data_pipeline.manifest import load_frozen_manifest_bundle
+from services.data_pipeline.document_admission import (
+    validate_admitted_document_observation,
+)
 
 from .contract_gate import evaluate_contract_gate
 from .errors import DataQualityError
@@ -143,13 +143,17 @@ def evaluate_data_quality(
         )
 
 
-def _reparse_input(value: DataQualityEvaluationInput | dict[str, Any]) -> DataQualityEvaluationInput:
+def _reparse_input(
+    value: DataQualityEvaluationInput | dict[str, Any],
+) -> DataQualityEvaluationInput:
     try:
         if isinstance(value, BaseModel):
             payload = value.model_dump(mode="json")
         else:
             payload = value
-        encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        encoded = json.dumps(
+            payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
         return DataQualityEvaluationInput.model_validate_json(encoded)
     except Exception as error:
         raise DataQualityError(
@@ -167,13 +171,25 @@ def _validate_input_bindings(
     plan: QualityEvaluationPlan,
 ) -> None:
     data_input = value.data_artifact_input
+    frozen_row_ids = tuple(row.row_id for row in value.dataset_candidate.rows)
+    for observation in data_input.document_observations:
+        validate_admitted_document_observation(
+            observation,
+            frozen_crossmatch_row_ids=frozen_row_ids,
+            case_manifest=manifests.case_manifest,
+            field_manifest=manifests.field_manifest,
+            data_requirements=data_input.data_requirements,
+        )
     candidates = (
         value.dataset_candidate,
         value.field_dictionary_candidate,
         value.source_collection_candidate,
     )
     if compute_data_artifact_input_hash(data_input) != data_input.input_hash:
-        _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
+        _fail(
+            QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH,
+            QualityFailureStage.data_artifact_validation,
+        )
     for candidate in candidates:
         try:
             validate_data_artifact_candidates_against_input(candidate, data_input)
@@ -202,7 +218,10 @@ def _validate_input_bindings(
         data_input.manifest_pins.field_manifest_content_hash,
     )
     if actual_pins != expected_pins:
-        _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
+        _fail(
+            QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH,
+            QualityFailureStage.data_artifact_validation,
+        )
     result = data_input.crossmatch_result
     recomputed_metrics = compute_crossmatch_metrics(
         result.candidates,
@@ -228,24 +247,51 @@ def _validate_candidate_cross_bindings(
     data_input: DataArtifactBuildInput,
 ) -> None:
     dataset, field_dictionary, source_collection = candidates
-    if any(candidate.quality_evaluation_status != "not_evaluated" for candidate in candidates):
-        _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
+    if any(
+        candidate.quality_evaluation_status != "not_evaluated"
+        for candidate in candidates
+    ):
+        _fail(
+            QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH,
+            QualityFailureStage.data_artifact_validation,
+        )
     if tuple(dataset.requested_fields) != tuple(field_dictionary.requested_fields):
-        _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
-    if tuple(column.field for column in dataset.columns) != tuple(field_dictionary.field_definitions):
-        _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
-    if source_collection.source_value_ids != tuple(item.source_value_id for item in dataset.source_values):
-        _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
+        _fail(
+            QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH,
+            QualityFailureStage.data_artifact_validation,
+        )
+    if tuple(column.field for column in dataset.columns) != tuple(
+        field_dictionary.field_definitions
+    ):
+        _fail(
+            QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH,
+            QualityFailureStage.data_artifact_validation,
+        )
+    if source_collection.source_value_ids != tuple(
+        item.source_value_id for item in dataset.source_values
+    ):
+        _fail(
+            QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH,
+            QualityFailureStage.data_artifact_validation,
+        )
     if (
         source_collection.crossmatch_result_id != dataset.crossmatch_result_id
         or source_collection.crossmatch_content_hash != dataset.crossmatch_content_hash
     ):
-        _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
+        _fail(
+            QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH,
+            QualityFailureStage.data_artifact_validation,
+        )
     if any(candidate.input_hash != data_input.input_hash for candidate in candidates):
-        _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
+        _fail(
+            QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH,
+            QualityFailureStage.data_artifact_validation,
+        )
 
 
-def _validate_research_contract(value: DataQualityEvaluationInput, manifests: ManifestBundle) -> None:
+def _validate_research_contract(
+    value: DataQualityEvaluationInput, manifests: ManifestBundle
+) -> None:
     contract = value.research_contract
     dataset = value.dataset_candidate
     try:
@@ -255,8 +301,14 @@ def _validate_research_contract(value: DataQualityEvaluationInput, manifests: Ma
             raise ValueError("Contract requested_fields differ from Dataset projection")
         if contract.data_requirements.unit_policy.value != "canonical":
             raise ValueError("only canonical unit policy is admitted")
+        if contract.data_requirements != value.data_artifact_input.data_requirements:
+            raise ValueError(
+                "Contract document-source policy differs from Data Artifact input"
+            )
         if ArtifactKind.dataset not in contract.output_requirements:
-            raise ValueError("Data Quality Evaluation requires Dataset in Contract output_requirements")
+            raise ValueError(
+                "Data Quality Evaluation requires Dataset in Contract output_requirements"
+            )
         manifests.resolve_source_scope(contract.source_scope.allowed_sources)
     except Exception as error:
         raise DataQualityError(
@@ -275,7 +327,8 @@ def _count_public_metric_records(
 
     metrics_by_scope = Counter(metric.scope for metric in plan.metrics)
     return (
-        len(value.dataset_candidate.columns) * metrics_by_scope[QualityMetricScope.field]
+        len(value.dataset_candidate.columns)
+        * metrics_by_scope[QualityMetricScope.field]
         + len(value.dataset_candidate.rows) * metrics_by_scope[QualityMetricScope.row]
         + metrics_by_scope[QualityMetricScope.dataset]
         + len(plan.gate_bindings)
@@ -364,7 +417,9 @@ def _build_field_results(
             "rule_references": [plan.rule_set_id, field.field_id],
         }
         results.append(
-            FieldQualityResult(**payload, content_hash=compute_quality_content_hash(payload))
+            FieldQualityResult(
+                **payload, content_hash=compute_quality_content_hash(payload)
+            )
         )
     return tuple(results)
 
@@ -390,7 +445,9 @@ def _build_row_results(
         )
         payload = {
             "row_id": row.row_id,
-            "canonical_row_identity": row.canonical_row_identity.model_dump(mode="json"),
+            "canonical_row_identity": row.canonical_row_identity.model_dump(
+                mode="json"
+            ),
             "entity_level": row.entity_level.value,
             "alignment_status": row.alignment_status.value,
             "applicable_field_count": len(row.projected_field_ids),
@@ -405,7 +462,9 @@ def _build_row_results(
             "crossmatch_logical_key": row.crossmatch_logical_key,
         }
         results.append(
-            RowQualityResult(**payload, content_hash=compute_quality_content_hash(payload))
+            RowQualityResult(
+                **payload, content_hash=compute_quality_content_hash(payload)
+            )
         )
     return tuple(results)
 
@@ -438,7 +497,9 @@ def _build_dataset_result(
             {"key": key, "count": count} for key, count in item.null_reasons
         ],
         **{key: metric.model_dump(mode="json") for key, metric in metrics.items()},
-        "field_result_ids": [field.field.field_id for field in value.dataset_candidate.columns],
+        "field_result_ids": [
+            field.field.field_id for field in value.dataset_candidate.columns
+        ],
         "row_result_ids": [row.row_id for row in value.dataset_candidate.rows],
         "source_snapshot_ids": list(value.dataset_candidate.source_snapshot_ids),
         "evidence_ids": list(value.dataset_candidate.evidence_ids),
@@ -451,7 +512,9 @@ def _build_dataset_result(
             )
         ],
     }
-    return DatasetQualityResult(**payload, content_hash=compute_quality_content_hash(payload))
+    return DatasetQualityResult(
+        **payload, content_hash=compute_quality_content_hash(payload)
+    )
 
 
 def _build_result(
@@ -516,10 +579,27 @@ def _build_result(
         input_hash=value.research_contract.content_hash,
         output_hash=value.research_contract.content_hash,
     )
+    document_quality_observations = []
+    for observation in value.data_artifact_input.document_observations:
+        quality_payload = {
+            "observation_id": observation.observation_id,
+            "document_parse_id": observation.provenance.document_parse_id,
+            "pipeline_source_snapshot_id": observation.provenance.pipeline_source_snapshot_id,
+            "parse_quality": observation.parse_quality,
+            "admission_status": "admitted",
+        }
+        quality_payload["content_hash"] = compute_canonical_payload_hash(
+            quality_payload
+        )
+        document_quality_observations.append(
+            DocumentParseQualityObservation.model_validate(quality_payload)
+        )
     payload = {
         "kind": "data_quality",
-        "schema_version": "2.0.0",
-        "result_id": compute_data_quality_result_id(value.input_hash, rules.content_hash),
+        "schema_version": "3.0.0",
+        "result_id": compute_data_quality_result_id(
+            value.input_hash, rules.content_hash
+        ),
         "input_references": input_refs.model_dump(mode="json"),
         "evaluation_plan": plan.model_dump(mode="json"),
         "quality_rule_set_reference": rule_reference.model_dump(mode="json"),
@@ -527,6 +607,9 @@ def _build_result(
         "field_results": [item.model_dump(mode="json") for item in fields],
         "row_results": [item.model_dump(mode="json") for item in rows],
         "dataset_result": dataset.model_dump(mode="json"),
+        "document_parse_quality_observations": [
+            item.model_dump(mode="json") for item in document_quality_observations
+        ],
         "contract_gate": gate.model_dump(mode="json"),
         "aggregate_score": None,
         "aggregate_score_policy": rules.aggregate_score_policy.model_dump(mode="json"),
@@ -579,10 +662,12 @@ def _execute_scope_metrics(
     return results
 
 
-def _rejected(error: DataQualityError, *, input_hash: str | None) -> DataQualityEvaluationRejected:
+def _rejected(
+    error: DataQualityError, *, input_hash: str | None
+) -> DataQualityEvaluationRejected:
     payload: dict[str, Any] = {
         "kind": "data_quality_rejected",
-        "schema_version": "2.0.0",
+        "schema_version": "3.0.0",
         "failure_stage": error.stage.value,
         "error_code": error.code.value,
         "message": str(error),

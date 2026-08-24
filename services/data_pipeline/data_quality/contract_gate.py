@@ -71,28 +71,34 @@ def _collect_observations(
     dataset_result: DatasetQualityResult,
     manifests: ManifestBundle,
 ) -> dict[str, QualityMetricResult | bool]:
-    allowed_sources = set(manifests.resolve_source_scope(contract.source_scope.allowed_sources))
-    actual_sources = {member.source_id for member in source_collection_candidate.members}
+    allowed_sources = set(
+        manifests.resolve_source_scope(contract.source_scope.allowed_sources)
+    )
+    actual_sources = {
+        member.source_id for member in source_collection_candidate.crossmatch_sources
+    }
     observations: dict[str, QualityMetricResult | bool] = {
         f"dataset.{field_name}": getattr(dataset_result, field_name)
         for field_name in DatasetQualityResult.model_fields
         if isinstance(getattr(dataset_result, field_name), QualityMetricResult)
     }
-    observations.update({
-        "contract.unit_policy_canonical": contract.data_requirements.unit_policy
-        is UnitPolicy.canonical,
-        "candidate.requested_fields_exact": set(contract.requested_fields)
-        == set(dataset_candidate.requested_fields),
-        "candidate.source_scope_allowed": actual_sources <= allowed_sources,
-        "candidate.evidence_locator_present": (
-            not contract.evidence_requirements.require_locator
-            or bool(dataset_candidate.evidence_ids)
-        ),
-        "candidate.source_snapshot_present": (
-            not contract.evidence_requirements.require_source_snapshot
-            or bool(dataset_candidate.source_snapshot_ids)
-        ),
-    })
+    observations.update(
+        {
+            "contract.unit_policy_canonical": contract.data_requirements.unit_policy
+            is UnitPolicy.canonical,
+            "candidate.requested_fields_exact": set(contract.requested_fields)
+            == set(dataset_candidate.requested_fields),
+            "candidate.source_scope_allowed": actual_sources <= allowed_sources,
+            "candidate.evidence_locator_present": (
+                not contract.evidence_requirements.require_locator
+                or bool(dataset_candidate.evidence_ids)
+            ),
+            "candidate.source_snapshot_present": (
+                not contract.evidence_requirements.require_source_snapshot
+                or bool(dataset_candidate.source_snapshot_ids)
+            ),
+        }
+    )
     return observations
 
 
@@ -130,11 +136,18 @@ def _evaluate_binding(
         raise ValueError(
             f"metric quality gate binding references unknown result field: {binding.result_field}"
         ) from error
-    if not isinstance(observed, QualityMetricResult) or observed.metric_id != binding.metric_id:
-        raise ValueError("metric quality gate binding does not resolve to its declared metric")
+    if (
+        not isinstance(observed, QualityMetricResult)
+        or observed.metric_id != binding.metric_id
+    ):
+        raise ValueError(
+            "metric quality gate binding does not resolve to its declared metric"
+        )
     try:
         if observations[binding.observation_key] is not observed:
-            raise ValueError("metric quality gate observation key is not bound to result field")
+            raise ValueError(
+                "metric quality gate observation key is not bound to result field"
+            )
     except KeyError as error:
         raise ValueError(
             f"quality gate binding references unknown observation: {binding.observation_key}"
@@ -166,7 +179,9 @@ def _contract_decimal(contract: ResearchContract, path: str) -> Decimal:
         try:
             current = getattr(current, segment)
         except AttributeError as error:
-            raise ValueError(f"Contract threshold locator is invalid: {path}") from error
+            raise ValueError(
+                f"Contract threshold locator is invalid: {path}"
+            ) from error
     if isinstance(current, bool) or not isinstance(current, (int, float, Decimal)):
         raise ValueError(f"Contract gate locator is not numeric: {path}")
     return Decimal(str(current))
@@ -195,7 +210,9 @@ def _metric_gate_status(
     return QualityGateStatus.fail
 
 
-def _aggregate_gate_status(checks: tuple[QualityConstraintResult, ...]) -> QualityGateStatus:
+def _aggregate_gate_status(
+    checks: tuple[QualityConstraintResult, ...],
+) -> QualityGateStatus:
     if any(item.result is QualityGateStatus.fail for item in checks):
         return QualityGateStatus.fail
     if any(item.result is QualityGateStatus.insufficient for item in checks):

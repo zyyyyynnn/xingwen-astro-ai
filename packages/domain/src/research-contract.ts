@@ -7,7 +7,12 @@
  * `ResearchContractInput` in the Pydantic `/api` authoring source.
  */
 
-import type { ArtifactKind, ContractDraftStatus, UnitPolicy } from "./enums";
+import type {
+  ArtifactKind,
+  ContractDraftStatus,
+  DocumentSourcePolicy,
+  UnitPolicy,
+} from "./enums";
 import type { DomainEntityId } from "./identifiers";
 import type {
   ContentHash,
@@ -18,6 +23,7 @@ import type {
 
 export interface DataRequirements {
   readonly unitPolicy: UnitPolicy;
+  readonly documentSourcePolicy: DocumentSourcePolicy;
 }
 
 export interface SourceScope {

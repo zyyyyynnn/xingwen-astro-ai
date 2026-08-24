@@ -5,13 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 
 
-FROZEN_CASE_MANIFEST_VERSION = "2.0.0"
+FROZEN_CASE_MANIFEST_VERSION = "3.0.0"
 FROZEN_CASE_MANIFEST_CONTENT_HASH = (
-    "sha256:efbee5ec7d9e9e450a1b08685eb27e0a600f58faec5524d37dc05a9b1f28276c"
+    "sha256:c4aed9194fb1f92375809bbb11c70fd834b383e69304a539232cbb821b5a4240"
 )
-FROZEN_FIELD_MANIFEST_VERSION = "2.0.0"
+FROZEN_FIELD_MANIFEST_VERSION = "3.0.0"
 FROZEN_FIELD_MANIFEST_CONTENT_HASH = (
-    "sha256:b0ce150bebbfa9549273ecbb5e26ed302f64b9925d768bb42f944554d011a86f"
+    "sha256:47a43ebec1e340a806b186da1d2abfda8e9b258212093a0be49b1a9e1469f25f"
 )
 _MANIFEST_ROOT = Path(__file__).resolve().parent / "manifests" / "exoplanet_host_star"
 FROZEN_CASE_MANIFEST_PATH = _MANIFEST_ROOT / "case-manifest.json"

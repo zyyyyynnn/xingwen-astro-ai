@@ -5,6 +5,7 @@ import type {
   ContractDraftStatus,
   ContentHash,
   DerivationKind,
+  DocumentSourcePolicy,
   DomainEntityId,
   ExecutionMode,
   ResearchGoal,
@@ -117,6 +118,7 @@ export interface ContractInputViewModel {
   readonly targetObjects: readonly DomainEntityId[];
   readonly dataRequirements: {
     readonly unitPolicy: UnitPolicy;
+    readonly documentSourcePolicy: DocumentSourcePolicy;
   };
   readonly requestedFields: readonly DomainEntityId[];
   readonly sourceScope: {

@@ -34,12 +34,14 @@ export {
   SESSION_STATUSES,
   SOURCE_MODES,
   UNIT_POLICIES,
+  DOCUMENT_SOURCE_POLICIES,
 } from "./enums";
 export type {
   ArtifactKind,
   CachePolicy,
   ContractDraftStatus,
   DerivationKind,
+  DocumentSourcePolicy,
   ExecutionMode,
   ExportFormat,
   RunStatus,

@@ -36,8 +36,8 @@ from app.schemas.data_artifacts import (
     MappedCanonicalValue,
     RawSourceRecordReference,
     SelectionStatus,
-    SourceCellLocator,
-    SourceCollectionMember,
+    CrossmatchSourceCollectionMember,
+    SupplementalDocumentSource,
     SourceValueCandidate,
     TransformationEvidence,
     UncertaintyStatus,
@@ -47,14 +47,23 @@ from app.schemas.data_artifacts import (
     compute_data_artifact_input_hash,
     compute_raw_record_reference_registry_hash,
 )
+from app.schemas.data_provenance import StructuredDataProvenance
+from app.schemas.document_observation import ScientificDocumentObservation
 from app.schemas.manifest import DataType, FieldDefinition, NullReason, QuantityKind
-from app.schemas.source_acquisition import RawDataSourceRecord, compute_raw_data_record_hash
+from app.schemas.source_acquisition import (
+    RawDataSourceRecord,
+    compute_raw_data_record_hash,
+)
 from services.data_pipeline.crossmatch.policy import (
     load_crossmatch_rule_set,
     load_crossmatch_source_policy,
     load_entity_alias_catalog,
 )
 from services.data_pipeline.manifest import load_frozen_manifest_bundle
+from services.data_pipeline.document_admission import (
+    DocumentAdmissionError,
+    validate_admitted_document_observation,
+)
 
 from .conversion import convert_decimal_value, decimal_from_source, serialize_decimal
 from .errors import DataArtifactError
@@ -72,9 +81,11 @@ class DataArtifactDomainProjection:
     transformation_evidence: tuple[TransformationEvidence, ...]
     selections: tuple[FieldSelectionRecord, ...]
     conflicts: tuple[FieldConflictRecord, ...]
-    source_members: tuple[SourceCollectionMember, ...]
+    crossmatch_sources: tuple[CrossmatchSourceCollectionMember, ...]
+    supplemental_document_sources: tuple[SupplementalDocumentSource, ...]
     producer: DataArtifactProducer
     source_snapshot_ids: tuple[str, ...]
+    crossmatch_source_snapshot_ids: tuple[str, str]
     crossmatch_evidence: tuple[CrossmatchEvidence, ...]
     crossmatch_evidence_ids: tuple[str, ...]
     evidence_ids: tuple[str, ...]
@@ -148,11 +159,20 @@ def validate_policy_bindings(input_value: DataArtifactBuildInput):
         )
     capacity = input_value.mapping_rule_set.capacity
     if len(requested) > capacity.max_requested_fields:
-        raise DataArtifactError(DataArtifactErrorCode.capacity_exceeded, "field capacity exceeded")
+        raise DataArtifactError(
+            DataArtifactErrorCode.capacity_exceeded, "field capacity exceeded"
+        )
     if len(input_value.crossmatch_result.records) > capacity.max_rows:
-        raise DataArtifactError(DataArtifactErrorCode.capacity_exceeded, "row capacity exceeded")
-    if len(requested) * len(input_value.crossmatch_result.records) > capacity.max_total_cell_outcomes:
-        raise DataArtifactError(DataArtifactErrorCode.capacity_exceeded, "cell capacity exceeded")
+        raise DataArtifactError(
+            DataArtifactErrorCode.capacity_exceeded, "row capacity exceeded"
+        )
+    if (
+        len(requested) * len(input_value.crossmatch_result.records)
+        > capacity.max_total_cell_outcomes
+    ):
+        raise DataArtifactError(
+            DataArtifactErrorCode.capacity_exceeded, "cell capacity exceeded"
+        )
     if input_value.producer_version != input_value.mapping_rule_set.producer_version:
         raise DataArtifactError(
             DataArtifactErrorCode.mapping_rule_mismatch,
@@ -160,7 +180,9 @@ def validate_policy_bindings(input_value: DataArtifactBuildInput):
         )
 
     declarations = {rule.rule_id: rule for rule in manifest.conversion_rules}
-    implementations = {rule.rule_id: rule for rule in input_value.conversion_catalog.rules}
+    implementations = {
+        rule.rule_id: rule for rule in input_value.conversion_catalog.rules
+    }
     if implementations.keys() != declarations.keys():
         raise DataArtifactError(
             DataArtifactErrorCode.conversion_catalog_mismatch,
@@ -198,7 +220,9 @@ def validate_policy_bindings(input_value: DataArtifactBuildInput):
                     DataArtifactErrorCode.conversion_catalog_mismatch,
                     "conversion declaration and implementation unit pairs disagree",
                 )
-    return bundle, tuple(field for field in manifest.fields if field.field_id in requested)
+    return bundle, tuple(
+        field for field in manifest.fields if field.field_id in requested
+    )
 
 
 def validate_runtime_input_integrity(input_value: DataArtifactBuildInput) -> None:
@@ -222,22 +246,39 @@ def validate_runtime_input_integrity(input_value: DataArtifactBuildInput) -> Non
     if (
         result.content_hash != compute_crossmatch_content_hash(result)
         or result.output_hash != result.content_hash
-        or result.result_id != f"crossmatch.{result.content_hash.removeprefix('sha256:')[:24]}"
+        or result.result_id
+        != f"crossmatch.{result.content_hash.removeprefix('sha256:')[:24]}"
     ):
         raise DataArtifactError(
             DataArtifactErrorCode.crossmatch_result_mismatch,
             "CrossmatchResult hash or stable identity is invalid",
         )
     for acquisition, snapshot, mode, level, completion in (
-        (input_value.left_acquisition, result.left_source_snapshot, result.left_source_mode, result.left_data_level, result.left_completion),
-        (input_value.right_acquisition, result.right_source_snapshot, result.right_source_mode, result.right_data_level, result.right_completion),
+        (
+            input_value.left_acquisition,
+            result.left_source_snapshot,
+            result.left_source_mode,
+            result.left_data_level,
+            result.left_completion,
+        ),
+        (
+            input_value.right_acquisition,
+            result.right_source_snapshot,
+            result.right_source_mode,
+            result.right_data_level,
+            result.right_completion,
+        ),
     ):
         if acquisition.snapshot != snapshot:
             raise DataArtifactError(
                 DataArtifactErrorCode.snapshot_mismatch,
                 "acquisition SourceSnapshot disagrees with CrossmatchResult",
             )
-        if acquisition.source_mode is not mode or acquisition.data_level is not level or acquisition.completion != completion:
+        if (
+            acquisition.source_mode is not mode
+            or acquisition.data_level is not level
+            or acquisition.completion != completion
+        ):
             raise DataArtifactError(
                 DataArtifactErrorCode.crossmatch_result_mismatch,
                 "acquisition execution scope disagrees with CrossmatchResult",
@@ -248,7 +289,8 @@ def validate_runtime_input_integrity(input_value: DataArtifactBuildInput) -> Non
         for record in acquisition.records
     }
     if any(
-        record.content_hash != compute_raw_data_record_hash(
+        record.content_hash
+        != compute_raw_data_record_hash(
             source_id=record.source_id, row_key=record.row_key, payload=record.payload
         )
         for record in acquired.values()
@@ -354,17 +396,31 @@ def _alignment_status(record: CrossmatchRecord) -> AlignmentStatus:
     return AlignmentStatus(record.decision.value)
 
 
-def _locator(candidate: EntityCandidate, raw_field: str) -> SourceCellLocator:
+def _structured_provenance(
+    candidate: EntityCandidate,
+    raw_field: str,
+    *,
+    source_table: str,
+    reference_field: str | None = None,
+    reference_value: object = None,
+    provenance_field: str | None = None,
+    provenance_value: object = None,
+) -> StructuredDataProvenance:
     reference = candidate.source_record
-    return SourceCellLocator(
+    return StructuredDataProvenance(
         side=candidate.side,
-        source_snapshot_id=reference.source_snapshot_id,
-        source_snapshot_content_hash=reference.source_snapshot_content_hash,
+        pipeline_source_snapshot_id=reference.source_snapshot_id,
+        pipeline_source_snapshot_content_hash=reference.source_snapshot_content_hash,
         source_id=reference.source_id,
         query_hash=reference.query_hash,
         row_key=reference.row_key,
         raw_record_content_hash=reference.record_content_hash,
         raw_field=raw_field,
+        source_table=source_table,
+        reference_field=reference_field,
+        reference_value=reference_value,
+        provenance_field=provenance_field,
+        provenance_value=provenance_value,
     )
 
 
@@ -397,7 +453,9 @@ def _canonical_value(
             DataArtifactErrorCode.invalid_numeric_value,
             f"{field.field_id} requires an integral canonical value",
         )
-    return serialize_decimal(numeric, capacity=input_value.conversion_catalog.decimal_capacity)
+    return serialize_decimal(
+        numeric, capacity=input_value.conversion_catalog.decimal_capacity
+    )
 
 
 def _uncertainty(
@@ -418,14 +476,18 @@ def _uncertainty(
         }
     source_values: list[Decimal | None] = []
     canonical_values: list[Decimal | None] = []
-    locators: list[SourceCellLocator | None] = []
+    provenance: list[StructuredDataProvenance | None] = []
     for name in (alias.positive_error_field, alias.negative_error_field):
         raw = record.payload.get(name)
-        locator = _locator(candidate, name) if name in record.payload else None
+        item_provenance = (
+            _structured_provenance(candidate, name, source_table=alias.source_table)
+            if name in record.payload
+            else None
+        )
         if raw is None:
             source_values.append(None)
             canonical_values.append(None)
-            locators.append(locator)
+            provenance.append(item_provenance)
             continue
         try:
             source_values.append(
@@ -444,7 +506,7 @@ def _uncertainty(
                     catalog=input_value.conversion_catalog,
                 )
             )
-            locators.append(locator)
+            provenance.append(item_provenance)
         except DataArtifactError as exc:
             raise DataArtifactError(
                 DataArtifactErrorCode.invalid_uncertainty,
@@ -463,8 +525,8 @@ def _uncertainty(
         source_negative=source_values[1],
         canonical_positive=canonical_values[0],
         canonical_negative=canonical_values[1],
-        positive_locator=locators[0],
-        negative_locator=locators[1],
+        positive_provenance=provenance[0],
+        negative_provenance=provenance[1],
     )
 
 
@@ -507,7 +569,9 @@ def _limit(
     return LimitValue(
         status=statuses[flag],
         raw_flag=flag,
-        locator=_locator(candidate, alias.limit_field),
+        provenance=_structured_provenance(
+            candidate, alias.limit_field, source_table=alias.source_table
+        ),
     )
 
 
@@ -541,7 +605,19 @@ def _source_value(
         )
     if field.data_type is DataType.string and canonical == "":
         canonical = None
-    locator = _locator(candidate, alias.raw_field)
+    provenance = _structured_provenance(
+        candidate,
+        alias.raw_field,
+        source_table=alias.source_table,
+        reference_field=alias.reference_field,
+        reference_value=raw_record.payload.get(alias.reference_field)
+        if alias.reference_field
+        else None,
+        provenance_field=alias.provenance_field,
+        provenance_value=raw_record.payload.get(alias.provenance_field)
+        if alias.provenance_field
+        else None,
+    )
     source_value_id = _stable_id(
         "source_value",
         {
@@ -554,14 +630,6 @@ def _source_value(
     payload = {
         "source_value_id": source_value_id,
         "canonical_field_id": field.field_id,
-        "source_id": candidate.source_record.source_id,
-        "source_table": alias.source_table,
-        "source_snapshot_id": candidate.source_record.source_snapshot_id,
-        "source_snapshot_content_hash": candidate.source_record.source_snapshot_content_hash,
-        "query_hash": candidate.source_record.query_hash,
-        "raw_record_row_key": candidate.source_record.row_key,
-        "raw_record_content_hash": candidate.source_record.record_content_hash,
-        "raw_field": alias.raw_field,
         "raw_value": raw_value,
         "source_unit": alias.source_unit,
         "canonical_value": canonical,
@@ -571,14 +639,6 @@ def _source_value(
         "transformation_rule_version": field.transformation_rule_version,
         "conversion_rule_id": alias.conversion_rule_id,
         "conversion_rule_version": conversion_versions[alias.conversion_rule_id],
-        "reference_field": alias.reference_field,
-        "reference_value": raw_record.payload.get(alias.reference_field)
-        if alias.reference_field
-        else None,
-        "provenance_field": alias.provenance_field,
-        "provenance_value": raw_record.payload.get(alias.provenance_field)
-        if alias.provenance_field
-        else None,
         "uncertainty": _uncertainty(
             raw_record,
             candidate,
@@ -588,15 +648,114 @@ def _source_value(
             bundle,
             conversion_versions,
         ).model_dump(mode="json"),
-        "limit": _limit(raw_record, candidate, alias, raw_value).model_dump(mode="json"),
+        "limit": _limit(raw_record, candidate, alias, raw_value).model_dump(
+            mode="json"
+        ),
         "null_status": NullReason.not_measured if raw_value is None else None,
-        "evidence_locator": locator.model_dump(mode="json"),
+        "provenance": provenance.model_dump(mode="json"),
     }
     return _hashed(SourceValueCandidate, payload)
 
 
-def _replace_raw_field(locator: SourceCellLocator, raw_field: str) -> SourceCellLocator:
-    return locator.model_copy(update={"raw_field": raw_field})
+def _document_conversion_rule(observation, field, input_value, bundle):
+    quantity_kind = _quantity_kind(field, bundle)
+    matches = [
+        rule
+        for rule in input_value.conversion_catalog.rules
+        if (
+            rule.rule_id == "unit.identity"
+            and observation.source_unit == field.canonical_unit
+            and rule.quantity_kind.value in {quantity_kind, "none"}
+        )
+        or (
+            rule.source_unit == observation.source_unit
+            and rule.target_unit == field.canonical_unit
+            and rule.quantity_kind.value == quantity_kind
+        )
+    ]
+    if len(matches) != 1:
+        raise DataArtifactError(
+            DataArtifactErrorCode.unknown_conversion_rule,
+            "document unit has no unique conversion in the frozen catalog",
+        )
+    return matches[0]
+
+
+def _document_source_value(
+    observation: ScientificDocumentObservation,
+    *,
+    field: FieldDefinition,
+    input_value: DataArtifactBuildInput,
+    bundle,
+) -> SourceValueCandidate:
+    rule = _document_conversion_rule(observation, field, input_value, bundle)
+
+    def convert(value: str | None) -> str | None:
+        if value is None:
+            return None
+        return serialize_decimal(
+            convert_decimal_value(
+                value,
+                rule_id=rule.rule_id,
+                rule_version=rule.rule_version,
+                source_unit=observation.source_unit,
+                target_unit=field.canonical_unit,
+                quantity_kind=_quantity_kind(field, bundle),
+                catalog=input_value.conversion_catalog,
+            ),
+            capacity=input_value.conversion_catalog.decimal_capacity,
+        )
+
+    canonical_value = convert(observation.source_value)
+    positive = convert(observation.uncertainty_positive)
+    negative = convert(observation.uncertainty_negative)
+    count = sum(item is not None for item in (positive, negative))
+    uncertainty_status = (
+        UncertaintyStatus.missing,
+        UncertaintyStatus.partial,
+        UncertaintyStatus.complete,
+    )[count]
+    if count == 0:
+        uncertainty_status = UncertaintyStatus.not_applicable
+    uncertainty = UncertaintyValue(
+        status=uncertainty_status,
+        source_positive=observation.uncertainty_positive,
+        source_negative=observation.uncertainty_negative,
+        canonical_positive=positive,
+        canonical_negative=negative,
+        positive_provenance=observation.provenance if positive is not None else None,
+        negative_provenance=observation.provenance if negative is not None else None,
+    )
+    limit_status = LimitStatus(observation.limit_status)
+    limit = (
+        LimitValue(status=LimitStatus.not_applicable)
+        if limit_status in {LimitStatus.measured, LimitStatus.not_applicable}
+        else LimitValue(
+            status=limit_status,
+            raw_flag=1 if limit_status is LimitStatus.upper_limit else -1,
+            provenance=observation.provenance,
+        )
+    )
+    payload = {
+        "source_value_id": _stable_id(
+            "source_value.document", {"observation_id": observation.observation_id}
+        ),
+        "canonical_field_id": field.field_id,
+        "raw_value": observation.source_value,
+        "source_unit": observation.source_unit,
+        "canonical_value": canonical_value,
+        "canonical_unit": field.canonical_unit,
+        "alias_priority": 1,
+        "source_priority": 2_147_483_647,
+        "transformation_rule_version": field.transformation_rule_version,
+        "conversion_rule_id": rule.rule_id,
+        "conversion_rule_version": rule.rule_version,
+        "uncertainty": uncertainty.model_dump(mode="json"),
+        "limit": limit.model_dump(mode="json"),
+        "null_status": observation.null_reason,
+        "provenance": observation.provenance.model_dump(mode="json"),
+    }
+    return _hashed(SourceValueCandidate, payload)
 
 
 def _build_evidence(
@@ -610,13 +769,13 @@ def _build_evidence(
     reason: str,
 ) -> TransformationEvidence:
     result = input_value.crossmatch_result
-    uncertainty_locators = tuple(
-        locator
-        for locator in (
-            source_value.uncertainty.positive_locator,
-            source_value.uncertainty.negative_locator,
+    uncertainty_provenance = tuple(
+        provenance
+        for provenance in (
+            source_value.uncertainty.positive_provenance,
+            source_value.uncertainty.negative_provenance,
         )
-        if locator is not None
+        if provenance is not None
     )
     payload = {
         "evidence_id": _stable_id(
@@ -627,7 +786,7 @@ def _build_evidence(
         "dataset_row_id": row_id,
         "canonical_field_id": source_value.canonical_field_id,
         "source_value_id": source_value.source_value_id,
-        "locator": source_value.evidence_locator.model_dump(mode="json"),
+        "provenance": source_value.provenance.model_dump(mode="json"),
         "raw_value": source_value.raw_value,
         "source_unit": source_value.source_unit,
         "canonical_value": source_value.canonical_value,
@@ -640,25 +799,11 @@ def _build_evidence(
         "transformation_rule_version": source_value.transformation_rule_version,
         "uncertainty": source_value.uncertainty.model_dump(mode="json"),
         "limit": source_value.limit.model_dump(mode="json"),
-        "uncertainty_locators": [
-            locator.model_dump(mode="json") for locator in uncertainty_locators
+        "uncertainty_provenance": [
+            provenance.model_dump(mode="json") for provenance in uncertainty_provenance
         ],
-        "limit_locator": source_value.limit.locator.model_dump(mode="json")
-        if source_value.limit.locator is not None
-        else None,
-        "reference_field": source_value.reference_field,
-        "reference_value": source_value.reference_value,
-        "reference_locator": _replace_raw_field(
-            source_value.evidence_locator, source_value.reference_field
-        ).model_dump(mode="json")
-        if source_value.reference_field is not None
-        else None,
-        "provenance_field": source_value.provenance_field,
-        "provenance_value": source_value.provenance_value,
-        "provenance_locator": _replace_raw_field(
-            source_value.evidence_locator, source_value.provenance_field
-        ).model_dump(mode="json")
-        if source_value.provenance_field is not None
+        "limit_provenance": source_value.limit.provenance.model_dump(mode="json")
+        if source_value.limit.provenance is not None
         else None,
         "crossmatch_result_id": result.result_id,
         "crossmatch_result_content_hash": result.content_hash,
@@ -675,9 +820,7 @@ def numeric_values_agree(left: Decimal, right: Decimal, rule_set) -> bool:
     if difference == 0:
         return True
     comparison = rule_set.numeric_comparison
-    denominator = max(
-        abs(left), abs(right), comparison.relative_denominator_floor
-    )
+    denominator = max(abs(left), abs(right), comparison.relative_denominator_floor)
     relative = difference / denominator
     compare = (
         (lambda value, threshold: value <= threshold)
@@ -730,21 +873,35 @@ def derive_field_conflicts(
         "canonical_field_id": field.field_id,
         "source_value_ids": source_value_ids,
         "conflict_scope": "same_source"
-        if len({item.source_id for item in non_null_values}) == 1
+        if len(
+            {
+                item.provenance.source_id
+                if item.provenance.kind == "structured"
+                else item.provenance.research_input_id
+                for item in non_null_values
+            }
+        )
+        == 1
         else "cross_source",
         "reason": "distinct canonical values are retained; source priority selects display only",
         "comparison_policy_version": rule_set.conflict_comparison_policy_version,
-        "absolute_difference": serialize_decimal(absolute) if absolute is not None else None,
+        "absolute_difference": serialize_decimal(absolute)
+        if absolute is not None
+        else None,
         "relative_denominator": serialize_decimal(denominator)
         if denominator is not None
         else None,
-        "relative_difference": serialize_decimal(relative) if relative is not None else None,
+        "relative_difference": serialize_decimal(relative)
+        if relative is not None
+        else None,
     }
     return (_hashed(FieldConflictRecord, payload),)
 
 
-def _source_members(input_value: DataArtifactBuildInput) -> tuple[SourceCollectionMember, ...]:
-    members: list[SourceCollectionMember] = []
+def _crossmatch_sources(
+    input_value: DataArtifactBuildInput,
+) -> tuple[CrossmatchSourceCollectionMember, ...]:
+    members: list[CrossmatchSourceCollectionMember] = []
     for side, acquisition in (
         ("left", input_value.left_acquisition),
         ("right", input_value.right_acquisition),
@@ -763,11 +920,15 @@ def _source_members(input_value: DataArtifactBuildInput) -> tuple[SourceCollecti
                     )
                     for record in acquisition.records
                 ),
-                key=lambda item: (item.source_id, item.row_key, item.raw_record_content_hash),
+                key=lambda item: (
+                    item.source_id,
+                    item.row_key,
+                    item.raw_record_content_hash,
+                ),
             )
         )
         members.append(
-            SourceCollectionMember(
+            CrossmatchSourceCollectionMember(
                 side=side,
                 source_snapshot=snapshot,
                 source_id=snapshot.source_id,
@@ -788,6 +949,37 @@ def _source_members(input_value: DataArtifactBuildInput) -> tuple[SourceCollecti
     return tuple(members)
 
 
+def _supplemental_document_sources(
+    input_value: DataArtifactBuildInput,
+) -> tuple[SupplementalDocumentSource, ...]:
+    grouped: dict[tuple[str, ...], list[str]] = {}
+    for observation in input_value.document_observations:
+        provenance = observation.provenance
+        key = (
+            provenance.research_input_id,
+            provenance.research_input_content_hash,
+            provenance.document_parse_id,
+            provenance.persisted_source_snapshot_id,
+            provenance.pipeline_source_snapshot_id,
+            provenance.pipeline_source_snapshot_content_hash,
+            observation.parse_quality.value,
+        )
+        grouped.setdefault(key, []).append(observation.observation_id)
+    return tuple(
+        SupplementalDocumentSource(
+            research_input_id=key[0],
+            research_input_content_hash=key[1],
+            document_parse_id=key[2],
+            persisted_source_snapshot_id=key[3],
+            pipeline_source_snapshot_id=key[4],
+            pipeline_source_snapshot_content_hash=key[5],
+            parse_quality=key[6],
+            observation_ids=tuple(sorted(ids)),
+        )
+        for key, ids in sorted(grouped.items())
+    )
+
+
 def derive_data_artifact_domain_projection(
     input_value: DataArtifactBuildInput,
 ) -> DataArtifactDomainProjection:
@@ -798,7 +990,8 @@ def derive_data_artifact_domain_projection(
     bundle, fields = validate_policy_bindings(input_value)
     result = input_value.crossmatch_result
     conversion_versions = {
-        rule.rule_id: rule.rule_version for rule in bundle.field_manifest.conversion_rules
+        rule.rule_id: rule.rule_version
+        for rule in bundle.field_manifest.conversion_rules
     }
     source_priorities = {
         field.field_id: {
@@ -807,12 +1000,38 @@ def derive_data_artifact_domain_projection(
         }
         for field in fields
     }
-    candidate_by_id = {candidate.candidate_id: candidate for candidate in result.candidates}
+    candidate_by_id = {
+        candidate.candidate_id: candidate for candidate in result.candidates
+    }
     raw_by_reference = {
         (record.source_id, record.row_key): record
         for acquisition in (input_value.left_acquisition, input_value.right_acquisition)
         for record in acquisition.records
     }
+    frozen_row_ids = tuple(
+        _stable_id("dataset_row", _record_key(record)) for record in result.records
+    )
+    document_by_row_field: dict[
+        tuple[str, str], list[ScientificDocumentObservation]
+    ] = {}
+    for observation in input_value.document_observations:
+        try:
+            validate_admitted_document_observation(
+                observation,
+                frozen_crossmatch_row_ids=frozen_row_ids,
+                case_manifest=bundle.case_manifest,
+                field_manifest=bundle.field_manifest,
+                data_requirements=input_value.data_requirements,
+            )
+        except DocumentAdmissionError as exc:
+            raise DataArtifactError(
+                DataArtifactErrorCode.candidate_hash_mismatch,
+                f"document observation admission failed: {exc.code.value}",
+                cause=exc,
+            ) from exc
+        document_by_row_field.setdefault(
+            (observation.canonical_row_id, observation.canonical_field_id), []
+        ).append(observation)
 
     all_source_values: list[SourceValueCandidate] = []
     all_evidence: list[TransformationEvidence] = []
@@ -828,8 +1047,10 @@ def derive_data_artifact_domain_projection(
         outcomes = []
         row_conflict_ids: list[str] = []
         row_evidence_ids: list[str] = []
-        allowed_object_types = input_value.mapping_rule_set.entity_projection_policy.allowed_for(
-            record.entity_level
+        allowed_object_types = (
+            input_value.mapping_rule_set.entity_projection_policy.allowed_for(
+                record.entity_level
+            )
         )
         for field in fields:
             if field.object_type not in allowed_object_types:
@@ -838,7 +1059,10 @@ def derive_data_artifact_domain_projection(
             for member in members:
                 source_id = member.source_record.source_id
                 raw = raw_by_reference.get((source_id, member.source_record.row_key))
-                if raw is None or raw.content_hash != member.source_record.record_content_hash:
+                if (
+                    raw is None
+                    or raw.content_hash != member.source_record.record_content_hash
+                ):
                     raise DataArtifactError(
                         DataArtifactErrorCode.source_record_reference_not_found,
                         "Cross-source Entity Alignment source record reference is unavailable",
@@ -853,32 +1077,61 @@ def derive_data_artifact_domain_projection(
                             raw_record=raw,
                             field=field,
                             alias=alias,
-                            source_priority=source_priorities[field.field_id][source_id],
+                            source_priority=source_priorities[field.field_id][
+                                source_id
+                            ],
                             input_value=input_value,
                             bundle=bundle,
                             conversion_versions=conversion_versions,
                         )
                     )
+            for observation in document_by_row_field.get((row_id, field.field_id), ()):
+                source_values.append(
+                    _document_source_value(
+                        observation,
+                        field=field,
+                        input_value=input_value,
+                        bundle=bundle,
+                    )
+                )
             source_values.sort(
                 key=lambda item: (
+                    0 if item.provenance.kind == "structured" else 1,
                     item.source_priority,
                     item.alias_priority,
                     item.source_value_id,
                 )
             )
-            if len(source_values) > input_value.mapping_rule_set.capacity.max_source_values_per_field:
+            if (
+                len(source_values)
+                > input_value.mapping_rule_set.capacity.max_source_values_per_field
+            ):
                 raise DataArtifactError(
                     DataArtifactErrorCode.capacity_exceeded,
                     "source-value capacity exceeded",
                 )
-            non_null = [item for item in source_values if item.canonical_value is not None]
+            non_null = [
+                item for item in source_values if item.canonical_value is not None
+            ]
             conflicts = derive_field_conflicts(
                 field,
                 non_null,
                 input_value.mapping_rule_set,
                 row_id=row_id,
             )
-            selected = non_null[0] if non_null else None
+            structured_non_null = [
+                item for item in non_null if item.provenance.kind == "structured"
+            ]
+            document_only_conflict = bool(conflicts) and not structured_non_null
+            selected = (
+                structured_non_null[0]
+                if structured_non_null
+                else None
+                if document_only_conflict
+                else non_null[0]
+                if non_null
+                else None
+            )
             identity_unresolved = alignment in {
                 AlignmentStatus.review_required,
                 AlignmentStatus.rejected,
@@ -887,6 +1140,8 @@ def derive_data_artifact_domain_projection(
             selection_reason = (
                 f"crossmatch alignment remains {alignment.value}; no field winner is selected"
                 if identity_unresolved
+                else "document-only values conflict; no scientific winner is selected"
+                if document_only_conflict
                 else "highest declared source and alias priority; every candidate is retained"
             )
             selection = None
@@ -912,7 +1167,10 @@ def derive_data_artifact_domain_projection(
             for value in source_values:
                 if identity_unresolved or conflicts:
                     status = SelectionStatus.conflict
-                elif selected is not None and value.source_value_id == selected.source_value_id:
+                elif (
+                    selected is not None
+                    and value.source_value_id == selected.source_value_id
+                ):
                     status = SelectionStatus.selected
                 else:
                     status = SelectionStatus.unselected
@@ -930,10 +1188,14 @@ def derive_data_artifact_domain_projection(
             evidence_ids = tuple(item.evidence_id for item in evidences)
             source_value_ids = tuple(item.source_value_id for item in source_values)
             conflict_ids = tuple(item.conflict_id for item in conflicts)
-            if identity_unresolved:
+            if identity_unresolved or document_only_conflict:
                 outcome = UnresolvedCanonicalValue(
                     canonical_field_id=field.field_id,
-                    reason=f"crossmatch alignment remains {alignment.value}",
+                    reason=(
+                        f"crossmatch alignment remains {alignment.value}"
+                        if identity_unresolved
+                        else "document-only values conflict; no scientific winner is selected"
+                    ),
                     candidate_source_value_ids=source_value_ids,
                     transformation_evidence_ids=evidence_ids,
                     conflict_ids=conflict_ids,
@@ -952,7 +1214,9 @@ def derive_data_artifact_domain_projection(
             elif field.nullable:
                 outcome = DeclaredNullValue(
                     canonical_field_id=field.field_id,
-                    reason=NullReason.not_measured if source_values else NullReason.not_in_source,
+                    reason=NullReason.not_measured
+                    if source_values
+                    else NullReason.not_in_source,
                     candidate_source_value_ids=source_value_ids,
                     transformation_evidence_ids=evidence_ids,
                 )
@@ -962,7 +1226,10 @@ def derive_data_artifact_domain_projection(
                     f"non-nullable field {field.field_id} has no mapped source value",
                 )
             outcomes.append(outcome)
-            if len(all_evidence) + len(evidences) > input_value.mapping_rule_set.capacity.max_transformation_evidence:
+            if (
+                len(all_evidence) + len(evidences)
+                > input_value.mapping_rule_set.capacity.max_transformation_evidence
+            ):
                 raise DataArtifactError(
                     DataArtifactErrorCode.capacity_exceeded,
                     "Evidence capacity exceeded",
@@ -1018,12 +1285,23 @@ def derive_data_artifact_domain_projection(
         conversion_catalog_version=input_value.conversion_catalog.version,
         conversion_catalog_content_hash=input_value.conversion_catalog.content_hash,
     )
-    source_snapshot_ids = tuple(
+    crossmatch_source_snapshot_ids = tuple(
         sorted(
             (
                 result.left_source_snapshot.snapshot_id,
                 result.right_source_snapshot.snapshot_id,
             )
+        )
+    )
+    source_snapshot_ids = tuple(
+        sorted(
+            {
+                *crossmatch_source_snapshot_ids,
+                *(
+                    item.provenance.pipeline_source_snapshot_id
+                    for item in input_value.document_observations
+                ),
+            }
         )
     )
     crossmatch_evidence_ids = tuple(
@@ -1035,9 +1313,7 @@ def derive_data_artifact_domain_projection(
             }
         )
     )
-    crossmatch_evidence_by_id = {
-        item.evidence_id: item for item in result.evidence
-    }
+    crossmatch_evidence_by_id = {item.evidence_id: item for item in result.evidence}
     crossmatch_evidence = tuple(
         crossmatch_evidence_by_id[item] for item in crossmatch_evidence_ids
     )
@@ -1057,9 +1333,11 @@ def derive_data_artifact_domain_projection(
         transformation_evidence=tuple(all_evidence),
         selections=tuple(all_selections),
         conflicts=tuple(all_conflicts),
-        source_members=_source_members(input_value),
+        crossmatch_sources=_crossmatch_sources(input_value),
+        supplemental_document_sources=_supplemental_document_sources(input_value),
         producer=producer,
         source_snapshot_ids=source_snapshot_ids,
+        crossmatch_source_snapshot_ids=crossmatch_source_snapshot_ids,
         crossmatch_evidence=crossmatch_evidence,
         crossmatch_evidence_ids=crossmatch_evidence_ids,
         evidence_ids=evidence_ids,

@@ -6,10 +6,10 @@
   "source_endpoint": "https://exoplanetarchive.ipac.caltech.edu/TAP/sync",
   "source_mode": "fixture",
   "data_level": "recorded_response",
-  "case_manifest_version": "2.0.0",
-  "case_manifest_content_hash": "sha256:efbee5ec7d9e9e450a1b08685eb27e0a600f58faec5524d37dc05a9b1f28276c",
-  "field_manifest_version": "2.0.0",
-  "field_manifest_content_hash": "sha256:b0ce150bebbfa9549273ecbb5e26ed302f64b9925d768bb42f944554d011a86f",
+  "case_manifest_version": "3.0.0",
+  "case_manifest_content_hash": "sha256:c4aed9194fb1f92375809bbb11c70fd834b383e69304a539232cbb821b5a4240",
+  "field_manifest_version": "3.0.0",
+  "field_manifest_content_hash": "sha256:47a43ebec1e340a806b186da1d2abfda8e9b258212093a0be49b1a9e1469f25f",
   "pagination": {
     "page_size": 2,
     "max_pages": 1,
@@ -99,5 +99,5 @@
     }
   ],
   "safe_response_headers": {},
-  "content_hash": "sha256:c77caafecf730d3579b8efb54cb2abeabd015ce17ef7180ad4d2a19547a4566f"
+  "content_hash": "sha256:5d45974833c9e804febaba68a80d7c1ab8b9a3ea48709c2941275ebdca5b3094"
 }

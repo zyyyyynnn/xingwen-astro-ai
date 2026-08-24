@@ -16,6 +16,7 @@ from typing import Annotated, Any, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
 from ._hashing import compute_canonical_model_hash
+from .core import DocumentSourcePolicy
 
 
 MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
@@ -185,7 +186,9 @@ class UnitConversionRule(BaseModel):
     @model_validator(mode="after")
     def require_a_complete_specific_pair(self) -> Self:
         if (self.source_unit is None) != (self.target_unit is None):
-            raise ValueError("conversion rule unit pair must be both present or both absent")
+            raise ValueError(
+                "conversion rule unit pair must be both present or both absent"
+            )
         return self
 
 
@@ -282,9 +285,13 @@ class SourceAlias(BaseModel):
     @model_validator(mode="after")
     def validate_companion_columns(self) -> Self:
         if (self.positive_error_field is None) != (self.negative_error_field is None):
-            raise ValueError("positive and negative error fields must be declared together")
+            raise ValueError(
+                "positive and negative error fields must be declared together"
+            )
         if (self.limit_field is None) != (self.limit_flags is None):
-            raise ValueError("limit field and limit flag mapping must be declared together")
+            raise ValueError(
+                "limit field and limit flag mapping must be declared together"
+            )
         if len(self.row_key_fields) != len(set(self.row_key_fields)):
             raise ValueError("duplicate row key field")
         return self
@@ -306,6 +313,14 @@ class SourceAlias(BaseModel):
         )
 
 
+class DocumentAliasDeclaration(BaseModel):
+    """Exact document label registered for one canonical field."""
+
+    model_config = MODEL_CONFIG
+
+    alias: NonEmptyString
+
+
 class FieldDefinition(BaseModel):
     """The complete Case and Field Manifest contract for one canonical field."""
 
@@ -319,6 +334,7 @@ class FieldDefinition(BaseModel):
     data_type: DataType
     canonical_unit: Identifier
     source_aliases: tuple[SourceAlias, ...] = Field(min_length=1)
+    document_aliases: tuple[DocumentAliasDeclaration, ...] = ()
     source_priority: tuple[Identifier, ...] = Field(min_length=1)
     conflict_resolution_strategy: ConflictResolutionStrategy
     conflict_resolution_rule_version: SemanticVersion
@@ -340,27 +356,47 @@ class FieldDefinition(BaseModel):
             raise ValueError(f"duplicate source priority for {self.field_id}")
         if len(self.quality_metric_inputs) != len(set(self.quality_metric_inputs)):
             raise ValueError(f"duplicate quality metric input for {self.field_id}")
+        document_aliases = tuple(item.alias for item in self.document_aliases)
+        if len(document_aliases) != len(set(document_aliases)):
+            raise ValueError(f"duplicate document alias for {self.field_id}")
+        if self.field_id in document_aliases:
+            raise ValueError(
+                f"document alias must not duplicate canonical field id: {self.field_id}"
+            )
 
         if self.nullable:
             if not self.null_policy.reason_required_when_null:
-                raise ValueError(f"nullable field {self.field_id} must require a null reason")
+                raise ValueError(
+                    f"nullable field {self.field_id} must require a null reason"
+                )
             if not self.null_policy.allowed_reasons:
-                raise ValueError(f"nullable field {self.field_id} must allow a null reason")
-        elif self.null_policy.reason_required_when_null or self.null_policy.allowed_reasons:
-            raise ValueError(f"non-nullable field {self.field_id} cannot define null reasons")
+                raise ValueError(
+                    f"nullable field {self.field_id} must allow a null reason"
+                )
+        elif (
+            self.null_policy.reason_required_when_null
+            or self.null_policy.allowed_reasons
+        ):
+            raise ValueError(
+                f"non-nullable field {self.field_id} cannot define null reasons"
+            )
 
         if self.crossmatch_key != (self.crossmatch_rule_version is not None):
             raise ValueError(
                 f"crossmatch field {self.field_id} must declare exactly one rule version"
             )
 
-        aliases_with_limits = [alias for alias in self.source_aliases if alias.limit_field]
+        aliases_with_limits = [
+            alias for alias in self.source_aliases if alias.limit_field
+        ]
         supports_limits = (
             self.limit_policy.lower_limit_supported
             or self.limit_policy.upper_limit_supported
         )
         if supports_limits != bool(aliases_with_limits):
-            raise ValueError(f"limit policy and source aliases disagree for {self.field_id}")
+            raise ValueError(
+                f"limit policy and source aliases disagree for {self.field_id}"
+            )
 
         aliases_with_errors = [
             alias for alias in self.source_aliases if alias.positive_error_field
@@ -376,14 +412,18 @@ class FieldDefinition(BaseModel):
             self.uncertainty_policy.mode == UncertaintyMode.asymmetric_source_errors
         )
         if has_source_errors != bool(aliases_with_errors):
-            raise ValueError(f"uncertainty policy and source aliases disagree for {self.field_id}")
+            raise ValueError(
+                f"uncertainty policy and source aliases disagree for {self.field_id}"
+            )
 
         return self
 
     def source_aliases_for(self, source_id: str) -> tuple[SourceAlias, ...]:
         """Return aliases belonging to one declared source."""
 
-        return tuple(alias for alias in self.source_aliases if alias.source_id == source_id)
+        return tuple(
+            alias for alias in self.source_aliases if alias.source_id == source_id
+        )
 
 
 class FieldManifestPayload(BaseModel):
@@ -425,9 +465,18 @@ class FieldManifestPayload(BaseModel):
         field_by_id = _unique_registry(self.fields, "field_id", "canonical field id")
 
         alias_owners: dict[tuple[str, str, str], str] = {}
+        document_alias_owners: dict[str, str] = {}
         used_reference_columns = {source.source_id: set() for source in self.sources}
         used_provenance_columns = {source.source_id: set() for source in self.sources}
         for field in self.fields:
+            for declaration in field.document_aliases:
+                previous_owner = document_alias_owners.get(declaration.alias)
+                if previous_owner is not None:
+                    raise ValueError(
+                        f"duplicate document alias {declaration.alias}: "
+                        f"{previous_owner} and {field.field_id}"
+                    )
+                document_alias_owners[declaration.alias] = field.field_id
             canonical_unit = unit_by_id.get(field.canonical_unit)
             if canonical_unit is None:
                 raise ValueError(
@@ -462,8 +511,7 @@ class FieldManifestPayload(BaseModel):
                     )
 
                 unapproved_columns = sorted(
-                    set(alias.declared_source_columns())
-                    - set(source.approved_columns)
+                    set(alias.declared_source_columns()) - set(source.approved_columns)
                 )
                 if unapproved_columns:
                     raise ValueError(
@@ -505,7 +553,9 @@ class FieldManifestPayload(BaseModel):
                     )
                 alias_owners[alias_key] = field.field_id
 
-                source_priorities = priorities_by_source.setdefault(alias.source_id, set())
+                source_priorities = priorities_by_source.setdefault(
+                    alias.source_id, set()
+                )
                 if alias.priority in source_priorities:
                     raise ValueError(
                         f"duplicate alias priority {alias.priority} for "
@@ -562,6 +612,16 @@ class FieldManifestPayload(BaseModel):
             if field.field_id == field_id:
                 return field
         raise KeyError(field_id)
+
+    def resolve_document_field(self, value: str) -> FieldDefinition:
+        """Resolve only an exact canonical field ID or registered document alias."""
+
+        for field in self.fields:
+            if value == field.field_id or any(
+                value == declaration.alias for declaration in field.document_aliases
+            ):
+                return field
+        raise KeyError(value)
 
 
 class FieldManifest(FieldManifestPayload):
@@ -620,8 +680,11 @@ class CaseManifestPayload(BaseModel):
     target_objects: tuple[TargetObjectDefinition, ...] = Field(min_length=1)
     default_requested_fields: tuple[CanonicalFieldId, ...] = Field(min_length=1)
     allowed_source_ids: tuple[Identifier, ...] = Field(min_length=1)
+    document_source_capability: DocumentSourcePolicy
     field_manifest: ManifestReference
-    minimum_evidence_locator_components: tuple[NonEmptyString, ...] = Field(min_length=1)
+    minimum_evidence_locator_components: tuple[NonEmptyString, ...] = Field(
+        min_length=1
+    )
 
     @model_validator(mode="after")
     def validate_case_uniqueness(self) -> Self:
@@ -672,9 +735,7 @@ class ManifestBundle(BaseModel):
             raise ValueError("field manifest hash does not match the case reference")
 
         source_by_id = {source.source_id: source for source in fields.sources}
-        provider_source_ids = {
-            source.provider_source_id for source in fields.sources
-        }
+        provider_source_ids = {source.provider_source_id for source in fields.sources}
         unknown_providers = set(case.allowed_source_ids) - provider_source_ids
         if unknown_providers:
             raise ValueError(
@@ -683,15 +744,12 @@ class ManifestBundle(BaseModel):
             )
 
         used_source_ids = {
-            alias.source_id
-            for field in fields.fields
-            for alias in field.source_aliases
+            alias.source_id for field in fields.fields for alias in field.source_aliases
         }
         unauthorized_source_ids = {
             source_id
             for source_id in used_source_ids
-            if source_by_id[source_id].provider_source_id
-            not in case.allowed_source_ids
+            if source_by_id[source_id].provider_source_id not in case.allowed_source_ids
         }
         if unauthorized_source_ids:
             raise ValueError(
@@ -701,9 +759,7 @@ class ManifestBundle(BaseModel):
 
         field_by_id = {field.field_id: field for field in fields.fields}
         self.validate_requested_fields(case.default_requested_fields)
-        evidence_rule_ids = {
-            rule.rule_id for rule in fields.evidence_locator_rules
-        }
+        evidence_rule_ids = {rule.rule_id for rule in fields.evidence_locator_rules}
         evidence_rule_by_id = {
             rule.rule_id: rule for rule in fields.evidence_locator_rules
         }
@@ -760,7 +816,9 @@ class ManifestBundle(BaseModel):
             if source.provider_source_id in selected
         )
 
-    def validate_requested_fields(self, requested_fields: Sequence[str]) -> tuple[str, ...]:
+    def validate_requested_fields(
+        self, requested_fields: Sequence[str]
+    ) -> tuple[str, ...]:
         """Validate ResearchContract.requested_fields against canonical ids."""
 
         values = tuple(requested_fields)

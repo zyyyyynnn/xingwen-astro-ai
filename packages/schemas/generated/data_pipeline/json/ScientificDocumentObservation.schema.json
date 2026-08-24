@@ -34,6 +34,88 @@
       "title": "DocumentBBox",
       "type": "object"
     },
+    "DocumentDataProvenance": {
+      "additionalProperties": false,
+      "properties": {
+        "document_parse_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Document Parse Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "document",
+          "default": "document",
+          "title": "Kind",
+          "type": "string"
+        },
+        "locator": {
+          "$ref": "#/$defs/DocumentLocator"
+        },
+        "parse_quality": {
+          "$ref": "#/$defs/DocumentParseQuality"
+        },
+        "persisted_source_snapshot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Persisted Source Snapshot Id",
+          "type": "string"
+        },
+        "pipeline_query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Pipeline Query Hash",
+          "type": "string"
+        },
+        "pipeline_source_id": {
+          "const": "research_input",
+          "default": "research_input",
+          "title": "Pipeline Source Id",
+          "type": "string"
+        },
+        "pipeline_source_snapshot_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Pipeline Source Snapshot Content Hash",
+          "type": "string"
+        },
+        "pipeline_source_snapshot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Pipeline Source Snapshot Id",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "research_input_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Research Input Content Hash",
+          "type": "string"
+        },
+        "research_input_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Research Input Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "research_input_id",
+        "research_input_content_hash",
+        "document_parse_id",
+        "persisted_source_snapshot_id",
+        "pipeline_source_snapshot_id",
+        "pipeline_query_hash",
+        "pipeline_source_snapshot_content_hash",
+        "locator",
+        "parse_quality"
+      ],
+      "title": "DocumentDataProvenance",
+      "type": "object"
+    },
     "DocumentLocator": {
       "additionalProperties": false,
       "description": "Canonical SINGLE SOURCE OF TRUTH locator back to a parsed element.\n\nA locator is only complete together with the owning ``DocumentParseCandidate``\n(which carries ``research_input_id`` / input ``content_hash``). It must be\npersistable and verifiable by DocumentParse Persistence without re-parsing the source.\n\nThis is the ONLY locator representation in the contract. ``page_index``,\n``block_id``, ``bbox``, ``table_id`` and ``cell_id`` live here and nowhere\nelse; the ``ScientificDataExtractionCandidate`` references a parse solely\nthrough this locator, so contradictory parallel locator fields are\nimpossible by construction.",
@@ -137,6 +219,18 @@
       "title": "DocumentParseQuality",
       "type": "string"
     },
+    "NullReason": {
+      "description": "Controlled reasons for a nullable scientific value.",
+      "enum": [
+        "not_in_source",
+        "not_measured",
+        "not_applicable",
+        "unresolved_conflict",
+        "below_detection_limit"
+      ],
+      "title": "NullReason",
+      "type": "string"
+    },
     "TextSpan": {
       "additionalProperties": false,
       "description": "Character-offset span within a block's raw text (0-based, inclusive start).",
@@ -161,80 +255,78 @@
     }
   },
   "additionalProperties": false,
-  "description": "Candidate describing one raw scientific-value observation.\n\nHARD BOUNDARY: this candidate describes only the *observed*\nraw value and where it came from. It MUST NOT carry canonical mapping,\nunit normalization, accepted scientific value or dataset publication\nstatus — those belong to the data pipeline (Field Manifest → mapping\n→ unit normalization → quality/admission → Dataset candidate → Publisher).\n\nCorrect chain:\n``ScientificDataExtractionCandidate`` → existing Field Manifest → existing\nmapping → unit normalization → quality/admission → Dataset candidate.\nNever ``OCR → final Dataset``.\n\nLocation is expressed ONLY through ``locator`` (the single-source-of-truth\n``DocumentLocator``). No parallel page_index/block_id/bbox/cell_id fields\nexist, so a contradictory locator is impossible.",
+  "description": "One fully typed document value; free text is never parsed downstream.",
   "properties": {
-    "candidate_id": {
+    "canonical_field_id": {
+      "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+      "title": "Canonical Field Id",
+      "type": "string"
+    },
+    "canonical_row_id": {
       "maxLength": 128,
       "minLength": 1,
-      "title": "Candidate Id",
+      "title": "Canonical Row Id",
       "type": "string"
     },
-    "created_at": {
-      "format": "date-time",
-      "title": "Created At",
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
       "type": "string"
     },
-    "document_parse_id": {
-      "maxLength": 128,
-      "minLength": 1,
-      "title": "Document Parse Id",
+    "limit_status": {
+      "enum": [
+        "measured",
+        "lower_limit",
+        "upper_limit",
+        "not_applicable"
+      ],
+      "title": "Limit Status",
       "type": "string"
     },
-    "field_hint": {
+    "null_reason": {
       "anyOf": [
         {
-          "maxLength": 128,
-          "minLength": 1,
-          "type": "string"
+          "$ref": "#/$defs/NullReason"
         },
         {
           "type": "null"
         }
       ],
-      "default": null,
-      "title": "Field Hint"
+      "default": null
     },
-    "locator": {
-      "$ref": "#/$defs/DocumentLocator"
-    },
-    "object_hint": {
-      "anyOf": [
-        {
-          "maxLength": 128,
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Object Hint"
+    "observation_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Observation Id",
+      "type": "string"
     },
     "parse_quality": {
       "$ref": "#/$defs/DocumentParseQuality"
     },
-    "persisted_source_snapshot_id": {
+    "provenance": {
+      "$ref": "#/$defs/DocumentDataProvenance"
+    },
+    "raw_candidate_id": {
       "maxLength": 128,
       "minLength": 1,
-      "title": "Persisted Source Snapshot Id",
+      "title": "Raw Candidate Id",
       "type": "string"
     },
-    "pipeline_source_snapshot_content_hash": {
-      "pattern": "^sha256:[0-9a-f]{64}$",
-      "title": "Pipeline Source Snapshot Content Hash",
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
       "type": "string"
     },
-    "pipeline_source_snapshot_id": {
+    "source_unit": {
       "maxLength": 128,
       "minLength": 1,
-      "title": "Pipeline Source Snapshot Id",
+      "title": "Source Unit",
       "type": "string"
     },
-    "raw_text": {
+    "source_value": {
       "anyOf": [
         {
-          "minLength": 1,
           "type": "string"
         },
         {
@@ -242,12 +334,11 @@
         }
       ],
       "default": null,
-      "title": "Raw Text"
+      "title": "Source Value"
     },
-    "raw_unit": {
+    "uncertainty_negative": {
       "anyOf": [
         {
-          "minLength": 1,
           "type": "string"
         },
         {
@@ -255,12 +346,11 @@
         }
       ],
       "default": null,
-      "title": "Raw Unit"
+      "title": "Uncertainty Negative"
     },
-    "raw_value": {
+    "uncertainty_positive": {
       "anyOf": [
         {
-          "minLength": 1,
           "type": "string"
         },
         {
@@ -268,32 +358,20 @@
         }
       ],
       "default": null,
-      "title": "Raw Value"
-    },
-    "research_input_content_hash": {
-      "pattern": "^sha256:[0-9a-f]{64}$",
-      "title": "Research Input Content Hash",
-      "type": "string"
-    },
-    "research_input_id": {
-      "maxLength": 128,
-      "minLength": 1,
-      "title": "Research Input Id",
-      "type": "string"
+      "title": "Uncertainty Positive"
     }
   },
   "required": [
-    "candidate_id",
-    "research_input_id",
-    "research_input_content_hash",
-    "pipeline_source_snapshot_id",
-    "pipeline_source_snapshot_content_hash",
-    "persisted_source_snapshot_id",
-    "document_parse_id",
+    "observation_id",
+    "raw_candidate_id",
+    "canonical_row_id",
+    "canonical_field_id",
+    "source_unit",
+    "limit_status",
     "parse_quality",
-    "locator",
-    "created_at"
+    "provenance",
+    "content_hash"
   ],
-  "title": "ScientificDataExtractionCandidate",
+  "title": "ScientificDocumentObservation",
   "type": "object"
 }

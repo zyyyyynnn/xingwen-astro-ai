@@ -163,7 +163,10 @@ class GraphDataVersionSelection:
             ),
         ):
             _require_text(value, label)
-        if self.dataset_artifact_version_id == self.field_dictionary_artifact_version_id:
+        if (
+            self.dataset_artifact_version_id
+            == self.field_dictionary_artifact_version_id
+        ):
             raise _schema_error(
                 "Dataset and FieldDictionary must identify distinct ArtifactVersions",
                 path="input_versions.data",
@@ -357,9 +360,7 @@ class PersistedEvidenceBinding:
             self.pipeline_evidence_content_hash,
             "pipeline_evidence_content_hash",
         )
-        _require_text(
-            self.pipeline_source_snapshot_id, "pipeline_source_snapshot_id"
-        )
+        _require_text(self.pipeline_source_snapshot_id, "pipeline_source_snapshot_id")
         _require_text(self.pipeline_target_type, "pipeline_target_type")
         _require_text(self.pipeline_target_id, "pipeline_target_id")
         if type(self.pipeline_locator) is not dict:
@@ -416,9 +417,8 @@ def _canonical_source_bindings(
     )
     pipeline_ids = tuple(item.pipeline_source_snapshot_id for item in ordered)
     persisted_ids = tuple(item.persisted_source_snapshot_id for item in ordered)
-    if (
-        len(pipeline_ids) != len(set(pipeline_ids))
-        or len(persisted_ids) != len(set(persisted_ids))
+    if len(pipeline_ids) != len(set(pipeline_ids)) or len(persisted_ids) != len(
+        set(persisted_ids)
     ):
         raise _evidence_error(
             "SourceSnapshot bindings must be one-to-one and unique",
@@ -457,9 +457,8 @@ def _canonical_evidence_bindings(
         for item in ordered
     )
     persisted_ids = tuple(item.persisted_evidence_id for item in ordered)
-    if (
-        len(semantic_keys) != len(set(semantic_keys))
-        or len(persisted_ids) != len(set(persisted_ids))
+    if len(semantic_keys) != len(set(semantic_keys)) or len(persisted_ids) != len(
+        set(persisted_ids)
     ):
         raise _evidence_error(
             "semantic and persisted Evidence bindings must be unique",
@@ -469,7 +468,9 @@ def _canonical_evidence_bindings(
     return ordered
 
 
-def _validated_candidate(candidate: BaseModel, expected_type: type[BaseModel]) -> BaseModel:
+def _validated_candidate(
+    candidate: BaseModel, expected_type: type[BaseModel]
+) -> BaseModel:
     if type(candidate) is not expected_type:
         raise _schema_error(
             f"candidate must be an exact {expected_type.__name__}",
@@ -646,14 +647,14 @@ def _validate_data_evidence_semantics(
         evidence_id = binding.pipeline_evidence_id
         transformation = transformations.get(evidence_id)
         if transformation is not None:
-            expected_locator = transformation.locator.model_dump(mode="json")
+            expected_locator = transformation.provenance.model_dump(mode="json")
             if (
                 binding.pipeline_evidence_content_hash != transformation.content_hash
                 or binding.pipeline_target_type != "canonical_field"
                 or binding.pipeline_target_id != transformation.canonical_field_id
                 or binding.pipeline_locator != expected_locator
                 or binding.pipeline_source_snapshot_id
-                != transformation.locator.source_snapshot_id
+                != transformation.provenance.pipeline_source_snapshot_id
             ):
                 raise _data_evidence_error(
                     evidence_id,
@@ -671,7 +672,8 @@ def _validate_data_evidence_semantics(
             content_hash != binding.pipeline_evidence_content_hash
             or binding.pipeline_target_type != "crossmatch"
             or binding.pipeline_target_id != evidence_id
-            or set(locator) != {
+            or set(locator)
+            != {
                 "crossmatch_evidence_id",
                 "crossmatch_content_hash",
             }
@@ -761,12 +763,28 @@ class PublishedDatasetVersion:
             for item in source_bindings
         }
         for value in candidate.source_values:
-            persisted = source_by_pipeline.get(value.source_snapshot_id)
+            provenance = value.provenance
+            persisted = source_by_pipeline.get(provenance.pipeline_source_snapshot_id)
+            source_id = (
+                provenance.source_id
+                if provenance.kind == "structured"
+                else provenance.pipeline_source_id
+            )
+            query_hash = (
+                provenance.query_hash
+                if provenance.kind == "structured"
+                else provenance.pipeline_query_hash
+            )
             if (
                 persisted is None
-                or persisted.source_id != value.source_id
-                or persisted.query_hash != value.query_hash
-                or persisted.content_hash != value.source_snapshot_content_hash
+                or persisted.source_id != source_id
+                or persisted.query_hash != query_hash
+                or persisted.content_hash
+                != provenance.pipeline_source_snapshot_content_hash
+                or (
+                    provenance.kind == "document"
+                    and persisted.id != provenance.persisted_source_snapshot_id
+                )
             ):
                 raise _evidence_error(
                     "Dataset SourceValue does not resolve to its persisted SourceSnapshot",
@@ -921,9 +939,10 @@ class PublishedDataGraphInputs:
     field_dictionary: PublishedFieldDictionaryVersion
 
     def __post_init__(self) -> None:
-        if type(self.dataset) is not PublishedDatasetVersion or type(
-            self.field_dictionary
-        ) is not PublishedFieldDictionaryVersion:
+        if (
+            type(self.dataset) is not PublishedDatasetVersion
+            or type(self.field_dictionary) is not PublishedFieldDictionaryVersion
+        ):
             raise _schema_error(
                 "data graph input requires exact published typed envelopes",
                 path="input_versions.data",
@@ -1045,8 +1064,7 @@ class PublishedGraphInputs:
         assert self.selection.data is not None
         if (
             self.data.dataset.pins.project_id != self.selection.project_id
-            or self.data.field_dictionary.pins.project_id
-            != self.selection.project_id
+            or self.data.field_dictionary.pins.project_id != self.selection.project_id
         ):
             raise _ownership_error(
                 "published data closure belongs to another Project",

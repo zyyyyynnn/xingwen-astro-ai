@@ -300,13 +300,14 @@ class ArtifactVersionGraphInputReadAdapter:
             project_id=version.project_id,
             evidence_ids=tuple(item.id for item in version.evidence),
         )
-        candidate_evidence = {
-            item.evidence_id: item for item in candidate.evidence
-        }
+        candidate_evidence = {item.evidence_id: item for item in candidate.evidence}
         evidence_bindings: list[PersistedEvidenceBinding] = []
         for evidence in version.evidence:
             pipeline_id = evidence.locator.get("summary_evidence_id")
-            if not isinstance(pipeline_id, str) or pipeline_id not in candidate_evidence:
+            if (
+                not isinstance(pipeline_id, str)
+                or pipeline_id not in candidate_evidence
+            ):
                 raise _evidence_error(
                     "Literature Evidence lacks governed summary_evidence_id mapping",
                     reason=GraphRejectionReason.evidence_inconsistent,
@@ -409,10 +410,8 @@ class ArtifactVersionGraphInputReadAdapter:
             if (
                 read.id != binding.persisted_evidence_id
                 or read.artifact_version_id != version.id
-                or read.source_snapshot_id
-                != binding.persisted_source_snapshot_id
-                or read.source_snapshot.id
-                != binding.persisted_source_snapshot_id
+                or read.source_snapshot_id != binding.persisted_source_snapshot_id
+                or read.source_snapshot.id != binding.persisted_source_snapshot_id
                 or read.target_type != binding.pipeline_target_type
                 or read.target_id != binding.pipeline_target_id
                 or read.locator != binding.pipeline_locator
@@ -486,9 +485,7 @@ class ArtifactVersionGraphInputReadAdapter:
         persisted_bindings = tuple(
             PersistedEvidenceBinding(
                 pipeline_evidence_id=binding.pipeline_evidence_id,
-                pipeline_evidence_content_hash=(
-                    binding.pipeline_evidence_content_hash
-                ),
+                pipeline_evidence_content_hash=(binding.pipeline_evidence_content_hash),
                 pipeline_source_snapshot_id=binding.pipeline_source_snapshot_id,
                 pipeline_target_type=binding.pipeline_target_type,
                 pipeline_target_id=binding.pipeline_target_id,
@@ -496,9 +493,7 @@ class ArtifactVersionGraphInputReadAdapter:
                 evidence=_evidence_detail(
                     evidence_reads[binding.persisted_evidence_id]
                 ),
-                is_restricted=restrictions[
-                    binding.persisted_evidence_id
-                ].is_restricted,
+                is_restricted=restrictions[binding.persisted_evidence_id].is_restricted,
             )
             for binding in bindings
         )
@@ -566,19 +561,14 @@ def _candidate(
 
 
 def _quality_projection(version: ArtifactVersionDetail) -> DataQualityProjection:
-    if (
-        version.quality_projection is None
-        or version.quality_projection_hash is None
-    ):
+    if version.quality_projection is None or version.quality_projection_hash is None:
         raise _artifact_error(
             "data ArtifactVersion requires a persisted Data Quality Evaluation projection",
             reason=GraphRejectionReason.input_version_unpublished,
             path=f"input_versions.{version.id}.quality_projection",
         )
     try:
-        projection = DataQualityProjection.model_validate(
-            version.quality_projection
-        )
+        projection = DataQualityProjection.model_validate(version.quality_projection)
     except ValidationError as exc:
         raise _artifact_error(
             "persisted Data Quality Evaluation projection is not schema-valid",
@@ -718,14 +708,14 @@ def _validated_data_mappings(
     for item in ordered:
         transformation = transformations.get(item.pipeline_evidence_id)
         if transformation is not None:
-            expected_locator = transformation.locator.model_dump(mode="json")
+            expected_locator = transformation.provenance.model_dump(mode="json")
             valid = (
                 item.pipeline_evidence_content_hash == transformation.content_hash
                 and item.pipeline_target_type == "canonical_field"
                 and item.pipeline_target_id == transformation.canonical_field_id
                 and item.pipeline_locator == expected_locator
                 and item.pipeline_source_snapshot_id
-                == transformation.locator.source_snapshot_id
+                == transformation.provenance.pipeline_source_snapshot_id
             )
         else:
             locator_hash = item.pipeline_locator.get("crossmatch_content_hash")

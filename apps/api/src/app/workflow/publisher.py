@@ -1774,18 +1774,24 @@ def _data_snapshot_references(
 ) -> dict[str, tuple[str, str, str]]:
     references: dict[str, tuple[str, str, str]] = {}
     for value in getattr(candidate, "source_values", ()):
+        provenance = value.provenance
         reference = (
-            value.source_id,
-            value.query_hash,
-            value.source_snapshot_content_hash,
+            provenance.source_id
+            if provenance.kind == "structured"
+            else provenance.pipeline_source_id,
+            provenance.query_hash
+            if provenance.kind == "structured"
+            else provenance.pipeline_query_hash,
+            provenance.pipeline_source_snapshot_content_hash,
         )
-        existing = references.get(value.source_snapshot_id)
+        snapshot_id = provenance.pipeline_source_snapshot_id
+        existing = references.get(snapshot_id)
         if existing is not None and existing != reference:
             raise PublicationAdmissionError(
                 "Data Artifact SourceSnapshot identity is ambiguous"
             )
-        references[value.source_snapshot_id] = reference
-    for member in getattr(candidate, "members", ()):
+        references[snapshot_id] = reference
+    for member in getattr(candidate, "crossmatch_sources", ()):
         snapshot = member.source_snapshot
         reference = (snapshot.source_id, snapshot.query_hash, snapshot.content_hash)
         existing = references.get(snapshot.snapshot_id)
@@ -1913,8 +1919,7 @@ def _data_publication_references(
                 )
             crossmatch_identity[evidence_id] = identity
     crossmatch_evidence = {
-        item.evidence_id: item
-        for item in getattr(candidate, "crossmatch_evidence", ())
+        item.evidence_id: item for item in getattr(candidate, "crossmatch_evidence", ())
     }
 
     candidate_evidence_ids = set(transformations) | set(crossmatch_evidence)
@@ -1941,7 +1946,7 @@ def _data_publication_references(
         if transformation is not None:
             if (
                 binding.pipeline_source_snapshot_id
-                != transformation.locator.source_snapshot_id
+                != transformation.provenance.pipeline_source_snapshot_id
             ):
                 raise PublicationAdmissionError(
                     "Data Artifact transformation Evidence binding must use its declared SourceSnapshot"
@@ -1949,13 +1954,25 @@ def _data_publication_references(
             target_type = "canonical_field"
             target_id = transformation.canonical_field_id
             evidence_type = "data_transformation"
-            locator = transformation.locator.model_dump(mode="json")
+            locator = transformation.provenance.model_dump(mode="json")
             quote_or_value = (
                 transformation.canonical_value
                 if transformation.canonical_value is not None
                 else transformation.raw_value
             )
-            extraction_method = "data_artifact_admission"
+            extraction_method = (
+                "document_data_admission"
+                if transformation.provenance.kind == "document"
+                else "data_artifact_admission"
+            )
+            if (
+                transformation.provenance.kind == "document"
+                and binding.persisted_source_snapshot_id
+                != transformation.provenance.persisted_source_snapshot_id
+            ):
+                raise PublicationAdmissionError(
+                    "Document Evidence binding must close its persisted SourceSnapshot provenance"
+                )
         else:
             evidence = crossmatch_evidence.get(pipeline_id)
             identity = crossmatch_identity.get(pipeline_id)
@@ -2046,9 +2063,7 @@ def _data_publication_references(
                 ),
                 extraction_method=extraction_method,
                 confidence=(
-                    str(evidence.confidence)
-                    if transformation is None
-                    else "1.0"
+                    str(evidence.confidence) if transformation is None else "1.0"
                 ),
             )
         )

@@ -236,6 +236,22 @@
       "title": "DataType",
       "type": "string"
     },
+    "DocumentAliasDeclaration": {
+      "additionalProperties": false,
+      "description": "Exact document label registered for one canonical field.",
+      "properties": {
+        "alias": {
+          "minLength": 1,
+          "title": "Alias",
+          "type": "string"
+        }
+      },
+      "required": [
+        "alias"
+      ],
+      "title": "DocumentAliasDeclaration",
+      "type": "object"
+    },
     "EvidenceDetail": {
       "additionalProperties": false,
       "description": "Evidence bound to one immutable version and source snapshot.",
@@ -382,6 +398,14 @@
           "minLength": 1,
           "title": "Description",
           "type": "string"
+        },
+        "document_aliases": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DocumentAliasDeclaration"
+          },
+          "title": "Document Aliases",
+          "type": "array"
         },
         "evidence_locator_rule_id": {
           "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
@@ -574,8 +598,8 @@
           "type": "array"
         },
         "schema_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Schema Version",
           "type": "string"
         },
