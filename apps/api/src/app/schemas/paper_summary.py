@@ -526,6 +526,14 @@ class PaperSummaryArtifactContent(BaseModel):
             for statement in getattr(self, section.value)
         )
 
+    @property
+    def source_snapshot_ids(self) -> tuple[Identifier | PersistedUuid, ...]:
+        """Snapshot identity carried by the tagged input family."""
+
+        return tuple(
+            item.source_snapshot_id for item in self.input_versions.source_snapshots
+        )
+
     def __artifact_publication_is_admitted__(self) -> bool:
         return self._artifact_publication_seal is _ARTIFACT_PUBLICATION_SEAL
 

@@ -25,6 +25,7 @@ from app.db.models import (
     ProducerExecutionModel,
     ResearchInputContentModel,
     ResearchInputModel,
+    ResearchProjectModel,
     ResearchRunModel,
     RunStepModel,
     SourceSnapshotModel,
@@ -32,6 +33,17 @@ from app.db.models import (
 )
 from app.db.session import create_engine_from_url, session_factory
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.research_input import ResearchInputCreate
+from app.services.research_input_ingestion import (
+    ResearchInputIngestionCommand,
+    ResearchInputIngestionService,
+    ResearchInputPolicy,
+    UrlFetchConfig,
+)
+from app.services.research_input_store import (
+    PersistentIdempotencyRepository,
+    PersistentResearchInputStore,
+)
 from app.schemas.scientific_document import (
     DocumentBBox,
     DocumentBlock,
@@ -516,7 +528,8 @@ def test_blocker1_same_content_wrong_source_rejects_provenance(
         ("source_version_or_etag", "unexpected-etag"),
         ("cache_version", "unexpected-cache-version"),
         ("license_note", "unexpected-license"),
-        ("request_metadata", {"ingestion_source": "upload", "extra": "value"}),
+        ("request_metadata", {"ingestion_source": "invalid_external"}),
+        ("request_metadata", "not-a-dict"),
     ),
 )
 def test_blocker1_rejects_noncanonical_upload_snapshot_metadata(
@@ -967,3 +980,189 @@ def test_concurrent_same_identity_has_one_authoritative_parse(
             .select_from(DocumentParseLocatorModel)
             .where(DocumentParseLocatorModel.project_id == request.project_id)
         ) in {0, 1}
+
+
+def test_real_research_input_upload_document_parse_provenance_roundtrip(
+    postgres_engine: Engine, tmp_path: Path
+) -> None:
+    """Production closure: ResearchInputIngestionService PDF upload -> DocumentParseService.persist -> get."""
+
+    factory = session_factory(postgres_engine)
+    session_id = f"session-{uuid4()}"
+    project_id = uuid4()
+    run_id = uuid4()
+    step_id = uuid4()
+    attempt_id = uuid4()
+    producer_id = uuid4()
+
+    project = build_research_project(
+        project_id=project_id,
+        session_id=session_id,
+        name="Document Parse Provenance Test",
+        case_key="exoplanet_host_star",
+        created_at=NOW,
+        updated_at=NOW,
+    )
+    draft = build_contract_draft(project, created_at=NOW, updated_at=NOW)
+    contract = build_research_contract(
+        project,
+        draft,
+        contract_id=uuid4(),
+        content_hash="sha256:" + "a" * 64,
+        created_at=NOW,
+    )
+    with factory() as session, session.begin():
+        persist_authoring_models(
+            session,
+            project=project,
+            draft=draft,
+            contract=contract,
+        )
+        session.add(
+            ResearchRunModel(
+                id=run_id,
+                project_id=project.id,
+                contract_id=contract.id,
+                execution_mode="live",
+                status="completed",
+                progress=100,
+                derivation_kind="original",
+                cache_policy="disabled",
+                latest_event_sequence=0,
+                revision=1,
+                idempotency_key=f"run-{run_id}",
+                request_hash="sha256:" + "b" * 64,
+            )
+        )
+        session.flush()
+        session.add(
+            RunStepModel(
+                id=step_id,
+                run_id=run_id,
+                position=0,
+                key="summarizing_papers",
+                label="Summarize papers",
+                enter_status="searching_papers",
+                success_status="reasoning_literature",
+                max_attempts=1,
+                status="completed",
+                progress=100,
+            )
+        )
+        session.flush()
+        session.add(
+            StepAttemptModel(
+                id=attempt_id,
+                run_step_id=step_id,
+                attempt_number=1,
+                idempotency_key="parse-attempt",
+                status="completed",
+                retryable=False,
+                started_at=NOW,
+                finished_at=NOW,
+            )
+        )
+        session.flush()
+        session.add(
+            ProducerExecutionModel(
+                id=producer_id,
+                run_id=run_id,
+                run_step_id=step_id,
+                step_attempt_id=attempt_id,
+                step_key="summarizing_papers",
+                idempotency_key="parse-producer",
+                lease_generation=1,
+                producer_type="model",
+                producer_name="test-parser",
+                producer_version="1.0.0",
+                parameters={"param": "val"},
+                parameters_hash=INPUT_HASH,
+                input_hash=PARSE_INPUT_HASH,
+                output_hash=OUTPUT_HASH,
+                status="completed",
+                started_at=NOW,
+                finished_at=NOW,
+            )
+        )
+
+    storage = LocalContentStorage(tmp_path / "cas")
+    input_store = PersistentResearchInputStore(factory)
+    pdf_bytes = INPUT_BYTES
+
+    # 1. Ingest PDF upload via real ResearchInputIngestionService
+    research_input = asyncio.run(
+        ResearchInputIngestionService(
+            repository=input_store,
+            idempotency_repository=PersistentIdempotencyRepository(factory),
+            content_storage=storage,
+            policy=ResearchInputPolicy.from_values(
+                allowed_mime_types=("application/pdf",),
+                max_size_bytes=1024 * 1024,
+            ),
+            url_fetch_config=UrlFetchConfig(
+                allowed_protocols=("https",),
+                allowed_hosts=(),
+                timeout_seconds=1,
+                max_redirects=0,
+                max_response_bytes=1024,
+            ),
+        ).create(
+            ResearchInputIngestionCommand(
+                session_id=session_id,
+                project_id=str(project_id),
+                payload=ResearchInputCreate(
+                    type="pdf",
+                    filename="sample.pdf",
+                    mime_type="application/pdf",
+                ),
+                idempotency_key=f"upload-{uuid4()}",
+                file_content=pdf_bytes,
+                file_filename="sample.pdf",
+            )
+        )
+    )
+    assert research_input.source_snapshot_id is not None
+
+    # 2. DO NOT mutate the database. Feed directly to DocumentParseService.persist
+    doc_repo = DocumentParseRepository(factory)
+    doc_service = DocumentParseService(doc_repo, storage)
+
+    candidate = _candidate(UUID(research_input.id))
+
+    parse_record = asyncio.run(
+        doc_service.persist(
+            PersistDocumentParseRequest(
+                project_id=project_id,
+                run_id=run_id,
+                run_step_id=step_id,
+                producer_execution_id=producer_id,
+                parse_input_hash=PARSE_INPUT_HASH,
+                candidate=candidate,
+            )
+        )
+    )
+
+    # 3. Verify get_candidate and source_snapshot provenance closure
+    retrieved_candidate = asyncio.run(
+        doc_service.get_candidate(
+            project_id=project_id,
+            document_parse_id=parse_record.id,
+        )
+    )
+    assert str(parse_record.source_snapshot_id) == str(research_input.source_snapshot_id)
+    assert str(retrieved_candidate.research_input_id) == str(research_input.id)
+    assert str(retrieved_candidate.content_hash) == str(research_input.content_hash)
+
+    with factory() as session:
+        snapshot_row = session.get(
+            SourceSnapshotModel, UUID(research_input.source_snapshot_id)
+        )
+        assert snapshot_row is not None
+        assert str(snapshot_row.id) == str(research_input.source_snapshot_id)
+        assert snapshot_row.source_id == f"research_input:{research_input.id}"
+        assert snapshot_row.source_type == "research_input_upload"
+        assert snapshot_row.content_hash == research_input.content_hash
+        assert isinstance(snapshot_row.request_metadata, dict)
+        assert snapshot_row.request_metadata["ingestion_source"] == "upload"
+        assert snapshot_row.request_metadata["input_type"] == "pdf"
+

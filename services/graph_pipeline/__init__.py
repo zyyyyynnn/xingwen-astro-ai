@@ -43,6 +43,7 @@ from .ports import (
 from .pipeline import (
     GraphPipeline,
     build_complete_progressive_input,
+    build_graph_taxonomy,
     required_progressive_item_ids,
 )
 
@@ -70,6 +71,7 @@ __all__ = [
     "StoredPipelineEvidenceBinding",
     "VersionedGraphInputReadPort",
     "build_complete_progressive_input",
+    "build_graph_taxonomy",
     "build_integrity_report",
     "canonical_edge_order",
     "canonical_evidence_use_order",

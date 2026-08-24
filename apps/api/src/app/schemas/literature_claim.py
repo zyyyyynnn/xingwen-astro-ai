@@ -162,7 +162,7 @@ class LiteratureClaimEvidenceReference(BaseModel):
     evidence_id: Identifier
     summary_statement_id: Identifier
     paper_id: Identifier
-    source_snapshot_id: Identifier
+    source_snapshot_id: Identifier | PersistedUuid
     source_snapshot_version: ShortString
     source_snapshot_content_hash: ContentHash
     status: Literal["supported", "unsupported", "unverifiable"]
@@ -194,7 +194,7 @@ class LiteratureClaimCandidate(BaseModel):
     uncertainty: ShortString | None = None
     comparison_basis: ShortString | None = None
     evidence_ids: tuple[Identifier, ...]
-    source_snapshot_ids: tuple[Identifier, ...]
+    source_snapshot_ids: tuple[Identifier | PersistedUuid, ...]
     normalization_version: SemanticVersion
     fingerprint: ContentHash
     status: LiteratureClaimStatus
@@ -300,7 +300,7 @@ class LiteratureClaimsCandidate(BaseModel):
     evidence: tuple[PaperSummaryEvidence, ...]
     evidence_references: tuple[LiteratureClaimEvidenceReference, ...]
     evidence_ids: tuple[Identifier, ...]
-    source_snapshot_ids: tuple[Identifier, ...]
+    source_snapshot_ids: tuple[Identifier | PersistedUuid, ...]
     status_counts: LiteratureClaimStatusCounts
     producer: LiteratureClaimProducerExecution
     input_hash: ContentHash

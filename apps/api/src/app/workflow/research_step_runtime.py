@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.db.models import RunStepModel
 from app.schemas.manifest import ManifestBundle
 from app.schemas.scientific_capabilities import capability_for
+from app.services.artifacts import ArtifactReadService
 from app.services.content_storage import ContentStorage
 from app.services.data_artifact_build_inputs import DataArtifactBuildInputRepository
 from app.services.document_data_admission import DocumentDataAdmissionService
@@ -21,6 +22,7 @@ from app.services.paper_candidate_inputs import (
     PaperCandidateInputReadService,
     PaperCandidateInputRepository,
 )
+from app.services.paper_summaries import PaperSummaryReadService
 from app.services.research_input_store import PersistentResearchInputStore
 from app.services.scientific_document.ports import DocumentParserPort
 from app.workflow.agent_runtime import AgentActivity, ResearchStepAgent, StepTool
@@ -123,7 +125,14 @@ class ResearchStepRuntime:
             document_parser=document_parser,
             document_parses=document_parses,
         )
-        self._literature_steps = LiteratureStepService(publications=self._publications)
+        summary_reader = PaperSummaryReadService(
+            ArtifactReadService(factory),
+            document_parses=document_parses,
+        )
+        self._literature_steps = LiteratureStepService(
+            publications=self._publications,
+            summary_reader=summary_reader,
+        )
         self._graph_steps = GraphStepService(
             factory=factory, publications=self._publications
         )

@@ -578,7 +578,8 @@ def _assert_authoritative_upload_snapshot(
         or snapshot.source_version_or_etag is not None
         or snapshot.cache_version is not None
         or snapshot.license_note != "user-provided upload"
-        or snapshot.request_metadata != {"ingestion_source": "upload"}
+        or not isinstance(snapshot.request_metadata, dict)
+        or snapshot.request_metadata.get("ingestion_source") != "upload"
     ):
         raise DocumentParseIntegrityError(
             "ResearchInput SourceSnapshot does not satisfy authoritative "
