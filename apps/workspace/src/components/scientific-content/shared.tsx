@@ -40,18 +40,19 @@ export function limitNote(
   return total > shown ? `当前显示前 ${shown} / ${total} ${unit}。` : null;
 }
 
-/** Render internal snake_case tokens as readable words instead of raw enums. */
-export function humanizeToken(value: string): string {
-  return value.replaceAll("_", " ");
-}
-
 const TAXONOMY_LABELS: Record<string, string> = {
+  goal: "研究目标",
   research_goal: "研究目标",
+  future_work: "后续研究",
   dataset: "数据集",
   field: "字段",
+  source: "来源",
   paper: "论文",
   claim: "声明",
   finding: "发现",
+  relation: "关系",
+  reasoning_trace: "推导过程",
+  evidence: "证据",
   measurement: "测量",
   method: "方法",
   limitation: "局限",
@@ -59,6 +60,7 @@ const TAXONOMY_LABELS: Record<string, string> = {
   uses_dataset: "使用数据集",
   provides_field: "提供字段",
   supports_finding: "支持发现",
+  cites: "引用",
   supports: "支持",
   extends: "扩展",
   derived_from: "派生自",
@@ -66,10 +68,27 @@ const TAXONOMY_LABELS: Record<string, string> = {
   contradicts: "矛盾",
   uses_same_dataset: "使用同一数据集",
   compares_method: "比较方法",
+  corrected_by_feedback: "根据反馈修正",
+  structured: "结构化数据",
+  source_table: "来源表格",
+  document: "文档",
+  emission: "发射",
+  absorption: "吸收",
+  sun: "太阳",
+  mercury: "水星",
+  venus: "金星",
+  earth: "地球",
+  moon: "月球",
+  mars: "火星",
+  jupiter: "木星",
+  saturn: "土星",
+  uranus: "天王星",
+  neptune: "海王星",
+  pluto: "冥王星",
 };
 
 export function taxonomyLabel(value: string): string {
-  return TAXONOMY_LABELS[value] ?? humanizeToken(value);
+  return TAXONOMY_LABELS[value] ?? "其他";
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -81,6 +100,11 @@ const STATUS_LABELS: Record<string, string> = {
   unverified: "未核实",
   failed: "失败",
   partial: "部分完成",
+  supported: "有证据支持",
+  unsupported: "证据不足",
+  unverifiable: "无法核验",
+  selected: "已选用",
+  unselected: "未选用",
 };
 
 export function reviewStatusLabel(value: string): string {

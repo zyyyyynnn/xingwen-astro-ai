@@ -29,6 +29,18 @@
 - **Ownership 校验**：所有 Project、Run、ArtifactVersion、UserFeedback、RevisionPlan、WorkspaceSnapshot 与 ShareSnapshot 在服务端强制校验 Session ownership。
 - **只读分享**：
   - ShareSnapshot 锁定不可变 ArtifactVersion 与可公开 Evidence 范围。
+  - 私有 `ArtifactVersionDetail` 与公开版本复用同一服务端
+    `PublicArtifactPresentation` 投影；公开面只缩减资源与权限，不在前端重建另一套
+    文献、关系或图谱解释规则。叙述段落显式携带支持该句的 Evidence identity；同一
+    持久化 Evidence 可支持多个段落，不为每次引用复制 Evidence 记录。
+  - 公开 `PublicArtifactVersion` 仅返回由既有 typed Artifact authoring contract 正向投影的
+    `PublicArtifactPresentation`，不得返回原始 `content`、递归 JSON 或另一套科研
+    解释规则；条目中的 Evidence 引用必须映射到该版本已经持久化的 Evidence identity。
+  - 公开 Evidence 仅返回核验所需的来源事实、短引文/标量与 typed locator；locator
+    允许页、段落、章节、文本范围、block、reading order、table/cell、field/row 与
+    bbox，不透传其他内部键。
+  - ShareSnapshot 必须冻结 presentation 引用的全部 Evidence；创建与公开读取边界均按
+    ArtifactVersion 复验该闭包并在不完整时失败关闭。
   - Share token 服务端仅存 hash；公开读取不授予写权限或敏感调试信息。
 - **未授权保护**：会话缺失/过期返回 `401`；无权访问或不存在的私有资源统一返回 `404`（不泄露资源存在性）；CSRF 校验失败返回 `403`。
 - **会话恢复**：配置 PostgreSQL 时，匿名会话凭据、有限 CSRF 令牌集合、状态与有效期由数据库持久化；浏览器刷新、多标签和 API 进程重启必须恢复同一 Session 所有权，不得创建无法读取既有项目的平行会话。
@@ -42,7 +54,7 @@
   并回到部署 baseline。
 - 写操作要求有效 Session、CSRF 与独立限流。当前只有 development/test/integration 可写；
   production 返回只读状态，直到存在正式管理员授权边界。`PUT` / `DELETE` 必须携带当前 revision 的
-  `If-Match`；过期 revision 在连接探测或写入前以 `409` 拒绝。
+  `If-Match`；删除也推进 revision，过期 revision 在连接探测或写入前以 `409` 拒绝。
 - DashScope preset 不接受浏览器覆盖其官方 Base URL；custom preset 受 HTTPS、部署 host allowlist
   与本地开发例外约束。连接测试失败不得改变当前运行配置。
 

@@ -51,6 +51,7 @@ UserFeedback (*) -- (*) RevisionPlan -- (0..1) RevisionPlanConfirmation -- (1) R
 - ModelExecutionRecord 属于 Project，是 pre-run Research assistant 的执行审计记录，与 Run 的 ProducerExecution 分离；它固定 Registry Prompt、规范化 input/parameters、通过验证的公开 output snapshot 与对应 hash。同一 Project 同时最多存在一个 `pending | running` ModelExecution；provider 调用期间不持有 Project 行锁，由短事务检查与数据库部分唯一索引共同强制。活跃记录必须持有 token + expiry 执行租约，租期覆盖每次 provider timeout、全部传输尝试、SDK 可接受的最坏 `Retry-After` 等待与持久化余量；重试次数必须有配置上限。过期记录由下一次 Project 写入在行锁内标记失败，迟到 worker 只有仍持有原租约且租约未过期时才能提交成功或失败终态。不得存储 API secret、认证头、raw provider body 或私有 chain-of-thought。
 - ModelProviderConfiguration 是至多一条的实例级运行配置，不属于 Session、Project 或 Run。它保存 preset、
   规范化 base URL、model、加密 API Key、掩码尾号、单调 revision 与验证时间；部署 baseline 不复制到表中。
+  移除工作台 override 时推进 revision 并保留不含凭据的 tombstone，后续写入不得重用历史 revision。
   工作台 override 更新后只影响新模型调用，既有调用继续持有创建时的不可变 runtime snapshot。
 - ResearchContractDraft 是 Project-owned editable entity，使用 `(id, project_id)` 与 `(project_id, session_id)` composite identity 保证属主一致。
 - ResearchContract 从一个 Draft 确认产生；`created_from_draft_id + project_id` composite lineage 强制 Draft 与 Contract 属于同一 Project。一个 Draft 最多产生一个 Contract。
@@ -90,7 +91,7 @@ UserFeedback 固定当前 ArtifactVersion 与对象定位；RevisionPlan 固定�
 
 ## 6. Workspace 与 Share
 
-WorkspaceSnapshot 保存私有布局与选中对象，通过 `(project_id, owner_session_id)` 外键闭合 ownership，并使用乐观锁更新。ShareSnapshot 通过同一复合 ownership 外键冻结具体 ArtifactVersion、Evidence 与 SourceSnapshot identity 的已脱敏公开投影，服务端只保存 token hash；重启后的公开读取不重新投影动态资源。
+WorkspaceSnapshot 保存私有布局与选中对象，通过 `(project_id, owner_session_id)` 外键闭合 ownership，并使用乐观锁更新。ShareSnapshot 通过同一复合 ownership 外键冻结具体 ArtifactVersion、Evidence 与 SourceSnapshot identity 的已脱敏公开投影；ArtifactVersion 只冻结由现有 typed Artifact authority 构造的正向科学呈现，不保存原始内容的公开副本或第二套领域模型，呈现中的 Evidence identity 必须来自同一冻结版本。服务端只保存 token hash；重启后的公开读取不重新投影动态资源。
 
 Session retention 只删除达到保留期且没有 ResearchProject 引用的记录；Share retention 可删除达到保留期的撤销/过期分享。两者均不级联删除正常科研历史。
 

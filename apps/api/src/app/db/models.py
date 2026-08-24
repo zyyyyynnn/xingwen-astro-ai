@@ -93,6 +93,7 @@ class ModelProviderConfigurationModel(TimestampMixin, Base):
     model: Mapped[str] = mapped_column(String(200), nullable=False)
     encrypted_api_key: Mapped[str] = mapped_column(Text, nullable=False)
     api_key_hint: Mapped[str] = mapped_column(String(8), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     verified_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
@@ -103,7 +104,7 @@ class ModelProviderConfigurationModel(TimestampMixin, Base):
 
     __table_args__ = (
         CheckConstraint(
-            "preset IN ('openai','dashscope','custom')",
+            "preset IN ('dashscope','custom')",
             name="model_provider_configuration_preset",
         ),
         CheckConstraint(

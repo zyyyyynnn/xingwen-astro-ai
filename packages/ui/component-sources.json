@@ -72,7 +72,7 @@
       "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
       "adaptation": "Retains the registry badge slot and variant contract with clsx composition and semantic Xingwen status tokens, without unused Slot or CVA dependencies.",
       "production_consumers": [
-        "apps/workspace/src/components/paper-summary-renderer.tsx"
+        "apps/workspace/src/components/scientific-presentation.tsx"
       ]
     },
     {

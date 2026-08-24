@@ -59,6 +59,7 @@ CORE_MODELS: tuple[str, ...] = (
     "ArtifactVersionSummary",
     "ResearchArtifactDetail",
     "ArtifactVersionDetail",
+    "PublicArtifactPresentation",
     "PaperSummaryArtifactContent",
     "PaperSummaryRead",
     "PaperSummaryDocumentSourceRead",

@@ -97,6 +97,8 @@ function versionDetail(version: VersionDto): Record<string, unknown> {
     source_snapshots: [],
     evidence: [],
     ...version,
+    presentation:
+      exoplanetHostStarFixture.data.artifactPresentations[version.id],
   };
 }
 

@@ -22,12 +22,20 @@ from pydantic import BaseModel
 
 from app.security import SecurityProblem
 from app.test_support.bootstrap import BootstrapResult, bootstrap_fixture_artifacts
+from app.test_support.integration_research import (
+    ResearchResultsBootstrapResult,
+    bootstrap_fixture_research_results,
+)
 
 router = APIRouter(prefix="/api/test", tags=["test-only"])
 
 
 class BootstrapResponse(BaseModel):
     data: BootstrapResult
+
+
+class ResearchResultsBootstrapResponse(BaseModel):
+    data: ResearchResultsBootstrapResult
 
 
 def _persistent_runtime_unavailable() -> SecurityProblem:
@@ -66,3 +74,31 @@ def create_bootstrap(
         workflow_store=workflow_store,
     )
     return BootstrapResponse(data=result)
+
+
+@router.post(
+    "/bootstrap/research-results",
+    response_model=ResearchResultsBootstrapResponse,
+    status_code=201,
+)
+def create_research_results_bootstrap(
+    request: Request,
+    run_id: str = Query(
+        min_length=1,
+        description="Session-owned demo_replay run executed by the fixture runtime",
+    ),
+) -> ResearchResultsBootstrapResponse:
+    record = request.state.session
+    factory = getattr(request.app.state, "db_session_factory", None)
+    research_service = request.app.state.research_service
+    workflow_store = request.app.state.workflow_store
+    if factory is None or research_service is None or workflow_store is None:
+        raise _persistent_runtime_unavailable()
+    result = bootstrap_fixture_research_results(
+        session_id=record.id,
+        run_id=run_id,
+        factory=factory,
+        research_service=research_service,
+        workflow_store=workflow_store,
+    )
+    return ResearchResultsBootstrapResponse(data=result)

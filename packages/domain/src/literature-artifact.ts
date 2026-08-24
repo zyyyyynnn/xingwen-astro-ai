@@ -7,6 +7,7 @@
 import type { DataArtifactSourceSnapshot } from "./data-artifact";
 import type { DomainEntityId } from "./identifiers";
 import type { SourceMode } from "./enums";
+import type { PublicArtifactPresentation } from "./share-snapshot";
 import type { ContentHash, UtcIsoTimestamp } from "./value-types";
 
 export interface LiteratureArtifactVersionReview {
@@ -22,6 +23,7 @@ export interface LiteratureArtifactVersionReview {
   readonly createdAt: UtcIsoTimestamp;
   readonly sourceSnapshots: readonly DataArtifactSourceSnapshot[];
   readonly evidenceIds: readonly DomainEntityId[];
+  readonly presentation: PublicArtifactPresentation;
 }
 
 export interface LiteratureClaimReferenceReview {

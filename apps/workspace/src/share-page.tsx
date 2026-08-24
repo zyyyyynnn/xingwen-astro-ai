@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouteContext } from "@tanstack/react-router";
-import type {
-  DomainEntityId,
-  PublicEvidence,
-  PublicShareSnapshot,
-} from "@xingwen/domain";
+import type { DomainEntityId, PublicShareSnapshot } from "@xingwen/domain";
 import { Button, Link, Spinner } from "@xingwen/ui";
-import { ExternalLink, Share2 } from "@xingwen/ui/icons";
+import { Share2 } from "@xingwen/ui/icons";
 
+import {
+  ArtifactPresentationContent,
+  ArtifactSourceMode,
+} from "./components/scientific-presentation";
+import {
+  buildEvidencePresentation,
+  EvidencePresentationContent,
+} from "./components/evidence-presentation";
 import { resolveArtifactRenderer } from "./presentation/artifact-renderer-registry";
 
 export interface SharePageProps {
@@ -31,77 +35,15 @@ function formatDate(value: string): string {
   }).format(date);
 }
 
-function publicSourceUrl(evidence: PublicEvidence): string | null {
-  const value =
-    evidence.source.requestMetadata.source_url ??
-    evidence.source.requestMetadata.url ??
-    evidence.source.requestMetadata.original_url ??
-    evidence.source.requestMetadata.landing_url;
-  if (typeof value !== "string") return null;
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === "https:" || parsed.protocol === "http:"
-      ? parsed.toString()
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-function publicValue(value: PublicEvidence["quoteOrValue"]): string {
-  if (value === null) return "公开副本未提供摘录";
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-  return "公开副本未提供可读摘录";
-}
-
-const LOCATOR_LABELS: Readonly<Record<string, string>> = {
-  page: "页码",
-  paragraph: "段落",
-  section: "章节",
-  field: "字段",
-  range: "范围",
-  row_key: "记录",
-};
-
-const PUBLIC_SOURCE_TYPE_LABELS: Readonly<Record<string, string>> = {
-  benchmark: "基准数据",
-  catalog: "星表",
-  database: "数据库",
-  fixture: "演示数据",
-  gaia_tap: "Gaia 星表",
-  paper: "论文",
-  paper_metadata: "论文元数据",
-  research_input: "研究资料",
-  research_input_upload: "用户上传",
-  text: "用户输入",
-  upload: "用户上传",
-  url_fetch: "网页来源",
-};
-
-function publicSourceTypeLabel(sourceType: string): string {
-  return PUBLIC_SOURCE_TYPE_LABELS[sourceType] ?? "公开来源";
-}
-
 function PublicEvidenceInspector({
   evidence,
   number,
   onClose,
 }: {
-  readonly evidence: PublicEvidence;
+  readonly evidence: PublicShareSnapshot["evidence"][number];
   readonly number: number;
   readonly onClose: () => void;
 }) {
-  const locatorFacts = Object.entries(evidence.locator).flatMap(
-    ([key, value]) => {
-      const label = LOCATOR_LABELS[key];
-      if (!label || value === null || typeof value === "object") return [];
-      return [{ label, value: String(value) }];
-    },
-  );
-  const sourceUrl = publicSourceUrl(evidence);
   return (
     <aside className="public-evidence" aria-labelledby="public-evidence-title">
       <div className="public-evidence__header">
@@ -113,37 +55,9 @@ function PublicEvidenceInspector({
           关闭
         </Button>
       </div>
-      <blockquote>{publicValue(evidence.quoteOrValue)}</blockquote>
-      {locatorFacts.length > 0 ? (
-        <dl className="public-evidence__facts">
-          {locatorFacts.map((fact) => (
-            <div key={fact.label}>
-              <dt>{fact.label}</dt>
-              <dd>{fact.value}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
-      <dl className="public-evidence__facts">
-        <div>
-          <dt>来源类型</dt>
-          <dd>{publicSourceTypeLabel(evidence.source.sourceType)}</dd>
-        </div>
-        <div>
-          <dt>获取时间</dt>
-          <dd>{formatDate(evidence.source.retrievedAt)}</dd>
-        </div>
-        <div>
-          <dt>使用说明</dt>
-          <dd>{evidence.source.licenseNote}</dd>
-        </div>
-      </dl>
-      {sourceUrl ? (
-        <Link href={sourceUrl} target="_blank" rel="noopener noreferrer">
-          打开原始来源
-          <ExternalLink aria-hidden="true" />
-        </Link>
-      ) : null}
+      <EvidencePresentationContent
+        presentation={buildEvidencePresentation(evidence)}
+      />
     </aside>
   );
 }
@@ -200,6 +114,13 @@ export function PublicShareView({
   const [selectedEvidenceId, setSelectedEvidenceId] =
     useState<DomainEntityId | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const evidenceOrdinals = useMemo(
+    () =>
+      new Map(
+        snapshot.evidence.map((evidence, index) => [evidence.id, index + 1]),
+      ),
+    [snapshot.evidence],
+  );
   const selectedVersion =
     orderedVersions.find((version) => version.id === selectedVersionId) ??
     orderedVersions[0] ??
@@ -283,9 +204,15 @@ export function PublicShareView({
             </nav>
           ) : null}
           <section className="public-share-result" aria-label="共享科研结果">
-            <renderer.PublicRenderer
-              version={selectedVersion}
+            <ArtifactSourceMode sourceMode={selectedVersion.sourceMode} />
+            <ArtifactPresentationContent
+              title={selectedVersion.title}
+              presentation={selectedVersion.presentation}
+              surface="fullscreen"
               onSelectEvidence={setSelectedEvidenceId}
+              evidenceOrdinal={(evidenceId) =>
+                evidenceOrdinals.get(evidenceId) ?? null
+              }
             />
             {selectedVersion.evidenceIds.length > 0 ? (
               <section

@@ -11,6 +11,8 @@ import type {
   LightCurveArtifactReviewContent,
   ModelArtifactReviewContent,
   ModelEvaluationReviewContent,
+  NonEmptyString,
+  PublicArtifactPresentation,
   ScientificArtifactReview,
   ScientificArtifactReviewContent,
   SpectrumArtifactReviewContent,
@@ -18,7 +20,164 @@ import type {
 } from "@xingwen/domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ScientificArtifactRenderer } from "./scientific-artifact-renderer";
+import {
+  ScientificArtifactRenderer as ScientificArtifactRendererImpl,
+  type ScientificArtifactRendererProps,
+} from "./scientific-artifact-renderer";
+
+function text(value: string): NonEmptyString {
+  return value as NonEmptyString;
+}
+
+function emptyPresentation(
+  kind: PublicArtifactPresentation["kind"],
+): PublicArtifactPresentation {
+  return {
+    kind,
+    summary: null,
+    facts: [],
+    sections: [],
+    entries: [],
+    tables: [],
+    graphNodes: [],
+    graphEdges: [],
+  };
+}
+
+function presentationFor(
+  content: ScientificArtifactReviewContent,
+): PublicArtifactPresentation {
+  const presentation = emptyPresentation(content.kind);
+  if (content.kind === "analysis_report") {
+    return {
+      ...presentation,
+      summary: text(content.summary),
+      facts: content.metrics.map((metric) => ({
+        label: text(metric.label),
+        values: [
+          text(`${metric.value}${metric.unit ? ` ${metric.unit}` : ""}`),
+        ],
+      })),
+      entries: content.findings.map((finding) => ({
+        key: finding.findingId,
+        title: text(finding.title),
+        externalUrl: null,
+        status: text(finding.status),
+        assessment: null,
+        paragraphs: [text(finding.statement)],
+        facts: [],
+        evidenceIds: finding.evidenceIds,
+        reasoningTrace: null,
+      })),
+      sections: [
+        ...(content.limitations.length
+          ? [
+              {
+                title: text("限制"),
+                paragraphs: content.limitations.map((value) => ({
+                  text: text(value),
+                  status: null,
+                  evidenceIds: [],
+                })),
+              },
+            ]
+          : []),
+        ...(content.humanRequired.length
+          ? [
+              {
+                title: text("待人工确认"),
+                paragraphs: content.humanRequired.map((value) => ({
+                  text: text(value),
+                  status: null,
+                  evidenceIds: [],
+                })),
+              },
+            ]
+          : []),
+      ],
+    };
+  }
+  if (content.kind === "visualization") {
+    return {
+      ...presentation,
+      summary: text(content.description || "可视化结果已冻结。"),
+    };
+  }
+  if (content.kind === "spectrum") {
+    return {
+      ...presentation,
+      facts: [
+        {
+          label: text("信噪比"),
+          values: [text(String(content.signalToNoise))],
+        },
+      ],
+    };
+  }
+  if (content.kind === "light_curve") {
+    return {
+      ...presentation,
+      facts: [
+        {
+          label: text("时间尺度"),
+          values: [text(content.timeScale.toUpperCase())],
+        },
+      ],
+    };
+  }
+  if (content.kind === "model_evaluation") {
+    const split = content.split;
+    return {
+      ...presentation,
+      facts: [
+        {
+          label: text("划分方式"),
+          values: [text("实体隔离划分")],
+        },
+        {
+          label: text("划分字段"),
+          values: [text(String(split.field))],
+        },
+        {
+          label: text("随机种子"),
+          values: [text(String(split.randomSeed))],
+        },
+        {
+          label: text("交叉验证"),
+          values: [text(`${split.crossValidationFolds} 折`)],
+        },
+      ],
+      sections: content.limitations.length
+        ? [
+            {
+              title: text("限制"),
+              paragraphs: content.limitations.map((value) => ({
+                text: text(value),
+                status: null,
+                evidenceIds: [],
+              })),
+            },
+          ]
+        : [],
+    };
+  }
+  return presentation;
+}
+
+function ScientificArtifactRenderer(
+  props: Omit<ScientificArtifactRendererProps, "presentation">,
+) {
+  return (
+    <ScientificArtifactRendererImpl
+      {...props}
+      presentation={
+        "content" in props.review
+          ? presentationFor(props.review.content)
+          : emptyPresentation(props.review.kind)
+      }
+    />
+  );
+}
 
 const downloadBytes = vi.fn();
 vi.mock("../presentation/browser-download", () => ({
@@ -119,8 +278,8 @@ describe("ScientificArtifactRenderer scientific content", () => {
       />,
     );
 
-    expect(screen.getByText("Vega 光谱分析")).toBeInTheDocument();
-    expect(screen.getByText(/S\/N 42.50/)).toBeInTheDocument();
+    expect(screen.getByText("信噪比")).toBeInTheDocument();
+    expect(screen.getByText("42.5")).toBeInTheDocument();
     expect(screen.getByText("500.5000")).toBeInTheDocument();
     expect(screen.getByText("吸收")).toBeInTheDocument();
 
@@ -193,8 +352,9 @@ describe("ScientificArtifactRenderer scientific content", () => {
     expect(screen.getByText("样本数")).toBeInTheDocument();
     expect(screen.getByText("金属丰度偏高")).toBeInTheDocument();
     expect(screen.getByText("样本量有限")).toBeInTheDocument();
-    expect(screen.getByText("需要人工确认")).toBeInTheDocument();
+    expect(screen.getByText("待人工确认")).toBeInTheDocument();
     expect(screen.getByText("请人工核对光谱分类")).toBeInTheDocument();
+    expect(screen.getAllByText("对候选恒星样本完成统计画像。")).toHaveLength(1);
   });
 
   it("renders astronomy source rows as a bounded sortable table with units and evidence", () => {
@@ -392,8 +552,11 @@ describe("ScientificArtifactRenderer scientific content", () => {
         surface="fullscreen"
       />,
     );
-    expect(screen.getByText(/TDB · d/)).toBeInTheDocument();
-    expect(screen.getByText(/1.0900 d/)).toBeInTheDocument();
+    expect(screen.getByText("TDB")).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "周期 (d)" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("1.0900")).toBeInTheDocument();
   });
 
   it("renders visualization chart content as an accessible table", () => {
@@ -571,9 +734,10 @@ describe("ScientificArtifactRenderer scientific content", () => {
       />,
     );
 
-    expect(screen.getByText(/实体隔离划分/)).toHaveTextContent(
-      "实体隔离划分 · 划分字段 object_id · 随机种子 42 · 5 折交叉验证",
-    );
+    expect(screen.getByText("实体隔离划分")).toBeInTheDocument();
+    expect(screen.getByText("object_id")).toBeInTheDocument();
+    expect(screen.getByText("42")).toBeInTheDocument();
+    expect(screen.getByText("5 折")).toBeInTheDocument();
     expect(
       screen.getByText("同一实体不会跨越训练与测试边界"),
     ).toBeInTheDocument();

@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Iterable
+from typing import Protocol
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.artifact_publication import canonical_artifact_content_payload
-from app.schemas.literature_claim import LiteratureClaimStatus
-from app.schemas.literature_relation import LiteratureRelationStatus
+from app.schemas.literature_claim import LiteratureClaimCandidate, LiteratureClaimStatus
+from app.schemas.literature_relation import (
+    LiteratureRelationConfidenceAssessment,
+    LiteratureRelationStatus,
+)
 from app.services.paper_summaries import PaperSummaryReadPort
 from app.workflow.publisher import admit_artifact_candidate
 from app.workflow.step_publication import (
@@ -40,6 +45,17 @@ from services.paper_pipeline.relation_confidence import (
 
 #: Governed generation parameters shared by the literature model calls.
 MODEL_PARAMETERS: dict[str, float | int] = {"temperature": 0.6, "top_p": 0.8}
+
+
+class RelationConfidenceBuilder(Protocol):
+    """Attempt-local confidence boundary used by the literature step."""
+
+    def __call__(
+        self,
+        *,
+        claim_artifact_version_id: str,
+        claims: Iterable[LiteratureClaimCandidate],
+    ) -> dict[str, LiteratureRelationConfidenceAssessment]: ...
 
 
 def _claim_parameters_hash(
@@ -76,9 +92,13 @@ class LiteratureStepService:
         *,
         publications: StepPublicationFactory,
         summary_reader: PaperSummaryReadPort,
+        relation_confidence_builder: RelationConfidenceBuilder | None = None,
     ) -> None:
         self._publications = publications
         self._summary_reader = summary_reader
+        self._relation_confidence_builder = (
+            relation_confidence_builder or build_live_relation_confidence_assessments
+        )
 
     def reason(
         self,
@@ -118,16 +138,18 @@ class LiteratureStepService:
                 )
 
         # Claims execution, admission, bindings, terminalization, and publication prep
-        claims_model_response, claims_response, claims_execution_id = model_caller.execute_json(
-            prompt_name="literature_claim",
-            input_payload={
-                "paper_summary_artifact_version_id": str(summary_version_id),
-                "paper_summary": summary.model_dump(mode="json"),
-            },
-            parameters=MODEL_PARAMETERS,
-            producer_name=CLAIM_PRODUCER_NAME,
-            producer_version=CLAIM_PRODUCER_VERSION,
-            parameters_hash=_claim_parameters_hash(MODEL_PARAMETERS),
+        claims_model_response, claims_response, claims_execution_id = (
+            model_caller.execute_json(
+                prompt_name="literature_claim",
+                input_payload={
+                    "paper_summary_artifact_version_id": str(summary_version_id),
+                    "paper_summary": summary.model_dump(mode="json"),
+                },
+                parameters=MODEL_PARAMETERS,
+                producer_name=CLAIM_PRODUCER_NAME,
+                producer_version=CLAIM_PRODUCER_VERSION,
+                parameters_hash=_claim_parameters_hash(MODEL_PARAMETERS),
+            )
         )
         claims_terminalized = False
         try:
@@ -222,7 +244,7 @@ class LiteratureStepService:
             project_id=str(context.project_id),
             content=claims,
         )
-        confidence = build_live_relation_confidence_assessments(
+        confidence = self._relation_confidence_builder(
             claim_artifact_version_id=str(claims_version_id),
             claims=claims_result.records,
         )
@@ -270,7 +292,9 @@ class LiteratureStepService:
                     error_code=f"LITERATURE_RELATION_{relations_result.failure_stage or 'REJECTED'}",
                 )
                 relations_terminalized = True
-                raise ValueError(f"文献关系未通过准入: {relations_result.failure_stage}")
+                raise ValueError(
+                    f"文献关系未通过准入: {relations_result.failure_stage}"
+                )
 
             relations_source_bindings = self._publications.source_bindings(
                 context,

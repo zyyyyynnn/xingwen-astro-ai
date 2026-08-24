@@ -10,13 +10,13 @@ private state.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol
 from uuid import UUID
 
-from pydantic import JsonValue, ValidationError
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -28,8 +28,13 @@ from app.db.models import (
     ResearchProjectModel,
     ResearchRunModel,
 )
-from app.schemas.core import PublicArtifactVersion, PublicEvidence
-from app.schemas.core import PublicSourceSnapshot
+from app.schemas.core import (
+    PublicArtifactVersion,
+    PublicEvidence,
+    PublicEvidenceBBox,
+    PublicEvidenceLocator,
+    PublicSourceSnapshot,
+)
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
 from app.schemas.scientific_skills import (
@@ -213,6 +218,8 @@ class PersistentResourceAuthority:
             return None
         if version.project_id != project_id:
             return None
+        if version.presentation is None:
+            return None
         return PublicArtifactVersion(
             id=version.id,
             artifact_id=version.artifact_id,
@@ -223,7 +230,7 @@ class PersistentResourceAuthority:
             content_hash=version.content_hash,
             source_mode=version.source_mode,
             created_at=version.created_at,
-            content=_public_artifact_content(artifact.kind, version.content),
+            presentation=version.presentation,
             evidence_ids=tuple(item.id for item in version.evidence),
         )
 
@@ -244,8 +251,8 @@ class PersistentResourceAuthority:
             return None
         locator = _public_locator(read.locator)
         quote = read.quote_or_value
-        if not isinstance(quote, (str, int, float, bool)) and quote is not None:
-            quote = None
+        if quote is not None and not isinstance(quote, str):
+            quote = str(quote) if isinstance(quote, (int, float, bool)) else None
         source = read.source_snapshot
         metadata = {
             key: value
@@ -413,145 +420,50 @@ def _scientific_binary_references(
     return ()
 
 
-_PUBLIC_ARTIFACT_BLOCKED_KEYS = {
-    "cache_version",
-    "dependency_revisions",
-    "input_versions",
-    "model_binary",
-    "opset_imports",
-    "parameters",
-    "producer",
-    "producer_execution",
-    "request_metadata",
-    "source_snapshots",
-}
-_PUBLIC_ARTIFACT_FIELDS_BY_KIND = {
-    "analysis_report": frozenset(
-        {"kind", "title", "summary", "metrics", "findings", "limitations"}
-    ),
-    "dataset": frozenset(
-        {
-            "kind",
-            "title",
-            "row_count",
-            "field_count",
-            "rows",
-            "columns",
-            "field_definitions",
-        }
-    ),
-    "field_dictionary": frozenset(
-        {"kind", "title", "field_count", "columns", "field_definitions"}
-    ),
-    "graph": frozenset({"kind", "graph", "nodes", "edges"}),
-    "light_curve": frozenset(
-        {"kind", "title", "description", "object_name", "best_period", "time_unit"}
-    ),
-    "literature_claims": frozenset({"kind", "claims"}),
-    "literature_relations": frozenset({"kind", "relations", "reasoning_traces"}),
-    "model_artifact": frozenset(
-        {"kind", "title", "description", "algorithm", "limitations"}
-    ),
-    "model_evaluation": frozenset(
-        {"kind", "title", "description", "metrics", "limitations"}
-    ),
-    "paper_collection": frozenset({"kind", "title", "candidates"}),
-    "paper_summary": frozenset(
-        {
-            "kind",
-            "title",
-            "background",
-            "methodology",
-            "dataset",
-            "experiments",
-            "discussion",
-            "limitations",
-            "research_questions",
-        }
-    ),
-    "source_collection": frozenset(
-        {"kind", "title", "members", "conflict_record_count"}
-    ),
-    "spectrum": frozenset(
-        {"kind", "title", "description", "object_name", "detected_lines"}
-    ),
-    # Binary-backed visualization specs are deliberately absent. Anonymous
-    # shares present the authored title/description without exposing storage
-    # references or creating a public blob-download capability.
-    "visualization": frozenset({"kind", "title", "description"}),
-}
-_PUBLIC_LOCATOR_KEYS = {
-    "field",
-    "kind",
-    "page",
-    "paragraph",
-    "range",
-    "row_key",
-    "section",
-}
+def _optional_text(value: object) -> str | None:
+    return value if isinstance(value, str) and value.strip() else None
 
 
-class _DropPublicValue:
-    pass
-
-
-_DROP_PUBLIC_VALUE = _DropPublicValue()
-
-
-def _public_artifact_content(
-    artifact_kind: str, value: Mapping[str, object]
-) -> dict[str, JsonValue]:
-    """Project an Artifact kind through its explicit anonymous field allowlist."""
-
-    allowed_fields = _PUBLIC_ARTIFACT_FIELDS_BY_KIND.get(
-        artifact_kind, frozenset({"kind"})
+def _optional_non_negative_int(value: object) -> int | None:
+    return (
+        value
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0
+        else None
     )
-    projected = _public_json(
-        {key: item for key, item in value.items() if key in allowed_fields}
-    )
-    return projected if isinstance(projected, dict) else {}
 
 
-def _public_json(
-    value: object, *, key: str | None = None
-) -> JsonValue | _DropPublicValue:
-    if key is not None and (
-        key in _PUBLIC_ARTIFACT_BLOCKED_KEYS
-        or key.endswith("_ref")
-        or key.endswith("_hash")
-        or key.endswith("_version_id")
-        or key.endswith("_execution_id")
-        or key.endswith("_snapshot_id")
-        or key.endswith("_snapshot_ids")
+def _public_bbox(value: object) -> PublicEvidenceBBox | None:
+    if not isinstance(value, Mapping):
+        return None
+    coordinates = tuple(value.get(key) for key in ("x1", "y1", "x2", "y2"))
+    if not all(
+        isinstance(item, (int, float)) and not isinstance(item, bool)
+        for item in coordinates
     ):
-        return _DROP_PUBLIC_VALUE
-    if value is None or isinstance(value, (bool, int, float, str)):
-        return value
-    if isinstance(value, Mapping):
-        projected: dict[str, JsonValue] = {}
-        for item_key, item_value in value.items():
-            normalized_key = str(item_key)
-            item = _public_json(item_value, key=normalized_key)
-            if item is not _DROP_PUBLIC_VALUE:
-                projected[normalized_key] = item
-        return projected
-    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
-        projected_items: list[JsonValue] = []
-        for value_item in value:
-            item = _public_json(value_item)
-            if item is not _DROP_PUBLIC_VALUE:
-                projected_items.append(item)
-        return projected_items
-    return _DROP_PUBLIC_VALUE
+        return None
+    x1, y1, x2, y2 = (float(item) for item in coordinates)
+    if x1 > x2 or y1 > y2:
+        return None
+    return PublicEvidenceBBox(x1=x1, y1=y1, x2=x2, y2=y2)
 
 
-def _public_locator(value: Mapping[str, object]) -> dict[str, JsonValue]:
-    return {
-        key: item
-        for key, item in value.items()
-        if key in _PUBLIC_LOCATOR_KEYS
-        and (item is None or isinstance(item, (bool, int, float, str)))
-    }
+def _public_locator(value: Mapping[str, object]) -> PublicEvidenceLocator:
+    """Copy only documented scientific locator coordinates and references."""
+
+    return PublicEvidenceLocator(
+        kind=_optional_text(value.get("kind")) or "source",
+        page=_optional_non_negative_int(value.get("page", value.get("page_index"))),
+        paragraph=_optional_non_negative_int(value.get("paragraph")),
+        section=_optional_text(value.get("section")),
+        text_range=_optional_text(value.get("range", value.get("text_range"))),
+        field=_optional_text(value.get("field")),
+        row_key=_optional_text(value.get("row_key")),
+        block_id=_optional_text(value.get("block_id")),
+        reading_order=_optional_non_negative_int(value.get("reading_order")),
+        table_id=_optional_text(value.get("table_id")),
+        cell_id=_optional_text(value.get("cell_id")),
+        bbox=_public_bbox(value.get("bbox")),
+    )
 
 
 def _uuid_or_none(value: str) -> UUID | None:

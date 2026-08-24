@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 from threading import RLock
 from uuid import UUID
 
+from pydantic import ValidationError
 from sqlalchemy import and_, delete, or_, select
 from sqlalchemy.orm import Session
 
@@ -22,6 +23,7 @@ from app.db.models import (
 )
 from app.schemas.core import (
     CreateShareSnapshotRequest,
+    PublicArtifactPresentation,
     PublicArtifactVersion,
     PublicEvidence,
     PublicShareSnapshot,
@@ -40,6 +42,85 @@ from app.services.resource_authority import (
 
 
 SHARE_TOKEN_BYTES = 32
+
+
+def _presentation_evidence_ids(
+    presentation: PublicArtifactPresentation,
+) -> frozenset[str]:
+    values: set[str] = set()
+    for section in presentation.sections:
+        for paragraph in section.paragraphs:
+            values.update(paragraph.evidence_ids)
+    for entry in presentation.entries:
+        values.update(entry.evidence_ids)
+        if entry.reasoning_trace is not None:
+            values.update(entry.reasoning_trace.evidence_ids)
+    for table in presentation.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                values.update(cell.evidence_ids)
+    for edge in presentation.graph_edges:
+        values.update(edge.evidence_ids)
+    return frozenset(values)
+
+
+def _share_evidence_closure_is_valid(
+    versions: tuple[PublicArtifactVersion, ...],
+    evidence: tuple[PublicEvidence, ...],
+) -> bool:
+    version_ids = {item.id for item in versions}
+    evidence_by_id = {item.id: item for item in evidence}
+    if len(version_ids) != len(versions) or len(evidence_by_id) != len(evidence):
+        return False
+    if any(item.artifact_version_id not in version_ids for item in evidence):
+        return False
+    for version in versions:
+        references = _presentation_evidence_ids(version.presentation)
+        declared = set(version.evidence_ids)
+        frozen = {
+            item.id for item in evidence if item.artifact_version_id == version.id
+        }
+        if declared != frozen:
+            return False
+        if not references <= declared:
+            return False
+        if any(
+            reference not in evidence_by_id
+            or evidence_by_id[reference].artifact_version_id != version.id
+            for reference in references
+        ):
+            return False
+    return True
+
+
+def _scope_share_versions(
+    versions: tuple[PublicArtifactVersion, ...],
+    evidence: tuple[PublicEvidence, ...],
+) -> tuple[PublicArtifactVersion, ...]:
+    frozen_ids = {item.id for item in evidence}
+    return tuple(
+        version.model_copy(
+            update={
+                "evidence_ids": tuple(
+                    item for item in version.evidence_ids if item in frozen_ids
+                )
+            }
+        )
+        for version in versions
+    )
+
+
+def _require_share_evidence_closure(
+    versions: tuple[PublicArtifactVersion, ...],
+    evidence: tuple[PublicEvidence, ...],
+) -> None:
+    if not _share_evidence_closure_is_valid(versions, evidence):
+        raise SecurityProblem(
+            status=422,
+            code="SHARE_SCOPE_INVALID",
+            title="Invalid share scope",
+            detail="Shared Evidence must close every selected result presentation",
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,6 +253,8 @@ class InMemorySnapshotStore:
                 request.evidence_ids,
                 allowed_version_ids=set(request.artifact_version_ids),
             )
+            versions = _scope_share_versions(versions, evidence)
+            _require_share_evidence_closure(versions, evidence)
             share_id = _new_id("share")
             raw_token = secrets.token_urlsafe(SHARE_TOKEN_BYTES)
             token_hash = _hash_token(raw_token)
@@ -278,6 +361,10 @@ class InMemorySnapshotStore:
             snapshot = self._snapshot_status(record.snapshot, now)
             if snapshot.status is not ShareStatus.active:
                 raise _not_found("SHARE_NOT_FOUND")
+            if not _share_evidence_closure_is_valid(
+                record.artifact_versions, record.evidence
+            ):
+                raise _not_found("SHARE_NOT_FOUND")
             return PublicShareSnapshot(
                 id=snapshot.id,
                 title=snapshot.title,
@@ -361,9 +448,7 @@ class InMemorySnapshotStore:
     def _share_versions(
         self, project_id: str, version_ids: tuple[str, ...]
     ) -> tuple[PublicArtifactVersion, ...]:
-        return tuple(
-            self._require_version(project_id, item) for item in version_ids
-        )
+        return tuple(self._require_version(project_id, item) for item in version_ids)
 
     def _share_evidence(
         self,
@@ -436,9 +521,7 @@ class PersistentSnapshotStore(InMemorySnapshotStore):
                 lock=False,
             )
             row = session.get(WorkspaceSnapshotModel, project_uuid)
-            if row is None or not hmac.compare_digest(
-                row.owner_session_id, session_id
-            ):
+            if row is None or not hmac.compare_digest(row.owner_session_id, session_id):
                 raise _not_found("WORKSPACE_SNAPSHOT_NOT_FOUND")
             return _workspace_snapshot(row)
 
@@ -460,9 +543,7 @@ class PersistentSnapshotStore(InMemorySnapshotStore):
                 session_id=session_id,
                 lock=True,
             )
-            self._validate_workspace_references(
-                project_id=project_id, payload=payload
-            )
+            self._validate_workspace_references(project_id=project_id, payload=payload)
             row = session.get(
                 WorkspaceSnapshotModel, project_uuid, with_for_update=True
             )
@@ -511,14 +592,14 @@ class PersistentSnapshotStore(InMemorySnapshotStore):
                 session_id=session_id,
                 lock=True,
             )
-            versions = self._share_versions(
-                project_id, request.artifact_version_ids
-            )
+            versions = self._share_versions(project_id, request.artifact_version_ids)
             evidence = self._share_evidence(
                 project_id,
                 request.evidence_ids,
                 allowed_version_ids=set(request.artifact_version_ids),
             )
+            versions = _scope_share_versions(versions, evidence)
+            _require_share_evidence_closure(versions, evidence)
             row = ShareSnapshotModel(
                 id=_new_id("share"),
                 project_id=project_uuid,
@@ -529,9 +610,7 @@ class PersistentSnapshotStore(InMemorySnapshotStore):
                 evidence_ids=list(request.evidence_ids),
                 redaction_policy=request.redaction_policy.value,
                 status="active",
-                artifact_versions=[
-                    item.model_dump(mode="json") for item in versions
-                ],
+                artifact_versions=[item.model_dump(mode="json") for item in versions],
                 evidence=[item.model_dump(mode="json") for item in evidence],
                 created_at=now,
                 expires_at=request.expires_at,
@@ -597,9 +676,7 @@ class PersistentSnapshotStore(InMemorySnapshotStore):
             )
         has_more = len(rows) > limit
         selected = rows[:limit]
-        next_cursor = (
-            _encode_cursor(selected[-1].id) if selected and has_more else None
-        )
+        next_cursor = _encode_cursor(selected[-1].id) if selected and has_more else None
         return (
             tuple(_share_snapshot(row, now=now) for row in selected),
             next_cursor,
@@ -648,16 +725,23 @@ class PersistentSnapshotStore(InMemorySnapshotStore):
             snapshot = _share_snapshot(row, now=now)
             if snapshot.status is not ShareStatus.active:
                 raise _not_found("SHARE_NOT_FOUND")
+            try:
+                versions = tuple(
+                    PublicArtifactVersion.model_validate(item)
+                    for item in row.artifact_versions
+                )
+                evidence = tuple(
+                    PublicEvidence.model_validate(item) for item in row.evidence
+                )
+            except ValidationError as exc:
+                raise _not_found("SHARE_NOT_FOUND") from exc
+            if not _share_evidence_closure_is_valid(versions, evidence):
+                raise _not_found("SHARE_NOT_FOUND")
             return PublicShareSnapshot(
                 id=row.id,
                 title=row.title,
-                artifact_versions=tuple(
-                    PublicArtifactVersion.model_validate(item)
-                    for item in row.artifact_versions
-                ),
-                evidence=tuple(
-                    PublicEvidence.model_validate(item) for item in row.evidence
-                ),
+                artifact_versions=versions,
+                evidence=evidence,
                 redaction_policy=row.redaction_policy,
                 created_at=_utc(row.created_at),
                 expires_at=_utc(row.expires_at),
@@ -675,9 +759,7 @@ class PersistentSnapshotStore(InMemorySnapshotStore):
             return self._cleanup(session, now=now, retention=retention)
 
     @staticmethod
-    def _cleanup(
-        session: Session, *, now: datetime, retention: timedelta
-    ) -> int:
+    def _cleanup(session: Session, *, now: datetime, retention: timedelta) -> int:
         cutoff = now - retention
         result = session.execute(
             delete(ShareSnapshotModel).where(

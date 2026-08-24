@@ -8,6 +8,7 @@ from uuid import NAMESPACE_URL, uuid5
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.artifact_publication import canonical_artifact_content_payload
 from app.schemas.core import (
+    ArtifactKind,
     ArtifactVersionDetail,
     EvidenceDetail,
     ProducerExecutionDetail,
@@ -15,6 +16,7 @@ from app.schemas.core import (
     ResearchArtifactDetail,
     SourceSnapshotDetail,
 )
+from app.services.public_presentation import build_artifact_presentation
 from app.schemas.literature_claim import LiteratureClaimsCandidate
 from app.schemas.paper_summary_api import (
     PaperSummaryPaperMetadata,
@@ -209,12 +211,44 @@ def build_literature_fixture() -> LiteratureFixture:
 def _summary_version(
     version_id: str, summary: PaperSummaryArtifactContent
 ) -> ArtifactVersionDetail:
+    snapshot_specs = {
+        item.source_snapshot_id: (
+            item.source_id,
+            item.source_version,
+            item.content_hash,
+        )
+        for item in summary.input_versions.source_snapshots
+    }
+    snapshots = _snapshots(snapshot_specs)
+    persisted_by_pipeline_id = {
+        pipeline_id: snapshot
+        for pipeline_id, snapshot in zip(sorted(snapshot_specs), snapshots, strict=True)
+    }
+    pipeline_evidence = {item.evidence_id: item for item in summary.evidence}
+    target_by_evidence_id: dict[str, str] = {}
+    for statement in summary.statements():
+        for evidence_id in statement.evidence_ids:
+            target_by_evidence_id.setdefault(evidence_id, statement.statement_id)
+    evidence = tuple(
+        _evidence(
+            version_id=version_id,
+            target_type="paper_summary",
+            target_id=target_by_evidence_id[evidence_id],
+            pipeline_evidence_id=evidence_id,
+            source_record_id=pipeline_evidence[evidence_id].source_record_id,
+            snapshot_id=persisted_by_pipeline_id[
+                pipeline_evidence[evidence_id].source_snapshot_id
+            ].id,
+            paper_id=pipeline_evidence[evidence_id].paper_id,
+        )
+        for evidence_id in summary.evidence_ids
+    )
     return _version(
         version_id=version_id,
         kind="paper_summary",
         candidate=summary,
-        snapshots=(),
-        evidence=(),
+        snapshots=snapshots,
+        evidence=evidence,
     )
 
 
@@ -332,6 +366,7 @@ def _version(
         version_number=1,
         schema_version=candidate.schema_version,
         content=content,
+        presentation=build_artifact_presentation(ArtifactKind(kind), content, evidence),
         content_hash=content_hash,
         input_hash=candidate.input_hash,
         source_mode="fixture",

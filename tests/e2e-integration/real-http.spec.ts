@@ -210,6 +210,23 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
           credentials: "include",
         }),
       );
+      const updatedDraft = await json(
+        await fetch(`${apiOrigin}/api/contracts/drafts/${draftId}`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: { ...headers, "If-Match": String(draft.data.version) },
+          body: JSON.stringify({
+            contract: {
+              ...draft.data.contract,
+              output_requirements: [
+                "dataset",
+                "field_dictionary",
+                "source_collection",
+              ],
+            },
+          }),
+        }),
+      );
       const confirmed = await json(
         await fetch(`${apiOrigin}/api/projects/${projectId}/contracts`, {
           method: "POST",
@@ -217,11 +234,11 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
           headers: { ...headers, "Idempotency-Key": "browser-fixture-confirm" },
           body: JSON.stringify({
             draft_id: draftId,
-            expected_draft_version: draft.data.version,
+            expected_draft_version: updatedDraft.data.version,
           }),
         }),
       );
-      const run = await json(
+      const firstRun = await json(
         await fetch(`${apiOrigin}/api/projects/${projectId}/runs`, {
           method: "POST",
           credentials: "include",
@@ -234,7 +251,7 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
       );
       const seeded = await json(
         await fetch(
-          `${apiOrigin}/api/test/bootstrap?run_id=${encodeURIComponent(run.data.id)}`,
+          `${apiOrigin}/api/test/bootstrap?run_id=${encodeURIComponent(firstRun.data.id)}`,
           {
             method: "POST",
             credentials: "include",
@@ -242,14 +259,57 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
           },
         ),
       );
+      const secondRun = await json(
+        await fetch(`${apiOrigin}/api/projects/${projectId}/runs`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            ...headers,
+            "Idempotency-Key": "browser-fixture-second-run",
+          },
+          body: JSON.stringify({
+            contract_id: confirmed.data.id,
+            execution_mode: "demo_replay",
+          }),
+        }),
+      );
+      const current = await json(
+        await fetch(
+          `${apiOrigin}/api/test/bootstrap?run_id=${encodeURIComponent(secondRun.data.id)}`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers,
+          },
+        ),
+      );
+      const expiredAt = Date.now() + 5_000;
+      const expiringShare = await json(
+        await fetch(`${apiOrigin}/api/projects/${projectId}/shares`, {
+          method: "POST",
+          credentials: "include",
+          headers,
+          body: JSON.stringify({
+            title: "Expiring browser integration share",
+            artifact_version_ids: [current.data.artifact_version_id],
+            evidence_ids: current.data.evidence_ids,
+            expires_at: new Date(expiredAt).toISOString(),
+            redaction_policy: "redacted_public_snapshot",
+          }),
+        }),
+      );
       return {
-        runId: run.data.id as string,
-        versionId: seeded.data.artifact_version_id as string,
+        runId: secondRun.data.id as string,
+        historicalVersionId: seeded.data.artifact_version_id as string,
+        versionId: current.data.artifact_version_id as string,
+        expiredAt,
+        expiringShareUrl: `${window.location.origin}/share/${expiringShare.data.share_token as string}`,
       };
     },
     { apiOrigin: API_ORIGIN, projectId: projectId ?? "" },
   );
   expect(bootstrap.runId).toBeTruthy();
+  expect(bootstrap.historicalVersionId).toBeTruthy();
   expect(bootstrap.versionId).toBeTruthy();
 
   await page.reload();
@@ -258,7 +318,10 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   await expect(
     page.getByRole("heading", { name: "Exoplanet host-star dataset" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "查看完整结果" }).first().click();
+  await page
+    .getByTestId(`artifact-result-${bootstrap.versionId}`)
+    .getByRole("button", { name: "查看完整结果" })
+    .click();
   const fullscreen = page.getByTestId("artifact-fullscreen-workspace");
   const returnButton = fullscreen.getByRole("button", { name: "返回研究" });
   const evidenceButton = fullscreen.getByRole("button", {
@@ -292,11 +355,40 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   await page.keyboard.press("Escape");
   await expect(page.getByRole("heading", { name: "研究证据" })).toHaveCount(0);
 
+  const versionSelector = fullscreen.getByTestId("artifact-version-selector");
+  await expect(versionSelector).toContainText("当前结果");
+  await versionSelector.click();
+  await page.getByRole("menuitem").filter({ hasText: "历史结果" }).click();
+  await expect(versionSelector).toContainText("历史结果");
+  await versionSelector.click();
+  await page.getByRole("menuitem").filter({ hasText: "当前结果" }).click();
+  await expect(versionSelector).toContainText("当前结果");
+
+  await fullscreen.getByRole("button", { name: "比较结果" }).click();
+  await expect(
+    page.getByRole("heading", { name: "比较研究结果" }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByLabel("科学结果变化")
+      .getByText(/来源记录已更新/)
+      .first(),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+
   await fullscreen.getByRole("button", { name: "分享", exact: true }).click();
   await expect(
     page.getByRole("dialog", { name: "分享研究结果" }),
   ).toBeVisible();
+  const createdShareResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      /\/api\/projects\/[^/]+\/shares$/.test(new URL(response.url()).pathname),
+  );
   await page.getByRole("button", { name: "创建链接" }).click();
+  const createdShare = (await (await createdShareResponse).json()) as {
+    data: { id: string };
+  };
   const shareLink = page.getByLabel("分享链接");
   await expect(shareLink).toHaveValue(/\/share\/[^/]+$/);
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"], {
@@ -315,6 +407,12 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
       .getByLabel("共享科研结果")
       .getByRole("heading", { name: "Exoplanet host-star dataset" }),
   ).toBeVisible();
+  await expect(
+    page
+      .getByLabel("共享科研结果")
+      .getByRole("table", { name: "规范化数据" })
+      .getByRole("rowheader", { name: "700.01 / planet seven b" }),
+  ).toBeVisible();
   await expect(page.getByText(/创建分享时冻结的公开副本/)).toBeVisible();
   await expect(page.locator('meta[name="referrer"]')).toHaveAttribute(
     "content",
@@ -329,7 +427,335 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   ).toBe(true);
   await page.getByRole("button", { name: "查看证据 1", exact: true }).click();
   await expect(page.getByRole("heading", { name: "证据 1" })).toBeVisible();
-  await expect(page.getByText("来源类型", { exact: true })).toBeVisible();
+  await expect(page.getByText("来源内容", { exact: true })).toBeVisible();
+  await expect(page.getByText(/数据库 · 获取于/)).toBeVisible();
+  await page
+    .getByRole("complementary", { name: "证据 1" })
+    .getByRole("button", { name: "关闭" })
+    .click();
+  await expect(page.getByRole("heading", { name: "证据 1" })).toHaveCount(0);
+  expect(runtimeErrors).toEqual([]);
+
+  const shareOrigin = new URL(shareUrl).origin;
+  await page.goto(`${shareOrigin}/share/not-a-real-token`);
+  await expect(
+    page.getByRole("heading", { name: "共享结果当前不可用" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("该链接可能无效、已撤销或已过期。"),
+  ).toBeVisible();
+
+  await page.evaluate(
+    async ({ apiOrigin, projectId, shareId }) => {
+      const session = await fetch(`${apiOrigin}/api/sessions`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!session.ok)
+        throw new Error(`${session.status} ${await session.text()}`);
+      const payload = (await session.json()) as {
+        data: { csrf_token: string };
+      };
+      const revoked = await fetch(
+        `${apiOrigin}/api/projects/${projectId}/shares/${shareId}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+          headers: { "X-CSRF-Token": payload.data.csrf_token },
+        },
+      );
+      if (!revoked.ok)
+        throw new Error(`${revoked.status} ${await revoked.text()}`);
+    },
+    {
+      apiOrigin: API_ORIGIN,
+      projectId: projectId ?? "",
+      shareId: createdShare.data.id,
+    },
+  );
+  await page.goto(shareUrl);
+  await expect(
+    page.getByRole("heading", { name: "共享结果当前不可用" }),
+  ).toBeVisible();
+
+  const expiryDelay = Math.max(0, bootstrap.expiredAt - Date.now() + 250);
+  if (expiryDelay > 0) await page.waitForTimeout(expiryDelay);
+  await page.goto(bootstrap.expiringShareUrl);
+  await expect(
+    page.getByRole("heading", { name: "共享结果当前不可用" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("该链接可能无效、已撤销或已过期。"),
+  ).toBeVisible();
+
+  runtimeErrors.length = 0;
+  await page.goto(`/workspace/${projectId}`);
+  const overviewSheet = page.getByRole("dialog").filter({
+    has: page.getByRole("tab", { name: "研究概览" }),
+  });
+  await expect(overviewSheet).toBeVisible();
+  await overviewSheet.getByRole("button", { name: "关闭" }).click();
+  await page
+    .getByTestId(`artifact-result-${bootstrap.versionId}`)
+    .getByRole("button", { name: "查看完整结果" })
+    .click();
+  await fullscreen.getByRole("button", { name: "基于此结果重新分析" }).click();
+  await page
+    .getByRole("textbox", { name: "希望调整什么？" })
+    .fill("重新核对来源记录并生成数据结果。 ");
+  await page.getByRole("button", { name: "生成修订计划" }).click();
+  await expect(page.getByRole("heading", { name: "修订计划" })).toBeVisible();
+  await page.getByRole("button", { name: "确认并创建派生研究" }).click();
+  await expect(fullscreen).toHaveCount(0);
+  await expect(page.getByRole("status")).toContainText("已排队");
+  await page.getByRole("button", { name: "查看执行计划" }).click();
+  await expect(page.getByRole("heading", { name: "研究计划" })).toBeVisible();
+  expect(
+    runtimeErrors.filter(
+      (error) => !error.startsWith("Failed to load resource:"),
+    ),
+  ).toEqual([]);
+});
+
+test("real worker exposes Literature dossiers, public reasoning, and interactive Graph evidence", async ({
+  page,
+}) => {
+  const runtimeErrors = collectRuntimeErrors(page);
+  const failedResponses: string[] = [];
+  page.on("response", (response) => {
+    if (response.status() >= 400) {
+      failedResponses.push(`${response.status()} ${response.url()}`);
+    }
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/workspace");
+  await page
+    .getByRole("textbox", { name: "输入研究消息" })
+    .fill("核对系外行星宿主恒星文献结论、关系与证据图谱。");
+  await page.getByRole("button", { name: "发送研究消息" }).click();
+  await expect(page.getByTestId("protocol-summary-card")).toBeVisible();
+  const projectId = new URL(page.url()).pathname
+    .split("/")
+    .filter(Boolean)
+    .at(-1);
+  expect(projectId).toBeTruthy();
+
+  const result = await page.evaluate(
+    async ({ apiOrigin, projectId }) => {
+      async function json(response: Response) {
+        if (!response.ok)
+          throw new Error(`${response.status} ${await response.text()}`);
+        return response.json();
+      }
+      const session = await json(
+        await fetch(`${apiOrigin}/api/sessions`, {
+          method: "POST",
+          credentials: "include",
+        }),
+      );
+      const headers = {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": session.data.csrf_token as string,
+      };
+      const project = await json(
+        await fetch(`${apiOrigin}/api/projects/${projectId}`, {
+          credentials: "include",
+        }),
+      );
+      const draftId = project.data.active_draft_id as string;
+      const draft = await json(
+        await fetch(`${apiOrigin}/api/contracts/drafts/${draftId}`, {
+          credentials: "include",
+        }),
+      );
+      const updated = await json(
+        await fetch(`${apiOrigin}/api/contracts/drafts/${draftId}`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: { ...headers, "If-Match": String(draft.data.version) },
+          body: JSON.stringify({
+            contract: {
+              ...draft.data.contract,
+              paper_search_scope: {
+                keywords: ["exoplanet host star"],
+                source_ids: ["crossref"],
+                max_candidates: 5,
+              },
+              output_requirements: [
+                "literature_claims",
+                "literature_relations",
+                "graph",
+              ],
+            },
+          }),
+        }),
+      );
+      const confirmed = await json(
+        await fetch(`${apiOrigin}/api/projects/${projectId}/contracts`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            ...headers,
+            "Idempotency-Key": "browser-literature-confirm",
+          },
+          body: JSON.stringify({
+            draft_id: draftId,
+            expected_draft_version: updated.data.version,
+          }),
+        }),
+      );
+      const run = await json(
+        await fetch(`${apiOrigin}/api/projects/${projectId}/runs`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            ...headers,
+            "Idempotency-Key": "browser-literature-run",
+          },
+          body: JSON.stringify({
+            contract_id: confirmed.data.id,
+            execution_mode: "demo_replay",
+          }),
+        }),
+      );
+      const bootstrapped = await json(
+        await fetch(
+          `${apiOrigin}/api/test/bootstrap/research-results?run_id=${encodeURIComponent(run.data.id)}`,
+          { method: "POST", credentials: "include", headers },
+        ),
+      );
+      return bootstrapped.data.artifact_version_ids as Record<string, string>;
+    },
+    { apiOrigin: API_ORIGIN, projectId: projectId ?? "" },
+  );
+
+  await page.reload();
+  const fullscreen = page.getByTestId("artifact-fullscreen-workspace");
+  await page
+    .getByTestId(`artifact-result-${result.literature_claims}`)
+    .getByRole("button", { name: "查看完整结果" })
+    .click();
+  const claimsDossier = fullscreen.getByRole("list", { name: "科学结果档案" });
+  await expect(claimsDossier).toBeVisible();
+  await expect(
+    claimsDossier.getByText(
+      "Confirmed transiting planets orbit nearby host stars.",
+    ),
+  ).toBeVisible();
+  await fullscreen.getByRole("button", { name: "查看证据 1" }).first().click();
+  await expect(page.getByRole("heading", { name: "研究证据" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await fullscreen.getByRole("button", { name: "返回研究" }).click();
+
+  await page
+    .getByTestId(`artifact-result-${result.literature_relations}`)
+    .getByRole("button", { name: "查看完整结果" })
+    .click();
+  const relationDossier = fullscreen.getByRole("list", {
+    name: "科学结果档案",
+  });
+  await expect(relationDossier).toBeVisible();
+  const traceConclusion =
+    "The two claims compare methods over the same objects.";
+  await relationDossier.getByRole("button", { name: traceConclusion }).click();
+  await expect(
+    relationDossier.getByText("Auditable identify premises step."),
+  ).toBeVisible();
+
+  await fullscreen.getByRole("button", { name: "分享", exact: true }).click();
+  await page.getByRole("button", { name: "创建链接" }).click();
+  const relationShareLink = page.getByLabel("分享链接");
+  await expect(relationShareLink).toHaveValue(/\/share\/[^/]+$/);
+  const relationShareUrl = await relationShareLink.inputValue();
+  await page.goto(relationShareUrl);
+  const publicDossier = page.getByRole("list", { name: "科学结果档案" });
+  await expect(publicDossier).toBeVisible();
+  await publicDossier.getByRole("button", { name: traceConclusion }).click();
+  await expect(
+    publicDossier.getByText("Auditable identify premises step."),
+  ).toBeVisible();
+  const publicEvidenceAction = publicDossier
+    .getByRole("button", { name: /^查看证据 \d+$/ })
+    .first();
+  const publicEvidenceHeading = await publicEvidenceAction.textContent();
+  expect(publicEvidenceHeading).toMatch(/^查看证据 \d+$/);
+  await publicEvidenceAction.click();
+  await expect(
+    page.getByRole("heading", {
+      name: publicEvidenceHeading?.replace("查看", "") ?? "证据",
+    }),
+  ).toBeVisible();
+
+  await page.goto(`/workspace/${projectId}`);
+  await page
+    .getByTestId(`artifact-result-${result.graph}`)
+    .getByRole("button", { name: "查看完整结果" })
+    .click();
+  const graphCanvas = fullscreen.getByLabel("可交互科学关系图");
+  await expect(graphCanvas).toBeVisible();
+  const edge = graphCanvas.locator(".react-flow__edge").first();
+  await expect(edge.locator(".react-flow__edge-path")).toHaveAttribute(
+    "d",
+    /^M.+L/u,
+  );
+  await edge.focus();
+  await expect(edge).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(edge).toHaveClass(/selected/u);
+  await expect(fullscreen.getByText("公开推导", { exact: true })).toBeVisible();
+  await fullscreen.getByRole("button", { name: "查看证据 1" }).click();
+  await expect(page.getByRole("heading", { name: "研究证据" })).toBeVisible();
+  await expect(page.getByText("来源内容", { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await fullscreen.getByRole("tab", { name: "列表" }).click();
+  const graphList = fullscreen.getByRole("list", {
+    name: "关系图列表替代视图",
+  });
+  await expect(graphList).toBeVisible();
+  await graphList.getByRole("button").first().click();
+  await expect(fullscreen.getByText("公开推导", { exact: true })).toBeVisible();
+
+  await page.addStyleTag({ content: ":root { font-size: 200% !important; }" });
+  const graphTab = fullscreen.getByRole("tab", { name: "关系图" });
+  await graphTab.click();
+  const graphNodes = graphCanvas.locator(".react-flow__node");
+  await expect
+    .poll(async () => (await graphNodes.first().boundingBox())?.width)
+    .toBeGreaterThan(400);
+  const overlaps = await graphNodes.evaluateAll((nodes) =>
+    nodes.flatMap((node, index) => {
+      const left = node.getBoundingClientRect();
+      return nodes.slice(index + 1).flatMap((candidate) => {
+        const right = candidate.getBoundingClientRect();
+        const overlapsInline =
+          left.left < right.right && left.right > right.left;
+        const overlapsBlock =
+          left.top < right.bottom && left.bottom > right.top;
+        return overlapsInline && overlapsBlock ? [`${index}`] : [];
+      });
+    }),
+  );
+  expect(overlaps).toEqual([]);
+  const viewport = graphCanvas.locator(".react-flow__viewport");
+  const transformBeforeZoom = await viewport.getAttribute("style");
+  await graphCanvas.locator(".react-flow__controls-zoomin").click();
+  await expect
+    .poll(async () => viewport.getAttribute("style"))
+    .not.toBe(transformBeforeZoom);
+  expect(
+    await fullscreen.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+  ).toBe(true);
+  expect(
+    await fullscreen
+      .getByTestId("artifact-fullscreen-header")
+      .evaluate((element) => element.scrollWidth <= element.clientWidth),
+  ).toBe(true);
+  await graphTab.focus();
+  await expect(graphTab).toBeFocused();
+  expect(failedResponses).toEqual([]);
   expect(runtimeErrors).toEqual([]);
 });
 

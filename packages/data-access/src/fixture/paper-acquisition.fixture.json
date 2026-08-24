@@ -1936,6 +1936,107 @@
     "evidence_ids": [],
     "supersedes_version_id": null,
     "created_at": "2026-07-21T08:24:45Z",
+    "presentation": {
+      "kind": "paper_collection",
+      "summary": null,
+      "facts": [
+        {
+          "label": "候选论文",
+          "values": ["7 篇"]
+        },
+        {
+          "label": "已选论文",
+          "values": ["3 篇"]
+        }
+      ],
+      "sections": [],
+      "entries": [
+        {
+          "key": "candidate.9c9bf84a0444a734b7c3e1d319eeb544e21e04aa8ff4f53831e544ed4554df9c",
+          "title": "TESS Objects of Interest Catalog from the TESS Prime Mission",
+          "status": null,
+          "assessment": null,
+          "paragraphs": ["Natalia M. Guerrero、Sara Seager", "2021"],
+          "facts": [],
+          "evidence_ids": [],
+          "reasoning_trace": null
+        },
+        {
+          "key": "candidate.02ce823d0f143321d28cc5559795fe8bbc1c15e39e6323ad845e71c123cbcedb",
+          "title": "The TESS Objects of Interest Catalog from the TESS Prime Mission",
+          "status": null,
+          "assessment": null,
+          "paragraphs": [
+            "Natalia M. Guerrero、Sara Seager、Chelsea X. Huang",
+            "2021"
+          ],
+          "facts": [],
+          "evidence_ids": [],
+          "reasoning_trace": null
+        },
+        {
+          "key": "candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488",
+          "title": "The Revised TESS Input Catalog and Candidate Target List",
+          "status": null,
+          "assessment": null,
+          "paragraphs": [
+            "Keivan G. Stassun、Ryan J. Oelkers、Martin Paegert",
+            "2019"
+          ],
+          "facts": [],
+          "evidence_ids": [],
+          "reasoning_trace": null
+        },
+        {
+          "key": "candidate.3583c307e03702c060c706e7fe3aa39cac4afed4c3e1f47eded9d2adcc8f415a",
+          "title": "The TESS Input Catalog and Candidate Target List",
+          "status": null,
+          "assessment": null,
+          "paragraphs": [
+            "Keivan G. Stassun、Ryan J. Oelkers、Joshua Pepper",
+            "2018"
+          ],
+          "facts": [],
+          "evidence_ids": [],
+          "reasoning_trace": null
+        },
+        {
+          "key": "candidate.c46a7e7bc6d500bbdd3d1a4dcabb15fa2db8ca4d67fccef4c2b56816d7dc0c0e",
+          "title": "Transiting Exoplanet Survey Satellite",
+          "status": null,
+          "assessment": null,
+          "paragraphs": [
+            "George R. Ricker、Joshua N. Winn、Roland Vanderspek",
+            "2015"
+          ],
+          "facts": [],
+          "evidence_ids": [],
+          "reasoning_trace": null
+        },
+        {
+          "key": "candidate.b2abb7b70b542ae94f90f3f305d5b8222df8e4ce6b1777ebab159daa3bac781c",
+          "title": "Transiting Exoplanet Survey Satellite",
+          "status": null,
+          "assessment": null,
+          "paragraphs": ["Anonymous Compiler", "2015"],
+          "facts": [],
+          "evidence_ids": [],
+          "reasoning_trace": null
+        },
+        {
+          "key": "candidate.e3ff8c08ef3c48d0df02ea937ad554396bf724680a747f47a8bb5e3e1c27ec9b",
+          "title": "A Survey of Unrelated M-dwarf Flares",
+          "status": null,
+          "assessment": null,
+          "paragraphs": ["D. Surveyor", "2019"],
+          "facts": [],
+          "evidence_ids": [],
+          "reasoning_trace": null
+        }
+      ],
+      "graph_nodes": [],
+      "graph_edges": []
+    },
     "producer_execution": {
       "id": "pexec_run_papcol_01",
       "run_id": "run_01JEXAMPLE",

@@ -19,6 +19,7 @@ from datetime import UTC, datetime
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import (
+    ArtifactKind,
     ArtifactVersionDetail,
     EvidenceDetail,
     ProducerExecutionDetail,
@@ -26,6 +27,7 @@ from app.schemas.core import (
     ResearchArtifactDetail,
     SourceSnapshotDetail,
 )
+from app.services.public_presentation import build_artifact_presentation
 from app.schemas.enums import GraphEdgeType
 from app.schemas.graph_artifact import GraphArtifactCandidate, GraphBuildScope
 from app.schemas.graph_artifact import GraphStructuralEdgeRequest
@@ -65,9 +67,7 @@ from services.paper_pipeline.relation_benchmark_cases import (
 
 NOW = datetime(2026, 8, 10, 8, 0, tzinfo=UTC)
 PROJECT_ID = stable_uuid("project:graph-real-relation")
-RELATION_VERSION_ID = stable_uuid(
-    "artifact-version:literature-relations:accepted"
-)
+RELATION_VERSION_ID = stable_uuid("artifact-version:literature-relations:accepted")
 GRAPH_VERSION_ID = stable_uuid("graph-read:graph-version")
 GRAPH_ARTIFACT_ID = stable_uuid("graph-read:graph-artifact")
 GRAPH_RUN_ID = stable_uuid("graph-read:run")
@@ -255,9 +255,7 @@ def _summary_contents(benchmark: object) -> dict[str, object]:
     for claim in benchmark.claims:  # type: ignore[attr-defined]
         fixture = _build_claim_fixture(benchmark, claim)
         for old_version_id, summary_input in fixture["versions"].items():
-            version_id = stable_uuid(
-                f"artifact-version:paper-summary:{old_version_id}"
-            )
+            version_id = stable_uuid(f"artifact-version:paper-summary:{old_version_id}")
             result[version_id] = summary_input.content
     return result
 
@@ -377,6 +375,7 @@ def _graph_version(
         version_number=1,
         schema_version=candidate.schema_version,
         content=content,
+        presentation=build_artifact_presentation(ArtifactKind.graph, content, evidence),
         content_hash=content_hash,
         input_hash=candidate.input_hash,
         source_mode="fixture",
@@ -486,14 +485,13 @@ def build_multi_relation_graph_read_fixture() -> GraphReadFixture:
             "relation_id": second_relation_id,
         }
     )
-    status_counts = relations_candidate.status_counts.model_copy(
-        update={"accepted": 2}
-    )
+    status_counts = relations_candidate.status_counts.model_copy(update={"accepted": 2})
     rc_multi = relations_candidate.model_copy(
         update={
             "relations": (r1, r2),
             "reasoning_traces": (t1, t2),
-            "evidence_references": relations_candidate.evidence_references + ev_refs_extra,
+            "evidence_references": relations_candidate.evidence_references
+            + ev_refs_extra,
             "status_counts": status_counts,
         }
     )
@@ -523,9 +521,7 @@ def build_multi_relation_graph_read_fixture() -> GraphReadFixture:
                 }
             )
         ),
-        literature_claim_ids=tuple(
-            sorted({r1.source_claim_id, r1.target_claim_id})
-        ),
+        literature_claim_ids=tuple(sorted({r1.source_claim_id, r1.target_claim_id})),
         accepted_relation_ids=(r1.relation_id, second_relation_id),
         structural_edges=(
             GraphStructuralEdgeRequest(
@@ -562,7 +558,9 @@ def build_multi_relation_graph_read_fixture() -> GraphReadFixture:
         item for item in graph_candidate.edges if item.relation_trace is not None
     )
     if len(literature_edges) < 2:
-        raise AssertionError("multi-relation graph fixture expected at least 2 literature edges")
+        raise AssertionError(
+            "multi-relation graph fixture expected at least 2 literature edges"
+        )
 
     versions: dict[str, ArtifactVersionDetail] = {}
     artifacts: dict[str, ResearchArtifactDetail] = {}

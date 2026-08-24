@@ -344,15 +344,27 @@ def test_production_registry_ignores_a_stale_workspace_override() -> None:
 
 
 def test_removing_workspace_override_returns_to_deployment_baseline() -> None:
-    configuration, _store, _registry, _tested = service(configured_fallback=True)
+    configuration, store, _registry, tested = service(configured_fallback=True)
     configuration.configure(request(), expected_revision=0)
 
     status = configuration.remove_override(expected_revision=1)
 
     assert status.source == "deployment"
-    assert status.revision == 0
+    assert status.revision == 2
     assert status.model == "qwen3.8-max"
     assert status.editable is False
+    tombstone = store.get()
+    assert tombstone is not None
+    assert tombstone.active is False
+    assert tombstone.encrypted_api_key == ""
+
+    with pytest.raises(SecurityProblem):
+        configuration.configure(request(model="qwen-plus"), expected_revision=0)
+    assert len(tested) == 1
+
+    recreated = configuration.configure(request(model="qwen-plus"), expected_revision=2)
+    assert recreated.revision == 3
+    assert recreated.model == "qwen-plus"
 
 
 @pytest.fixture(scope="module")
@@ -410,3 +422,22 @@ def test_postgres_configuration_survives_registry_restart(
     assert restarted.source == ModelProviderConfigurationSource.workspace
     assert restarted.requested_model == "qwen3.8-max"
     assert restarted.api_key_hint == "1234"
+
+    removed = configuration.remove_override(expected_revision=1)
+    assert removed.revision == 2
+    tombstone = store.get()
+    assert tombstone is not None
+    assert tombstone.active is False
+    assert tombstone.encrypted_api_key == ""
+
+    after_removal = ModelRuntimeRegistry(
+        fallback=fallback_runtime(),
+        store=ModelProviderConfigurationStore(session_factory(postgres_engine)),
+        cipher=CredentialCipher("postgres-model-provider-root-secret-0001"),
+        timeout_seconds=3,
+        max_retries=0,
+    ).snapshot()
+    assert after_removal.source is None
+
+    recreated = configuration.configure(request(model="qwen-plus"), expected_revision=2)
+    assert recreated.revision == 3

@@ -27,6 +27,7 @@ from app.db.models import (
     SourceSnapshotModel,
 )
 from app.schemas.core import (
+    ArtifactKind,
     ArtifactVersionDetail,
     ArtifactVersionSummary,
     EvidenceDetail,
@@ -36,6 +37,10 @@ from app.schemas.core import (
     ResearchArtifact,
     ResearchArtifactDetail,
     SourceSnapshotDetail,
+)
+from app.services.public_presentation import (
+    PresentationIntegrityError,
+    build_artifact_presentation,
 )
 from app.schemas.data_quality import DataQualityProjection
 from pydantic import ValidationError
@@ -138,7 +143,9 @@ class ArtifactReadService:
             self._require_project_owner(
                 session, run.project_id, session_id, "RUN_NOT_FOUND"
             )
-            published_at = func.max(ArtifactVersionModel.created_at).label("published_at")
+            published_at = func.max(ArtifactVersionModel.created_at).label(
+                "published_at"
+            )
             statement = (
                 select(ResearchArtifactModel, published_at)
                 .join(
@@ -288,6 +295,17 @@ class ArtifactReadService:
             evidence = self._referenced_evidence(
                 session, row.evidence_ids, row.project_id, row.id
             )
+            artifact = session.get(ResearchArtifactModel, row.artifact_id)
+            if artifact is None or artifact.project_id != row.project_id:
+                raise _integrity_problem()
+            try:
+                presentation = build_artifact_presentation(
+                    ArtifactKind(artifact.kind),
+                    row.content,
+                    tuple(_evidence(item) for item in evidence),
+                )
+            except (PresentationIntegrityError, ValidationError) as exc:
+                raise _integrity_problem() from exc
             return ArtifactVersionDetail(
                 id=str(row.id),
                 artifact_id=str(row.artifact_id),
@@ -300,6 +318,7 @@ class ArtifactReadService:
                     max_string=1_000_000 if full_content else 8192,
                     max_items=None if full_content else 500,
                 ),
+                presentation=presentation,
                 content_hash=row.content_hash,
                 input_hash=row.input_hash,
                 source_mode=row.source_mode,

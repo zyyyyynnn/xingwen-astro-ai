@@ -1240,6 +1240,7 @@ class ArtifactVersionDetail(ArtifactVersion):
     """Unified immutable content and provenance read projection."""
 
     content: dict[str, JsonValue]
+    presentation: PublicArtifactPresentation
     producer_execution: ProducerExecutionDetail
     source_snapshots: tuple[SourceSnapshotDetail, ...]
     evidence: tuple[EvidenceDetail, ...]
@@ -1368,8 +1369,138 @@ class ShareSnapshotCreated(ShareSnapshot):
     share_url: NonEmptyString
 
 
+class PublicPresentationFact(BaseModel):
+    """One human-readable fact in the shared scientific presentation model."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    label: NonEmptyString
+    values: tuple[NonEmptyString, ...] = Field(min_length=1)
+
+
+class PublicPresentationTrace(BaseModel):
+    """Presentation-safe reasoning trace with private execution facts removed."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    conclusion: NonEmptyString
+    steps: tuple[NonEmptyString, ...]
+    facts: tuple[PublicPresentationFact, ...] = ()
+    evidence_ids: tuple[Identifier, ...] = ()
+
+
+class PublicPresentationEntry(BaseModel):
+    """One claim, relation, field, paper, or scientific finding."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    key: NonEmptyString
+    title: NonEmptyString
+    external_url: NonEmptyString | None = None
+    status: NonEmptyString | None = None
+    assessment: NonEmptyString | None = None
+    paragraphs: tuple[NonEmptyString, ...] = ()
+    facts: tuple[PublicPresentationFact, ...] = ()
+    evidence_ids: tuple[Identifier, ...] = ()
+    reasoning_trace: PublicPresentationTrace | None = None
+
+
+class PublicPresentationParagraph(BaseModel):
+    """One narrative statement with its directly supporting Evidence."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    text: NonEmptyString
+    status: NonEmptyString | None = None
+    evidence_ids: tuple[Identifier, ...] = ()
+
+
+class PublicPresentationSection(BaseModel):
+    """A bounded narrative section in a shared result presentation."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    title: NonEmptyString
+    paragraphs: tuple[PublicPresentationParagraph, ...] = Field(min_length=1)
+
+
+class PublicPresentationTableColumn(BaseModel):
+    """One explicitly projected column in a shared scientific table."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    key: NonEmptyString
+    label: NonEmptyString
+    unit: NonEmptyString | None = None
+
+
+class PublicPresentationTableCell(BaseModel):
+    """One display-safe canonical value and its directly supporting Evidence."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    column_key: NonEmptyString
+    value: str | None = None
+    status: Literal["mapped", "missing", "unresolved"] = "mapped"
+    reason: NonEmptyString | None = None
+    evidence_ids: tuple[Identifier, ...] = ()
+
+
+class PublicPresentationTableRow(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    key: NonEmptyString
+    identity: NonEmptyString
+    cells: tuple[PublicPresentationTableCell, ...] = ()
+
+
+class PublicPresentationTable(BaseModel):
+    """Bounded tabular result projected from a typed Artifact authority."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    title: NonEmptyString
+    columns: tuple[PublicPresentationTableColumn, ...] = Field(min_length=1)
+    rows: tuple[PublicPresentationTableRow, ...] = ()
+    total_row_count: int = Field(ge=0)
+    total_column_count: int = Field(ge=1)
+
+
+class PublicPresentationGraphNode(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    key: NonEmptyString
+    kind: NonEmptyString
+    label: NonEmptyString
+
+
+class PublicPresentationGraphEdge(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    key: NonEmptyString
+    kind: NonEmptyString
+    source_key: NonEmptyString
+    target_key: NonEmptyString
+    evidence_ids: tuple[Identifier, ...] = ()
+
+
+class PublicArtifactPresentation(BaseModel):
+    """Single positive-contract presentation model shared by private/public UI."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    kind: ArtifactKind
+    summary: NonEmptyString | None = None
+    facts: tuple[PublicPresentationFact, ...] = ()
+    sections: tuple[PublicPresentationSection, ...] = ()
+    entries: tuple[PublicPresentationEntry, ...] = ()
+    tables: tuple[PublicPresentationTable, ...] = ()
+    graph_nodes: tuple[PublicPresentationGraphNode, ...] = ()
+    graph_edges: tuple[PublicPresentationGraphEdge, ...] = ()
+
+
 class PublicArtifactVersion(BaseModel):
-    """Redacted immutable result projection safe for anonymous presentation."""
+    """Immutable result metadata plus a typed anonymous presentation."""
 
     model_config = CORE_MODEL_CONFIG
 
@@ -1382,7 +1513,7 @@ class PublicArtifactVersion(BaseModel):
     content_hash: ContentHash
     source_mode: SourceMode
     created_at: UtcDateTime
-    content: dict[str, JsonValue]
+    presentation: PublicArtifactPresentation
     evidence_ids: tuple[Identifier, ...]
 
 
@@ -1398,6 +1529,36 @@ class PublicSourceSnapshot(BaseModel):
     request_metadata: dict[str, JsonValue]
 
 
+class PublicEvidenceBBox(BaseModel):
+    """Page-relative bounding box in absolute document points."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+
+
+class PublicEvidenceLocator(BaseModel):
+    """Positive public locator contract preserving scientific verification."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    kind: NonEmptyString
+    page: int | None = Field(default=None, ge=0)
+    paragraph: int | None = Field(default=None, ge=0)
+    section: str | None = None
+    text_range: str | None = None
+    field: str | None = None
+    row_key: str | None = None
+    block_id: str | None = None
+    reading_order: int | None = Field(default=None, ge=0)
+    table_id: str | None = None
+    cell_id: str | None = None
+    bbox: PublicEvidenceBBox | None = None
+
+
 class PublicEvidence(BaseModel):
     """Redacted Evidence detail frozen with a shared immutable result."""
 
@@ -1406,8 +1567,8 @@ class PublicEvidence(BaseModel):
     id: Identifier
     artifact_version_id: Identifier
     source_snapshot_id: Identifier
-    locator: dict[str, JsonValue]
-    quote_or_value: JsonValue
+    locator: PublicEvidenceLocator
+    quote_or_value: str | None
     created_at: UtcDateTime
     source: PublicSourceSnapshot
 

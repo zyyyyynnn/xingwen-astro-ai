@@ -5,6 +5,7 @@ import type {
 } from "@xingwen/domain";
 import type {
   DataArtifactReviewViewModel,
+  EvidenceViewModel,
   GraphArtifactReviewViewModel,
   LiteratureArtifactReviewViewModel,
   PaperAcquisitionReviewViewModel,
@@ -26,6 +27,12 @@ export type ScientificDiffCategory =
 export interface ScientificDiffItem {
   readonly key: string;
   readonly value: string;
+  /** Internal semantic comparison material; never rendered to the user. */
+  readonly comparisonValue?: string;
+  /** Internal replacement family; never rendered to the user. */
+  readonly matchGroup?: string;
+  /** Full user-relevant identity without the version-bound Evidence id. */
+  readonly semanticIdentity?: string;
 }
 
 export type ScientificDiffSnapshot = Readonly<
@@ -48,12 +55,55 @@ function item(key: string | DomainEntityId, value: string): ScientificDiffItem {
   return { key: String(key), value };
 }
 
-function countLabel(count: number, unit: string): string {
-  return count > 0 ? `${count} ${unit}` : `没有${unit}`;
+function evidenceLocatorLabel(locator: EvidenceViewModel["locator"]): string {
+  if (locator === null) return "未提供定位";
+  if (locator.kind === "paper_text") {
+    return [
+      locator.page === null ? null : `第 ${locator.page + 1} 页`,
+      locator.section || null,
+      locator.paragraph === null ? null : `第 ${locator.paragraph} 段`,
+      locator.range || null,
+    ]
+      .filter((value): value is string => value !== null)
+      .join(" · ");
+  }
+  if (locator.kind === "database_cell") return "数据单元格";
+  if (locator.kind === "model_extraction") return "模型提取来源";
+  return "推理链证据";
 }
 
-function unique(values: readonly string[]): readonly string[] {
-  return [...new Set(values)];
+/**
+ * Build Evidence changes from the existing typed Evidence read authority.
+ * Technical identities participate only in matching/comparison and never in
+ * the displayed before/after copy.
+ */
+export function buildEvidenceDiffItems(
+  evidence: readonly EvidenceViewModel[],
+): readonly ScientificDiffItem[] {
+  return evidence.map((entry) => {
+    const targetKey = `${entry.targetType}:${entry.targetId}:${entry.evidenceType}`;
+    const sourceLabel = entry.source?.sourceType || "来源未公开";
+    const locatorLabel = evidenceLocatorLabel(entry.locator);
+    const quote = entry.quoteOrValue || "未提供可读摘录";
+    const semanticIdentity = JSON.stringify({
+      targetKey,
+      sourceId: entry.source?.sourceId ?? null,
+      sourceSnapshotId: entry.sourceSnapshotId,
+      locator: entry.locator,
+      quoteOrValue: entry.quoteOrValue,
+    });
+    return {
+      key: String(entry.id),
+      matchGroup: targetKey,
+      semanticIdentity,
+      value: `${sourceLabel} · ${locatorLabel}：${quote}`,
+      comparisonValue: semanticIdentity,
+    };
+  });
+}
+
+function countLabel(count: number, unit: string): string {
+  return count > 0 ? `${count} ${unit}` : `没有${unit}`;
 }
 
 export function buildScientificArtifactDiffSnapshot(
@@ -457,25 +507,100 @@ function compareCategory(
   baseline: readonly ScientificDiffItem[],
   current: readonly ScientificDiffItem[],
 ): ScientificDiffResult {
-  const before = new Map(baseline.map((value) => [value.key, value.value]));
-  const after = new Map(current.map((value) => [value.key, value.value]));
-  const keys = unique([...before.keys(), ...after.keys()]);
+  const after = new Map(current.map((value) => [value.key, value]));
   const changes: ScientificDiffChange[] = [];
-  for (const key of keys) {
-    const beforeValue = before.get(key) ?? null;
-    const afterValue = after.get(key) ?? null;
-    if (beforeValue === afterValue) continue;
+  const matchedBefore = new Set<string>();
+  const matchedAfter = new Set<string>();
+
+  const appendChange = (
+    key: string,
+    beforeItem: ScientificDiffItem | null,
+    afterItem: ScientificDiffItem | null,
+  ) => {
+    const beforeComparison = beforeItem?.comparisonValue ?? beforeItem?.value;
+    const afterComparison = afterItem?.comparisonValue ?? afterItem?.value;
+    if (beforeComparison === afterComparison) return;
     changes.push({
       key,
       kind:
-        beforeValue === null
+        beforeItem === null
           ? "added"
-          : afterValue === null
+          : afterItem === null
             ? "removed"
             : "changed",
-      before: beforeValue,
-      after: afterValue,
+      before: beforeItem?.value ?? null,
+      after:
+        beforeItem !== null &&
+        afterItem !== null &&
+        beforeItem.value === afterItem.value
+          ? `${afterItem.value}（来源记录已更新）`
+          : (afterItem?.value ?? null),
     });
+  };
+
+  // Preserve exact internal identity when it survives within one immutable
+  // version family, then match the complete scientific facts across versions.
+  for (const beforeItem of baseline) {
+    const exact = after.get(beforeItem.key) ?? null;
+    if (exact) {
+      matchedBefore.add(beforeItem.key);
+      matchedAfter.add(exact.key);
+      appendChange(beforeItem.key, beforeItem, exact);
+    }
+  }
+  for (const beforeItem of baseline) {
+    if (matchedBefore.has(beforeItem.key) || !beforeItem.semanticIdentity)
+      continue;
+    const semanticMatch = current.find(
+      (value) =>
+        !matchedAfter.has(value.key) &&
+        value.semanticIdentity === beforeItem.semanticIdentity,
+    );
+    if (!semanticMatch) continue;
+    matchedBefore.add(beforeItem.key);
+    matchedAfter.add(semanticMatch.key);
+    appendChange(beforeItem.key, beforeItem, semanticMatch);
+  }
+
+  // Pair only the remaining facts in the same scientific target family. At
+  // this point unchanged reorder/prepend items are already consumed, so a pair
+  // represents a real replacement rather than an ordinal coincidence.
+  const unmatchedBaseline = baseline
+    .filter((value) => !matchedBefore.has(value.key))
+    .sort((left, right) =>
+      `${left.matchGroup ?? ""}:${left.semanticIdentity ?? left.key}`.localeCompare(
+        `${right.matchGroup ?? ""}:${right.semanticIdentity ?? right.key}`,
+      ),
+    );
+  const unmatchedCurrent = current
+    .filter((value) => !matchedAfter.has(value.key))
+    .sort((left, right) =>
+      `${left.matchGroup ?? ""}:${left.semanticIdentity ?? left.key}`.localeCompare(
+        `${right.matchGroup ?? ""}:${right.semanticIdentity ?? right.key}`,
+      ),
+    );
+  for (const beforeItem of unmatchedBaseline) {
+    const replacement = unmatchedCurrent.find(
+      (value) =>
+        !matchedAfter.has(value.key) &&
+        beforeItem.matchGroup !== undefined &&
+        value.matchGroup === beforeItem.matchGroup,
+    );
+    if (replacement) {
+      matchedBefore.add(beforeItem.key);
+      matchedAfter.add(replacement.key);
+      appendChange(beforeItem.key, beforeItem, replacement);
+    }
+  }
+  for (const beforeItem of baseline) {
+    if (!matchedBefore.has(beforeItem.key)) {
+      appendChange(beforeItem.key, beforeItem, null);
+    }
+  }
+  for (const afterItem of current) {
+    if (!matchedAfter.has(afterItem.key)) {
+      appendChange(afterItem.key, null, afterItem);
+    }
   }
   return { category, changes };
 }

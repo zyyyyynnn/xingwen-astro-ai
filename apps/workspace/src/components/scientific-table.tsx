@@ -71,6 +71,8 @@ export function ScientificTable({
   rows: suppliedRows,
   maxRows,
   maxColumns,
+  totalRowCount = suppliedRows.length,
+  totalColumnCount = suppliedColumns.length,
   showIdentity = false,
   onSelectEvidence,
 }: {
@@ -79,6 +81,8 @@ export function ScientificTable({
   readonly rows: readonly ScientificTableRow[];
   readonly maxRows: number;
   readonly maxColumns: number;
+  readonly totalRowCount?: number;
+  readonly totalColumnCount?: number;
   readonly showIdentity?: boolean;
   readonly onSelectEvidence?: (evidenceIds: readonly DomainEntityId[]) => void;
 }) {
@@ -210,9 +214,14 @@ export function ScientificTable({
           ))}
         </tbody>
       </table>
-      {suppliedRows.length > rows.length ? (
+      {totalRowCount > rows.length || totalColumnCount > allColumns.length ? (
         <p className="ui-text-label p-2 text-[var(--oh-muted)] bg-[var(--oh-surface-subtle)] border-t border-[var(--oh-border)]">
-          当前显示前 {rows.length} / {suppliedRows.length} 行。
+          {totalRowCount > rows.length
+            ? `显示前 ${rows.length} / ${totalRowCount} 行`
+            : `${totalRowCount} 行`}
+          {totalColumnCount > allColumns.length
+            ? ` · 前 ${allColumns.length} / ${totalColumnCount} 列`
+            : null}
         </p>
       ) : null}
     </div>

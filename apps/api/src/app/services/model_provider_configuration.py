@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from base64 import urlsafe_b64encode
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace as dataclass_replace
 from datetime import UTC, datetime
 from threading import RLock
 from urllib.parse import urlsplit, urlunsplit
@@ -57,6 +57,7 @@ class StoredModelProviderConfiguration:
     revision: int
     verified_at: datetime
     updated_at: datetime
+    active: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,7 +88,7 @@ class CredentialCipher:
             algorithm=hashes.SHA256(),
             length=32,
             salt=None,
-            info=b"xingwen-model-provider-configuration-v1.0.0",
+            info=b"xingwen astro ai model provider credential encryption key",
         ).derive(normalized.encode("utf-8"))
         self._fernet = Fernet(urlsafe_b64encode(derived))
 
@@ -144,6 +145,7 @@ class ModelProviderConfigurationStore:
                     model=model,
                     encrypted_api_key=encrypted_api_key,
                     api_key_hint=api_key_hint,
+                    active=True,
                     revision=1,
                     verified_at=verified_at,
                     created_at=verified_at,
@@ -156,6 +158,7 @@ class ModelProviderConfigurationStore:
                 row.model = model
                 row.encrypted_api_key = encrypted_api_key
                 row.api_key_hint = api_key_hint
+                row.active = True
                 row.revision += 1
                 row.verified_at = verified_at
                 row.updated_at = verified_at
@@ -174,8 +177,12 @@ class ModelProviderConfigurationStore:
                 expected=expected_revision,
                 current=row.revision if row is not None else 0,
             )
-            if row is not None:
-                session.delete(row)
+            if row is not None and row.active:
+                row.active = False
+                row.encrypted_api_key = ""
+                row.api_key_hint = ""
+                row.revision += 1
+                row.updated_at = datetime.now(UTC)
 
 
 class InMemoryModelProviderConfigurationStore:
@@ -215,6 +222,7 @@ class InMemoryModelProviderConfigurationStore:
                 revision=revision,
                 verified_at=verified_at,
                 updated_at=verified_at,
+                active=True,
             )
             return self._value
 
@@ -224,7 +232,15 @@ class InMemoryModelProviderConfigurationStore:
                 expected=expected_revision,
                 current=self._value.revision if self._value else 0,
             )
-            self._value = None
+            if self._value is not None and self._value.active:
+                self._value = dataclass_replace(
+                    self._value,
+                    encrypted_api_key="",
+                    api_key_hint="",
+                    revision=self._value.revision + 1,
+                    updated_at=datetime.now(UTC),
+                    active=False,
+                )
 
 
 ConfigurationStore = (
@@ -261,13 +277,18 @@ class ModelRuntimeRegistry:
 
     def refresh(self) -> ModelRuntimeSnapshot:
         """Refresh from shared storage while preserving one coherent snapshot."""
+        return self.refresh_with_revision()[0]
+
+    def refresh_with_revision(self) -> tuple[ModelRuntimeSnapshot, int]:
+        """Return one coherent runtime and configuration generation."""
+
         with self._lock:
             stored = self._store.get() if self._load_workspace_override else None
-            if stored is None:
+            if stored is None or not stored.active:
                 self._current = self._fallback
             elif not self._matches(stored):
                 self._current = self._from_stored(stored)
-            return self._current
+            return self._current, stored.revision if stored is not None else 0
 
     def reload(self) -> ModelRuntimeSnapshot:
         return self.refresh()
@@ -354,7 +375,7 @@ class ModelProviderConfigurationService:
         self._probe = probe or self._probe_chat_completions
 
     def status(self) -> ModelProviderConfigurationStatus:
-        return self._status(self._registry.refresh())
+        return self._status()
 
     def configure(
         self, request: ConfigureModelProviderRequest, *, expected_revision: int
@@ -379,21 +400,22 @@ class ModelProviderConfigurationService:
             api_key_hint=api_key[-4:],
             verified_at=now,
         )
-        return self._status(self._registry.refresh())
+        return self._status()
 
     def remove_override(
         self, *, expected_revision: int
     ) -> ModelProviderConfigurationStatus:
         self._require_writable()
         self._require_current_revision(expected_revision)
-        if self._store.get() is None:
+        stored = self._store.get()
+        if stored is None or not stored.active:
             raise _configuration_problem(
                 409,
                 "MODEL_PROVIDER_CONFIGURATION_MANAGED",
                 "当前模型服务由部署环境管理，不能在工作台中移除。",
             )
         self._store.delete(expected_revision=expected_revision)
-        return self._status(self._registry.refresh())
+        return self._status()
 
     def _require_current_revision(self, expected_revision: int) -> None:
         stored = self._store.get()
@@ -402,11 +424,11 @@ class ModelProviderConfigurationService:
             current=stored.revision if stored else 0,
         )
 
-    def _status(
-        self, snapshot: ModelRuntimeSnapshot
-    ) -> ModelProviderConfigurationStatus:
+    def _status(self) -> ModelProviderConfigurationStatus:
+        snapshot, revision = self._registry.refresh_with_revision()
         return _status(
             snapshot,
+            configuration_revision=revision,
             writable=self._writable,
             dashscope_base_url=self._dashscope_base_url,
         )
@@ -537,19 +559,21 @@ def _stored(
         revision=row.revision,
         verified_at=_utc(row.verified_at),
         updated_at=_utc(row.updated_at),
+        active=row.active,
     )
 
 
 def _status(
     snapshot: ModelRuntimeSnapshot,
     *,
+    configuration_revision: int,
     writable: bool,
     dashscope_base_url: str,
 ) -> ModelProviderConfigurationStatus:
     configured = snapshot.source is not None
     return ModelProviderConfigurationStatus(
         status="ready" if configured else "unconfigured",
-        revision=snapshot.revision,
+        revision=configuration_revision,
         source=snapshot.source,
         preset=snapshot.preset,
         base_url=snapshot.base_url,

@@ -566,7 +566,7 @@ const claimRead: LiteratureClaimRead = {
     scope: ["host star"],
     conditions: ["catalog host-star parameters"],
     qualifiers: [],
-    limitations: ["Fixture evidence is bounded to the cited catalog record."],
+    limitations: ["Evidence is bounded to the cited catalog record."],
     metric: "effective_temperature",
     unit: "K",
     uncertainty: null,

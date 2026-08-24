@@ -356,6 +356,9 @@
             "title": "Input Hash",
             "type": "string"
           },
+          "presentation": {
+            "$ref": "#/components/schemas/PublicArtifactPresentation"
+          },
           "producer": {
             "$ref": "#/components/schemas/ProducerReference"
           },
@@ -425,6 +428,7 @@
           "source_mode",
           "producer",
           "created_at",
+          "presentation",
           "producer_execution",
           "source_snapshots",
           "evidence"
@@ -13099,22 +13103,89 @@
         "title": "ProducerReference",
         "type": "object"
       },
+      "PublicArtifactPresentation": {
+        "additionalProperties": false,
+        "description": "Single positive-contract presentation model shared by private/public UI.",
+        "properties": {
+          "entries": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PublicPresentationEntry"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "facts": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PublicPresentationFact"
+            },
+            "title": "Facts",
+            "type": "array"
+          },
+          "graph_edges": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PublicPresentationGraphEdge"
+            },
+            "title": "Graph Edges",
+            "type": "array"
+          },
+          "graph_nodes": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PublicPresentationGraphNode"
+            },
+            "title": "Graph Nodes",
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ArtifactKind"
+          },
+          "sections": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PublicPresentationSection"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "tables": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PublicPresentationTable"
+            },
+            "title": "Tables",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "PublicArtifactPresentation",
+        "type": "object"
+      },
       "PublicArtifactVersion": {
         "additionalProperties": false,
-        "description": "Redacted immutable result projection safe for anonymous presentation.",
+        "description": "Immutable result metadata plus a typed anonymous presentation.",
         "properties": {
           "artifact_id": {
             "maxLength": 128,
             "minLength": 1,
             "title": "Artifact Id",
             "type": "string"
-          },
-          "content": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/JsonValue"
-            },
-            "title": "Content",
-            "type": "object"
           },
           "content_hash": {
             "pattern": "^sha256:[0-9a-f]{64}$",
@@ -13143,6 +13214,9 @@
           },
           "kind": {
             "$ref": "#/components/schemas/ArtifactKind"
+          },
+          "presentation": {
+            "$ref": "#/components/schemas/PublicArtifactPresentation"
           },
           "schema_version": {
             "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
@@ -13173,7 +13247,7 @@
           "content_hash",
           "source_mode",
           "created_at",
-          "content",
+          "presentation",
           "evidence_ids"
         ],
         "title": "PublicArtifactVersion",
@@ -13201,14 +13275,18 @@
             "type": "string"
           },
           "locator": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/JsonValue"
-            },
-            "title": "Locator",
-            "type": "object"
+            "$ref": "#/components/schemas/PublicEvidenceLocator"
           },
           "quote_or_value": {
-            "$ref": "#/components/schemas/JsonValue"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote Or Value"
           },
           "source": {
             "$ref": "#/components/schemas/PublicSourceSnapshot"
@@ -13230,6 +13308,639 @@
           "source"
         ],
         "title": "PublicEvidence",
+        "type": "object"
+      },
+      "PublicEvidenceBBox": {
+        "additionalProperties": false,
+        "description": "Page-relative bounding box in absolute document points.",
+        "properties": {
+          "x1": {
+            "title": "X1",
+            "type": "number"
+          },
+          "x2": {
+            "title": "X2",
+            "type": "number"
+          },
+          "y1": {
+            "title": "Y1",
+            "type": "number"
+          },
+          "y2": {
+            "title": "Y2",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x1",
+          "y1",
+          "x2",
+          "y2"
+        ],
+        "title": "PublicEvidenceBBox",
+        "type": "object"
+      },
+      "PublicEvidenceLocator": {
+        "additionalProperties": false,
+        "description": "Positive public locator contract preserving scientific verification.",
+        "properties": {
+          "bbox": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicEvidenceBBox"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "block_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block Id"
+          },
+          "cell_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cell Id"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "kind": {
+            "minLength": 1,
+            "title": "Kind",
+            "type": "string"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "paragraph": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paragraph"
+          },
+          "reading_order": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reading Order"
+          },
+          "row_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Key"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section"
+          },
+          "table_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Table Id"
+          },
+          "text_range": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Range"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "PublicEvidenceLocator",
+        "type": "object"
+      },
+      "PublicPresentationEntry": {
+        "additionalProperties": false,
+        "description": "One claim, relation, field, paper, or scientific finding.",
+        "properties": {
+          "assessment": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assessment"
+          },
+          "evidence_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "external_url": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Url"
+          },
+          "facts": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PublicPresentationFact"
+            },
+            "title": "Facts",
+            "type": "array"
+          },
+          "key": {
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "paragraphs": {
+            "default": [],
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Paragraphs",
+            "type": "array"
+          },
+          "reasoning_trace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicPresentationTrace"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title"
+        ],
+        "title": "PublicPresentationEntry",
+        "type": "object"
+      },
+      "PublicPresentationFact": {
+        "additionalProperties": false,
+        "description": "One human-readable fact in the shared scientific presentation model.",
+        "properties": {
+          "label": {
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "label",
+          "values"
+        ],
+        "title": "PublicPresentationFact",
+        "type": "object"
+      },
+      "PublicPresentationGraphEdge": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "key": {
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "minLength": 1,
+            "title": "Kind",
+            "type": "string"
+          },
+          "source_key": {
+            "minLength": 1,
+            "title": "Source Key",
+            "type": "string"
+          },
+          "target_key": {
+            "minLength": 1,
+            "title": "Target Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "kind",
+          "source_key",
+          "target_key"
+        ],
+        "title": "PublicPresentationGraphEdge",
+        "type": "object"
+      },
+      "PublicPresentationGraphNode": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "minLength": 1,
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "kind",
+          "label"
+        ],
+        "title": "PublicPresentationGraphNode",
+        "type": "object"
+      },
+      "PublicPresentationParagraph": {
+        "additionalProperties": false,
+        "description": "One narrative statement with its directly supporting Evidence.",
+        "properties": {
+          "evidence_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "text": {
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "PublicPresentationParagraph",
+        "type": "object"
+      },
+      "PublicPresentationSection": {
+        "additionalProperties": false,
+        "description": "A bounded narrative section in a shared result presentation.",
+        "properties": {
+          "paragraphs": {
+            "items": {
+              "$ref": "#/components/schemas/PublicPresentationParagraph"
+            },
+            "minItems": 1,
+            "title": "Paragraphs",
+            "type": "array"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "paragraphs"
+        ],
+        "title": "PublicPresentationSection",
+        "type": "object"
+      },
+      "PublicPresentationTable": {
+        "additionalProperties": false,
+        "description": "Bounded tabular result projected from a typed Artifact authority.",
+        "properties": {
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/PublicPresentationTableColumn"
+            },
+            "minItems": 1,
+            "title": "Columns",
+            "type": "array"
+          },
+          "rows": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PublicPresentationTableRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "total_column_count": {
+            "minimum": 1.0,
+            "title": "Total Column Count",
+            "type": "integer"
+          },
+          "total_row_count": {
+            "minimum": 0.0,
+            "title": "Total Row Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "title",
+          "columns",
+          "total_row_count",
+          "total_column_count"
+        ],
+        "title": "PublicPresentationTable",
+        "type": "object"
+      },
+      "PublicPresentationTableCell": {
+        "additionalProperties": false,
+        "description": "One display-safe canonical value and its directly supporting Evidence.",
+        "properties": {
+          "column_key": {
+            "minLength": 1,
+            "title": "Column Key",
+            "type": "string"
+          },
+          "evidence_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "default": "mapped",
+            "enum": [
+              "mapped",
+              "missing",
+              "unresolved"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "column_key"
+        ],
+        "title": "PublicPresentationTableCell",
+        "type": "object"
+      },
+      "PublicPresentationTableColumn": {
+        "additionalProperties": false,
+        "description": "One explicitly projected column in a shared scientific table.",
+        "properties": {
+          "key": {
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "title": "PublicPresentationTableColumn",
+        "type": "object"
+      },
+      "PublicPresentationTableRow": {
+        "additionalProperties": false,
+        "properties": {
+          "cells": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PublicPresentationTableCell"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "identity": {
+            "minLength": 1,
+            "title": "Identity",
+            "type": "string"
+          },
+          "key": {
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "identity"
+        ],
+        "title": "PublicPresentationTableRow",
+        "type": "object"
+      },
+      "PublicPresentationTrace": {
+        "additionalProperties": false,
+        "description": "Presentation-safe reasoning trace with private execution facts removed.",
+        "properties": {
+          "conclusion": {
+            "minLength": 1,
+            "title": "Conclusion",
+            "type": "string"
+          },
+          "evidence_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "facts": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PublicPresentationFact"
+            },
+            "title": "Facts",
+            "type": "array"
+          },
+          "steps": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "conclusion",
+          "steps"
+        ],
+        "title": "PublicPresentationTrace",
         "type": "object"
       },
       "PublicShareSnapshot": {

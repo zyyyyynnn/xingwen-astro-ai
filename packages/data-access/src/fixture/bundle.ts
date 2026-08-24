@@ -20,6 +20,7 @@ import type {
   PaperCollectionCandidateRead as PaperCollectionCandidateReadDto,
   PaperCollectionRead as PaperCollectionReadDto,
   PaperSummaryRead as PaperSummaryReadDto,
+  PublicArtifactPresentation,
   SourceCollectionArtifactRead,
   ResearchArtifactDto,
   ResearchContractDto,
@@ -76,6 +77,10 @@ export interface FixtureBundleData {
   readonly graphArtifactReads: readonly GraphArtifactRead[];
   readonly graphNodeReads: readonly GraphNodeRead[];
   readonly graphEdgeReads: readonly GraphEdgeRead[];
+  /** Frozen positive-contract presentations keyed by ArtifactVersion id. */
+  readonly artifactPresentations: Readonly<
+    Record<string, PublicArtifactPresentation>
+  >;
   /**
    * Evidence is a frontend domain entity without a standalone transport
    * schema, so fixture evidence is provided directly in domain (camelCase)

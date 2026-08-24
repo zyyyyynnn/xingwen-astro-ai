@@ -17,23 +17,22 @@ function session(): SessionManager {
   };
 }
 
-function envelope(revision: number): Response {
+function envelope(revision: number, configured: boolean): Response {
   return new Response(
     JSON.stringify({
       data: {
-        status: revision === 0 ? "unconfigured" : "ready",
+        status: configured ? "ready" : "unconfigured",
         revision,
-        source: revision === 0 ? null : "workspace",
-        preset: revision === 0 ? null : "dashscope",
-        base_url:
-          revision === 0
-            ? null
-            : "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        source: configured ? "workspace" : null,
+        preset: configured ? "dashscope" : null,
+        base_url: configured
+          ? "https://dashscope.aliyuncs.com/compatible-mode/v1"
+          : null,
         dashscope_base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-        model: revision === 0 ? null : "qwen-plus",
-        api_key_hint: revision === 0 ? null : "••••1234",
-        verified_at: revision === 0 ? null : "2026-08-24T00:00:00Z",
-        updated_at: revision === 0 ? null : "2026-08-24T00:00:00Z",
+        model: configured ? "qwen-plus" : null,
+        api_key_hint: configured ? "••••1234" : null,
+        verified_at: configured ? "2026-08-24T00:00:00Z" : null,
+        updated_at: configured ? "2026-08-24T00:00:00Z" : null,
         editable: true,
       },
       meta: {
@@ -52,15 +51,19 @@ describe("ModelProviderRepository", () => {
       readonly method: string;
       readonly headers: Headers;
     }> = [];
-    const revisions = [4, 5, 0];
+    const responses = [
+      { revision: 4, configured: true },
+      { revision: 5, configured: true },
+      { revision: 6, configured: false },
+    ];
     const fetchImpl = (async (_input, init) => {
       requests.push({
         method: init?.method ?? "GET",
         headers: new Headers(init?.headers),
       });
-      const revision = revisions.shift();
-      if (revision === undefined) throw new Error("unexpected request");
-      return envelope(revision);
+      const response = responses.shift();
+      if (response === undefined) throw new Error("unexpected request");
+      return envelope(response.revision, response.configured);
     }) as typeof fetch;
     const repository = createModelProviderRepository(
       new HttpClient({
@@ -89,6 +92,7 @@ describe("ModelProviderRepository", () => {
     ]);
     expect(requests[1]?.headers.get("If-Match")).toBe("4");
     expect(requests[2]?.headers.get("If-Match")).toBe("5");
-    expect(removed.revision).toBe(0);
+    expect(removed.status).toBe("unconfigured");
+    expect(removed.revision).toBe(6);
   });
 });

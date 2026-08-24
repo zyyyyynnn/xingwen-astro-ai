@@ -11,7 +11,11 @@ import {
   type NodeProps,
   type ReactFlowInstance,
 } from "@xyflow/react";
-import type { DomainEntityId, GraphEdgeReview } from "@xingwen/domain";
+import type {
+  DomainEntityId,
+  GraphEdgeReview,
+  PublicArtifactPresentation,
+} from "@xingwen/domain";
 import { workspaceGraphGeometry } from "@xingwen/design-tokens";
 import type { GraphArtifactReviewViewModel } from "@xingwen/research-adapter";
 import {
@@ -28,7 +32,7 @@ import {
   TabsTrigger,
 } from "@xingwen/ui";
 import { Quote, Target } from "@xingwen/ui/icons";
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import {
   comparabilityLabel,
@@ -36,11 +40,94 @@ import {
   taxonomyLabel,
   type ScientificContentSurface,
 } from "./shared";
+import { PresentationGraphRelationships } from "../scientific-presentation";
 
 import "@xyflow/react/dist/style.css";
 
 const INITIAL_NODE_BUDGET = 60;
 const NODE_BUDGET_INCREMENT = 60;
+
+interface ResolvedGraphGeometry {
+  readonly nodeInlineSize: number;
+  readonly nodeBlockSize: number;
+  readonly nodeSeparation: number;
+  readonly rankSeparation: number;
+  readonly focusPadding: number;
+}
+
+function readCssNumber(variable: string, length: boolean): number | null {
+  const root = document.documentElement;
+  const value = getComputedStyle(root).getPropertyValue(variable).trim();
+  if (!value) return null;
+  if (!length) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+  const match = value.match(/^([\d.]+)(px|rem)$/u);
+  if (!match) return null;
+  const number = Number(match[1]);
+  if (!Number.isFinite(number)) return null;
+  if (match[2] === "px") return number;
+  const rootFontSize = Number.parseFloat(getComputedStyle(root).fontSize);
+  return Number.isFinite(rootFontSize) ? number * rootFontSize : null;
+}
+
+function readGraphGeometry(
+  probe: HTMLElement | null,
+): ResolvedGraphGeometry | null {
+  const bounds = probe?.getBoundingClientRect();
+  const nodeInlineSize =
+    bounds && bounds.width > 0
+      ? bounds.width
+      : readCssNumber(workspaceGraphGeometry.nodeInlineSize, true);
+  const nodeBlockSize =
+    bounds && bounds.height > 0
+      ? bounds.height
+      : readCssNumber(workspaceGraphGeometry.nodeBlockSize, true);
+  const nodeSeparation = readCssNumber(
+    workspaceGraphGeometry.nodeSeparation,
+    true,
+  );
+  const rankSeparation = readCssNumber(
+    workspaceGraphGeometry.rankSeparation,
+    true,
+  );
+  const focusPadding = readCssNumber(
+    workspaceGraphGeometry.focusPadding,
+    false,
+  );
+  return nodeInlineSize !== null &&
+    nodeBlockSize !== null &&
+    nodeSeparation !== null &&
+    rankSeparation !== null &&
+    focusPadding !== null
+    ? {
+        nodeInlineSize,
+        nodeBlockSize,
+        nodeSeparation,
+        rankSeparation,
+        focusPadding,
+      }
+    : null;
+}
+
+function useGraphGeometry() {
+  const probeRef = useRef<HTMLSpanElement>(null);
+  const [geometry, setGeometry] = useState<ResolvedGraphGeometry | null>(null);
+  useLayoutEffect(() => {
+    const update = () => setGeometry(readGraphGeometry(probeRef.current));
+    update();
+    window.addEventListener("resize", update);
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    if (probeRef.current) observer?.observe(probeRef.current);
+    return () => {
+      window.removeEventListener("resize", update);
+      observer?.disconnect();
+    };
+  }, []);
+  return { geometry, probeRef };
+}
 
 interface ScientificGraphNodeData extends Record<string, unknown> {
   readonly label: string;
@@ -55,12 +142,7 @@ function unique<T>(values: readonly T[]): T[] {
 }
 
 function evidenceIdsForEdge(edge: GraphEdgeReview): DomainEntityId[] {
-  return unique([
-    ...edge.evidenceIds,
-    ...(edge.relation?.evidenceIds ?? []),
-    ...(edge.relation?.reasoningTrace?.evidenceIds ?? []),
-    ...(edge.relationTrace?.traceEvidenceIds ?? []),
-  ]);
+  return unique(edge.evidenceIds);
 }
 
 function isPresentableEdge(edge: GraphEdgeReview): boolean {
@@ -93,6 +175,7 @@ const nodeTypes = { scientific: ScientificNode };
 function layoutElements(
   nodes: readonly GraphArtifactReviewViewModel["nodes"][number][],
   edges: readonly GraphEdgeReview[],
+  geometry: ResolvedGraphGeometry,
 ): {
   readonly nodes: ScientificGraphNode[];
   readonly edges: ScientificGraphEdge[];
@@ -100,13 +183,13 @@ function layoutElements(
   const graph = new graphlib.Graph().setDefaultEdgeLabel(() => ({}));
   graph.setGraph({
     rankdir: "LR",
-    nodesep: workspaceGraphGeometry.nodeSeparation,
-    ranksep: workspaceGraphGeometry.rankSeparation,
+    nodesep: geometry.nodeSeparation,
+    ranksep: geometry.rankSeparation,
   });
   for (const node of nodes) {
     graph.setNode(node.nodeId, {
-      width: workspaceGraphGeometry.nodeInlineSize,
-      height: workspaceGraphGeometry.nodeBlockSize,
+      width: geometry.nodeInlineSize,
+      height: geometry.nodeBlockSize,
     });
   }
   for (const edge of edges) {
@@ -122,8 +205,8 @@ function layoutElements(
         id: node.nodeId,
         type: "scientific",
         position: {
-          x: position.x - workspaceGraphGeometry.nodeInlineSize / 2,
-          y: position.y - workspaceGraphGeometry.nodeBlockSize / 2,
+          x: position.x - geometry.nodeInlineSize / 2,
+          y: position.y - geometry.nodeBlockSize / 2,
         },
         data: {
           label: node.label || "未命名研究对象",
@@ -312,54 +395,15 @@ function EdgeDetails({
   );
 }
 
-function GraphList({
-  edges,
-  nodeLabelById,
-  selectedEdgeId,
-  onSelectEdge,
-}: {
-  readonly edges: readonly GraphEdgeReview[];
-  readonly nodeLabelById: ReadonlyMap<DomainEntityId, string>;
-  readonly selectedEdgeId: DomainEntityId | null;
-  readonly onSelectEdge: (edgeId: DomainEntityId) => void;
-}) {
-  if (edges.length === 0) {
-    return <p className="graph-workspace__empty">当前筛选下没有可核验关系。</p>;
-  }
-  return (
-    <ol className="graph-workspace__list" aria-label="关系图列表替代视图">
-      {edges.map((edge) => (
-        <li key={edge.edgeId}>
-          <Button
-            variant={selectedEdgeId === edge.edgeId ? "secondary" : "ghost"}
-            onClick={() => onSelectEdge(edge.edgeId)}
-          >
-            <span>
-              {edge.sourceNodeId
-                ? (nodeLabelById.get(edge.sourceNodeId) ?? "未命名研究对象")
-                : "起点未公开"}
-            </span>
-            <span aria-hidden="true">→</span>
-            <span>
-              {edge.targetNodeId
-                ? (nodeLabelById.get(edge.targetNodeId) ?? "未命名研究对象")
-                : "终点未公开"}
-            </span>
-            <small>{taxonomyLabel(edge.edgeType)}</small>
-          </Button>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
 export function GraphContent({
   review,
+  presentation,
   title,
   surface,
   onSelectEvidence,
 }: {
   readonly review: GraphArtifactReviewViewModel;
+  readonly presentation: PublicArtifactPresentation;
   readonly title: string;
   readonly surface: ScientificContentSurface;
   readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
@@ -377,6 +421,7 @@ export function GraphContent({
   const [instance, setInstance] = useState<
     ReactFlowInstance<ScientificGraphNode, ScientificGraphEdge> | undefined
   >();
+  const { geometry: graphGeometry, probeRef } = useGraphGeometry();
 
   const nodeLabelById = useMemo(
     () =>
@@ -414,14 +459,29 @@ export function GraphContent({
       visibleNodeIds.has(edge.targetNodeId),
   );
   const elements = useMemo(
-    () => layoutElements(visibleNodes, visibleEdges),
-    [visibleEdges, visibleNodes],
+    () =>
+      graphGeometry
+        ? layoutElements(visibleNodes, visibleEdges, graphGeometry)
+        : { nodes: [], edges: [] },
+    [graphGeometry, visibleEdges, visibleNodes],
   );
   const selectedEdge =
     presentableEdges.find((edge) => edge.edgeId === selectedEdgeId) ?? null;
   const selectedNode =
     review.nodes.find((node) => node.nodeId === selectedNodeId) ?? null;
   const hiddenUnsafeEdgeCount = review.edges.length - presentableEdges.length;
+  const visibleNodeKeys = new Set(
+    visibleNodes.map((node) => String(node.nodeId)),
+  );
+  const visibleEdgeKeys = new Set(
+    visibleEdges.map((edge) => String(edge.edgeId)),
+  );
+  const presentationNodes = presentation.graphNodes.filter((node) =>
+    visibleNodeKeys.has(node.key),
+  );
+  const presentationEdges = presentation.graphEdges.filter((edge) =>
+    visibleEdgeKeys.has(edge.key),
+  );
 
   const focusSelection = () => {
     const id = selectedEdgeId ?? selectedNodeId;
@@ -433,7 +493,7 @@ export function GraphContent({
       : [{ id }];
     void instance.fitView({
       nodes,
-      padding: workspaceGraphGeometry.focusPadding,
+      padding: graphGeometry?.focusPadding ?? 0,
     });
   };
 
@@ -442,6 +502,11 @@ export function GraphContent({
       className="scientific-artifact scientific-artifact--graph"
       data-surface={surface}
     >
+      <span
+        ref={probeRef}
+        className="graph-workspace__geometry-probe"
+        aria-hidden="true"
+      />
       <ScientificContentHeader
         title={title}
         subtitle={`可核验证据关系，${presentableEdges.length} 条`}
@@ -475,7 +540,11 @@ export function GraphContent({
           ) : null}
         </div>
         <TabsContent value="canvas" className="graph-workspace__canvas-panel">
-          {elements.nodes.length > 0 ? (
+          {graphGeometry === null ? (
+            <p className="graph-workspace__empty" aria-busy="true">
+              正在适配关系图布局…
+            </p>
+          ) : elements.nodes.length > 0 ? (
             <ReactFlow<ScientificGraphNode, ScientificGraphEdge>
               nodes={elements.nodes.map((node) => ({
                 ...node,
@@ -494,6 +563,42 @@ export function GraphContent({
               onEdgeClick={(_event, edge) => {
                 setSelectedEdgeId(edge.id as DomainEntityId);
                 setSelectedNodeId(null);
+              }}
+              onNodesChange={(changes) => {
+                const selection = changes.find(
+                  (change) => change.type === "select" && change.selected,
+                );
+                if (selection?.type === "select") {
+                  setSelectedNodeId(selection.id as DomainEntityId);
+                  setSelectedEdgeId(null);
+                } else if (
+                  changes.some(
+                    (change) =>
+                      change.type === "select" &&
+                      change.id === selectedNodeId &&
+                      !change.selected,
+                  )
+                ) {
+                  setSelectedNodeId(null);
+                }
+              }}
+              onEdgesChange={(changes) => {
+                const selection = changes.find(
+                  (change) => change.type === "select" && change.selected,
+                );
+                if (selection?.type === "select") {
+                  setSelectedEdgeId(selection.id as DomainEntityId);
+                  setSelectedNodeId(null);
+                } else if (
+                  changes.some(
+                    (change) =>
+                      change.type === "select" &&
+                      change.id === selectedEdgeId &&
+                      !change.selected,
+                  )
+                ) {
+                  setSelectedEdgeId(null);
+                }
               }}
               onPaneClick={() => {
                 setSelectedNodeId(null);
@@ -526,15 +631,19 @@ export function GraphContent({
           )}
         </TabsContent>
         <TabsContent value="list">
-          <GraphList
-            edges={visibleEdges}
-            nodeLabelById={nodeLabelById}
-            selectedEdgeId={selectedEdgeId}
-            onSelectEdge={(id) => {
-              setSelectedEdgeId(id);
-              setSelectedNodeId(null);
-            }}
-          />
+          {presentationEdges.length > 0 ? (
+            <PresentationGraphRelationships
+              nodes={presentationNodes}
+              edges={presentationEdges}
+              selectedKey={selectedEdgeId}
+              onSelectRelationship={(id) => {
+                setSelectedEdgeId(id as DomainEntityId);
+                setSelectedNodeId(null);
+              }}
+            />
+          ) : (
+            <p className="graph-workspace__empty">当前筛选下没有可核验关系。</p>
+          )}
         </TabsContent>
       </Tabs>
       {matchingNodes.length > visibleNodes.length ? (

@@ -45,6 +45,7 @@ from app.workflow.research_step_runtime import (
     ResearchStepRuntime,
     RunStepContext,
 )
+from app.workflow.steps.literature_steps import RelationConfidenceBuilder
 from app.workflow.run_plan import artifact_kinds_for_steps
 from app.workflow.step_publication import step_uuid
 from app.workflow.store import (
@@ -120,6 +121,7 @@ class ResearchRunWorker:
         paper_collection_runner: LivePaperCollectionRunner | None = None,
         content_storage: ContentStorage | None = None,
         document_parser: DocumentParserPort | None = None,
+        relation_confidence_builder: RelationConfidenceBuilder | None = None,
     ) -> None:
         self._factory = factory
         self._store = store
@@ -147,6 +149,7 @@ class ResearchRunWorker:
             paper_collection_runner=paper_collection_runner,
             content_storage=content_storage,
             document_parser=document_parser,
+            relation_confidence_builder=relation_confidence_builder,
         )
         self._task: asyncio.Task[None] | None = None
         self._stop = asyncio.Event()
@@ -453,15 +456,14 @@ class ResearchRunWorker:
             # before execution. A Gaia SourceTable is assembled by the
             # scientific step but still publishes through these same primary
             # data targets.
-            fixed_steps = tuple(step for step in snapshot.steps if step.skill_id is None)
+            fixed_steps = tuple(
+                step for step in snapshot.steps if step.skill_id is None
+            )
             scientific_steps = tuple(
                 step for step in snapshot.steps if step.skill_id is not None
             )
             required_kinds = {
-                kind.value
-                for kind in artifact_kinds_for_steps(
-                    fixed_steps
-                )
+                kind.value for kind in artifact_kinds_for_steps(fixed_steps)
             }
             required_kinds.update(
                 kind.value

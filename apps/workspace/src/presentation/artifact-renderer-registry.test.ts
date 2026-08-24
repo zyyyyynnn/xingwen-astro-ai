@@ -16,7 +16,7 @@ describe("Artifact Renderer Registry", () => {
     expect(resolveArtifactRenderer("paper_summary")?.capability).toBe(
       "supported",
     );
-    expect(resolveArtifactRenderer("graph")?.PublicRenderer).toBeTypeOf(
+    expect(resolveArtifactRenderer("graph")?.FullscreenRenderer).toBeTypeOf(
       "function",
     );
   });

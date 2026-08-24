@@ -188,6 +188,11 @@
     },
     {
       "module": "app.schemas.core",
+      "name": "PublicArtifactPresentation",
+      "path": "json/PublicArtifactPresentation.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
       "name": "PublicShareSnapshot",
       "path": "json/PublicShareSnapshot.schema.json"
     },

@@ -44,6 +44,7 @@ import {
 } from "../presentation/artifact-renderer-registry";
 import { ArtifactEvidenceSheet } from "./artifact-evidence-sheet";
 import { ArtifactShareDialog } from "./artifact-share-dialog";
+import { ArtifactSourceMode } from "./scientific-presentation";
 
 export interface ArtifactFullscreenWorkspaceProps {
   readonly runtime: WorkspaceRuntimeBoundaries;
@@ -462,7 +463,7 @@ export function ArtifactFullscreenWorkspace({
           className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-4 py-2"
           data-testid="artifact-fullscreen-header"
         >
-          <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="artifact-fullscreen-header__identity flex min-w-0 flex-wrap items-center gap-3">
             <DialogClose asChild>
               <Button
                 variant="ghost"
@@ -477,6 +478,9 @@ export function ArtifactFullscreenWorkspace({
             <DialogTitle className="min-w-0 max-w-md truncate font-serif text-[length:var(--font-size-ui-heading)] font-semibold leading-[var(--line-height-ui-heading)] text-foreground">
               {artifact?.title ?? "研究结果"}
             </DialogTitle>
+            {version ? (
+              <ArtifactSourceMode sourceMode={version.sourceMode} />
+            ) : null}
             {artifactId !== null && versions.length > 1 ? (
               <VersionSelector
                 versions={versions}
@@ -487,7 +491,7 @@ export function ArtifactFullscreenWorkspace({
               />
             ) : null}
           </div>
-          <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <div className="artifact-fullscreen-header__actions flex flex-wrap items-center justify-end gap-2">
             {descriptor?.capabilities.evidence && evidenceIds.length > 0 ? (
               <Button
                 size="small"

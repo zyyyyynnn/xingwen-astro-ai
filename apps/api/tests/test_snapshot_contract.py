@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from threading import Barrier
 
@@ -17,11 +18,11 @@ from app.schemas.core import (
     CreateShareSnapshotRequest,
     PublicArtifactVersion,
     PublicEvidence,
+    PublicPresentationEntry,
     WorkspaceSnapshotInput,
 )
 from app.security import SecurityProblem
 from app.services.snapshots import InMemorySnapshotStore, SnapshotService
-from app.services.resource_authority import _public_artifact_content
 
 
 NOW = datetime(2026, 7, 22, 8, tzinfo=UTC)
@@ -39,7 +40,10 @@ def _version(*, title: str = "Frozen dataset") -> PublicArtifactVersion:
         content_hash=HASH,
         source_mode="live",
         created_at=NOW,
-        content={"kind": "dataset", "title": title},
+        presentation={
+            "kind": "dataset",
+            "facts": [{"label": "记录", "values": ("1 条",)}],
+        },
         evidence_ids=("ev_01",),
     )
 
@@ -87,49 +91,31 @@ def _workspace_payload(*, layout_preset: str = "research-default") -> dict[str, 
     }
 
 
-def test_public_projection_preserves_allowed_nulls_and_drops_private_keys() -> None:
-    projected = _public_artifact_content(
-        "dataset",
-        {
-            "kind": "dataset",
-            "optional_value": None,
-            "producer": {"model": "private"},
-            "content_hash": HASH,
-            "rows": [{"value": None, "source_snapshot_id": "private"}],
-        },
-    )
+def test_public_artifact_contract_rejects_raw_content_and_unknown_fields() -> None:
+    payload = _version().model_dump(mode="json")
+    payload["content"] = {"producer": {"model": "private"}}
 
-    assert projected == {
-        "kind": "dataset",
-        "rows": [{"value": None}],
+    with pytest.raises(ValidationError):
+        PublicArtifactVersion.model_validate(payload)
+
+
+def test_public_evidence_preserves_document_verification_locator() -> None:
+    payload = _evidence().model_dump()
+    payload["locator"] = {
+        "kind": "paper_text",
+        "page": 2,
+        "block_id": "paragraph-4",
+        "table_id": "table-1",
+        "cell_id": "r2c3",
+        "bbox": {"x1": 10, "y1": 20, "x2": 30, "y2": 40},
     }
+    projected = PublicEvidence.model_validate(payload)
 
-
-def test_public_projection_drops_binary_storage_references() -> None:
-    projected = _public_artifact_content(
-        "visualization",
-        {
-            "kind": "visualization",
-            "title": "Frozen sky view",
-            "description": "A public description remains available.",
-            "spec": {
-                "mode": "wwt_scene",
-                "fits_layers": [
-                    {
-                        "content_ref": "private/fits/source.fits",
-                        "content_hash": HASH,
-                    }
-                ],
-            },
-            "producer": {"model": "private"},
-        },
-    )
-
-    assert projected == {
-        "kind": "visualization",
-        "title": "Frozen sky view",
-        "description": "A public description remains available.",
-    }
+    assert projected.locator.page == 2
+    assert projected.locator.block_id == "paragraph-4"
+    assert projected.locator.table_id == "table-1"
+    assert projected.locator.cell_id == "r2c3"
+    assert projected.locator.bbox is not None
 
 
 def _session_client() -> tuple[FastAPI, TestClient, str, str]:
@@ -288,6 +274,16 @@ def test_cross_session_private_resources_are_hidden() -> None:
 def test_share_freezes_redacted_scope_and_never_lists_token_material() -> None:
     app, client, session_id, csrf_token = _session_client()
     _seed_project(app, session_id)
+    app.state.snapshot_store.register_artifact_version(
+        project_id="proj_01",
+        projection=_version().model_copy(update={"evidence_ids": ("ev_01", "ev_02")}),
+    )
+    app.state.snapshot_store.register_evidence(
+        project_id="proj_01",
+        projection=_evidence().model_copy(
+            update={"id": "ev_02", "quote_or_value": "not selected"}
+        ),
+    )
     expires_at = datetime.now(UTC) + timedelta(hours=1)
     payload = {
         "title": "Public dataset evidence",
@@ -337,11 +333,20 @@ def test_share_freezes_redacted_scope_and_never_lists_token_material() -> None:
     assert public.status_code == 200
     public_data = public.json()["data"]
     assert public_data["artifact_versions"][0]["title"] == "Frozen dataset"
-    assert public_data["artifact_versions"][0]["content"] == {
+    assert public_data["artifact_versions"][0]["presentation"] == {
         "kind": "dataset",
-        "title": "Frozen dataset",
+        "summary": None,
+        "facts": [{"label": "记录", "values": ["1 条"]}],
+        "sections": [],
+        "entries": [],
+        "tables": [],
+        "graph_nodes": [],
+        "graph_edges": [],
     }
+    assert "content" not in public_data["artifact_versions"][0]
     assert public_data["artifact_versions"][0]["evidence_ids"] == ["ev_01"]
+    assert [item["id"] for item in public_data["evidence"]] == ["ev_01"]
+    assert "ev_02" not in public.text
     assert public_data["evidence"][0]["quote_or_value"] == "TOI-700"
     assert public_data["evidence"][0]["source"]["source_id"] == "gaia"
     assert "project_id" not in public_data
@@ -455,6 +460,72 @@ def test_share_rejects_cross_project_versions_and_unselected_evidence() -> None:
         )
     assert invalid_scope.value.status == 422
     assert invalid_scope.value.code == "SHARE_SCOPE_INVALID"
+
+
+def test_share_requires_and_revalidates_presentation_evidence_closure() -> None:
+    store = InMemorySnapshotStore()
+    store.register_project(project_id="proj_01", owner_session_id="sess_01")
+    version = _version()
+    version = version.model_copy(
+        update={
+            "presentation": version.presentation.model_copy(
+                update={
+                    "entries": (
+                        PublicPresentationEntry(
+                            key="finding.1",
+                            title="可核验结论",
+                            evidence_ids=("ev_01",),
+                        ),
+                    )
+                }
+            )
+        }
+    )
+    store.register_artifact_version(project_id="proj_01", projection=version)
+    store.register_evidence(project_id="proj_01", projection=_evidence())
+    service = SnapshotService(store)
+    request = CreateShareSnapshotRequest(
+        title="Evidence closure",
+        artifact_version_ids=(version.id,),
+        evidence_ids=(),
+        redaction_policy="redacted_public_snapshot",
+        expires_at=NOW + timedelta(hours=1),
+    )
+
+    with pytest.raises(SecurityProblem) as missing:
+        service.create_share(
+            project_id="proj_01",
+            session_id="sess_01",
+            request=request,
+            now=NOW,
+        )
+    assert missing.value.code == "SHARE_SCOPE_INVALID"
+
+    created = service.create_share(
+        project_id="proj_01",
+        session_id="sess_01",
+        request=request.model_copy(update={"evidence_ids": ("ev_01",)}),
+        now=NOW,
+    )
+    record = store._shares[created.id]
+    store._shares[created.id] = replace(
+        record,
+        artifact_versions=(
+            record.artifact_versions[0].model_copy(
+                update={"evidence_ids": ("ev_01", "ev_02")}
+            ),
+        ),
+    )
+    with pytest.raises(SecurityProblem) as overdeclared:
+        service.get_public_share(raw_token=created.share_token, now=NOW)
+    assert overdeclared.value.status == 404
+    assert overdeclared.value.code == "SHARE_NOT_FOUND"
+
+    store._shares[created.id] = replace(record, evidence=())
+    with pytest.raises(SecurityProblem) as corrupted:
+        service.get_public_share(raw_token=created.share_token, now=NOW)
+    assert corrupted.value.status == 404
+    assert corrupted.value.code == "SHARE_NOT_FOUND"
 
 
 def test_expired_and_invalid_share_tokens_have_identical_public_errors() -> None:

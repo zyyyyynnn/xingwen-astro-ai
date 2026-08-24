@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import type {
   ContentHash,
   DomainEntityId,
@@ -34,19 +40,64 @@ const snapshot: PublicShareSnapshot = {
       contentHash: "content_hash" as ContentHash,
       sourceMode: "live",
       createdAt: "2026-08-24T08:00:00Z" as UtcIsoTimestamp,
-      content: {
+      presentation: {
         kind: "dataset",
-        row_count: 2,
-        field_count: 3,
-        columns: [
+        summary: null,
+        facts: [
           {
-            field: {
-              label_en: "hostname",
-              meaning_zh: "宿主星名称",
-              description: "目标天体的规范名称",
-            },
+            label: "记录" as NonEmptyString,
+            values: ["2 条" as NonEmptyString],
+          },
+          {
+            label: "字段" as NonEmptyString,
+            values: ["3 个" as NonEmptyString],
           },
         ],
+        sections: [],
+        entries: [
+          {
+            key: "hostname" as NonEmptyString,
+            title: "宿主星名称" as NonEmptyString,
+            externalUrl: null,
+            status: null,
+            assessment: null,
+            paragraphs: ["目标天体的规范名称" as NonEmptyString],
+            facts: [],
+            evidenceIds: [],
+            reasoningTrace: null,
+          },
+        ],
+        tables: [
+          {
+            title: "规范化数据" as NonEmptyString,
+            columns: [
+              {
+                key: "hostname" as NonEmptyString,
+                label: "宿主星名称" as NonEmptyString,
+                unit: null,
+              },
+            ],
+            rows: [
+              {
+                key: "row-1" as NonEmptyString,
+                identity: "TOI-700" as NonEmptyString,
+                cells: [
+                  {
+                    columnKey: "hostname" as NonEmptyString,
+                    value: "TOI-700 d",
+                    status: "mapped",
+                    reason: null,
+                    evidenceIds: [id("evidence_01")],
+                  },
+                ],
+              },
+            ],
+            totalRowCount: 1,
+            totalColumnCount: 1,
+          },
+        ],
+        graphNodes: [],
+        graphEdges: [],
       },
       evidenceIds: [id("evidence_01")],
     },
@@ -56,7 +107,20 @@ const snapshot: PublicShareSnapshot = {
       id: id("evidence_01"),
       artifactVersionId: id("artv_dataset"),
       sourceSnapshotId: id("snapshot_01"),
-      locator: { page: 3, section: "Results" },
+      locator: {
+        kind: "paper_text" as NonEmptyString,
+        page: 3,
+        paragraph: null,
+        section: "Results",
+        textRange: null,
+        field: null,
+        rowKey: null,
+        blockId: "paragraph-1",
+        readingOrder: 1,
+        tableId: null,
+        cellId: null,
+        bbox: { x1: 10, y1: 20, x2: 30, y2: 40 },
+      },
       quoteOrValue: "TOI-700 d is a temperate terrestrial planet.",
       createdAt: "2026-08-24T08:00:00Z" as UtcIsoTimestamp,
       source: {
@@ -81,7 +145,11 @@ describe("PublicShareView", () => {
       screen.getByRole("heading", { name: "候选目标数据集" }),
     ).toBeVisible();
     expect(screen.getByText("2 条")).toBeVisible();
-    expect(screen.getByText("宿主星名称")).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "宿主星名称" }),
+    ).toBeVisible();
+    expect(screen.getByRole("cell", { name: "TOI-700 d" })).toBeVisible();
+    expect(screen.getByText("实时数据")).toBeVisible();
     expect(screen.getByText(/冻结的公开副本/)).toBeVisible();
   });
 
@@ -94,7 +162,7 @@ describe("PublicShareView", () => {
     expect(
       screen.getByText("TOI-700 d is a temperate terrestrial planet."),
     ).toBeVisible();
-    expect(screen.getByText("论文", { exact: true })).toBeVisible();
+    expect(screen.getByText(/^论文 ·/)).toBeVisible();
     expect(
       screen.queryByText("paper", { exact: true }),
     ).not.toBeInTheDocument();
@@ -102,6 +170,48 @@ describe("PublicShareView", () => {
       "href",
       "https://example.org/paper",
     );
+  });
+
+  it("uses the frozen snapshot ordinal for dossier evidence actions", () => {
+    const [version] = snapshot.artifactVersions;
+    const [firstEvidence] = snapshot.evidence;
+    if (!version || !firstEvidence) {
+      throw new Error("public share fixture requires an artifact and evidence");
+    }
+    const secondEvidence = {
+      ...firstEvidence,
+      id: id("evidence_02"),
+      quoteOrValue: "Second frozen evidence.",
+    };
+    render(
+      <PublicShareView
+        snapshot={{
+          ...snapshot,
+          artifactVersions: [
+            {
+              ...version,
+              presentation: {
+                ...version.presentation,
+                entries: version.presentation.entries.map((entry) => ({
+                  ...entry,
+                  evidenceIds: [secondEvidence.id],
+                })),
+              },
+              evidenceIds: [firstEvidence.id, secondEvidence.id],
+            },
+          ],
+          evidence: [firstEvidence, secondEvidence],
+        }}
+      />,
+    );
+
+    const dossier = screen.getByRole("list", { name: "科学结果档案" });
+    fireEvent.click(
+      within(dossier).getByRole("button", { name: "查看证据 2" }),
+    );
+
+    expect(screen.getByRole("heading", { name: "证据 2" })).toBeVisible();
+    expect(screen.getByText("Second frozen evidence.")).toBeVisible();
   });
 
   it("renders literature taxonomy without exposing internal enum tokens", () => {
@@ -119,12 +229,28 @@ describe("PublicShareView", () => {
               artifactId: id("artifact_relations"),
               kind: "literature_relations",
               title: "文献关系" as NonEmptyString,
-              content: {
-                relations: [
-                  { relation_type: "compares_method", status: "accepted" },
-                  { text: "候选发现", claim_type: "finding" },
-                  { text: "作用方向", polarity: "positive" },
+              presentation: {
+                kind: "literature_relations",
+                summary: null,
+                facts: [],
+                sections: [],
+                entries: [
+                  {
+                    key: "relation-1" as NonEmptyString,
+                    title: "候选发现" as NonEmptyString,
+                    externalUrl: null,
+                    status: "accepted" as NonEmptyString,
+                    assessment:
+                      "compares_method · finding · positive" as NonEmptyString,
+                    paragraphs: [],
+                    facts: [],
+                    evidenceIds: [],
+                    reasoningTrace: null,
+                  },
                 ],
+                tables: [],
+                graphNodes: [],
+                graphEdges: [],
               },
               evidenceIds: [],
             },
@@ -134,10 +260,8 @@ describe("PublicShareView", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "比较方法" })).toBeVisible();
+    expect(screen.getByText("比较方法 · 发现 · 正向")).toBeVisible();
     expect(screen.getByText("已纳入结论")).toBeVisible();
-    expect(screen.getByText("发现")).toBeVisible();
-    expect(screen.getByText("正向")).toBeVisible();
     for (const token of [
       "compares_method",
       "accepted",

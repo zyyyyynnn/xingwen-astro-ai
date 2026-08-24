@@ -4,9 +4,9 @@
  * out of product components while matching the workspace CSS tokens.
  */
 export const workspaceGraphGeometry = Object.freeze({
-  nodeInlineSize: 224,
-  nodeBlockSize: 72,
-  nodeSeparation: 48,
-  rankSeparation: 96,
-  focusPadding: 0.24,
+  nodeInlineSize: "--workspace-result-node-inline-size",
+  nodeBlockSize: "--workspace-result-node-block-size",
+  nodeSeparation: "--workspace-result-node-separation",
+  rankSeparation: "--workspace-result-rank-separation",
+  focusPadding: "--workspace-result-graph-focus-padding",
 });

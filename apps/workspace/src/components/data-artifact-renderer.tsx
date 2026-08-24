@@ -16,6 +16,8 @@ export interface DataArtifactRendererProps {
   readonly title: string;
   readonly surface: DataArtifactSurface;
   readonly onSelectEvidence?: (evidenceIds: readonly DomainEntityId[]) => void;
+  readonly showSummary?: boolean;
+  readonly enhancementOnly?: boolean;
 }
 
 const SURFACE_LIMITS: Record<
@@ -24,14 +26,6 @@ const SURFACE_LIMITS: Record<
 > = {
   fullscreen: { rows: 100, columns: 24, fields: 100 },
 };
-
-function sourceModeLabel(mode: string): string {
-  if (mode === "live") return "实时数据";
-  if (mode === "cached") return "缓存数据";
-  if (mode === "recorded") return "已记录数据";
-  if (mode === "fixture") return "演示数据";
-  return "来源状态未知";
-}
 
 function fieldLabel(field: DataArtifactFieldDefinitionViewModel): string {
   return field.meaningZh || field.labelEn || "未命名字段";
@@ -50,10 +44,6 @@ function ArtifactMetadata({
     .at(-1);
   return (
     <dl className="data-artifact__metadata flex flex-wrap gap-4 text-xs text-[var(--oh-muted)] my-2">
-      <div>
-        <dt className="inline font-medium">来源模式：</dt>
-        <dd className="inline">{sourceModeLabel(review.sourceMode)}</dd>
-      </div>
       <div>
         <dt className="inline font-medium">来源：</dt>
         <dd className="inline">
@@ -131,26 +121,35 @@ function DatasetRenderer({
   title,
   surface,
   onSelectEvidence,
+  showSummary = true,
+  enhancementOnly = false,
 }: {
   readonly review: DatasetArtifactReviewViewModel;
   readonly title: string;
   readonly surface: DataArtifactSurface;
   readonly onSelectEvidence?: (evidenceIds: readonly DomainEntityId[]) => void;
+  readonly showSummary?: boolean;
+  readonly enhancementOnly?: boolean;
 }) {
+  if (enhancementOnly) {
+    return <ArtifactMetadata review={review} surface={surface} />;
+  }
   return (
     <article
       className="data-artifact data-artifact--dataset"
       data-surface={surface}
     >
-      <header className="data-artifact__header mb-2">
-        <h3 className="text-sm font-semibold text-[var(--oh-foreground)]">
-          {title}
-        </h3>
-        <p className="text-xs text-[var(--oh-muted)] mt-0.5">
-          数据表 · {review.rowCount} 行 · {review.fieldCount} 个字段
-          {review.conflictCount > 0 ? ` · 冲突 ${review.conflictCount}` : ""}
-        </p>
-      </header>
+      {showSummary ? (
+        <header className="data-artifact__header mb-2">
+          <h3 className="text-sm font-semibold text-[var(--oh-foreground)]">
+            {title}
+          </h3>
+          <p className="text-xs text-[var(--oh-muted)] mt-0.5">
+            数据表 · {review.rowCount} 行 · {review.fieldCount} 个字段
+            {review.conflictCount > 0 ? ` · 冲突 ${review.conflictCount}` : ""}
+          </p>
+        </header>
+      ) : null}
       <ArtifactMetadata review={review} surface={surface} />
       {review.rows.length > 0 && review.columns.length > 0 ? (
         <DatasetTable
@@ -247,24 +246,28 @@ function FieldDictionaryRenderer({
   review,
   title,
   surface,
+  showSummary = true,
 }: {
   readonly review: FieldDictionaryArtifactReviewViewModel;
   readonly title: string;
   readonly surface: DataArtifactSurface;
+  readonly showSummary?: boolean;
 }) {
   return (
     <article
       className="data-artifact data-artifact--field-dictionary"
       data-surface={surface}
     >
-      <header className="data-artifact__header mb-2">
-        <h3 className="text-sm font-semibold text-[var(--oh-foreground)]">
-          {title}
-        </h3>
-        <p className="text-xs text-[var(--oh-muted)] mt-0.5">
-          字段字典 · {review.fieldDefinitions.length} 个字段
-        </p>
-      </header>
+      {showSummary ? (
+        <header className="data-artifact__header mb-2">
+          <h3 className="text-sm font-semibold text-[var(--oh-foreground)]">
+            {title}
+          </h3>
+          <p className="text-xs text-[var(--oh-muted)] mt-0.5">
+            字段字典 · {review.fieldDefinitions.length} 个字段
+          </p>
+        </header>
+      ) : null}
       <ArtifactMetadata review={review} surface={surface} />
       {review.fieldDefinitions.length > 0 ? (
         <FieldDictionaryTable review={review} surface={surface} />
@@ -341,24 +344,28 @@ function SourceCollectionRenderer({
   review,
   title,
   surface,
+  showSummary = true,
 }: {
   readonly review: SourceCollectionArtifactReviewViewModel;
   readonly title: string;
   readonly surface: DataArtifactSurface;
+  readonly showSummary?: boolean;
 }) {
   return (
     <article
       className="data-artifact data-artifact--source-collection"
       data-surface={surface}
     >
-      <header className="data-artifact__header mb-2">
-        <h3 className="text-sm font-semibold text-[var(--oh-foreground)]">
-          {title}
-        </h3>
-        <p className="text-xs text-[var(--oh-muted)] mt-0.5">
-          来源集合 · {review.members.length} 个来源成员
-        </p>
-      </header>
+      {showSummary ? (
+        <header className="data-artifact__header mb-2">
+          <h3 className="text-sm font-semibold text-[var(--oh-foreground)]">
+            {title}
+          </h3>
+          <p className="text-xs text-[var(--oh-muted)] mt-0.5">
+            来源集合 · {review.members.length} 个来源成员
+          </p>
+        </header>
+      ) : null}
       <div
         className="data-artifact__summary flex flex-wrap gap-3 text-xs text-[var(--oh-muted)] my-1.5 p-2 bg-[var(--oh-surface-subtle)] rounded"
         aria-label="来源集合质量摘要"
@@ -388,6 +395,8 @@ export function DataArtifactRenderer({
   title,
   surface,
   onSelectEvidence,
+  showSummary = true,
+  enhancementOnly = false,
 }: DataArtifactRendererProps) {
   if (review.kind === "dataset") {
     return (
@@ -396,6 +405,8 @@ export function DataArtifactRenderer({
         title={title}
         surface={surface}
         onSelectEvidence={onSelectEvidence}
+        showSummary={showSummary}
+        enhancementOnly={enhancementOnly}
       />
     );
   }
@@ -405,10 +416,16 @@ export function DataArtifactRenderer({
         review={review}
         title={title}
         surface={surface}
+        showSummary={showSummary}
       />
     );
   }
   return (
-    <SourceCollectionRenderer review={review} title={title} surface={surface} />
+    <SourceCollectionRenderer
+      review={review}
+      title={title}
+      surface={surface}
+      showSummary={showSummary}
+    />
   );
 }

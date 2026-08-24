@@ -72,9 +72,97 @@ export interface CreateShareSnapshotRequest {
 
 /**
  * Redacted immutable result projection safe for anonymous presentation. The
- * content is the admitted Artifact payload after the public boundary removes
- * execution, hash, binary and private provenance fields.
+ * presentation is the positive-contract scientific view built by the same
+ * typed Artifact authority used for private reads.
  */
+export interface PublicPresentationFact {
+  readonly label: NonEmptyString;
+  readonly values: readonly NonEmptyString[];
+}
+
+export interface PublicPresentationTrace {
+  readonly conclusion: NonEmptyString;
+  readonly steps: readonly NonEmptyString[];
+  readonly facts: readonly PublicPresentationFact[];
+  readonly evidenceIds: readonly DomainEntityId[];
+}
+
+export interface PublicPresentationEntry {
+  readonly key: NonEmptyString;
+  readonly title: NonEmptyString;
+  readonly externalUrl: NonEmptyString | null;
+  readonly status: NonEmptyString | null;
+  readonly assessment: NonEmptyString | null;
+  readonly paragraphs: readonly NonEmptyString[];
+  readonly facts: readonly PublicPresentationFact[];
+  readonly evidenceIds: readonly DomainEntityId[];
+  readonly reasoningTrace: PublicPresentationTrace | null;
+}
+
+export interface PublicPresentationSection {
+  readonly title: NonEmptyString;
+  readonly paragraphs: readonly PublicPresentationParagraph[];
+}
+
+export interface PublicPresentationTableColumn {
+  readonly key: NonEmptyString;
+  readonly label: NonEmptyString;
+  readonly unit: NonEmptyString | null;
+}
+
+export interface PublicPresentationTableCell {
+  readonly columnKey: NonEmptyString;
+  readonly value: string | null;
+  readonly status: "mapped" | "missing" | "unresolved";
+  readonly reason: NonEmptyString | null;
+  readonly evidenceIds: readonly DomainEntityId[];
+}
+
+export interface PublicPresentationTableRow {
+  readonly key: NonEmptyString;
+  readonly identity: NonEmptyString;
+  readonly cells: readonly PublicPresentationTableCell[];
+}
+
+export interface PublicPresentationTable {
+  readonly title: NonEmptyString;
+  readonly columns: readonly PublicPresentationTableColumn[];
+  readonly rows: readonly PublicPresentationTableRow[];
+  readonly totalRowCount: number;
+  readonly totalColumnCount: number;
+}
+
+export interface PublicPresentationParagraph {
+  readonly text: NonEmptyString;
+  readonly status: NonEmptyString | null;
+  readonly evidenceIds: readonly DomainEntityId[];
+}
+
+export interface PublicPresentationGraphNode {
+  readonly key: NonEmptyString;
+  readonly kind: NonEmptyString;
+  readonly label: NonEmptyString;
+}
+
+export interface PublicPresentationGraphEdge {
+  readonly key: NonEmptyString;
+  readonly kind: NonEmptyString;
+  readonly sourceKey: NonEmptyString;
+  readonly targetKey: NonEmptyString;
+  readonly evidenceIds: readonly DomainEntityId[];
+}
+
+export interface PublicArtifactPresentation {
+  readonly kind: ArtifactKind;
+  readonly summary: NonEmptyString | null;
+  readonly facts: readonly PublicPresentationFact[];
+  readonly sections: readonly PublicPresentationSection[];
+  readonly entries: readonly PublicPresentationEntry[];
+  readonly tables: readonly PublicPresentationTable[];
+  readonly graphNodes: readonly PublicPresentationGraphNode[];
+  readonly graphEdges: readonly PublicPresentationGraphEdge[];
+}
+
 export interface PublicArtifactVersion {
   readonly id: DomainEntityId;
   readonly artifactId: DomainEntityId;
@@ -85,8 +173,30 @@ export interface PublicArtifactVersion {
   readonly contentHash: ContentHash;
   readonly sourceMode: SourceMode;
   readonly createdAt: UtcIsoTimestamp;
-  readonly content: Readonly<Record<string, JsonValue>>;
+  readonly presentation: PublicArtifactPresentation;
   readonly evidenceIds: readonly DomainEntityId[];
+}
+
+export interface PublicEvidenceBBox {
+  readonly x1: number;
+  readonly y1: number;
+  readonly x2: number;
+  readonly y2: number;
+}
+
+export interface PublicEvidenceLocator {
+  readonly kind: NonEmptyString;
+  readonly page: number | null;
+  readonly paragraph: number | null;
+  readonly section: string | null;
+  readonly textRange: string | null;
+  readonly field: string | null;
+  readonly rowKey: string | null;
+  readonly blockId: string | null;
+  readonly readingOrder: number | null;
+  readonly tableId: string | null;
+  readonly cellId: string | null;
+  readonly bbox: PublicEvidenceBBox | null;
 }
 
 export interface PublicSourceSnapshot {
@@ -105,8 +215,8 @@ export interface PublicEvidence {
   readonly id: DomainEntityId;
   readonly artifactVersionId: DomainEntityId;
   readonly sourceSnapshotId: DomainEntityId;
-  readonly locator: Readonly<Record<string, JsonValue>>;
-  readonly quoteOrValue: JsonValue;
+  readonly locator: PublicEvidenceLocator;
+  readonly quoteOrValue: string | null;
   readonly createdAt: UtcIsoTimestamp;
   readonly source: PublicSourceSnapshot;
 }

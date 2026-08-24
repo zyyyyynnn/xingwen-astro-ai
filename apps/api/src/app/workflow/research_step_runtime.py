@@ -37,7 +37,10 @@ from app.workflow.step_publication import (
 )
 from app.workflow.steps.data_steps import DataStepService
 from app.workflow.steps.graph_steps import GraphStepService
-from app.workflow.steps.literature_steps import LiteratureStepService
+from app.workflow.steps.literature_steps import (
+    LiteratureStepService,
+    RelationConfidenceBuilder,
+)
 from app.workflow.steps.paper_steps import PaperStepService
 from app.workflow.steps.scientific_steps import ScientificStepService
 from app.workflow.store import AttemptHandle, LeaseGrant, PersistentWorkflowStore
@@ -65,6 +68,7 @@ class ResearchStepRuntime:
         paper_collection_runner: LivePaperCollectionRunner | None = None,
         content_storage: ContentStorage | None = None,
         document_parser: DocumentParserPort | None = None,
+        relation_confidence_builder: RelationConfidenceBuilder | None = None,
     ) -> None:
         self._factory = factory
         self._store = store
@@ -134,6 +138,7 @@ class ResearchStepRuntime:
         self._literature_steps = LiteratureStepService(
             publications=self._publications,
             summary_reader=summary_reader,
+            relation_confidence_builder=relation_confidence_builder,
         )
         self._graph_steps = GraphStepService(
             factory=factory, publications=self._publications

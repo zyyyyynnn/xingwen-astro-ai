@@ -16,15 +16,15 @@ vi.mock("./paper-pdf-viewer", () => ({
   },
 }));
 
-vi.mock("./paper-summary-renderer", () => ({
-  PaperSummaryFullscreenRenderer: () => (
+vi.mock("./scientific-presentation", () => ({
+  ArtifactPresentationContent: () => (
     <div data-testid="mock-paper-report">REPORT</div>
   ),
 }));
 
 const artifact = {} as never;
 const version = {} as never;
-const review = {} as never;
+const onSelectEvidence = vi.fn();
 
 describe("PaperResultWorkspace narrow reading state", () => {
   // A pane carrying the `hidden` attribute computes an empty accessible
@@ -45,7 +45,7 @@ describe("PaperResultWorkspace narrow reading state", () => {
       <PaperResultWorkspace
         artifact={artifact}
         version={version}
-        review={review}
+        onSelectEvidence={onSelectEvidence}
         documentUrl="/api/research-inputs/source"
         documentKind="pdf"
       />,
@@ -72,7 +72,7 @@ describe("PaperResultWorkspace narrow reading state", () => {
       <PaperResultWorkspace
         artifact={artifact}
         version={version}
-        review={review}
+        onSelectEvidence={onSelectEvidence}
         documentUrl="/api/research-inputs/source"
         documentKind="pdf"
       />,
@@ -83,7 +83,7 @@ describe("PaperResultWorkspace narrow reading state", () => {
       <PaperResultWorkspace
         artifact={artifact}
         version={version}
-        review={review}
+        onSelectEvidence={onSelectEvidence}
         documentUrl="/api/research-inputs/source"
         documentKind="pdf"
         requestedPage={{ pageIndex: 4, nonce: 1 }}
@@ -101,7 +101,7 @@ describe("PaperResultWorkspace narrow reading state", () => {
       <PaperResultWorkspace
         artifact={artifact}
         version={version}
-        review={review}
+        onSelectEvidence={onSelectEvidence}
         documentUrl="/api/research-inputs/image"
         documentKind="image"
       />,

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 import os
-from pathlib import Path
 from uuid import UUID
 
 from fastapi.testclient import TestClient
@@ -31,7 +30,9 @@ from authoring_test_support import (
     build_research_project,
     persist_authoring_models,
 )
+from artifact_publication_test_support import build_reference_dataset_candidate
 from app.main import create_app
+from app.schemas.data_artifacts import DatasetArtifactCandidate
 from app.services.artifacts import ArtifactReadService
 
 
@@ -208,6 +209,12 @@ def read_context(postgres_engine: Engine) -> dict[str, object]:
         )
         artifacts: list[ResearchArtifactModel] = []
         versions: list[ArtifactVersionModel] = []
+        dataset_content = build_reference_dataset_candidate(run_id=run.id).content
+        dataset = DatasetArtifactCandidate.model_validate(dataset_content)
+        transformation_evidence_ids = tuple(
+            UUID(int=100 + index)
+            for index, _item in enumerate(dataset.transformation_evidence)
+        )
         for index in range(1, 4):
             artifact = ResearchArtifactModel(
                 id=ids[f"artifact_{index}"],
@@ -227,16 +234,8 @@ def read_context(postgres_engine: Engine) -> dict[str, object]:
                 producer_execution_id=producer.id,
                 version_number=1,
                 publication_key=f"publication-{index}",
-                schema_version="2.0.0",
-                content={
-                    "kind": "dataset",
-                    "field_ids": ["planet.toi_id"],
-                    "rows": [],
-                    "raw_model_output": "must-not-leak",
-                    "result_error": "Traceback (most recent call last): secret.py",
-                    "notes": "private_key=embedded-content-secret",
-                    "safe_notes": "max_tokens=128",
-                },
+                schema_version=str(dataset_content["schema_version"]),
+                content=dataset_content,
                 content_hash=HASH_C,
                 input_hash=HASH_B,
                 source_mode="live",
@@ -252,7 +251,14 @@ def read_context(postgres_engine: Engine) -> dict[str, object]:
                     "parameters_hash": HASH_A,
                 },
                 source_snapshot_ids=[str(snapshot.id)] if index == 1 else [],
-                evidence_ids=[str(ids["evidence"])] if index == 1 else [],
+                evidence_ids=(
+                    [
+                        str(ids["evidence"]),
+                        *(str(item) for item in transformation_evidence_ids),
+                    ]
+                    if index == 1
+                    else []
+                ),
                 created_at=NOW,
             )
             artifacts.append(artifact)
@@ -281,7 +287,33 @@ def read_context(postgres_engine: Engine) -> dict[str, object]:
             is_restricted=False,
             created_at=NOW,
         )
-        session.add(evidence)
+        transformation_evidence = tuple(
+            EvidenceModel(
+                id=persisted_id,
+                project_id=project.id,
+                artifact_version_id=ids["version_1"],
+                target_type="canonical_field",
+                target_id=item.canonical_field_id,
+                evidence_type="data_transformation",
+                source_snapshot_id=snapshot.id,
+                locator=item.locator.model_dump(mode="json"),
+                quote_or_value=(
+                    item.canonical_value
+                    if item.canonical_value is not None
+                    else item.raw_value
+                ),
+                extraction_method="data_artifact_admission",
+                confidence=1.0,
+                is_restricted=False,
+                created_at=NOW,
+            )
+            for persisted_id, item in zip(
+                transformation_evidence_ids,
+                dataset.transformation_evidence,
+                strict=True,
+            )
+        )
+        session.add_all((evidence, *transformation_evidence))
         session.flush()
         for artifact, version in zip(artifacts, versions, strict=True):
             artifact.latest_version_id = version.id
@@ -318,12 +350,11 @@ def test_http_reads_complete_provenance_and_redact_sensitive_fields(
     assert response.status_code == 200
     data = response.json()["data"]
     assert data["source_snapshot_ids"] == [str(ids["snapshot"])]
-    assert data["evidence_ids"] == [str(ids["evidence"])]
+    assert data["evidence_ids"][0] == str(ids["evidence"])
+    assert len(data["evidence_ids"]) > 1
     assert data["producer_execution"]["parameters"] == {"max_tokens": 128}
-    assert data["content"].get("raw_model_output") is None
-    assert "traceback" not in str(data["content"]).casefold()
-    assert data["content"]["notes"] == "[REDACTED]"
-    assert data["content"]["safe_notes"] == "max_tokens=128"
+    assert data["content"]["kind"] == "dataset"
+    assert data["presentation"]["kind"] == "dataset"
     snapshot = data["source_snapshots"][0]
     rendered = str(response.json()).casefold()
     assert "must-not-leak" not in rendered
@@ -421,6 +452,16 @@ def test_authentication_ownership_not_found_and_integrity_problem_details(
     with factory() as session, session.begin():
         version = session.get(ArtifactVersionModel, ids["version_1"])
         assert version is not None
+        original_content = version.content
+        version.content = {"kind": "dataset"}
+    invalid_presentation = owner.get(f"/api/artifact-versions/{ids['version_1']}")
+    assert invalid_presentation.status_code == 403
+    assert invalid_presentation.json()["code"] == "PROVENANCE_SCOPE_VIOLATION"
+
+    with factory() as session, session.begin():
+        version = session.get(ArtifactVersionModel, ids["version_1"])
+        assert version is not None
+        version.content = original_content
         version.evidence_ids = [str(UUID(int=999))]
     denied = owner.get(f"/api/artifact-versions/{ids['version_1']}")
     assert denied.status_code == 403

@@ -337,7 +337,7 @@ describe("Fixture adapter — share create resolves a frozen public projection",
     expect(publicShare!.artifactVersions[0]!.id).toBe("artv_dataset_01");
     expect(publicShare!.artifactVersions[0]!.kind).toBe("dataset");
     const publicContent = JSON.stringify(
-      publicShare!.artifactVersions[0]!.content,
+      publicShare!.artifactVersions[0]!.presentation,
     );
     expect(publicContent).not.toContain("source_snapshot_id");
     expect(publicContent).not.toContain("input_hash");
@@ -467,6 +467,49 @@ describe("Fixture adapter — semantic and contract validation", () => {
     };
     expect(() => createFixtureRepositories(tampered)).toThrow(
       FixtureValidationError,
+    );
+  });
+
+  it("validates fixture presentations against the generated Contract", () => {
+    const current =
+      exoplanetHostStarFixture.data.artifactPresentations.artv_claims_01!;
+    const tampered: FixtureBundle = {
+      ...exoplanetHostStarFixture,
+      data: {
+        ...exoplanetHostStarFixture.data,
+        artifactPresentations: {
+          ...exoplanetHostStarFixture.data.artifactPresentations,
+          artv_claims_01: { ...current, facts: [{ label: "", values: [] }] },
+        } as never,
+      },
+    };
+    expect(() => createFixtureRepositories(tampered)).toThrow(
+      FixtureValidationError,
+    );
+  });
+
+  it("rejects presentation Evidence outside its immutable version", () => {
+    const current =
+      exoplanetHostStarFixture.data.artifactPresentations.artv_claims_01!;
+    const entry = current.entries?.[0];
+    expect(entry).toBeDefined();
+    const tampered: FixtureBundle = {
+      ...exoplanetHostStarFixture,
+      data: {
+        ...exoplanetHostStarFixture.data,
+        artifactPresentations: {
+          ...exoplanetHostStarFixture.data.artifactPresentations,
+          artv_claims_01: {
+            ...current,
+            entries: [
+              { ...entry!, evidence_ids: ["evidence-from-other-version"] },
+            ],
+          },
+        },
+      },
+    };
+    expect(() => createFixtureRepositories(tampered)).toThrow(
+      FixtureSemanticError,
     );
   });
 });

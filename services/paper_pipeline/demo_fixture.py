@@ -48,11 +48,13 @@ from app.schemas.paper_collection_api import (
     PaperCollectionRead,
 )
 from app.schemas.core import (
+    ArtifactKind,
     ArtifactVersionDetail,
     ProducerExecutionDetail,
     ProducerReference,
     SourceSnapshotDetail,
 )
+from app.services.public_presentation import build_artifact_presentation
 
 from .benchmark import load_frozen_benchmark
 from .benchmark_runner import PaperCollectionBenchmarkRunner
@@ -295,7 +297,9 @@ def build_demo_collection() -> PaperCollection:
     )
 
 
-def build_demo_read() -> tuple[PaperCollectionRead, tuple[PaperCollectionCandidateRead, ...]]:
+def build_demo_read() -> tuple[
+    PaperCollectionRead, tuple[PaperCollectionCandidateRead, ...]
+]:
     """Project the pipeline output through the PaperCollection API read shapes."""
 
     collection = build_demo_collection()
@@ -316,8 +320,13 @@ def build_demo_read() -> tuple[PaperCollectionRead, tuple[PaperCollectionCandida
         request_metadata=pipeline_snapshot.request_metadata,
     )
     rules_payload = collection.rules.model_dump(mode="json", exclude_none=True)
-    if compute_canonical_payload_hash(rules_payload) != collection.producer.parameters_hash:
-        raise ValueError("rules payload hash does not match collection.producer.parameters_hash")
+    if (
+        compute_canonical_payload_hash(rules_payload)
+        != collection.producer.parameters_hash
+    ):
+        raise ValueError(
+            "rules payload hash does not match collection.producer.parameters_hash"
+        )
     producer_execution = ProducerExecutionDetail(
         id="pexec_run_papcol_01",
         run_id=_RUN_ID,
@@ -351,9 +360,7 @@ def build_demo_read() -> tuple[PaperCollectionRead, tuple[PaperCollectionCandida
         producer_execution=producer_execution,
         source_snapshots=(snapshot_detail,),
     )
-    groups = {
-        group.duplicate_group_id: group for group in collection.duplicate_groups
-    }
+    groups = {group.duplicate_group_id: group for group in collection.duplicate_groups}
     candidate_reads = tuple(
         PaperCollectionCandidateRead(
             paper_collection_version_id=_ARTIFACT_VERSION_ID,
@@ -378,6 +385,11 @@ def build_fixture_document() -> dict[str, Any]:
         version_number=1,
         schema_version=read.collection.schema_version,
         content=read_payload["collection"],
+        presentation=build_artifact_presentation(
+            ArtifactKind.paper_collection,
+            read_payload["collection"],
+            (),
+        ),
         content_hash=read.content_hash,
         input_hash=read.input_hash,
         source_mode=read.source_mode,
@@ -404,8 +416,7 @@ def build_fixture_document() -> dict[str, Any]:
         },
         "read": read_payload,
         "candidate_reads": [
-            item.model_dump(mode="json", exclude_none=False)
-            for item in candidate_reads
+            item.model_dump(mode="json", exclude_none=False) for item in candidate_reads
         ],
         # The generic ArtifactVersion identity must be derived from the exact
         # same canonical PaperCollection dump: PaperCollection API recomputes content_hash

@@ -248,8 +248,18 @@ export type {
   ShareSnapshotCreated,
   CreateShareSnapshotRequest,
   PublicShareSnapshot,
+  PublicArtifactPresentation,
   PublicArtifactVersion,
   PublicEvidence,
+  PublicEvidenceBBox,
+  PublicEvidenceLocator,
+  PublicPresentationEntry,
+  PublicPresentationFact,
+  PublicPresentationGraphEdge,
+  PublicPresentationGraphNode,
+  PublicPresentationParagraph,
+  PublicPresentationSection,
+  PublicPresentationTrace,
 } from "./share-snapshot";
 
 export type {

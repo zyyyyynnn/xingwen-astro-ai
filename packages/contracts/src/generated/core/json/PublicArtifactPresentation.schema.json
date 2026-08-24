@@ -21,395 +21,6 @@
       "title": "ArtifactKind",
       "type": "string"
     },
-    "JsonValue": {},
-    "PublicArtifactPresentation": {
-      "additionalProperties": false,
-      "description": "Single positive-contract presentation model shared by private/public UI.",
-      "properties": {
-        "entries": {
-          "default": [],
-          "items": {
-            "$ref": "#/$defs/PublicPresentationEntry"
-          },
-          "title": "Entries",
-          "type": "array"
-        },
-        "facts": {
-          "default": [],
-          "items": {
-            "$ref": "#/$defs/PublicPresentationFact"
-          },
-          "title": "Facts",
-          "type": "array"
-        },
-        "graph_edges": {
-          "default": [],
-          "items": {
-            "$ref": "#/$defs/PublicPresentationGraphEdge"
-          },
-          "title": "Graph Edges",
-          "type": "array"
-        },
-        "graph_nodes": {
-          "default": [],
-          "items": {
-            "$ref": "#/$defs/PublicPresentationGraphNode"
-          },
-          "title": "Graph Nodes",
-          "type": "array"
-        },
-        "kind": {
-          "$ref": "#/$defs/ArtifactKind"
-        },
-        "sections": {
-          "default": [],
-          "items": {
-            "$ref": "#/$defs/PublicPresentationSection"
-          },
-          "title": "Sections",
-          "type": "array"
-        },
-        "summary": {
-          "anyOf": [
-            {
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Summary"
-        },
-        "tables": {
-          "default": [],
-          "items": {
-            "$ref": "#/$defs/PublicPresentationTable"
-          },
-          "title": "Tables",
-          "type": "array"
-        }
-      },
-      "required": [
-        "kind"
-      ],
-      "title": "PublicArtifactPresentation",
-      "type": "object"
-    },
-    "PublicArtifactVersion": {
-      "additionalProperties": false,
-      "description": "Immutable result metadata plus a typed anonymous presentation.",
-      "properties": {
-        "artifact_id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Artifact Id",
-          "type": "string"
-        },
-        "content_hash": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Content Hash",
-          "type": "string"
-        },
-        "created_at": {
-          "format": "date-time",
-          "title": "Created At",
-          "type": "string"
-        },
-        "evidence_ids": {
-          "items": {
-            "maxLength": 128,
-            "minLength": 1,
-            "type": "string"
-          },
-          "title": "Evidence Ids",
-          "type": "array"
-        },
-        "id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Id",
-          "type": "string"
-        },
-        "kind": {
-          "$ref": "#/$defs/ArtifactKind"
-        },
-        "presentation": {
-          "$ref": "#/$defs/PublicArtifactPresentation"
-        },
-        "schema_version": {
-          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
-          "title": "Schema Version",
-          "type": "string"
-        },
-        "source_mode": {
-          "$ref": "#/$defs/SourceMode"
-        },
-        "title": {
-          "minLength": 1,
-          "title": "Title",
-          "type": "string"
-        },
-        "version_number": {
-          "minimum": 1,
-          "title": "Version Number",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "id",
-        "artifact_id",
-        "kind",
-        "title",
-        "version_number",
-        "schema_version",
-        "content_hash",
-        "source_mode",
-        "created_at",
-        "presentation",
-        "evidence_ids"
-      ],
-      "title": "PublicArtifactVersion",
-      "type": "object"
-    },
-    "PublicEvidence": {
-      "additionalProperties": false,
-      "description": "Redacted Evidence detail frozen with a shared immutable result.",
-      "properties": {
-        "artifact_version_id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Artifact Version Id",
-          "type": "string"
-        },
-        "created_at": {
-          "format": "date-time",
-          "title": "Created At",
-          "type": "string"
-        },
-        "id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Id",
-          "type": "string"
-        },
-        "locator": {
-          "$ref": "#/$defs/PublicEvidenceLocator"
-        },
-        "quote_or_value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Quote Or Value"
-        },
-        "source": {
-          "$ref": "#/$defs/PublicSourceSnapshot"
-        },
-        "source_snapshot_id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Source Snapshot Id",
-          "type": "string"
-        }
-      },
-      "required": [
-        "id",
-        "artifact_version_id",
-        "source_snapshot_id",
-        "locator",
-        "quote_or_value",
-        "created_at",
-        "source"
-      ],
-      "title": "PublicEvidence",
-      "type": "object"
-    },
-    "PublicEvidenceBBox": {
-      "additionalProperties": false,
-      "description": "Page-relative bounding box in absolute document points.",
-      "properties": {
-        "x1": {
-          "title": "X1",
-          "type": "number"
-        },
-        "x2": {
-          "title": "X2",
-          "type": "number"
-        },
-        "y1": {
-          "title": "Y1",
-          "type": "number"
-        },
-        "y2": {
-          "title": "Y2",
-          "type": "number"
-        }
-      },
-      "required": [
-        "x1",
-        "y1",
-        "x2",
-        "y2"
-      ],
-      "title": "PublicEvidenceBBox",
-      "type": "object"
-    },
-    "PublicEvidenceLocator": {
-      "additionalProperties": false,
-      "description": "Positive public locator contract preserving scientific verification.",
-      "properties": {
-        "bbox": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PublicEvidenceBBox"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "block_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Block Id"
-        },
-        "cell_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Cell Id"
-        },
-        "field": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Field"
-        },
-        "kind": {
-          "minLength": 1,
-          "title": "Kind",
-          "type": "string"
-        },
-        "page": {
-          "anyOf": [
-            {
-              "minimum": 0,
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Page"
-        },
-        "paragraph": {
-          "anyOf": [
-            {
-              "minimum": 0,
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Paragraph"
-        },
-        "reading_order": {
-          "anyOf": [
-            {
-              "minimum": 0,
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Reading Order"
-        },
-        "row_key": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Row Key"
-        },
-        "section": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Section"
-        },
-        "table_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Table Id"
-        },
-        "text_range": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Text Range"
-        }
-      },
-      "required": [
-        "kind"
-      ],
-      "title": "PublicEvidenceLocator",
-      "type": "object"
-    },
     "PublicPresentationEntry": {
       "additionalProperties": false,
       "description": "One claim, relation, field, paper, or scientific finding.",
@@ -881,119 +492,79 @@
       ],
       "title": "PublicPresentationTrace",
       "type": "object"
-    },
-    "PublicSourceSnapshot": {
-      "additionalProperties": false,
-      "description": "Public source facts required by the shared Evidence inspector.",
-      "properties": {
-        "license_note": {
-          "minLength": 1,
-          "title": "License Note",
-          "type": "string"
-        },
-        "request_metadata": {
-          "additionalProperties": {
-            "$ref": "#/$defs/JsonValue"
-          },
-          "title": "Request Metadata",
-          "type": "object"
-        },
-        "retrieved_at": {
-          "format": "date-time",
-          "title": "Retrieved At",
-          "type": "string"
-        },
-        "source_id": {
-          "minLength": 1,
-          "title": "Source Id",
-          "type": "string"
-        },
-        "source_type": {
-          "minLength": 1,
-          "title": "Source Type",
-          "type": "string"
-        }
-      },
-      "required": [
-        "source_id",
-        "source_type",
-        "retrieved_at",
-        "license_note",
-        "request_metadata"
-      ],
-      "title": "PublicSourceSnapshot",
-      "type": "object"
-    },
-    "ShareRedactionPolicy": {
-      "enum": [
-        "redacted_public_snapshot"
-      ],
-      "title": "ShareRedactionPolicy",
-      "type": "string"
-    },
-    "SourceMode": {
-      "description": "Actual origin of an ArtifactVersion-compatible pipeline payload.",
-      "enum": [
-        "fixture",
-        "recorded",
-        "live",
-        "cached"
-      ],
-      "title": "SourceMode",
-      "type": "string"
     }
   },
   "additionalProperties": false,
-  "description": "Anonymous read-only projection frozen when the share is created.",
+  "description": "Single positive-contract presentation model shared by private/public UI.",
   "properties": {
-    "artifact_versions": {
+    "entries": {
+      "default": [],
       "items": {
-        "$ref": "#/$defs/PublicArtifactVersion"
+        "$ref": "#/$defs/PublicPresentationEntry"
       },
-      "title": "Artifact Versions",
+      "title": "Entries",
       "type": "array"
     },
-    "created_at": {
-      "format": "date-time",
-      "title": "Created At",
-      "type": "string"
-    },
-    "evidence": {
+    "facts": {
+      "default": [],
       "items": {
-        "$ref": "#/$defs/PublicEvidence"
+        "$ref": "#/$defs/PublicPresentationFact"
       },
-      "title": "Evidence",
+      "title": "Facts",
       "type": "array"
     },
-    "expires_at": {
-      "format": "date-time",
-      "title": "Expires At",
-      "type": "string"
+    "graph_edges": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PublicPresentationGraphEdge"
+      },
+      "title": "Graph Edges",
+      "type": "array"
     },
-    "id": {
-      "maxLength": 128,
-      "minLength": 1,
-      "title": "Id",
-      "type": "string"
+    "graph_nodes": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PublicPresentationGraphNode"
+      },
+      "title": "Graph Nodes",
+      "type": "array"
     },
-    "redaction_policy": {
-      "$ref": "#/$defs/ShareRedactionPolicy"
+    "kind": {
+      "$ref": "#/$defs/ArtifactKind"
     },
-    "title": {
-      "minLength": 1,
-      "title": "Title",
-      "type": "string"
+    "sections": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PublicPresentationSection"
+      },
+      "title": "Sections",
+      "type": "array"
+    },
+    "summary": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Summary"
+    },
+    "tables": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PublicPresentationTable"
+      },
+      "title": "Tables",
+      "type": "array"
     }
   },
   "required": [
-    "id",
-    "title",
-    "artifact_versions",
-    "evidence",
-    "redaction_policy",
-    "created_at",
-    "expires_at"
+    "kind"
   ],
-  "title": "PublicShareSnapshot",
+  "title": "PublicArtifactPresentation",
   "type": "object"
 }

@@ -26,14 +26,17 @@ from app.schemas.paper_summary import (
 )
 from app.schemas.paper_summary_api import PaperSummaryRead
 from app.schemas.core import (
+    ArtifactKind,
     ArtifactVersionDetail,
     EvidenceDetail,
     ProducerExecutionDetail,
     ProducerReference,
+    PublicArtifactPresentation,
     ResearchArtifactDetail,
     SourceMode,
     SourceSnapshotDetail,
 )
+from app.services.public_presentation import build_artifact_presentation
 from app.security import SecurityProblem
 from app.services.paper_candidate_inputs import (
     AcceptedPaperInput,
@@ -320,25 +323,37 @@ def _version(
         if kind == "paper_summary" and pipeline_snapshot is not None
         else ()
     )
+    evidence_by_id = {item.evidence_id: item for item in summary.evidence}
+    target_by_evidence_id: dict[str, str] = {}
+    for statement in summary.statements():
+        for evidence_id in statement.evidence_ids:
+            target_by_evidence_id.setdefault(evidence_id, statement.statement_id)
     evidence = (
-        (
+        tuple(
             EvidenceDetail(
-                id="evidence-db",
+                id="evidence-db" if index == 1 else f"evidence-db-{index}",
                 artifact_version_id=SUMMARY_VERSION_ID,
                 target_type="paper_summary",
-                target_id="finding-1",
-                evidence_type="paper_metadata",
+                target_id=target_by_evidence_id[evidence_id],
+                evidence_type=item.locator.kind,
                 source_snapshot_id="snapshot-db",
-                paper_id=TEST_CANDIDATE.canonical_paper_id,
+                paper_id=item.paper_id,
                 locator={
-                    "source_record_id": TEST_CANDIDATE.raw.source_record_id,
-                    "summary_evidence_id": "pipeline-evidence",
+                    "source_record_id": item.source_record_id,
+                    "summary_evidence_id": item.evidence_id,
                 },
-                quote_or_value=TEST_CANDIDATE.title,
+                quote_or_value=item.quote_or_value,
                 extraction_method="paper_summary",
                 confidence=1.0,
                 created_at=NOW,
-            ),
+            )
+            for index, (evidence_id, item) in enumerate(
+                (
+                    (evidence_id, evidence_by_id[evidence_id])
+                    for evidence_id in summary.evidence_ids
+                ),
+                start=1,
+            )
         )
         if snapshots
         else ()
@@ -355,6 +370,11 @@ def _version(
             collection.schema_version if kind == "paper_collection" else "2.0.0"
         ),
         content=content,
+        presentation=(
+            build_artifact_presentation(ArtifactKind(kind), content, evidence)
+            if kind in {"paper_summary", "paper_collection"}
+            else PublicArtifactPresentation(kind=ArtifactKind(kind))
+        ),
         content_hash=content_hash,
         input_hash=summary.input_hash
         if kind == "paper_summary"

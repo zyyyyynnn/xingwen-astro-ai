@@ -31,6 +31,7 @@ import paperCandidateInputBindingSchema from "./generated/core/json/PaperCandida
 import paperSummaryDocumentSourceReadSchema from "./generated/core/json/PaperSummaryDocumentSourceRead.schema.json";
 import paperSummaryReadSchema from "./generated/core/json/PaperSummaryRead.schema.json";
 import publicShareSnapshotSchema from "./generated/core/json/PublicShareSnapshot.schema.json";
+import publicArtifactPresentationSchema from "./generated/core/json/PublicArtifactPresentation.schema.json";
 import researchThreadEntrySchema from "./generated/core/json/ResearchThreadEntry.schema.json";
 import researchTurnResultSchema from "./generated/core/json/ResearchTurnResult.schema.json";
 import researchArtifactSchema from "./generated/core/json/ResearchArtifact.schema.json";
@@ -79,6 +80,7 @@ export const CORE_MODEL_NAMES = [
   "ResearchArtifact",
   "ResearchArtifactDetail",
   "ArtifactVersionDetail",
+  "PublicArtifactPresentation",
   "EvidenceRead",
   "SourceSnapshotDetail",
   "PaperCollectionRead",
@@ -145,6 +147,7 @@ const schemas: SchemaMap = {
   ResearchArtifact: researchArtifactSchema,
   ResearchArtifactDetail: researchArtifactDetailSchema,
   ArtifactVersionDetail: artifactVersionDetailSchema,
+  PublicArtifactPresentation: publicArtifactPresentationSchema,
   EvidenceRead: evidenceReadSchema,
   SourceSnapshotDetail: sourceSnapshotDetailSchema,
   PaperCollectionRead: paperCollectionReadSchema,

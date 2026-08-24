@@ -1,6 +1,7 @@
 import type {
   ContentHash,
   DomainEntityId,
+  PublicArtifactPresentation,
   ScientificArtifactReview as DomainScientificArtifactReview,
 } from "@xingwen/domain";
 import type {
@@ -12,13 +13,11 @@ import { EvidenceLinks } from "./evidence-links";
 import { AnalysisReportContent } from "./scientific-content/analysis-report-content";
 import { GraphContent } from "./scientific-content/graph-content";
 import { LightCurveContent } from "./scientific-content/light-curve-content";
-import { LiteratureContent } from "./scientific-content/literature-content";
+import { ArtifactPresentationContent } from "./scientific-presentation";
 import {
   ModelArtifactContent,
   ModelEvaluationContent,
 } from "./scientific-content/model-evaluation-content";
-import { PaperCollectionContent } from "./scientific-content/paper-collection-content";
-import type { PaperCollectionReviewViewModel } from "./scientific-content/paper-collection-content";
 import { SpectrumContent } from "./scientific-content/spectrum-content";
 import type { ScientificContentSurface } from "./scientific-content/shared";
 import { VisualizationContent } from "./scientific-content/visualization-content";
@@ -26,13 +25,13 @@ import { VisualizationContent } from "./scientific-content/visualization-content
 export type ScientificArtifactSurface = ScientificContentSurface;
 
 type ScientificArtifactReview =
-  | PaperCollectionReviewViewModel
   | LiteratureArtifactReviewViewModel
   | GraphArtifactReviewViewModel
   | DomainScientificArtifactReview;
 
 export interface ScientificArtifactRendererProps {
   readonly review: ScientificArtifactReview;
+  readonly presentation: PublicArtifactPresentation;
   readonly title: string;
   readonly surface: ScientificArtifactSurface;
   readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
@@ -42,12 +41,14 @@ export interface ScientificArtifactRendererProps {
 
 function ScientificArtifactContent({
   review,
+  presentation,
   title,
   surface,
   onSelectEvidence,
   loadContent,
 }: {
   readonly review: ScientificArtifactReview;
+  readonly presentation: PublicArtifactPresentation;
   readonly title: string;
   readonly surface: ScientificArtifactSurface;
   readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
@@ -57,24 +58,44 @@ function ScientificArtifactContent({
     const { content, sourceMode } = review;
     if (content.kind === "analysis_report") {
       return (
-        <AnalysisReportContent
-          content={content}
-          title={title}
-          sourceMode={sourceMode}
-          surface={surface}
-          onSelectEvidence={onSelectEvidence}
-        />
+        <>
+          <ArtifactPresentationContent
+            presentation={presentation}
+            title={title}
+            surface={surface}
+            onSelectEvidence={onSelectEvidence}
+            showHeader={false}
+          />
+          <AnalysisReportContent
+            content={content}
+            title={title}
+            sourceMode={sourceMode}
+            surface={surface}
+            onSelectEvidence={onSelectEvidence}
+            enhancementOnly
+          />
+        </>
       );
     }
     if (content.kind === "model_evaluation") {
       return (
-        <ModelEvaluationContent
-          content={content}
-          title={title}
-          sourceMode={sourceMode}
-          surface={surface}
-          onSelectEvidence={onSelectEvidence}
-        />
+        <>
+          <ArtifactPresentationContent
+            presentation={presentation}
+            title={title}
+            surface={surface}
+            onSelectEvidence={onSelectEvidence}
+            showHeader={false}
+          />
+          <ModelEvaluationContent
+            content={content}
+            title={title}
+            sourceMode={sourceMode}
+            surface={surface}
+            onSelectEvidence={onSelectEvidence}
+            enhancementOnly
+          />
+        </>
       );
     }
     if (content.kind === "model_artifact") {
@@ -86,58 +107,94 @@ function ScientificArtifactContent({
         );
       }
       return (
-        <ModelArtifactContent
-          content={content}
-          title={title}
-          sourceMode={sourceMode}
-          surface={surface}
-          loadContent={loadContent}
-        />
+        <>
+          <ArtifactPresentationContent
+            presentation={presentation}
+            title={title}
+            surface={surface}
+            onSelectEvidence={onSelectEvidence}
+            showHeader={false}
+          />
+          <ModelArtifactContent
+            content={content}
+            title={title}
+            sourceMode={sourceMode}
+            surface={surface}
+            loadContent={loadContent}
+            enhancementOnly
+          />
+        </>
       );
     }
     if (content.kind === "visualization") {
       return (
-        <VisualizationContent
-          content={content}
-          title={title}
-          sourceMode={sourceMode}
-          surface={surface}
-          versionNumber={review.versionNumber}
-          loadContent={loadContent}
-        />
+        <>
+          <ArtifactPresentationContent
+            presentation={presentation}
+            title={title}
+            surface={surface}
+            onSelectEvidence={onSelectEvidence}
+            showHeader={false}
+          />
+          <VisualizationContent
+            content={content}
+            title={title}
+            sourceMode={sourceMode}
+            surface={surface}
+            versionNumber={review.versionNumber}
+            loadContent={loadContent}
+            enhancementOnly
+          />
+        </>
       );
     }
     if (content.kind === "spectrum") {
       return (
-        <SpectrumContent
-          content={content}
-          title={title}
-          sourceMode={sourceMode}
-          surface={surface}
-        />
+        <>
+          <ArtifactPresentationContent
+            presentation={presentation}
+            title={title}
+            surface={surface}
+            onSelectEvidence={onSelectEvidence}
+            showHeader={false}
+          />
+          <SpectrumContent
+            content={content}
+            title={title}
+            sourceMode={sourceMode}
+            surface={surface}
+            enhancementOnly
+          />
+        </>
       );
     }
     if (content.kind === "light_curve") {
       return (
-        <LightCurveContent
-          content={content}
-          title={title}
-          sourceMode={sourceMode}
-          surface={surface}
-        />
+        <>
+          <ArtifactPresentationContent
+            presentation={presentation}
+            title={title}
+            surface={surface}
+            onSelectEvidence={onSelectEvidence}
+            showHeader={false}
+          />
+          <LightCurveContent
+            content={content}
+            title={title}
+            sourceMode={sourceMode}
+            surface={surface}
+            enhancementOnly
+          />
+        </>
       );
     }
     return null;
-  }
-  if (review.kind === "paper_collection") {
-    return (
-      <PaperCollectionContent review={review} title={title} surface={surface} />
-    );
   }
   if (review.kind === "graph") {
     return (
       <GraphContent
         review={review}
+        presentation={presentation}
         title={title}
         surface={surface}
         onSelectEvidence={onSelectEvidence}
@@ -145,11 +202,12 @@ function ScientificArtifactContent({
     );
   }
   return (
-    <LiteratureContent
-      review={review}
+    <ArtifactPresentationContent
+      presentation={presentation}
       title={title}
       surface={surface}
       onSelectEvidence={onSelectEvidence}
+      showHeader={false}
     />
   );
 }

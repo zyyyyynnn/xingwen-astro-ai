@@ -9,6 +9,7 @@
 
 import type { ArtifactKind, SourceMode } from "./enums";
 import type { DomainEntityId } from "./identifiers";
+import type { PublicArtifactPresentation } from "./share-snapshot";
 import type {
   ContentHash,
   NonEmptyString,
@@ -90,4 +91,6 @@ export interface ArtifactVersionMetadata extends ArtifactVersionSummary {
   readonly producer: ProducerReference;
   readonly sourceSnapshotIds: readonly DomainEntityId[];
   readonly evidenceIds: readonly DomainEntityId[];
+  /** Canonical positive-contract presentation shared by private and public UI. */
+  readonly presentation: PublicArtifactPresentation;
 }
