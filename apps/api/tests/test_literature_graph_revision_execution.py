@@ -16,7 +16,7 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import Engine, select, update
+from sqlalchemy import Engine, select
 
 import app.workflow.steps.literature_steps as literature_steps_module
 from db_bootstrap import reset_current_schema
@@ -1088,63 +1088,76 @@ def test_paper_summary_feedback_recomputes_from_frozen_collection(chain) -> None
     assert new_graph != frozen_before["graph"]
 
 
-def test_stale_baseline_revision_fails_fail_closed_before_execution(chain) -> None:
-    """A drifted reuse baseline fails the derived Run before any model or source calls."""
+def test_worker_preflight_rejects_adversarial_stale_baseline_before_side_effects(
+    chain,
+) -> None:
+    """Defense in depth: storage drift fails the sole queued revision Run."""
 
-    g0 = _latest_version_id(chain, "graph")
-
-    # 1. Create feedback A and confirm Plan A -> Run A (frozen against G0)
-    feedback_a = _create_feedback_for_target(
+    frozen_graph_id = _latest_version_id(chain, "graph")
+    feedback = _create_feedback_for_target(
         chain, kind="graph", target_type=FeedbackTargetType.graph_node
     )
-    plan_a, run_id_a = _confirm_plan(chain, str(feedback_a.id))
+    _, run_id = _confirm_plan(chain, str(feedback.id))
 
-    # 2. While Run A is queued, execute a legitimate Plan B -> Run B that advances Graph from G0 to G1
-    feedback_b = _create_feedback_for_target(
-        chain, kind="graph", target_type=FeedbackTargetType.graph_node
-    )
-    # Temporarily mark run_a status to allow run_b admission under the single-active project check
+    # Adversarially drift only the frozen storage baseline. This is not a second
+    # concurrent production Run; the single-active-Run invariant remains intact.
+    adversarial_graph_id = uuid4()
     with chain["factory"]() as session, session.begin():
-        session.execute(
-            update(ResearchRunModel)
-            .where(ResearchRunModel.id == UUID(str(run_id_a)))
-            .values(status="failed")
+        frozen = session.get(ArtifactVersionModel, frozen_graph_id)
+        assert frozen is not None
+        session.add(
+            ArtifactVersionModel(
+                id=adversarial_graph_id,
+                artifact_id=frozen.artifact_id,
+                project_id=frozen.project_id,
+                created_by_run_id=frozen.created_by_run_id,
+                run_step_id=frozen.run_step_id,
+                step_attempt_id=frozen.step_attempt_id,
+                producer_execution_id=frozen.producer_execution_id,
+                version_number=frozen.version_number + 1,
+                publication_key=f"adversarial-stale-graph-{uuid4()}",
+                schema_version=frozen.schema_version,
+                content=dict(frozen.content),
+                content_hash=frozen.content_hash,
+                input_hash=frozen.input_hash,
+                source_mode=frozen.source_mode,
+                producer=dict(frozen.producer),
+                source_snapshot_ids=list(frozen.source_snapshot_ids),
+                evidence_ids=list(frozen.evidence_ids),
+                supersedes_version_id=frozen.id,
+                created_at=_FIXED_NOW,
+            )
         )
+        session.flush()
+        artifact = session.get(ResearchArtifactModel, frozen.artifact_id)
+        assert artifact is not None
+        artifact.latest_version_id = adversarial_graph_id
 
-    plan_b, run_id_b = _confirm_plan(chain, str(feedback_b.id))
-    asyncio.run(chain["make_worker"]().execute_run(UUID(str(run_id_b))))
-    final_b = chain["store"].load_snapshot(UUID(str(run_id_b)))
-    assert final_b.status == "completed", final_b.failure_summary
-    g1 = _latest_version_id(chain, "graph")
-    assert g1 != g0
-
-    # Restore run_a to queued status with its frozen G0 baseline intact
-    with chain["factory"]() as session, session.begin():
-        session.execute(
-            update(ResearchRunModel)
-            .where(ResearchRunModel.id == UUID(str(run_id_a)))
-            .values(status="queued")
-        )
-
-    # 3. Record baseline call counts
     search_calls_before = chain["adapter"].search_calls
     summary_calls_before = chain["model"].call_counts["paper_summary"]
     claim_calls_before = chain["model"].call_counts["literature_claim"]
     relation_calls_before = chain["model"].call_counts["literature_relation"]
 
-    # 4. Now execute Run A, whose frozen graph baseline G0 is now stale relative to G1
-    asyncio.run(chain["make_worker"]().execute_run(UUID(str(run_id_a))))
-    snapshot_a = chain["store"].load_snapshot(UUID(str(run_id_a)))
-    assert snapshot_a.status == "failed"
-    assert snapshot_a.failure_code == "REVISION_DATA_BASELINE_STALE"
-    assert snapshot_a.failure_summary is not None
+    asyncio.run(chain["make_worker"]().execute_run(UUID(str(run_id))))
+    snapshot = chain["store"].load_snapshot(UUID(str(run_id)))
+    assert snapshot.status == "failed"
+    assert snapshot.failure_code == "REVISION_DATA_BASELINE_STALE"
+    assert snapshot.failure_summary is not None
 
-    # 5. Invariant verification: Zero additional calls, no new publications, latest remains G1
     assert chain["adapter"].search_calls == search_calls_before
     assert chain["model"].call_counts["paper_summary"] == summary_calls_before
     assert chain["model"].call_counts["literature_claim"] == claim_calls_before
     assert chain["model"].call_counts["literature_relation"] == relation_calls_before
-    assert _latest_version_id(chain, "graph") == g1
+    assert _latest_version_id(chain, "graph") == adversarial_graph_id
+    with chain["factory"]() as session:
+        assert (
+            session.scalar(
+                select(ArtifactVersionModel)
+                .where(ArtifactVersionModel.created_by_run_id == UUID(str(run_id)))
+                .limit(1)
+            )
+            is None
+        )
 
 
 def test_literature_model_failure_does_not_publish_partial_sets(chain) -> None:
@@ -1203,6 +1216,141 @@ def test_literature_model_failure_does_not_publish_partial_sets(chain) -> None:
             p for p in producers if p.producer_name == RELATION_PRODUCER_NAME
         )
         assert relation_prod.status == "failed"
+
+
+def test_claims_post_provider_local_failure_terminalizes_execution(
+    chain, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A Claims local admission exception fails its producer before retry/exit."""
+
+    latest_before = {
+        kind: _latest_version_id(chain, kind)
+        for kind in ("literature_claims", "literature_relations", "graph")
+    }
+    relation_calls_before = chain["model"].call_counts["literature_relation"]
+    feedback = _create_feedback_for_target(
+        chain, kind="literature_relations", target_type=FeedbackTargetType.relation
+    )
+    _, run_id = _confirm_plan(chain, str(feedback.id))
+
+    def fail_claims_admission(*_args, **_kwargs):
+        raise RuntimeError("injected Claims post-provider local failure")
+
+    monkeypatch.setattr(
+        literature_steps_module.LiteratureClaimPipeline,
+        "admit",
+        fail_claims_admission,
+    )
+    asyncio.run(chain["make_worker"]().execute_run(UUID(str(run_id))))
+
+    snapshot = chain["store"].load_snapshot(UUID(str(run_id)))
+    assert snapshot.status == "failed"
+    assert chain["model"].call_counts["literature_relation"] == relation_calls_before
+    for kind, version_id in latest_before.items():
+        assert _latest_version_id(chain, kind) == version_id
+
+    with chain["factory"]() as session:
+        assert (
+            session.scalar(
+                select(ArtifactVersionModel)
+                .where(ArtifactVersionModel.created_by_run_id == UUID(str(run_id)))
+                .limit(1)
+            )
+            is None
+        )
+        producers = session.scalars(
+            select(ProducerExecutionModel).where(
+                ProducerExecutionModel.run_id == UUID(str(run_id))
+            )
+        ).all()
+        assert producers
+        assert all(item.status != "running" for item in producers)
+        claims = [
+            item for item in producers if item.producer_name == CLAIM_PRODUCER_NAME
+        ]
+        assert claims
+        assert all(item.status == "failed" for item in claims)
+        assert all(
+            item.error_code == "LITERATURE_CLAIM_POST_PROVIDER_LOCAL_FAILURE"
+            for item in claims
+        )
+        assert all(item.output_hash is not None for item in claims)
+        assert all(
+            item.provider_request_id == "req-revision-literature_claim"
+            for item in claims
+        )
+        assert all(item.model_response is not None for item in claims)
+        assert not any(
+            item.producer_name == RELATION_PRODUCER_NAME for item in producers
+        )
+
+
+def test_relation_post_provider_local_failure_terminalizes_execution(
+    chain, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A Relation local admission exception fails after Claims is completed."""
+
+    latest_before = {
+        kind: _latest_version_id(chain, kind)
+        for kind in ("literature_claims", "literature_relations", "graph")
+    }
+    feedback = _create_feedback_for_target(
+        chain, kind="literature_relations", target_type=FeedbackTargetType.relation
+    )
+    _, run_id = _confirm_plan(chain, str(feedback.id))
+
+    def fail_relation_admission(*_args, **_kwargs):
+        raise RuntimeError("injected Relation post-provider local failure")
+
+    monkeypatch.setattr(
+        literature_steps_module.LiteratureRelationPipeline,
+        "admit",
+        fail_relation_admission,
+    )
+    asyncio.run(chain["make_worker"]().execute_run(UUID(str(run_id))))
+
+    snapshot = chain["store"].load_snapshot(UUID(str(run_id)))
+    assert snapshot.status == "failed"
+    for kind, version_id in latest_before.items():
+        assert _latest_version_id(chain, kind) == version_id
+
+    with chain["factory"]() as session:
+        assert (
+            session.scalar(
+                select(ArtifactVersionModel)
+                .where(ArtifactVersionModel.created_by_run_id == UUID(str(run_id)))
+                .limit(1)
+            )
+            is None
+        )
+        producers = session.scalars(
+            select(ProducerExecutionModel).where(
+                ProducerExecutionModel.run_id == UUID(str(run_id))
+            )
+        ).all()
+        assert producers
+        assert all(item.status != "running" for item in producers)
+        claims = [
+            item for item in producers if item.producer_name == CLAIM_PRODUCER_NAME
+        ]
+        relations = [
+            item for item in producers if item.producer_name == RELATION_PRODUCER_NAME
+        ]
+        assert claims
+        assert relations
+        assert all(item.status == "completed" for item in claims)
+        assert all(item.output_hash is not None for item in claims)
+        assert all(item.status == "failed" for item in relations)
+        assert all(
+            item.error_code == "LITERATURE_RELATION_POST_PROVIDER_LOCAL_FAILURE"
+            for item in relations
+        )
+        assert all(item.output_hash is not None for item in relations)
+        assert all(
+            item.provider_request_id == "req-revision-literature_relation"
+            for item in relations
+        )
+        assert all(item.model_response is not None for item in relations)
 
 
 def test_literature_evidence_locator_full_provenance_and_graph_build(chain) -> None:
@@ -1755,6 +1903,3 @@ def test_uuid_shaped_logical_snapshot_identity_is_not_treated_as_persisted_uuid(
         version_id=graph_id, session_id=session_id
     )
     assert graph_read.edge_count >= 1
-
-
-

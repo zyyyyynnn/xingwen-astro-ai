@@ -40,8 +40,8 @@ from app.workflow.store import AttemptHandle, LeaseGrant
 from services.graph_pipeline import (
     GraphPipeline,
     build_complete_progressive_input,
+    build_graph_taxonomy,
 )
-from services.graph_pipeline.pipeline import build_graph_taxonomy
 
 
 class GraphStepService:

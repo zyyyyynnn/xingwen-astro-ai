@@ -129,66 +129,81 @@ class LiteratureStepService:
             producer_version=CLAIM_PRODUCER_VERSION,
             parameters_hash=_claim_parameters_hash(MODEL_PARAMETERS),
         )
-        claims_result = LiteratureClaimPipeline().admit(
-            paper_summary_artifact_version_id=str(summary_version_id),
-            paper_id=summary.paper_id,
-            paper_summary_versions={
-                str(summary_version_id): PaperSummaryArtifactVersionInput(
-                    artifact_version_id=str(summary_version_id),
-                    schema_version=summary.schema_version,
-                    content=summary,
-                )
-            },
-            model_response=claims_model_response,
-            model_name=model_caller.requested_model,
-            parameters=MODEL_PARAMETERS,
-            run_id=str(context.run_id),
-            available_evidence_ids=frozenset(
-                item.evidence_id for item in summary.evidence
-            ),
-            available_source_snapshot_ids=frozenset(summary.source_snapshot_ids),
-        )
-        claims = claims_result.publisher_candidate
-        if claims is None or claims_result.admission_status not in {
-            LiteratureClaimStatus.accepted,
-            LiteratureClaimStatus.candidate,
-        }:
-            model_caller.reject(
-                claims_execution_id,
-                input_hash=None,
-                response=claims_response,
-                error_code=f"LITERATURE_CLAIM_{claims_result.failure_stage or 'REJECTED'}",
+        claims_terminalized = False
+        try:
+            claims_result = LiteratureClaimPipeline().admit(
+                paper_summary_artifact_version_id=str(summary_version_id),
+                paper_id=summary.paper_id,
+                paper_summary_versions={
+                    str(summary_version_id): PaperSummaryArtifactVersionInput(
+                        artifact_version_id=str(summary_version_id),
+                        schema_version=summary.schema_version,
+                        content=summary,
+                    )
+                },
+                model_response=claims_model_response,
+                model_name=model_caller.requested_model,
+                parameters=MODEL_PARAMETERS,
+                run_id=str(context.run_id),
+                available_evidence_ids=frozenset(
+                    item.evidence_id for item in summary.evidence
+                ),
+                available_source_snapshot_ids=frozenset(summary.source_snapshot_ids),
             )
-            raise ValueError(f"文献论点未通过准入: {claims_result.failure_stage}")
+            claims = claims_result.publisher_candidate
+            if claims is None or claims_result.admission_status not in {
+                LiteratureClaimStatus.accepted,
+                LiteratureClaimStatus.candidate,
+            }:
+                model_caller.reject(
+                    claims_execution_id,
+                    input_hash=None,
+                    response=claims_response,
+                    error_code=f"LITERATURE_CLAIM_{claims_result.failure_stage or 'REJECTED'}",
+                )
+                claims_terminalized = True
+                raise ValueError(f"文献论点未通过准入: {claims_result.failure_stage}")
 
-        claims_source_bindings = self._publications.source_bindings(
-            context,
-            claims.source_snapshot_ids,
-            snapshot_bindings_override=snapshot_bindings_override,
-        )
-        claims_evidence_bindings = self._publications.literature_bindings(
-            context,
-            kind="literature_claims",
-            candidate=claims,
-            snapshot_bindings_override=snapshot_bindings_override,
-        )
-        admitted_claims = admit_artifact_candidate(
-            claims,
-            schema_version=claims.schema_version,
-            source_snapshot_ids=claims.source_snapshot_ids,
-            evidence_ids=claims.evidence_ids,
-            evidence_validator=lambda _context: None,
-            domain_validator=lambda _context: None,
-            quality_validator=lambda _context: None,
-            source_snapshot_bindings=claims_source_bindings,
-            evidence_bindings=claims_evidence_bindings,
-        )
-        model_caller.complete(
-            claims_execution_id,
-            input_hash=claims.input_hash,
-            output_hash=admitted_claims.content_hash,
-            response=claims_response,
-        )
+            claims_source_bindings = self._publications.source_bindings(
+                context,
+                claims.source_snapshot_ids,
+                snapshot_bindings_override=snapshot_bindings_override,
+            )
+            claims_evidence_bindings = self._publications.literature_bindings(
+                context,
+                kind="literature_claims",
+                candidate=claims,
+                snapshot_bindings_override=snapshot_bindings_override,
+            )
+            admitted_claims = admit_artifact_candidate(
+                claims,
+                schema_version=claims.schema_version,
+                source_snapshot_ids=claims.source_snapshot_ids,
+                evidence_ids=claims.evidence_ids,
+                evidence_validator=lambda _context: None,
+                domain_validator=lambda _context: None,
+                quality_validator=lambda _context: None,
+                source_snapshot_bindings=claims_source_bindings,
+                evidence_bindings=claims_evidence_bindings,
+            )
+            model_caller.complete(
+                claims_execution_id,
+                input_hash=claims.input_hash,
+                output_hash=admitted_claims.content_hash,
+                response=claims_response,
+            )
+            claims_terminalized = True
+        except Exception:
+            if not claims_terminalized:
+                error_code = "LITERATURE_CLAIM_POST_PROVIDER_LOCAL_FAILURE"
+                self._publications.finish_producer(
+                    claims_execution_id,
+                    status="failed",
+                    output_hash=claims_response.output_hash,
+                    response=claims_response,
+                    error_code=error_code,
+                )
+            raise
         claims_publication = self._publications.publication(
             context,
             kind="literature_claims",
@@ -224,64 +239,79 @@ class LiteratureStepService:
                 parameters_hash=_relation_parameters_hash(MODEL_PARAMETERS),
             )
         )
-        relations_result = LiteratureRelationPipeline().admit(
-            literature_claim_artifact_version_ids=(str(claims_version_id),),
-            literature_claim_versions={str(claims_version_id): relation_input},
-            project_id=str(context.project_id),
-            model_response=relations_model_response,
-            model_name=model_caller.requested_model,
-            parameters=MODEL_PARAMETERS,
-            confidence_assessments=confidence,
-            run_id=str(context.run_id),
-            available_evidence_ids=frozenset(
-                item.evidence_id for item in summary.evidence
-            ),
-            available_source_snapshot_ids=frozenset(summary.source_snapshot_ids),
-            available_paper_summary_artifact_version_ids=frozenset(
-                {str(summary_version_id)}
-            ),
-        )
-        relations = relations_result.publisher_candidate
-        if relations is None or relations_result.admission_status not in {
-            LiteratureRelationStatus.accepted,
-            LiteratureRelationStatus.candidate,
-        }:
-            model_caller.reject(
-                relations_execution_id,
-                input_hash=None,
-                response=relations_response,
-                error_code=f"LITERATURE_RELATION_{relations_result.failure_stage or 'REJECTED'}",
+        relations_terminalized = False
+        try:
+            relations_result = LiteratureRelationPipeline().admit(
+                literature_claim_artifact_version_ids=(str(claims_version_id),),
+                literature_claim_versions={str(claims_version_id): relation_input},
+                project_id=str(context.project_id),
+                model_response=relations_model_response,
+                model_name=model_caller.requested_model,
+                parameters=MODEL_PARAMETERS,
+                confidence_assessments=confidence,
+                run_id=str(context.run_id),
+                available_evidence_ids=frozenset(
+                    item.evidence_id for item in summary.evidence
+                ),
+                available_source_snapshot_ids=frozenset(summary.source_snapshot_ids),
+                available_paper_summary_artifact_version_ids=frozenset(
+                    {str(summary_version_id)}
+                ),
             )
-            raise ValueError(f"文献关系未通过准入: {relations_result.failure_stage}")
+            relations = relations_result.publisher_candidate
+            if relations is None or relations_result.admission_status not in {
+                LiteratureRelationStatus.accepted,
+                LiteratureRelationStatus.candidate,
+            }:
+                model_caller.reject(
+                    relations_execution_id,
+                    input_hash=None,
+                    response=relations_response,
+                    error_code=f"LITERATURE_RELATION_{relations_result.failure_stage or 'REJECTED'}",
+                )
+                relations_terminalized = True
+                raise ValueError(f"文献关系未通过准入: {relations_result.failure_stage}")
 
-        relations_source_bindings = self._publications.source_bindings(
-            context,
-            relations.source_snapshot_ids,
-            snapshot_bindings_override=snapshot_bindings_override,
-        )
-        relations_evidence_bindings = self._publications.literature_bindings(
-            context,
-            kind="literature_relations",
-            candidate=relations,
-            snapshot_bindings_override=snapshot_bindings_override,
-        )
-        admitted_relations = admit_artifact_candidate(
-            relations,
-            schema_version=relations.schema_version,
-            source_snapshot_ids=relations.source_snapshot_ids,
-            evidence_ids=relations.evidence_ids,
-            evidence_validator=lambda _context: None,
-            domain_validator=lambda _context: None,
-            quality_validator=lambda _context: None,
-            source_snapshot_bindings=relations_source_bindings,
-            evidence_bindings=relations_evidence_bindings,
-        )
-        model_caller.complete(
-            relations_execution_id,
-            input_hash=relations.input_hash,
-            output_hash=admitted_relations.content_hash,
-            response=relations_response,
-        )
+            relations_source_bindings = self._publications.source_bindings(
+                context,
+                relations.source_snapshot_ids,
+                snapshot_bindings_override=snapshot_bindings_override,
+            )
+            relations_evidence_bindings = self._publications.literature_bindings(
+                context,
+                kind="literature_relations",
+                candidate=relations,
+                snapshot_bindings_override=snapshot_bindings_override,
+            )
+            admitted_relations = admit_artifact_candidate(
+                relations,
+                schema_version=relations.schema_version,
+                source_snapshot_ids=relations.source_snapshot_ids,
+                evidence_ids=relations.evidence_ids,
+                evidence_validator=lambda _context: None,
+                domain_validator=lambda _context: None,
+                quality_validator=lambda _context: None,
+                source_snapshot_bindings=relations_source_bindings,
+                evidence_bindings=relations_evidence_bindings,
+            )
+            model_caller.complete(
+                relations_execution_id,
+                input_hash=relations.input_hash,
+                output_hash=admitted_relations.content_hash,
+                response=relations_response,
+            )
+            relations_terminalized = True
+        except Exception:
+            if not relations_terminalized:
+                error_code = "LITERATURE_RELATION_POST_PROVIDER_LOCAL_FAILURE"
+                self._publications.finish_producer(
+                    relations_execution_id,
+                    status="failed",
+                    output_hash=relations_response.output_hash,
+                    response=relations_response,
+                    error_code=error_code,
+                )
+            raise
         relations_publication = self._publications.publication(
             context,
             kind="literature_relations",
