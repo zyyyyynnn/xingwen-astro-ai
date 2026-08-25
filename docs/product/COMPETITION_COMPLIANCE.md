@@ -22,7 +22,9 @@ confirmed Contract
 
 参赛主案例的合格模型必须是 Qwen，并通过 Alibaba Cloud Model Studio / Bailian 或比赛官网明确认可的路径调用。提交证据不得使用浮动 latest。
 
-合格调用必须能够复核：provider、model/revision、Prompt identity、Contract/input hash、参数、调用时间/环境、脱敏 call proof、output hash、Schema/Evidence admission、ProducerExecution 与最终 ArtifactVersion。
+合格调用必须能够复核：provider 与官方接入路径、model name/version/revision、Prompt name/version/hash、Contract/input hash、参数、调用时间与运行环境、脱敏 request/call proof、response/output hash、Schema/Evidence admission、ProducerExecution 与最终 ArtifactVersion。
+
+API Key、原始认证头、完整 provider 原始响应与模型私有 chain-of-thought 不进入提交材料、公开 Artifact 或日志；只保留完成复核所需的脱敏事实。
 
 DeepSeek、Gemini 或其他模型只可用于 benchmark、消融或 reference，不得包装为合格 Qwen 主模型。
 

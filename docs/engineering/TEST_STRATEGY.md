@@ -14,6 +14,10 @@ Green tests 是必要条件，不是产品完成定义。
 
 ## 2. 分层
 
+### Upstream Product Contract
+
+OpenHands-derived Workspace mechanics 需要独立验证批准的 Product Mechanics Scope、固定 provenance/source-policy、从 vendor root 的实际 import closure、无孤立旧 facade，以及 Navigation/Thread/Activity/Composer/Command/Resize/Scroll/Focus 的关键行为。Source policy 的 privacy/domain exclusions 优先于机械 import 可达性。
+
 ### Unit / Contract
 
 覆盖：
@@ -72,6 +76,8 @@ Browser Gate 必须包含真实 failure/refusal/partial/unsupported、安全 sha
 Live proof 用于验证真实 provider/source/model 行为；Benchmark 用固定输入与指标评估质量。二者不可互相替代。
 
 Reference benchmark 只能说明对照；迁移后的 Xingwen capability 需要自己的 current-main benchmark 或 vertical proof。
+
+跨层回归至少保护以下当前高风险边界：Contract confirmation 的 persisted-resource 幂等、Run authoring fail-closed、derived/revision/cache target、Planner/ModelExecutionPort 未绑定时的拒绝语义、Executor lease/recovery、Open Access PaperCandidate → ResearchInput、snapshot-first RunEventFeed pagination/polling/backoff、exhaustive Renderer Registry、共享 Evidence Inspector、partial/unsupported document parsing、ArtifactVersion immutable revision。
 
 ## 3. 数据真实性等级
 

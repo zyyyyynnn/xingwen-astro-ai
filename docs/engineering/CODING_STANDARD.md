@@ -14,12 +14,13 @@
 
 ## 2. Backend / Python
 
-- 公开函数、协议、领域模型具备完整静态类型。
-- Pydantic 是 Transport Schema 的编写源；生成 Contract 不手写复制。
+- 公开函数、协议、领域模型具备完整静态类型；核心持久化实体使用仓库既有稳定 ID 规则，时间使用带时区 UTC。
+- Pydantic v2 是 Transport Schema 与生成 Contract 的编写源；生成 DTO/Schema 不手写复制。
 - Router 只负责 request/auth/application mapping；Application Service 管用例与事务；Workflow 管 Run/Step/Attempt/Event；Pipeline/Scientific Skill 管算法；Publisher 是正式 ArtifactVersion/Evidence 发布唯一入口。
 - Repository/Adapter 集中数据访问；Router/Pipeline 不散落 raw SQL。
 - 外部 API、模型响应、文件、cache 与 Reference output 都是不可信输入，先 schema/admission 再成为科研事实。
-- 异常分类稳定；不要吞异常后返回空结果或伪成功。
+- 异常分类稳定；保留原始 cause（Python 使用异常链），不要吞异常后返回空结果或伪成功；公开错误统一映射到当前 Problem Details 边界。
+- Schema / persistence 变更同步当前 SQLAlchemy/PostgreSQL 不变量，并提供失败退出与恢复路径。
 - provider side effect 若可在调用前判定为非法，应在调用前失败。
 
 ## 3. Frontend / TypeScript
