@@ -1,0 +1,46 @@
+{
+  "additionalProperties": false,
+  "description": "Expected canonical identity value for one aligned source row.",
+  "properties": {
+    "expected_normalized_value": {
+      "minLength": 1,
+      "title": "Expected Normalized Value",
+      "type": "string"
+    },
+    "field_id": {
+      "minLength": 1,
+      "title": "Field Id",
+      "type": "string"
+    },
+    "row_key": {
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "type": "array"
+      },
+      "title": "Row Key",
+      "type": "array"
+    },
+    "side": {
+      "pattern": "^(left|right)$",
+      "title": "Side",
+      "type": "string"
+    }
+  },
+  "required": [
+    "side",
+    "row_key",
+    "field_id",
+    "expected_normalized_value"
+  ],
+  "title": "IdentityValueExpectation",
+  "type": "object"
+}

@@ -151,6 +151,20 @@ identity。CPU 与 GPU profile 的证据必须独立，未验证能力必须明�
 geometry locator 与 deterministic input/output hash。未测能力必须保持显式状态，
 不能表示成零覆盖率。
 
+Runner 提供三种显式模式，消费同一冻结 Golden Set：`native-only`（无视觉后端）、
+`hybrid`（必须配置真实 PaddleOCR-VL layout-parsing 服务；缺配置时拒绝启动，
+绝不把降级运行标成 hybrid）与 `paired`（同一 manifest 的两种模式合并为一份可
+对比报告，逐 mode 携带 accepted/partial/unsupported、anchor recovery、
+routing coverage 与延迟/内存均值指标）。测量诚实性由契约强制：latency 取自
+单调时钟实测；`peak_memory_bytes` 必须携带真实观测口径
+（`python_heap_tracemalloc`），不得冒充进程 RSS 或 GPU 内存；GPU 未执行必须
+记为 `not_run`/`deferred`；hybrid/paired 报告必须携带完整 visual provenance，
+且 `scripts/check_scientific_document_benchmark_report.py` 对缺少实测 hybrid
+case、latency 或 provenance 的自述直接失败。报告 identity hash 排除 wall-clock
+与计时噪声字段，同输入重复运行保持稳定。真实 Paddle invocation 属受控集成证据，
+公共 CI 只验证 schema、deterministic parser tests 与已产出报告的
+provenance/hash 契约。
+
 API 只暴露一个 `HybridScientificDocumentParser` 与一个 DocumentParse persistence
 边界。CAS reload、persisted SourceSnapshot、parser identity、locator 与 quoted
 text 必须在 paper summary、export、Literature/Graph projection、Feedback 和

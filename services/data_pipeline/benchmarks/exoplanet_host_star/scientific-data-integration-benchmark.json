@@ -1,0 +1,681 @@
+{
+  "benchmark_id": "exoplanet_host_star.scientific_data_integration_benchmark",
+  "version": "1.0.0",
+  "content_hash": "sha256:93329a64395e603de9ffba61bf704a2798130306b133deb6861e11e95e082705",
+  "data_level": "synthetic_fixture",
+  "provenance_note": "Frozen integration corpus over synthetic fixtures. Expected pairs, identity values and unit expectations were adjudicated once against the deterministic production engines and are pinned here; the runner observes production behavior and never mutates it.",
+  "evaluation_version": "1.0.0",
+  "crossmatch_benchmark_id": "exoplanet_host_star.crossmatch_benchmark",
+  "crossmatch_benchmark_version": "2.0.0",
+  "crossmatch_benchmark_content_hash": "sha256:5824e2c093e670cd6b00c18aac7e74e53bd4aa63daf02eadeafe1e7d2828e75c",
+  "rule_set_id": "exoplanet_host_star.crossmatch_rules",
+  "rule_set_version": "2.0.0",
+  "rule_set_content_hash": "sha256:66e365e1f600aa2a9b4fdec9915d1e9f669057404bd0cbd2ff57227eeeb89247",
+  "cases": [
+    {
+      "case_id": "int.exact_one_to_one",
+      "category": "integration",
+      "scenario_id": "exact_one_to_one",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "101.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Topology One b"
+            ],
+            [
+              "pl_refname",
+              "Reference 1"
+            ]
+          ]
+        }
+      ],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [
+        {
+          "side": "left",
+          "row_key": [
+            [
+              "toi",
+              "101.01"
+            ]
+          ],
+          "field_id": "star.tic_id",
+          "expected_normalized_value": "TIC 101"
+        },
+        {
+          "side": "left",
+          "row_key": [
+            [
+              "toi",
+              "101.01"
+            ]
+          ],
+          "field_id": "planet.toi_id",
+          "expected_normalized_value": "101.01"
+        },
+        {
+          "side": "right",
+          "row_key": [
+            [
+              "pl_name",
+              "Topology One b"
+            ],
+            [
+              "pl_refname",
+              "Reference 1"
+            ]
+          ],
+          "field_id": "planet.name",
+          "expected_normalized_value": "topology one b"
+        }
+      ],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "int.exact_one_to_many",
+      "category": "integration",
+      "scenario_id": "exact_one_to_many",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "102.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Topology Two b"
+            ],
+            [
+              "pl_refname",
+              "Reference 1"
+            ]
+          ]
+        },
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "102.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Topology Two b"
+            ],
+            [
+              "pl_refname",
+              "Reference 2"
+            ]
+          ]
+        }
+      ],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "int.exact_many_to_one",
+      "category": "integration",
+      "scenario_id": "exact_many_to_one",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "103.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Topology Three b"
+            ],
+            [
+              "pl_refname",
+              "Reference 1"
+            ]
+          ]
+        },
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "103.02"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Topology Three b"
+            ],
+            [
+              "pl_refname",
+              "Reference 1"
+            ]
+          ]
+        }
+      ],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "int.exact_many_to_many",
+      "category": "integration",
+      "scenario_id": "exact_many_to_many",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "104.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Topology Four b"
+            ],
+            [
+              "pl_refname",
+              "Reference 1"
+            ]
+          ]
+        },
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "104.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Topology Four c"
+            ],
+            [
+              "pl_refname",
+              "Reference 2"
+            ]
+          ]
+        },
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "104.02"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Topology Four b"
+            ],
+            [
+              "pl_refname",
+              "Reference 1"
+            ]
+          ]
+        },
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "104.02"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Topology Four c"
+            ],
+            [
+              "pl_refname",
+              "Reference 2"
+            ]
+          ]
+        }
+      ],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "int.same_tic_host_only",
+      "category": "integration",
+      "scenario_id": "same_tic_host_only",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "105.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Different Candidate b"
+            ],
+            [
+              "pl_refname",
+              "Reference"
+            ]
+          ]
+        }
+      ],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "int.multiple_planet_assertions",
+      "category": "integration",
+      "scenario_id": "multiple_planet_assertions",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "106.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Assertion Planet b"
+            ],
+            [
+              "pl_refname",
+              "Reference A"
+            ]
+          ]
+        },
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "106.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Assertion Planet b"
+            ],
+            [
+              "pl_refname",
+              "Reference B"
+            ]
+          ]
+        }
+      ],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "int.gaia_not_inferred",
+      "category": "integration",
+      "scenario_id": "gaia_not_inferred",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "107.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Gaia Retained b"
+            ],
+            [
+              "pl_refname",
+              "Reference"
+            ]
+          ]
+        }
+      ],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [
+        {
+          "side": "right",
+          "row_key": [
+            [
+              "pl_name",
+              "Gaia Retained b"
+            ],
+            [
+              "pl_refname",
+              "Reference"
+            ]
+          ],
+          "field_id": "star.gaia_dr3_id",
+          "expected_normalized_value": "Gaia DR3 700107"
+        }
+      ],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "int.curated_alias_review_required",
+      "category": "integration",
+      "scenario_id": "curated_alias",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "int.compound_alias",
+      "category": "integration",
+      "scenario_id": "compound_alias",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "800.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Planet Eight b"
+            ],
+            [
+              "pl_refname",
+              "Reference"
+            ]
+          ]
+        }
+      ],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [
+        {
+          "side": "right",
+          "row_key": [
+            [
+              "pl_name",
+              "Planet Eight b"
+            ],
+            [
+              "pl_refname",
+              "Reference"
+            ]
+          ],
+          "field_id": "planet.name",
+          "expected_normalized_value": "planet eight b"
+        }
+      ],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "conflict.alias_conflict",
+      "category": "integration",
+      "scenario_id": "alias_conflict",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "900.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Planet Nine b"
+            ],
+            [
+              "pl_refname",
+              "Reference B"
+            ]
+          ]
+        },
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "900.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Planet Nine c"
+            ],
+            [
+              "pl_refname",
+              "Reference C"
+            ]
+          ]
+        }
+      ],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [
+        "crossmatch.alias_conflict"
+      ],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "conflict.identifier_conflict",
+      "category": "integration",
+      "scenario_id": "identifier_conflict",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [
+        "crossmatch.identifier_conflict"
+      ],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "completion.complete_unmatched",
+      "category": "integration",
+      "scenario_id": "complete_unmatched",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "completion.truncated_inconclusive",
+      "category": "integration",
+      "scenario_id": "truncated_inconclusive",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "repair.manual_decision_resolves_conflict",
+      "category": "repair_probe",
+      "scenario_id": "manual_decision_valid",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "fault.invalid_coordinate",
+      "category": "failure_injection",
+      "scenario_id": "invalid_coordinate",
+      "injection_class": "source_failure",
+      "expected_error_code": "CROSSMATCH_INVALID_COORDINATE",
+      "expected_accepted_pairs": [],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "fault.duplicate_record_reference",
+      "category": "failure_injection",
+      "scenario_id": "duplicate_record_reference",
+      "injection_class": "source_failure",
+      "expected_error_code": "CROSSMATCH_DUPLICATE_RECORD_REFERENCE",
+      "expected_accepted_pairs": [],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "fault.record_source_mismatch",
+      "category": "failure_injection",
+      "scenario_id": "record_source_mismatch",
+      "injection_class": "source_failure",
+      "expected_error_code": "CROSSMATCH_RECORD_SOURCE_MISMATCH",
+      "expected_accepted_pairs": [],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "fault.stale_rule_binding",
+      "category": "failure_injection",
+      "scenario_id": "manual_decision_stale_binding",
+      "injection_class": "stale_binding",
+      "expected_error_code": "CROSSMATCH_MANUAL_DECISION_RULE_SET_MISMATCH",
+      "expected_accepted_pairs": [],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "fault.capacity_exceeded",
+      "category": "failure_injection",
+      "scenario_id": "eligible_capacity_exceeded",
+      "injection_class": "capacity_exhaustion",
+      "expected_error_code": "CROSSMATCH_CAPACITY_EXCEEDED",
+      "expected_accepted_pairs": [],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "unit.canonical_conversions",
+      "category": "integration",
+      "scenario_id": null,
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [],
+      "conversion_probes": [
+        {
+          "quantity_kind": "length",
+          "source_unit": "jupiter_radius",
+          "target_unit": "earth_radius",
+          "input_value": "1",
+          "expected_value": "11.20898073093868079835687744",
+          "expects_rejection": false
+        },
+        {
+          "quantity_kind": "mass",
+          "source_unit": "jupiter_mass",
+          "target_unit": "earth_mass",
+          "input_value": "2.5",
+          "expected_value": "794.5710164866869175244179382",
+          "expects_rejection": false
+        },
+        {
+          "quantity_kind": "none",
+          "source_unit": null,
+          "target_unit": null,
+          "input_value": "5174.0849",
+          "expected_value": "5174.0849",
+          "expects_rejection": false
+        },
+        {
+          "quantity_kind": "none",
+          "source_unit": null,
+          "target_unit": null,
+          "input_value": "0",
+          "expected_value": "0",
+          "expects_rejection": false
+        }
+      ]
+    },
+    {
+      "case_id": "fault.unit_conflict_rejected",
+      "category": "failure_injection",
+      "scenario_id": null,
+      "injection_class": "unit_conflict",
+      "expected_error_code": "UNKNOWN_CONVERSION_RULE",
+      "expected_accepted_pairs": [],
+      "adjudication_expected_pairs": [],
+      "expected_conflict_codes": [],
+      "identity_expectations": [],
+      "conversion_probes": [
+        {
+          "quantity_kind": "length",
+          "source_unit": "jupiter_radius",
+          "target_unit": "earth_mass",
+          "input_value": "1",
+          "expected_value": null,
+          "expects_rejection": true
+        }
+      ]
+    }
+  ]
+}

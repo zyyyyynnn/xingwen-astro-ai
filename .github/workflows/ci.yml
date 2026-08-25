@@ -252,6 +252,31 @@ jobs:
           --output .artifacts/scientific_document-native-benchmark-report.json
           && uv run --project apps/api python scripts/check_scientific_document_benchmark_report.py .artifacts/scientific_document-native-benchmark-report.json
 
+      - name: Check scientific data integration benchmark contracts
+        run: >-
+          uv run python ../../scripts/export_schemas.py
+          --output ../../packages/schemas/generated/scientific_data_integration
+          --include BenchmarkMetricValue
+          --include ExpectedEntityPair
+          --include IdentityValueExpectation
+          --include ConversionProbe
+          --include IntegrationCase
+          --include ScientificDataIntegrationBenchmarkManifest
+          --include IntegrationCaseResult
+          --include ScientificDataIntegrationReport
+          --check
+
+      - name: Run scientific data integration benchmark over the frozen corpus
+        working-directory: .
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/apps/api/.venv
+          PYTHONPATH: ${{ github.workspace }}/apps/api/src
+        run: >-
+          uv run --project apps/api python -m services.data_pipeline.scientific_integration_benchmark
+          --output .artifacts/scientific-data-integration-report.json
+          --summary .artifacts/scientific-data-integration-summary.md
+          && uv run --project apps/api python scripts/check_scientific_data_integration_report.py .artifacts/scientific-data-integration-report.json
+
       - name: Check session security contracts
         run: >
           uv run python ../../scripts/export_schemas.py

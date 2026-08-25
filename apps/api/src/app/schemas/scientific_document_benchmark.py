@@ -32,6 +32,22 @@ class BenchmarkDataType(StrEnum):
 class BenchmarkParserMode(StrEnum):
     native_only = "native_only"
     hybrid = "hybrid"
+    paired = "paired"
+
+
+class BenchmarkMemoryBasis(StrEnum):
+    """What ``peak_memory_bytes`` actually observed — never mislabel the boundary."""
+
+    process_rss = "process_rss"
+    python_heap_tracemalloc = "python_heap_tracemalloc"
+
+
+class BenchmarkDeviceStatus(StrEnum):
+    """Explicit device execution fact; absence of a GPU run is never inferred."""
+
+    run = "run"
+    not_run = "not_run"
+    deferred = "deferred"
 
 
 class BenchmarkMetricStatus(StrEnum):
@@ -215,6 +231,7 @@ class BenchmarkCaseResult(BaseModel):
     native_routing_coverage: float | None = None
     visual_routing_coverage: float | None = None
     block_recovery: float | None = None
+    scientific_value_recovery: float | None = None
     reading_order_error: float | None = None
     table_structure_recovery: float | None = None
     formula_recovery: float | None = None
@@ -225,8 +242,10 @@ class BenchmarkCaseResult(BaseModel):
     unsupported_count: Annotated[int, Field(ge=0)] = 0
     latency_seconds: float | None = None
     peak_memory_bytes: int | None = None
+    peak_memory_basis: BenchmarkMemoryBasis | None = None
     cpu_result: bool = True
     gpu_result: bool = False
+    gpu_status: BenchmarkDeviceStatus | None = None
     failure_category: str | None = None
     input_hash: ContentHash
     output_hash: ContentHash
@@ -237,6 +256,7 @@ class BenchmarkCaseResult(BaseModel):
             "native_routing_coverage": self.native_routing_coverage,
             "visual_routing_coverage": self.visual_routing_coverage,
             "block_recovery": self.block_recovery,
+            "scientific_value_recovery": self.scientific_value_recovery,
             "reading_order_error": self.reading_order_error,
             "table_structure_recovery": self.table_structure_recovery,
             "formula_recovery": self.formula_recovery,
@@ -250,6 +270,18 @@ class BenchmarkCaseResult(BaseModel):
             raise ValueError("latency_seconds must be non-negative")
         if self.peak_memory_bytes is not None and self.peak_memory_bytes < 0:
             raise ValueError("peak_memory_bytes must be non-negative")
+        if self.peak_memory_bytes is not None and self.peak_memory_basis is None:
+            raise ValueError(
+                "peak_memory_bytes requires an explicit peak_memory_basis; "
+                "a Python heap boundary must never impersonate process RSS"
+            )
+        if self.peak_memory_bytes is None and self.peak_memory_basis is not None:
+            raise ValueError("peak_memory_basis without peak_memory_bytes is meaningless")
+        if self.gpu_result and self.gpu_status != BenchmarkDeviceStatus.run:
+            raise ValueError(
+                "gpu_result=True requires gpu_status=run; an unexecuted GPU "
+                "path must be reported as not_run/deferred, never as a result"
+            )
         return self
 
 
@@ -290,10 +322,75 @@ class BenchmarkReport(BaseModel):
             )
         return self
 
+    @model_validator(mode="after")
+    def require_parser_mode_consistency(self) -> Self:
+        """Fail closed on mode/provenance mismatches before any hash is trusted."""
+
+        visual_fields = (
+            self.visual_engine,
+            self.visual_engine_version,
+            self.visual_model_id,
+            self.visual_model_revision,
+        )
+        case_modes = {case.parser_mode for case in self.cases}
+        if self.parser_mode == BenchmarkParserMode.native_only:
+            if case_modes - {BenchmarkParserMode.native_only}:
+                raise ValueError("native_only report must contain only native_only cases")
+            if any(field is not None for field in visual_fields):
+                raise ValueError(
+                    "native_only report must not claim visual provenance"
+                )
+            return self
+        # hybrid and paired reports describe a real visual execution; a missing
+        # provenance field would make the run unfalsifiable.
+        if any(field is None for field in visual_fields):
+            raise ValueError(
+                f"{self.parser_mode.value} report requires complete visual "
+                "provenance (engine, engine version, model id, model revision)"
+            )
+        if self.parser_mode == BenchmarkParserMode.hybrid:
+            if case_modes - {BenchmarkParserMode.hybrid}:
+                raise ValueError("hybrid report must contain only hybrid cases")
+            return self
+        if case_modes != {
+            BenchmarkParserMode.native_only,
+            BenchmarkParserMode.hybrid,
+        }:
+            raise ValueError(
+                "paired report must contain both native_only and hybrid cases"
+            )
+        by_mode: dict[BenchmarkParserMode, set[str]] = {}
+        for case in self.cases:
+            by_mode.setdefault(case.parser_mode, set()).add(case.entry_id)
+        if by_mode[BenchmarkParserMode.native_only] != by_mode[BenchmarkParserMode.hybrid]:
+            raise ValueError(
+                "paired report must cover the identical entry set in both modes"
+            )
+        return self
+
+
+_VOLATILE_METRIC_NAME_PREFIXES = ("latency", "peak_memory")
+
 
 def benchmark_payload_for_hash(report: BenchmarkReport) -> dict:
-    """Deterministic report payload excluding self hash and wall-clock time."""
-    return report.model_dump(mode="json", exclude={"output_hash", "created_at"})
+    """Deterministic report payload excluding self hash and volatile observations.
+
+    Wall-clock ``created_at`` and real timing/memory observations vary between
+    runs of identical inputs; they describe execution cost, never identity. They
+    stay in the serialized report but are excluded from the reproducible
+    identity hash so repeated runs of one frozen Golden Set keep a stable
+    ``output_hash``.
+    """
+    payload = report.model_dump(mode="json", exclude={"output_hash", "created_at"})
+    for case in payload.get("cases", []):
+        case.pop("latency_seconds", None)
+        case.pop("peak_memory_bytes", None)
+    payload["metrics"] = [
+        metric
+        for metric in payload.get("metrics", [])
+        if not metric["name"].startswith(_VOLATILE_METRIC_NAME_PREFIXES)
+    ]
+    return payload
 
 
 def compute_benchmark_report_hash(report: BenchmarkReport) -> str:

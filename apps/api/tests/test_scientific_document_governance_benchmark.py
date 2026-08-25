@@ -412,12 +412,20 @@ def test_native_benchmark_reports_truthful_metric_statuses() -> None:
     report = run_native_only()
     metrics = {metric.name: metric for metric in report.metrics}
     assert metrics["block_recovery"].status.value in {"measured", "not_run"}
-    assert metrics["reading_order_error"].status.value == "not_run"
+    assert metrics["reading_order_error"].status.value in {"measured", "not_run"}
     assert metrics["table_structure_recovery"].status.value == "unsupported"
     assert metrics["formula_recovery"].status.value == "unsupported"
     assert metrics["figure_caption_linkage"].status.value == "unsupported"
-    assert metrics["latency"].status.value == "not_run"
-    assert metrics["peak_memory"].status.value == "not_run"
+    # Real monotonic-clock and heap-boundary measurements are mandatory now;
+    # "not_run" latency would hide the cost behind an unmeasured claim.
+    assert metrics["latency"].status.value == "measured"
+    assert metrics["peak_memory"].status.value == "measured"
+    for case in report.cases:
+        assert case.latency_seconds is not None and case.latency_seconds >= 0
+        assert case.peak_memory_bytes is not None
+        assert case.peak_memory_basis is not None
+        assert case.gpu_result is False
+        assert case.gpu_status is not None and case.gpu_status.value == "not_run"
 
 
 @pytest.mark.scientific_document_native

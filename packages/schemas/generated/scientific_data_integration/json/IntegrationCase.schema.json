@@ -1,0 +1,268 @@
+{
+  "$defs": {
+    "ConversionProbe": {
+      "additionalProperties": false,
+      "description": "One frozen mapping/unit assertion against the production conversion stage.\n\nPositive probes assert the exact serialized canonical value; rejection\nprobes assert that a contradictory request fails closed.",
+      "properties": {
+        "expected_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Value"
+        },
+        "expects_rejection": {
+          "default": false,
+          "title": "Expects Rejection",
+          "type": "boolean"
+        },
+        "input_value": {
+          "minLength": 1,
+          "title": "Input Value",
+          "type": "string"
+        },
+        "quantity_kind": {
+          "minLength": 1,
+          "title": "Quantity Kind",
+          "type": "string"
+        },
+        "source_unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Unit"
+        },
+        "target_unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Unit"
+        }
+      },
+      "required": [
+        "quantity_kind",
+        "input_value"
+      ],
+      "title": "ConversionProbe",
+      "type": "object"
+    },
+    "ExpectedEntityPair": {
+      "additionalProperties": false,
+      "description": "One adjudicated ground-truth alignment between a left and a right row.",
+      "properties": {
+        "left_row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Left Row Key",
+          "type": "array"
+        },
+        "right_row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Right Row Key",
+          "type": "array"
+        }
+      },
+      "required": [
+        "left_row_key",
+        "right_row_key"
+      ],
+      "title": "ExpectedEntityPair",
+      "type": "object"
+    },
+    "IdentityValueExpectation": {
+      "additionalProperties": false,
+      "description": "Expected canonical identity value for one aligned source row.",
+      "properties": {
+        "expected_normalized_value": {
+          "minLength": 1,
+          "title": "Expected Normalized Value",
+          "type": "string"
+        },
+        "field_id": {
+          "minLength": 1,
+          "title": "Field Id",
+          "type": "string"
+        },
+        "row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Row Key",
+          "type": "array"
+        },
+        "side": {
+          "pattern": "^(left|right)$",
+          "title": "Side",
+          "type": "string"
+        }
+      },
+      "required": [
+        "side",
+        "row_key",
+        "field_id",
+        "expected_normalized_value"
+      ],
+      "title": "IdentityValueExpectation",
+      "type": "object"
+    },
+    "IntegrationCaseCategory": {
+      "description": "Why a case exists in the frozen corpus.",
+      "enum": [
+        "integration",
+        "failure_injection",
+        "repair_probe"
+      ],
+      "title": "IntegrationCaseCategory",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One frozen benchmark case composing referenced scenario + expectations.\n\n``scenario_id`` references a scenario of the pinned crossmatch benchmark\nmanifest; conversion-only cases omit it. Failure-injection cases name the\nrequired injection class they cover and their exact expected error code.",
+  "properties": {
+    "adjudication_expected_pairs": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ExpectedEntityPair"
+      },
+      "title": "Adjudication Expected Pairs",
+      "type": "array"
+    },
+    "case_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Case Id",
+      "type": "string"
+    },
+    "category": {
+      "$ref": "#/$defs/IntegrationCaseCategory"
+    },
+    "conversion_probes": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ConversionProbe"
+      },
+      "title": "Conversion Probes",
+      "type": "array"
+    },
+    "expected_accepted_pairs": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ExpectedEntityPair"
+      },
+      "title": "Expected Accepted Pairs",
+      "type": "array"
+    },
+    "expected_conflict_codes": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Expected Conflict Codes",
+      "type": "array"
+    },
+    "expected_error_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Expected Error Code"
+    },
+    "identity_expectations": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/IdentityValueExpectation"
+      },
+      "title": "Identity Expectations",
+      "type": "array"
+    },
+    "injection_class": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Injection Class"
+    },
+    "scenario_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scenario Id"
+    }
+  },
+  "required": [
+    "case_id",
+    "category"
+  ],
+  "title": "IntegrationCase",
+  "type": "object"
+}

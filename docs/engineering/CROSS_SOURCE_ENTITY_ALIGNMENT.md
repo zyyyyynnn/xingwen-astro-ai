@@ -212,6 +212,27 @@ cross-source case. Existing recorded TOI and PS fixtures also do not share a
 verified entity identity; they are acquisition evidence and are not presented
 as a real successful crossmatch.
 
+On top of this scenario family,
+`services/data_pipeline/benchmarks/exoplanet_host_star/scientific-data-integration-benchmark.json`
+freezes the system-level Scientific Data Integration Benchmark: hash-pinned
+references into the crossmatch corpus plus adjudicated ground truth (expected
+accepted pairs, canonical identity values, unit-conversion expectations with
+exact serialized outputs, post-adjudication repair outcomes, and failure
+injections pinned to exact error codes). Runner
+`services/data_pipeline/scientific_integration_benchmark.py` observes the
+production alignment / identity normalization / conversion / fixture-adjudication
+stages and emits a self-verifying `ScientificDataIntegrationReport` (schema group
+`scientific_data_integration`) whose eleven required metrics each carry an
+explicit numerator, denominator, empty-denominator behavior and version — never
+a single vague accuracy. The same frozen inputs always reproduce the same report
+`output_hash`. Capabilities this runner does not drive stay honestly declared:
+`false_repair_rate` is `not_run` because false-repair detection lives behind the
+workflow `scientific_repair` checkpoint execution surface; quality-rejection and
+evidence-gap injections belong to that same workflow/publisher surface. The
+benchmark only observes production engines and never mutates production results.
+`scripts/check_scientific_data_integration_report.py` fails closed on missing
+metrics, fabricated statuses, failing cases or mismatched injection codes.
+
 ## 8. Validation
 
 Relevant checks are:
