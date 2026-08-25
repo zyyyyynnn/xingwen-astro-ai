@@ -8,11 +8,11 @@
 
 ## 1. 运行时边界
 
-| 应用 | 职责 |
-| --- | --- |
-| `apps/site` | Brand Site 静态站 |
-| `apps/workspace` | Research Workspace 宿主、路由与 UI 运行时组合 |
-| `apps/api` | API、Workflow 与持久化服务 |
+| 应用 | 技术 | 职责 |
+| --- | --- | --- |
+| `apps/site` | Astro | Brand Site 静态站 |
+| `apps/workspace` | React + Vite | Research Workspace 宿主、路由与 UI 运行时组合 |
+| `apps/api` | FastAPI | API、Workflow 与持久化服务 |
 
 精确依赖版本以 package manifest、lockfile 与服务环境定义为准。
 
@@ -58,7 +58,7 @@ Research Adapter
 - 精确来源、revision、许可证、NOTICE 与 aggregate provenance 由机器元数据和法律文件维护；
 - 外部源码升级必须独立进行：锁定来源 → license/provenance 审查 → scope/policy diff → 产品行为回归 → 独立 PR。
 
-治理 Markdown 不记录外部产品名称、仓库 URL、tag、commit 或迁移历史。
+治理 Markdown 不记录外部实现项目名称、仓库 URL、tag、commit 或迁移历史。
 
 ### 3.1 推理披露边界
 
@@ -68,19 +68,15 @@ Provider 私有 `reasoning_content` 不进入前端、公开分享、导出或�
 
 `ReasoningTrace` 是 Evidence-bound 的公开可审查领域记录，不等于模型私有 chain-of-thought。
 
-### 3.2 共享 UI 与基础组件治理
+### 3.2 共享 UI、shadcn 与图标治理
 
-`@xingwen/ui` 是 Brand Site、Workspace Page / Feature 与 adopted mechanics 适配层唯一的通用共享 UI 入口。
+`@xingwen/ui` 是 Brand Site、Workspace Page / Feature 与 adopted mechanics 适配层唯一的通用共享 UI 入口。消费者只能使用 package public exports，不得深层导入 `packages/ui/src/*`，不得在 Page / Feature 建立第二套 Button、Link、Input、Dialog、Tabs、Popover、Sheet、Icon 或 Focus primitive。
 
-- 消费者只使用 package public exports，不深层导入 `packages/ui/src/*`；
-- Page / Feature 不建立第二套 Button、Link、Input、Dialog、Tabs、Popover、Sheet、Icon 或 Focus primitive；
-- 需要的新 primitive 先确认现有 consumer 缺口，再加入共享 UI；
-- 第三方组件来源、许可证与当前生产 consumer 记录在机器 provenance / legal notices，不写进治理 Markdown；
-- 通用动作图标由 `@xingwen/ui/icons` 统一 public export；
-- 品牌资产与科研专用可视化不强制套用通用动作图标；
-- 共享 UI 只消费 Core semantic Token，不依赖 Feature 私有视觉变量。
+shadcn 仅作为按需采用的组件源码来源，不作为第二套运行时组件库。采用顺序为：检查 adopted mechanics 与 `@xingwen/ui` 现有 export → 确认真实 production consumer 缺口 → 审查 `packages/ui/components.json` 当前 registry 配置 → 只把实际需要的组件纳入 `@xingwen/ui`。源码来源、许可证、适配说明与 production consumer 由 `packages/ui/component-sources.json` 或等价机器 provenance 维护；没有 consumer 不得加入。
 
-Router 拥有 SPA 导航与 URL 状态；共享 UI 拥有 Link 的视觉和可访问性 contract。二者不得互相复制职责。
+Lucide 是通用动作图标库，由 `@xingwen/ui/icons` 提供受控 public export；App、Page、Feature 与 adopted mechanics 适配层不得直接依赖图标包。品牌资产与科研专用可视化不强制替换为 Lucide。
+
+`@xingwen/ui` 只消费 Core semantic Token，不依赖 Feature 私有视觉变量。Router 与共享 UI 的职责分离：TanStack Router 拥有内部 SPA 路由、类型化导航与预加载生命周期；`@xingwen/ui` 拥有 Link 的视觉、焦点与可访问性 contract。路由场景不得因此建立第二套视觉 Link primitive。
 
 ## 4. 依赖方向
 
@@ -111,7 +107,10 @@ Artifact / Evidence Renderer
 - Contract authoring 的对象、字段、来源和成果选项读取服务端 catalog，经 Repository 映射为 Domain；App 不保存第二份目录常量；
 - 依赖只通过 package public exports 导入；
 - 不使用 `any`、不安全断言或 `@ts-expect-error` 绕过契约；
-- DTO 必须 runtime validate 后才能映射为 Domain。
+- DTO 必须 runtime validate 后才能映射为 Domain；
+- Radix、`cmdk`、`sonner` 与 `react-resizable-panels` 属于当前批准的 UI runtime 能力，App 不重复实现它们已负责的 focus、keyboard selection、notification lifecycle 或 resize state machine；
+- `tslib` 仅作为当前 adopted component 的运行时辅助依赖，不成为产品层 Authority；
+- 第三方依赖的精确版本、来源、许可证和 production consumer 由 lockfile、package manifest 与机器 provenance 维护。
 
 ### Artifact Renderer Registry
 

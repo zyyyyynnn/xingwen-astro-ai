@@ -29,7 +29,7 @@
 | 可分享 | 冻结版本公开投影可撤销、可过期、最小披露且不加载私有编辑会话 |
 | 可部署 | 当前 schema、配置、健康检查、PostgreSQL、Worker 与前端部署边界完整 |
 | 可访问 | Keyboard、Focus、Screen Reader、Reduced Motion、200% text 与正式桌面视口可用 |
-| 竞赛合规 | 合格模型官方调用、ProducerExecution、ArtifactVersion 与 Evidence 闭环可复核 |
+| 竞赛合规 | 主案例具有 Qwen 官方合格调用路径、可复核 model/revision 与 call proof、ProducerExecution、ArtifactVersion 与 Evidence 闭环 |
 
 ## 3. Capability Reachability Gate
 
@@ -90,5 +90,5 @@ Grouped Delivery PR 只有在每个包含 Issue 都有独立 acceptance/evidence
 - 公开分享泄露私有 session、token、secret、内部 metadata 或未净化内容；
 - 外部源码在 license/provenance 不明确时直接复制进 production；
 - 当前 API/Data Model/Workflow/Versioning/UX Authority 与实现互相矛盾；
-- 缺少合格模型真实调用与可复核闭环；
+- 缺少符合 Competition Compliance 的真实合格 Qwen 执行及可复核调用证明；
 - 必要 CI、real integration、Browser、安全或可访问性验证被绕过。
