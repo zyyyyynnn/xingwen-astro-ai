@@ -40,8 +40,9 @@ labels: ["bug"]
 
 ## PR 交付计划
 
-单一修复 PR，包含根因修复、回归测试、必要文档和验证证据。独立后续问题另建
-Bug/Task，不在本 Bug 中扩张范围。
+默认 Atomic Delivery 使用一个主要修复 PR，包含根因修复、回归测试、必要文档和验证证据。独立后续问题另建 Bug/Task，不在本 Bug 中扩张范围。
+
+用户或维护者明确授权 Grouped Delivery 时，本 Bug 可与同一垂直闭环中的其他原子 Issue 共同交付，但必须保留本 Bug 独立的验收与证据，不因打包扩大根因修复范围。
 
 ## 边界
 
@@ -49,6 +50,4 @@ Bug/Task，不在本 Bug 中扩张范围。
 
 ## 治理要求
 
-本模板只用于 Bug。一个 PR 只能有一个主要 Task、Bug 或 Gate。任务状态、负责人、标签、
-层级与阻塞关系只使用 GitHub native metadata，不得复制到正文；真实阻塞使用 GitHub 原生
-依赖，不在正文维护依赖清单或子任务 checklist。Issue 标题遵循 `CONTRIBUTING.md` 的唯一规范。
+本模板只用于 Bug。默认 Atomic Delivery 与明确授权的 Grouped Delivery 均遵循 `CONTRIBUTING.md`；同一 Issue 同时最多一个有效主要交付 PR。任务状态、负责人、标签、层级与阻塞关系只使用 GitHub native metadata，不得复制到正文；真实阻塞使用 GitHub 原生依赖，不在正文维护依赖清单或子任务 checklist。Issue 标题遵循 `CONTRIBUTING.md` 的唯一规范。

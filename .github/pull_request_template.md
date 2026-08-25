@@ -29,6 +29,11 @@ For Atomic Delivery, keep one row. Grouped Delivery requires explicit authorizat
 - Workflow/versioning changed:
 - Security/public-share impact:
 - Product/UX impact:
+- Environment/deployment impact:
+
+## Migration / rollback
+
+- Not applicable, or describe migration, rollback/recovery path and authorization for irreversible changes:
 
 ## Verification
 
@@ -46,3 +51,4 @@ For Atomic Delivery, keep one row. Grouped Delivery requires explicit authorizat
 - [ ] No unrelated changes or process files.
 - [ ] User-facing capabilities are browser-reachable, not backend/test-only.
 - [ ] New capabilities converge into existing authorities and product surfaces rather than parallel systems.
+- [ ] Applicable migration/rollback and deployment impact are explicitly addressed.

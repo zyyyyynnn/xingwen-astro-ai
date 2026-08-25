@@ -23,6 +23,7 @@ Green tests 是必要条件，不是产品完成定义。
 覆盖：
 
 - Domain invariants、Schema/admission、Mapper；
+- Pydantic/OpenAPI/JSON Schema 生成契约、generated DTO mapping 与 stale diff；
 - mapping/unit/quality/cross-match；
 - Claim/Relation/ReasoningTrace/Graph integrity；
 - ArtifactVersion/SourceSnapshot/Evidence identity；
@@ -106,7 +107,18 @@ Live proof 用于验证真实 provider/source/model 行为；Benchmark 用固定
 
 不要求为每个外部文件做 SHA 列表或测试；只保护实际采用边界和必要 aggregate provenance。
 
-## 5. NFR
+## 5. 环境矩阵
+
+| 环境 | 主要用途 | 外部服务与数据 |
+| --- | --- | --- |
+| local | 快速开发、Unit、Component、针对性 Integration | 默认 Fixture/Stub；需要时显式 Live |
+| CI | Contract、PostgreSQL、Browser/Compose 与回归门禁 | Stub/Recorded + fresh Compose；不得冒充 Live |
+| preview | 部署 smoke、路由、权限与发布前验证 | 隔离配置与测试凭据；Live 仅在明确授权时执行 |
+| production | 生产 smoke 与最终主案例证据 | 受控 Live、配额与只读/非破坏性验证 |
+
+环境差异不得改变 Domain、Artifact/Evidence 或安全语义；只有外部配置、凭据、配额和真实性等级可以不同。
+
+## 6. NFR
 
 前端产品变更按风险覆盖：
 
@@ -116,6 +128,6 @@ Live proof 用于验证真实 provider/source/model 行为；Benchmark 用固定
 - lazy chunk / initial JS、长 Activity、长表/大图与长会话内存；
 - polling/backoff/cancel/timeout 不产生请求风暴或状态倒退。
 
-## 6. 证据格式
+## 7. 证据格式
 
 PR/Review 报告只记录实际执行：exact HEAD、环境、命令、pass/fail/skip 数量、数据等级、外部 provider/source、未执行项和已知风险。旧 HEAD 的 CI 不作为新 Commit 的证据。

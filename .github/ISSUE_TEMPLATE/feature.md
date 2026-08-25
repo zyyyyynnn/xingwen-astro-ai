@@ -18,7 +18,7 @@ labels: ["type:feature"]
 - 维护子任务层级、总体边界和 Epic 退出条件。
 - 核对跨任务输入输出、版本、Evidence 和集成结果。
 - Epic 只表示父级范围，不建立生产实现分支，也不能作为生产实现 PR 的唯一或主要 Issue。
-- 原子 Task、Bug 或 Gate 分别对应一个主要交付 PR；Epic 不代替它们。
+- 原子 Task、Bug 或 Gate 默认分别对应一个主要交付 PR；用户或维护者明确授权 Grouped Delivery 时，可由同一垂直闭环 PR 交付多个原子 Issue，但每个 Issue 仍独立满足验收标准。Epic 不代替这些原子契约。
 
 ## 输出与退出证据
 
@@ -38,6 +38,4 @@ labels: ["type:feature"]
 
 ## 治理要求
 
-本模板只用于 Epic。原子实现统一使用 Task/Bug 模板。子任务关系使用原生 Sub-issue，不在正文
-维护依赖清单或 `#` 子任务 checklist。任务状态、负责人、标签、层级与阻塞关系只使用 GitHub
-native metadata，不得复制到正文。Epic 标题遵循 `CONTRIBUTING.md` 的唯一规范。
+本模板只用于 Epic。原子实现统一使用 Task/Bug/Gate 模板。默认 Atomic Delivery 与明确授权的 Grouped Delivery 均遵循 `CONTRIBUTING.md`；Grouped 不改变 Epic 的父级性质，也不降低任何子 Issue 的验收标准。子任务关系使用原生 Sub-issue，不在正文维护依赖清单或 `#` 子任务 checklist。任务状态、负责人、标签、层级与阻塞关系只使用 GitHub native metadata，不得复制到正文。Epic 标题遵循 `CONTRIBUTING.md` 的唯一规范。

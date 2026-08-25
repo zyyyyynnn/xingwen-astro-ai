@@ -121,6 +121,7 @@ API Key、认证头、原始私有 provider response 与私有 reasoning 不得�
 - 不通过 `any`、不安全断言、宽泛异常吞噬或伪 fallback 掩盖契约错误；
 - 不为单个 Review finding 建永久框架、扫描器、快照体系或通用 abstraction；
 - 一字母紧跟整数的内部版本/阶段简写禁止用于代码、测试、fixture、注释、文档、Prompt、commit、Issue、PR 与 Review；真实外部版本、科学版本和严重级别具有实际语义时除外；
+- 生产配置、数据删除、不可逆迁移或其他高影响变更在修改前必须有明确授权、影响范围和可恢复/rollback 路径；无法满足时停止 mutation 并报告；
 - 工作过程文件、临时脚本、下载物、日志与本地绝对路径不得提交。
 
 ## 11. 验证

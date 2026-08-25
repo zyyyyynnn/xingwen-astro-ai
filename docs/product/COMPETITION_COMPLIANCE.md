@@ -38,6 +38,8 @@ API Key、原始认证头、完整 provider 原始响应与模型私有 chain-of
 - 源码采用必须遵守许可证、attribution 与 provenance；
 - 提交材料不以“整合了多少外部项目”作为技术差异化。
 
+模型、算法或方法之间的性能比较只有在同一 frozen Contract/input、相同 Evidence/ground truth、相同指标定义和可比运行条件下才可形成横向结论；否则只能作为背景或探索性参考，不进入性能宣传。
+
 作品差异化来自星文智析将多源天文数据、科学文档、文献推理、Evidence Graph、Scientific Skills、版本化 Artifact、Revision 与 Agent Workspace 收敛为一条可复核链。
 
 ## 4. 真实性等级
