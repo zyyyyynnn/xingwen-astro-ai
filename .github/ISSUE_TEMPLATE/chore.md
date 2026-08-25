@@ -38,9 +38,9 @@ labels: ["type:task"]
 
 ## PR 交付计划
 
-单一交付 PR：主要实现、Contract、针对性测试、完整消费路径、回归、文档与交接证据
-必须在同一最终 HEAD 完成。标准 CI 和正式技术 Review 通过后再合并；可独立交付的
-后续能力应在开工前拆分为新 Task。
+默认 Atomic Delivery 使用一个主要交付 PR；主要实现、Contract、针对性测试、完整消费路径、回归、文档与交接证据必须在同一最终 HEAD 完成。标准 CI 和正式技术 Review 通过后再合并；可独立交付的后续能力应在开工前拆分为新 Task。
+
+用户或维护者明确授权 Grouped Delivery 时，本 Task / Chore 可以与同一垂直闭环中的其他原子 Issue 共同交付，但必须保持本 Issue 独立的 acceptance/evidence，不能借打包扩大范围或降低退出标准。
 
 ## 边界
 
@@ -49,7 +49,4 @@ labels: ["type:task"]
 
 ## 治理要求
 
-本模板只用于原子 Task / Chore。一个 PR 只能有一个主要 Task、Bug 或 Gate；同一 Issue 的
-真实阻塞使用原生依赖。任务状态、负责人、标签、层级与阻塞关系只使用 GitHub native metadata，
-不得复制到正文，不在正文维护第二套动态状态、依赖清单或子任务 checklist。Issue 标题遵循
-`CONTRIBUTING.md` 的唯一规范。
+本模板只用于原子 Task / Chore。默认 Atomic Delivery 与明确授权的 Grouped Delivery 均遵循 `CONTRIBUTING.md`；同一 Issue 同时最多一个有效主要交付 PR。真实阻塞使用原生依赖。任务状态、负责人、标签、层级与阻塞关系只使用 GitHub native metadata，不得复制到正文，不在正文维护第二套动态状态、依赖清单或子任务 checklist。Issue 标题遵循 `CONTRIBUTING.md` 的唯一规范。

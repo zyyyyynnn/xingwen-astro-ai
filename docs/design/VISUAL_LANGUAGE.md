@@ -49,7 +49,7 @@ Homepage 使用以下结构：
 ## 3. 色彩系统与 Token 权威
 
 - 跨产品的 Raw palette、语义色彩、字号、间距、控件、图标、焦点、圆角、阴影与动效唯一定义于 [`packages/design-tokens/src/base.css`](../../packages/design-tokens/src/base.css)。
-- Workspace 的栏宽、面板、Composer、命令菜单、层级与 Workspace 动效唯一定义于 [`packages/design-tokens/src/workspace.css`](../../packages/design-tokens/src/workspace.css)；OpenHands 源码只通过 Workspace 的 `--oh-*` bridge 消费这些值。
+- Workspace 的栏宽、面板、Composer、命令菜单、层级与 Workspace 动效唯一定义于 [`packages/design-tokens/src/workspace.css`](../../packages/design-tokens/src/workspace.css)；已采用交互源码只通过 Workspace 的受控 Token bridge 消费这些值，桥接变量属于实现细节，不作为治理或产品标识。
 - 主题色锚点为 `#6E7981`（`--raw-bluegray-500`）。
 - Cold Paper 用于背景、画布与表面。
 - Bluegray 用于品牌、文字、边框与交互强调。
@@ -103,7 +103,7 @@ Workspace 壳层统一消费 `--font-size-ui-*` 与 `--line-height-ui-*` 成对�
 
 ## 8. Workspace 换肤
 
-保留上游产品的：
+保留已采用交互骨架的：
 
 - 布局；
 - Panel 行为；
@@ -112,7 +112,7 @@ Workspace 壳层统一消费 `--font-size-ui-*` 与 `--line-height-ui-*` 成对�
 - 桌面工作区范围内的响应式布局；
 - 运行反馈。
 
-替换上游产品的：
+替换为本项目自身的：
 
 - Brand；
 - Token；
@@ -154,7 +154,7 @@ Workspace 壳层统一消费 `--font-size-ui-*` 与 `--line-height-ui-*` 成对�
 - 无业务意义的粒子或轨道动画；
 - 聊天气泡主导 Artifact 阅读；
 - 每个模块使用独立主题色；
-- 复制上游默认皮肤；
+- 复制外部默认皮肤；
 - 用颜色替代状态、来源或版本文字。
 
 ## 12. 视觉回归

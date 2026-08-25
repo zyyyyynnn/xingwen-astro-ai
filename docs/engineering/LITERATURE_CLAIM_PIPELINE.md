@@ -205,5 +205,5 @@ duplicate、hash 漂移/稳定、Publisher seal、全部 approved 标签、四�
 
 本 Pipeline 不实现 Relation、ReasoningTrace、Graph、HTTP endpoint/DTO、前端、数据库
 ArtifactVersion 事务、ResearchRun 推进、生产模型 client、Agent 平台或自由代码执行。
-不保存原始模型长输出、受限全文、凭据或 chain-of-thought，也不复制或注册 MAVIS
+不保存原始模型长输出、受限全文、凭据或 chain-of-thought，也不复制或注册无关外部
 Prompt。

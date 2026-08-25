@@ -1,85 +1,66 @@
 # Competition Compliance
 
-| 元数据    | 值                                         |
-| --------- | ------------------------------------------ |
-| Authority | 竞赛方向、模型资格、平台合规与提交证据规范 |
+| 元数据 | 值 |
+| --- | --- |
+| Authority | 竞赛方向、模型资格、差异化叙事与提交证据 |
 
-本文把 [赛题要求](../references/赛题要求.md) 中与产品、模型和提交材料有关的约束
-转化为 Xingwen 的稳定产品规范。参考资料仍是需求输入，不是生产实现或事实源。
+## 1. 固定方向
 
-## 1. 固定参赛方向
-
-产品固定参加 Track 2 / Direction 1 / A：科学数据查询、解析与整合。作品叙事和
-验收必须围绕一个可复核的科学数据主案例，不能用通用聊天、通用 OCR 或泛化
-Agent 能力替代科学纵向链。
-
-在唯一产品主链中，Run 承载的科研处理子链固定为：
+产品固定参加 Track 2 / Direction 1 / A：科学数据查询、解析与整合。主叙事围绕可复核的科学数据纵向链，而不是通用聊天、通用 OCR、通用多 Agent 或外部能力集合。
 
 ```text
-confirmed Contract / data requirements
+confirmed Contract
 → multi-source acquisition
-→ parsing
-→ cleaning
-→ alignment
-→ annotation
-→ structured output
-→ Evidence / provenance
-→ feedback / revision
+→ parsing / cleaning / alignment / annotation
+→ scientific analysis
+→ typed ArtifactVersion
+→ Evidence / SourceSnapshot / provenance
+→ human review / revision
 ```
 
-主链必须保留来源、版本、哈希、Evidence locator 和失败语义；解析得到的候选值
-不能绕过字段准入、单位、质量、Evidence 或 Publisher 边界直接成为科研事实。
+## 2. 合格模型
 
-## 2. 合格模型与调用路径
+参赛主案例的合格模型必须是 Qwen，并通过 Alibaba Cloud Model Studio / Bailian 或比赛官网明确认可的路径调用。提交证据不得使用浮动 latest。
 
-参赛主案例的合格模型必须是 Qwen，并通过 Alibaba Cloud Model Studio / Bailian
-或比赛官网明确推荐的工具调用。本文只判定模型与平台是否具备参赛资格，以及提交
-材料必须提供什么证明；内部调用边界、Schema/Evidence 准入、失败处理、
-ProducerExecution 与发布规则统一由 [Model Policy](../ai/MODEL_POLICY.md) 定义。
-禁止使用浮动的 `latest` 作为提交证据。
+合格调用必须能够复核：provider 与官方接入路径、model name/version/revision、Prompt name/version/hash、Contract/input hash、参数、调用时间与运行环境、脱敏 request/call proof、response/output hash、Schema/Evidence admission、ProducerExecution 与最终 ArtifactVersion。
 
-每次合格调用必须能够复核：
+API Key、原始认证头、完整 provider 原始响应与模型私有 chain-of-thought 不进入提交材料、公开 Artifact 或日志；只保留完成复核所需的脱敏事实。
 
-- provider 与官方接入路径；
-- model name、版本或 revision；
-- Prompt name/version/hash 与输入 Contract/hash；
-- 参数、时间、运行环境、request/call proof、响应/output hash；
-- Schema/Evidence admission、ProducerExecution 与最终 ArtifactVersion；
-- 失败、拒绝、partial 或 unsupported 的真实结果。
+其他模型只可用于 benchmark、消融或对照，不得包装为合格主模型。
 
-密钥、原始认证头、原始响应全文和模型私有 chain-of-thought 不得进入材料、日志或
-公开 Artifact。截图、录屏和 manifest 只能展示脱敏后的调用证明与科研 Evidence。
+## 3. 差异化与能力归属
 
-## 3. 基准与非合格模型
+外部算法、工具、交互机制、benchmark 或工程经验只能作为研发输入：
 
-DeepSeek、Gemini 或其他模型可以作为 benchmark、消融、风险对照或参考材料，但
-不能作为本方向合格主模型，也不能把其结果包装为 Qwen 合规调用。每个对照结果
-必须标注 provider、model、版本、输入/输出 hash、数据等级和“non-qualifying
-benchmark/reference”。没有相同 Contract、Evidence 与评测条件的数字不得横向
-宣传为能力结论。
+- 外部调用记录不等于本项目的合格调用；
+- 外部 benchmark 数字不等于当前产品性能；
+- 外部 demo 不等于真实运行证据；
+- 源码采用必须遵守许可证、attribution 与 provenance；
+- 提交材料不以“整合了多少外部项目”作为技术差异化。
 
-## 4. 证据与发布门
+模型、算法或方法之间的性能比较只有在同一 frozen Contract/input、相同 Evidence/ground truth、相同指标定义和可比运行条件下才可形成横向结论；否则只能作为背景或探索性参考，不进入性能宣传。
 
-作品材料至少展示一条纵向闭环：
+作品差异化来自星文智析将多源天文数据、科学文档、文献推理、Evidence Graph、Scientific Skills、版本化 Artifact、Revision 与 Agent Workspace 收敛为一条可复核链。
 
-```text
-Research Intent
-→ Draft
-→ confirmed Contract
-→ ResearchRun with qualifying Qwen execution
-→ scientific ArtifactVersion
-→ Evidence / SourceSnapshot
-→ review
-→ feedback / revision or export
-```
+## 4. 真实性等级
 
-Fixture、Recorded response、Benchmark、Cached 与 Live 必须分栏标识。只有真实
-Run、真实模型调用和可定位的版本/Evidence 才能作为能力证明；Fixture 或 benchmark
-只能证明契约、确定性规则和回归覆盖。
+Live、Cached、Recorded、Fixture、Benchmark 与 Revision 必须清楚区分。只有本项目的真实 Run、真实合格模型调用、真实 ArtifactVersion/Evidence 才能作为主案例能力证明。
 
-## 5. 提交检查
+任何 partial、unsupported、provider failure、source failure 或 parser degradation 都按真实结果展示，不能为了演示完整性改写为成功。
 
-提交前的 manifest 必须包含主案例、赛道声明、模型资格证明、调用与版本证据、
-许可说明、运行环境、数据来源、脱敏说明、失败/降级示例和复现入口。任何无法
-复核 provider/model/version/call proof 或无法回到 Evidence/provenance 的结论，
-必须降级为未证实，不得写入完成性宣传。
+## 5. 提交材料
+
+最终材料至少包含：
+
+- 主案例与赛道声明；
+- 固定代码 Commit / container image / environment manifest；
+- 合格模型 provider/model/revision 与脱敏调用证明；
+- Research Intent → Contract → Run → ArtifactVersion → Evidence → Revision/Export/Share 的纵向链；
+- Scientific Document / data integration / literature-reasoning / graph 的关键证据；
+- benchmark 方法、固定输入、指标和限制；
+- 依法需要的第三方 license/attribution；
+- failure/degradation 示例；
+- 可复现命令与稳定入口；
+- secrets、私有 reasoning 与个人数据的脱敏说明。
+
+无法复核 provider/model/revision/call proof 或无法回到 Evidence/provenance 的结论必须标为未证实，不能进入完成性宣传。

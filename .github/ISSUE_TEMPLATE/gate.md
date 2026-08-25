@@ -33,18 +33,15 @@ labels: ["type:gate"]
 
 ## PR 交付计划
 
-一个纯验证 PR：只提交验收脚本 / Fixture / Compose / Browser smoke、脱敏证据、矩阵、
-风险结论和文档。不承载生产修复或新平台。
+默认 Atomic Delivery 下，Gate 使用一个纯验证 PR，只提交验收脚本、Fixture、Compose、Browser smoke、脱敏证据、矩阵、风险结论和文档，不承载生产修复或新平台。
+
+用户或维护者明确授权 Grouped Delivery 时，Gate 可以与同一垂直闭环中的实现、Benchmark 或其他 Gate Issue 由一个 PR 共同交付，但本 Gate 的验收仍必须作为独立矩阵行完成，不能用同 PR 中的生产修复代替验证结论；发现的缺陷仍由对应实现 Issue 承担修复责任。
 
 ## 边界
 
-- 不实现或修复 Workspace、Session / Query / Feed、模型、Parser、Renderer、Executor、
-  Pipeline、Persistence、Share 或新基础设施。
-- 不把 OpenHands interaction mechanics 当作 ResearchRun runtime，不把 seed / Fixture /
-  Benchmark / Recorded / Cached 当 Live。
+- 不实现或修复 Workspace、Session / Query / Feed、模型、Parser、Renderer、Executor、Pipeline、Persistence、Share 或新基础设施。
+- 不把已采用的交互 mechanics 当作 ResearchRun runtime，不把 seed / Fixture / Benchmark / Recorded / Cached 当 Live。
 
 ## 治理要求
 
-Gate 只验证，不修生产代码。任务状态、负责人、标签、层级与阻塞关系只使用 GitHub native
-metadata；依赖使用原生 blocked-by，不复制 current state、upstream Issue list 或 current DAG 到正文。
-Gate 标题遵循 `CONTRIBUTING.md` 的唯一规范。
+Gate 只验证，不修生产代码。默认 Atomic Delivery 与明确授权的 Grouped Delivery 均遵循 `CONTRIBUTING.md`。任务状态、负责人、标签、层级与阻塞关系只使用 GitHub native metadata；依赖使用 GitHub 原生依赖，不复制 current state、upstream Issue list 或 current DAG 到正文。Gate 标题遵循 `CONTRIBUTING.md` 的唯一规范。

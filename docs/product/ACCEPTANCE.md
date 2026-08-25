@@ -1,75 +1,95 @@
 # Acceptance Criteria
 
-| 元数据    | 值                                   |
-| --------- | ------------------------------------ |
-| Authority | 产品交付与发布的退出标准及一票否决项 |
-
-本文定义产品交付与发布的退出标准。单个 PR 审查见 [Review Checklist](../quality/REVIEW_CHECKLIST.md)，测试设计见 [Test Strategy](../engineering/TEST_STRATEGY.md)。
+| 元数据 | 值 |
+| --- | --- |
+| Authority | 产品交付与发布退出标准、一票否决项 |
 
 ## 1. 证据要求
 
-退出结论必须提供可复现的运行证据，至少包含：
+任何“完成”“Ready”或发布结论必须绑定 exact Commit/PR，并说明：
 
-- 对应的 Commit / PR；
-- 实际验证命令与观察到的结果；
-- 运行环境与契约版本；
-- 数据真实性等级（Live / Fixture / Cached）；
-- 关键 Run、ArtifactVersion 或 Evidence 标识；
-- 未执行项与已知限制。
+- 实际执行的验证命令与观察结果；
+- 环境、数据等级和必要 Contract/模型 revision；
+- 真实 Run / ArtifactVersion / Evidence / SourceSnapshot 证据；
+- Browser / Compose / PostgreSQL / Worker 等实际使用的验证层；
+- 未执行项、skip、已知限制与外部依赖。
 
-## 2. 产品交付标准
+不得把旧 HEAD、目标架构、Fixture、静态截图、外部 benchmark 或未执行 provider 当成当前能力证明。
 
-| 维度     | 必须达到                                                                                            |
-| -------- | --------------------------------------------------------------------------------------------------- |
-| 可理解   | 无需现场讲解即可识别产品目标、主流程与可信边界                                                      |
-| 可运行   | Research Workspace 宿主与 Agent 运行流程可运行，Live Run 有明确等待、失败与恢复                     |
-| 可复现   | 关键结果可定位 Contract、Run、ArtifactVersion、来源与生成条件                                       |
-| 可溯源   | 关键数据、Summary、Relation 和 GraphEdge 可逐项定位 Evidence                                        |
-| 竞赛合规 | 主案例具有合格 Qwen 官方调用路径、固定模型版本、脱敏 call proof、ProducerExecution 与输入/输出 hash |
-| 可对照   | Workspace 基于成熟 Agent 骨架，可高效对照产物与证据                                                 |
-| 可降级   | 外部服务或选件失败时不阻断核心流程                                                                  |
-| 可分享   | 只读分享受最小范围保护，可撤销、可过期、不泄露编辑会话                                              |
-| 可部署   | 环境拓扑、配置、当前 schema 与健康检查完整通过                                                        |
-| 可访问   | 键盘导航、焦点控制、屏幕阅读、Reduced Motion 与 1024×768 Web 视口可用                              |
+## 2. 产品退出标准
 
-Workspace 验收必须以已合并、可复现、可运行的实现证据为准。OpenHands 采用记录、
-目标架构或 Draft/Open PR 只能证明源码治理范围，不能证明 Live Run、模型资格或完整
-研究闭环。验收材料必须分别给出壳层、真实运行服务、科研产物、Evidence 与 `/share`
-只读边界的证据。
+| 维度 | 必须达到 |
+| --- | --- |
+| 可理解 | 无现场讲解即可识别产品目标、当前研究状态、主要结果、可信边界与下一步 |
+| 可运行 | Research Workspace 与真实 ResearchRun 可运行，等待、失败、partial、unsupported、retry/recovery 真实 |
+| 可达 | 每个向用户承诺的能力有正式入口或明确 Agent 自动触发路径 |
+| 可复现 | 关键结果可定位 Contract、Run、ArtifactVersion、来源、模型/Prompt 与生成条件 |
+| 可溯源 | 数据、Summary、Accepted Relation、GraphEdge 与关键科学结论逐项可定位 Evidence |
+| 可修订 | Feedback → confirmed RevisionPlan → derived Run → superseding ArtifactVersion 可验证 |
+| 可降级 | 外部服务、数据源或可选能力失败时真实呈现 failure/partial/unsupported，并保持仍可成立的核心研究链可用，不以假结果填补缺口 |
+| 可分享 | 冻结版本公开投影可撤销、可过期、最小披露且不加载私有编辑会话 |
+| 可部署 | 当前 schema、配置、健康检查、PostgreSQL、Worker 与前端部署边界完整 |
+| 可访问 | Keyboard、Focus、Screen Reader、Reduced Motion、200% text 与正式桌面视口可用 |
+| 竞赛合规 | 主案例具有 Qwen 官方合格调用路径、可复核 model/revision 与 call proof、ProducerExecution、ArtifactVersion 与 Evidence 闭环 |
 
-正式提交还必须通过 [Competition Compliance](COMPETITION_COMPLIANCE.md)：合格 Qwen
-执行、批准的 provider 路径、model/version/revision、脱敏 call proof、
-ProducerExecution、input/output hash 以及真实 ArtifactVersion/Evidence 必须形成可复核
-闭环。模型内部调用、准入与记录规则由 [Model Policy](../ai/MODEL_POLICY.md) 负责。
+## 3. Capability Reachability Gate
 
-## 3. 前端与上游采用标准
+每个产品能力必须同时满足：
 
-- 前端选型基于成熟开源 Agent 产品源码骨架进行领域改造，仓库内仅维护单一 Workspace Shell。
-- 业务页面通过 Repository Port 消费 Domain Model，不直接读取 Transport DTO 或原始 fetch。
-- Completed 状态下允许继续研究、修订、派生、导出与分享。
-- 默认视图严禁暴露内部 ID、Hash、Adapter、Fixture 或模型私有推理。
+```text
+real user entry / Agent trigger
+→ current Domain / Repository
+→ current Workflow / Scientific runtime
+→ typed Artifact / Evidence / Activity
+→ understandable loading/error/result
+→ applicable compare/revision/export/share
+→ Browser or live vertical evidence
+```
 
-Workspace 产品行为验收：
+以下只能证明“内部实现存在”，不能证明“产品交付”：API endpoint、library function、Unit Test、Fixture、benchmark、静态 screenshot、隐藏开发路由、手工数据库注入。
 
-- AI 正常消息贯穿研究全程（理解目标、协议形成/确认、阶段进入、中间发现、结果发布、完成）；
-- 右侧研究栏只承担研究概览与结果索引；
-- 右栏结果点击直接进入 Fullscreen，不存在 Docked result preview；
-- 论文 Fullscreen 宽屏默认研究报告 + PDF 同屏（存在授权来源时）；
-- Evidence locator 在支持时驱动 PDF 页码/位置定位；
-- 默认 UI 不显示内部 ID、hash 或技术 provenance；
-- 正式视觉验收视口为 1440×900、1280×800、1024×768，正式主题为 Light。
+## 4. Integration Cohesion Gate
 
-## 4. 一票否决项
+新增或迁入能力退出前必须证明：
 
-出现以下任一情况，不得宣布作品完成或达到正式提交标准：
+- 已对当前 `main` 做 capability gap，未重复已有或更优实现；
+- 新能力进入现有单一 runtime/store/Publisher/Evidence/Renderer/Workspace；
+- 没有 sidecar、raw JSON bridge、第二 store、第二 renderer family 或永久兼容层；
+- 临时 seam 与失真旧实现已经删除；
+- 用户不需要理解内部来源或模块结构；
+- 正式 Browser / integration / benchmark 证明能力已成为当前产品链的一部分。
 
-- 参考成熟产品后手写相似骨架，或在仓库内引入第二套 Workspace Shell；
-- Fixture、seed、录制响应或无来源数据冒充 Live / Cached 真实结果；
-- 数据、Summary、Accepted Relation 或 GraphEdge 无法追溯 Evidence；
-- 保存或展示模型私有 chain-of-thought；
-- ArtifactVersion 被原地覆盖，或 Share / Export 指向动态 latest；
-- 前端暴露 Secrets 密钥、直连受控外部来源或渲染未净化 HTML；
-- 跨会话私有资源可被枚举或读取，分享泄露编辑凭据；
-- API、Data Model、Workflow、Data Versioning 规范与代码实现发生矛盾；
-- 缺少符合 Competition Compliance 的真实合格模型执行及可复核调用证明；
-- 必要自动化 CI、测试或部署验证被绕过。
+## 5. Workspace 行为验收
+
+- AI 正常消息贯穿目标理解、Contract、主要阶段、中间发现、结果发布与完成；
+- Activity / Public Analysis 是次级信息，不替代 Assistant Message；
+- 右侧研究栏只做概览与结果索引；点击结果进入唯一 Fullscreen；
+- Evidence Inspector 是共享 presentation，关键结果到 Evidence 不超过三次交互；
+- 论文结果在可用时支持报告/PDF 同屏与 locator 定位；
+- Scientific Diff 比较实际用户相关 Evidence、结论、关系、限制与冲突，不以 count-only 或 raw JSON 代替；
+- Graph 具备可选择节点/边、Evidence context、键盘路径和 list fallback；
+- Public Share 使用冻结 typed projection 和共享只读 presentation；
+- 默认 UI 不显示内部 ID、hash、raw enum、producer、adapter、Issue/PR 编号、内部阶段版本或能力来源标识。
+
+正式视觉验收覆盖 Light：1440×900、1280×800、1024×768，并检查 200% text。
+
+## 6. Grouped Delivery 验收
+
+Grouped Delivery PR 只有在每个包含 Issue 都有独立 acceptance/evidence matrix 且全部达到对应 closure 标准时，才允许使用 `Closes` 语义。一个 Issue 未完成时，不得用同 PR 其他能力的通过结果替代。
+
+## 7. 一票否决
+
+出现任一情况，不得宣布完成：
+
+- 在 `main` 直接开发或绕过正式 PR/Review；
+- 为已有成熟职责重新手写相似骨架，或形成第二套 Workspace/Runtime/Publisher/Evidence/Renderer/Revision；
+- 用户承诺能力仅存在于后端、测试、Fixture 或隐藏入口；
+- Fixture/Recorded/seed 冒充 Live/Cached；
+- 关键科学事实、Summary、Accepted Relation 或 GraphEdge 无 Evidence；
+- 保存/展示 provider 私有 chain-of-thought；
+- ArtifactVersion 原地覆盖，Share/Export 指向动态 latest；
+- 公开分享泄露私有 session、token、secret、内部 metadata 或未净化内容；
+- 外部源码在 license/provenance 不明确时直接复制进 production；
+- 当前 API/Data Model/Workflow/Versioning/UX Authority 与实现互相矛盾；
+- 缺少符合 Competition Compliance 的真实合格 Qwen 执行及可复核调用证明；
+- 必要 CI、real integration、Browser、安全或可访问性验证被绕过。

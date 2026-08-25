@@ -11,11 +11,9 @@ Web 应用，正式主题为 Light。`/workspace` 是唯一私有工作台入口
 禁止注入假事件。自动化覆盖与门禁见
 [Test Strategy](../engineering/TEST_STRATEGY.md)。
 
-当前 full-stack packaging 可以跨 Frontend、API、Workflow 与测试收敛一个完整实现，
-但不会转移模块所有权。Research Workspace UX 仍由本文件定义；科学执行、Reference
-Integration、Scientific Skill、Executor、Worker、Attempt、Artifact scientific
-presentation 与 Live closure 由对应科学执行 Authority 定义。当前已验收行为优先于
-历史测试、旧任务文案与旧实现；冲突内容应删除，不建立 compatibility layer。
+Research Workspace UX 只描述当前产品行为。科学执行、Scientific Skill、Executor、
+Worker、Attempt、Artifact scientific presentation 与 Live closure 由对应 Authority 定义；
+冲突时应把当前 Authority、生产实现与验证证据重新收敛，不在本文件保存迁移历史或过程说明。
 
 ## 1. 目标
 
@@ -343,8 +341,8 @@ hash / parameters hash / provider request id
 基于此结果修改
 ```
 
-例外只允许外部不可改正式名称，例如 OpenHands 外部 release tag、第三方
-pipeline 正式版本、模型正式名称、Schema/协议真正机器版本。
+例外只允许具有真实外部版本语义且用户需要识别的正式技术名称，例如模型正式名称、
+Schema/协议真正机器版本。内部结果版本继续使用自然语言表达。
 
 ## 15. 响应式与可访问性
 
