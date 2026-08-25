@@ -44,7 +44,6 @@ import {
 } from "../presentation/artifact-renderer-registry";
 import { ArtifactEvidenceSheet } from "./artifact-evidence-sheet";
 import { ArtifactShareDialog } from "./artifact-share-dialog";
-import { ArtifactSourceMode } from "./scientific-presentation";
 
 export interface ArtifactFullscreenWorkspaceProps {
   readonly runtime: WorkspaceRuntimeBoundaries;
@@ -103,7 +102,7 @@ function VersionSelector({
         >
           <span>{isCurrent ? "当前结果" : "历史结果"}</span>
           <span>{versionTimestamp(selected.createdAt)}</span>
-          <ChevronDown className="size-3.5" aria-hidden="true" />
+          <ChevronDown aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-56">
@@ -470,7 +469,7 @@ export function ArtifactFullscreenWorkspace({
                 size="small"
                 className="ui-text-label flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
               >
-                <ArrowLeft className="size-4" aria-hidden="true" />
+                <ArrowLeft aria-hidden="true" />
                 <span>返回研究</span>
               </Button>
             </DialogClose>
@@ -478,9 +477,6 @@ export function ArtifactFullscreenWorkspace({
             <DialogTitle className="min-w-0 max-w-md truncate font-serif text-[length:var(--font-size-ui-heading)] font-semibold leading-[var(--line-height-ui-heading)] text-foreground">
               {artifact?.title ?? "研究结果"}
             </DialogTitle>
-            {version ? (
-              <ArtifactSourceMode sourceMode={version.sourceMode} />
-            ) : null}
             {artifactId !== null && versions.length > 1 ? (
               <VersionSelector
                 versions={versions}
@@ -516,7 +512,7 @@ export function ArtifactFullscreenWorkspace({
                 variant="ghost"
                 onClick={() => setShareOpen(true)}
               >
-                <Share2 className="size-4" aria-hidden="true" />
+                <Share2 aria-hidden="true" />
                 分享
               </Button>
             ) : null}

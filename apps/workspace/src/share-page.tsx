@@ -4,10 +4,7 @@ import type { DomainEntityId, PublicShareSnapshot } from "@xingwen/domain";
 import { Button, Link, Spinner } from "@xingwen/ui";
 import { Share2 } from "@xingwen/ui/icons";
 
-import {
-  ArtifactPresentationContent,
-  ArtifactSourceMode,
-} from "./components/scientific-presentation";
+import { ArtifactPresentationContent } from "./components/scientific-presentation";
 import {
   buildEvidencePresentation,
   EvidencePresentationContent,
@@ -204,7 +201,6 @@ export function PublicShareView({
             </nav>
           ) : null}
           <section className="public-share-result" aria-label="共享科研结果">
-            <ArtifactSourceMode sourceMode={selectedVersion.sourceMode} />
             <ArtifactPresentationContent
               title={selectedVersion.title}
               presentation={selectedVersion.presentation}

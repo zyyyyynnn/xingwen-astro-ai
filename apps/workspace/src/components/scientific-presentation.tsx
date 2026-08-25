@@ -3,10 +3,8 @@ import {
   type DomainEntityId,
   type PublicArtifactPresentation,
   type PublicPresentationFact,
-  type SourceMode,
 } from "@xingwen/domain";
 import {
-  Badge,
   Button,
   Collapsible,
   CollapsibleContent,
@@ -22,21 +20,7 @@ import {
   taxonomyLabel,
   type ScientificContentSurface,
 } from "./scientific-content/shared";
-import { sourceModeLabel } from "../presentation/artifact-presentation-labels";
 import { ScientificTable } from "./scientific-table";
-
-export function ArtifactSourceMode({
-  sourceMode,
-}: {
-  readonly sourceMode: SourceMode;
-}) {
-  const label = sourceModeLabel(sourceMode);
-  return label ? (
-    <Badge variant="outline" data-source-mode={sourceMode}>
-      {label}
-    </Badge>
-  ) : null;
-}
 
 export function PresentationEvidenceActions({
   evidenceIds,

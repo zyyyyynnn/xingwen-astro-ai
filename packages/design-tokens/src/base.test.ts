@@ -202,6 +202,10 @@ describe("Core semantic geometry tokens", () => {
     expect(css).toContain("--font-size-ui-label: var(--font-size-0);");
     expect(css).toContain("--font-size-ui-body: 0.875rem;");
     expect(css).toContain("--font-size-ui-heading: 1.25rem;");
+    expect(css).toContain("--font-weight-ui-medium: 500;");
+    expect(css).toContain("--font-weight-ui-heading: 560;");
+    expect(css).toContain("--font-weight-ui-emphasis: 600;");
+    expect(css).toContain("--font-weight-ui-strong: 650;");
     expect(css).toContain("--line-height-ui-label: 1.5;");
     expect(css).toContain("--line-height-ui-body: 1.6;");
     expect(css).toContain("--line-height-ui-heading: 1.5;");

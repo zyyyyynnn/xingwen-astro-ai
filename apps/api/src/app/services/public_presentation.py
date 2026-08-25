@@ -534,11 +534,7 @@ def build_artifact_presentation(
                     title="来源核验",
                     paragraphs=tuple(
                         PublicPresentationParagraph(
-                            text=(
-                                "来源版本存在冲突：声明为 "
-                                f"{conflict.claimed_source_version}，"
-                                f"结果使用已冻结版本 {conflict.source_snapshot_version}。"
-                            ),
+                            text="来源信息存在冲突，请结合原始来源核验。",
                             status="unverifiable",
                             evidence_ids=_paper_summary_evidence_ids(
                                 evidence,
@@ -862,14 +858,13 @@ def build_artifact_presentation(
                 *_facts(
                     _fact("任务", _token_label(content.task_kind, _TASK_KIND_LABELS)),
                     _fact("算法", content.algorithm),
-                    _fact("算法版本", content.algorithm_version),
                     _fact(
-                        "训练输入",
+                        "训练数据",
                         _token_label(
                             content.training_input.kind,
                             {
-                                "dataset_artifact_version": "数据集版本",
-                                "source_snapshot": "来源快照",
+                                "dataset_artifact_version": "研究数据集",
+                                "source_snapshot": "原始数据来源",
                             },
                         ),
                     ),
@@ -880,7 +875,6 @@ def build_artifact_presentation(
                         _token_label(content.split.strategy, _SPLIT_STRATEGY_LABELS),
                     ),
                     _fact("划分字段", content.split.field),
-                    _fact("随机种子", content.split.random_seed),
                     _fact(
                         "交叉验证",
                         f"{content.split.cross_validation_folds} 折"
@@ -931,20 +925,8 @@ def build_artifact_presentation(
         return PublicArtifactPresentation(
             kind=artifact_kind,
             facts=_facts(
-                _fact(
-                    "状态",
-                    _token_label(
-                        content.status,
-                        {
-                            "active": "可用",
-                            "deprecated": "已弃用",
-                            "revoked": "已撤销",
-                        },
-                    ),
-                ),
                 _fact("任务", _token_label(content.task_kind, _TASK_KIND_LABELS)),
                 _fact("算法", content.algorithm),
-                _fact("算法版本", content.algorithm_version),
                 _fact("输入", content.input_name),
                 _fact(
                     "输入形状",
@@ -956,7 +938,6 @@ def build_artifact_presentation(
                 _fact("输出", *content.output_names),
                 _fact("目标字段", content.target_field),
                 _fact("特征字段", *content.feature_fields),
-                _fact("运行依赖", *content.dependency_revisions),
             ),
             sections=(
                 PublicPresentationSection(

@@ -145,6 +145,10 @@ describe("Workspace routes", () => {
     expect(
       fullscreenReport.querySelector("[data-artifact-version-id]"),
     ).toHaveAttribute("data-artifact-version-id", "artv_papsum_01");
+    expect(fullscreenReport.querySelector("[data-source-mode]")).toBeNull();
+    expect(
+      within(fullscreenReport).queryByText("演示数据"),
+    ).not.toBeInTheDocument();
     expect(fullscreenReport).toHaveAttribute("role", "dialog");
     expect(fullscreenReport).toHaveAttribute("aria-modal", "true");
     const returnButton = within(fullscreenReport).getByRole("button", {

@@ -149,7 +149,8 @@ describe("PublicShareView", () => {
       screen.getByRole("columnheader", { name: "宿主星名称" }),
     ).toBeVisible();
     expect(screen.getByRole("cell", { name: "TOI-700 d" })).toBeVisible();
-    expect(screen.getByText("实时数据")).toBeVisible();
+    expect(screen.queryByText("实时数据")).not.toBeInTheDocument();
+    expect(document.querySelector("[data-source-mode]")).toBeNull();
     expect(screen.getByText(/冻结的公开副本/)).toBeVisible();
   });
 
@@ -166,6 +167,22 @@ describe("PublicShareView", () => {
     expect(
       screen.queryByText("paper", { exact: true }),
     ).not.toBeInTheDocument();
+    const inspector = screen.getByRole("complementary", { name: "证据 1" });
+    expect(within(inspector).getByText("页码")).toBeVisible();
+    expect(within(inspector).getByText("4")).toBeVisible();
+    expect(within(inspector).getByText("章节")).toBeVisible();
+    expect(within(inspector).getByText("Results")).toBeVisible();
+    for (const machineFact of [
+      "文档区块",
+      "paragraph-1",
+      "阅读顺序",
+      "页面区域",
+      "10, 20 – 30, 40",
+    ]) {
+      expect(
+        within(inspector).queryByText(machineFact),
+      ).not.toBeInTheDocument();
+    }
     expect(screen.getByRole("link", { name: /打开原始来源/ })).toHaveAttribute(
       "href",
       "https://example.org/paper",

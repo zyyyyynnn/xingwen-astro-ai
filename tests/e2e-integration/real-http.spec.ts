@@ -331,7 +331,10 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   await expect(fullscreen).toBeVisible();
   await expect(fullscreen).toHaveAttribute("aria-modal", "true");
   await expect(returnButton).toBeFocused();
-  await expect(page.getByText("演示数据", { exact: true })).toBeVisible();
+  await expect(fullscreen.getByText("演示数据", { exact: true })).toHaveCount(
+    0,
+  );
+  await expect(fullscreen.locator("[data-source-mode]")).toHaveCount(0);
 
   await page.setViewportSize({ width: 1024, height: 768 });
   expect(
@@ -413,6 +416,8 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
       .getByRole("table", { name: "规范化数据" })
       .getByRole("rowheader", { name: "700.01 / planet seven b" }),
   ).toBeVisible();
+  await expect(page.getByText("演示数据", { exact: true })).toHaveCount(0);
+  await expect(page.locator("[data-source-mode]")).toHaveCount(0);
   await expect(page.getByText(/创建分享时冻结的公开副本/)).toBeVisible();
   await expect(page.locator('meta[name="referrer"]')).toHaveAttribute(
     "content",
@@ -429,10 +434,19 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   await expect(page.getByRole("heading", { name: "证据 1" })).toBeVisible();
   await expect(page.getByText("来源内容", { exact: true })).toBeVisible();
   await expect(page.getByText(/数据库 · 获取于/)).toBeVisible();
-  await page
-    .getByRole("complementary", { name: "证据 1" })
-    .getByRole("button", { name: "关闭" })
-    .click();
+  const publicEvidence = page.getByRole("complementary", { name: "证据 1" });
+  for (const machineLocatorLabel of [
+    "文档区块",
+    "阅读顺序",
+    "表格",
+    "单元格",
+    "页面区域",
+  ]) {
+    await expect(
+      publicEvidence.getByText(machineLocatorLabel, { exact: true }),
+    ).toHaveCount(0);
+  }
+  await publicEvidence.getByRole("button", { name: "关闭" }).click();
   await expect(page.getByRole("heading", { name: "证据 1" })).toHaveCount(0);
   expect(runtimeErrors).toEqual([]);
 

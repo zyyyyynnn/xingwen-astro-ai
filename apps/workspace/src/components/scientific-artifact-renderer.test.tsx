@@ -131,16 +131,20 @@ function presentationFor(
       ...presentation,
       facts: [
         {
+          label: text("算法"),
+          values: [text(content.algorithm)],
+        },
+        {
+          label: text("训练数据"),
+          values: [text("研究数据集")],
+        },
+        {
           label: text("划分方式"),
           values: [text("实体隔离划分")],
         },
         {
           label: text("划分字段"),
           values: [text(String(split.field))],
-        },
-        {
-          label: text("随机种子"),
-          values: [text(String(split.randomSeed))],
         },
         {
           label: text("交叉验证"),
@@ -159,6 +163,17 @@ function presentationFor(
             },
           ]
         : [],
+    };
+  }
+  if (content.kind === "model_artifact") {
+    return {
+      ...presentation,
+      facts: [
+        {
+          label: text("算法"),
+          values: [text(content.algorithm)],
+        },
+      ],
     };
   }
   return presentation;
@@ -672,6 +687,10 @@ describe("ScientificArtifactRenderer scientific content", () => {
       fireEvent.click(screen.getByRole("button", { name: "下载 ONNX 模型" }));
     });
     expect(loadContent).toHaveBeenCalledWith("sha256:model");
+    expect(screen.getByText("random_forest")).toBeVisible();
+    expect(screen.queryByText("active")).not.toBeInTheDocument();
+    expect(screen.queryByText("1.6.1")).not.toBeInTheDocument();
+    expect(screen.queryByText("scikit-learn 1.6.1")).not.toBeInTheDocument();
     expect(downloadBytes).toHaveBeenCalledWith(
       expect.objectContaining({
         fileName: "random_forest.onnx",
@@ -736,7 +755,11 @@ describe("ScientificArtifactRenderer scientific content", () => {
 
     expect(screen.getByText("实体隔离划分")).toBeInTheDocument();
     expect(screen.getByText("object_id")).toBeInTheDocument();
-    expect(screen.getByText("42")).toBeInTheDocument();
+    expect(screen.getByText("random_forest")).toBeInTheDocument();
+    expect(screen.getByText("研究数据集")).toBeInTheDocument();
+    expect(screen.queryByText("算法版本")).not.toBeInTheDocument();
+    expect(screen.queryByText("随机种子")).not.toBeInTheDocument();
+    expect(screen.queryByText("42")).not.toBeInTheDocument();
     expect(screen.getByText("5 折")).toBeInTheDocument();
     expect(
       screen.getByText("同一实体不会跨越训练与测试边界"),

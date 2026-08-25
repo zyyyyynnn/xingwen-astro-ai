@@ -90,22 +90,8 @@ function publicLocatorFacts(
       ? []
       : [{ label: "段落", value: String(locator.paragraph) }]),
     ...(locator.textRange ? [{ label: "范围", value: locator.textRange }] : []),
-    ...(locator.blockId ? [{ label: "文档区块", value: locator.blockId }] : []),
-    ...(locator.readingOrder === null
-      ? []
-      : [{ label: "阅读顺序", value: String(locator.readingOrder) }]),
-    ...(locator.tableId ? [{ label: "表格", value: locator.tableId }] : []),
-    ...(locator.cellId ? [{ label: "单元格", value: locator.cellId }] : []),
     ...(locator.field ? [{ label: "字段", value: locator.field }] : []),
     ...(locator.rowKey ? [{ label: "记录", value: locator.rowKey }] : []),
-    ...(locator.bbox
-      ? [
-          {
-            label: "页面区域",
-            value: `${locator.bbox.x1}, ${locator.bbox.y1} – ${locator.bbox.x2}, ${locator.bbox.y2}`,
-          },
-        ]
-      : []),
   ];
 }
 

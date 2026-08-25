@@ -175,7 +175,14 @@ def test_paper_summary_presentation_preserves_status_and_source_conflicts() -> N
         section for section in presentation.sections if section.title == "来源核验"
     )
     assert conflict_section.paragraphs[0].status == "unverifiable"
-    assert "superseded-demo-version" in conflict_section.paragraphs[0].text
+    assert conflict_section.paragraphs[0].text == (
+        "来源信息存在冲突，请结合原始来源核验。"
+    )
+    assert "superseded-demo-version" not in conflict_section.paragraphs[0].text
+    assert (
+        source_evidence["source_snapshot_version"]
+        not in conflict_section.paragraphs[0].text
+    )
     expected_evidence = next(
         item.id
         for item in version.evidence
