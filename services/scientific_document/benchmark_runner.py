@@ -549,7 +549,11 @@ def _build_report(
         native_engine=_NATIVE_ENGINE,
         native_engine_version=_NATIVE_VERSION,
         visual_engine=(
-            "PaddleOCR-VL layout-parsing service"
+            (
+                "PaddleOCR-VL layout-parsing service"
+                if isinstance(visual_parser, PaddleOcrVlClient)
+                else "PaddleOCRVL official in-process pipeline (verified local bundle)"
+            )
             if visual_parser is not None
             else None
         ),
@@ -614,25 +618,55 @@ def run_native_only() -> BenchmarkReport:
     )
 
 
-def visual_parser_from_settings() -> PaddleOcrVlClient:
+def visual_parser_from_settings() -> VisualPageParserPort:
     """Build the real production visual backend from environment settings.
 
-    Fail-closed: hybrid/paired benchmarks refuse to start without an explicitly
-    configured official PaddleOCR-VL service rather than silently degrading and
-    mislabeling the result.
+    Two mutually exclusive operator paths, both real and fail-closed:
+
+    - ``PADDLEOCR_VL_BASE_URL`` + ``PADDLEOCR_VL_MODEL_REVISION``: the official
+      PaddleOCR-VL layout-parsing HTTP service;
+    - ``PADDLEOCR_VL_LOCAL_BUNDLE``: the approved in-process official
+      ``PaddleOCRVL`` pipeline against a content-addressed bundle that must
+      fully verify against the committed asset manifest first.
+
+    A hybrid/paired benchmark refuses to start without one of them rather than
+    silently degrading and mislabeling the result.
     """
     from app.config import settings
 
-    if settings.PADDLEOCR_VL_BASE_URL is None or settings.PADDLEOCR_VL_MODEL_REVISION is None:
-        raise RuntimeError(
-            "hybrid/paired benchmark requires a configured visual backend: set "
-            "PADDLEOCR_VL_BASE_URL and PADDLEOCR_VL_MODEL_REVISION pointing at "
-            "a real official PaddleOCR-VL layout-parsing service"
+    base_url = settings.PADDLEOCR_VL_BASE_URL
+    bundle_root = settings.PADDLEOCR_VL_LOCAL_BUNDLE
+    if base_url is not None:
+        if settings.PADDLEOCR_VL_MODEL_REVISION is None:
+            raise RuntimeError(
+                "hybrid/paired benchmark requires a configured visual backend: "
+                "PADDLEOCR_VL_BASE_URL needs PADDLEOCR_VL_MODEL_REVISION"
+            )
+        return PaddleOcrVlClient(
+            base_url=base_url,
+            model_revision=settings.PADDLEOCR_VL_MODEL_REVISION,
+            timeout_seconds=settings.PADDLEOCR_VL_TIMEOUT_SECONDS,
         )
-    return PaddleOcrVlClient(
-        base_url=settings.PADDLEOCR_VL_BASE_URL,
-        model_revision=settings.PADDLEOCR_VL_MODEL_REVISION,
-        timeout_seconds=settings.PADDLEOCR_VL_TIMEOUT_SECONDS,
+    if bundle_root is not None:
+        from app.services.scientific_document.local_paddle_pipeline import (
+            LocalPaddleOcrVlPipeline,
+        )
+        from services.scientific_document.model_asset_contract import (
+            ModelAssetContractError,
+        )
+
+        try:
+            return LocalPaddleOcrVlPipeline(bundle_root=Path(bundle_root))
+        except ModelAssetContractError as error:
+            raise RuntimeError(
+                f"hybrid/paired benchmark visual backend rejected the "
+                f"configured bundle: {error}"
+            ) from error
+    raise RuntimeError(
+        "hybrid/paired benchmark requires a configured visual backend: set "
+        "PADDLEOCR_VL_BASE_URL + PADDLEOCR_VL_MODEL_REVISION (official HTTP "
+        "service) or PADDLEOCR_VL_LOCAL_BUNDLE (verified official model "
+        "bundle for the in-process pipeline)"
     )
 
 

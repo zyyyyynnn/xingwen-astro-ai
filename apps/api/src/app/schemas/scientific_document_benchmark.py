@@ -369,7 +369,19 @@ class BenchmarkReport(BaseModel):
         return self
 
 
-_VOLATILE_METRIC_NAME_PREFIXES = ("latency", "peak_memory")
+_VOLATILE_METRIC_TAILS = ("latency", "peak_memory")
+
+
+def _is_volatile_metric_name(name: str) -> bool:
+    """Volatile observations describe execution cost under any mode prefix.
+
+    Paired reports name their per-mode cost metrics ``native_only_latency`` /
+    ``hybrid_peak_memory``; identity must exclude them exactly like the bare
+    native-report names.
+    """
+    return any(
+        name == tail or name.endswith(f"_{tail}") for tail in _VOLATILE_METRIC_TAILS
+    )
 
 
 def benchmark_payload_for_hash(report: BenchmarkReport) -> dict:
@@ -388,7 +400,7 @@ def benchmark_payload_for_hash(report: BenchmarkReport) -> dict:
     payload["metrics"] = [
         metric
         for metric in payload.get("metrics", [])
-        if not metric["name"].startswith(_VOLATILE_METRIC_NAME_PREFIXES)
+        if not _is_volatile_metric_name(metric["name"])
     ]
     return payload
 

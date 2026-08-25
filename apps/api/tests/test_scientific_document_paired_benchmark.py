@@ -298,3 +298,94 @@ def test_checker_rejects_unproven_hybrid_latency(tmp_path: Path) -> None:
     result = _run_checker(path)
     assert result.returncode == 1
     assert "latency-measured" in result.stderr
+
+
+def test_local_bundle_backend_refuses_unverified_bundle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An unverified/absent bundle must fail closed before any vendor import."""
+    from app.config import settings
+    from services.scientific_document.benchmark_runner import (
+        visual_parser_from_settings,
+    )
+
+    monkeypatch.setattr(settings, "PADDLEOCR_VL_BASE_URL", None, raising=False)
+    monkeypatch.setattr(
+        settings, "PADDLEOCR_VL_MODEL_REVISION", None, raising=False
+    )
+    monkeypatch.setattr(settings, "PADDLEOCR_VL_LOCAL_BUNDLE", str(tmp_path))
+    with pytest.raises(RuntimeError):
+        visual_parser_from_settings()
+
+
+def test_local_bundle_backend_wiring(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Settings routing selects the in-process pipeline backend unchanged."""
+    import app.services.scientific_document.local_paddle_pipeline as local_mod
+    from app.config import settings
+    from services.scientific_document.benchmark_runner import (
+        visual_parser_from_settings,
+    )
+
+    class _Dummy:
+        def __init__(self, *, bundle_root) -> None:
+            self.bundle_root = bundle_root
+
+        def engine_version(self):  # pragma: no cover - property protocol only
+            raise AssertionError
+
+    monkeypatch.setattr(settings, "PADDLEOCR_VL_BASE_URL", None, raising=False)
+    monkeypatch.setattr(
+        settings, "PADDLEOCR_VL_MODEL_REVISION", None, raising=False
+    )
+    monkeypatch.setattr(settings, "PADDLEOCR_VL_LOCAL_BUNDLE", "bundle-x")
+    monkeypatch.setattr(local_mod, "LocalPaddleOcrVlPipeline", _Dummy)
+    parser = visual_parser_from_settings()
+    assert isinstance(parser, _Dummy)
+
+
+@pytest.mark.scientific_document_native
+def test_real_local_pipeline_constructs_against_verified_bundle() -> None:
+    """Operator-local proof path: construct the official pipeline against a
+    verified bundle when the approved runtime AND provisioned bundle exist;
+    otherwise skip silently so public CI stays deterministic."""
+    import importlib.util
+
+    if importlib.util.find_spec("paddleocr") is None:
+        pytest.skip("approved paddleocr runtime not installed")
+    bundle = ROOT / "models"
+    if not (bundle / "vlm_recognition").is_dir():
+        pytest.skip("operator bundle not provisioned")
+
+    from app.services.scientific_document.local_paddle_pipeline import (
+        LocalPaddleOcrVlPipeline,
+    )
+
+    pipeline = LocalPaddleOcrVlPipeline(bundle_root=bundle)
+    assert pipeline.model_revision.startswith("cdc88f5f")
+    assert pipeline.engine_version == "1.6"
+
+
+def test_paired_double_run_identity_ignores_volatile_metrics() -> None:
+    """Paired identity must stay stable across runs despite real cost noise.
+
+    Mode-prefixed cost metrics (``native_only_latency`` / ``hybrid_peak_memory``)
+    are volatile observations, never identity: they are excluded exactly like
+    the bare native-report names.
+    """
+    from app.schemas.scientific_document_benchmark import (
+        benchmark_payload_for_hash,
+    )
+
+    first = _paired_report_with_stub()
+    second = _paired_report_with_stub()
+    assert first.output_hash == second.output_hash
+
+    names = {
+        metric["name"] for metric in benchmark_payload_for_hash(first)["metrics"]
+    }
+    assert any(name.startswith("native_only_") for name in names)
+    assert not any(
+        name == tail or name.endswith(f"_{tail}")
+        for name in names
+        for tail in ("latency", "peak_memory")
+    )

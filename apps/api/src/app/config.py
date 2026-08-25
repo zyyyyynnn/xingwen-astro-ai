@@ -119,6 +119,10 @@ class Settings(BaseSettings):
     # service is used only for pages that need visual layout recognition.
     PADDLEOCR_VL_BASE_URL: str | None = None
     PADDLEOCR_VL_MODEL_REVISION: str | None = None
+    # Operator-supplied content-addressed model bundle for the approved
+    # in-process official pipeline; verified against the asset manifest
+    # before any vendor import. Mutually exclusive with BASE_URL wiring.
+    PADDLEOCR_VL_LOCAL_BUNDLE: str | None = None
     PADDLEOCR_VL_TIMEOUT_SECONDS: float = Field(default=60.0, gt=0)
     DOCUMENT_PARSE_MAX_PAGES: int = Field(default=200, gt=0, le=1000)
 
