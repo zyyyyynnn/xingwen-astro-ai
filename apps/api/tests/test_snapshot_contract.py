@@ -22,6 +22,7 @@ from app.schemas.core import (
     WorkspaceSnapshotInput,
 )
 from app.security import SecurityProblem
+from app.schemas.data_artifact_api import ArtifactExportDownload, ArtifactExportRead
 from app.services.snapshots import InMemorySnapshotStore, SnapshotService
 
 
@@ -373,6 +374,133 @@ def test_share_freezes_redacted_scope_and_never_lists_token_material() -> None:
     assert raw_token not in after_revoke.text
     assert after_revoke.headers["referrer-policy"] == "no-referrer"
     assert "default-src 'none'" in after_revoke.headers["content-security-policy"]
+
+
+def test_public_dataset_export_is_frozen_allowlisted_and_non_enumerating() -> None:
+    app, client, session_id, csrf_token = _session_client()
+    _seed_project(app, session_id)
+    expires_at = datetime.now(UTC) + timedelta(hours=1)
+    created = client.post(
+        "/api/projects/proj_01/shares",
+        headers={"X-CSRF-Token": csrf_token},
+        json={
+            "title": "Frozen CSV",
+            "artifact_version_ids": ["artv_01"],
+            "evidence_ids": ["ev_01"],
+            "redaction_policy": "redacted_public_snapshot",
+            "expires_at": expires_at.isoformat(),
+        },
+    )
+    assert created.status_code == 201
+    share = created.json()["data"]
+    calls: list[dict[str, str]] = []
+
+    class RecordingDataArtifactService:
+        def create_export(self, **kwargs: str) -> ArtifactExportDownload:
+            calls.append(kwargs)
+            return ArtifactExportDownload(
+                export=ArtifactExportRead(
+                    id="exp_public",
+                    artifact_version_id=kwargs["version_id"],
+                    project_id="proj_01",
+                    format="csv",
+                    status="completed",
+                    content_hash=HASH,
+                    generated_at=NOW,
+                    expires_at=NOW + timedelta(minutes=15),
+                    download_url="/private/storage/reference",
+                ),
+                content=b"row_id,value\nrow-1,TOI-700 d\n",
+                media_type="text/csv; charset=utf-8",
+                filename="artv_01.csv",
+            )
+
+    app.state.data_artifact_read_service = RecordingDataArtifactService()
+    anonymous = TestClient(app, base_url="https://testserver")
+    path = (
+        f"/api/public/shares/{share['share_token']}"
+        "/artifacts/artv_01/exports/csv"
+    )
+    downloaded = anonymous.get(path)
+
+    assert downloaded.status_code == 200
+    assert downloaded.content == b"row_id,value\nrow-1,TOI-700 d\n"
+    assert downloaded.headers["content-type"] == "text/csv; charset=utf-8"
+    assert downloaded.headers["content-disposition"] == (
+        'attachment; filename="shared-research-data.csv"'
+    )
+    assert downloaded.headers["cache-control"] == "no-store"
+    assert downloaded.headers["referrer-policy"] == "no-referrer"
+    assert calls[0]["version_id"] == "artv_01"
+    assert calls[0]["session_id"] == session_id
+    assert share["share_token"] not in calls[0]["idempotency_key"]
+    assert "proj_01" not in downloaded.text
+    assert "artv_01" not in downloaded.text
+    assert "storage" not in downloaded.text
+
+    disallowed = anonymous.get(
+        f"/api/public/shares/{share['share_token']}"
+        "/artifacts/artv_future/exports/csv"
+    )
+    invalid = anonymous.get(
+        "/api/public/shares/not-a-real-token/artifacts/artv_01/exports/csv"
+    )
+    assert disallowed.status_code == invalid.status_code == 404
+    assert disallowed.json()["code"] == invalid.json()["code"] == "SHARE_NOT_FOUND"
+    assert disallowed.json()["detail"] == invalid.json()["detail"]
+    assert len(calls) == 1
+
+    revoked = client.delete(
+        f"/api/projects/proj_01/shares/{share['id']}",
+        headers={"X-CSRF-Token": csrf_token},
+    )
+    assert revoked.status_code == 204
+    after_revoke = anonymous.get(path)
+    assert after_revoke.status_code == 404
+    assert after_revoke.json()["code"] == "SHARE_NOT_FOUND"
+    assert len(calls) == 1
+
+
+def test_public_export_authorization_expires_without_revealing_the_version() -> None:
+    store = InMemorySnapshotStore()
+    store.register_project(project_id="proj_01", owner_session_id="sess_01")
+    store.register_artifact_version(project_id="proj_01", projection=_version())
+    store.register_evidence(project_id="proj_01", projection=_evidence())
+    service = SnapshotService(store)
+    created = service.create_share(
+        project_id="proj_01",
+        session_id="sess_01",
+        request=CreateShareSnapshotRequest(
+            title="Expiring export",
+            artifact_version_ids=("artv_01",),
+            evidence_ids=("ev_01",),
+            redaction_policy="redacted_public_snapshot",
+            expires_at=NOW + timedelta(minutes=1),
+        ),
+        now=NOW,
+    )
+
+    authorized = service.authorize_public_export(
+        raw_token=created.share_token,
+        artifact_version_id="artv_01",
+        now=NOW,
+    )
+    assert authorized.artifact_version_id == "artv_01"
+    with pytest.raises(SecurityProblem) as expired:
+        service.authorize_public_export(
+            raw_token=created.share_token,
+            artifact_version_id="artv_01",
+            now=NOW + timedelta(minutes=2),
+        )
+    with pytest.raises(SecurityProblem) as invalid:
+        service.authorize_public_export(
+            raw_token="not-a-real-token",
+            artifact_version_id="artv_01",
+            now=NOW,
+        )
+    assert expired.value.status == invalid.value.status == 404
+    assert expired.value.code == invalid.value.code == "SHARE_NOT_FOUND"
+    assert expired.value.detail == invalid.value.detail
 
 
 def test_share_create_has_an_independent_per_session_rate_limit() -> None:

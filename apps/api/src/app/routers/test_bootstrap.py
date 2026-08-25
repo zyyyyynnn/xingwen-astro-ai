@@ -21,7 +21,12 @@ from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
 
 from app.security import SecurityProblem
-from app.test_support.bootstrap import BootstrapResult, bootstrap_fixture_artifacts
+from app.test_support.bootstrap import (
+    BootstrapResult,
+    UnsupportedExportBootstrapResult,
+    bootstrap_fixture_artifacts,
+    bootstrap_unsupported_export_artifact,
+)
 from app.test_support.integration_research import (
     ResearchResultsBootstrapResult,
     bootstrap_fixture_research_results,
@@ -36,6 +41,10 @@ class BootstrapResponse(BaseModel):
 
 class ResearchResultsBootstrapResponse(BaseModel):
     data: ResearchResultsBootstrapResult
+
+
+class UnsupportedExportBootstrapResponse(BaseModel):
+    data: UnsupportedExportBootstrapResult
 
 
 def _persistent_runtime_unavailable() -> SecurityProblem:
@@ -102,3 +111,26 @@ def create_research_results_bootstrap(
         workflow_store=workflow_store,
     )
     return ResearchResultsBootstrapResponse(data=result)
+
+
+@router.post(
+    "/bootstrap/unsupported-export",
+    response_model=UnsupportedExportBootstrapResponse,
+    status_code=201,
+)
+def create_unsupported_export_bootstrap(
+    request: Request,
+    source_version_id: str = Query(min_length=1),
+) -> UnsupportedExportBootstrapResponse:
+    record = request.state.session
+    factory = getattr(request.app.state, "db_session_factory", None)
+    research_service = request.app.state.research_service
+    if factory is None or research_service is None:
+        raise _persistent_runtime_unavailable()
+    result = bootstrap_unsupported_export_artifact(
+        session_id=record.id,
+        source_version_id=source_version_id,
+        factory=factory,
+        research_service=research_service,
+    )
+    return UnsupportedExportBootstrapResponse(data=result)

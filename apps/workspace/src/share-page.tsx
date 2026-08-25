@@ -1,15 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouteContext } from "@tanstack/react-router";
-import type { DomainEntityId, PublicShareSnapshot } from "@xingwen/domain";
+import type {
+  ArtifactExportDownload,
+  DomainEntityId,
+  PublicShareSnapshot,
+} from "@xingwen/domain";
 import { Button, Link, Spinner } from "@xingwen/ui";
-import { Share2 } from "@xingwen/ui/icons";
+import { Download, Share2 } from "@xingwen/ui/icons";
 
 import { ArtifactPresentationContent } from "./components/scientific-presentation";
 import {
   buildEvidencePresentation,
   EvidencePresentationContent,
 } from "./components/evidence-presentation";
-import { resolveArtifactRenderer } from "./presentation/artifact-renderer-registry";
+import {
+  resolveArtifactRenderer,
+  UnsupportedArtifactPresentation,
+} from "./presentation/artifact-renderer-registry";
+import { downloadBytes } from "./presentation/browser-download";
 
 export interface SharePageProps {
   readonly shareToken: string;
@@ -92,8 +100,12 @@ function PublicShareUnavailable({
 
 export function PublicShareView({
   snapshot,
+  onDownloadDatasetCsv = null,
 }: {
   readonly snapshot: PublicShareSnapshot;
+  readonly onDownloadDatasetCsv?:
+    | ((artifactVersionId: DomainEntityId) => Promise<ArtifactExportDownload>)
+    | null;
 }) {
   const orderedVersions = useMemo(
     () =>
@@ -111,6 +123,9 @@ export function PublicShareView({
   const [selectedEvidenceId, setSelectedEvidenceId] =
     useState<DomainEntityId | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const [downloadState, setDownloadState] = useState<
+    "idle" | "pending" | "error"
+  >("idle");
   const evidenceOrdinals = useMemo(
     () =>
       new Map(
@@ -138,6 +153,16 @@ export function PublicShareView({
       setCopyStatus("链接已复制");
     } catch {
       setCopyStatus("浏览器未允许复制，请从地址栏复制链接");
+    }
+  };
+  const downloadDatasetCsv = async () => {
+    if (!selectedVersion || !onDownloadDatasetCsv) return;
+    setDownloadState("pending");
+    try {
+      downloadBytes(await onDownloadDatasetCsv(selectedVersion.id));
+      setDownloadState("idle");
+    } catch {
+      setDownloadState("error");
     }
   };
 
@@ -190,6 +215,7 @@ export function PublicShareView({
                   onClick={() => {
                     setSelectedVersionId(version.id);
                     setSelectedEvidenceId(null);
+                    setDownloadState("idle");
                   }}
                 >
                   <span>{version.title}</span>
@@ -201,15 +227,37 @@ export function PublicShareView({
             </nav>
           ) : null}
           <section className="public-share-result" aria-label="共享科研结果">
-            <ArtifactPresentationContent
-              title={selectedVersion.title}
-              presentation={selectedVersion.presentation}
-              surface="fullscreen"
-              onSelectEvidence={setSelectedEvidenceId}
-              evidenceOrdinal={(evidenceId) =>
-                evidenceOrdinals.get(evidenceId) ?? null
-              }
-            />
+            {renderer.capability === "unsupported" ? (
+              <UnsupportedArtifactPresentation descriptor={renderer} />
+            ) : (
+              <ArtifactPresentationContent
+                title={selectedVersion.title}
+                presentation={selectedVersion.presentation}
+                surface="fullscreen"
+                onSelectEvidence={setSelectedEvidenceId}
+                evidenceOrdinal={(evidenceId) =>
+                  evidenceOrdinals.get(evidenceId) ?? null
+                }
+              />
+            )}
+            {renderer.capability === "supported" &&
+            selectedVersion.kind === "dataset" &&
+            onDownloadDatasetCsv ? (
+              <div className="public-share-export">
+                <Button
+                  size="small"
+                  variant="secondary"
+                  disabled={downloadState === "pending"}
+                  onClick={() => void downloadDatasetCsv()}
+                >
+                  <Download aria-hidden="true" />
+                  {downloadState === "pending" ? "正在下载" : "下载 CSV"}
+                </Button>
+                {downloadState === "error" ? (
+                  <p role="alert">下载失败，请重试。</p>
+                ) : null}
+              </div>
+            ) : null}
             {selectedVersion.evidenceIds.length > 0 ? (
               <section
                 className="public-share-evidence-links"
@@ -281,7 +329,17 @@ export function SharePage({ shareToken }: SharePageProps) {
   }, [attempt, runtime.repositories.shares, shareToken]);
 
   if (state.status === "ready") {
-    return <PublicShareView snapshot={state.snapshot} />;
+    return (
+      <PublicShareView
+        snapshot={state.snapshot}
+        onDownloadDatasetCsv={(artifactVersionId) =>
+          runtime.repositories.shares.downloadPublicDatasetCsv(
+            shareToken,
+            artifactVersionId,
+          )
+        }
+      />
+    );
   }
   return (
     <PublicShareUnavailable

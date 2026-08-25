@@ -22,6 +22,7 @@ from app.db.models import (
     WorkspaceSnapshotModel,
 )
 from app.schemas.core import (
+    ArtifactKind,
     CreateShareSnapshotRequest,
     PublicArtifactPresentation,
     PublicArtifactVersion,
@@ -137,6 +138,15 @@ class _ShareRecord:
     snapshot: ShareSnapshot
     artifact_versions: tuple[PublicArtifactVersion, ...]
     evidence: tuple[PublicEvidence, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class PublicExportAuthorization:
+    """Internal capability for one frozen, share-allowlisted Dataset export."""
+
+    share_id: str
+    owner_session_id: str
+    artifact_version_id: str
 
 
 class InMemorySnapshotStore:
@@ -373,6 +383,36 @@ class InMemorySnapshotStore:
                 redaction_policy=snapshot.redaction_policy,
                 created_at=snapshot.created_at,
                 expires_at=snapshot.expires_at,
+            )
+
+    def authorize_public_export(
+        self, *, raw_token: str, artifact_version_id: str, now: datetime
+    ) -> PublicExportAuthorization:
+        with self._lock:
+            token_hash = _hash_token(raw_token)
+            share_id = self._share_by_token_hash.get(token_hash)
+            record = self._shares.get(share_id) if share_id is not None else None
+            if record is None or not hmac.compare_digest(record.token_hash, token_hash):
+                raise _not_found("SHARE_NOT_FOUND")
+            snapshot = self._snapshot_status(record.snapshot, now)
+            if snapshot.status is not ShareStatus.active or not _share_evidence_closure_is_valid(
+                record.artifact_versions, record.evidence
+            ):
+                raise _not_found("SHARE_NOT_FOUND")
+            version = next(
+                (
+                    item
+                    for item in record.artifact_versions
+                    if item.id == artifact_version_id
+                ),
+                None,
+            )
+            if version is None or version.kind is not ArtifactKind.dataset:
+                raise _not_found("SHARE_NOT_FOUND")
+            return PublicExportAuthorization(
+                share_id=snapshot.id,
+                owner_session_id=record.owner_session_id,
+                artifact_version_id=version.id,
             )
 
     def token_hash_for_testing(self, share_id: str) -> str:
@@ -747,6 +787,44 @@ class PersistentSnapshotStore(InMemorySnapshotStore):
                 expires_at=_utc(row.expires_at),
             )
 
+    def authorize_public_export(
+        self, *, raw_token: str, artifact_version_id: str, now: datetime
+    ) -> PublicExportAuthorization:
+        token_hash = _hash_token(raw_token)
+        with self._factory() as session:
+            row = session.scalar(
+                select(ShareSnapshotModel).where(
+                    ShareSnapshotModel.token_hash == token_hash
+                )
+            )
+            if row is None or not hmac.compare_digest(row.token_hash, token_hash):
+                raise _not_found("SHARE_NOT_FOUND")
+            snapshot = _share_snapshot(row, now=now)
+            if snapshot.status is not ShareStatus.active:
+                raise _not_found("SHARE_NOT_FOUND")
+            try:
+                versions = tuple(
+                    PublicArtifactVersion.model_validate(item)
+                    for item in row.artifact_versions
+                )
+                evidence = tuple(
+                    PublicEvidence.model_validate(item) for item in row.evidence
+                )
+            except ValidationError as exc:
+                raise _not_found("SHARE_NOT_FOUND") from exc
+            if not _share_evidence_closure_is_valid(versions, evidence):
+                raise _not_found("SHARE_NOT_FOUND")
+            version = next(
+                (item for item in versions if item.id == artifact_version_id), None
+            )
+            if version is None or version.kind is not ArtifactKind.dataset:
+                raise _not_found("SHARE_NOT_FOUND")
+            return PublicExportAuthorization(
+                share_id=str(row.id),
+                owner_session_id=str(row.owner_session_id),
+                artifact_version_id=version.id,
+            )
+
     def token_hash_for_testing(self, share_id: str) -> str:
         with self._factory() as session:
             row = session.get(ShareSnapshotModel, share_id)
@@ -871,6 +949,19 @@ class SnapshotService:
     ) -> PublicShareSnapshot:
         return self.store.resolve_public_share(
             raw_token=raw_token, now=now or datetime.now(UTC)
+        )
+
+    def authorize_public_export(
+        self,
+        *,
+        raw_token: str,
+        artifact_version_id: str,
+        now: datetime | None = None,
+    ) -> PublicExportAuthorization:
+        return self.store.authorize_public_export(
+            raw_token=raw_token,
+            artifact_version_id=artifact_version_id,
+            now=now or datetime.now(UTC),
         )
 
 

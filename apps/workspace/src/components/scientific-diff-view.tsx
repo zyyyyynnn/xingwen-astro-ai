@@ -1,6 +1,8 @@
 import type { ScientificDiffResult } from "../presentation/scientific-diff";
 
 const CATEGORY_LABELS = {
+  contract: "研究契约",
+  sources: "来源集合",
   conclusions: "结论",
   evidence: "证据",
   relations: "关系",
@@ -26,7 +28,7 @@ export function ScientificDiffView({ results }: ScientificDiffViewProps) {
     return (
       <div className="scientific-diff-empty" role="status">
         <h3>没有发现科学内容变化</h3>
-        <p>所选结果在结论、证据、关系、限制与冲突方面保持一致。</p>
+        <p>所选结果的研究契约、来源与科学内容保持一致。</p>
       </div>
     );
   }

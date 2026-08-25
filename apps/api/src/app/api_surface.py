@@ -52,14 +52,21 @@ def requires_authentication(method: str, path: str) -> bool:
 
 
 def is_public_share_read(method: str, path: str) -> bool:
-    """Return ``True`` only for anonymous reads of one opaque share-token segment."""
+    """Return ``True`` only for a share projection or its frozen Dataset CSV."""
 
     if method not in _PUBLIC_SHARE_READ_METHODS:
         return False
     if not path.startswith(PUBLIC_SHARE_PREFIX):
         return False
-    token_segment = path.removeprefix(PUBLIC_SHARE_PREFIX)
-    return bool(token_segment) and "/" not in token_segment
+    segments = path.removeprefix(PUBLIC_SHARE_PREFIX).split("/")
+    if len(segments) == 1:
+        return bool(segments[0])
+    return (
+        len(segments) == 5
+        and all(segments)
+        and segments[1] == "artifacts"
+        and segments[3:] == ["exports", "csv"]
+    )
 
 
 def public_share_instance() -> str:

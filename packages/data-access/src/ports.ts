@@ -52,6 +52,7 @@ import type {
   RunEvent,
   ShareSnapshot,
   ShareSnapshotCreated,
+  SourceSnapshotSummary,
   SourceCollectionArtifactReview,
   UtcIsoTimestamp,
   WorkspaceSnapshot,
@@ -206,6 +207,7 @@ export interface ArtifactReadRepository {
    */
   getVersion(id: DomainEntityId): Promise<ArtifactVersionMetadata | null>;
   getEvidence(id: DomainEntityId): Promise<Evidence | null>;
+  getSourceSnapshot(id: DomainEntityId): Promise<SourceSnapshotSummary | null>;
 }
 
 export interface ResearchInputRepository {
@@ -399,6 +401,10 @@ export interface ShareRepository {
   ): Promise<ShareSnapshotCreated>;
   revoke(projectId: DomainEntityId, shareId: DomainEntityId): Promise<void>;
   getPublic(shareToken: string): Promise<PublicShareSnapshot | null>;
+  downloadPublicDatasetCsv(
+    shareToken: string,
+    artifactVersionId: DomainEntityId,
+  ): Promise<ArtifactExportDownload>;
 }
 
 export interface ModelProviderRepository {

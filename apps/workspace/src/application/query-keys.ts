@@ -63,6 +63,15 @@ export const workspaceQueryKeys = Object.freeze({
       "evidence",
       evidenceId,
     ] as const,
+  sourceSnapshot: (
+    projectId: DomainEntityId,
+    sourceSnapshotId: DomainEntityId,
+  ) =>
+    [
+      ...workspaceQueryKeys.projectScope(projectId),
+      "source-snapshot",
+      sourceSnapshotId,
+    ] as const,
   paperSummary: (
     projectId: DomainEntityId,
     artifactVersionId: DomainEntityId,

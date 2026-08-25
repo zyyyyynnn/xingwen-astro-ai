@@ -13,6 +13,7 @@ import type {
   PaperSummaryDocumentSourceReview,
   PaperSummaryReview,
   ScientificArtifactReview,
+  SourceSnapshotSummary,
 } from "@xingwen/domain";
 import type {
   ActivityPresentationEvent,
@@ -343,6 +344,20 @@ export function createWorkspaceQueries({
           }
           return researchAdapter.toEvidenceViewModel(evidence);
         },
+      }),
+    sourceSnapshot: (
+      projectId: DomainEntityId,
+      sourceSnapshotId: DomainEntityId,
+    ) =>
+      queryOptions({
+        queryKey: workspaceQueryKeys.sourceSnapshot(
+          projectId,
+          sourceSnapshotId,
+        ),
+        queryFn: (): Promise<SourceSnapshotSummary> =>
+          requireEntity("SourceSnapshot", sourceSnapshotId, () =>
+            repositories.artifacts.getSourceSnapshot(sourceSnapshotId),
+          ),
       }),
     dataArtifact: (
       projectId: DomainEntityId,

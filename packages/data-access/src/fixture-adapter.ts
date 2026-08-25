@@ -28,6 +28,7 @@ import {
   type RunEvent,
   type RunStepSnapshot,
   type ShareSnapshot,
+  type SourceSnapshotSummary,
   type WorkspaceSnapshot,
   type ContentHash,
   type ModelProviderConfigurationStatus,
@@ -60,7 +61,10 @@ import { createFixtureDataArtifactRepository } from "./data-artifact-repository"
 import { createFixtureGraphArtifactRepository } from "./graph-artifact-repository";
 import { createFixtureLiteratureArtifactRepository } from "./literature-artifact-repository";
 import { createFixtureRevisionRepository } from "./revision-repository";
-import { assemblePaperAcquisitionReview } from "./paper-acquisition-repository";
+import {
+  assemblePaperAcquisitionReview,
+  mapSnapshotSummary,
+} from "./paper-acquisition-repository";
 import { assemblePaperSummaryReview } from "./paper-summary-repository";
 import type {
   CreateResearchRunInput,
@@ -441,6 +445,32 @@ export function createFixtureRepositories(
   const evidenceStore = new MemoryStore(
     bundle.data.evidence.map((entity) => mapEvidence(entity)),
   );
+  const sourceSnapshotsById = new Map<string, SourceSnapshotSummary>();
+  const sourceSnapshotDtos = [
+    ...bundle.data.paperAcquisitions.flatMap(
+      (item) => item.collection.source_snapshots,
+    ),
+    ...bundle.data.paperSummaries.flatMap(
+      (item) => item.summary.source_snapshots,
+    ),
+    ...bundle.data.dataArtifactReads.flatMap((read) => read.source_snapshots),
+    ...bundle.data.fieldDictionaryArtifactReads.flatMap(
+      (read) => read.source_snapshots,
+    ),
+    ...bundle.data.sourceCollectionArtifactReads.flatMap(
+      (read) => read.source_snapshots,
+    ),
+    ...bundle.data.literatureClaimReads.flatMap(
+      (read) => read.source_snapshots,
+    ),
+    ...bundle.data.literatureRelationReads.flatMap(
+      (read) => read.source_snapshots,
+    ),
+  ];
+  for (const dto of sourceSnapshotDtos) {
+    const snapshot = mapSnapshotSummary(dto);
+    sourceSnapshotsById.set(snapshot.id, snapshot);
+  }
   const workspaces = new MemoryStore<WorkspaceSnapshot>([]);
   const researchInputs = new MemoryStore<ResearchInputRef>([]);
   const researchInputContent = new Map<DomainEntityId, Blob>();
@@ -470,6 +500,11 @@ export function createFixtureRepositories(
     updatedAt: null,
     editable: false,
   };
+  const fixtureArtifactExports = createFixtureArtifactExportRepository(
+    bundle.data.projects[0]?.id
+      ? asEntityId(bundle.data.projects[0].id)
+      : asEntityId("proj_fixture"),
+  );
 
   function publicPresentation(
     kind: PublicArtifactVersion["kind"],
@@ -1115,6 +1150,7 @@ export function createFixtureRepositories(
       // provenance metadata only; rich content stays behind its dedicated port.
       getVersion: async (id) => versions.get(id),
       getEvidence: async (id) => evidenceStore.get(id),
+      getSourceSnapshot: async (id) => sourceSnapshotsById.get(id) ?? null,
     },
     researchInputs: {
       create: async (input) => {
@@ -1278,11 +1314,7 @@ export function createFixtureRepositories(
         );
       },
     },
-    artifactExports: createFixtureArtifactExportRepository(
-      bundle.data.projects[0]?.id
-        ? asEntityId(bundle.data.projects[0].id)
-        : asEntityId("proj_fixture"),
-    ),
+    artifactExports: fixtureArtifactExports,
     workspaces: {
       getByProjectId: async (projectId) =>
         workspaces.filter((w) => w.projectId === projectId)[0] ?? null,
@@ -1411,6 +1443,28 @@ export function createFixtureRepositories(
           artifactVersions: record.artifactVersions,
           evidence: record.evidence,
         };
+      },
+      downloadPublicDatasetCsv: async (shareToken, artifactVersionId) => {
+        const shareId = shareByToken.get(shareToken);
+        const record = shareId ? shares.get(shareId) : undefined;
+        const version = record?.artifactVersions.find(
+          (candidate) => candidate.id === artifactVersionId,
+        );
+        if (
+          !record ||
+          shareStatus(record.snapshot, clock()).status !== "active" ||
+          version?.kind !== "dataset"
+        ) {
+          throw new NotFoundError(
+            "Public share unavailable",
+            "SHARE_NOT_FOUND",
+          );
+        }
+        const exportRecord = await fixtureArtifactExports.create(
+          artifactVersionId,
+          "csv",
+        );
+        return fixtureArtifactExports.download(exportRecord);
       },
     },
     revisions: createFixtureRevisionRepository(),

@@ -45,12 +45,14 @@ import { artifactKindLabel } from "./artifact-presentation-labels";
 import { workspaceQueryKeys } from "../application/query-keys";
 import {
   buildDataArtifactDiffSnapshot,
+  buildContractDiffItems,
   buildEvidenceDiffItems,
   buildGraphDiffSnapshot,
   buildLiteratureDiffSnapshot,
   buildPaperCollectionDiffSnapshot,
   buildPaperSummaryDiffSnapshot,
   buildScientificArtifactDiffSnapshot,
+  buildSourceSetDiffItems,
   compareScientificSnapshots,
   type ArtifactReviewForDiff,
   type ScientificDiffSnapshot,
@@ -132,6 +134,10 @@ export interface ArtifactRendererDescriptor {
   readonly kind: ArtifactKind;
   readonly label: string;
   readonly capability: "supported" | "unsupported";
+  readonly unsupportedPresentation: {
+    readonly title: string;
+    readonly description: string;
+  } | null;
   readonly contentFamily: ArtifactContentFamily | "export" | "scientific";
   readonly displayPriority: number;
   readonly layoutMode: ArtifactLayoutMode;
@@ -140,6 +146,22 @@ export interface ArtifactRendererDescriptor {
   readonly FullscreenRenderer: ComponentType<ArtifactFullscreenRendererProps>;
   readonly TextFallback: ComponentType<ArtifactFullscreenRendererProps>;
   readonly DiffRenderer: ComponentType<ArtifactDiffRendererProps>;
+}
+
+export function UnsupportedArtifactPresentation({
+  descriptor,
+}: {
+  readonly descriptor: ArtifactRendererDescriptor;
+}) {
+  if (descriptor.unsupportedPresentation === null) return null;
+  return (
+    <Alert>
+      <AlertDescription>
+        <strong>{descriptor.unsupportedPresentation.title}</strong>
+        <p>{descriptor.unsupportedPresentation.description}</p>
+      </AlertDescription>
+    </Alert>
+  );
 }
 
 function PublicLoadError({
@@ -303,6 +325,34 @@ function defineRenderer<
         onSelectEvidence: () => undefined,
       }),
     );
+    const baselineRunQuery = useQuery(
+      props.runtime.application.queries.run(
+        props.projectId,
+        props.baselineVersion.createdByRunId,
+      ),
+    );
+    const currentRunQuery = useQuery(
+      props.runtime.application.queries.run(
+        props.projectId,
+        props.currentVersion.createdByRunId,
+      ),
+    );
+    const baselineContractQuery = useQuery({
+      ...props.runtime.application.queries.contract(
+        props.projectId,
+        baselineRunQuery.data?.contractId ??
+          ("pending-contract" as DomainEntityId),
+      ),
+      enabled: baselineRunQuery.data !== undefined,
+    });
+    const currentContractQuery = useQuery({
+      ...props.runtime.application.queries.contract(
+        props.projectId,
+        currentRunQuery.data?.contractId ??
+          ("pending-contract" as DomainEntityId),
+      ),
+      enabled: currentRunQuery.data !== undefined,
+    });
     const baselineEvidenceQueries = useQueries({
       queries: props.baselineVersion.provenance.evidenceIds.map((evidenceId) =>
         props.runtime.application.queries.evidence(props.projectId, evidenceId),
@@ -313,24 +363,65 @@ function defineRenderer<
         props.runtime.application.queries.evidence(props.projectId, evidenceId),
       ),
     });
+    const baselineSourceQueries = useQueries({
+      queries: props.baselineVersion.provenance.sourceSnapshotIds.map(
+        (sourceSnapshotId) =>
+          props.runtime.application.queries.sourceSnapshot(
+            props.projectId,
+            sourceSnapshotId,
+          ),
+      ),
+    });
+    const currentSourceQueries = useQueries({
+      queries: props.currentVersion.provenance.sourceSnapshotIds.map(
+        (sourceSnapshotId) =>
+          props.runtime.application.queries.sourceSnapshot(
+            props.projectId,
+            sourceSnapshotId,
+          ),
+      ),
+    });
+
+    const relatedError = [
+      baselineQuery,
+      currentQuery,
+      baselineRunQuery,
+      currentRunQuery,
+      baselineContractQuery,
+      currentContractQuery,
+      ...baselineEvidenceQueries,
+      ...currentEvidenceQueries,
+      ...baselineSourceQueries,
+      ...currentSourceQueries,
+    ].find((query) => query.isError)?.error;
+    if (relatedError) {
+      return <PublicLoadError runtime={props.runtime} error={relatedError} />;
+    }
 
     if (
       baselineQuery.isPending ||
       currentQuery.isPending ||
+      baselineRunQuery.isPending ||
+      currentRunQuery.isPending ||
+      baselineContractQuery.isPending ||
+      currentContractQuery.isPending ||
       baselineEvidenceQueries.some((query) => query.isPending) ||
-      currentEvidenceQueries.some((query) => query.isPending)
+      currentEvidenceQueries.some((query) => query.isPending) ||
+      baselineSourceQueries.some((query) => query.isPending) ||
+      currentSourceQueries.some((query) => query.isPending)
     ) {
       return <p aria-busy="true">正在比较科学结果…</p>;
     }
-    const evidenceError = [
-      ...baselineEvidenceQueries,
-      ...currentEvidenceQueries,
-    ].find((query) => query.isError)?.error;
-    if (baselineQuery.isError || currentQuery.isError || evidenceError) {
+    if (
+      baselineQuery.data === undefined ||
+      currentQuery.data === undefined ||
+      baselineContractQuery.data === undefined ||
+      currentContractQuery.data === undefined
+    ) {
       return (
         <PublicLoadError
           runtime={props.runtime}
-          error={baselineQuery.error ?? currentQuery.error ?? evidenceError}
+          error={new Error("Scientific Diff dependencies are unavailable")}
         />
       );
     }
@@ -349,8 +440,16 @@ function defineRenderer<
     const currentEvidence = currentEvidenceQueries.flatMap((query) =>
       query.data ? [query.data] : [],
     );
+    const baselineSources = baselineSourceQueries.flatMap((query) =>
+      query.data ? [query.data] : [],
+    );
+    const currentSources = currentSourceQueries.flatMap((query) =>
+      query.data ? [query.data] : [],
+    );
     const baseline = {
       ...baselineSnapshot,
+      contract: buildContractDiffItems(baselineContractQuery.data),
+      sources: buildSourceSetDiffItems(baselineSources),
       evidence:
         baselineEvidence.length > 0
           ? buildEvidenceDiffItems(baselineEvidence)
@@ -358,6 +457,8 @@ function defineRenderer<
     };
     const current = {
       ...currentSnapshot,
+      contract: buildContractDiffItems(currentContractQuery.data),
+      sources: buildSourceSetDiffItems(currentSources),
       evidence:
         currentEvidence.length > 0
           ? buildEvidenceDiffItems(currentEvidence)
@@ -374,6 +475,7 @@ function defineRenderer<
     kind: definition.kind,
     label: artifactKindLabel(definition.kind),
     capability: "supported",
+    unsupportedPresentation: null,
     contentFamily: definition.contentFamily,
     displayPriority: definition.displayPriority,
     layoutMode: definition.layoutMode,
@@ -685,10 +787,16 @@ const graph = defineRenderer({
   buildDiffSnapshot: buildGraphDiffSnapshot,
 });
 
+const EXPORT_UNSUPPORTED_PRESENTATION = {
+  title: "暂不支持预览此类结果",
+  description: "请返回结构化数据结果下载已支持的格式。",
+} as const;
+
 const exportUnsupported: ArtifactRendererDescriptor = {
   kind: "export",
   label: artifactKindLabel("export"),
   capability: "unsupported",
+  unsupportedPresentation: EXPORT_UNSUPPORTED_PRESENTATION,
   contentFamily: "export",
   displayPriority: 100,
   layoutMode: "reading",
@@ -702,11 +810,7 @@ const exportUnsupported: ArtifactRendererDescriptor = {
   },
   ThreadRenderer: ThreadResultBlock,
   FullscreenRenderer: () => (
-    <Alert className="m-5">
-      <AlertDescription>
-        当前导出数据没有单独的预览契约，请在结构化数据结果中下载已支持的格式。
-      </AlertDescription>
-    </Alert>
+    <UnsupportedArtifactPresentation descriptor={exportUnsupported} />
   ),
   TextFallback: () => <p>导出数据暂无专属读取契约。</p>,
   DiffRenderer: () => <p>导出数据不支持科学内容比较。</p>,

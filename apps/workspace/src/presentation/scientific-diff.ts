@@ -1,9 +1,13 @@
 import type {
+  ArtifactKind,
   DomainEntityId,
+  JsonValue,
   PaperSummaryReview,
   ScientificArtifactReview,
+  SourceSnapshotSummary,
 } from "@xingwen/domain";
 import type {
+  ContractInputViewModel,
   DataArtifactReviewViewModel,
   EvidenceViewModel,
   GraphArtifactReviewViewModel,
@@ -12,6 +16,7 @@ import type {
 } from "@xingwen/research-adapter";
 
 import { taxonomyLabel } from "../components/scientific-content/shared";
+import { artifactKindLabel } from "./artifact-presentation-labels";
 
 export type ArtifactReviewForDiff =
   | DataArtifactReviewViewModel
@@ -21,8 +26,11 @@ export type ArtifactReviewForDiff =
   | GraphArtifactReviewViewModel
   | ScientificArtifactReview;
 
-export type ScientificDiffCategory =
+type ArtifactContentDiffCategory =
   "conclusions" | "evidence" | "relations" | "limitations";
+
+export type ScientificDiffCategory =
+  ArtifactContentDiffCategory | "contract" | "sources";
 
 export interface ScientificDiffItem {
   readonly key: string;
@@ -36,7 +44,8 @@ export interface ScientificDiffItem {
 }
 
 export type ScientificDiffSnapshot = Readonly<
-  Record<ScientificDiffCategory, readonly ScientificDiffItem[]>
+  Record<ArtifactContentDiffCategory, readonly ScientificDiffItem[]> &
+    Partial<Record<"contract" | "sources", readonly ScientificDiffItem[]>>
 >;
 
 export interface ScientificDiffChange {
@@ -53,6 +62,196 @@ export interface ScientificDiffResult {
 
 function item(key: string | DomainEntityId, value: string): ScientificDiffItem {
   return { key: String(key), value };
+}
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+
+function readableIdentity(value: string, hiddenFallback: string): string {
+  const taxonomy = taxonomyLabel(value);
+  if (taxonomy !== "其他") return taxonomy;
+  if (UUID_PATTERN.test(value)) return hiddenFallback;
+  return value.replaceAll(/[_-]+/gu, " ");
+}
+
+function readableList(
+  values: readonly string[],
+  hiddenFallback: string,
+): string {
+  if (values.length === 0) return "未指定";
+  return [...values]
+    .map((value) => readableIdentity(value, hiddenFallback))
+    .sort((left, right) => left.localeCompare(right, "zh-Hans"))
+    .join("、");
+}
+
+function semanticList(values: readonly string[]): string {
+  return [...values].sort().join("\u001f");
+}
+
+function typedParameterValue(value: JsonValue): string {
+  if (value === null) return "未设置";
+  if (typeof value === "boolean") return value ? "是" : "否";
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map(typedParameterValue).join("、");
+  }
+  return Object.entries(value)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(
+      ([key, entry]) =>
+        `${readableIdentity(key, "参数")}：${typedParameterValue(entry)}`,
+    )
+    .join("；");
+}
+
+function contractItem(
+  key: string,
+  value: string,
+  comparisonValue = value,
+): ScientificDiffItem {
+  return { key, value, comparisonValue };
+}
+
+/** Typed projection of the immutable Research Contract for Scientific Diff. */
+export function buildContractDiffItems(
+  contract: ContractInputViewModel,
+): readonly ScientificDiffItem[] {
+  const tasks = contract.scientificTasks.map((task) => {
+    const parameters = Object.entries(task.parameters)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(
+        ([key, value]) =>
+          `${readableIdentity(key, "参数")}：${typedParameterValue(value)}`,
+      );
+    const skill = readableIdentity(task.skillId, "科研任务");
+    const display = [skill, ...parameters].join("；");
+    const comparisonValue = [
+      task.skillId,
+      ...Object.entries(task.parameters)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, value]) => `${key}=${typedParameterValue(value)}`),
+      `inputs=${semanticList(task.inputRefs)}`,
+    ].join("\u001f");
+    return {
+      key: `scientific-task:${String(task.taskId)}`,
+      matchGroup: `scientific-task:${task.skillId}`,
+      semanticIdentity: comparisonValue,
+      value: `科研任务：${display}`,
+      comparisonValue,
+    } satisfies ScientificDiffItem;
+  });
+
+  const outputs = contract.outputRequirements.map((kind: ArtifactKind) =>
+    artifactKindLabel(kind),
+  );
+  return [
+    contractItem("research-goal", `研究目标：${contract.researchGoal}`),
+    contractItem(
+      "target-objects",
+      `研究对象：${readableList(contract.targetObjects, "已选研究对象")}`,
+      semanticList(contract.targetObjects),
+    ),
+    contractItem(
+      "requested-fields",
+      `研究字段：${readableList(contract.requestedFields, "已选研究字段")}`,
+      semanticList(contract.requestedFields),
+    ),
+    contractItem(
+      "source-scope",
+      `允许来源：${readableList(contract.sourceScope.allowedSources, "已选来源")}`,
+      semanticList(contract.sourceScope.allowedSources),
+    ),
+    contractItem(
+      "paper-keywords",
+      `论文关键词：${readableList(contract.paperSearchScope.keywords, "关键词")}`,
+      semanticList(contract.paperSearchScope.keywords),
+    ),
+    contractItem(
+      "paper-years",
+      `论文年份：${contract.paperSearchScope.yearFrom ?? "不限"} 至 ${contract.paperSearchScope.yearTo ?? "不限"}`,
+      `${contract.paperSearchScope.yearFrom ?? ""}:${contract.paperSearchScope.yearTo ?? ""}`,
+    ),
+    contractItem(
+      "paper-sources",
+      `论文来源：${readableList(contract.paperSearchScope.sourceIds, "已选论文来源")}`,
+      semanticList(contract.paperSearchScope.sourceIds),
+    ),
+    contractItem(
+      "paper-limit",
+      `候选论文上限：${contract.paperSearchScope.maxCandidates}`,
+    ),
+    ...tasks,
+    contractItem(
+      "requested-outputs",
+      `交付结果：${[...outputs].sort().join("、")}`,
+      semanticList(contract.outputRequirements),
+    ),
+    contractItem(
+      "evidence-requirements",
+      `证据要求：${contract.evidenceRequirements.requireLocator ? "需要定位" : "不要求定位"}；${contract.evidenceRequirements.requireSourceSnapshot ? "需要来源快照" : "不要求来源快照"}；最低覆盖率 ${Math.round(contract.evidenceRequirements.minimumCoverage * 100)}%`,
+      [
+        contract.evidenceRequirements.requireLocator,
+        contract.evidenceRequirements.requireSourceSnapshot,
+        contract.evidenceRequirements.minimumCoverage,
+      ].join(":"),
+    ),
+    contractItem(
+      "quality-constraints",
+      `质量约束：来源完整度至少 ${Math.round(contract.qualityConstraints.sourceCompletenessMin * 100)}%；单位一致性至少 ${Math.round(contract.qualityConstraints.unitConsistencyMin * 100)}%`,
+      `${contract.qualityConstraints.sourceCompletenessMin}:${contract.qualityConstraints.unitConsistencyMin}`,
+    ),
+    contractItem(
+      "unit-policy",
+      `单位规则：${contract.dataRequirements.unitPolicy === "canonical" ? "统一为标准单位" : "按研究约定"}`,
+      contract.dataRequirements.unitPolicy,
+    ),
+    contractItem(
+      "document-source-policy",
+      `研究文档：${contract.dataRequirements.documentSourcePolicy === "research_input" ? "允许作为来源" : "不作为来源"}`,
+      contract.dataRequirements.documentSourcePolicy,
+    ),
+  ];
+}
+
+function sourceSnapshotLabel(snapshot: SourceSnapshotSummary): string {
+  const sourceName = readableIdentity(snapshot.sourceId, "已授权来源");
+  const retrieved = new Date(snapshot.retrievedAt);
+  const retrievedLabel = Number.isNaN(retrieved.getTime())
+    ? snapshot.retrievedAt
+    : retrieved.toLocaleString(undefined, {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+  return `${readableIdentity(snapshot.sourceType, "科研来源")} · ${sourceName}；获取于 ${retrievedLabel}；${snapshot.licenseNote || "许可信息未提供"}`;
+}
+
+/** Version-bound Source Set; hashes and machine ids stay comparison-only. */
+export function buildSourceSetDiffItems(
+  snapshots: readonly SourceSnapshotSummary[],
+): readonly ScientificDiffItem[] {
+  return snapshots.map((snapshot) => {
+    const semanticIdentity = [
+      snapshot.id,
+      snapshot.sourceId,
+      snapshot.sourceType,
+      snapshot.contentHash,
+      snapshot.queryHash,
+      snapshot.retrievedAt,
+    ].join("\u001f");
+    return {
+      key: String(snapshot.id),
+      value: sourceSnapshotLabel(snapshot),
+      comparisonValue: semanticIdentity,
+      semanticIdentity,
+      matchGroup: `source:${snapshot.sourceId}`,
+    };
+  });
 }
 
 function evidenceLocatorLabel(locator: EvidenceViewModel["locator"]): string {
@@ -609,8 +808,20 @@ export function compareScientificSnapshots(
   baseline: ScientificDiffSnapshot,
   current: ScientificDiffSnapshot,
 ): readonly ScientificDiffResult[] {
-  return (["conclusions", "evidence", "relations", "limitations"] as const).map(
-    (category) =>
-      compareCategory(category, baseline[category], current[category]),
+  return (
+    [
+      "contract",
+      "sources",
+      "conclusions",
+      "evidence",
+      "relations",
+      "limitations",
+    ] as const
+  ).map((category) =>
+    compareCategory(
+      category,
+      baseline[category] ?? [],
+      current[category] ?? [],
+    ),
   );
 }

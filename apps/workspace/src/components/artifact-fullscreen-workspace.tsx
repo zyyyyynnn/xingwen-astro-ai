@@ -7,6 +7,7 @@ import type {
 import type {
   ArtifactVersionMetadataViewModel,
   ResearchArtifactViewModel,
+  ResearchRunViewModel,
 } from "@xingwen/research-adapter";
 import {
   Alert,
@@ -74,6 +75,37 @@ function versionTimestamp(value: string): string {
       });
 }
 
+export function describeArtifactLineage(
+  version: Pick<ArtifactVersionMetadataViewModel, "provenance">,
+  run: Pick<ResearchRunViewModel, "parentRunId" | "derivationKind">,
+  versions: readonly ArtifactVersionSummary[],
+): {
+  readonly description: string | null;
+  readonly predecessor: ArtifactVersionSummary | null;
+} {
+  const predecessor =
+    versions.find(
+      (candidate) => candidate.id === version.provenance.supersedesVersionId,
+    ) ?? null;
+  const supersedesCopy = version.provenance.supersedesVersionId
+    ? "此结果明确替代直接前序结果。"
+    : null;
+  const derivationCopy =
+    run.parentRunId === null
+      ? null
+      : run.derivationKind === "revision"
+        ? "本次研究是在前次研究基础上的修订。"
+        : run.derivationKind === "retry"
+          ? "本次研究是对前次研究的重新执行。"
+          : run.derivationKind === "fork"
+            ? "本次研究从前次研究分支派生。"
+            : "本次研究沿用前次研究作为上游。";
+  const description = [supersedesCopy, derivationCopy]
+    .filter((value): value is string => value !== null)
+    .join("");
+  return { description: description || null, predecessor };
+}
+
 function VersionSelector({
   versions,
   selectedVersionId,
@@ -138,6 +170,7 @@ function ArtifactDiffSheet({
   descriptor,
   open,
   onOpenChange,
+  onOpenArtifactVersion,
 }: {
   readonly runtime: WorkspaceRuntimeBoundaries;
   readonly projectId: DomainEntityId;
@@ -147,6 +180,8 @@ function ArtifactDiffSheet({
   readonly descriptor: ArtifactRendererDescriptor;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
+  readonly onOpenArtifactVersion:
+    ((artifactVersionId: DomainEntityId) => void) | null;
 }) {
   const candidates = [...versions]
     .filter((version) => version.id !== currentVersion.id)
@@ -166,7 +201,18 @@ function ArtifactDiffSheet({
     ),
     enabled: open && effectiveBaselineVersionId !== null,
   });
+  const currentRunQuery = useQuery({
+    ...runtime.application.queries.run(
+      projectId,
+      currentVersion.createdByRunId,
+    ),
+    enabled: open,
+  });
   const DiffRenderer = descriptor.DiffRenderer;
+  const lineage = currentRunQuery.data
+    ? describeArtifactLineage(currentVersion, currentRunQuery.data, versions)
+    : null;
+  const predecessor = lineage?.predecessor ?? null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -174,7 +220,7 @@ function ArtifactDiffSheet({
         <SheetHeader>
           <SheetTitle>比较研究结果</SheetTitle>
           <SheetDescription>
-            按科学含义查看结论、证据、关系、限制与冲突的变化。
+            查看研究契约、来源集合与科学内容的变化。
           </SheetDescription>
         </SheetHeader>
         <div className="result-sheet-body">
@@ -201,6 +247,30 @@ function ArtifactDiffSheet({
             </label>
             <p>当前结果 · {versionTimestamp(currentVersion.createdAt)}</p>
           </div>
+          {currentRunQuery.isError ? (
+            <Alert variant="destructive">
+              <AlertDescription>
+                {safeError(runtime, currentRunQuery.error)}
+              </AlertDescription>
+            </Alert>
+          ) : lineage?.description ? (
+            <section aria-label="结果沿革" className="scientific-diff-lineage">
+              <h3>结果沿革</h3>
+              <p>{lineage.description}</p>
+              {predecessor && onOpenArtifactVersion ? (
+                <Button
+                  size="small"
+                  variant="secondary"
+                  onClick={() => {
+                    onOpenChange(false);
+                    onOpenArtifactVersion(predecessor.id);
+                  }}
+                >
+                  打开直接前序结果
+                </Button>
+              ) : null}
+            </section>
+          ) : null}
           {baselineQuery.isPending ? (
             <p aria-busy="true">正在读取历史结果…</p>
           ) : baselineQuery.isError ? (
@@ -588,6 +658,7 @@ export function ArtifactFullscreenWorkspace({
             descriptor={descriptor}
             open={diffOpen}
             onOpenChange={setDiffOpen}
+            onOpenArtifactVersion={onOpenArtifactVersion}
           />
         ) : null}
         {artifact && version ? (

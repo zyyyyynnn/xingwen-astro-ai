@@ -495,6 +495,15 @@ export const defaultHandlers = [
     }
     return HttpResponse.json(envelope(EVIDENCE_READ));
   }),
+  http.get(`${BASE_URL}/api/source-snapshots/:snapshotId`, ({ params }) => {
+    const snapshot = exoplanetHostStarFixture.data.dataArtifactReads
+      .flatMap((read) => read.source_snapshots)
+      .find((candidate) => candidate.id === params.snapshotId);
+    if (!snapshot) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(envelope(snapshot));
+  }),
   http.get(
     `${BASE_URL}/api/projects/:projectId/workspace-snapshot`,
     ({ params }) => {

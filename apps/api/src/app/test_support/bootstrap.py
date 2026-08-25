@@ -41,8 +41,10 @@ from app.db.models import (
     ResearchArtifactModel,
     SourceSnapshotModel,
 )
+from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import (
     ArtifactKind,
+    ExportArtifactContent,
     ResearchContract,
 )
 from app.schemas.data_artifacts import (
@@ -115,6 +117,111 @@ class BootstrapResult(BaseModel):
     execution_mode: str = "demo_replay"
     source_mode: str = "fixture"
     scenario: str = "exoplanet_host_star"
+
+
+class UnsupportedExportBootstrapResult(BaseModel):
+    """Test-only frozen export result used to exercise unsupported presentation."""
+
+    model_config = ConfigDict(frozen=True)
+
+    artifact_id: str
+    artifact_version_id: str
+
+
+def bootstrap_unsupported_export_artifact(
+    *,
+    session_id: str,
+    source_version_id: str,
+    factory: Callable[[], Session],
+    research_service: ResearchApplicationService,
+) -> UnsupportedExportBootstrapResult:
+    """Seed one read-only export version; mounted only in test/integration."""
+
+    try:
+        source_uuid = UUID(source_version_id)
+    except ValueError as exc:
+        raise SecurityProblem(
+            status=404,
+            code="ARTIFACT_VERSION_NOT_FOUND",
+            title="Artifact version not found",
+            detail="The requested ArtifactVersion is unavailable",
+        ) from exc
+    with factory() as session:
+        source = session.get(ArtifactVersionModel, source_uuid)
+        if source is None:
+            raise SecurityProblem(
+                status=404,
+                code="ARTIFACT_VERSION_NOT_FOUND",
+                title="Artifact version not found",
+                detail="The requested ArtifactVersion is unavailable",
+            )
+        run_id = str(source.created_by_run_id)
+    run = research_service.get_run(run_id=run_id, session_id=session_id)
+    project_id = UUID(run.project_id)
+    artifact_id = step_uuid(str(project_id), "artifact:unsupported-export")
+    version_id = _seed_uuid(source_version_id, "artifact-version:unsupported-export")
+    content_model = ExportArtifactContent(
+        kind=ArtifactKind.export,
+        format="csv",
+        artifact_version_ids=(source_version_id,),
+    )
+    content = content_model.model_dump(mode="json")
+    with factory() as session, session.begin():
+        source = session.get(ArtifactVersionModel, source_uuid)
+        if source is None or source.project_id != project_id:
+            raise SecurityProblem(
+                status=404,
+                code="ARTIFACT_VERSION_NOT_FOUND",
+                title="Artifact version not found",
+                detail="The requested ArtifactVersion is unavailable",
+            )
+        session.execute(
+            insert(ResearchArtifactModel)
+            .values(
+                id=artifact_id,
+                project_id=project_id,
+                kind=ArtifactKind.export.value,
+                title="Frozen export package",
+                logical_key="export.unsupported-preview",
+            )
+            .on_conflict_do_nothing(index_elements=("id",))
+        )
+        artifact = session.get(ResearchArtifactModel, artifact_id)
+        if artifact is None or artifact.project_id != project_id:
+            raise RuntimeError("Unsupported export fixture artifact is inconsistent")
+        existing = session.get(ArtifactVersionModel, version_id)
+        if existing is None:
+            existing = ArtifactVersionModel(
+                id=version_id,
+                artifact_id=artifact_id,
+                project_id=project_id,
+                created_by_run_id=source.created_by_run_id,
+                run_step_id=source.run_step_id,
+                step_attempt_id=source.step_attempt_id,
+                producer_execution_id=source.producer_execution_id,
+                version_number=1,
+                publication_key=f"unsupported-export-{source_version_id}",
+                schema_version=content_model.schema_version,
+                content=content,
+                content_hash=compute_canonical_payload_hash(content),
+                input_hash=source.input_hash,
+                source_mode="fixture",
+                producer=source.producer,
+                source_snapshot_ids=[],
+                evidence_ids=[],
+                quality_projection=None,
+                quality_projection_hash=None,
+                supersedes_version_id=None,
+            )
+            session.add(existing)
+            session.flush()
+            artifact.latest_version_id = existing.id
+        elif existing.artifact_id != artifact_id or existing.project_id != project_id:
+            raise RuntimeError("Unsupported export fixture version is inconsistent")
+    return UnsupportedExportBootstrapResult(
+        artifact_id=str(artifact_id),
+        artifact_version_id=str(version_id),
+    )
 
 
 @dataclass(frozen=True, slots=True)

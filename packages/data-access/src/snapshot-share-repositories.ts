@@ -8,6 +8,7 @@
  */
 
 import type {
+  ArtifactExportDownload,
   CreateShareSnapshotRequest,
   PublicShareSnapshot,
   ShareSnapshot,
@@ -93,6 +94,18 @@ export function createSnapshotShareRepositories(
       return payload
         ? validateAndMap("PublicShareSnapshot", payload, mapPublicShareSnapshot)
         : null;
+    },
+    async downloadPublicDatasetCsv(
+      shareToken,
+      artifactVersionId,
+    ): Promise<ArtifactExportDownload> {
+      return {
+        bytes: await http.getArrayBuffer(
+          `/api/public/shares/${seg(shareToken)}/artifacts/${seg(artifactVersionId)}/exports/csv`,
+        ),
+        fileName: "shared-research-data.csv",
+        mediaType: "text/csv; charset=utf-8",
+      };
     },
   };
 

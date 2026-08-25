@@ -27,6 +27,8 @@ PUBLIC_REQUESTS = [
     ("POST", "/api/sessions/"),
     ("GET", "/api/public/shares/tok-123"),
     ("HEAD", "/api/public/shares/tok-123"),
+    ("GET", "/api/public/shares/tok-123/artifacts/ver-1/exports/csv"),
+    ("HEAD", "/api/public/shares/tok-123/artifacts/ver-1/exports/csv"),
     ("GET", "/apix"),
     ("GET", "/apis"),
 ]
@@ -58,6 +60,7 @@ PROTECTED_REQUESTS = [
     ("POST", "/api/projects/proj-1/shares"),
     ("POST", "/api/public/shares/tok-123"),
     ("GET", "/api/public/shares/tok-123/extra"),
+    ("GET", "/api/public/shares/tok-123/artifacts/ver-1/exports/json"),
     ("GET", "/api/public/shares/"),
     ("POST", "/api/test/bootstrap"),
 ]
@@ -80,9 +83,24 @@ def test_product_and_unknown_api_requests_require_authentication(
     [
         ("GET", "/api/public/shares/tok-123", True),
         ("HEAD", "/api/public/shares/tok-123", True),
+        (
+            "GET",
+            "/api/public/shares/tok-123/artifacts/ver-1/exports/csv",
+            True,
+        ),
+        (
+            "HEAD",
+            "/api/public/shares/tok-123/artifacts/ver-1/exports/csv",
+            True,
+        ),
         ("POST", "/api/public/shares/tok-123", False),
         ("GET", "/api/public/shares/", False),
         ("GET", "/api/public/shares/tok-123/extra", False),
+        (
+            "GET",
+            "/api/public/shares/tok-123/artifacts/ver-1/exports/json",
+            False,
+        ),
         ("GET", "/api/projects", False),
     ],
 )

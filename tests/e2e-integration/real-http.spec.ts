@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import {
   createHttpRepositories,
   createSessionManager,
@@ -259,6 +260,41 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
           },
         ),
       );
+      const secondDraft = await json(
+        await fetch(`${apiOrigin}/api/projects/${projectId}/contract-drafts`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            ...headers,
+            "Idempotency-Key": "browser-fixture-second-draft",
+          },
+          body: JSON.stringify({
+            intent: "复核来源并收紧研究目标",
+            contract: {
+              ...updatedDraft.data.contract,
+              research_goal: "复核 TOI-700 d 的宿主星与行星参数",
+              paper_search_scope: {
+                ...updatedDraft.data.contract.paper_search_scope,
+                keywords: ["TOI-700 d", "host star", "validation"],
+              },
+            },
+          }),
+        }),
+      );
+      const secondConfirmed = await json(
+        await fetch(`${apiOrigin}/api/projects/${projectId}/contracts`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            ...headers,
+            "Idempotency-Key": "browser-fixture-second-confirm",
+          },
+          body: JSON.stringify({
+            draft_id: secondDraft.data.id,
+            expected_draft_version: secondDraft.data.version,
+          }),
+        }),
+      );
       const secondRun = await json(
         await fetch(`${apiOrigin}/api/projects/${projectId}/runs`, {
           method: "POST",
@@ -268,7 +304,7 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
             "Idempotency-Key": "browser-fixture-second-run",
           },
           body: JSON.stringify({
-            contract_id: confirmed.data.id,
+            contract_id: secondConfirmed.data.id,
             execution_mode: "demo_replay",
           }),
         }),
@@ -298,12 +334,34 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
           }),
         }),
       );
+      const unsupportedExport = await json(
+        await fetch(
+          `${apiOrigin}/api/test/bootstrap/unsupported-export?source_version_id=${encodeURIComponent(current.data.artifact_version_id)}`,
+          { method: "POST", credentials: "include", headers },
+        ),
+      );
+      const unsupportedShare = await json(
+        await fetch(`${apiOrigin}/api/projects/${projectId}/shares`, {
+          method: "POST",
+          credentials: "include",
+          headers,
+          body: JSON.stringify({
+            title: "Unsupported export presentation",
+            artifact_version_ids: [unsupportedExport.data.artifact_version_id],
+            evidence_ids: [],
+            expires_at: new Date(Date.now() + 60_000).toISOString(),
+            redaction_policy: "redacted_public_snapshot",
+          }),
+        }),
+      );
       return {
         runId: secondRun.data.id as string,
+        contractId: secondConfirmed.data.id as string,
         historicalVersionId: seeded.data.artifact_version_id as string,
         versionId: current.data.artifact_version_id as string,
         expiredAt,
         expiringShareUrl: `${window.location.origin}/share/${expiringShare.data.share_token as string}`,
+        unsupportedShareUrl: `${window.location.origin}/share/${unsupportedShare.data.share_token as string}`,
       };
     },
     { apiOrigin: API_ORIGIN, projectId: projectId ?? "" },
@@ -372,12 +430,31 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
     page.getByRole("heading", { name: "比较研究结果" }),
   ).toBeVisible();
   await expect(
+    page.getByLabel("科学结果变化").getByRole("heading", {
+      name: "研究契约",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel("科学结果变化").getByText(/复核 TOI-700 d/),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel("科学结果变化").getByRole("heading", {
+      name: "来源集合",
+    }),
+  ).toBeVisible();
+  await expect(
     page
       .getByLabel("科学结果变化")
       .getByText(/来源记录已更新/)
       .first(),
   ).toBeVisible();
-  await page.keyboard.press("Escape");
+  await expect(page.getByRole("heading", { name: "结果沿革" })).toBeVisible();
+  await expect(page.getByText(/明确替代直接前序结果/)).toBeVisible();
+  await page.getByRole("button", { name: "打开直接前序结果" }).click();
+  await expect(versionSelector).toContainText("历史结果");
+  await versionSelector.click();
+  await page.getByRole("menuitem").filter({ hasText: "当前结果" }).click();
+  await expect(versionSelector).toContainText("当前结果");
 
   await fullscreen.getByRole("button", { name: "分享", exact: true }).click();
   await expect(
@@ -400,6 +477,63 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   await page.getByRole("button", { name: "复制链接" }).click();
   await expect(page.getByText("已复制", { exact: true })).toBeVisible();
   const shareUrl = await shareLink.inputValue();
+  const shareToken = new URL(shareUrl).pathname
+    .split("/")
+    .filter(Boolean)
+    .at(-1);
+  expect(shareToken).toBeTruthy();
+  const frozenExportUrl = `${API_ORIGIN}/api/public/shares/${shareToken}/artifacts/${bootstrap.versionId}/exports/csv`;
+  const frozenExportBefore = await page.request.get(frozenExportUrl);
+  expect(frozenExportBefore.status()).toBe(200);
+  const frozenExportBeforeBytes = await frozenExportBefore.body();
+  const laterVersion = await page.evaluate(
+    async ({ apiOrigin, projectId, contractId }) => {
+      async function json(response: Response) {
+        if (!response.ok)
+          throw new Error(`${response.status} ${await response.text()}`);
+        return response.json();
+      }
+      const session = await json(
+        await fetch(`${apiOrigin}/api/sessions`, {
+          method: "POST",
+          credentials: "include",
+        }),
+      );
+      const headers = {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": session.data.csrf_token as string,
+      };
+      const run = await json(
+        await fetch(`${apiOrigin}/api/projects/${projectId}/runs`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            ...headers,
+            "Idempotency-Key": "browser-fixture-later-run",
+          },
+          body: JSON.stringify({
+            contract_id: contractId,
+            execution_mode: "demo_replay",
+          }),
+        }),
+      );
+      return json(
+        await fetch(
+          `${apiOrigin}/api/test/bootstrap?run_id=${encodeURIComponent(run.data.id)}`,
+          { method: "POST", credentials: "include", headers },
+        ),
+      );
+    },
+    {
+      apiOrigin: API_ORIGIN,
+      projectId: projectId ?? "",
+      contractId: bootstrap.contractId,
+    },
+  );
+  expect(laterVersion.data.artifact_version_id).not.toBe(bootstrap.versionId);
+  const frozenExportAfter = await page.request.get(frozenExportUrl);
+  expect(frozenExportAfter.status()).toBe(200);
+  expect(await frozenExportAfter.body()).toEqual(frozenExportBeforeBytes);
 
   await page.goto(shareUrl);
   await expect(
@@ -430,6 +564,16 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
         document.documentElement.clientWidth,
     ),
   ).toBe(true);
+  const browserDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "下载 CSV" }).click();
+  const downloaded = await browserDownload;
+  expect(downloaded.suggestedFilename()).toBe("shared-research-data.csv");
+  const downloadedPath = await downloaded.path();
+  expect(downloadedPath).not.toBeNull();
+  const downloadedCsv = await readFile(downloadedPath!, "utf8");
+  expect(downloadedCsv).toContain("row_id");
+  expect(downloadedCsv).not.toContain(bootstrap.versionId);
+  expect(downloadedCsv).not.toContain("storage");
   await page.getByRole("button", { name: "查看证据 1", exact: true }).click();
   await expect(page.getByRole("heading", { name: "证据 1" })).toBeVisible();
   await expect(page.getByText("来源内容", { exact: true })).toBeVisible();
@@ -449,6 +593,17 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   await publicEvidence.getByRole("button", { name: "关闭" }).click();
   await expect(page.getByRole("heading", { name: "证据 1" })).toHaveCount(0);
   expect(runtimeErrors).toEqual([]);
+
+  await page.goto(bootstrap.unsupportedShareUrl);
+  await expect(
+    page.getByLabel("共享科研结果").getByText("暂不支持预览此类结果"),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByLabel("共享科研结果")
+      .getByText("请返回结构化数据结果下载已支持的格式。"),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "下载 CSV" })).toHaveCount(0);
 
   const shareOrigin = new URL(shareUrl).origin;
   await page.goto(`${shareOrigin}/share/not-a-real-token`);
@@ -491,6 +646,17 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   await expect(
     page.getByRole("heading", { name: "共享结果当前不可用" }),
   ).toBeVisible();
+  const revokedDownload = await page.request.get(frozenExportUrl);
+  const invalidDownload = await page.request.get(
+    `${API_ORIGIN}/api/public/shares/not-a-real-token/artifacts/${bootstrap.versionId}/exports/csv`,
+  );
+  expect(revokedDownload.status()).toBe(invalidDownload.status());
+  expect(await revokedDownload.json()).toMatchObject({
+    code: "SHARE_NOT_FOUND",
+  });
+  expect(await invalidDownload.json()).toMatchObject({
+    code: "SHARE_NOT_FOUND",
+  });
 
   const expiryDelay = Math.max(0, bootstrap.expiredAt - Date.now() + 250);
   if (expiryDelay > 0) await page.waitForTimeout(expiryDelay);
@@ -501,6 +667,17 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   await expect(
     page.getByText("该链接可能无效、已撤销或已过期。"),
   ).toBeVisible();
+  const expiringToken = new URL(bootstrap.expiringShareUrl).pathname
+    .split("/")
+    .filter(Boolean)
+    .at(-1);
+  const expiredDownload = await page.request.get(
+    `${API_ORIGIN}/api/public/shares/${expiringToken}/artifacts/${bootstrap.versionId}/exports/csv`,
+  );
+  expect(expiredDownload.status()).toBe(404);
+  expect(await expiredDownload.json()).toMatchObject({
+    code: "SHARE_NOT_FOUND",
+  });
 
   runtimeErrors.length = 0;
   await page.goto(`/workspace/${projectId}`);
@@ -510,7 +687,25 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   await expect(overviewSheet).toBeVisible();
   await overviewSheet.getByRole("button", { name: "关闭" }).click();
   await page
-    .getByTestId(`artifact-result-${bootstrap.versionId}`)
+    .getByTestId(`artifact-result-${laterVersion.data.artifact_version_id}`)
+    .getByRole("button", { name: "查看完整结果" })
+    .click();
+  await fullscreen.getByRole("button", { name: "比较结果" }).click();
+  await expect(page.getByLabel("科学结果变化")).toBeVisible();
+  await expect(
+    page.getByLabel("科学结果变化").getByRole("heading", {
+      name: "研究契约",
+    }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByLabel("科学结果变化").getByRole("heading", {
+      name: "来源集合",
+    }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await fullscreen.getByRole("button", { name: "返回研究" }).click();
+  await page
+    .getByTestId(`artifact-result-${laterVersion.data.artifact_version_id}`)
     .getByRole("button", { name: "查看完整结果" })
     .click();
   await fullscreen.getByRole("button", { name: "基于此结果重新分析" }).click();

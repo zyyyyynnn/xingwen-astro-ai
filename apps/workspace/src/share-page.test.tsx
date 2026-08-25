@@ -3,6 +3,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from "@testing-library/react";
 import type {
@@ -13,11 +14,14 @@ import type {
   SemanticVersion,
   UtcIsoTimestamp,
 } from "@xingwen/domain";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PublicShareView } from "./share-page";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 function id(value: string): DomainEntityId {
   return value as DomainEntityId;
@@ -289,5 +293,77 @@ describe("PublicShareView", () => {
         screen.queryByText(token, { exact: true }),
       ).not.toBeInTheDocument();
     }
+  });
+
+  it("offers only the frozen Dataset CSV download", async () => {
+    const onDownloadDatasetCsv = vi.fn().mockResolvedValue({
+      bytes: new TextEncoder().encode("row_id,value\nrow-1,TOI-700 d\n").buffer,
+      fileName: "shared-research-data.csv",
+      mediaType: "text/csv; charset=utf-8",
+    });
+    const createObjectUrl = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:public-export");
+    const revokeObjectUrl = vi
+      .spyOn(URL, "revokeObjectURL")
+      .mockImplementation(() => undefined);
+    const clickDownload = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined);
+    render(
+      <PublicShareView
+        snapshot={snapshot}
+        onDownloadDatasetCsv={onDownloadDatasetCsv}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "下载 CSV" }));
+
+    await waitFor(() =>
+      expect(onDownloadDatasetCsv).toHaveBeenCalledWith(id("artv_dataset")),
+    );
+    expect(createObjectUrl).toHaveBeenCalledTimes(1);
+    expect(clickDownload).toHaveBeenCalledTimes(1);
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:public-export");
+  });
+
+  it("renders the registry-defined unsupported state instead of generic presentation", () => {
+    const [baseVersion] = snapshot.artifactVersions;
+    if (!baseVersion)
+      throw new Error("public share fixture requires an artifact");
+    render(
+      <PublicShareView
+        snapshot={{
+          ...snapshot,
+          artifactVersions: [
+            {
+              ...baseVersion,
+              id: id("artv_export"),
+              artifactId: id("artifact_export"),
+              kind: "export",
+              title: "不应进入通用呈现" as NonEmptyString,
+              presentation: {
+                kind: "export",
+                summary: "不应显示的空导出呈现" as NonEmptyString,
+                facts: [],
+                sections: [],
+                entries: [],
+                tables: [],
+                graphNodes: [],
+                graphEdges: [],
+              },
+              evidenceIds: [],
+            },
+          ],
+          evidence: [],
+        }}
+      />,
+    );
+
+    expect(screen.getByText("暂不支持预览此类结果")).toBeVisible();
+    expect(
+      screen.getByText("请返回结构化数据结果下载已支持的格式。"),
+    ).toBeVisible();
+    expect(screen.queryByText("不应显示的空导出呈现")).not.toBeInTheDocument();
   });
 });

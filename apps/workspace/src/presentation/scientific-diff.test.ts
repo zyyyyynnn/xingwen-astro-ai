@@ -2,14 +2,20 @@ import type {
   ContentHash,
   DomainEntityId,
   GraphArtifactReview,
+  SourceSnapshotSummary,
   UtcIsoTimestamp,
 } from "@xingwen/domain";
-import type { EvidenceViewModel } from "@xingwen/research-adapter";
+import type {
+  ContractInputViewModel,
+  EvidenceViewModel,
+} from "@xingwen/research-adapter";
 import { describe, expect, it } from "vitest";
 
 import {
   buildGraphDiffSnapshot,
+  buildContractDiffItems,
   buildEvidenceDiffItems,
+  buildSourceSetDiffItems,
   compareScientificSnapshots,
   type ScientificDiffSnapshot,
 } from "./scientific-diff";
@@ -157,7 +163,9 @@ describe("scientific result comparison", () => {
       },
     );
 
-    expect(results[0]?.changes).toEqual([
+    expect(
+      results.find((result) => result.category === "conclusions")?.changes,
+    ).toEqual([
       {
         key: "stable",
         kind: "changed",
@@ -177,6 +185,124 @@ describe("scientific result comparison", () => {
         after: "新增结论",
       },
     ]);
+  });
+
+  it("reports typed immutable Contract changes", () => {
+    const contract = (goal: string): ContractInputViewModel => ({
+      researchGoal: goal,
+      targetObjects: ["toi-700" as DomainEntityId],
+      dataRequirements: {
+        unitPolicy: "canonical",
+        documentSourcePolicy: "disabled",
+      },
+      requestedFields: ["orbital_period" as DomainEntityId],
+      sourceScope: {
+        allowedSources: ["nasa_exoplanet_archive" as DomainEntityId],
+      },
+      paperSearchScope: {
+        keywords: ["exoplanet"],
+        yearFrom: 2020,
+        yearTo: 2026,
+        sourceIds: ["crossref" as DomainEntityId],
+        maxCandidates: 20,
+      },
+      scientificTasks: [],
+      outputRequirements: ["dataset"],
+      evidenceRequirements: {
+        requireLocator: true,
+        requireSourceSnapshot: true,
+        minimumCoverage: 1,
+      },
+      qualityConstraints: {
+        sourceCompletenessMin: 1,
+        unitConsistencyMin: 1,
+      },
+    });
+    const results = compareScientificSnapshots(
+      { ...empty, contract: buildContractDiffItems(contract("原研究目标")) },
+      { ...empty, contract: buildContractDiffItems(contract("修订研究目标")) },
+    );
+
+    const contractChanges = results.find(
+      (result) => result.category === "contract",
+    )?.changes;
+    expect(contractChanges).toHaveLength(1);
+    expect(contractChanges?.[0]).toMatchObject({
+      kind: "changed",
+      before: "研究目标：原研究目标",
+      after: "研究目标：修订研究目标",
+    });
+  });
+
+  it("detects equal-count Source Set member replacement without exposing hashes", () => {
+    const snapshot = (
+      id: string,
+      sourceId: string,
+      contentHash: string,
+    ): SourceSnapshotSummary => ({
+      id: id as DomainEntityId,
+      sourceId: sourceId as DomainEntityId,
+      sourceType: "catalog",
+      retrievedAt: "2026-08-24T08:00:00Z" as UtcIsoTimestamp,
+      queryHash: `query-${contentHash}` as ContentHash,
+      contentHash: contentHash as ContentHash,
+      sourceVersionOrEtag: null,
+      licenseNote: "Open data",
+      cacheVersion: null,
+      requestMetadata: [],
+      cachedOrigin: null,
+    });
+    const stable = snapshot("snapshot-stable", "gaia", "hash-stable");
+    const replaced = snapshot("snapshot-a", "archive-a", "hash-a");
+    const replacement = snapshot("snapshot-b", "archive-b", "hash-b");
+    const results = compareScientificSnapshots(
+      {
+        ...empty,
+        sources: buildSourceSetDiffItems([stable, replaced]),
+      },
+      {
+        ...empty,
+        sources: buildSourceSetDiffItems([stable, replacement]),
+      },
+    );
+
+    const changes = results.find(
+      (result) => result.category === "sources",
+    )?.changes;
+    expect(changes).toHaveLength(2);
+    expect(changes?.map((change) => change.kind).sort()).toEqual([
+      "added",
+      "removed",
+    ]);
+    expect(
+      changes?.map((change) => `${change.before}${change.after}`).join(" "),
+    ).not.toContain("hash-");
+  });
+
+  it("does not report Source Set reorder as a change", () => {
+    const snapshot = (id: string, sourceId: string): SourceSnapshotSummary => ({
+      id: id as DomainEntityId,
+      sourceId: sourceId as DomainEntityId,
+      sourceType: "catalog",
+      retrievedAt: "2026-08-24T08:00:00Z" as UtcIsoTimestamp,
+      queryHash: `query-${id}` as ContentHash,
+      contentHash: `content-${id}` as ContentHash,
+      sourceVersionOrEtag: null,
+      licenseNote: "Open data",
+      cacheVersion: null,
+      requestMetadata: [],
+      cachedOrigin: null,
+    });
+    const first = snapshot("snapshot-a", "archive-a");
+    const second = snapshot("snapshot-b", "archive-b");
+    const results = compareScientificSnapshots(
+      { ...empty, sources: buildSourceSetDiffItems([first, second]) },
+      { ...empty, sources: buildSourceSetDiffItems([second, first]) },
+    );
+
+    expect(
+      results.find((result) => result.category === "sources")?.changes,
+    ).toEqual([]);
   });
 
   it("builds graph changes from readable scientific identities", () => {

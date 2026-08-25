@@ -926,6 +926,25 @@ def create_contract_app() -> FastAPI:
         _ = share_token
         return _contract_only()
 
+    @app.get(
+        "/api/public/shares/{share_token}/artifacts/{artifact_version_id}/exports/csv",
+        operation_id="downloadPublicShareDatasetCsv",
+        response_class=Response,
+        response_model=None,
+        responses=PROBLEM_RESPONSES,
+        description=(
+            "Anonymous CSV download for one Dataset ArtifactVersion frozen into an "
+            "active share. Invalid, expired, revoked, disallowed, and unsupported "
+            "requests are indistinguishable."
+        ),
+    )
+    def download_public_share_dataset_csv(
+        share_token: Annotated[str, Path(min_length=1)],
+        artifact_version_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
+        _ = (share_token, artifact_version_id)
+        return _contract_only()
+
     @app.post(
         "/api/research-inputs",
         operation_id="createResearchInput",
