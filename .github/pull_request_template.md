@@ -1,57 +1,48 @@
-## Summary
+## Delivery
+
+- Delivery mode: `Atomic` / `Grouped`
+- Authorization:
+- Included Issue(s):
+
+## Scope
+
+### In scope
 
 -
 
-## Related Issue
-
-Closes #
-
-## Included scope
+### Non-goals
 
 -
 
-## Non-goals
+## Per-Issue Acceptance Matrix
 
--
+| Issue / task | Acceptance | Implementation | Evidence | Remaining |
+| --- | --- | --- | --- | --- |
+|  |  |  |  |  |
 
-## Validation
+For Atomic Delivery, keep one row. Grouped Delivery requires explicit authorization and one row per included Issue; grouping never weakens individual acceptance.
 
-| Check | Result |
-| ----- | ------ |
-|       |        |
+## Authority / Architecture
 
-未执行项及原因：
+- Authority changed:
+- Contract/schema changed:
+- Workflow/versioning changed:
+- Security/public-share impact:
+- Reference Integration impact:
 
-## Impact review
+## Verification
 
-- [ ] API / Data / Workflow / Version 已评估
-- [ ] Product / UI / accessibility 已评估
-- [ ] Environment / migration / deployment 已评估
-- [ ] Test data level and provenance 已说明
-- [ ] Documentation index 已同步（适用时）
+- Exact HEAD:
+- Commands actually run:
+- Pass/fail/skip:
+- Browser / PostgreSQL / Compose / Live evidence:
+- Data truth level: Live / Cached / Recorded / Fixture / Benchmark / Revision
+- Not run / known limits:
 
-说明：
+## Review readiness
 
-## Evidence
-
-- 测试报告、截图、运行或复现路径：
-
-## Technical Review gate
-
-正式技术 Review 由授权审查者按 [Contributing §5](../CONTRIBUTING.md#5-正式技术-review-责任) 另行发布为 GitHub Pull Request Review；PR 作者不得在描述中预填或代写 verdict。
-
-- Review URL：
-- Reviewed HEAD：
-- Verdict：
-
-## Migration / rollback
-
-- 不适用，或说明步骤：
-
-## Final checklist
-
-- [ ] Diff 与描述一致
-- [ ] 当前 HEAD 的正式技术 Review 与适用 CI 已按 [合并标准](../CONTRIBUTING.md#6-合并标准) 通过
-- [ ] 不包含无关改动
-- [ ] Current / Target / Pending 无混淆
-- [ ] 未扩大产品承诺
+- [ ] PR remains Draft until maintainer/user decides Ready.
+- [ ] Current HEAD is based on the frozen delivery baseline or any drift is explicitly reported.
+- [ ] No unrelated changes or process files.
+- [ ] User-facing capabilities are browser-reachable, not backend/test-only.
+- [ ] Reference capabilities, if any, are absorbed into existing authorities rather than added as parallel systems.

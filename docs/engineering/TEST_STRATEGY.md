@@ -1,127 +1,115 @@
 # Test Strategy
 
-| 元数据    | 值                                           |
-| --------- | -------------------------------------------- |
-| Authority | 测试分层、测试数据等级、环境、门禁与证据格式 |
+| 元数据 | 值 |
+| --- | --- |
+| Authority | 测试分层、真实性等级、质量门禁与证据格式 |
 
-本文定义系统的测试架构与质量校验规范。阶段退出见 [Acceptance](../product/ACCEPTANCE.md)，单个 PR 检查见 [Review Checklist](../quality/REVIEW_CHECKLIST.md)。
+## 1. 原则
 
-## 1. 测试原则
+测试服务于高风险不变量与真实用户闭环，而不是追求测试数量。
 
-- 优先保护数据完整性、来源可追溯性、权限边界与版本不可变性。
-- 领域规则与契约约束优先于简单的页面快照。
-- Research Adapter 独立校验，不依赖页面伪造数据。
-- Fixture 与 HTTP 共享同一组件路径与 Domain ViewModel。
-- 测试失败不得通过降低 Evidence 覆盖、Schema 准入或删除断言解决。
+优先保护：Contract、Evidence、immutability、Publisher atomicity、lease/recovery、permissions/security、Fixture/HTTP parity、Reference Integration correctness、Browser reachability、accessibility 和主案例竞赛证据。
 
-## 2. 测试分层
+Green tests 是必要条件，不是产品完成定义。
 
-### Upstream Contract
+## 2. 分层
 
-覆盖选定上游 Agent 骨架的 Navigation、Agent Activity、Workspace、Composer、Command、Loading / Empty / Error、Cancel / Retry 与 Responsive 行为。
+### Unit / Contract
 
-来源门禁同时验证批准的 Product Mechanics Scope 与 Provenance 落盘映射一一对应、`src/root.tsx` 的实际依赖闭包完整、本地导入全部可解析，以及 source-policy 的排除边界；闭包外旧 facade 或孤立源码视为失败。
+覆盖：
 
-### Unit
-
-**领域与 Pipeline 规则：**
-
-- Case / Field Manifest 与单位转换；
-- 实体匹配、去重、排序与质量评估；
-- Run 状态机、派生不变量、lease、StepAttempt、取消与 CacheSelector；
-- Schema、Mapper、Hash 计算、版本号与 Supersedes 关系；
-- Evidence、Relation 与 Graph 完整性准入。
-
-**前端 Adapter 与 Renderer 映射：**
-
-- Domain -> UI ViewModel、Run Event -> Research Event 转换；
-- Composer Input -> Research Intent 映射；
-- Artifact Kind -> Renderer 路由映射与失效处理。
+- Domain invariants、Schema/admission、Mapper；
+- mapping/unit/quality/cross-match；
+- Claim/Relation/ReasoningTrace/Graph integrity；
+- ArtifactVersion/SourceSnapshot/Evidence identity；
+- Revision target 与 cache selection；
+- exhaustive Renderer Registry；
+- Reference-derived 算法的确定性科学正确性。
 
 ### Component
 
-- Navigation 选择、Pin、Collapse；
-- Agent Activity 流式事件、Tool、Deliverable、Error 与 Checkpoint；
-- Agent Activity 连续事件分组、公开详情披露、进行中/完成状态与滚动跟随；
-- Artifact Fullscreen 结果工作区、Focus、Compare；
-- 右侧研究栏概览/结果索引与恢复；
-- Keyboard、Screen Reader 与 Reduced Motion。
+覆盖真正的交互状态：Navigation、Composer、Activity grouping/disclosure、Contract review、Fullscreen、Evidence Inspector、Graph、Scientific Diff、Revision、Share、keyboard/focus/reduced-motion。
 
-不写无产品价值的测试：只断言 CSS class、只断言 Badge 数量、只断言一条静态
-文案、同一规则多层复制、只为 Review finding 留一个永久测试、给每个配置做
-SHA mutation test、UI 文件 hash 或组件列表 hash。
-
-Hash 测试只保留真正身份/完整性边界：Artifact content、SourceSnapshot、
-Prompt/input/output identity、Scientific Document Parsing model assets、
-Golden Set、上游正式 adoption lock、安全/idempotency、真实固定分母（如
-MAVIS source set）。SHA-256 不是通用“测试覆盖率工具”。
+不要长期维护只断言 CSS class、Badge 数量、单条文案、组件树 hash 或大面积 snapshot 的低价值测试。
 
 ### Integration
 
-- FastAPI Router -> Application Service -> Repository 链路；
-- Workflow -> Pipeline Adapter -> ArtifactVersion 发布；
-- 真实服务级执行链路（Project -> Draft -> Confirmed Contract -> Run -> 冻结 RunSteps -> Worker -> Step 分发 -> ProducerExecution 生命周期 -> Publisher -> ArtifactVersion -> RunEvent -> Thread -> 完成），只注入确定性 provider/source 边界，不 mock 掉 `_load_context`、ProducerExecution、Publisher 或 RunStep 转换；
-- PostgreSQL 事务、锁租约与 Event 登记；
-- Session、CSRF、Ownership 与 Share 校验；
-- Repository Port -> Domain -> Research Adapter 一致性。
+优先真实：
 
-### Contract
+```text
+FastAPI
+→ Application Service
+→ PostgreSQL Repository
+→ ResearchRun Worker
+→ Scientific Step / Pipeline
+→ ProducerExecution
+→ Publisher
+→ ArtifactVersion / Evidence
+→ RunEvent / Repository read
+```
 
-- Pydantic 生成 OpenAPI 3.1 / JSON Schema 准确性与无 Stale Diff；
-- generated DTO -> Domain Mapper 完整性；
-- API 协议无退化回归。
+不 mock 掉 `_load_context`、RunStep 转换、ProducerExecution、Publisher 或数据库事务后再宣称纵向链通过。
 
-### End-to-end (E2E)
+### Browser / E2E
 
-覆盖从进入 Workspace -> 创建/选择 Project -> 确认 Contract -> 启动 Run -> 审查 Agent Activity 与 Artifact -> 定位 Evidence -> 提议修订 -> 查看新 ArtifactVersion -> Compare -> Export / Share 的完整用户路径。
+对于用户承诺能力，至少验证：
 
-E2E 必须覆盖唯一私有工作台、未知路由拒绝、批准的上游交互机械、私有 Session Gate、
-真实 HTTP/Browser 数据路径与 `/share/$shareToken` 安全边界（不创建私有会话、不泄露
-Token、撤销后保持固定）。当真实执行服务未提供时，测试只能验证禁用/未连接与失败状态，
-不得注入伪运行时来宣称 Running、Artifact 或科研结果。完整纵向 E2E 还必须覆盖
-Research Intent → Contract → Real ResearchRun → Artifact/Evidence → revision/export/share。
+```text
+formal product entry
+→ Research Intent / Project
+→ Contract / Run
+→ Activity / Artifact
+→ Evidence
+→ applicable Diff / Revision / Export / Share
+```
 
-### Visual & Accessibility
+大型产品 PR 应以少量高价值 verticals 覆盖主要 Artifact family，而不是给每个组件堆 UI test。
 
-- 固定桌面视口 1440×900、1280×800、1024×768；
-- 覆盖 Empty, Running, Needs Review, Completed, Error 等核心界面状态；
-- 保留 keyboard、focus、screen reader 与 reduced motion 覆盖。
+Browser Gate 必须包含真实 failure/refusal/partial/unsupported、安全 share state、键盘路径、200% text 与三个正式桌面 viewport。Graph 需覆盖 canvas selection、edge Evidence 与 list fallback；Diff 需覆盖 Evidence 数量不变但来源替换；Revision 需覆盖 feedback → plan → derived result。
 
-## 3. 测试数据等级
+### Live / Benchmark
 
-| 等级              | 用途                   | 真实性标识                               |
-| ----------------- | ---------------------- | ---------------------------------------- |
-| Fixture           | Unit、组件与视觉回归   | 必须包含 scenario 与 schema version 标识 |
-| Recorded response | 稳定集成测试           | 标记为录制的外部上游响应                 |
-| Benchmark / seed  | 算法评估与科研审查校验 | 版本化 Seed 数据，不可充当 Live          |
-| Live result       | Live smoke 与真实运行  | 保存真实 Run、SourceSnapshot、时间与参数 |
-| Real run cache    | Live 失败兜底          | 必须标记为 Cached 并关联 origin Run      |
+Live proof 用于验证真实 provider/source/model 行为；Benchmark 用固定输入与指标评估质量。二者不可互相替代。
 
-合格模型测试还必须区分 Alibaba Model Studio/Bailian 的 Qwen 真实调用证据与
-DeepSeek/Gemini 等 non-qualifying benchmark/reference。没有 provider/model/version/call
-proof 的测试只证明契约或适配器行为，不证明竞赛资格。
+Reference benchmark 只能说明对照；迁移后的 Xingwen capability 需要自己的 current-main benchmark 或 vertical proof。
 
-## 4. 环境矩阵
+## 3. 数据真实性等级
 
-| 环境       | 主要用途                           | 外部服务                        |
-| ---------- | ---------------------------------- | ------------------------------- |
-| local      | 快速开发与单元/组件测试            | 默认 Stub / Fixture             |
-| CI         | 契约、PostgreSQL 集成与 E2E 自动化 | Stub / Recorded + fresh Compose |
-| preview    | 部署 Smoke 与授权验证              | 隔离配置与测试凭据              |
-| production | 生产环境                           | 受限主案例与配额                |
+| 等级 | 用途 | 要求 |
+| --- | --- | --- |
+| Fixture | Unit / component | 明确 fixture/scenario，不作为能力宣传 |
+| Recorded | 稳定外部响应回归 | 标注来源与录制语义 |
+| Benchmark | 固定科学评估 | 固定输入、指标、版本与限制 |
+| Live | 真实运行 | 保存真实 Run/SourceSnapshot/provider facts |
+| Cached | 真实历史 Run 的复用 | 指向 origin Run，说明当前失败/选择原因 |
+| Revision | 派生运行结果 | 绑定 parent/confirmed plan/supersedes |
 
-跨层回归必须覆盖：Contract confirmation 的 persisted-resource 幂等、Run HTTP authoring 的 fail-closed 边界、派生/Revision/Cache target contract、Contract Planner 与 ModelExecutionPort 未绑定时的拒绝语义、真实 Executor 的 lease/recovery、Open Access PaperCandidate 到
-ResearchInput 的桥接、snapshot-first RunEventFeed 的分页/polling/backoff、穷举
-Renderer Registry、共享 Evidence Inspector、partial/unsupported parsing，以及
-ArtifactVersion immutable revision。NFR 证据至少包含初始 JS/lazy chunk、长 Activity、
-大表/图预算与长会话内存观察。
+合格模型的竞赛证据必须单独验证 Qwen official path、model/revision、call proof、ProducerExecution 与 Artifact/Evidence；其他 provider 只作为 non-qualifying comparison。
 
-## 5. 测试证据格式
+## 4. Reference Integration Verification
 
-PR 或验证报告必须提供：
+每次深度集成至少验证：
 
-- 运行环境与具体测试命令；
-- Commit SHA、Contract 版本与 Fixture 版本；
-- 通过、失败与跳过用例数量；
-- 使用的数据等级（Live / Fixture / Cached）；
-- 未执行项的原因说明与已知风险。
+1. capability gap 中已有项未被重复实现；
+2. 迁移算法与 Reference 的关键行为/benchmark 有可解释对应；
+3. 新能力进入现有 runtime/Artifact/Evidence，不旁路写第二事实源；
+4. temporary bridge 已删除；
+5. failure/unsupported 没被适配层吞掉；
+6. 用户能从正式 Workspace 使用；
+7. source-level adoption 的 provenance/license ledger 完整。
+
+不要求为每个 Reference 文件做 SHA 列表或测试。只保护实际采用边界和必要 aggregate provenance。
+
+## 5. NFR
+
+前端产品变更按风险覆盖：
+
+- Light 1440×900、1280×800、1024×768；
+- 200% text 不遮挡关键内容或破坏 Graph 几何；
+- keyboard、focus restore、screen reader、reduced motion；
+- lazy chunk / initial JS、长 Activity、长表/大图与长会话内存；
+- polling/backoff/cancel/timeout 不产生请求风暴或状态倒退。
+
+## 6. 证据格式
+
+PR/Review 报告只记录实际执行：exact HEAD、环境、命令、pass/fail/skip 数量、数据等级、外部 provider/source、未执行项和已知风险。旧 HEAD 的 CI 不作为新 Commit 的证据。
