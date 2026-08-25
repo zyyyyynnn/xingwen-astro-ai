@@ -8,7 +8,7 @@
 
 星文智析面向天文科研数据整理、文献理解与证据核验，把自然语言研究意图转化为可确认的研究契约，并通过可复现的 Agent 执行形成版本化科研产物、Evidence 与人类可审查的修订闭环。
 
-MVP 固定主案例为**系外行星候选体与宿主恒星参数整合**。产品可以吸收成熟开源 Agent 与天文科研项目的能力，但用户最终面对的是一个统一的 Xingwen Research Workspace，而不是多个参考项目的拼装入口。
+MVP 固定主案例为**系外行星候选体与宿主恒星参数整合**。用户最终面对的是一个统一的 Research Workspace，而不是聊天外壳、工具集合或多个能力入口的拼装。
 
 ## 2. 核心问题
 
@@ -16,7 +16,7 @@ MVP 固定主案例为**系外行星候选体与宿主恒星参数整合**。产
 - 多源数据的字段、单位、对象标识、缺失值与冲突难以统一；
 - 科学 PDF、论文候选、Summary、Claim 与跨文献 Relation 缺少可定位证据；
 - 数据、结论、推理、图谱、模型执行和版本无法形成同一审查链；
-- 通用 Agent 往往会产生聊天式输出、工具日志或不可复核答案，而不是科研 Artifact；
+- 通用 Agent 容易产生聊天式输出、工具日志或不可复核答案，而不是科研 Artifact；
 - 结果难以比较、修订、导出、分享和复现。
 
 ## 3. 目标用户
@@ -33,7 +33,7 @@ MVP 固定主案例为**系外行星候选体与宿主恒星参数整合**。产
 - **Research Workspace**：唯一私有科研工作台，承载 Agent Thread、Contract、Run、Artifact、Evidence、Revision、Export/Share。
 - **Public Share**：冻结版本的只读公开投影，不加载私有 Agent Shell。
 
-Workspace 不是泛聊天助手、IDE 或工具集合。成熟 Agent 交互用于降低操作成本；科研 Artifact 与 Evidence 是主要工作对象。
+Workspace 不是泛聊天助手、IDE 或工具集合。Agent 交互降低操作成本；科研 Artifact 与 Evidence 是主要工作对象。
 
 ## 5. 产品主流程
 
@@ -58,15 +58,15 @@ Research Intent
 星文智析不以“拥有更多 Agent/工具”作为差异化，而以以下能力的**统一闭环**作为核心：
 
 - 多源天文数据获取、字段/单位统一、实体对齐与质量评估；
-- 科学文档解析与可定位 page/block/bbox/table-cell Evidence；
+- 科学文档解析与可定位 Evidence；
 - 文献检索、Summary、Claim、Relation 与公开可审查 ReasoningTrace；
 - Evidence-bound 学术 Graph；
 - 天文 Scientific Skills、时序/建模/可视化能力进入同一 ResearchRun 与 Artifact 体系；
 - immutable ArtifactVersion、SourceSnapshot、ProducerExecution 与真实 provenance；
 - 对象级反馈、RevisionPlan 与最小影响重算；
-- 成熟 Agent Workspace 中的统一发现、执行、审查、比较、分享与恢复。
+- 统一 Workspace 中的能力发现、执行、审查、比较、分享与恢复。
 
-外部 Reference 能力应尽可能迁移、吸收和转化，但不能保留为上游项目功能岛。详细规则见 [Reference Integration](docs/engineering/REFERENCE_INTEGRATION.md)。
+新增或迁入能力必须转化为当前领域语义和统一交互，不保留功能岛、第二套运行时或来源导向的产品入口。
 
 ## 7. MVP 能力范围
 
@@ -77,7 +77,7 @@ Research Intent
 - Literature：候选检索、去重、排序、Summary、Claim、Relation、ReasoningTrace；
 - Graph：Accepted Relation 构建 Evidence Graph，边可追溯；
 - Scientific Skills：经统一 runtime 执行经过治理的天文计算、分析、建模与可视化能力；
-- Research Workspace：成熟 Agent Shell、Thread、Activity、Composer、Result Index、Fullscreen Result Workspace、Evidence Inspector；
+- Research Workspace：Agent Shell、Thread、Activity、Composer、Result Index、Fullscreen Result Workspace、Evidence Inspector；
 - Revision / Diff：科学语义差异、Feedback、RevisionPlan、derived Run；
 - Export / Share：冻结版本、最小公开投影、可撤销/过期。
 
@@ -103,7 +103,7 @@ API、库函数、单测、Fixture、benchmark 或静态截图单独存在不满
 - 完整 IDE、代码托管、Sandbox/Cloud/Enterprise Runtime；
 - 完整账号、组织与企业审计系统；
 - 为兼容历史实现保留双 runtime、双 schema、双 renderer 或第二 Workspace；
-- 为展示 Reference 来源而暴露上游项目模块、工具名或技术拼装结构。
+- 为实现来源建立额外产品入口、模块标签或技术拼装展示。
 
 ## 10. 成功指标
 
@@ -117,4 +117,4 @@ API、库函数、单测、Fixture、benchmark 或静态截图单独存在不满
 | 从关键结果定位 Evidence | <= 3 次交互 |
 | 用户承诺能力正式入口可达率 | 100% |
 | 当前/历史/修订来源表达准确率 | 100% |
-| 主案例合格 Qwen 调用可复核率 | 100% |
+| 主案例合格模型调用可复核率 | 100% |

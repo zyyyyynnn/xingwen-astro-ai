@@ -29,17 +29,16 @@
 - [ ] 没有 generic framework/registry/hash/audit abstraction 只为本 PR 存在。
 - [ ] Generated Contract 与生产模型同步，无 stale diff。
 
-## 4. Reference Integration
+## 4. Integration Cohesion
 
-若 PR 涉及 Reference：
+若 PR 新增或迁入成熟能力：
 
 - [ ] 先做 current-main capability gap，没有重复已有或更优实现。
-- [ ] adoption depth 合理：source / algorithm / protocol-data / UX / benchmark / reject。
-- [ ] 源码级采用具备 fixed source revision、license、NOTICE/attribution。
-- [ ] Reference capability 被吸收到现有 runtime/Artifact/Evidence/UX，而不是 sidecar 或功能岛。
+- [ ] 能力被吸收到现有 runtime/Artifact/Evidence/UX，而不是 sidecar 或功能岛。
 - [ ] 没有第二 Planner/Agent runtime/Worker/Publisher/Evidence store/Graph backend/Revision engine/Renderer family/Shell。
-- [ ] 临时 bridge、raw JSON semantic bus、wrapper-on-wrapper 和旧 Reference facade 已删除。
-- [ ] 用户不需要理解 Reference 项目结构即可使用。
+- [ ] 临时 bridge、raw JSON semantic bus、wrapper-on-wrapper 和旧 facade 已删除。
+- [ ] 用户不需要理解内部实现来源或模块结构即可使用。
+- [ ] 源码级采用的许可证、NOTICE/attribution 与机器 provenance 完整，但不把来源标识写入治理 Markdown。
 
 ## 5. Scientific Trust
 
@@ -55,16 +54,23 @@
 - [ ] Loading/empty/error/refusal/partial/unsupported/recovery 都可理解。
 - [ ] 单一 Fullscreen Result Workspace、Evidence presentation、Renderer Registry 与 Public Share presentation 未被复制。
 - [ ] touched business UI 使用 semantic tokens / `@xingwen/ui` / mature primitives，无无意义 arbitrary visual numbers。
-- [ ] UI 不暴露内部 ID/hash/raw enum/producer/adapter/Issue/PR 编号或 Reference 项目边界。
+- [ ] UI 不暴露内部 ID/hash/raw enum/producer/adapter/Issue/PR 编号或能力来源边界。
 - [ ] Graph/Diff/Revision/Share 等高风险体验有真实语义，不用 count-only、raw JSON 或静态 mock 替代。
 
 ## 7. Security / Competition
 
 - [ ] Secrets、token、认证头、私有 provider response 与 private reasoning 未泄露。
 - [ ] Session ownership、CSRF/CORS、public share freeze/redaction/expiry/revoke 按 Authority 工作。
-- [ ] 竞赛主案例的 Qwen 合格调用没有被其他 provider/Reference 证据冒充。
+- [ ] 竞赛主案例的合格模型调用没有被非合格 provider、Fixture、Recorded 或外部 benchmark 冒充。
 
-## 8. Verification
+## 8. Documentation
+
+- [ ] 修改公共 Contract、领域实体、Workflow、安全、UX 或发布规则时已同步对应唯一 Authority。
+- [ ] 治理 Markdown 只描述本项目当前事实，不含外部参考项目/上游产品名称、仓库 URL、tag、commit、迁移来源标签或具体过程标识。
+- [ ] 法律归因与精确来源只存在于 NOTICE/LICENSE/THIRD_PARTY_NOTICES 或机器 provenance。
+- [ ] 没有把实施 Prompt、迁移矩阵、审查历史或过程状态写入 Authority。
+
+## 9. Verification
 
 - [ ] 针对性 Unit/Contract/Integration 已通过。
 - [ ] 风险涉及数据库/Worker/Publisher 时有真实 PostgreSQL/vertical proof。
@@ -72,7 +78,7 @@
 - [ ] 没有通过删除断言、降低 Evidence gate、伪造 Fixture 或过度 snapshot 获得绿色测试。
 - [ ] CI claim 已独立核对；无法绑定 exact HEAD 的检查明确写“未独立验证”。
 
-## 9. Adversarial Omission Sweep
+## 10. Adversarial Omission Sweep
 
 完成第一次 findings 后，必须再单独检查：
 
@@ -80,11 +86,11 @@
 - 是否出现第二事实源或 duplicated presentation；
 - same-count / same-status 但真实 Evidence 内容变化是否被漏掉；
 - partial/unsupported/failure 是否被吞掉；
-- Reference 是否只是换名复制而非深度集成；
+- 新增能力是否只是表面接入而未真正融入统一产品链；
 - 200% text、长内容、权限边界、revoked/expired share 是否遗漏；
 - 是否有更简单、复用更多、删除更多的实现。
 
-## 10. Formal Review Output
+## 11. Formal Review Output
 
 - 一个 exact HEAD 提交一个正式 GitHub Review；默认 action 为 `COMMENT`。
 - 正文明确 `verdict: PASS`、`verdict: NOT READY` 或 `verdict: BLOCKED`，并列出 blocker / non-blocker / verification limits。

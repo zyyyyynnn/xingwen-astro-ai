@@ -14,7 +14,7 @@
 | 产品设计原则与体验不变量 | [Product Design](../DESIGN.md) |
 | Workspace 信息架构与核心交互 | [Workspace UX](design/WORKSPACE_UX.md) |
 | 品牌、Token、排版与视觉语言 | [Visual Language](design/VISUAL_LANGUAGE.md) |
-| 前端运行时、OpenHands 源码治理与状态所有权 | [Frontend Architecture](architecture/FRONTEND_ARCHITECTURE.md) |
+| 前端运行时、成熟交互源码治理与状态所有权 | [Frontend Architecture](architecture/FRONTEND_ARCHITECTURE.md) |
 | 模块边界与依赖方向 | [Module Boundaries](architecture/MODULES.md) |
 | HTTP 资源与传输契约 | [API Contract](architecture/API_CONTRACT.md) |
 | 科学文档解析 | [Scientific Document Parsing Contract](architecture/SCIENTIFIC_DOCUMENT_PARSING_CONTRACT.md) |
@@ -27,7 +27,6 @@
 | Generated Schema package/export boundary | [Schema Package](../packages/schemas/README.md) |
 | Evidence / Claim / Relation / ReasoningTrace | [Reasoning Protocol](ai/REASONING_PROTOCOL.md) |
 | 代码实现基础 | [Coding Standard](engineering/CODING_STANDARD.md) |
-| 第三方能力迁移、吸收与深度集成 | [Reference Integration](engineering/REFERENCE_INTEGRATION.md) |
 | 测试分层、真实性等级与证据 | [Test Strategy](engineering/TEST_STRATEGY.md) |
 | 跨源实体对齐 | [Cross-source Alignment](engineering/CROSS_SOURCE_ENTITY_ALIGNMENT.md) |
 | 数据质量评估 | [Data Quality Evaluation](engineering/DATA_QUALITY_EVALUATION.md) |
@@ -38,7 +37,7 @@
 | LiteratureRelation / ReasoningTrace Pipeline | [LiteratureRelation Pipeline](engineering/LITERATURE_RELATION_PIPELINE.md) |
 | Evidence Graph Pipeline | [Evidence Graph Pipeline](engineering/GRAPH_PIPELINE.md) |
 | PaperCollection / Summary acquisition | [PaperCollection Pipeline](engineering/PAPER_COLLECTION_PIPELINE.md) |
-| 竞赛赛道、Qwen 资格与提交证据 | [Competition Compliance](product/COMPETITION_COMPLIANCE.md) |
+| 竞赛赛道、合格模型资格与提交证据 | [Competition Compliance](product/COMPETITION_COMPLIANCE.md) |
 | 产品退出与一票否决 | [Acceptance](product/ACCEPTANCE.md) |
 | Pull Request 正式审查 | [Review Checklist](quality/REVIEW_CHECKLIST.md) |
 | 安全 | [Security](../SECURITY.md) |
@@ -47,7 +46,7 @@
 | Agent 执行协议 | [AGENTS](../AGENTS.md) |
 | 分支、交付模式、Review 与合并 | [Contributing](../CONTRIBUTING.md) |
 
-`docs/references/**` 只保存需要长期随仓库维护的外部材料说明，不是 normative Authority。第三方源码 archive/read-only checkout 是 Reference Integration 的审计输入，不因被本地提供或被某个 PR 使用而成为产品事实源。
+`docs/references/**` 只保存需要长期随仓库维护的外部规范材料说明，不是 normative Authority。外部源码、只读 checkout、比较矩阵和迁移审查属于实施/Review 输入，不进入 Authority Map。
 
 ## 2. 读取规则
 
@@ -61,7 +60,7 @@ AGENTS.md
 → current code / generated contract / tests / runtime evidence
 ```
 
-不要默认递归读取所有 Markdown、历史 Commit、关闭 PR 或整个 Reference 源码。Reference Integration 任务例外：必须读取目标 Reference 的相关源码和当前 Xingwen 对应实现，形成 capability gap，而不是只读 README。
+不要默认递归读取所有 Markdown、历史 Commit、关闭 PR 或外部源码。涉及能力迁入时，可在实施工作区读取必要源码与当前实现做 capability gap，但该工作材料不成为治理文档。
 
 ## 3. 冲突处理
 
@@ -76,6 +75,8 @@ AGENTS.md
 2. GitHub 保存任务、进度、依赖、Review 与 delivery status；Authority 不写工作日志。
 3. Issue 是原子任务契约；PR 默认原子交付，明确授权时可 Grouped Delivery，规则见 CONTRIBUTING。
 4. 文档、代码、测试、fixture、Prompt 与 GitHub 文本不得使用内部一字母+整数版本/阶段简写；真实外部版本、科学版本和严重级别除外。
-5. 改变公共 Contract、领域实体、Workflow、安全、UX、Reference Integration 或发布规则时，必须同步对应 Authority。
+5. 改变公共 Contract、领域实体、Workflow、安全、UX 或发布规则时，必须同步对应 Authority。
 6. 新增 Authority 必须加入本 Map；没有独立稳定事实域时不要创建新 Authority。
-7. 参考材料不能作为 production implementation 的动态依赖。
+7. 治理 Markdown 不出现外部参考项目或上游产品名称、仓库 URL、tag、commit、迁移来源标签、具体 Issue/PR/Review/CI 标识或阶段性能力矩阵。
+8. 当前运行所必需的模型、协议、数据源和技术标准可按事实出现在对应 Authority；第三方许可和精确 provenance 只保存在法律文件、锁文件或机器可读元数据。
+9. 外部参考材料不能作为 production implementation 的动态依赖。

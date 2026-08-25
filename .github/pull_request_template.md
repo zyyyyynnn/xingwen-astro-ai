@@ -28,7 +28,7 @@ For Atomic Delivery, keep one row. Grouped Delivery requires explicit authorizat
 - Contract/schema changed:
 - Workflow/versioning changed:
 - Security/public-share impact:
-- Reference Integration impact:
+- Product/UX impact:
 
 ## Verification
 
@@ -45,4 +45,4 @@ For Atomic Delivery, keep one row. Grouped Delivery requires explicit authorizat
 - [ ] Current HEAD is based on the frozen delivery baseline or any drift is explicitly reported.
 - [ ] No unrelated changes or process files.
 - [ ] User-facing capabilities are browser-reachable, not backend/test-only.
-- [ ] Reference capabilities, if any, are absorbed into existing authorities rather than added as parallel systems.
+- [ ] New capabilities converge into existing authorities and product surfaces rather than parallel systems.

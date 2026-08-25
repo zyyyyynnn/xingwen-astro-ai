@@ -6,7 +6,7 @@
 
 ## 1. 固定方向
 
-产品固定参加 Track 2 / Direction 1 / A：科学数据查询、解析与整合。主叙事围绕可复核的科学数据纵向链，而不是通用聊天、通用 OCR、通用多 Agent 或 Reference 项目集合。
+产品固定参加 Track 2 / Direction 1 / A：科学数据查询、解析与整合。主叙事围绕可复核的科学数据纵向链，而不是通用聊天、通用 OCR、通用多 Agent 或外部能力集合。
 
 ```text
 confirmed Contract
@@ -26,23 +26,23 @@ confirmed Contract
 
 API Key、原始认证头、完整 provider 原始响应与模型私有 chain-of-thought 不进入提交材料、公开 Artifact 或日志；只保留完成复核所需的脱敏事实。
 
-DeepSeek、Gemini 或其他模型只可用于 benchmark、消融或 reference，不得包装为合格 Qwen 主模型。
+其他模型只可用于 benchmark、消融或对照，不得包装为合格主模型。
 
-## 3. Reference 项目的角色
+## 3. 差异化与能力归属
 
-AutoAstro、MAVIS、inosum 等 Reference 可以贡献算法、工具、交互机制、benchmark 和工程经验，但：
+外部算法、工具、交互机制、benchmark 或工程经验只能作为研发输入：
 
-- Reference 的模型调用记录不等于 Xingwen 的合格调用；
-- Reference benchmark 数字不等于 Xingwen 当前性能；
-- Reference 的公开论文或 demo 不等于 Xingwen 的真实运行证据；
-- 引入源码必须遵守许可证、attribution 与 provenance；
-- 提交材料不能把“集成多个开源项目”本身包装成技术差异化。
+- 外部调用记录不等于本项目的合格调用；
+- 外部 benchmark 数字不等于当前产品性能；
+- 外部 demo 不等于真实运行证据；
+- 源码采用必须遵守许可证、attribution 与 provenance；
+- 提交材料不以“整合了多少外部项目”作为技术差异化。
 
-真正的作品差异化来自 Xingwen 将多源天文数据、科学文档、文献推理、Evidence Graph、Scientific Skills、版本化 Artifact、Revision 与成熟 Agent Workspace 收敛为一条可复核链。
+作品差异化来自星文智析将多源天文数据、科学文档、文献推理、Evidence Graph、Scientific Skills、版本化 Artifact、Revision 与 Agent Workspace 收敛为一条可复核链。
 
 ## 4. 真实性等级
 
-Live、Cached、Recorded、Fixture、Benchmark 与 Revision 必须清楚区分。只有 Xingwen 的真实 Run、真实合格模型调用、真实 ArtifactVersion/Evidence 才能作为主案例能力证明。
+Live、Cached、Recorded、Fixture、Benchmark 与 Revision 必须清楚区分。只有本项目的真实 Run、真实合格模型调用、真实 ArtifactVersion/Evidence 才能作为主案例能力证明。
 
 任何 partial、unsupported、provider failure、source failure 或 parser degradation 都按真实结果展示，不能为了演示完整性改写为成功。
 
@@ -52,11 +52,11 @@ Live、Cached、Recorded、Fixture、Benchmark 与 Revision 必须清楚区分�
 
 - 主案例与赛道声明；
 - 固定代码 Commit / container image / environment manifest；
-- 合格 Qwen provider/model/revision 与脱敏调用证明；
+- 合格模型 provider/model/revision 与脱敏调用证明；
 - Research Intent → Contract → Run → ArtifactVersion → Evidence → Revision/Export/Share 的纵向链；
 - Scientific Document / data integration / literature-reasoning / graph 的关键证据；
 - benchmark 方法、固定输入、指标和限制；
-- Reference license/attribution 与自有改造说明；
+- 依法需要的第三方 license/attribution；
 - failure/degradation 示例；
 - 可复现命令与稳定入口；
 - secrets、私有 reasoning 与个人数据的脱敏说明。

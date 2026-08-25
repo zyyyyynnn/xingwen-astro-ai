@@ -10,7 +10,7 @@
 - 修改前先查现有 owner 与同类实现。优先 reuse、absorb、consolidate、delete，再新增抽象。
 - 当前架构优先，不保留旧 API/schema/renderer/store/runtime 的双轨兼容，除非真实外部兼容要求明确授权。
 - 不为假设的未来需求建立 generic registry、strategy/planner framework、audit subsystem、compatibility layer 或 hash system。
-- 生产代码只保留一个事实 owner；Reference capability 必须进入现有 owner，而不是创建 parallel subsystem。
+- 生产代码只保留一个事实 owner；新增或迁入能力必须进入现有 owner，而不是创建 parallel subsystem。
 
 ## 2. Backend / Python
 
@@ -18,8 +18,8 @@
 - Pydantic v2 是 Transport Schema 与生成 Contract 的编写源；生成 DTO/Schema 不手写复制。
 - Router 只负责 request/auth/application mapping；Application Service 管用例与事务；Workflow 管 Run/Step/Attempt/Event；Pipeline/Scientific Skill 管算法；Publisher 是正式 ArtifactVersion/Evidence 发布唯一入口。
 - Repository/Adapter 集中数据访问；Router/Pipeline 不散落 raw SQL。
-- 外部 API、模型响应、文件、cache 与 Reference output 都是不可信输入，先 schema/admission 再成为科研事实。
-- 异常分类稳定；保留原始 cause（Python 使用异常链），不要吞异常后返回空结果或伪成功；公开错误统一映射到当前 Problem Details 边界。
+- 外部 API、模型响应、文件与 cache 都是不可信输入，先 schema/admission 再成为科研事实。
+- 异常分类稳定；保留原始 cause，不吞异常后返回空结果或伪成功；公开错误统一映射到当前 Problem Details 边界。
 - Schema / persistence 变更同步当前 SQLAlchemy/PostgreSQL 不变量，并提供失败退出与恢复路径。
 - provider side effect 若可在调用前判定为非法，应在调用前失败。
 
@@ -28,7 +28,7 @@
 - Strict TypeScript；禁止 `any`、不安全断言和 `@ts-expect-error` 逃逸掩盖契约。
 - Transport DTO 先校验再映射到 Domain；Page/Feature 不直接 `fetch` 或解析 raw DTO。
 - `@xingwen/domain` 不依赖 React/DOM/HTTP；依赖只通过 package public exports。
-- `@xingwen/ui` 是通用 primitive 入口；成熟 OpenHands/shadcn/Radix/图表/图布局能力优先于手写基础交互。
+- `@xingwen/ui` 是通用 primitive 入口；已采用的成熟交互、图表和图布局能力优先于手写基础机制。
 - 新改业务 UI 的 spacing、dimension、typography、line-height、radius、border、shadow、z-index、breakpoint、density、panel geometry、motion 使用 semantic tokens/component variants；原始数值只在 token/base UI 定义或科学数据本身出现。
 - Unknown Artifact kind fail closed 到统一 user-safe fallback；不显示 raw JSON dump。
 
@@ -41,18 +41,19 @@
 - Live/Fixture/Recorded/Benchmark/Cached 数据语义不混用。
 - SHA-256 只用于真实 content addressing、immutability、provenance、security/idempotency 等必要边界；不创建重复审计 hash。
 
-## 5. Reference Code
+## 5. 外部能力与源码
 
-源码级 Reference adoption 必须固定 source/revision、确认许可证、保留必要 NOTICE，并把接口/状态/领域语言改造成 Xingwen current authority。不得保留上游绝对路径、临时目录、凭据、硬编码环境、实验 UI 或上游 runtime 作为生产依赖。
-
-许可证不明确时，可做 behavior/algorithm/protocol/benchmark gap analysis，但不得把可读 archive 当成复制授权。
+- 外部能力进入生产前必须映射到当前 owner、领域语义、错误语义、Evidence、Version 和 UX。
+- 源码级采用必须确认许可证并保留必要法律归因；精确来源、revision 与 attribution 保存于法律文件或机器 provenance，不复制到治理 Markdown。
+- 许可证不明确时只能进行行为、算法、协议或 benchmark 层面的分析，不把“可读取源码”当作复制授权。
+- 不保留外部绝对路径、临时目录、凭据、硬编码环境、实验 UI 或外部 runtime 作为长期生产依赖。
 
 ## 6. 命名
 
 - Python module/function：`snake_case`；class：`PascalCase`。
 - TypeScript component/type：`PascalCase`；function/variable：`camelCase`。
 - API JSON 字段：`snake_case`。
-- 生产命名使用领域事实，不使用 Reference 项目名、工作阶段、batch、Review、临时状态或个人路径。
+- 生产命名使用领域事实，不使用能力来源名称、工作阶段、batch、Review、临时状态或个人路径。
 - 一字母紧跟整数的内部版本/阶段简写禁止用于代码、测试、fixture、文档、Prompt、Commit、Issue、PR、Review。真实外部版本、科学版本和严重级别具有本身语义时除外。
 
 ## 7. 清洁度

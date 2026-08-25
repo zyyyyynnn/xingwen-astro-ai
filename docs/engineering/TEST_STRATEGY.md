@@ -8,15 +8,15 @@
 
 测试服务于高风险不变量与真实用户闭环，而不是追求测试数量。
 
-优先保护：Contract、Evidence、immutability、Publisher atomicity、lease/recovery、permissions/security、Fixture/HTTP parity、Reference Integration correctness、Browser reachability、accessibility 和主案例竞赛证据。
+优先保护：Contract、Evidence、immutability、Publisher atomicity、lease/recovery、permissions/security、Fixture/HTTP parity、能力融合正确性、Browser reachability、accessibility 和主案例竞赛证据。
 
 Green tests 是必要条件，不是产品完成定义。
 
 ## 2. 分层
 
-### Upstream Product Contract
+### Adopted Interaction Contract
 
-OpenHands-derived Workspace mechanics 需要独立验证批准的 Product Mechanics Scope、固定 provenance/source-policy、从 vendor root 的实际 import closure、无孤立旧 facade，以及 Navigation/Thread/Activity/Composer/Command/Resize/Scroll/Focus 的关键行为。Source policy 的 privacy/domain exclusions 优先于机械 import 可达性。
+当前 Workspace 已采用的成熟交互骨架必须独立验证：批准的交互范围、机器 provenance/source-policy、实际 import closure、无孤立旧 facade，以及 Navigation/Thread/Activity/Composer/Command/Resize/Scroll/Focus 的关键行为。隐私与领域排除规则优先于机械 import 可达性。
 
 ### Unit / Contract
 
@@ -28,7 +28,7 @@ OpenHands-derived Workspace mechanics 需要独立验证批准的 Product Mechan
 - ArtifactVersion/SourceSnapshot/Evidence identity；
 - Revision target 与 cache selection；
 - exhaustive Renderer Registry；
-- Reference-derived 算法的确定性科学正确性。
+- 新增或迁入算法的确定性科学正确性。
 
 ### Component
 
@@ -75,7 +75,7 @@ Browser Gate 必须包含真实 failure/refusal/partial/unsupported、安全 sha
 
 Live proof 用于验证真实 provider/source/model 行为；Benchmark 用固定输入与指标评估质量。二者不可互相替代。
 
-Reference benchmark 只能说明对照；迁移后的 Xingwen capability 需要自己的 current-main benchmark 或 vertical proof。
+外部对照 benchmark 只能说明对照；进入本项目后的能力需要自己的 current-main benchmark 或 vertical proof。
 
 跨层回归至少保护以下当前高风险边界：Contract confirmation 的 persisted-resource 幂等、Run authoring fail-closed、derived/revision/cache target、Planner/ModelExecutionPort 未绑定时的拒绝语义、Executor lease/recovery、Open Access PaperCandidate → ResearchInput、snapshot-first RunEventFeed pagination/polling/backoff、exhaustive Renderer Registry、共享 Evidence Inspector、partial/unsupported document parsing、ArtifactVersion immutable revision。
 
@@ -90,21 +90,21 @@ Reference benchmark 只能说明对照；迁移后的 Xingwen capability 需要�
 | Cached | 真实历史 Run 的复用 | 指向 origin Run，说明当前失败/选择原因 |
 | Revision | 派生运行结果 | 绑定 parent/confirmed plan/supersedes |
 
-合格模型的竞赛证据必须单独验证 Qwen official path、model/revision、call proof、ProducerExecution 与 Artifact/Evidence；其他 provider 只作为 non-qualifying comparison。
+合格模型的竞赛证据必须单独验证官方路径、model/revision、call proof、ProducerExecution 与 Artifact/Evidence；非合格 provider 只作为 comparison。
 
-## 4. Reference Integration Verification
+## 4. 能力融合验证
 
-每次深度集成至少验证：
+新增或迁入能力至少验证：
 
-1. capability gap 中已有项未被重复实现；
-2. 迁移算法与 Reference 的关键行为/benchmark 有可解释对应；
-3. 新能力进入现有 runtime/Artifact/Evidence，不旁路写第二事实源；
-4. temporary bridge 已删除；
-5. failure/unsupported 没被适配层吞掉；
-6. 用户能从正式 Workspace 使用；
-7. source-level adoption 的 provenance/license ledger 完整。
+1. 当前 `main` 已有行为未被重复实现；
+2. 新能力进入现有 runtime/Artifact/Evidence，不旁路写第二事实源；
+3. 临时 bridge 与重复 facade 已删除；
+4. failure/unsupported 没被适配层吞掉；
+5. 用户能从正式 Workspace 使用；
+6. 对科学算法有确定性 unit/benchmark，对产品能力有 integration/browser proof；
+7. 源码级采用的许可证和机器 provenance 完整。
 
-不要求为每个 Reference 文件做 SHA 列表或测试。只保护实际采用边界和必要 aggregate provenance。
+不要求为每个外部文件做 SHA 列表或测试；只保护实际采用边界和必要 aggregate provenance。
 
 ## 5. NFR
 

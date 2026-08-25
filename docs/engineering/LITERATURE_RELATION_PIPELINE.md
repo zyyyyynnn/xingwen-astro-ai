@@ -329,5 +329,5 @@ OpenAPI、contracts sync/stale diff、Foundation、前端质量、Compose 与 Br
 
 本 Pipeline 不实现 Graph/GraphEdge、HTTP endpoint/DTO、前端、数据库 ArtifactVersion 事务、
 ResearchRun 推进、生产模型 client、Agent 平台或自由代码执行。它不修改已批准
-科研事实，不复制 MAVIS Agent/Prompt，不保存原始模型长输出、受限全文、凭据或私有
+科研事实，不复制无关外部 Agent/Prompt，不保存原始模型长输出、受限全文、凭据或私有
 chain-of-thought。

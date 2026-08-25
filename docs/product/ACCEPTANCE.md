@@ -14,7 +14,7 @@
 - Browser / Compose / PostgreSQL / Worker 等实际使用的验证层；
 - 未执行项、skip、已知限制与外部依赖。
 
-不得把旧 HEAD、目标架构、Fixture、静态截图、Reference 项目 benchmark 或未执行 provider 当成当前能力证明。
+不得把旧 HEAD、目标架构、Fixture、静态截图、外部 benchmark 或未执行 provider 当成当前能力证明。
 
 ## 2. 产品退出标准
 
@@ -29,7 +29,7 @@
 | 可分享 | 冻结版本公开投影可撤销、可过期、最小披露且不加载私有编辑会话 |
 | 可部署 | 当前 schema、配置、健康检查、PostgreSQL、Worker 与前端部署边界完整 |
 | 可访问 | Keyboard、Focus、Screen Reader、Reduced Motion、200% text 与正式桌面视口可用 |
-| 竞赛合规 | 合格 Qwen 官方调用、ProducerExecution、ArtifactVersion 与 Evidence 闭环可复核 |
+| 竞赛合规 | 合格模型官方调用、ProducerExecution、ArtifactVersion 与 Evidence 闭环可复核 |
 
 ## 3. Capability Reachability Gate
 
@@ -47,18 +47,16 @@ real user entry / Agent trigger
 
 以下只能证明“内部实现存在”，不能证明“产品交付”：API endpoint、library function、Unit Test、Fixture、benchmark、静态 screenshot、隐藏开发路由、手工数据库注入。
 
-## 4. Reference Integration Gate
+## 4. Integration Cohesion Gate
 
-Reference Integration 退出前必须证明：
+新增或迁入能力退出前必须证明：
 
-- 已对当前 `main` 做 capability gap，未重复已有或更优的实现；
-- 选择的 source/algorithm/protocol/UX/benchmark adoption depth 有理由；
-- 源码级采用具备明确 source revision、license 与 attribution；
+- 已对当前 `main` 做 capability gap，未重复已有或更优实现；
 - 新能力进入现有单一 runtime/store/Publisher/Evidence/Renderer/Workspace；
-- 没有 reference sidecar、raw JSON bridge、第二 store、第二 renderer family 或永久兼容层；
+- 没有 sidecar、raw JSON bridge、第二 store、第二 renderer family 或永久兼容层；
 - 临时 seam 与失真旧实现已经删除；
-- 用户不需要理解上游项目名或模块结构；
-- 正式 Browser / integration / benchmark 证明能力被吸收而不是仅复制。
+- 用户不需要理解内部来源或模块结构；
+- 正式 Browser / integration / benchmark 证明能力已成为当前产品链的一部分。
 
 ## 5. Workspace 行为验收
 
@@ -70,7 +68,7 @@ Reference Integration 退出前必须证明：
 - Scientific Diff 比较实际用户相关 Evidence、结论、关系、限制与冲突，不以 count-only 或 raw JSON 代替；
 - Graph 具备可选择节点/边、Evidence context、键盘路径和 list fallback；
 - Public Share 使用冻结 typed projection 和共享只读 presentation；
-- 默认 UI 不显示内部 ID、hash、raw enum、producer、adapter、Issue/PR 编号或内部阶段版本。
+- 默认 UI 不显示内部 ID、hash、raw enum、producer、adapter、Issue/PR 编号、内部阶段版本或能力来源标识。
 
 正式视觉验收覆盖 Light：1440×900、1280×800、1024×768，并检查 200% text。
 
@@ -83,14 +81,14 @@ Grouped Delivery PR 只有在每个包含 Issue 都有独立 acceptance/evidence
 出现任一情况，不得宣布完成：
 
 - 在 `main` 直接开发或绕过正式 PR/Review；
-- Reference 后重新手写相似成熟骨架，或形成第二套 Workspace/Runtime/Publisher/Evidence/Renderer/Revision；
+- 为已有成熟职责重新手写相似骨架，或形成第二套 Workspace/Runtime/Publisher/Evidence/Renderer/Revision；
 - 用户承诺能力仅存在于后端、测试、Fixture 或隐藏入口；
 - Fixture/Recorded/seed 冒充 Live/Cached；
 - 关键科学事实、Summary、Accepted Relation 或 GraphEdge 无 Evidence；
 - 保存/展示 provider 私有 chain-of-thought；
 - ArtifactVersion 原地覆盖，Share/Export 指向动态 latest；
 - 公开分享泄露私有 session、token、secret、内部 metadata 或未净化内容；
-- Reference 源码在 license/provenance 不明确时直接复制进 production；
+- 外部源码在 license/provenance 不明确时直接复制进 production；
 - 当前 API/Data Model/Workflow/Versioning/UX Authority 与实现互相矛盾；
-- 缺少合格 Qwen 真实调用与可复核闭环；
+- 缺少合格模型真实调用与可复核闭环；
 - 必要 CI、real integration、Browser、安全或可访问性验证被绕过。
