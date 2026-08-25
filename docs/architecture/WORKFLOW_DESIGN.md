@@ -13,7 +13,7 @@ Router -> Application Service -> Persistent Workflow Executor
        -> Step Adapter -> Pipeline -> Publisher
 ```
 
-Application Service 从已确认 Contract 的 `output_requirements` 确定性编译最小前置依赖闭包，并创建冻结该有序 RunStep 集合的 `queued` Run。Executor 只消费已冻结的 RunStep，不重新推导、扩展或由模型生成第二份 Plan。每个 Step 内部由赛题合格模型驱动的 Agent 对该 Step 唯一注册的服务端工具给出一次公开分析并触发执行；服务端校验工具身份与公开分析文本后执行工具并把 Observation 写入公开 Activity。模型不能选择未注册工具、改变冻结 Step 顺序、授予新来源、扩大预算或绕过 Artifact 准入。Pipeline 只返回 typed candidate，Publisher 在准入通过后原子发布 ArtifactVersion 并推进 Step。创建 Run 或初始 Event 不代表执行已经发生。
+Application Service 从已确认 Contract 的 `output_requirements` 确定性编译最小前置依赖闭包，并创建冻结该有序 RunStep 集合的 `queued` Run。Executor 只消费已冻结的 RunStep，不重新推导、扩展或由模型生成第二份 Plan。每个 Step 内部由 Qwen Agent 对该 Step 唯一注册的服务端工具给出一次公开分析并触发执行；服务端校验工具身份与公开分析文本后执行工具并把 Observation 写入公开 Activity。模型不能选择未注册工具、改变冻结 Step 顺序、授予新来源、扩大预算或绕过 Artifact 准入。Pipeline 只返回 typed candidate，Publisher 在准入通过后原子发布 ArtifactVersion 并推进 Step。创建 Run 或初始 Event 不代表执行已经发生。
 
 执行协调分两层：ResearchRunWorker 只负责 poll、lease、step loop、Attempt、bounded retry orchestration、Publisher 提交与终态转换；StepRuntime 是薄分发层，只把每个冻结 RunStep 派发给对应的专职 Step Service（数据、论文检索/总结、文献推理、图谱），科学语义唯一保存在 `services/` 各 Pipeline（含契约门控的实时数据获取与文献检索），共享的 ProducerExecution 发布生命周期由 step publication 层唯一关闭。Run 依赖闭包唯一 Owner 是冻结的 RunStep chain（RunPlan）；Worker 不持有第二份 Artifact dependency closure，Artifact 名称映射只服务用户可读标题，不决定依赖。
 
@@ -79,7 +79,11 @@ Run 的关键语义节点可以写 Assistant Message：run started、major step
 started、meaningful validated result、recoverable issue、result published、
 completed / cancelled / failed。不按每一个内部函数调用写 Assistant Message。
 
-模型决策只产生执行前的 `public_analysis`：为什么现在执行、将检查什么、如何判断该步骤完成。主工具 schema 不包含任何执行后结果文案；Step 执行成功后的 Assistant Message 由服务端基于真实已验证完成结果（`result.public_message` 或 validated result）构造并写入 Thread，不为结果文案额外调用模型，也不得在执行前预测科研结果。
+模型决策只产生执行前的 `public_analysis`：为什么现在执行、将检查什么、如何
+判断该步骤完成。主工具 schema 不包含任何执行后结果文案；Step 执行成功后的
+Assistant Message 由服务端基于真实已验证完成结果（`result.public_message`
+或 validated result）构造并写入 Thread，不为结果文案额外调用模型，也不得在
+执行前预测科研结果。
 
 ## 4.2 waiting_for_input、取消、重试与修订闭环
 

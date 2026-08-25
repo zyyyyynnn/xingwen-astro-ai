@@ -9,15 +9,15 @@
 ## 1. 部署拓扑
 
 ```text
-Browser -> Static Brand Site
-Browser -> Workspace SPA
-Workspace SPA -> Backend API (/api/*)
-Backend API -> PostgreSQL
-Backend API -> Model Provider / Data Sources / Paper Sources
+Browser -> Static Brand Site (Astro)
+Browser -> Workspace SPA (React)
+Workspace SPA -> FastAPI Backend (/api/*)
+FastAPI Backend -> PostgreSQL 17
+FastAPI Backend -> Model Provider / Data Sources / Paper Sources
 ```
 
 - Brand Site 输出静态 HTML/CSS，工作台输出 SPA 静态资源。
-- 后端服务托管单一 `/api/*` 面，连接 PostgreSQL 权威事实源。
+- 后端服务托管 FastAPI 单一 `/api/*` 面，连接 PostgreSQL 权威事实源。
 - 外部模型、论文与数据源凭据严格锁定在后端环境，前端仅通过 API 交互。
 
 ## 2. 环境矩阵
@@ -30,12 +30,14 @@ Backend API -> Model Provider / Data Sources / Paper Sources
 
 ## 3. 配置与 Secrets
 
-- **Browser-visible**：仅包含 API 公开 origin、公开配置与浏览器公开变量，均视为公开信息。
+- **Browser-visible**：仅包含 API 公开 origin、公开配置与 `VITE_` / `PUBLIC_` 变量，均视为公开信息。
 - **Backend-only**：包含数据库连接、模型 API Key、Session/Share 散列密钥与限流配置。
-- 模型服务默认使用赛题指定合格模型的部署 baseline。development/test/integration 可以通过工作台保存一个实例级、经过真实连接探测的 override；凭据使用 `MODEL_PROVIDER_CONFIG_KEY` 派生的独立加密密钥后写入 PostgreSQL。production 只读。
-- 自定义兼容 provider 的远程 host 必须列入 `MODEL_PROVIDER_ALLOWED_HOSTS` 且使用 HTTPS；本地环境只对明确的本机地址开放 HTTP 例外。
+- 模型服务默认使用 `DASHSCOPE_*` 部署 baseline。development/test/integration 可以通过工作台保存
+  一个实例级 DashScope Qwen 或自定义 OpenAI-compatible override；凭据使用 `MODEL_PROVIDER_CONFIG_KEY`（为空时使用稳定的
+  `CURSOR_SIGNING_KEY`）派生的独立加密密钥后写入 PostgreSQL。production 只读。
+- custom provider 远程 host 必须列入 `MODEL_PROVIDER_ALLOWED_HOSTS` 且使用 HTTPS；本地环境只对
+  localhost、`127.0.0.1`、`::1` 与 `host.docker.internal` 开放 HTTP 例外。
 - Session、WorkspaceSnapshot 与 ShareSnapshot 使用同一 PostgreSQL schema；所有 API 实例必须连接同一数据库。`SESSION_RETENTION_SECONDS` 与 `SHARE_RETENTION_SECONDS` 控制写入时的有界清理，不得通过清理级联删除科研历史。
-- provider-specific secret/model 环境键以 `.env.example` 为当前操作事实，不在治理文档复制外部服务标识。
 - 生产环境严禁使用 DEBUG 模式、默认数据库密码、占位密钥或通配 CORS。
 
 ## 4. 数据库 Schema
@@ -49,7 +51,7 @@ Backend API -> Model Provider / Data Sources / Paper Sources
 - **Health**：
   - API liveness (`/api/health`) 检查进程响应，不依赖外部模型；
   - API readiness 校验数据库连接与 schema 可用性；
-  - 数据库使用当前部署栈的标准健康检查。
+  - 数据库使用 `pg_isready` 或健康检查命令。
 - **Observability**：
   - 日志必须包含 request id、Run id、step key、error code 与延迟；
   - 严禁记录 Secrets、Cookie、share 原 token、受限全文或模型私有推理。
@@ -61,6 +63,4 @@ Backend API -> Model Provider / Data Sources / Paper Sources
   - 静态首屏、`/workspace` SPA 路由与刷新；
   - `/api/health` 与 Core APIs 契约完整性；
   - Session、CSRF、401/403/404 与 Share 撤销/过期逻辑；
-  - PostgreSQL schema 与数据完整性；
-  - 赛题合格模型的真实连接、模型身份、调用证明与失败语义；
-  - Worker / Publisher / ArtifactVersion / Evidence 的真实纵向闭环。
+  - PostgreSQL schema 与数据完整性。

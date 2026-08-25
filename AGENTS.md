@@ -99,7 +99,7 @@ Research Workspace 继续使用当前已经采用并验证的成熟 Agent 交互
 
 ## 8. 竞赛与模型
 
-参赛主案例必须遵守 [Competition Compliance](docs/product/COMPETITION_COMPLIANCE.md)。赛题指定合格模型的官方调用路径、model/revision、调用证明、ProducerExecution、ArtifactVersion 与 Evidence 必须形成真实闭环。其他模型只能用于 benchmark、消融或对照，不得包装为合格主模型。
+参赛主案例的合格模型必须遵守 [Competition Compliance](docs/product/COMPETITION_COMPLIANCE.md)。Qwen 的合格官方调用路径、model/revision、调用证明、ProducerExecution、ArtifactVersion 与 Evidence 必须形成真实闭环。其他模型可以用于 benchmark、消融或参考，但不得包装为合格主模型。
 
 API Key、认证头、原始私有 provider response 与私有 reasoning 不得写入源码、日志、Artifact、截图或公开分享。
 
@@ -107,10 +107,10 @@ API Key、认证头、原始私有 provider response 与私有 reasoning 不得�
 
 治理 Markdown 是最终提交包的一部分，必须从本项目自身产品与工程事实出发书写：
 
-- 不出现外部参考项目或上游产品名称、仓库 URL、tag、commit、迁移来源标签或历史采用说明；
+- 不出现外部参考项目或上游实现项目名称、仓库 URL、tag、commit、迁移来源标签或历史采用说明；
 - 不保存具体 Issue/PR/Review/CI 标识、工作阶段、批次、进度、具体修复历史等过程性内容；
-- 不为“证明借鉴”列举外部功能目录；
-- 当前运行所必需的协议、数据源和技术标准可在对应 Authority 中按事实出现；
+- 不为“证明借鉴”列举外部参考项目的功能目录；
+- 当前产品真实使用的模型、provider、协议、数据源、技术标准与运行依赖必须由对应 Authority 按事实准确记录，不因来源去标识规则而泛化或删除；
 - 法律归因与第三方许可证由 NOTICE、LICENSE、THIRD_PARTY_NOTICES 或机器 provenance 负责，不复制进治理 Authority。
 
 ## 10. 代码纪律
