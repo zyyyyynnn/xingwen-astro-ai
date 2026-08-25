@@ -17,6 +17,8 @@ export {
   Code,
   Database,
   Download,
+  Eye,
+  EyeOff,
   ExternalLink,
   FileCheck2,
   FileSearch,

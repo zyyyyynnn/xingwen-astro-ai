@@ -12,6 +12,7 @@ import type {
   ArtifactVersionSummary,
   Evidence,
   ResearchArtifact,
+  SourceSnapshotSummary,
 } from "@xingwen/domain";
 
 import { HttpClient, seg, validateAndMap } from "./http-client";
@@ -23,6 +24,7 @@ import {
   mapResearchArtifactDetail,
 } from "./mapping";
 import type { ArtifactReadRepository } from "./ports";
+import { mapSnapshotSummary } from "./paper-acquisition-repository";
 
 export function createArtifactRepository(
   http: HttpClient,
@@ -70,6 +72,14 @@ export function createArtifactRepository(
       const payload = await http.get<unknown>(`/api/evidence/${seg(id)}`);
       return payload
         ? validateAndMap("EvidenceRead", payload, mapEvidenceRead)
+        : null;
+    },
+    async getSourceSnapshot(id): Promise<SourceSnapshotSummary | null> {
+      const payload = await http.get<unknown>(
+        `/api/source-snapshots/${seg(id)}`,
+      );
+      return payload
+        ? validateAndMap("SourceSnapshotDetail", payload, mapSnapshotSummary)
         : null;
     },
   };

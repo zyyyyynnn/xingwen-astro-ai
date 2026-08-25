@@ -40,9 +40,11 @@ from app.schemas.core import (
     PublicEvidence,
     WorkspaceSnapshotInput,
 )
+from app.schemas.data_artifacts import DatasetArtifactCandidate
 from app.security import PersistentSessionStore, SecurityProblem, SessionService
 from app.services.resource_authority import InMemoryResourceAuthority
 from app.services.snapshots import PersistentSnapshotStore, SnapshotService
+from artifact_publication_test_support import build_reference_dataset_candidate
 from authoring_test_support import (
     build_contract_draft,
     build_research_contract,
@@ -97,7 +99,7 @@ def _project(factory: Callable[[], Session], *, session_id: str) -> str:
 
 def _persistent_resource_graph(
     factory: Callable[[], Session], *, session_id: str, label: str
-) -> dict[str, UUID]:
+) -> dict[str, UUID | tuple[UUID, ...]]:
     ids = {
         key: uuid4()
         for key in (
@@ -113,6 +115,13 @@ def _persistent_resource_graph(
             "evidence",
         )
     }
+    dataset_candidate = build_reference_dataset_candidate(run_id=ids["run"])
+    dataset = DatasetArtifactCandidate.model_validate(dataset_candidate.content)
+    evidence_ids = tuple(
+        ids["evidence"] if index == 0 else uuid4()
+        for index, _item in enumerate(dataset.transformation_evidence)
+    )
+    ids["evidence_ids"] = evidence_ids
     with factory() as session, session.begin():
         project = build_research_project(
             project_id=ids["project"],
@@ -218,7 +227,7 @@ def _persistent_resource_graph(
             version_number=1,
             publication_key=f"{label}-publication-1",
             schema_version="2.0.0",
-            content={"kind": "dataset", "rows": []},
+            content=dataset_candidate.content,
             content_hash=HASH_C,
             input_hash=HASH_B,
             source_mode="live",
@@ -229,23 +238,34 @@ def _persistent_resource_graph(
                 "parameters_hash": HASH_A,
             },
             source_snapshot_ids=[str(snapshot.id)],
-            evidence_ids=[str(ids["evidence"])],
+            evidence_ids=[str(item) for item in evidence_ids],
             created_at=NOW,
         )
-        evidence = EvidenceModel(
-            id=ids["evidence"],
-            project_id=project.id,
-            artifact_version_id=version.id,
-            target_type="dataset",
-            target_id=label,
-            evidence_type="database_value",
-            source_snapshot_id=snapshot.id,
-            locator={"row": label},
-            quote_or_value=label,
-            extraction_method="direct_lookup",
-            confidence=1.0,
-            is_restricted=False,
-            created_at=NOW,
+        evidence = tuple(
+            EvidenceModel(
+                id=persisted_id,
+                project_id=project.id,
+                artifact_version_id=version.id,
+                target_type="canonical_field",
+                target_id=item.canonical_field_id,
+                evidence_type="data_transformation",
+                source_snapshot_id=snapshot.id,
+                locator=item.locator.model_dump(mode="json"),
+                quote_or_value=(
+                    item.canonical_value
+                    if item.canonical_value is not None
+                    else item.raw_value
+                ),
+                extraction_method="data_artifact_admission",
+                confidence=1.0,
+                is_restricted=False,
+                created_at=NOW,
+            )
+            for persisted_id, item in zip(
+                evidence_ids,
+                dataset.transformation_evidence,
+                strict=True,
+            )
         )
         persist_authoring_models(
             session, project=project, draft=draft, contract=contract
@@ -262,7 +282,7 @@ def _persistent_resource_graph(
         session.flush()
         session.add(version)
         session.flush()
-        session.add(evidence)
+        session.add_all(evidence)
         session.flush()
         artifact.latest_version_id = version.id
     return ids
@@ -283,12 +303,25 @@ def _authority(
         content_hash="sha256:" + "a" * 64,
         source_mode="live",
         created_at=NOW,
+        presentation={"kind": "dataset"},
+        evidence_ids=(),
     )
     evidence = PublicEvidence(
         id=str(uuid4()),
         artifact_version_id=version.id,
         source_snapshot_id=str(uuid4()),
+        locator={"kind": "database_cell", "field": "host_name"},
+        quote_or_value="TOI-700",
+        created_at=NOW,
+        source={
+            "source_id": "gaia",
+            "source_type": "database",
+            "retrieved_at": NOW,
+            "license_note": "Gaia archive terms",
+            "request_metadata": {},
+        },
     )
+    version = version.model_copy(update={"evidence_ids": (evidence.id,)})
     authority.register_artifact_version(project_id=project_id, projection=version)
     authority.register_evidence(project_id=project_id, projection=evidence)
     return authority, version, evidence
@@ -304,7 +337,7 @@ def _share_request(
         title="Restart-safe public share",
         artifact_version_ids=(version.id,),
         evidence_ids=(evidence.id,),
-        redaction_policy="public_metadata_only",
+        redaction_policy="redacted_public_snapshot",
         expires_at=expires_at,
     )
 
@@ -331,9 +364,7 @@ def test_restart_recovers_session_workspace_and_frozen_share(
     created_share = first_snapshots.create_share(
         project_id=project_id,
         session_id=owner.id,
-        request=_share_request(
-            version, evidence, expires_at=NOW + timedelta(hours=1)
-        ),
+        request=_share_request(version, evidence, expires_at=NOW + timedelta(hours=1)),
         now=NOW,
     )
 
@@ -376,11 +407,25 @@ def test_restart_recovers_session_workspace_and_frozen_share(
     with factory() as session:
         row = session.get(ShareSnapshotModel, created_share.id)
         assert row is not None
-        assert row.token_hash == hashlib.sha256(
-            created_share.share_token.encode("utf-8")
-        ).hexdigest()
+        assert (
+            row.token_hash
+            == hashlib.sha256(created_share.share_token.encode("utf-8")).hexdigest()
+        )
         assert created_share.share_token not in repr(row.artifact_versions)
         assert created_share.share_token not in repr(row.evidence)
+
+    with factory() as session, session.begin():
+        row = session.get(ShareSnapshotModel, created_share.id, with_for_update=True)
+        assert row is not None
+        row.artifact_versions = [{"kind": "dataset"}]
+
+    with pytest.raises(SecurityProblem) as corrupted:
+        restarted_snapshots.get_public_share(
+            raw_token=created_share.share_token,
+            now=NOW + timedelta(seconds=4),
+        )
+    assert corrupted.value.status == 404
+    assert corrupted.value.code == "SHARE_NOT_FOUND"
 
 
 def test_two_api_instances_share_session_and_workspace_runtime(
@@ -442,9 +487,7 @@ def test_http_persistent_authority_conceals_resources_and_freezes_share(
         victim_csrf = victim_created.json()["data"]["csrf_token"]
         victim_credential = client.cookies.get(settings.SESSION_COOKIE_NAME)
         assert victim_credential is not None
-        victim_session = first_app.state.session_service.authenticate(
-            victim_credential
-        )
+        victim_session = first_app.state.session_service.authenticate(victim_credential)
 
         client.cookies.clear()
         attacker_created = client.post("/api/sessions")
@@ -512,7 +555,7 @@ def test_http_persistent_authority_conceals_resources_and_freezes_share(
                     "title": "Must remain concealed",
                     "artifact_version_ids": [str(references["version"])],
                     "evidence_ids": [str(references["evidence"])],
-                    "redaction_policy": "public_metadata_only",
+                    "redaction_policy": "redacted_public_snapshot",
                     "expires_at": expires_at.isoformat(),
                 },
                 headers={"X-CSRF-Token": attacker_csrf},
@@ -535,16 +578,14 @@ def test_http_persistent_authority_conceals_resources_and_freezes_share(
             assert tuple(session.scalars(select(ShareSnapshotModel))) == ()
 
         client.cookies.clear()
-        client.cookies.set(
-            settings.SESSION_COOKIE_NAME, victim_credential, path="/api"
-        )
+        client.cookies.set(settings.SESSION_COOKIE_NAME, victim_credential, path="/api")
         created = client.post(
             f"/api/projects/{victim['project']}/shares",
             json={
                 "title": "Frozen production share",
                 "artifact_version_ids": [str(victim["version"])],
-                "evidence_ids": [str(victim["evidence"])],
-                "redaction_policy": "public_metadata_only",
+                "evidence_ids": [str(item) for item in victim["evidence_ids"]],
+                "redaction_policy": "redacted_public_snapshot",
                 "expires_at": expires_at.isoformat(),
             },
             headers={"X-CSRF-Token": victim_csrf},
@@ -594,26 +635,37 @@ def test_http_persistent_authority_conceals_resources_and_freezes_share(
     assert resolved.status_code == 200
     projection = resolved.json()["data"]
     assert projection["title"] == "Frozen production share"
-    assert projection["artifact_versions"] == [
-        {
-            "id": str(victim["version"]),
-            "artifact_id": str(victim["artifact"]),
-            "kind": "dataset",
-            "title": "Frozen victim dataset",
-            "version_number": 1,
-            "schema_version": "2.0.0",
-            "content_hash": HASH_C,
-            "source_mode": "live",
-            "created_at": NOW.isoformat().replace("+00:00", "Z"),
-        }
+    assert len(projection["artifact_versions"]) == 1
+    frozen_version = projection["artifact_versions"][0]
+    assert frozen_version["id"] == str(victim["version"])
+    assert frozen_version["artifact_id"] == str(victim["artifact"])
+    assert frozen_version["title"] == "Frozen victim dataset"
+    assert frozen_version["version_number"] == 1
+    assert frozen_version["evidence_ids"] == [
+        str(item) for item in victim["evidence_ids"]
     ]
-    assert projection["evidence"] == [
-        {
-            "id": str(victim["evidence"]),
-            "artifact_version_id": str(victim["version"]),
-            "source_snapshot_id": str(victim["snapshot"]),
-        }
+    assert "content" not in frozen_version
+    assert frozen_version["presentation"]["kind"] == "dataset"
+    assert [entry["key"] for entry in frozen_version["presentation"]["entries"]] == [
+        "planet.toi_id",
+        "star.tic_id",
     ]
+
+    assert len(projection["evidence"]) == len(victim["evidence_ids"])
+    frozen_evidence = projection["evidence"][0]
+    assert frozen_evidence["id"] == str(victim["evidence"])
+    assert frozen_evidence["artifact_version_id"] == str(victim["version"])
+    assert frozen_evidence["source_snapshot_id"] == str(victim["snapshot"])
+    assert frozen_evidence["locator"]["kind"] == "database_cell"
+    assert "row" not in frozen_evidence["locator"]
+    assert frozen_evidence["quote_or_value"] is None
+    assert frozen_evidence["source"] == {
+        "source_id": "victim-source",
+        "source_type": "catalog",
+        "retrieved_at": NOW.isoformat().replace("+00:00", "Z"),
+        "license_note": "Public metadata only.",
+        "request_metadata": {},
+    }
 
 
 def test_multi_instance_rotation_and_workspace_update_are_serialized(
@@ -683,9 +735,12 @@ def test_multi_instance_rotation_and_workspace_update_are_serialized(
     assert len(successes) == 1
     assert len(conflicts) == 1
     assert conflicts[0].code == "VERSION_CONFLICT"
-    assert first_snapshots.get_workspace(
-        project_id=project_id, session_id=owner.id
-    ).revision == 2
+    assert (
+        first_snapshots.get_workspace(
+            project_id=project_id, session_id=owner.id
+        ).revision
+        == 2
+    )
 
 
 def test_revocation_expiry_and_retention_are_fail_closed(
@@ -717,9 +772,7 @@ def test_revocation_expiry_and_retention_are_fail_closed(
     active_share = snapshots.create_share(
         project_id=project_id,
         session_id=owner.id,
-        request=_share_request(
-            version, evidence, expires_at=NOW + timedelta(hours=1)
-        ),
+        request=_share_request(version, evidence, expires_at=NOW + timedelta(hours=1)),
         now=NOW,
     )
     snapshots.revoke_share(
@@ -744,9 +797,10 @@ def test_revocation_expiry_and_retention_are_fail_closed(
     assert revoked_session.value.code == "SESSION_REQUIRED"
 
     assert sessions.cleanup(now=NOW, retention=timedelta(minutes=1)) == 1
-    assert snapshots.cleanup(
-        now=NOW + timedelta(hours=2), retention=timedelta(minutes=1)
-    ) == 2
+    assert (
+        snapshots.cleanup(now=NOW + timedelta(hours=2), retention=timedelta(minutes=1))
+        == 2
+    )
     with factory() as session:
         # The unreferenced expired Session is gone. The revoked owner identity
         # remains because Project ownership history still references it.
@@ -765,9 +819,7 @@ def test_cleanup_failure_rolls_back_session_and_share_creation(
         raise RuntimeError("cleanup failed")
 
     with monkeypatch.context() as patch:
-        patch.setattr(
-            PersistentSessionStore, "_cleanup", staticmethod(fail_cleanup)
-        )
+        patch.setattr(PersistentSessionStore, "_cleanup", staticmethod(fail_cleanup))
         sessions = SessionService(
             PersistentSessionStore(factory, retention=timedelta()),
             ttl_seconds=3600,
@@ -785,13 +837,9 @@ def test_cleanup_failure_rolls_back_session_and_share_creation(
     authority, version, evidence = _authority(
         session_id=owner.id, project_id=project_id
     )
-    snapshots = PersistentSnapshotStore(
-        factory, authority, retention=timedelta()
-    )
+    snapshots = PersistentSnapshotStore(factory, authority, retention=timedelta())
     with monkeypatch.context() as patch:
-        patch.setattr(
-            PersistentSnapshotStore, "_cleanup", staticmethod(fail_cleanup)
-        )
+        patch.setattr(PersistentSnapshotStore, "_cleanup", staticmethod(fail_cleanup))
         with pytest.raises(RuntimeError, match="cleanup failed"):
             snapshots.create_share(
                 project_id=project_id,

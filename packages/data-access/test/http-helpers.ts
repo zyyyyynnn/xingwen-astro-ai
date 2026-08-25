@@ -97,6 +97,8 @@ function versionDetail(version: VersionDto): Record<string, unknown> {
     source_snapshots: [],
     evidence: [],
     ...version,
+    presentation:
+      exoplanetHostStarFixture.data.artifactPresentations[version.id],
   };
 }
 
@@ -122,7 +124,7 @@ const WORKSPACE_ARTIFACT_VERSION = {
 const PUBLIC_SHARE = {
   id: "share_01",
   title: "Public dataset evidence",
-  redaction_policy: "public_metadata_only",
+  redaction_policy: "redacted_public_snapshot",
   created_at: "2026-07-21T09:00:00Z",
   expires_at: "2026-07-22T09:00:00Z",
   artifact_versions: [WORKSPACE_ARTIFACT_VERSION],
@@ -493,6 +495,15 @@ export const defaultHandlers = [
     }
     return HttpResponse.json(envelope(EVIDENCE_READ));
   }),
+  http.get(`${BASE_URL}/api/source-snapshots/:snapshotId`, ({ params }) => {
+    const snapshot = exoplanetHostStarFixture.data.dataArtifactReads
+      .flatMap((read) => read.source_snapshots)
+      .find((candidate) => candidate.id === params.snapshotId);
+    if (!snapshot) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(envelope(snapshot));
+  }),
   http.get(
     `${BASE_URL}/api/projects/:projectId/workspace-snapshot`,
     ({ params }) => {
@@ -541,7 +552,7 @@ export const defaultHandlers = [
           project_id: "proj_01JEXAMPLE",
           title: "Public dataset evidence",
           status: "active",
-          redaction_policy: "public_metadata_only",
+          redaction_policy: "redacted_public_snapshot",
           artifact_version_ids: ["artv_dataset_01"],
           evidence_ids: ["evd_01"],
           created_at: "2026-07-21T09:00:00Z",

@@ -25,6 +25,7 @@ import type {
   LiteratureRelationsArtifactReview,
   LiteratureReasoningTraceReview,
   LiteratureReasoningTraceStepReview,
+  PublicArtifactPresentation,
   SourceMode,
   UtcIsoTimestamp,
 } from "@xingwen/domain";
@@ -32,6 +33,7 @@ import { asEntityId } from "@xingwen/domain";
 
 import { ValidationError, NotFoundError } from "./errors";
 import { HttpClient, seg } from "./http-client";
+import { mapPublicArtifactPresentation } from "./mapping";
 import {
   mapSnapshotSummary,
   parseContract,
@@ -91,11 +93,16 @@ function snapshotList(value: unknown): ReturnType<typeof mapSnapshotSummary>[] {
   );
 }
 
+type LiteratureArtifactVersionMetadata = Omit<
+  LiteratureArtifactVersionReview,
+  "presentation"
+>;
+
 function versionOf(
   value: LiteratureClaimRead["version"],
   sourceSnapshots: readonly ReturnType<typeof mapSnapshotSummary>[],
   evidence: readonly DomainEntityId[],
-): LiteratureArtifactVersionReview {
+): LiteratureArtifactVersionMetadata {
   return {
     artifactVersionId: id(value.artifact_version_id),
     artifactId: id(value.artifact_id),
@@ -132,6 +139,7 @@ export function mapLiteratureClaimRead(
   read: LiteratureClaimRead,
 ): LiteratureClaimReview {
   const claim = read.claim;
+  const persistedEvidenceIds = evidenceIds(read.evidence);
   return {
     ...claimReference(read)!,
     objects: [...claim.objects],
@@ -154,7 +162,7 @@ export function mapLiteratureClaimRead(
         ? id(claim.source_paper_summary_artifact_version_id)
         : null,
     sourceSnapshotIds: claim.source_snapshot_ids.map(id),
-    evidenceIds: claim.evidence_ids.map(id),
+    evidenceIds: persistedEvidenceIds,
     failureStage: claim.failure_stage ?? null,
     rejectionReason: claim.rejection_reason ?? null,
   };
@@ -162,6 +170,7 @@ export function mapLiteratureClaimRead(
 
 function mapTraceCandidate(
   trace: NonNullable<LiteratureRelationRead["reasoning_trace"]>,
+  persistedEvidenceIds: readonly DomainEntityId[],
 ): LiteratureReasoningTraceReview {
   return {
     traceId: id(trace.trace_id),
@@ -179,9 +188,11 @@ function mapTraceCandidate(
       operation: step.operation,
       statement: step.statement,
       claimIds: step.claim_ids.map(id),
-      evidenceIds: step.evidence_ids.map(id),
+      evidenceIds: step.evidence_ids
+        .filter((evidenceId) => persistedEvidenceIds.includes(id(evidenceId)))
+        .map(id),
     })),
-    evidenceIds: trace.evidence_ids.map(id),
+    evidenceIds: [...persistedEvidenceIds],
     protocolVersion: trace.trace_protocol_version,
   };
 }
@@ -189,6 +200,7 @@ function mapTraceCandidate(
 function mapRelation(read: LiteratureRelationRead): LiteratureRelationReview {
   const relation = read.relation;
   const confidence = relation.confidence;
+  const persistedEvidenceIds = evidenceIds(read.evidence);
   return {
     relationId: id(relation.relation_id),
     pairId: relation.pair_id,
@@ -232,12 +244,12 @@ function mapRelation(read: LiteratureRelationRead): LiteratureRelationReview {
           acceptanceThreshold: confidence.acceptance_threshold,
         }
       : null,
-    evidenceIds: relation.evidence_ids.map(id),
+    evidenceIds: persistedEvidenceIds,
     sourceSnapshotIds: relation.source_snapshot_ids.map(id),
     sourceClaim: claimReference(read.source_claim),
     targetClaim: claimReference(read.target_claim),
     reasoningTrace: read.reasoning_trace
-      ? mapTraceCandidate(read.reasoning_trace)
+      ? mapTraceCandidate(read.reasoning_trace, persistedEvidenceIds)
       : null,
     failureStage: relation.failure_stage ?? null,
     rejectionReason: relation.rejection_reason ?? null,
@@ -267,8 +279,8 @@ function relationRead(value: unknown): LiteratureRelationRead {
 }
 
 function sameVersion(
-  versions: readonly LiteratureArtifactVersionReview[],
-): LiteratureArtifactVersionReview {
+  versions: readonly LiteratureArtifactVersionMetadata[],
+): LiteratureArtifactVersionMetadata {
   const first = versions[0];
   if (!first) throw invalid("Literature artifact returned no version context");
   for (const version of versions.slice(1)) {
@@ -285,6 +297,7 @@ function sameVersion(
 
 function assembleClaims(
   reads: readonly LiteratureClaimRead[],
+  presentation: PublicArtifactPresentation,
 ): LiteratureClaimsArtifactReview {
   const versions = reads.map((read) =>
     versionOf(
@@ -297,12 +310,14 @@ function assembleClaims(
   return {
     ...version,
     kind: "literature_claims",
+    presentation,
     claims: reads.map(mapLiteratureClaimRead),
   };
 }
 
 function assembleRelations(
   reads: readonly LiteratureRelationRead[],
+  presentation: PublicArtifactPresentation,
 ): LiteratureRelationsArtifactReview {
   const versions = reads.map((read) =>
     versionOf(
@@ -315,6 +330,7 @@ function assembleRelations(
   return {
     ...version,
     kind: "literature_relations",
+    presentation,
     relations: reads.map(mapRelation),
   };
 }
@@ -322,7 +338,11 @@ function assembleRelations(
 async function emptyVersion(
   http: HttpClient,
   artifactVersionId: DomainEntityId,
-): Promise<LiteratureArtifactVersionReview> {
+): Promise<
+  LiteratureArtifactVersionReview & {
+    readonly presentation: PublicArtifactPresentation;
+  }
+> {
   const detail = parseContract<ArtifactVersionDetailDto>(
     "ArtifactVersionDetail",
     await http.getRequired<unknown>(
@@ -349,6 +369,7 @@ async function emptyVersion(
     evidenceIds: (
       detail.evidence_ids ?? detail.evidence.map((item) => item.id)
     ).map(id),
+    presentation: mapPublicArtifactPresentation(detail.presentation),
   };
 }
 
@@ -357,34 +378,38 @@ export function createLiteratureArtifactRepository(
 ): LiteratureArtifactRepository {
   return {
     async getClaims(artifactVersionId) {
-      const rows = (
-        await http.list<unknown>(
+      const [payloads, version] = await Promise.all([
+        http.list<unknown>(
           `/api/artifact-versions/${seg(artifactVersionId)}/literature-claims`,
-        )
-      ).map(claimRead);
+        ),
+        emptyVersion(http, artifactVersionId),
+      ]);
+      const rows = payloads.map(claimRead);
       if (rows.length === 0) {
         return {
-          ...(await emptyVersion(http, artifactVersionId)),
+          ...version,
           kind: "literature_claims" as const,
           claims: [],
         };
       }
-      return assembleClaims(rows);
+      return assembleClaims(rows, version.presentation);
     },
     async getRelations(artifactVersionId) {
-      const rows = (
-        await http.list<unknown>(
+      const [payloads, version] = await Promise.all([
+        http.list<unknown>(
           `/api/artifact-versions/${seg(artifactVersionId)}/literature-relations`,
-        )
-      ).map(relationRead);
+        ),
+        emptyVersion(http, artifactVersionId),
+      ]);
+      const rows = payloads.map(relationRead);
       if (rows.length === 0) {
         return {
-          ...(await emptyVersion(http, artifactVersionId)),
+          ...version,
           kind: "literature_relations" as const,
           relations: [],
         };
       }
-      return assembleRelations(rows);
+      return assembleRelations(rows, version.presentation);
     },
   };
 }
@@ -392,7 +417,20 @@ export function createLiteratureArtifactRepository(
 function fixtureRepository(
   claims: readonly LiteratureClaimRead[],
   relations: readonly LiteratureRelationRead[],
+  presentations: Readonly<Record<string, PublicArtifactPresentation>>,
 ): LiteratureArtifactRepository {
+  const presentation = (
+    artifactVersionId: DomainEntityId,
+  ): PublicArtifactPresentation => {
+    const value = presentations[String(artifactVersionId)];
+    if (!value) {
+      throw new NotFoundError(
+        `Artifact presentation ${artifactVersionId} not found`,
+        "ARTIFACT_VERSION_NOT_FOUND",
+      );
+    }
+    return value;
+  };
   const requireRows = <
     Read extends { readonly version: { readonly artifact_version_id: string } },
   >(
@@ -416,11 +454,13 @@ function fixtureRepository(
     getClaims: async (artifactVersionId) => {
       return assembleClaims(
         requireRows(claims, artifactVersionId, "Literature claims"),
+        presentation(artifactVersionId),
       );
     },
     getRelations: async (artifactVersionId) => {
       return assembleRelations(
         requireRows(relations, artifactVersionId, "Literature relations"),
+        presentation(artifactVersionId),
       );
     },
   };
@@ -429,6 +469,7 @@ function fixtureRepository(
 export function createFixtureLiteratureArtifactRepository(
   claims: readonly LiteratureClaimRead[],
   relations: readonly LiteratureRelationRead[],
+  presentations: Readonly<Record<string, PublicArtifactPresentation>>,
 ): LiteratureArtifactRepository {
-  return fixtureRepository(claims, relations);
+  return fixtureRepository(claims, relations, presentations);
 }

@@ -272,6 +272,7 @@ export function toArtifactVersionMetadataViewModel(
     schemaVersion: version.schemaVersion,
     sourceMode: version.sourceMode,
     createdAt: version.createdAt,
+    presentation: version.presentation,
     provenance: {
       contentHash: version.contentHash,
       inputHash: version.inputHash,
@@ -585,6 +586,7 @@ export function toLiteratureArtifactViewModel(
       ...snapshot,
     })),
     evidenceIds: [...review.evidenceIds],
+    presentation: review.presentation,
   };
   if (review.kind === "literature_claims") {
     return {
@@ -631,6 +633,7 @@ export function toGraphArtifactViewModel(
     })),
     edges: review.edges.map((edge) => ({
       ...edge,
+      evidenceIds: [...edge.evidenceIds],
       evidenceUseIds: [...edge.evidenceUseIds],
       dataAggregation: edge.dataAggregation
         ? { ...edge.dataAggregation }

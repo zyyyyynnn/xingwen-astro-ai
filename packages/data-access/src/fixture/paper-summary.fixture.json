@@ -16,7 +16,7 @@
     "version_number": 1,
     "supersedes_version_id": null,
     "source_mode": "fixture",
-    "content_hash": "sha256:dc235da6491b8b1cc1897f776939e1c1871fedcda0c51795af47dcd9ede0f044",
+    "content_hash": "sha256:9eeda60f33bf93fb19b3f7c85db56e1bbbd2bf03911743d87cdad9984d09f26b",
     "input_hash": "sha256:6c8751c40b59bdc9167c647a4585cf181145caced47a1dc1719e86e7288eeafc",
     "created_at": "2026-07-21T08:25:00Z",
     "paper": {
@@ -219,6 +219,7 @@
         "model_name": "fixture-model",
         "model_revision": null,
         "provider": null,
+        "provider_returned_model": null,
         "provider_request_id": null,
         "usage": null,
         "prompt_name": "paper_summary",
@@ -277,7 +278,7 @@
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
       "input_hash": "sha256:6c8751c40b59bdc9167c647a4585cf181145caced47a1dc1719e86e7288eeafc",
-      "output_hash": "sha256:dc235da6491b8b1cc1897f776939e1c1871fedcda0c51795af47dcd9ede0f044",
+      "output_hash": "sha256:9eeda60f33bf93fb19b3f7c85db56e1bbbd2bf03911743d87cdad9984d09f26b",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",
@@ -591,6 +592,7 @@
         "model_name": "fixture-model",
         "model_revision": null,
         "provider": null,
+        "provider_returned_model": null,
         "provider_request_id": null,
         "usage": null,
         "prompt_name": "paper_summary",
@@ -624,7 +626,7 @@
       "input_hash": "sha256:6c8751c40b59bdc9167c647a4585cf181145caced47a1dc1719e86e7288eeafc",
       "output_hash": "sha256:1eb715e28cb1447906a892a0940051bb5f0970ad34a211d1e065ccb715b6d79e"
     },
-    "content_hash": "sha256:dc235da6491b8b1cc1897f776939e1c1871fedcda0c51795af47dcd9ede0f044",
+    "content_hash": "sha256:9eeda60f33bf93fb19b3f7c85db56e1bbbd2bf03911743d87cdad9984d09f26b",
     "input_hash": "sha256:6c8751c40b59bdc9167c647a4585cf181145caced47a1dc1719e86e7288eeafc",
     "source_mode": "fixture",
     "producer": {
@@ -649,6 +651,67 @@
     ],
     "supersedes_version_id": null,
     "created_at": "2026-07-21T08:25:00Z",
+    "presentation": {
+      "kind": "paper_summary",
+      "summary": null,
+      "facts": [],
+      "sections": [
+        {
+          "title": "研究背景",
+          "paragraphs": [
+            {
+              "text": "The paper delivers The Revised TESS Input Catalog and Candidate Target List to prioritize TESS targets.",
+              "status": "supported",
+              "evidence_ids": ["evd_papsum_03"]
+            }
+          ]
+        },
+        {
+          "title": "研究方法",
+          "paragraphs": [
+            {
+              "text": "The catalog compiles stellar parameters from photometric catalogs and parallax measurements.",
+              "status": "unverifiable",
+              "evidence_ids": ["evd_papsum_04"]
+            }
+          ]
+        },
+        {
+          "title": "数据集",
+          "paragraphs": [
+            {
+              "text": "The catalog release analyzed here dates to 2019.",
+              "status": "supported",
+              "evidence_ids": ["evd_papsum_01"]
+            }
+          ]
+        },
+        {
+          "title": "实验与结果",
+          "paragraphs": [
+            {
+              "text": "The published catalog is registered under DOI 10.3847/1538-3881/ab3467.",
+              "status": "supported",
+              "evidence_ids": ["evd_papsum_02"]
+            }
+          ]
+        },
+        {
+          "title": "局限性",
+          "paragraphs": [
+            {
+              "text": "The catalog is claimed to be complete for all dwarf stars, without any cited evidence.",
+              "status": "unsupported",
+              "evidence_ids": []
+            }
+          ]
+        }
+      ],
+      "entries": [],
+      "tables": [],
+      "graph_nodes": [],
+      "graph_edges": []
+    },
     "producer_execution": {
       "id": "pexec_run_papsum_01",
       "run_id": "run_01JEXAMPLE",
@@ -673,7 +736,7 @@
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
       "input_hash": "sha256:6c8751c40b59bdc9167c647a4585cf181145caced47a1dc1719e86e7288eeafc",
-      "output_hash": "sha256:dc235da6491b8b1cc1897f776939e1c1871fedcda0c51795af47dcd9ede0f044",
+      "output_hash": "sha256:9eeda60f33bf93fb19b3f7c85db56e1bbbd2bf03911743d87cdad9984d09f26b",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",

@@ -23,6 +23,7 @@ import literatureReasoningTraceReadSchema from "./generated/core/json/Literature
 import literatureRelationReadSchema from "./generated/core/json/LiteratureRelationRead.schema.json";
 import manifest from "./generated/core/manifest.json";
 import modelExecutionRecordSchema from "./generated/core/json/ModelExecutionRecord.schema.json";
+import modelProviderConfigurationStatusSchema from "./generated/core/json/ModelProviderConfigurationStatus.schema.json";
 import researchPlanningCatalogSchema from "./generated/core/json/ResearchPlanningCatalog.schema.json";
 import paperCollectionCandidateReadSchema from "./generated/core/json/PaperCollectionCandidateRead.schema.json";
 import paperCollectionReadSchema from "./generated/core/json/PaperCollectionRead.schema.json";
@@ -30,6 +31,7 @@ import paperCandidateInputBindingSchema from "./generated/core/json/PaperCandida
 import paperSummaryDocumentSourceReadSchema from "./generated/core/json/PaperSummaryDocumentSourceRead.schema.json";
 import paperSummaryReadSchema from "./generated/core/json/PaperSummaryRead.schema.json";
 import publicShareSnapshotSchema from "./generated/core/json/PublicShareSnapshot.schema.json";
+import publicArtifactPresentationSchema from "./generated/core/json/PublicArtifactPresentation.schema.json";
 import researchThreadEntrySchema from "./generated/core/json/ResearchThreadEntry.schema.json";
 import researchTurnResultSchema from "./generated/core/json/ResearchTurnResult.schema.json";
 import researchArtifactSchema from "./generated/core/json/ResearchArtifact.schema.json";
@@ -71,12 +73,14 @@ export const CORE_MODEL_NAMES = [
   "ResearchTurnResult",
   "RunStepRead",
   "ModelExecutionRecord",
+  "ModelProviderConfigurationStatus",
   "ResearchPlanningCatalog",
   "ArtifactVersion",
   "ArtifactVersionSummary",
   "ResearchArtifact",
   "ResearchArtifactDetail",
   "ArtifactVersionDetail",
+  "PublicArtifactPresentation",
   "EvidenceRead",
   "SourceSnapshotDetail",
   "PaperCollectionRead",
@@ -136,12 +140,14 @@ const schemas: SchemaMap = {
   ResearchTurnResult: researchTurnResultSchema,
   RunStepRead: runStepReadSchema,
   ModelExecutionRecord: modelExecutionRecordSchema,
+  ModelProviderConfigurationStatus: modelProviderConfigurationStatusSchema,
   ResearchPlanningCatalog: researchPlanningCatalogSchema,
   ArtifactVersion: artifactVersionSchema,
   ArtifactVersionSummary: artifactVersionSummarySchema,
   ResearchArtifact: researchArtifactSchema,
   ResearchArtifactDetail: researchArtifactDetailSchema,
   ArtifactVersionDetail: artifactVersionDetailSchema,
+  PublicArtifactPresentation: publicArtifactPresentationSchema,
   EvidenceRead: evidenceReadSchema,
   SourceSnapshotDetail: sourceSnapshotDetailSchema,
   PaperCollectionRead: paperCollectionReadSchema,

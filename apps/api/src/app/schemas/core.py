@@ -14,6 +14,7 @@ from pydantic import (
     ConfigDict,
     Field,
     JsonValue,
+    SecretStr,
     StringConstraints,
     model_validator,
 )
@@ -311,7 +312,10 @@ class ResearchContractInput(BaseModel):
                 ArtifactKind.source_collection,
             }
         )
-        if selected_outputs & support_outputs and ArtifactKind.dataset not in selected_outputs:
+        if (
+            selected_outputs & support_outputs
+            and ArtifactKind.dataset not in selected_outputs
+        ):
             raise ValueError(
                 "field_dictionary and source_collection require dataset output"
             )
@@ -424,7 +428,10 @@ class ResearchContractDraft(BaseModel):
                     "contract": {
                         "research_goal": "Integrate exoplanet candidates and host-star parameters",
                         "target_objects": ["exoplanet_candidate", "host_star"],
-                        "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
+                        "data_requirements": {
+                            "unit_policy": "canonical",
+                            "document_source_policy": "disabled",
+                        },
                         "requested_fields": ["planet.toi_id", "star.tic_id"],
                         "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
                         "paper_search_scope": {"max_candidates": 20},
@@ -465,7 +472,10 @@ class ResearchContract(ResearchContractInput):
                     "version": 1,
                     "research_goal": "Integrate exoplanet candidates and host-star parameters",
                     "target_objects": ["exoplanet_candidate", "host_star"],
-                    "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
+                    "data_requirements": {
+                        "unit_policy": "canonical",
+                        "document_source_policy": "disabled",
+                    },
                     "requested_fields": ["planet.toi_id", "star.tic_id"],
                     "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
                     "paper_search_scope": {"max_candidates": 20},
@@ -1230,6 +1240,7 @@ class ArtifactVersionDetail(ArtifactVersion):
     """Unified immutable content and provenance read projection."""
 
     content: dict[str, JsonValue]
+    presentation: PublicArtifactPresentation
     producer_execution: ProducerExecutionDetail
     source_snapshots: tuple[SourceSnapshotDetail, ...]
     evidence: tuple[EvidenceDetail, ...]
@@ -1313,7 +1324,7 @@ class ShareStatus(StrEnum):
 
 
 class ShareRedactionPolicy(StrEnum):
-    public_metadata_only = "public_metadata_only"
+    redacted_public_snapshot = "redacted_public_snapshot"
 
 
 class CreateShareSnapshotRequest(BaseModel):
@@ -1322,7 +1333,7 @@ class CreateShareSnapshotRequest(BaseModel):
     title: NonEmptyString = Field(max_length=200)
     artifact_version_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=100)
     evidence_ids: tuple[Identifier, ...] = Field(default=(), max_length=500)
-    redaction_policy: Literal[ShareRedactionPolicy.public_metadata_only]
+    redaction_policy: Literal[ShareRedactionPolicy.redacted_public_snapshot]
     expires_at: UtcDateTime
 
     @model_validator(mode="after")
@@ -1358,8 +1369,138 @@ class ShareSnapshotCreated(ShareSnapshot):
     share_url: NonEmptyString
 
 
+class PublicPresentationFact(BaseModel):
+    """One human-readable fact in the shared scientific presentation model."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    label: NonEmptyString
+    values: tuple[NonEmptyString, ...] = Field(min_length=1)
+
+
+class PublicPresentationTrace(BaseModel):
+    """Presentation-safe reasoning trace with private execution facts removed."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    conclusion: NonEmptyString
+    steps: tuple[NonEmptyString, ...]
+    facts: tuple[PublicPresentationFact, ...] = ()
+    evidence_ids: tuple[Identifier, ...] = ()
+
+
+class PublicPresentationEntry(BaseModel):
+    """One claim, relation, field, paper, or scientific finding."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    key: NonEmptyString
+    title: NonEmptyString
+    external_url: NonEmptyString | None = None
+    status: NonEmptyString | None = None
+    assessment: NonEmptyString | None = None
+    paragraphs: tuple[NonEmptyString, ...] = ()
+    facts: tuple[PublicPresentationFact, ...] = ()
+    evidence_ids: tuple[Identifier, ...] = ()
+    reasoning_trace: PublicPresentationTrace | None = None
+
+
+class PublicPresentationParagraph(BaseModel):
+    """One narrative statement with its directly supporting Evidence."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    text: NonEmptyString
+    status: NonEmptyString | None = None
+    evidence_ids: tuple[Identifier, ...] = ()
+
+
+class PublicPresentationSection(BaseModel):
+    """A bounded narrative section in a shared result presentation."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    title: NonEmptyString
+    paragraphs: tuple[PublicPresentationParagraph, ...] = Field(min_length=1)
+
+
+class PublicPresentationTableColumn(BaseModel):
+    """One explicitly projected column in a shared scientific table."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    key: NonEmptyString
+    label: NonEmptyString
+    unit: NonEmptyString | None = None
+
+
+class PublicPresentationTableCell(BaseModel):
+    """One display-safe canonical value and its directly supporting Evidence."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    column_key: NonEmptyString
+    value: str | None = None
+    status: Literal["mapped", "missing", "unresolved"] = "mapped"
+    reason: NonEmptyString | None = None
+    evidence_ids: tuple[Identifier, ...] = ()
+
+
+class PublicPresentationTableRow(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    key: NonEmptyString
+    identity: NonEmptyString
+    cells: tuple[PublicPresentationTableCell, ...] = ()
+
+
+class PublicPresentationTable(BaseModel):
+    """Bounded tabular result projected from a typed Artifact authority."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    title: NonEmptyString
+    columns: tuple[PublicPresentationTableColumn, ...] = Field(min_length=1)
+    rows: tuple[PublicPresentationTableRow, ...] = ()
+    total_row_count: int = Field(ge=0)
+    total_column_count: int = Field(ge=1)
+
+
+class PublicPresentationGraphNode(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    key: NonEmptyString
+    kind: NonEmptyString
+    label: NonEmptyString
+
+
+class PublicPresentationGraphEdge(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    key: NonEmptyString
+    kind: NonEmptyString
+    source_key: NonEmptyString
+    target_key: NonEmptyString
+    evidence_ids: tuple[Identifier, ...] = ()
+
+
+class PublicArtifactPresentation(BaseModel):
+    """Single positive-contract presentation model shared by private/public UI."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    kind: ArtifactKind
+    summary: NonEmptyString | None = None
+    facts: tuple[PublicPresentationFact, ...] = ()
+    sections: tuple[PublicPresentationSection, ...] = ()
+    entries: tuple[PublicPresentationEntry, ...] = ()
+    tables: tuple[PublicPresentationTable, ...] = ()
+    graph_nodes: tuple[PublicPresentationGraphNode, ...] = ()
+    graph_edges: tuple[PublicPresentationGraphEdge, ...] = ()
+
+
 class PublicArtifactVersion(BaseModel):
-    """Redacted immutable version metadata safe for an anonymous share response."""
+    """Immutable result metadata plus a typed anonymous presentation."""
 
     model_config = CORE_MODEL_CONFIG
 
@@ -1372,16 +1513,64 @@ class PublicArtifactVersion(BaseModel):
     content_hash: ContentHash
     source_mode: SourceMode
     created_at: UtcDateTime
+    presentation: PublicArtifactPresentation
+    evidence_ids: tuple[Identifier, ...]
+
+
+class PublicSourceSnapshot(BaseModel):
+    """Public source facts required by the shared Evidence inspector."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    source_id: NonEmptyString
+    source_type: NonEmptyString
+    retrieved_at: UtcDateTime
+    license_note: NonEmptyString
+    request_metadata: dict[str, JsonValue]
+
+
+class PublicEvidenceBBox(BaseModel):
+    """Page-relative bounding box in absolute document points."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+
+
+class PublicEvidenceLocator(BaseModel):
+    """Positive public locator contract preserving scientific verification."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    kind: NonEmptyString
+    page: int | None = Field(default=None, ge=0)
+    paragraph: int | None = Field(default=None, ge=0)
+    section: str | None = None
+    text_range: str | None = None
+    field: str | None = None
+    row_key: str | None = None
+    block_id: str | None = None
+    reading_order: int | None = Field(default=None, ge=0)
+    table_id: str | None = None
+    cell_id: str | None = None
+    bbox: PublicEvidenceBBox | None = None
 
 
 class PublicEvidence(BaseModel):
-    """Minimal Evidence identity bound to a shared immutable version."""
+    """Redacted Evidence detail frozen with a shared immutable result."""
 
     model_config = CORE_MODEL_CONFIG
 
     id: Identifier
     artifact_version_id: Identifier
     source_snapshot_id: Identifier
+    locator: PublicEvidenceLocator
+    quote_or_value: str | None
+    created_at: UtcDateTime
+    source: PublicSourceSnapshot
 
 
 class PublicShareSnapshot(BaseModel):
@@ -1542,6 +1731,54 @@ class ResearchSession(BaseModel):
 
 class SessionCreated(ResearchSession):
     csrf_token: NonEmptyString
+
+
+class ModelProviderPreset(StrEnum):
+    dashscope = "dashscope"
+    custom = "custom"
+
+
+class ModelProviderConfigurationSource(StrEnum):
+    deployment = "deployment"
+    workspace = "workspace"
+
+
+class ModelProviderConfigurationStatus(BaseModel):
+    """Write-only credentials are represented only by a non-secret suffix hint."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    status: Literal["unconfigured", "ready"]
+    revision: int = Field(ge=0)
+    source: ModelProviderConfigurationSource | None
+    preset: ModelProviderPreset | None
+    base_url: str | None
+    dashscope_base_url: str
+    model: str | None
+    api_key_hint: str | None
+    verified_at: UtcDateTime | None
+    updated_at: UtcDateTime | None
+    editable: bool
+
+
+class ConfigureModelProviderRequest(BaseModel):
+    """Configure and verify the instance-wide Chat Completions provider."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    preset: ModelProviderPreset
+    base_url: Annotated[
+        str | None,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=500),
+    ] = None
+    model: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
+    ]
+    api_key: SecretStr = Field(
+        min_length=1,
+        max_length=2048,
+        json_schema_extra={"writeOnly": True},
+    )
 
 
 __all__ = ["PlannerOutcome"]

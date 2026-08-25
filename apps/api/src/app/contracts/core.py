@@ -19,6 +19,7 @@ from app.schemas.core import (
     ArtifactVersionSummary,
     CollectionEnvelope,
     ConfirmResearchContractRequest,
+    ConfigureModelProviderRequest,
     CreateResearchContractDraftRequest,
     CreateResearchProjectRequest,
     CreateRunRequest,
@@ -35,6 +36,7 @@ from app.schemas.core import (
     ResearchPlanningCatalog,
     ResearchRun,
     ResearchSession,
+    ModelProviderConfigurationStatus,
     ResearchThreadEntry,
     ResearchTurnRequest,
     ResearchTurnResult,
@@ -70,7 +72,10 @@ from app.schemas.paper_collection_api import (
     PaperCollectionCandidateRead,
     PaperCollectionRead,
 )
-from app.schemas.paper_summary_api import PaperSummaryDocumentSourceRead, PaperSummaryRead
+from app.schemas.paper_summary_api import (
+    PaperSummaryDocumentSourceRead,
+    PaperSummaryRead,
+)
 from app.schemas.scientific_artifact_api import ScientificArtifactRead
 from app.schemas.research_input import (
     BindResearchInputRequest,
@@ -97,6 +102,7 @@ PROBLEM_RESPONSES = {
     403: {"model": ProblemDetails},
     429: {"model": ProblemDetails},
     502: {"model": ProblemDetails},
+    503: {"model": ProblemDetails},
 }
 
 #: Research input ingestion adds body/type rejections on top of the common set.
@@ -152,6 +158,42 @@ def create_contract_app() -> FastAPI:
         csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
     ) -> Response:
         _ = csrf_token
+        return _contract_only()
+
+    @app.get(
+        "/api/model-provider/configuration",
+        operation_id="getModelProviderConfiguration",
+        response_model=Envelope[ModelProviderConfigurationStatus],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_model_provider_configuration() -> NoReturn:
+        return _contract_only()
+
+    @app.put(
+        "/api/model-provider/configuration",
+        operation_id="configureModelProvider",
+        response_model=Envelope[ModelProviderConfigurationStatus],
+        responses=PROBLEM_RESPONSES,
+    )
+    def configure_model_provider(
+        request: ConfigureModelProviderRequest,
+        csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
+        if_match: Annotated[int, Header(alias="If-Match", ge=0)],
+    ) -> NoReturn:
+        _ = (request, csrf_token, if_match)
+        return _contract_only()
+
+    @app.delete(
+        "/api/model-provider/configuration",
+        operation_id="removeModelProviderConfiguration",
+        response_model=Envelope[ModelProviderConfigurationStatus],
+        responses=PROBLEM_RESPONSES,
+    )
+    def remove_model_provider_configuration(
+        csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
+        if_match: Annotated[int, Header(alias="If-Match", ge=0)],
+    ) -> NoReturn:
+        _ = (csrf_token, if_match)
         return _contract_only()
 
     @app.get(
@@ -533,9 +575,7 @@ def create_contract_app() -> FastAPI:
                     "application/json": {
                         "schema": {"type": "string", "format": "binary"}
                     },
-                    "text/markdown": {
-                        "schema": {"type": "string", "format": "binary"}
-                    },
+                    "text/markdown": {"schema": {"type": "string", "format": "binary"}},
                 }
             },
         },
@@ -884,6 +924,25 @@ def create_contract_app() -> FastAPI:
         share_token: Annotated[str, Path(min_length=1)],
     ) -> NoReturn:
         _ = share_token
+        return _contract_only()
+
+    @app.get(
+        "/api/public/shares/{share_token}/artifacts/{artifact_version_id}/exports/csv",
+        operation_id="downloadPublicShareDatasetCsv",
+        response_class=Response,
+        response_model=None,
+        responses=PROBLEM_RESPONSES,
+        description=(
+            "Anonymous CSV download for one Dataset ArtifactVersion frozen into an "
+            "active share. Invalid, expired, revoked, disallowed, and unsupported "
+            "requests are indistinguishable."
+        ),
+    )
+    def download_public_share_dataset_csv(
+        share_token: Annotated[str, Path(min_length=1)],
+        artifact_version_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
+        _ = (share_token, artifact_version_id)
         return _contract_only()
 
     @app.post(

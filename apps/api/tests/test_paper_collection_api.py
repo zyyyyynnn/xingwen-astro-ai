@@ -59,6 +59,7 @@ from app.schemas.paper_collection_api import (
     PaperCandidateAccessEvidence,
 )
 from app.schemas.core import (
+    ArtifactKind,
     ArtifactVersionDetail,
     EvidenceDetail,
     ProducerExecutionDetail,
@@ -66,6 +67,7 @@ from app.schemas.core import (
     ResearchArtifactDetail,
     SourceSnapshotDetail,
 )
+from app.services.public_presentation import build_artifact_presentation
 from app.security import SecurityProblem
 from app.services.paper_collections import PaperCollectionReadService
 from app.services.artifacts import ArtifactReadService
@@ -381,6 +383,9 @@ class _Artifacts:
             version_number=1,
             schema_version=self.collection.schema_version,
             content=content,
+            presentation=build_artifact_presentation(
+                ArtifactKind.paper_collection, content, ()
+            ),
             content_hash=compute_canonical_payload_hash(content),
             input_hash=self.collection.input_hash,
             source_mode="fixture",
@@ -552,13 +557,15 @@ def test_paper_collection_read_rejects_impossible_search_phase_evidence() -> Non
         confidence=1.0,
         created_at=NOW,
     )
-    tampered_version = _Artifacts(collection).get_version(
-        version_id=VERSION_ID, session_id="owner"
-    ).model_copy(
-        update={
-            "evidence_ids": ("fake-evidence",),
-            "evidence": (fake_evidence,),
-        }
+    tampered_version = (
+        _Artifacts(collection)
+        .get_version(version_id=VERSION_ID, session_id="owner")
+        .model_copy(
+            update={
+                "evidence_ids": ("fake-evidence",),
+                "evidence": (fake_evidence,),
+            }
+        )
     )
 
     class _TamperedArtifacts(_Artifacts):
@@ -781,7 +788,9 @@ def test_postgres_paper_candidate_bridge_accepts_replays_and_shares_rate_limit(
     content_payload = canonical_artifact_content_payload(collection)
     content_hash = compute_canonical_payload_hash(content_payload)
     app = create_app()
-    owner, credential, csrf_token = app.state.session_service.create(now=datetime.now(UTC))
+    owner, credential, csrf_token = app.state.session_service.create(
+        now=datetime.now(UTC)
+    )
     app.state.artifact_read_service = ArtifactReadService(factory)
     with factory() as session, session.begin():
         _seed_published_collection(
@@ -806,7 +815,9 @@ def test_postgres_paper_candidate_bridge_accepts_replays_and_shares_rate_limit(
         assert version is not None
         assert version.evidence_ids == []
 
-    selected = next(candidate for candidate in collection.candidates if candidate.selected)
+    selected = next(
+        candidate for candidate in collection.candidates if candidate.selected
+    )
     access_url = "https://repository.example/paper.csv"
     fetched_content = b"title,year\nTESS,2020\n"
     fetched_hash = "sha256:" + hashlib.sha256(fetched_content).hexdigest()
@@ -874,7 +885,9 @@ def test_postgres_paper_candidate_bridge_accepts_replays_and_shares_rate_limit(
                 headers={**headers, "Idempotency-Key": "paper-bridge-cross-wire-url"},
             )
             assert cross_wire_response.status_code == 422
-            assert cross_wire_response.json()["code"] == "PAPER_ACCESS_RESOURCE_MISMATCH"
+            assert (
+                cross_wire_response.json()["code"] == "PAPER_ACCESS_RESOURCE_MISMATCH"
+            )
             assert fetch_calls == []
 
             ordinary = client.post(
@@ -896,7 +909,9 @@ def test_postgres_paper_candidate_bridge_accepts_replays_and_shares_rate_limit(
             )
             assert first.status_code == 201
             assert first.json()["data"]["outcome"] == "accepted"
-            assert first.json()["data"]["research_input"]["content_hash"] == fetched_hash
+            assert (
+                first.json()["data"]["research_input"]["content_hash"] == fetched_hash
+            )
             assert fetch_calls == [access_url]
 
             replay = client.post(
@@ -934,7 +949,9 @@ def test_postgres_paper_candidate_bridge_accepts_replays_and_shares_rate_limit(
             )
             assert existing.status_code == 201
             assert existing.json()["data"]["mode"] == "existing_research_input"
-            assert existing.json()["data"]["research_input"]["id"] == ordinary_input["id"]
+            assert (
+                existing.json()["data"]["research_input"]["id"] == ordinary_input["id"]
+            )
 
             cross_wired_existing = {
                 **existing_request,
@@ -1004,11 +1021,15 @@ def test_paper_candidate_bridge_metadata_only_has_no_input_or_fetch(
     reset_current_schema(TEST_DATABASE_URL)
     engine = create_engine_from_url(TEST_DATABASE_URL)
     factory = session_factory(engine)
-    collection = _collection(source_mode=SourceMode.fixture, data_level=PaperDataLevel.fixture)
+    collection = _collection(
+        source_mode=SourceMode.fixture, data_level=PaperDataLevel.fixture
+    )
     project_id = uuid4()
     ids = tuple(uuid4() for _ in range(7))
     app = create_app()
-    owner, credential, csrf_token = app.state.session_service.create(now=datetime.now(UTC))
+    owner, credential, csrf_token = app.state.session_service.create(
+        now=datetime.now(UTC)
+    )
     app.state.artifact_read_service = ArtifactReadService(factory)
     with factory() as session, session.begin():
         _seed_published_collection(
@@ -1044,7 +1065,10 @@ def test_paper_candidate_bridge_metadata_only_has_no_input_or_fetch(
                 f"/api/artifact-versions/{ids[5]}/paper-candidates/"
                 f"{collection.candidates[0].candidate_id}/research-input",
                 json={"mode": "metadata_only", "reason": "metadata_url_only"},
-                headers={"X-CSRF-Token": csrf_token, "Idempotency-Key": "metadata-only-1"},
+                headers={
+                    "X-CSRF-Token": csrf_token,
+                    "Idempotency-Key": "metadata-only-1",
+                },
             )
             assert response.status_code == 201
             assert response.json()["data"]["outcome"] == "metadata_only"
@@ -1247,9 +1271,7 @@ def test_paper_candidate_bridge_reclaim_invalidates_old_worker_token(
         allow_old_completion = threading.Event()
         completion_tokens: list[str] = []
 
-        def persist_with_old_worker_paused(
-            *args: object, **kwargs: object
-        ) -> object:
+        def persist_with_old_worker_paused(*args: object, **kwargs: object) -> object:
             lease_token = str(kwargs["lease_token"])
             completion_tokens.append(lease_token)
             if len(completion_tokens) == 1:
@@ -1602,7 +1624,8 @@ def _seed_published_collection(
         project_id=project_id,
         contract_id=contract_id,
         execution_mode=(
-            "live" if collection.source_executions[0].source_mode is SourceMode.live
+            "live"
+            if collection.source_executions[0].source_mode is SourceMode.live
             else "demo_replay"
         ),
         status="completed",
@@ -1706,9 +1729,7 @@ def _seed_published_collection(
         evidence_ids=[],
         created_at=NOW,
     )
-    persist_authoring_models(
-        session, project=project, draft=draft, contract=contract
-    )
+    persist_authoring_models(session, project=project, draft=draft, contract=contract)
     session.flush()
     session.add(run)
     session.flush()

@@ -60,6 +60,8 @@ export interface GraphEdgeReview {
   readonly edgeType: string;
   readonly sourceNodeId: DomainEntityId | null;
   readonly targetNodeId: DomainEntityId | null;
+  /** Public Evidence records resolved by the governed Graph read endpoint. */
+  readonly evidenceIds: readonly DomainEntityId[];
   readonly evidenceUseIds: readonly DomainEntityId[];
   readonly dataAggregation: GraphDataAggregationReview | null;
   readonly relationTrace: GraphRelationTraceBindingReview | null;

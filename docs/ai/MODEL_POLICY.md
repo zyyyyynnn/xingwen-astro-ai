@@ -1,7 +1,7 @@
 # Model Policy
 
-| 元数据 | 值 |
-| --- | --- |
+| 元数据    | 值                                          |
+| --------- | ------------------------------------------- |
 | Authority | 模型输出准入、执行记录、Evidence 与失败语义 |
 
 模型与比赛资格由 [Competition Compliance](../product/COMPETITION_COMPLIANCE.md) 约束；Prompt identity 由 [Prompt Registry](PROMPT_REGISTRY.md) 管理。本文定义模型执行边界、候选输出准入与 provenance 规则。
@@ -41,6 +41,23 @@ Run 内模型 Pipeline 使用 ProducerExecution 保存与 ModelExecutionRecord �
 ModelExecutionPort 是 provider-neutral 的模型执行边界，拥有 typed request、Prompt identity、参数、超时、token usage、provider request identity 与原始失败分类。Provider Adapter 只负责调用与传输映射，不能决定 Artifact 准入或推进 Run。
 
 调用方必须先存在可验证的 Adapter 与对应 execution writer 才能执行该 Port。Research assistant 在没有 provider credentials 时必须以 `MODEL_RUNTIME_UNAVAILABLE` 失败；不得生成模板响应、模拟模型响应、成功状态、ArtifactVersion 或比赛调用证明。CI 可以注入明确的 fake port，但 fake provenance 必须标记为测试。
+
+### 5.1 实例级 Provider 配置
+
+- Provider 配置是实例级运行事实，不属于 Project、Thread、Session 或 Run。部署环境变量提供只读
+  baseline；本地工作台可安装一个已验证 override，供所有后续模型调用复用。
+- 通用 Adapter 复用 OpenAI SDK 的 Chat Completions-compatible `POST /chat/completions` 传输、Bearer API Key、
+  `model` 与 `messages`。DashScope preset 使用 Qwen Adapter 并追加 Qwen 明确支持的 thinking control；
+  自定义 OpenAI-compatible preset 使用通用 Adapter，不擅自注入 provider 私有参数。
+- 保存配置前必须执行真实、最小连接探测。探测成功后才加密持久化并原子替换运行快照；已开始的
+  调用继续使用其快照，新调用读取最新配置。
+- 分块模型任务以一个父 ProducerExecution 为调用边界：父级开始时固定一个运行快照，所有有序
+  子请求继承该快照并分别记录执行事实；下一独立调用或下一父级任务再读取最新配置。父级与子级
+  的 provider、model 与 revision 必须一致，不得用启动前或结束后的配置代替实际 provenance。
+  父级聚合记录不得冒用任一子请求的 provider request id；子级分别保存其请求 id 与 provider
+  返回 model，父级仅在所有子级返回 model 完整且一致时保存该共识值。
+- 配置状态只公开 preset、base URL、model、来源、验证时间与 API Key 尾号，不公开原始凭据、
+  认证头或 provider 响应体。
 
 ## 6. CacheSelector 协作
 

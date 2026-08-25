@@ -426,25 +426,36 @@ export function AnalysisReportContent({
   sourceMode,
   surface,
   onSelectEvidence,
+  enhancementOnly = false,
 }: {
   readonly content: AnalysisReportReviewContent;
   readonly title: string;
   readonly sourceMode: string;
   readonly surface: ScientificContentSurface;
   readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
+  readonly enhancementOnly?: boolean;
 }) {
   return (
     <article
       className="scientific-artifact scientific-artifact--analysis-report"
       data-surface={surface}
     >
-      <ScientificContentHeader
-        title={content.title || title}
-        subtitle={`分析报告 · ${sourceModeLabel(sourceMode)}`}
-      />
-      <p className="artifact-view__lead">{content.summary}</p>
-      <Metrics metrics={content.metrics} onSelectEvidence={onSelectEvidence} />
-      {content.findings.length > 0 ? (
+      {!enhancementOnly ? (
+        <ScientificContentHeader
+          title={content.title || title}
+          subtitle={`分析报告 · ${sourceModeLabel(sourceMode)}`}
+        />
+      ) : null}
+      {!enhancementOnly ? (
+        <p className="artifact-view__lead">{content.summary}</p>
+      ) : null}
+      {!enhancementOnly ? (
+        <Metrics
+          metrics={content.metrics}
+          onSelectEvidence={onSelectEvidence}
+        />
+      ) : null}
+      {!enhancementOnly && content.findings.length > 0 ? (
         <section className="scientific-findings">
           <h4>研究发现</h4>
           {content.findings.map((finding) => (
@@ -474,8 +485,8 @@ export function AnalysisReportContent({
           onSelectEvidence={onSelectEvidence}
         />
       ))}
-      <Limitations items={content.limitations} />
-      {content.humanRequired.length > 0 ? (
+      {!enhancementOnly ? <Limitations items={content.limitations} /> : null}
+      {!enhancementOnly && content.humanRequired.length > 0 ? (
         <section className="scientific-warning">
           <TriangleAlert aria-hidden="true" />
           <div>

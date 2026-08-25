@@ -17,6 +17,7 @@ import {
   type ArtifactVersionMetadata,
   type DomainEntityId,
   type PublicArtifactVersion,
+  type PublicArtifactPresentation,
   type PublicEvidence,
   type PublicShareSnapshot,
   type ResearchContract,
@@ -27,8 +28,10 @@ import {
   type RunEvent,
   type RunStepSnapshot,
   type ShareSnapshot,
+  type SourceSnapshotSummary,
   type WorkspaceSnapshot,
   type ContentHash,
+  type ModelProviderConfigurationStatus,
   type UtcIsoTimestamp,
 } from "@xingwen/domain";
 
@@ -44,6 +47,7 @@ import {
   mapArtifactVersionMetadata,
   mapDomainContractInputToDto,
   mapEvidence,
+  mapPublicArtifactPresentation,
   mapResearchArtifact,
   mapResearchContract,
   mapResearchContractDraft,
@@ -57,7 +61,10 @@ import { createFixtureDataArtifactRepository } from "./data-artifact-repository"
 import { createFixtureGraphArtifactRepository } from "./graph-artifact-repository";
 import { createFixtureLiteratureArtifactRepository } from "./literature-artifact-repository";
 import { createFixtureRevisionRepository } from "./revision-repository";
-import { assemblePaperAcquisitionReview } from "./paper-acquisition-repository";
+import {
+  assemblePaperAcquisitionReview,
+  mapSnapshotSummary,
+} from "./paper-acquisition-repository";
 import { assemblePaperSummaryReview } from "./paper-summary-repository";
 import type {
   CreateResearchRunInput,
@@ -75,6 +82,13 @@ export interface FixtureAdapterOptions {
   readonly clock?: () => UtcIsoTimestamp;
   readonly idFactory?: (prefix: string) => DomainEntityId;
 }
+
+const PUBLIC_SOURCE_URL_KEYS = [
+  "source_url",
+  "url",
+  "original_url",
+  "landing_url",
+] as const;
 
 function validateBundleSemantics(bundle: FixtureBundle): void {
   // Defensive runtime check: an old-shaped bundle without the paperSummaries
@@ -194,6 +208,51 @@ function validateBundleSemantics(bundle: FixtureBundle): void {
       );
     }
   }
+
+  const allVersions = [
+    ...bundle.data.artifactVersions,
+    ...bundle.data.paperAcquisitions.map((item) => item.version),
+    ...bundle.data.paperSummaries.map((item) => item.version),
+  ];
+  const artifactKindById = new Map(
+    bundle.data.artifacts.map((artifact) => [artifact.id, artifact.kind]),
+  );
+  const evidenceIdsByVersion = new Map(
+    allVersions.map((version) => [version.id, new Set(version.evidence_ids)]),
+  );
+  const referencedEvidenceIds = (
+    presentation: (typeof bundle.data.artifactPresentations)[string],
+  ): readonly string[] => [
+    ...(presentation.sections ?? []).flatMap((section) =>
+      section.paragraphs.flatMap((paragraph) => paragraph.evidence_ids ?? []),
+    ),
+    ...(presentation.entries ?? []).flatMap((entry) => [
+      ...(entry.evidence_ids ?? []),
+      ...(entry.reasoning_trace?.evidence_ids ?? []),
+    ]),
+    ...(presentation.graph_edges ?? []).flatMap(
+      (edge) => edge.evidence_ids ?? [],
+    ),
+  ];
+  for (const version of allVersions) {
+    const presentation = bundle.data.artifactPresentations[version.id];
+    const artifactKind = artifactKindById.get(version.artifact_id);
+    if (!presentation || !artifactKind || presentation.kind !== artifactKind) {
+      throw new FixtureSemanticError(
+        `Artifact presentation ${version.id} is missing or has the wrong kind`,
+      );
+    }
+    const allowedEvidenceIds =
+      evidenceIdsByVersion.get(version.id) ?? new Set();
+    const foreignEvidenceId = referencedEvidenceIds(presentation).find(
+      (evidenceId) => !allowedEvidenceIds.has(evidenceId),
+    );
+    if (foreignEvidenceId) {
+      throw new FixtureSemanticError(
+        `Artifact presentation ${version.id} references Evidence outside its immutable version`,
+      );
+    }
+  }
 }
 
 function validateBundlePayloads(bundle: FixtureBundle): void {
@@ -207,6 +266,10 @@ function validateBundlePayloads(bundle: FixtureBundle): void {
     { model: "ResearchRun", payloads: bundle.data.runs },
     { model: "RunEvent", payloads: bundle.data.runEvents },
     { model: "ArtifactVersion", payloads: bundle.data.artifactVersions },
+    {
+      model: "PublicArtifactPresentation",
+      payloads: Object.values(bundle.data.artifactPresentations),
+    },
     {
       model: "ArtifactVersionDetail",
       payloads: [
@@ -361,18 +424,53 @@ export function createFixtureRepositories(
   );
   const versions = new MemoryStore<ArtifactVersionMetadata>([
     ...bundle.data.artifactVersions.map((dto) =>
-      mapArtifactVersionMetadata(dto),
+      mapArtifactVersionMetadata(
+        dto,
+        bundle.data.artifactPresentations[dto.id],
+      ),
     ),
     ...bundle.data.paperAcquisitions.map((item) =>
-      mapArtifactVersionMetadata(item.version),
+      mapArtifactVersionMetadata(
+        item.version,
+        bundle.data.artifactPresentations[item.version.id],
+      ),
     ),
     ...bundle.data.paperSummaries.map((item) =>
-      mapArtifactVersionMetadata(item.version),
+      mapArtifactVersionMetadata(
+        item.version,
+        bundle.data.artifactPresentations[item.version.id],
+      ),
     ),
   ]);
   const evidenceStore = new MemoryStore(
     bundle.data.evidence.map((entity) => mapEvidence(entity)),
   );
+  const sourceSnapshotsById = new Map<string, SourceSnapshotSummary>();
+  const sourceSnapshotDtos = [
+    ...bundle.data.paperAcquisitions.flatMap(
+      (item) => item.collection.source_snapshots,
+    ),
+    ...bundle.data.paperSummaries.flatMap(
+      (item) => item.summary.source_snapshots,
+    ),
+    ...bundle.data.dataArtifactReads.flatMap((read) => read.source_snapshots),
+    ...bundle.data.fieldDictionaryArtifactReads.flatMap(
+      (read) => read.source_snapshots,
+    ),
+    ...bundle.data.sourceCollectionArtifactReads.flatMap(
+      (read) => read.source_snapshots,
+    ),
+    ...bundle.data.literatureClaimReads.flatMap(
+      (read) => read.source_snapshots,
+    ),
+    ...bundle.data.literatureRelationReads.flatMap(
+      (read) => read.source_snapshots,
+    ),
+  ];
+  for (const dto of sourceSnapshotDtos) {
+    const snapshot = mapSnapshotSummary(dto);
+    sourceSnapshotsById.set(snapshot.id, snapshot);
+  }
   const workspaces = new MemoryStore<WorkspaceSnapshot>([]);
   const researchInputs = new MemoryStore<ResearchInputRef>([]);
   const researchInputContent = new Map<DomainEntityId, Blob>();
@@ -389,6 +487,37 @@ export function createFixtureRepositories(
 
   const shares = new Map<DomainEntityId, ShareRecord>();
   const shareByToken = new Map<string, DomainEntityId>();
+  const fixtureModelProvider: ModelProviderConfigurationStatus = {
+    status: "ready",
+    revision: 0,
+    source: "deployment",
+    preset: null,
+    baseUrl: null,
+    dashscopeBaseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    model: "演示回放",
+    apiKeyHint: null,
+    verifiedAt: null,
+    updatedAt: null,
+    editable: false,
+  };
+  const fixtureArtifactExports = createFixtureArtifactExportRepository(
+    bundle.data.projects[0]?.id
+      ? asEntityId(bundle.data.projects[0].id)
+      : asEntityId("proj_fixture"),
+  );
+
+  function publicPresentation(
+    kind: PublicArtifactVersion["kind"],
+    versionId: DomainEntityId,
+  ): PublicArtifactPresentation {
+    const dto = bundle.data.artifactPresentations[String(versionId)];
+    if (!dto || dto.kind !== kind) {
+      throw new FixtureSemanticError(
+        `Artifact presentation ${versionId} is missing or has the wrong kind`,
+      );
+    }
+    return mapPublicArtifactPresentation(dto);
+  }
   const runsByIdempotencyKey = new Map<
     string,
     { readonly request: string; readonly run: ResearchRun }
@@ -430,6 +559,8 @@ export function createFixtureRepositories(
       contentHash: version.contentHash,
       sourceMode: version.sourceMode,
       createdAt: version.createdAt,
+      presentation: publicPresentation(artifact.kind, version.id),
+      evidenceIds: [...version.evidenceIds],
     };
   }
 
@@ -444,6 +575,7 @@ export function createFixtureRepositories(
       entity === null ||
       entity.sourceSnapshotId === null ||
       version === null ||
+      entity?.source === null ||
       version.projectId !== projectId
     ) {
       throw new NotFoundError(
@@ -456,10 +588,41 @@ export function createFixtureRepositories(
         `Evidence ${evidenceId} must belong to a selected ArtifactVersion`,
       ]);
     }
+    const locator = entity.locator;
+    const publicLocator = {
+      kind: (locator?.kind ?? "source") as PublicEvidence["locator"]["kind"],
+      page: locator?.kind === "paper_text" ? locator.page : null,
+      paragraph: locator?.kind === "paper_text" ? locator.paragraph : null,
+      section: locator?.kind === "paper_text" ? locator.section : null,
+      textRange: locator?.kind === "paper_text" ? locator.range : null,
+      field: locator?.kind === "database_cell" ? String(locator.field) : null,
+      rowKey: locator?.kind === "database_cell" ? locator.rowKey : null,
+      blockId: null,
+      readingOrder: null,
+      tableId: null,
+      cellId: null,
+      bbox: null,
+    };
+    const publicRequestMetadata = Object.fromEntries(
+      PUBLIC_SOURCE_URL_KEYS.flatMap((key) => {
+        const value = entity.source?.requestMetadata[key];
+        return typeof value === "string" ? [[key, value]] : [];
+      }),
+    );
     return {
       id: entity.id,
       artifactVersionId: entity.artifactVersionId,
       sourceSnapshotId: entity.sourceSnapshotId,
+      locator: publicLocator,
+      quoteOrValue: entity.quoteOrValue,
+      createdAt: entity.createdAt,
+      source: {
+        sourceId: entity.source.sourceId,
+        sourceType: entity.source.sourceType,
+        retrievedAt: entity.source.retrievedAt,
+        licenseNote: entity.source.licenseNote,
+        requestMetadata: publicRequestMetadata,
+      },
     };
   }
 
@@ -490,8 +653,8 @@ export function createFixtureRepositories(
     if (request.evidenceIds.length > 500) {
       errors.push("evidenceIds must contain at most 500 values");
     }
-    if (request.redactionPolicy !== "public_metadata_only") {
-      errors.push('redactionPolicy must be "public_metadata_only"');
+    if (request.redactionPolicy !== "redacted_public_snapshot") {
+      errors.push('redactionPolicy must be "redacted_public_snapshot"');
     }
     const expiry = Date.parse(request.expiresAt);
     if (Number.isNaN(expiry) || !/(?:Z|[+-]00:00)$/u.test(request.expiresAt)) {
@@ -987,6 +1150,7 @@ export function createFixtureRepositories(
       // provenance metadata only; rich content stays behind its dedicated port.
       getVersion: async (id) => versions.get(id),
       getEvidence: async (id) => evidenceStore.get(id),
+      getSourceSnapshot: async (id) => sourceSnapshotsById.get(id) ?? null,
     },
     researchInputs: {
       create: async (input) => {
@@ -1119,6 +1283,14 @@ export function createFixtureRepositories(
     literatureArtifacts: createFixtureLiteratureArtifactRepository(
       bundle.data.literatureClaimReads ?? [],
       bundle.data.literatureRelationReads ?? [],
+      Object.fromEntries(
+        Object.entries(bundle.data.artifactPresentations).map(
+          ([versionId, presentation]) => [
+            versionId,
+            mapPublicArtifactPresentation(presentation),
+          ],
+        ),
+      ),
     ),
     graphArtifacts: createFixtureGraphArtifactRepository(
       bundle.data.graphArtifactReads ?? [],
@@ -1142,11 +1314,7 @@ export function createFixtureRepositories(
         );
       },
     },
-    artifactExports: createFixtureArtifactExportRepository(
-      bundle.data.projects[0]?.id
-        ? asEntityId(bundle.data.projects[0].id)
-        : asEntityId("proj_fixture"),
-    ),
+    artifactExports: fixtureArtifactExports,
     workspaces: {
       getByProjectId: async (projectId) =>
         workspaces.filter((w) => w.projectId === projectId)[0] ?? null,
@@ -1276,8 +1444,35 @@ export function createFixtureRepositories(
           evidence: record.evidence,
         };
       },
+      downloadPublicDatasetCsv: async (shareToken, artifactVersionId) => {
+        const shareId = shareByToken.get(shareToken);
+        const record = shareId ? shares.get(shareId) : undefined;
+        const version = record?.artifactVersions.find(
+          (candidate) => candidate.id === artifactVersionId,
+        );
+        if (
+          !record ||
+          shareStatus(record.snapshot, clock()).status !== "active" ||
+          version?.kind !== "dataset"
+        ) {
+          throw new NotFoundError(
+            "Public share unavailable",
+            "SHARE_NOT_FOUND",
+          );
+        }
+        const exportRecord = await fixtureArtifactExports.create(
+          artifactVersionId,
+          "csv",
+        );
+        return fixtureArtifactExports.download(exportRecord);
+      },
     },
     revisions: createFixtureRevisionRepository(),
+    modelProvider: {
+      getConfiguration: async () => fixtureModelProvider,
+      configure: async () => fixtureModelProvider,
+      removeConfiguration: async () => fixtureModelProvider,
+    },
     provenance: {
       state: buildFixtureProvenance(
         bundle.schemaVersion,

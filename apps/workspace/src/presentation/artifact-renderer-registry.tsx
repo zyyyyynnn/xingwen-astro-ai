@@ -1,6 +1,7 @@
 import {
   useMutation,
   useQuery,
+  useQueries,
   type UseQueryOptions,
 } from "@tanstack/react-query";
 import {
@@ -35,11 +36,27 @@ import { useMemo, useState, type ComponentType, type ReactNode } from "react";
 
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
 import { ArtifactExportActions } from "../components/artifact-export-actions";
+import { ArtifactPresentationContent } from "../components/scientific-presentation";
 import { DataArtifactRenderer } from "../components/data-artifact-renderer";
 import { PaperResultWorkspace } from "../components/paper-result-workspace";
 import { ScientificArtifactRenderer } from "../components/scientific-artifact-renderer";
+import { ScientificDiffView } from "../components/scientific-diff-view";
 import { artifactKindLabel } from "./artifact-presentation-labels";
 import { workspaceQueryKeys } from "../application/query-keys";
+import {
+  buildDataArtifactDiffSnapshot,
+  buildContractDiffItems,
+  buildEvidenceDiffItems,
+  buildGraphDiffSnapshot,
+  buildLiteratureDiffSnapshot,
+  buildPaperCollectionDiffSnapshot,
+  buildPaperSummaryDiffSnapshot,
+  buildScientificArtifactDiffSnapshot,
+  buildSourceSetDiffItems,
+  compareScientificSnapshots,
+  type ArtifactReviewForDiff,
+  type ScientificDiffSnapshot,
+} from "./scientific-diff";
 
 export type ArtifactContentFamily =
   | "data"
@@ -56,6 +73,15 @@ export interface ArtifactRendererCapabilities {
   readonly history: boolean;
   readonly revision: boolean;
   readonly pdf: boolean;
+  readonly compare: boolean;
+}
+
+export interface ArtifactDiffRendererProps {
+  readonly runtime: WorkspaceRuntimeBoundaries;
+  readonly projectId: DomainEntityId;
+  readonly artifact: ResearchArtifactViewModel;
+  readonly baselineVersion: ArtifactVersionMetadataViewModel;
+  readonly currentVersion: ArtifactVersionMetadataViewModel;
 }
 
 export interface ArtifactThreadRendererProps {
@@ -85,7 +111,7 @@ interface LoadedRendererProps<
 
 interface TypedRendererDefinition<
   Kind extends ArtifactKind,
-  ViewModel,
+  ViewModel extends ArtifactReviewForDiff,
   QueryKey extends readonly unknown[],
 > {
   readonly kind: Kind;
@@ -100,6 +126,7 @@ interface TypedRendererDefinition<
   ) => UseQueryOptions<ViewModel, Error, ViewModel, QueryKey>;
   readonly fullscreen: (props: LoadedRendererProps<ViewModel>) => ReactNode;
   readonly textFallback: (viewModel: ViewModel) => string;
+  readonly buildDiffSnapshot: (viewModel: ViewModel) => ScientificDiffSnapshot;
   readonly accepts?: (viewModel: ViewModel) => boolean;
 }
 
@@ -107,6 +134,10 @@ export interface ArtifactRendererDescriptor {
   readonly kind: ArtifactKind;
   readonly label: string;
   readonly capability: "supported" | "unsupported";
+  readonly unsupportedPresentation: {
+    readonly title: string;
+    readonly description: string;
+  } | null;
   readonly contentFamily: ArtifactContentFamily | "export" | "scientific";
   readonly displayPriority: number;
   readonly layoutMode: ArtifactLayoutMode;
@@ -114,6 +145,23 @@ export interface ArtifactRendererDescriptor {
   readonly ThreadRenderer: ComponentType<ArtifactThreadRendererProps>;
   readonly FullscreenRenderer: ComponentType<ArtifactFullscreenRendererProps>;
   readonly TextFallback: ComponentType<ArtifactFullscreenRendererProps>;
+  readonly DiffRenderer: ComponentType<ArtifactDiffRendererProps>;
+}
+
+export function UnsupportedArtifactPresentation({
+  descriptor,
+}: {
+  readonly descriptor: ArtifactRendererDescriptor;
+}) {
+  if (descriptor.unsupportedPresentation === null) return null;
+  return (
+    <Alert>
+      <AlertDescription>
+        <strong>{descriptor.unsupportedPresentation.title}</strong>
+        <p>{descriptor.unsupportedPresentation.description}</p>
+      </AlertDescription>
+    </Alert>
+  );
 }
 
 function PublicLoadError({
@@ -150,7 +198,7 @@ function ThreadResultBlock({
               {artifact.title}
             </h3>
             {summary ? (
-              <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-muted-foreground">
+              <p className="ui-text-label mt-1 line-clamp-2 text-muted-foreground">
                 {summary}
               </p>
             ) : null}
@@ -174,7 +222,7 @@ function ThreadResultBlock({
 
 function defineRenderer<
   Kind extends Exclude<ArtifactKind, "export">,
-  ViewModel,
+  ViewModel extends ArtifactReviewForDiff,
   QueryKey extends readonly unknown[],
 >(
   definition: TypedRendererDefinition<Kind, ViewModel, QueryKey>,
@@ -246,10 +294,188 @@ function defineRenderer<
     );
   }
 
+  function DiffRenderer(props: ArtifactDiffRendererProps) {
+    if (props.artifact.kind !== definition.kind) {
+      return <p>当前结果类型无法比较。</p>;
+    }
+    return (
+      <LoadedDiff
+        {...props}
+        artifact={{ ...props.artifact, kind: definition.kind }}
+      />
+    );
+  }
+
+  function LoadedDiff(
+    props: ArtifactDiffRendererProps & {
+      readonly artifact: ResearchArtifactViewModel & { readonly kind: Kind };
+    },
+  ) {
+    const baselineQuery = useQuery(
+      definition.load({
+        ...props,
+        version: props.baselineVersion,
+        onSelectEvidence: () => undefined,
+      }),
+    );
+    const currentQuery = useQuery(
+      definition.load({
+        ...props,
+        version: props.currentVersion,
+        onSelectEvidence: () => undefined,
+      }),
+    );
+    const baselineRunQuery = useQuery(
+      props.runtime.application.queries.run(
+        props.projectId,
+        props.baselineVersion.createdByRunId,
+      ),
+    );
+    const currentRunQuery = useQuery(
+      props.runtime.application.queries.run(
+        props.projectId,
+        props.currentVersion.createdByRunId,
+      ),
+    );
+    const baselineContractQuery = useQuery({
+      ...props.runtime.application.queries.contract(
+        props.projectId,
+        baselineRunQuery.data?.contractId ??
+          ("pending-contract" as DomainEntityId),
+      ),
+      enabled: baselineRunQuery.data !== undefined,
+    });
+    const currentContractQuery = useQuery({
+      ...props.runtime.application.queries.contract(
+        props.projectId,
+        currentRunQuery.data?.contractId ??
+          ("pending-contract" as DomainEntityId),
+      ),
+      enabled: currentRunQuery.data !== undefined,
+    });
+    const baselineEvidenceQueries = useQueries({
+      queries: props.baselineVersion.provenance.evidenceIds.map((evidenceId) =>
+        props.runtime.application.queries.evidence(props.projectId, evidenceId),
+      ),
+    });
+    const currentEvidenceQueries = useQueries({
+      queries: props.currentVersion.provenance.evidenceIds.map((evidenceId) =>
+        props.runtime.application.queries.evidence(props.projectId, evidenceId),
+      ),
+    });
+    const baselineSourceQueries = useQueries({
+      queries: props.baselineVersion.provenance.sourceSnapshotIds.map(
+        (sourceSnapshotId) =>
+          props.runtime.application.queries.sourceSnapshot(
+            props.projectId,
+            sourceSnapshotId,
+          ),
+      ),
+    });
+    const currentSourceQueries = useQueries({
+      queries: props.currentVersion.provenance.sourceSnapshotIds.map(
+        (sourceSnapshotId) =>
+          props.runtime.application.queries.sourceSnapshot(
+            props.projectId,
+            sourceSnapshotId,
+          ),
+      ),
+    });
+
+    const relatedError = [
+      baselineQuery,
+      currentQuery,
+      baselineRunQuery,
+      currentRunQuery,
+      baselineContractQuery,
+      currentContractQuery,
+      ...baselineEvidenceQueries,
+      ...currentEvidenceQueries,
+      ...baselineSourceQueries,
+      ...currentSourceQueries,
+    ].find((query) => query.isError)?.error;
+    if (relatedError) {
+      return <PublicLoadError runtime={props.runtime} error={relatedError} />;
+    }
+
+    if (
+      baselineQuery.isPending ||
+      currentQuery.isPending ||
+      baselineRunQuery.isPending ||
+      currentRunQuery.isPending ||
+      baselineContractQuery.isPending ||
+      currentContractQuery.isPending ||
+      baselineEvidenceQueries.some((query) => query.isPending) ||
+      currentEvidenceQueries.some((query) => query.isPending) ||
+      baselineSourceQueries.some((query) => query.isPending) ||
+      currentSourceQueries.some((query) => query.isPending)
+    ) {
+      return <p aria-busy="true">正在比较科学结果…</p>;
+    }
+    if (
+      baselineQuery.data === undefined ||
+      currentQuery.data === undefined ||
+      baselineContractQuery.data === undefined ||
+      currentContractQuery.data === undefined
+    ) {
+      return (
+        <PublicLoadError
+          runtime={props.runtime}
+          error={new Error("Scientific Diff dependencies are unavailable")}
+        />
+      );
+    }
+    if (
+      (definition.accepts && !definition.accepts(baselineQuery.data)) ||
+      (definition.accepts && !definition.accepts(currentQuery.data))
+    ) {
+      return <p>所选结果无法安全比较。</p>;
+    }
+
+    const baselineSnapshot = definition.buildDiffSnapshot(baselineQuery.data);
+    const currentSnapshot = definition.buildDiffSnapshot(currentQuery.data);
+    const baselineEvidence = baselineEvidenceQueries.flatMap((query) =>
+      query.data ? [query.data] : [],
+    );
+    const currentEvidence = currentEvidenceQueries.flatMap((query) =>
+      query.data ? [query.data] : [],
+    );
+    const baselineSources = baselineSourceQueries.flatMap((query) =>
+      query.data ? [query.data] : [],
+    );
+    const currentSources = currentSourceQueries.flatMap((query) =>
+      query.data ? [query.data] : [],
+    );
+    const baseline = {
+      ...baselineSnapshot,
+      contract: buildContractDiffItems(baselineContractQuery.data),
+      sources: buildSourceSetDiffItems(baselineSources),
+      evidence:
+        baselineEvidence.length > 0
+          ? buildEvidenceDiffItems(baselineEvidence)
+          : baselineSnapshot.evidence,
+    };
+    const current = {
+      ...currentSnapshot,
+      contract: buildContractDiffItems(currentContractQuery.data),
+      sources: buildSourceSetDiffItems(currentSources),
+      evidence:
+        currentEvidence.length > 0
+          ? buildEvidenceDiffItems(currentEvidence)
+          : currentSnapshot.evidence,
+    };
+    return (
+      <ScientificDiffView
+        results={compareScientificSnapshots(baseline, current)}
+      />
+    );
+  }
+
   return {
     kind: definition.kind,
     label: artifactKindLabel(definition.kind),
     capability: "supported",
+    unsupportedPresentation: null,
     contentFamily: definition.contentFamily,
     displayPriority: definition.displayPriority,
     layoutMode: definition.layoutMode,
@@ -257,6 +483,7 @@ function defineRenderer<
     ThreadRenderer: ThreadResultBlock,
     FullscreenRenderer,
     TextFallback,
+    DiffRenderer,
   };
 }
 
@@ -266,6 +493,7 @@ const commonCapabilities: ArtifactRendererCapabilities = {
   history: true,
   revision: true,
   pdf: false,
+  compare: true,
 };
 
 function data(kind: DataArtifactKind, displayPriority: number) {
@@ -285,13 +513,20 @@ function data(kind: DataArtifactKind, displayPriority: number) {
       projectId,
       onSelectEvidence,
     }) => (
-      <div className="space-y-4 p-5">
+      <div className="scientific-result-fullscreen space-y-4">
         <ArtifactExportActions
           runtime={runtime}
           projectId={projectId}
           artifactVersionId={version.id}
           artifactKind={kind}
           artifactTitle={artifact.title}
+        />
+        <ArtifactPresentationContent
+          presentation={version.presentation}
+          title={artifact.title}
+          surface="fullscreen"
+          onSelectEvidence={onSelectEvidence}
+          showHeader={false}
         />
         <DataArtifactRenderer
           review={viewModel}
@@ -301,11 +536,14 @@ function data(kind: DataArtifactKind, displayPriority: number) {
             const first = ids[0];
             if (first) onSelectEvidence(first);
           }}
+          showSummary={false}
+          enhancementOnly={kind === "dataset"}
         />
       </div>
     ),
     textFallback: (viewModel: DataArtifactReviewViewModel) =>
       `${artifactKindLabel(kind)}，证据 ${viewModel.evidenceIds.length} 条。`,
+    buildDiffSnapshot: buildDataArtifactDiffSnapshot,
   });
 }
 
@@ -314,7 +552,7 @@ function PaperSummaryFullscreen({
   projectId,
   artifact,
   version,
-  viewModel,
+  onSelectEvidence,
   paperPageRequest,
 }: LoadedRendererProps<PaperSummaryReview>) {
   const documentSource = useQuery({
@@ -332,7 +570,7 @@ function PaperSummaryFullscreen({
     <PaperResultWorkspace
       artifact={artifact}
       version={version}
-      review={viewModel}
+      onSelectEvidence={onSelectEvidence}
       documentUrl={documentUrl}
       documentKind={documentSource.data?.documentKind ?? null}
       requestedPage={paperPageRequest}
@@ -352,6 +590,7 @@ const paperSummary = defineRenderer({
   fullscreen: (props) => <PaperSummaryFullscreen {...props} />,
   textFallback: (viewModel: PaperSummaryReview) =>
     `${viewModel.paper.title}，包含结构化论文摘要章节。`,
+  buildDiffSnapshot: buildPaperSummaryDiffSnapshot,
 });
 
 function PaperCollectionFullscreen({
@@ -360,6 +599,7 @@ function PaperCollectionFullscreen({
   artifact,
   version,
   viewModel,
+  onSelectEvidence,
 }: LoadedRendererProps<PaperAcquisitionReviewViewModel>) {
   const inputs = useQuery(
     runtime.application.queries.researchInputs(projectId),
@@ -404,15 +644,15 @@ function PaperCollectionFullscreen({
   return (
     <div className="space-y-4 p-5">
       {selectedCandidate ? (
-        <section className="rounded-md border border-[var(--oh-border)] p-4">
+        <section className="rounded-md border border-border p-4">
           <h3 className="ui-text-heading font-medium">绑定已上传论文全文</h3>
-          <p className="ui-text-label mt-1 text-[var(--oh-muted)]">
+          <p className="ui-text-label mt-1 text-muted-foreground">
             将一个已上传 PDF 或论文图像明确绑定到《{selectedCandidate.title}
             》，后续修订将基于固定全文版本生成可定位证据。
           </p>
           {documentInputs.length > 0 ? (
             <div className="mt-3 flex flex-wrap items-end gap-2">
-              <label className="ui-text-label grid min-w-64 gap-1">
+              <label className="ui-text-label grid min-w-0 gap-1">
                 已上传科研文档
                 <Select
                   value={selectedInputId ?? ""}
@@ -444,16 +684,13 @@ function PaperCollectionFullscreen({
               </Button>
             </div>
           ) : (
-            <p className="ui-text-label mt-3 text-[var(--oh-muted)]">
+            <p className="ui-text-label mt-3 text-muted-foreground">
               当前项目尚未上传受支持的科研文档。请先在研究输入区上传 PDF
               或论文图像。
             </p>
           )}
           {binding.isSuccess ? (
-            <p
-              className="ui-text-label mt-2 text-[var(--oh-foreground)]"
-              role="status"
-            >
+            <p className="ui-text-label mt-2 text-foreground" role="status">
               全文绑定已保存；可通过修订运行重新生成全文证据摘要。
             </p>
           ) : null}
@@ -470,10 +707,12 @@ function PaperCollectionFullscreen({
           ) : null}
         </section>
       ) : null}
-      <ScientificArtifactRenderer
-        review={{ ...viewModel, kind: "paper_collection" }}
+      <ArtifactPresentationContent
+        presentation={version.presentation}
         title={artifact.title}
         surface="fullscreen"
+        onSelectEvidence={onSelectEvidence}
+        showHeader={false}
       />
     </div>
   );
@@ -490,6 +729,7 @@ const paperCollection = defineRenderer({
   fullscreen: (props) => <PaperCollectionFullscreen {...props} />,
   textFallback: (viewModel: PaperAcquisitionReviewViewModel) =>
     `论文集合，候选 ${viewModel.candidates.length} 篇。`,
+  buildDiffSnapshot: buildPaperCollectionDiffSnapshot,
 });
 
 type LiteratureKind = "literature_claims" | "literature_relations";
@@ -507,10 +747,11 @@ function literature(kind: LiteratureKind, displayPriority: number) {
         version.id,
         kind,
       ),
-    fullscreen: ({ viewModel, artifact, onSelectEvidence }) => (
-      <div className="p-5">
+    fullscreen: ({ viewModel, artifact, version, onSelectEvidence }) => (
+      <div className="scientific-result-fullscreen">
         <ScientificArtifactRenderer
           review={viewModel}
+          presentation={version.presentation}
           title={artifact.title}
           surface="fullscreen"
           onSelectEvidence={onSelectEvidence}
@@ -518,6 +759,7 @@ function literature(kind: LiteratureKind, displayPriority: number) {
       </div>
     ),
     textFallback: () => `${artifactKindLabel(kind)}。`,
+    buildDiffSnapshot: buildLiteratureDiffSnapshot,
   });
 }
 
@@ -529,23 +771,32 @@ const graph = defineRenderer({
   capabilities: commonCapabilities,
   load: ({ runtime, projectId, version }) =>
     runtime.application.queries.graphArtifact(projectId, version.id),
-  fullscreen: ({ viewModel, artifact }) => (
-    <div className="p-5">
+  fullscreen: ({ viewModel, artifact, version, onSelectEvidence }) => (
+    <div className="scientific-result-fullscreen">
       <ScientificArtifactRenderer
         review={viewModel}
+        presentation={version.presentation}
         title={artifact.title}
         surface="fullscreen"
+        onSelectEvidence={onSelectEvidence}
       />
     </div>
   ),
   textFallback: (viewModel: GraphArtifactReviewViewModel) =>
     `证据关系，${viewModel.nodeCount} 个节点，${viewModel.edgeCount} 条关系。`,
+  buildDiffSnapshot: buildGraphDiffSnapshot,
 });
+
+const EXPORT_UNSUPPORTED_PRESENTATION = {
+  title: "暂不支持预览此类结果",
+  description: "请返回结构化数据结果下载已支持的格式。",
+} as const;
 
 const exportUnsupported: ArtifactRendererDescriptor = {
   kind: "export",
   label: artifactKindLabel("export"),
   capability: "unsupported",
+  unsupportedPresentation: EXPORT_UNSUPPORTED_PRESENTATION,
   contentFamily: "export",
   displayPriority: 100,
   layoutMode: "reading",
@@ -555,16 +806,14 @@ const exportUnsupported: ArtifactRendererDescriptor = {
     history: true,
     revision: false,
     pdf: false,
+    compare: false,
   },
   ThreadRenderer: ThreadResultBlock,
   FullscreenRenderer: () => (
-    <Alert className="m-5">
-      <AlertDescription>
-        当前导出数据没有单独的预览契约，请在结构化数据结果中下载已支持的格式。
-      </AlertDescription>
-    </Alert>
+    <UnsupportedArtifactPresentation descriptor={exportUnsupported} />
   ),
   TextFallback: () => <p>导出数据暂无专属读取契约。</p>,
+  DiffRenderer: () => <p>导出数据不支持科学内容比较。</p>,
 };
 
 type ScientificKind =
@@ -624,9 +873,10 @@ function scientific(
       version,
       onSelectEvidence,
     }) => (
-      <div className="p-5">
+      <div className="scientific-result-fullscreen">
         <ScientificArtifactRenderer
           review={viewModel}
+          presentation={version.presentation}
           title={artifact.title}
           surface="fullscreen"
           onSelectEvidence={onSelectEvidence}
@@ -640,6 +890,7 @@ function scientific(
       </div>
     ),
     textFallback: scientificTextFallback,
+    buildDiffSnapshot: buildScientificArtifactDiffSnapshot,
   });
 }
 

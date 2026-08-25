@@ -198,6 +198,7 @@ class DocumentSummaryService:
             model_name=request.model,
             model_revision=request.model_revision,
             provider=request.provider,
+            provider_returned_model=response.provider_returned_model,
             provider_request_id=response.provider_request_id,
             usage=usage,
             latency_ms=response.latency_ms,

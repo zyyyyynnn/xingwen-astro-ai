@@ -42,6 +42,7 @@ const ARTIFACT_ID = "art_graph_01" as never;
 const VERSION_ID = "artv_graph_01" as never;
 const PAPER_SUMMARY_VERSION_ID = "artv_papsum_01" as never;
 const EVIDENCE_ID = "evd_01" as never;
+const SOURCE_SNAPSHOT_ID = "snap_01" as never;
 
 it("projects.getById returns the same domain entity", async () => {
   const httpRepos = setupHttpRepos();
@@ -179,6 +180,15 @@ it("artifacts.getEvidence returns the same domain entity", async () => {
     httpRepos.artifacts.getEvidence(EVIDENCE_ID),
   ]);
   expect(httpEvidence).toEqual(fixtureEvidence);
+});
+
+it("artifacts.getSourceSnapshot returns the same version-bound provenance", async () => {
+  const httpRepos = setupHttpRepos();
+  const [fixtureSnapshot, httpSnapshot] = await Promise.all([
+    fixtureRepos.artifacts.getSourceSnapshot(SOURCE_SNAPSHOT_ID),
+    httpRepos.artifacts.getSourceSnapshot(SOURCE_SNAPSHOT_ID),
+  ]);
+  expect(httpSnapshot).toEqual(fixtureSnapshot);
 });
 
 it("paperSummary.getSummary returns the same paper_summary domain entity", async () => {

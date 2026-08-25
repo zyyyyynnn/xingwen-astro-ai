@@ -318,7 +318,7 @@ describe("Fixture adapter — share create resolves a frozen public projection",
     title: "Public dataset evidence",
     artifactVersionIds: ["artv_dataset_01" as never],
     evidenceIds: ["evd_01" as never],
-    redactionPolicy: "public_metadata_only" as const,
+    redactionPolicy: "redacted_public_snapshot" as const,
     expiresAt: "2026-07-22T09:00:00Z" as never,
   };
 
@@ -336,8 +336,20 @@ describe("Fixture adapter — share create resolves a frozen public projection",
     expect(publicShare!.artifactVersions).toHaveLength(1);
     expect(publicShare!.artifactVersions[0]!.id).toBe("artv_dataset_01");
     expect(publicShare!.artifactVersions[0]!.kind).toBe("dataset");
+    const publicContent = JSON.stringify(
+      publicShare!.artifactVersions[0]!.presentation,
+    );
+    expect(publicContent).not.toContain("source_snapshot_id");
+    expect(publicContent).not.toContain("input_hash");
+    expect(publicContent).not.toContain("producer");
     expect(publicShare!.evidence).toHaveLength(1);
     expect(publicShare!.evidence[0]!.id).toBe("evd_01");
+    expect(
+      Object.keys(publicShare!.evidence[0]!.source.requestMetadata).every(
+        (key) =>
+          ["source_url", "url", "original_url", "landing_url"].includes(key),
+      ),
+    ).toBe(true);
   });
 
   it("returns null for a revoked share", async () => {
@@ -371,8 +383,8 @@ describe("Fixture adapter — share create resolves a frozen public projection",
       data: {
         ...exoplanetHostStarFixture.data,
         evidence: exoplanetHostStarFixture.data.evidence.map((evidence) =>
-          evidence.id === "evd_02"
-            ? { ...evidence, sourceSnapshotId: "snap_02" as never }
+          evidence.id === "evd_01"
+            ? { ...evidence, artifactVersionId: "artv_claims_01" as never }
             : evidence,
         ),
       },
@@ -381,7 +393,7 @@ describe("Fixture adapter — share create resolves a frozen public projection",
     await expect(
       fresh.shares.create(PROJECT_ID, {
         ...request,
-        evidenceIds: ["evd_02" as never],
+        evidenceIds: ["evd_01" as never],
       }),
     ).rejects.toBeInstanceOf(FixtureValidationError);
   });
@@ -455,6 +467,49 @@ describe("Fixture adapter — semantic and contract validation", () => {
     };
     expect(() => createFixtureRepositories(tampered)).toThrow(
       FixtureValidationError,
+    );
+  });
+
+  it("validates fixture presentations against the generated Contract", () => {
+    const current =
+      exoplanetHostStarFixture.data.artifactPresentations.artv_claims_01!;
+    const tampered: FixtureBundle = {
+      ...exoplanetHostStarFixture,
+      data: {
+        ...exoplanetHostStarFixture.data,
+        artifactPresentations: {
+          ...exoplanetHostStarFixture.data.artifactPresentations,
+          artv_claims_01: { ...current, facts: [{ label: "", values: [] }] },
+        } as never,
+      },
+    };
+    expect(() => createFixtureRepositories(tampered)).toThrow(
+      FixtureValidationError,
+    );
+  });
+
+  it("rejects presentation Evidence outside its immutable version", () => {
+    const current =
+      exoplanetHostStarFixture.data.artifactPresentations.artv_claims_01!;
+    const entry = current.entries?.[0];
+    expect(entry).toBeDefined();
+    const tampered: FixtureBundle = {
+      ...exoplanetHostStarFixture,
+      data: {
+        ...exoplanetHostStarFixture.data,
+        artifactPresentations: {
+          ...exoplanetHostStarFixture.data.artifactPresentations,
+          artv_claims_01: {
+            ...current,
+            entries: [
+              { ...entry!, evidence_ids: ["evidence-from-other-version"] },
+            ],
+          },
+        },
+      },
+    };
+    expect(() => createFixtureRepositories(tampered)).toThrow(
+      FixtureSemanticError,
     );
   });
 });

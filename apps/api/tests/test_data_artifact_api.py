@@ -369,6 +369,28 @@ def test_provenance_export_includes_data_quality_attestation() -> None:
     assert payload["quality_projection_hash"] == projection["content_hash"]
 
 
+def test_public_dataset_csv_uses_the_serializer_without_private_ids_or_quota_state() -> None:
+    service, version_id = _service_for_dataset()
+
+    public_csv = b""
+    for _ in range(12):
+        public_csv = service.render_public_dataset_csv(
+            version_id=version_id,
+            session_id="session-1",
+        )
+
+    assert public_csv
+    assert b"row_id" not in public_csv
+    assert version_id.encode() not in public_csv
+    private_export = service.create_export(
+        version_id=version_id,
+        session_id="session-1",
+        idempotency_key="private-after-public-read",
+        export_format="csv",
+    )
+    assert private_export.content.startswith(b"row_id,")
+
+
 def test_dataset_csv_export_neutralizes_formula_cells() -> None:
     assert _csv_cell("=SUM(A1)") == "'=SUM(A1)"
     assert _csv_cell("@user") == "'@user"

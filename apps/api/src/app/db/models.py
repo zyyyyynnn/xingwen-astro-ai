@@ -82,6 +82,37 @@ class ResearchSessionModel(TimestampMixin, Base):
     )
 
 
+class ModelProviderConfigurationModel(TimestampMixin, Base):
+    """One instance-wide, encrypted Chat Completions provider configuration."""
+
+    __tablename__ = "model_provider_configurations"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    preset: Mapped[str] = mapped_column(String(32), nullable=False)
+    base_url: Mapped[str] = mapped_column(Text, nullable=False)
+    model: Mapped[str] = mapped_column(String(200), nullable=False)
+    encrypted_api_key: Mapped[str] = mapped_column(Text, nullable=False)
+    api_key_hint: Mapped[str] = mapped_column(String(8), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    verified_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "preset IN ('dashscope','custom')",
+            name="model_provider_configuration_preset",
+        ),
+        CheckConstraint(
+            "revision >= 1", name="model_provider_configuration_revision_positive"
+        ),
+    )
+
+
 class ResearchProjectModel(TimestampMixin, Base):
     __tablename__ = "research_projects"
 

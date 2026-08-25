@@ -29,6 +29,7 @@ import type {
   UtcIsoTimestamp,
   EvidenceTargetType,
   EvidenceType,
+  PublicArtifactPresentation,
 } from "@xingwen/domain";
 
 export interface ProjectViewModel {
@@ -244,6 +245,7 @@ export interface ArtifactVersionMetadataViewModel {
   readonly sourceMode: SourceMode;
   readonly createdAt: UtcIsoTimestamp;
   readonly provenance: ArtifactVersionProvenanceViewModel;
+  readonly presentation: PublicArtifactPresentation;
 }
 
 export interface DatabaseCellLocatorViewModel {

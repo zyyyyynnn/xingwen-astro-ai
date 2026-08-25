@@ -52,6 +52,8 @@ export interface ResearchWorkspaceRuntime {
   readonly threadPanel: ReactNode;
   /** Count of main stream items; drives the scroll-up new-progress counter. */
   readonly threadItemCount: number;
+  /** Product-owned global actions rendered in the workspace top bar. */
+  readonly headerActions?: ReactNode;
   /** Product-owned Research Inspector content rendered in the docked right rail. */
   readonly inspectorPanel: ReactNode | null;
   /** Optional product detail shown in the same docked right rail. */

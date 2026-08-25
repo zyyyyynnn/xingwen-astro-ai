@@ -42,7 +42,7 @@ const ARTIFACT_KIND_DESCRIPTIONS = {
 } satisfies Readonly<Record<ArtifactKind, string>>;
 
 const SOURCE_MODE_LABELS = {
-  fixture: null,
+  fixture: "演示数据",
   recorded: "已记录数据",
   live: "实时数据",
   cached: "缓存数据",

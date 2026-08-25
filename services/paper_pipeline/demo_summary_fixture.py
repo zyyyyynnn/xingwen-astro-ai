@@ -45,12 +45,14 @@ from app.schemas.paper_summary import (
 )
 from app.schemas.paper_summary_api import PaperSummaryPaperMetadata, PaperSummaryRead
 from app.schemas.core import (
+    ArtifactKind,
     ArtifactVersionDetail,
     EvidenceDetail,
     ProducerExecutionDetail,
     ProducerReference,
     SourceSnapshotDetail,
 )
+from app.services.public_presentation import build_artifact_presentation
 
 from .demo_fixture import (
     DEMO_SCENARIO_ID,
@@ -105,7 +107,11 @@ def build_demo_evidence_candidates(
     accessible excerpt, so the pipeline must classify it unverifiable.
     """
 
-    if candidate.raw.url is None or candidate.raw.year is None or candidate.raw.doi is None:
+    if (
+        candidate.raw.url is None
+        or candidate.raw.year is None
+        or candidate.raw.doi is None
+    ):
         raise ValueError("demo summary candidate must carry url, year and doi")
     anchor = {
         "paper_id": candidate.canonical_paper_id,
@@ -169,27 +175,33 @@ def build_demo_model_response(candidate: PaperCollectionCandidate) -> str:
     """Deterministic PaperSummaryModelOutput JSON for the selected paper."""
 
     payload = {
-        "background": [{
-            "statement_id": "stmt.research_goal",
-            "text": (
-                f"The paper delivers {candidate.raw.title} to prioritize "
-                "TESS targets."
-            ),
-            "evidence_ids": ["ev.goal_title"],
-        }],
-        "methodology": [{
-            "statement_id": "stmt.method",
-            "text": (
-                "The catalog compiles stellar parameters from photometric "
-                "catalogs and parallax measurements."
-            ),
-            "evidence_ids": ["ev.method_text"],
-        }],
-        "dataset": [{
-            "statement_id": "stmt.dataset",
-            "text": f"The catalog release analyzed here dates to {candidate.raw.year}.",
-            "evidence_ids": ["ev.dataset_year"],
-        }],
+        "background": [
+            {
+                "statement_id": "stmt.research_goal",
+                "text": (
+                    f"The paper delivers {candidate.raw.title} to prioritize "
+                    "TESS targets."
+                ),
+                "evidence_ids": ["ev.goal_title"],
+            }
+        ],
+        "methodology": [
+            {
+                "statement_id": "stmt.method",
+                "text": (
+                    "The catalog compiles stellar parameters from photometric "
+                    "catalogs and parallax measurements."
+                ),
+                "evidence_ids": ["ev.method_text"],
+            }
+        ],
+        "dataset": [
+            {
+                "statement_id": "stmt.dataset",
+                "text": f"The catalog release analyzed here dates to {candidate.raw.year}.",
+                "evidence_ids": ["ev.dataset_year"],
+            }
+        ],
         "experiments": [
             {
                 "statement_id": "stmt.finding_doi",
@@ -380,6 +392,11 @@ def build_demo_summary_read() -> tuple[PaperSummaryRead, ArtifactVersionDetail]:
         version_number=1,
         schema_version=summary.schema_version,
         content=content,
+        presentation=build_artifact_presentation(
+            ArtifactKind.paper_summary,
+            content,
+            evidence,
+        ),
         content_hash=content_hash,
         input_hash=summary.input_hash,
         source_mode=SourceMode.fixture,

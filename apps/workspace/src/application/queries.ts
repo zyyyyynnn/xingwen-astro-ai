@@ -8,10 +8,12 @@ import type {
   DomainEntityId,
   GraphArtifactReview,
   LiteratureArtifactReview,
+  ModelProviderConfigurationStatus,
   PaperAcquisitionReview,
   PaperSummaryDocumentSourceReview,
   PaperSummaryReview,
   ScientificArtifactReview,
+  SourceSnapshotSummary,
 } from "@xingwen/domain";
 import type {
   ActivityPresentationEvent,
@@ -51,6 +53,7 @@ interface WorkspaceQueriesDependencies {
     | "literatureArtifacts"
     | "graphArtifacts"
     | "scientificArtifacts"
+    | "modelProvider"
   >;
   readonly researchAdapter: ResearchAdapter;
 }
@@ -96,6 +99,12 @@ export function createWorkspaceQueries({
   researchAdapter,
 }: WorkspaceQueriesDependencies) {
   return Object.freeze({
+    modelProviderConfiguration: () =>
+      queryOptions({
+        queryKey: workspaceQueryKeys.modelProviderConfiguration(),
+        queryFn: (): Promise<ModelProviderConfigurationStatus> =>
+          repositories.modelProvider.getConfiguration(),
+      }),
     projects: () =>
       queryOptions({
         queryKey: workspaceQueryKeys.projects(),
@@ -335,6 +344,20 @@ export function createWorkspaceQueries({
           }
           return researchAdapter.toEvidenceViewModel(evidence);
         },
+      }),
+    sourceSnapshot: (
+      projectId: DomainEntityId,
+      sourceSnapshotId: DomainEntityId,
+    ) =>
+      queryOptions({
+        queryKey: workspaceQueryKeys.sourceSnapshot(
+          projectId,
+          sourceSnapshotId,
+        ),
+        queryFn: (): Promise<SourceSnapshotSummary> =>
+          requireEntity("SourceSnapshot", sourceSnapshotId, () =>
+            repositories.artifacts.getSourceSnapshot(sourceSnapshotId),
+          ),
       }),
     dataArtifact: (
       projectId: DomainEntityId,

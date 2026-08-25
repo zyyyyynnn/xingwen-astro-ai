@@ -124,9 +124,15 @@ def _request(block_count: int) -> ExecuteDocumentSummaryRequest:
 class _ChunkModel:
     """Answers each chunk with one finding citing that chunk's own Evidence."""
 
-    def __init__(self, *, invent_evidence: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        invent_evidence: bool = False,
+        vary_returned_model: bool = False,
+    ) -> None:
         self.requests: list[ModelExecutionRequest] = []
         self.invent_evidence = invent_evidence
+        self.vary_returned_model = vary_returned_model
 
     def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
         self.requests.append(request)
@@ -165,6 +171,11 @@ class _ChunkModel:
             },
             latency_ms=4,
             provider_request_id=f"request-{chunk_id}",
+            provider_returned_model=(
+                f"qwen3.8-max-route-{len(self.requests) % 2}"
+                if self.vary_returned_model
+                else "qwen3.8-max-2026-08-01"
+            ),
         )
 
 
@@ -201,6 +212,25 @@ def test_long_document_runs_one_bounded_call_per_chunk() -> None:
     assert result.token_usage.total_tokens == 15 * result.chunk_count
     assert result.latency_ms == 4 * result.chunk_count
     assert len(result.chunk_provider_request_ids) == result.chunk_count
+    assert result.model_response.provider_request_id is None
+    assert result.admission.producer.provider_request_id is None
+    assert result.model_response.provider_returned_model == "qwen3.8-max-2026-08-01"
+    assert result.admission.producer.provider_returned_model == "qwen3.8-max-2026-08-01"
+    assert (
+        result.chunk_provider_returned_models
+        == ("qwen3.8-max-2026-08-01",) * result.chunk_count
+    )
+
+
+def test_chunked_parent_omits_returned_model_without_child_consensus() -> None:
+    result = ChunkedDocumentSummaryService(
+        _ChunkModel(vary_returned_model=True)
+    ).execute(_request(513))
+
+    assert isinstance(result, ChunkedDocumentSummaryExecution)
+    assert len(set(result.chunk_provider_returned_models)) > 1
+    assert result.model_response.provider_returned_model is None
+    assert result.admission.producer.provider_returned_model is None
 
 
 def test_chunked_execution_is_deterministic() -> None:

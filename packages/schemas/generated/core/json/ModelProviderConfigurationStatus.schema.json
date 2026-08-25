@@ -1,0 +1,137 @@
+{
+  "$defs": {
+    "ModelProviderConfigurationSource": {
+      "enum": [
+        "deployment",
+        "workspace"
+      ],
+      "title": "ModelProviderConfigurationSource",
+      "type": "string"
+    },
+    "ModelProviderPreset": {
+      "enum": [
+        "dashscope",
+        "custom"
+      ],
+      "title": "ModelProviderPreset",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Write-only credentials are represented only by a non-secret suffix hint.",
+  "properties": {
+    "api_key_hint": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Api Key Hint"
+    },
+    "base_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Base Url"
+    },
+    "dashscope_base_url": {
+      "title": "Dashscope Base Url",
+      "type": "string"
+    },
+    "editable": {
+      "title": "Editable",
+      "type": "boolean"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Model"
+    },
+    "preset": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ModelProviderPreset"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "revision": {
+      "minimum": 0,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "source": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ModelProviderConfigurationSource"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "status": {
+      "enum": [
+        "unconfigured",
+        "ready"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "updated_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Updated At"
+    },
+    "verified_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Verified At"
+    }
+  },
+  "required": [
+    "status",
+    "revision",
+    "source",
+    "preset",
+    "base_url",
+    "dashscope_base_url",
+    "model",
+    "api_key_hint",
+    "verified_at",
+    "updated_at",
+    "editable"
+  ],
+  "title": "ModelProviderConfigurationStatus",
+  "type": "object"
+}

@@ -28,6 +28,7 @@ import type { Evidence } from "@xingwen/domain";
 
 import { mapEvidenceDetail, mapEvidenceRead } from "../mapping";
 import type { FixtureBundle } from "./bundle";
+import { artifactPresentations } from "./artifact-presentations";
 import {
   paperCandidateReadsFixture,
   paperCollectionArtifactVersionFixture,
@@ -679,6 +680,7 @@ export const exoplanetHostStarFixture: FixtureBundle = {
     graphArtifactReads,
     graphNodeReads,
     graphEdgeReads,
+    artifactPresentations,
     evidence,
   },
 };

@@ -126,7 +126,7 @@ export type WorkspacePanelType = (typeof WORKSPACE_PANEL_TYPES)[number];
 export const SHARE_STATUSES = ["active", "expired", "revoked"] as const;
 export type ShareStatus = (typeof SHARE_STATUSES)[number];
 
-export const SHARE_REDACTION_POLICIES = ["public_metadata_only"] as const;
+export const SHARE_REDACTION_POLICIES = ["redacted_public_snapshot"] as const;
 export type ShareRedactionPolicy = (typeof SHARE_REDACTION_POLICIES)[number];
 
 /**

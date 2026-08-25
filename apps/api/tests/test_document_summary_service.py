@@ -11,6 +11,7 @@ import pytest
 from app.routers.artifacts import _research_input_by_identity
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import (
+    ArtifactKind,
     ArtifactVersionDetail,
     EvidenceDetail,
     ProducerExecutionDetail,
@@ -19,6 +20,7 @@ from app.schemas.core import (
     SourceMode,
     SourceSnapshotDetail,
 )
+from app.services.public_presentation import build_artifact_presentation
 from app.schemas.paper_summary import (
     PaperSummaryArtifactContent,
     PaperSummaryInputVersions,
@@ -246,6 +248,9 @@ def _published_summary_version(
         version_number=1,
         schema_version=summary.schema_version,
         content=content,
+        presentation=build_artifact_presentation(
+            ArtifactKind.paper_summary, content, evidence
+        ),
         content_hash=content_hash,
         input_hash=summary.input_hash,
         source_mode=SourceMode.live,

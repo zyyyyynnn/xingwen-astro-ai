@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Header, Path, Query, Request, Response, status
+from fastapi.responses import Response as RawResponse
 
 from app.schemas.core import (
     CollectionEnvelope,
@@ -22,6 +23,7 @@ from app.schemas.core import (
 )
 from app.security import SecurityProblem
 from app.services.snapshots import SnapshotService
+from app.services.data_artifacts import DataArtifactReadService
 
 
 router = APIRouter(prefix="/api", tags=["snapshots"])
@@ -35,6 +37,21 @@ def _service(request: Request) -> SnapshotService:
             code="SNAPSHOT_RUNTIME_UNAVAILABLE",
             title="Snapshot runtime unavailable",
             detail="The persistent snapshot runtime is not configured",
+        )
+    return service
+
+
+def _data_service(request: Request) -> DataArtifactReadService:
+    service = request.app.state.data_artifact_read_service
+    if service is None and request.app.state.artifact_read_service is not None:
+        service = DataArtifactReadService(request.app.state.artifact_read_service)
+        request.app.state.data_artifact_read_service = service
+    if service is None:
+        raise SecurityProblem(
+            status=503,
+            code="DATA_ARTIFACT_READ_UNAVAILABLE",
+            title="Data artifact read unavailable",
+            detail="The persistent data artifact read adapter is not configured",
         )
     return service
 
@@ -203,4 +220,36 @@ def get_public_share_snapshot(
         data=projection,
         meta=_meta(request),
         links=ResponseLinks(self="/api/public/shares/public"),
+    )
+
+
+@router.get(
+    "/public/shares/{share_token}/artifacts/{artifact_version_id}/exports/csv",
+    operation_id="downloadPublicShareDatasetCsv",
+    response_class=RawResponse,
+    response_model=None,
+)
+def download_public_share_dataset_csv(
+    share_token: Annotated[str, Path(min_length=1)],
+    artifact_version_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+) -> RawResponse:
+    authorization = _service(request).authorize_public_export(
+        raw_token=share_token,
+        artifact_version_id=artifact_version_id,
+    )
+    content = _data_service(request).render_public_dataset_csv(
+        version_id=authorization.artifact_version_id,
+        session_id=authorization.owner_session_id,
+    )
+    return RawResponse(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": 'attachment; filename="shared-research-data.csv"',
+            "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+            "Referrer-Policy": "no-referrer",
+            "X-Content-Type-Options": "nosniff",
+        },
     )

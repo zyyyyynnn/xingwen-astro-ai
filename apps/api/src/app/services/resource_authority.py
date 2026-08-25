@@ -10,7 +10,7 @@ private state.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol
@@ -23,13 +23,20 @@ from sqlalchemy.orm import Session
 from app.db.models import (
     ArtifactVersionModel,
     DocumentParseModel,
-    EvidenceModel,
     ResearchArtifactModel,
     ResearchInputContentModel,
     ResearchProjectModel,
     ResearchRunModel,
 )
-from app.schemas.core import PublicArtifactVersion, PublicEvidence
+from app.schemas.core import (
+    PublicArtifactVersion,
+    PublicEvidence,
+    PublicEvidenceBBox,
+    PublicEvidenceLocator,
+    PublicSourceSnapshot,
+)
+from app.security import SecurityProblem
+from app.services.artifacts import ArtifactReadService
 from app.schemas.scientific_skills import (
     FitsImageVisualizationSpec,
     ModelArtifactContent,
@@ -166,6 +173,7 @@ class PersistentResourceAuthority:
 
     def __init__(self, factory: Callable[[], Session]) -> None:
         self._factory = factory
+        self._artifacts = ArtifactReadService(factory)
 
     def project_owner(self, project_id: str) -> str | None:
         pid = _uuid_or_none(project_id)
@@ -191,55 +199,82 @@ class PersistentResourceAuthority:
     def public_artifact_version(
         self, project_id: str, version_id: str
     ) -> PublicArtifactVersion | None:
-        pid, vid = _uuid_or_none(project_id), _uuid_or_none(version_id)
-        if pid is None or vid is None:
+        if _uuid_or_none(project_id) is None or _uuid_or_none(version_id) is None:
             return None
-        with self._factory() as session:
-            row = session.execute(
-                select(
-                    ArtifactVersionModel,
-                    ResearchArtifactModel.kind,
-                    ResearchArtifactModel.title,
-                )
-                .join(
-                    ResearchArtifactModel,
-                    ResearchArtifactModel.id == ArtifactVersionModel.artifact_id,
-                )
-                .where(
-                    ArtifactVersionModel.id == vid,
-                    ArtifactVersionModel.project_id == pid,
-                )
-            ).first()
-        if row is None:
+        owner_session_id = self.project_owner(project_id)
+        if owner_session_id is None:
             return None
-        version, kind, title = row
+        try:
+            version = self._artifacts.get_version(
+                version_id=version_id,
+                session_id=owner_session_id,
+                full_content=True,
+            )
+            artifact = self._artifacts.get_artifact(
+                artifact_id=version.artifact_id,
+                session_id=owner_session_id,
+            )
+        except SecurityProblem:
+            return None
+        if version.project_id != project_id:
+            return None
+        if version.presentation is None:
+            return None
         return PublicArtifactVersion(
-            id=str(version.id),
-            artifact_id=str(version.artifact_id),
-            kind=kind,
-            title=title,
+            id=version.id,
+            artifact_id=version.artifact_id,
+            kind=artifact.kind,
+            title=artifact.title,
             version_number=version.version_number,
             schema_version=version.schema_version,
             content_hash=version.content_hash,
             source_mode=version.source_mode,
-            created_at=_utc(version.created_at),
+            created_at=version.created_at,
+            presentation=version.presentation,
+            evidence_ids=tuple(item.id for item in version.evidence),
         )
 
     def public_evidence(
         self, project_id: str, evidence_id: str
     ) -> PublicEvidence | None:
-        pid, eid = _uuid_or_none(project_id), _uuid_or_none(evidence_id)
-        if pid is None or eid is None:
+        if _uuid_or_none(project_id) is None or _uuid_or_none(evidence_id) is None:
             return None
-        with self._factory() as session:
-            row = session.get(EvidenceModel, eid)
-            if row is None or str(row.project_id) != project_id:
-                return None
-            return PublicEvidence(
-                id=str(row.id),
-                artifact_version_id=str(row.artifact_version_id),
-                source_snapshot_id=str(row.source_snapshot_id),
+        owner_session_id = self.project_owner(project_id)
+        if owner_session_id is None:
+            return None
+        try:
+            read = self._artifacts.get_evidence(
+                evidence_id=evidence_id,
+                session_id=owner_session_id,
             )
+        except SecurityProblem:
+            return None
+        locator = _public_locator(read.locator)
+        quote = read.quote_or_value
+        if quote is not None and not isinstance(quote, str):
+            quote = str(quote) if isinstance(quote, (int, float, bool)) else None
+        source = read.source_snapshot
+        metadata = {
+            key: value
+            for key, value in source.request_metadata.items()
+            if key in {"source_url", "url", "original_url", "landing_url"}
+            and isinstance(value, str)
+        }
+        return PublicEvidence(
+            id=read.id,
+            artifact_version_id=read.artifact_version_id,
+            source_snapshot_id=read.source_snapshot_id,
+            locator=locator,
+            quote_or_value=quote,
+            created_at=read.created_at,
+            source=PublicSourceSnapshot(
+                source_id=source.source_id,
+                source_type=source.source_type,
+                retrieved_at=source.retrieved_at,
+                license_note=source.license_note,
+                request_metadata=metadata,
+            ),
+        )
 
     def content_reference_closure(self) -> ContentReferenceClosure:
         """Read the complete PostgreSQL-owned blob reference closure.
@@ -383,6 +418,52 @@ def _scientific_binary_references(
         model = ModelArtifactContent.model_validate(raw_content)
         return ((model.model_binary.content_hash, model.model_binary.content_ref),)
     return ()
+
+
+def _optional_text(value: object) -> str | None:
+    return value if isinstance(value, str) and value.strip() else None
+
+
+def _optional_non_negative_int(value: object) -> int | None:
+    return (
+        value
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0
+        else None
+    )
+
+
+def _public_bbox(value: object) -> PublicEvidenceBBox | None:
+    if not isinstance(value, Mapping):
+        return None
+    coordinates = tuple(value.get(key) for key in ("x1", "y1", "x2", "y2"))
+    if not all(
+        isinstance(item, (int, float)) and not isinstance(item, bool)
+        for item in coordinates
+    ):
+        return None
+    x1, y1, x2, y2 = (float(item) for item in coordinates)
+    if x1 > x2 or y1 > y2:
+        return None
+    return PublicEvidenceBBox(x1=x1, y1=y1, x2=x2, y2=y2)
+
+
+def _public_locator(value: Mapping[str, object]) -> PublicEvidenceLocator:
+    """Copy only documented scientific locator coordinates and references."""
+
+    return PublicEvidenceLocator(
+        kind=_optional_text(value.get("kind")) or "source",
+        page=_optional_non_negative_int(value.get("page", value.get("page_index"))),
+        paragraph=_optional_non_negative_int(value.get("paragraph")),
+        section=_optional_text(value.get("section")),
+        text_range=_optional_text(value.get("range", value.get("text_range"))),
+        field=_optional_text(value.get("field")),
+        row_key=_optional_text(value.get("row_key")),
+        block_id=_optional_text(value.get("block_id")),
+        reading_order=_optional_non_negative_int(value.get("reading_order")),
+        table_id=_optional_text(value.get("table_id")),
+        cell_id=_optional_text(value.get("cell_id")),
+        bbox=_public_bbox(value.get("bbox")),
+    )
 
 
 def _uuid_or_none(value: str) -> UUID | None:

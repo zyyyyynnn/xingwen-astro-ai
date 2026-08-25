@@ -54,12 +54,19 @@ def _contract_input() -> dict[str, object]:
     return {
         "research_goal": "Integrate exoplanet candidates and host-star parameters",
         "target_objects": ["exoplanet_candidate", "host_star"],
-        "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
+        "data_requirements": {
+            "unit_policy": "canonical",
+            "document_source_policy": "disabled",
+        },
         "requested_fields": ["planet.toi_id", "star.tic_id"],
         "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
         "paper_search_scope": {"year_from": 2015, "max_candidates": 20},
         "scientific_tasks": [],
-        "output_requirements": ["dataset", "field_dictionary", "graph"],
+        "output_requirements": [
+            "dataset",
+            "field_dictionary",
+            "source_collection",
+        ],
         "evidence_requirements": {"require_locator": True},
         "quality_constraints": {"source_completeness_min": 1.0},
     }
@@ -154,7 +161,7 @@ def _confirm_and_run(runtime: dict[str, object], *, key_suffix: str) -> tuple[st
 
 def _publish_fixture_artifact(
     runtime: dict[str, object], run_id: str
-) -> tuple[str, str]:
+) -> tuple[str, tuple[str, ...]]:
     """Publish the canonical Dataset fixture onto the target demo_replay Run."""
 
     result = bootstrap_fixture_artifacts(
@@ -165,7 +172,7 @@ def _publish_fixture_artifact(
         workflow_store=runtime["workflow_store"],  # type: ignore[arg-type]
     )
     assert result.evidence_ids
-    return result.artifact_version_id, result.evidence_ids[0]
+    return result.artifact_version_id, result.evidence_ids
 
 
 def test_draft_and_contract_payloads_never_carry_execution_mode(
@@ -279,7 +286,7 @@ def test_share_freeze_private_list_redaction_and_revoke(
     csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
     project_id = runtime["project_id"]
     _contract_id, run_id = _confirm_and_run(runtime, key_suffix="share-chain")
-    version_id, evidence_id = _publish_fixture_artifact(runtime, run_id)
+    version_id, evidence_ids = _publish_fixture_artifact(runtime, run_id)
 
     created = client.post(
         f"/api/projects/{project_id}/shares",
@@ -287,9 +294,9 @@ def test_share_freeze_private_list_redaction_and_revoke(
         json={
             "title": "Real Compose and Browser Integration gap share",
             "artifact_version_ids": [version_id],
-            "evidence_ids": [evidence_id],
+            "evidence_ids": list(evidence_ids),
             "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
-            "redaction_policy": "public_metadata_only",
+            "redaction_policy": "redacted_public_snapshot",
         },
     )
     assert created.status_code == 201, created.text
@@ -316,10 +323,11 @@ def test_share_freeze_private_list_redaction_and_revoke(
     public_data = public.json()["data"]
     assert public_data["artifact_versions"][0]["id"] == version_id
     assert public_data["artifact_versions"][0]["source_mode"] == "fixture"
-    assert public_data["evidence"][0]["id"] == evidence_id
+    assert {item["id"] for item in public_data["evidence"]} == set(evidence_ids)
 
-    # Public projection carries no session, project credential, locator, or
-    # editing surface.
+    # Public projection carries no session, project credential, private
+    # provenance, or editing surface. Locator/source fields are an explicit
+    # redacted allowlist used by the read-only Evidence inspector.
     forbidden_keys = {
         "session_id",
         "project_id",
@@ -332,10 +340,15 @@ def test_share_freeze_private_list_redaction_and_revoke(
     assert forbidden_keys.isdisjoint(public_data.keys())
     for version in public_data["artifact_versions"]:
         assert forbidden_keys.isdisjoint(version.keys())
+    assert {item["locator"]["kind"] for item in public_data["evidence"]} == {
+        "database_cell",
+        "source",
+    }
     for evidence in public_data["evidence"]:
-        assert "locator" not in evidence
-        assert "quote_or_value" not in evidence
+        assert "row" not in evidence["locator"]
         assert forbidden_keys.isdisjoint(evidence.keys())
+        assert forbidden_keys.isdisjoint(evidence["source"].keys())
+        assert "quote_or_value" in evidence
 
     # Revoke: public read degrades to the same 404 as an invalid token.
     revoked = client.delete(
@@ -366,6 +379,7 @@ def _public_chain(
     *,
     key_suffix: str,
     execution_mode: str = "demo_replay",
+    contract_payload: dict[str, object] | None = None,
 ) -> dict[str, str]:
     """Create Project → Draft → Contract → Run entirely over the public API."""
     headers = {"X-CSRF-Token": csrf}
@@ -385,7 +399,7 @@ def _public_chain(
         headers={**headers, "Idempotency-Key": f"chain-draft-{key_suffix}"},
         json={
             "intent": "Integrate exoplanet candidates and host-star parameters",
-            "contract": _contract_input(),
+            "contract": contract_payload or _contract_input(),
         },
     )
     assert draft.status_code == 201, draft.text
@@ -486,6 +500,112 @@ def test_bootstrap_publishes_fixture_onto_public_chain_run(
     assert replayed.status_code == 201
     assert replayed.json()["data"] == data
 
+    export_run = client.post(
+        f"/api/projects/{chain['project_id']}/runs",
+        headers={
+            "X-CSRF-Token": csrf,
+            "Idempotency-Key": "bootstrap-export-run",
+        },
+        json={
+            "contract_id": chain["contract_id"],
+            "execution_mode": "demo_replay",
+        },
+    )
+    assert export_run.status_code == 201, export_run.text
+    export_run_id = export_run.json()["data"]["id"]
+    unsupported = client.post(
+        "/api/test/bootstrap/unsupported-export",
+        headers={"X-CSRF-Token": csrf},
+        params={
+            "run_id": export_run_id,
+            "source_version_id": data["artifact_version_id"],
+        },
+    )
+    assert unsupported.status_code == 201, unsupported.text
+    export_version_id = unsupported.json()["data"]["artifact_version_id"]
+    export_version = client.get(f"/api/artifact-versions/{export_version_id}")
+    assert export_version.status_code == 200
+    assert export_version.json()["data"]["content"]["kind"] == "export"
+    assert export_version.json()["data"]["created_by_run_id"] == export_run_id
+    assert client.get(f"/api/runs/{export_run_id}").json()["data"]["status"] == (
+        "completed"
+    )
+
+    # A second completed Run publishes the next coherent Data bundle. The
+    # current version can then drive the real Feedback → Plan → derived Run
+    # path without bypassing revision guards.
+    second_run = client.post(
+        f"/api/projects/{chain['project_id']}/runs",
+        headers={
+            "X-CSRF-Token": csrf,
+            "Idempotency-Key": "bootstrap-second-run",
+        },
+        json={
+            "contract_id": chain["contract_id"],
+            "execution_mode": "demo_replay",
+        },
+    )
+    assert second_run.status_code == 201, second_run.text
+    second_run_id = second_run.json()["data"]["id"]
+    second = client.post(
+        f"/api/test/bootstrap?run_id={second_run_id}",
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert second.status_code == 201, second.text
+    second_version_id = second.json()["data"]["artifact_version_id"]
+    second_version = client.get(f"/api/artifact-versions/{second_version_id}")
+    assert second_version.status_code == 200
+    assert second_version.json()["data"]["version_number"] == 2
+
+    parent_run = client.get(f"/api/runs/{second_run_id}")
+    assert parent_run.status_code == 200
+    assert parent_run.json()["data"]["status"] == "completed"
+    feedback = client.post(
+        f"/api/artifact-versions/{second_version_id}/feedback",
+        headers={
+            "X-CSRF-Token": csrf,
+            "Idempotency-Key": "bootstrap-feedback",
+        },
+        json={
+            "expected_version_number": 2,
+            "target_type": "artifact_version",
+            "target_id": second_version_id,
+            "target_locator": {
+                "artifact_id": data["artifact_id"],
+                "artifact_version_id": second_version_id,
+            },
+            "category": "correction",
+            "summary": "Recheck the source record",
+            "requested_change": "Recheck the source record and regenerate the data bundle.",
+        },
+    )
+    assert feedback.status_code == 201, feedback.text
+    plan = client.post(
+        f"/api/projects/{chain['project_id']}/revision-plans",
+        headers={
+            "X-CSRF-Token": csrf,
+            "Idempotency-Key": "bootstrap-revision-plan",
+        },
+        json={
+            "feedback_ids": [feedback.json()["data"]["id"]],
+            "expected_parent_run_revision": parent_run.json()["data"]["revision"],
+        },
+    )
+    assert plan.status_code == 201, plan.text
+    plan_data = plan.json()["data"]
+    assert plan_data["recompute_steps"] == ["planning", "cleaning_data"]
+    derived = client.post(
+        f"/api/revision-plans/{plan_data['id']}/confirm",
+        headers={
+            "X-CSRF-Token": csrf,
+            "Idempotency-Key": "bootstrap-revision-confirm",
+        },
+        json={"expected_plan_version": plan_data["version"]},
+    )
+    assert derived.status_code == 201, derived.text
+    assert derived.json()["data"]["parent_run_id"] == second_run_id
+    assert derived.json()["data"]["derivation_kind"] == "revision"
+
     # A live run is rejected: the fixture is demo_replay-only.
     live_chain = _public_chain(
         client, csrf, key_suffix="bootstrap-live", execution_mode="live"
@@ -509,6 +629,69 @@ def test_bootstrap_publishes_fixture_onto_public_chain_run(
     )
     assert cross.status_code == 404
     assert cross.json()["code"] == "RUN_NOT_FOUND"
+
+
+def test_research_result_bootstrap_executes_literature_and_graph_worker(
+    runtime: dict[str, object],
+) -> None:
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    csrf = str(runtime["owner_csrf"])
+    chain = _public_chain(
+        client,
+        csrf,
+        key_suffix="research-results",
+        contract_payload={
+            "research_goal": "核对系外行星宿主恒星文献结论与关系。",
+            "target_objects": ["exoplanet_candidate", "host_star"],
+            "data_requirements": {
+                "unit_policy": "canonical",
+                "document_source_policy": "disabled",
+            },
+            "requested_fields": ["planet.toi_id", "star.tic_id"],
+            "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
+            "paper_search_scope": {
+                "keywords": ["exoplanet host star"],
+                "source_ids": ["crossref"],
+                "max_candidates": 5,
+            },
+            "scientific_tasks": [],
+            "output_requirements": [
+                "literature_claims",
+                "literature_relations",
+                "graph",
+            ],
+            "evidence_requirements": {},
+            "quality_constraints": {},
+        },
+    )
+    bootstrapped = client.post(
+        f"/api/test/bootstrap/research-results?run_id={chain['run_id']}",
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert bootstrapped.status_code == 201, bootstrapped.text
+    data = bootstrapped.json()["data"]
+    assert data["run_id"] == chain["run_id"]
+    assert {
+        "literature_claims",
+        "literature_relations",
+        "graph",
+    }.issubset(data["artifact_version_ids"])
+
+    run = client.get(f"/api/runs/{chain['run_id']}")
+    assert run.status_code == 200
+    assert run.json()["data"]["status"] == "completed"
+    relations = client.get(
+        "/api/artifact-versions/"
+        f"{data['artifact_version_ids']['literature_relations']}"
+        "/literature-relations"
+    )
+    assert relations.status_code == 200, relations.text
+    assert relations.json()["data"][0]["reasoning_trace"]
+    graph = client.get(
+        f"/api/artifact-versions/{data['artifact_version_ids']['graph']}/graph"
+    )
+    assert graph.status_code == 200, graph.text
+    assert graph.json()["data"]["edge_count"] >= 1
 
 
 def test_session_resume_preserves_ownership_across_refresh(

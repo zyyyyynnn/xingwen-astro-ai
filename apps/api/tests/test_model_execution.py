@@ -16,6 +16,7 @@ from app.services.model_execution import (
     ModelExecutionError,
     ModelExecutionRequest,
     ModelRuntimeUnavailable,
+    OpenAICompatibleModelExecutionAdapter,
     QwenModelExecutionAdapter,
     qwen_execution_lease_duration,
 )
@@ -153,6 +154,8 @@ def test_qwen_adapter_uses_the_sdk_route_and_exact_snapshot(
     assert constructor["base_url"] == "https://dashscope.example/compatible-mode/v1"
     assert constructor["timeout"] == 7.5
     assert constructor["max_retries"] == 4
+    assert constructor["http_client"].follow_redirects is False
+    constructor["http_client"].close()
     assert call["model"] == "qwen3.8-max"
     assert call["response_format"] == {"type": "json_object"}
     assert call["extra_body"] == {
@@ -164,6 +167,20 @@ def test_qwen_adapter_uses_the_sdk_route_and_exact_snapshot(
     assert response.output_hash.startswith("sha256:")
     assert response.token_usage == {"prompt_tokens": 10, "completion_tokens": 12}
     assert response.provider_request_id == "provider-123"
+
+
+def test_generic_openai_compatible_adapter_omits_qwen_private_arguments() -> None:
+    client = FakeClient(successful_response())
+    adapter = OpenAICompatibleModelExecutionAdapter(
+        api_key="test-secret",
+        base_url="https://api.openai.example/v1",
+        timeout_seconds=3,
+        client=cast(OpenAI, client),
+    )
+
+    adapter.execute(request())
+
+    assert "extra_body" not in client.calls[0]
 
 
 def test_qwen_execution_lease_covers_all_attempts_and_retry_after_waits() -> None:
@@ -317,7 +334,10 @@ def test_planner_rejects_typed_draft_outside_manifest_catalog() -> None:
                     "contract": {
                         "research_goal": "Compare host stars",
                         "target_objects": ["host_star"],
-                        "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
+                        "data_requirements": {
+                            "unit_policy": "canonical",
+                            "document_source_policy": "disabled",
+                        },
                         "requested_fields": ["invented.observation_bias"],
                         "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
                         "paper_search_scope": {},

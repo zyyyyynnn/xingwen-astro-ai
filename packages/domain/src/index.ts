@@ -248,8 +248,18 @@ export type {
   ShareSnapshotCreated,
   CreateShareSnapshotRequest,
   PublicShareSnapshot,
+  PublicArtifactPresentation,
   PublicArtifactVersion,
   PublicEvidence,
+  PublicEvidenceBBox,
+  PublicEvidenceLocator,
+  PublicPresentationEntry,
+  PublicPresentationFact,
+  PublicPresentationGraphEdge,
+  PublicPresentationGraphNode,
+  PublicPresentationParagraph,
+  PublicPresentationSection,
+  PublicPresentationTrace,
 } from "./share-snapshot";
 
 export type {
@@ -317,3 +327,10 @@ export type {
   RevisionVersionDecision,
   UserFeedback,
 } from "./revision";
+
+export type {
+  ConfigureModelProviderInput,
+  ModelProviderConfigurationSource,
+  ModelProviderConfigurationStatus,
+  ModelProviderPreset,
+} from "./model-provider";

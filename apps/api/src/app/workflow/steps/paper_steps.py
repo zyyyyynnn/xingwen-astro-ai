@@ -29,7 +29,6 @@ from app.services.document_parse_store import (
 )
 from app.services.document_summary import ExecuteDocumentSummaryRequest
 from app.services.document_summary_chunks import ChunkedDocumentSummaryService
-from app.services.model_execution import ModelExecutionPort
 from app.services.paper_candidate_inputs import PaperCandidateInputReadService
 from app.services.scientific_document.ports import DocumentParserPort
 from app.workflow.publisher import admit_artifact_candidate
@@ -70,6 +69,7 @@ def _summary_parameters_hash(
             "parameters": dict(parameters),
         }
     )
+
 
 _RETRYABLE_SOURCE_FAILURES = frozenset(
     {
@@ -312,7 +312,6 @@ class PaperStepService:
         attempt: AttemptHandle,
         lease: LeaseGrant,
         model_caller: StepModelCaller,
-        model_execution: ModelExecutionPort,
     ) -> PreparedStep:
         collection = context.paper_collection
         collection_version_id = context.versions.get("paper_collection")
@@ -347,7 +346,6 @@ class PaperStepService:
                 attempt=attempt,
                 lease=lease,
                 model_caller=model_caller,
-                model_execution=model_execution,
                 candidate=candidate,
                 research_input=full_text,
             )
@@ -449,7 +447,6 @@ class PaperStepService:
         attempt: AttemptHandle,
         lease: LeaseGrant,
         model_caller: StepModelCaller,
-        model_execution: ModelExecutionPort,
         candidate: PaperCollectionCandidate,
         research_input: object,
     ) -> PreparedStep:
@@ -552,12 +549,14 @@ class PaperStepService:
         if not evidence_candidates:
             raise ValueError("论文全文没有可用于总结的可靠文本证据")
         prompt = model_caller.prompt("paper_summary")
+        model_execution = model_caller.pin_resumable_port()
+        model_identity = model_caller.identity
         _, summary_input_hash, parameters_hash = build_document_summary_input_identity(
             document_parse=document,
             document_parse_id=str(parse_record.id),
             source_snapshot=snapshot_reference,
             paper=paper,
-            model_name=model_caller.requested_model,
+            model_name=model_identity.requested_model,
             parameters=MODEL_PARAMETERS,
             evidence_candidates=evidence_candidates,
             prompt_name=prompt.name,
@@ -577,9 +576,9 @@ class PaperStepService:
                 "resume_from_completed_children": True,
             },
             parameters_hash=parameters_hash,
-            model_provider=model_caller.provider,
-            requested_model=model_caller.requested_model,
-            explicit_revision=model_caller.explicit_revision,
+            model_provider=model_identity.provider,
+            requested_model=model_identity.requested_model,
+            explicit_revision=model_identity.explicit_revision,
             prompt_name=prompt.name,
             prompt_version=prompt.version,
             prompt_hash=prompt.content_hash,
@@ -594,9 +593,9 @@ class PaperStepService:
             source_id=snapshot.source_id,
             source_record_id=candidate.raw.source_record_id,
             research_goal=context.contract.research_goal,
-            provider=model_caller.provider,
-            model=model_caller.requested_model,
-            model_revision=model_caller.explicit_revision,
+            provider=model_identity.provider,
+            model=model_identity.requested_model,
+            model_revision=model_identity.explicit_revision,
             parameters=MODEL_PARAMETERS,
             run_id=str(context.run_id),
             producer_execution_id=f"paper-summary-execution-{summary_execution.id}",

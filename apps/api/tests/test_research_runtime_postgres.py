@@ -913,12 +913,12 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
     )
     assert published.evidence_ids
     version_id = published.artifact_version_id
-    evidence_id = published.evidence_ids[0]
+    evidence_ids = published.evidence_ids
 
     version = client.get(f"/api/artifact-versions/{version_id}")
     assert version.status_code == 200
     assert version.json()["data"]["source_mode"] == "fixture"
-    assert evidence_id in version.json()["data"]["evidence_ids"]
+    assert set(evidence_ids) == set(version.json()["data"]["evidence_ids"])
     assert version.json()["data"]["content"]["kind"] == "dataset"
 
     shared = client.post(
@@ -927,16 +927,18 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
         json={
             "title": "Real Compose and Browser Integration dataset evidence",
             "artifact_version_ids": [version_id],
-            "evidence_ids": [evidence_id],
+            "evidence_ids": list(evidence_ids),
             "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
-            "redaction_policy": "public_metadata_only",
+            "redaction_policy": "redacted_public_snapshot",
         },
     )
     assert shared.status_code == 201, shared.text
     public = client.get(shared.json()["data"]["share_url"])
     assert public.status_code == 200
     assert public.json()["data"]["artifact_versions"][0]["source_mode"] == "fixture"
-    assert public.json()["data"]["evidence"][0]["id"] == evidence_id
+    assert {item["id"] for item in public.json()["data"]["evidence"]} == set(
+        evidence_ids
+    )
 
 
 def test_public_authoring_chain_creates_project_and_draft(

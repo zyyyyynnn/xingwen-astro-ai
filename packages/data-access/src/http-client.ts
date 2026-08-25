@@ -287,6 +287,24 @@ export class HttpClient {
     return true;
   }
 
+  /** DELETE with a non-empty envelope body. */
+  async deleteRequired<T>(path: string, headers?: HeadersInit): Promise<T> {
+    const response = await this.request<Envelope<T>>(
+      "DELETE",
+      path,
+      undefined,
+      headers,
+    );
+    if (!response.body) {
+      throw new UnexpectedHttpError(
+        "Empty response body on DELETE",
+        response.status,
+        null,
+      );
+    }
+    return response.body.data;
+  }
+
   private async rawRequest(
     method: string,
     path: string,

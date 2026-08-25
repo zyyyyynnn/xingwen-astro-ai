@@ -1,0 +1,570 @@
+{
+  "$defs": {
+    "ArtifactKind": {
+      "enum": [
+        "dataset",
+        "field_dictionary",
+        "source_collection",
+        "analysis_report",
+        "visualization",
+        "spectrum",
+        "light_curve",
+        "model_evaluation",
+        "model_artifact",
+        "paper_collection",
+        "paper_summary",
+        "literature_claims",
+        "literature_relations",
+        "graph",
+        "export"
+      ],
+      "title": "ArtifactKind",
+      "type": "string"
+    },
+    "PublicPresentationEntry": {
+      "additionalProperties": false,
+      "description": "One claim, relation, field, paper, or scientific finding.",
+      "properties": {
+        "assessment": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Assessment"
+        },
+        "evidence_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "external_url": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "External Url"
+        },
+        "facts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PublicPresentationFact"
+          },
+          "title": "Facts",
+          "type": "array"
+        },
+        "key": {
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        },
+        "paragraphs": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Paragraphs",
+          "type": "array"
+        },
+        "reasoning_trace": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PublicPresentationTrace"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "status": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "title"
+      ],
+      "title": "PublicPresentationEntry",
+      "type": "object"
+    },
+    "PublicPresentationFact": {
+      "additionalProperties": false,
+      "description": "One human-readable fact in the shared scientific presentation model.",
+      "properties": {
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "label",
+        "values"
+      ],
+      "title": "PublicPresentationFact",
+      "type": "object"
+    },
+    "PublicPresentationGraphEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "key": {
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        },
+        "kind": {
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "source_key": {
+          "minLength": 1,
+          "title": "Source Key",
+          "type": "string"
+        },
+        "target_key": {
+          "minLength": 1,
+          "title": "Target Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "kind",
+        "source_key",
+        "target_key"
+      ],
+      "title": "PublicPresentationGraphEdge",
+      "type": "object"
+    },
+    "PublicPresentationGraphNode": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        },
+        "kind": {
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "kind",
+        "label"
+      ],
+      "title": "PublicPresentationGraphNode",
+      "type": "object"
+    },
+    "PublicPresentationParagraph": {
+      "additionalProperties": false,
+      "description": "One narrative statement with its directly supporting Evidence.",
+      "properties": {
+        "evidence_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "PublicPresentationParagraph",
+      "type": "object"
+    },
+    "PublicPresentationSection": {
+      "additionalProperties": false,
+      "description": "A bounded narrative section in a shared result presentation.",
+      "properties": {
+        "paragraphs": {
+          "items": {
+            "$ref": "#/$defs/PublicPresentationParagraph"
+          },
+          "minItems": 1,
+          "title": "Paragraphs",
+          "type": "array"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "paragraphs"
+      ],
+      "title": "PublicPresentationSection",
+      "type": "object"
+    },
+    "PublicPresentationTable": {
+      "additionalProperties": false,
+      "description": "Bounded tabular result projected from a typed Artifact authority.",
+      "properties": {
+        "columns": {
+          "items": {
+            "$ref": "#/$defs/PublicPresentationTableColumn"
+          },
+          "minItems": 1,
+          "title": "Columns",
+          "type": "array"
+        },
+        "rows": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PublicPresentationTableRow"
+          },
+          "title": "Rows",
+          "type": "array"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "total_column_count": {
+          "minimum": 1,
+          "title": "Total Column Count",
+          "type": "integer"
+        },
+        "total_row_count": {
+          "minimum": 0,
+          "title": "Total Row Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "title",
+        "columns",
+        "total_row_count",
+        "total_column_count"
+      ],
+      "title": "PublicPresentationTable",
+      "type": "object"
+    },
+    "PublicPresentationTableCell": {
+      "additionalProperties": false,
+      "description": "One display-safe canonical value and its directly supporting Evidence.",
+      "properties": {
+        "column_key": {
+          "minLength": 1,
+          "title": "Column Key",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "status": {
+          "default": "mapped",
+          "enum": [
+            "mapped",
+            "missing",
+            "unresolved"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "column_key"
+      ],
+      "title": "PublicPresentationTableCell",
+      "type": "object"
+    },
+    "PublicPresentationTableColumn": {
+      "additionalProperties": false,
+      "description": "One explicitly projected column in a shared scientific table.",
+      "properties": {
+        "key": {
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        },
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        }
+      },
+      "required": [
+        "key",
+        "label"
+      ],
+      "title": "PublicPresentationTableColumn",
+      "type": "object"
+    },
+    "PublicPresentationTableRow": {
+      "additionalProperties": false,
+      "properties": {
+        "cells": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PublicPresentationTableCell"
+          },
+          "title": "Cells",
+          "type": "array"
+        },
+        "identity": {
+          "minLength": 1,
+          "title": "Identity",
+          "type": "string"
+        },
+        "key": {
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "identity"
+      ],
+      "title": "PublicPresentationTableRow",
+      "type": "object"
+    },
+    "PublicPresentationTrace": {
+      "additionalProperties": false,
+      "description": "Presentation-safe reasoning trace with private execution facts removed.",
+      "properties": {
+        "conclusion": {
+          "minLength": 1,
+          "title": "Conclusion",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "facts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PublicPresentationFact"
+          },
+          "title": "Facts",
+          "type": "array"
+        },
+        "steps": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Steps",
+          "type": "array"
+        }
+      },
+      "required": [
+        "conclusion",
+        "steps"
+      ],
+      "title": "PublicPresentationTrace",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Single positive-contract presentation model shared by private/public UI.",
+  "properties": {
+    "entries": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PublicPresentationEntry"
+      },
+      "title": "Entries",
+      "type": "array"
+    },
+    "facts": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PublicPresentationFact"
+      },
+      "title": "Facts",
+      "type": "array"
+    },
+    "graph_edges": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PublicPresentationGraphEdge"
+      },
+      "title": "Graph Edges",
+      "type": "array"
+    },
+    "graph_nodes": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PublicPresentationGraphNode"
+      },
+      "title": "Graph Nodes",
+      "type": "array"
+    },
+    "kind": {
+      "$ref": "#/$defs/ArtifactKind"
+    },
+    "sections": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PublicPresentationSection"
+      },
+      "title": "Sections",
+      "type": "array"
+    },
+    "summary": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Summary"
+    },
+    "tables": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PublicPresentationTable"
+      },
+      "title": "Tables",
+      "type": "array"
+    }
+  },
+  "required": [
+    "kind"
+  ],
+  "title": "PublicArtifactPresentation",
+  "type": "object"
+}

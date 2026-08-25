@@ -11,7 +11,11 @@ from typing import Any
 from pydantic import ValidationError
 
 from app.schemas._hashing import compute_canonical_payload_hash
-from app.schemas.paper_collection import PaperBenchmarkReference, PaperCollection, PaperCollectionCandidate
+from app.schemas.paper_collection import (
+    PaperBenchmarkReference,
+    PaperCollection,
+    PaperCollectionCandidate,
+)
 from app.schemas.paper_summary import (
     PaperSummaryAdmissionResult,
     PaperSummaryAdmissionStatus,
@@ -104,7 +108,9 @@ class PaperSummaryPipeline:
     ) -> PaperSummaryAdmissionResult:
         prompt = self.prompt_registry.get("paper_summary")
         if paper_id not in paper_collection.selected_paper_ids:
-            raise ValueError("PaperSummary input paper must be selected by PaperCollection")
+            raise ValueError(
+                "PaperSummary input paper must be selected by PaperCollection"
+            )
         safe_parameters = _validate_parameters(parameters)
         parameter_hash = compute_canonical_payload_hash(
             {
@@ -226,6 +232,7 @@ class PaperSummaryPipeline:
         evidence_candidates: tuple[PaperSummaryEvidenceCandidate, ...],
         model_revision: str | None = None,
         provider: str | None = None,
+        provider_returned_model: str | None = None,
         provider_request_id: str | None = None,
         usage: PaperSummaryModelUsage | None = None,
         latency_ms: int = 0,
@@ -270,6 +277,7 @@ class PaperSummaryPipeline:
             "model_name": model_name,
             "model_revision": model_revision,
             "provider": provider,
+            "provider_returned_model": provider_returned_model,
             "provider_request_id": provider_request_id,
             "usage": usage,
             "prompt_name": prompt.name,
@@ -330,7 +338,9 @@ class PaperSummaryPipeline:
     def _now(self) -> datetime:
         value = self.clock()
         if value.tzinfo is None:
-            raise ValueError("summary pipeline clock must return timezone-aware datetime")
+            raise ValueError(
+                "summary pipeline clock must return timezone-aware datetime"
+            )
         return value
 
 
@@ -433,7 +443,13 @@ def _admit_evidence(
         for statement in sections[section.value]
     )
     evidence_ids = tuple(
-        sorted({evidence_id for item in all_statements for evidence_id in item.evidence_ids})
+        sorted(
+            {
+                evidence_id
+                for item in all_statements
+                for evidence_id in item.evidence_ids
+            }
+        )
     )
     evidence = tuple(retained_evidence[item] for item in sorted(evidence_ids))
     conflicts = tuple(source_conflicts[item] for item in sorted(source_conflicts))
@@ -812,9 +828,8 @@ def _validate_parameters(
     result: dict[str, ParameterValue] = {}
     for key, value in parameters.items():
         normalized_key = key.casefold()
-        if (
-            not _SAFE_PARAMETER_KEY.fullmatch(key)
-            or any(fragment in normalized_key for fragment in _FORBIDDEN_PARAMETER_FRAGMENTS)
+        if not _SAFE_PARAMETER_KEY.fullmatch(key) or any(
+            fragment in normalized_key for fragment in _FORBIDDEN_PARAMETER_FRAGMENTS
         ):
             raise ValueError("model parameters contain forbidden or invalid keys")
         if isinstance(value, str) and len(value) > 256:

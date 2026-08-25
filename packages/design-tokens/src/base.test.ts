@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
+import { workspaceGraphGeometry } from "./index";
+
 const css = readFileSync(new URL("./base.css", import.meta.url), "utf8");
 const workspaceCss = readFileSync(
   new URL("./workspace.css", import.meta.url),
@@ -200,6 +202,10 @@ describe("Core semantic geometry tokens", () => {
     expect(css).toContain("--font-size-ui-label: var(--font-size-0);");
     expect(css).toContain("--font-size-ui-body: 0.875rem;");
     expect(css).toContain("--font-size-ui-heading: 1.25rem;");
+    expect(css).toContain("--font-weight-ui-medium: 500;");
+    expect(css).toContain("--font-weight-ui-heading: 560;");
+    expect(css).toContain("--font-weight-ui-emphasis: 600;");
+    expect(css).toContain("--font-weight-ui-strong: 650;");
     expect(css).toContain("--line-height-ui-label: 1.5;");
     expect(css).toContain("--line-height-ui-body: 1.6;");
     expect(css).toContain("--line-height-ui-heading: 1.5;");
@@ -252,6 +258,22 @@ describe("workspace semantic geometry tokens", () => {
       "--workspace-sidebar-row-block-size",
       "--workspace-content-max-inline-size",
       "--workspace-min-inline-size",
+      "--workspace-result-reading-max-inline-size",
+      "--workspace-result-graph-block-size",
+      "--workspace-result-inspector-inline-size",
+      "--workspace-result-navigation-inline-size",
+      "--workspace-result-sheet-inline-size",
+      "--workspace-result-public-max-inline-size",
+      "--workspace-result-node-inline-size",
+      "--workspace-result-node-block-size",
+      "--workspace-result-node-separation",
+      "--workspace-result-rank-separation",
+      "--workspace-result-graph-focus-padding",
+      "--workspace-result-code-max-block-size",
+      "--workspace-result-table-max-block-size",
+      "--workspace-result-chart-min-block-size",
+      "--workspace-result-sky-min-block-size",
+      "--workspace-result-control-inline-size",
       "--workspace-composer-max-block-size",
       "--workspace-composer-input-min-block-size",
       "--workspace-composer-input-max-block-size",
@@ -294,6 +316,12 @@ describe("workspace semantic geometry tokens", () => {
     expect(normalizedWorkspaceCss).toContain(
       "var(--workspace-composer-row-gap) + var(--workspace-composer-actions-reserved-block-size)",
     );
+  });
+
+  it("uses the same semantic variables for CSS and graph layout", () => {
+    for (const variableName of Object.values(workspaceGraphGeometry)) {
+      expect(workspaceCss).toContain(`${variableName}:`);
+    }
   });
 });
 

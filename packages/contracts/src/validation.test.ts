@@ -140,6 +140,7 @@ describe("contract — schema metadata", () => {
     expect(CORE_MODEL_NAMES).toContain("ResearchPlanningCatalog");
     expect(CORE_MODEL_NAMES).toContain("ArtifactVersion");
     expect(CORE_MODEL_NAMES).toContain("ArtifactVersionSummary");
+    expect(CORE_MODEL_NAMES).toContain("PublicArtifactPresentation");
     expect(CORE_MODEL_NAMES).toContain("EvidenceRead");
     expect(CORE_MODEL_NAMES).toContain("SourceSnapshotDetail");
     expect(CORE_MODEL_NAMES).toContain("ArtifactExportRead");

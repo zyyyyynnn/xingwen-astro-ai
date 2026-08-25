@@ -70,6 +70,7 @@ class ChunkedDocumentSummaryExecution:
     model_response: ModelExecutionResponse
     chunk_count: int
     chunk_provider_request_ids: tuple[str | None, ...]
+    chunk_provider_returned_models: tuple[str | None, ...]
     token_usage: PaperSummaryModelUsage | None
     latency_ms: int
 
@@ -126,6 +127,7 @@ class ChunkedDocumentSummaryService:
         chunks = _build_chunks(request, evidence)
         chunk_outputs: list[PaperSummaryModelOutput] = []
         request_ids: list[str | None] = []
+        returned_models: list[str | None] = []
         usage_totals = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         usage_complete = True
         latency_total = 0
@@ -145,6 +147,7 @@ class ChunkedDocumentSummaryService:
                         usage_totals[key] += value
             latency_total += response.latency_ms
             request_ids.append(response.provider_request_id)
+            returned_models.append(response.provider_returned_model)
             output = PaperSummaryModelOutput.model_validate(response.payload)
             _enforce_chunk_evidence_allowlist(chunk, output)
             chunk_outputs.append(output)
@@ -156,6 +159,7 @@ class ChunkedDocumentSummaryService:
             sort_keys=True,
             separators=(",", ":"),
         )
+        aggregate_returned_model = _consensus_returned_model(returned_models)
         admission = self._pipeline.admit_document(
             document_parse=request.document_parse,
             document_parse_id=request.document_parse_id,
@@ -165,7 +169,8 @@ class ChunkedDocumentSummaryService:
             model_name=request.model,
             model_revision=request.model_revision,
             provider=request.provider,
-            provider_request_id=request_ids[0] if request_ids else None,
+            provider_returned_model=aggregate_returned_model,
+            provider_request_id=None,
             usage=(
                 PaperSummaryModelUsage.model_validate(usage_totals)
                 if usage_complete
@@ -182,13 +187,15 @@ class ChunkedDocumentSummaryService:
             output_hash=compute_canonical_payload_hash(merged_payload),
             token_usage=usage_totals if usage_complete else None,
             latency_ms=latency_total,
-            provider_request_id=request_ids[0] if request_ids else None,
+            provider_request_id=None,
+            provider_returned_model=aggregate_returned_model,
         )
         return ChunkedDocumentSummaryExecution(
             admission=admission,
             model_response=aggregate_response,
             chunk_count=len(chunks),
             chunk_provider_request_ids=tuple(request_ids),
+            chunk_provider_returned_models=tuple(returned_models),
             token_usage=(
                 PaperSummaryModelUsage.model_validate(usage_totals)
                 if usage_complete
@@ -196,6 +203,15 @@ class ChunkedDocumentSummaryService:
             ),
             latency_ms=latency_total,
         )
+
+
+def _consensus_returned_model(models: list[str | None]) -> str | None:
+    """Summarize complete, identical child model facts without inventing one."""
+
+    if not models or any(model is None for model in models):
+        return None
+    distinct = set(models)
+    return next(iter(distinct)) if len(distinct) == 1 else None
 
 
 def _build_chunks(

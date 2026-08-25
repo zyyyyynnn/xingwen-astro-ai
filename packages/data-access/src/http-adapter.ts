@@ -28,6 +28,7 @@ import { createResearchRepositories } from "./research-repositories";
 import { createResearchInputRepository } from "./research-input-repository";
 import { createRevisionRepository } from "./revision-repository";
 import { createSnapshotShareRepositories } from "./snapshot-share-repositories";
+import { createModelProviderRepository } from "./model-provider-repository";
 
 export type { HttpAdapterConfig };
 
@@ -59,6 +60,7 @@ export function createHttpRepositories(
   const artifactExports = createArtifactExportRepository(http);
   const revisions = createRevisionRepository(http);
   const { workspaces, shares } = createSnapshotShareRepositories(http);
+  const modelProvider = createModelProviderRepository(http);
   return {
     projects,
     researchCatalog,
@@ -77,5 +79,6 @@ export function createHttpRepositories(
     revisions,
     workspaces,
     shares,
+    modelProvider,
   };
 }

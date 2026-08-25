@@ -43,6 +43,7 @@ import type {
   ShareSnapshotCreated,
   CreateShareSnapshotRequest,
   PublicShareSnapshot,
+  PublicArtifactPresentation,
   SourceMode,
   UtcIsoTimestamp,
   WorkspaceSnapshot,
@@ -85,6 +86,7 @@ import type {
   ShareSnapshotCreated as ShareSnapshotCreatedDto,
   CreateShareSnapshotRequest as CreateShareSnapshotRequestDto,
   PublicShareSnapshot as PublicShareSnapshotDto,
+  PublicArtifactPresentation as PublicArtifactPresentationDto,
 } from "@xingwen/contracts";
 
 function mapId(value: string): DomainEntityId {
@@ -131,6 +133,25 @@ function isJsonValue(value: unknown): value is JsonValue {
     default:
       return false;
   }
+}
+
+function mapJsonValue(value: unknown, label: string): JsonValue {
+  if (!isJsonValue(value)) {
+    throw new TypeError(`${label} is not JSON-compatible`);
+  }
+  return value;
+}
+
+function mapJsonRecord(
+  value: Readonly<Record<string, unknown>>,
+  label: string,
+): Readonly<Record<string, JsonValue>> {
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      mapJsonValue(item, `${label}.${key}`),
+    ]),
+  );
 }
 
 function mapScientificTaskParameters(
@@ -663,7 +684,14 @@ export function mapArtifactVersionSummary(
  */
 export function mapArtifactVersionMetadata(
   dto: ArtifactVersionDto | ArtifactVersionDetailDto,
+  presentationOverride?: PublicArtifactPresentationDto,
 ): ArtifactVersionMetadata {
+  const presentation =
+    presentationOverride ??
+    ("presentation" in dto ? dto.presentation : undefined);
+  if (!presentation) {
+    throw new TypeError("ArtifactVersion detail lacks its typed presentation");
+  }
   return {
     id: mapId(dto.id),
     artifactId: mapId(dto.artifact_id),
@@ -677,6 +705,7 @@ export function mapArtifactVersionMetadata(
     producer: mapProducer(dto.producer),
     sourceSnapshotIds: mapIds(dto.source_snapshot_ids),
     evidenceIds: mapIds(dto.evidence_ids),
+    presentation: mapPublicArtifactPresentation(presentation),
     supersedesVersionId: (dto.supersedes_version_id ??
       null) as DomainEntityId | null,
     createdAt: dto.created_at as UtcIsoTimestamp,
@@ -844,11 +873,121 @@ export function mapPublicShareSnapshot(
       contentHash: v.content_hash as ContentHash,
       sourceMode: v.source_mode,
       createdAt: v.created_at as UtcIsoTimestamp,
+      presentation: mapPublicArtifactPresentation(v.presentation),
+      evidenceIds: v.evidence_ids.map(mapId),
     })),
     evidence: dto.evidence.map((e) => ({
       id: mapId(e.id),
       artifactVersionId: mapId(e.artifact_version_id),
       sourceSnapshotId: mapId(e.source_snapshot_id),
+      locator: {
+        kind: e.locator.kind as NonEmptyString,
+        page: e.locator.page ?? null,
+        paragraph: e.locator.paragraph ?? null,
+        section: e.locator.section ?? null,
+        textRange: e.locator.text_range ?? null,
+        field: e.locator.field ?? null,
+        rowKey: e.locator.row_key ?? null,
+        blockId: e.locator.block_id ?? null,
+        readingOrder: e.locator.reading_order ?? null,
+        tableId: e.locator.table_id ?? null,
+        cellId: e.locator.cell_id ?? null,
+        bbox: e.locator.bbox ? { ...e.locator.bbox } : null,
+      },
+      quoteOrValue: e.quote_or_value,
+      createdAt: e.created_at as UtcIsoTimestamp,
+      source: {
+        sourceId: e.source.source_id,
+        sourceType: e.source.source_type,
+        retrievedAt: e.source.retrieved_at as UtcIsoTimestamp,
+        licenseNote: e.source.license_note,
+        requestMetadata: mapJsonRecord(
+          e.source.request_metadata,
+          "PublicSourceSnapshot.request_metadata",
+        ),
+      },
+    })),
+  };
+}
+
+export function mapPublicArtifactPresentation(
+  dto: PublicArtifactPresentationDto,
+): PublicArtifactPresentation {
+  return {
+    kind: dto.kind,
+    summary: (dto.summary as NonEmptyString | null) ?? null,
+    facts: (dto.facts ?? []).map((fact) => ({
+      label: fact.label as NonEmptyString,
+      values: fact.values.map((value) => value as NonEmptyString),
+    })),
+    sections: (dto.sections ?? []).map((section) => ({
+      title: section.title as NonEmptyString,
+      paragraphs: section.paragraphs.map((paragraph) => ({
+        text: paragraph.text as NonEmptyString,
+        status: (paragraph.status as NonEmptyString | null) ?? null,
+        evidenceIds: (paragraph.evidence_ids ?? []).map(mapId),
+      })),
+    })),
+    entries: (dto.entries ?? []).map((entry) => ({
+      key: entry.key as NonEmptyString,
+      title: entry.title as NonEmptyString,
+      externalUrl: (entry.external_url as NonEmptyString | null) ?? null,
+      status: (entry.status as NonEmptyString | null) ?? null,
+      assessment: (entry.assessment as NonEmptyString | null) ?? null,
+      paragraphs: (entry.paragraphs ?? []).map(
+        (paragraph) => paragraph as NonEmptyString,
+      ),
+      facts: (entry.facts ?? []).map((fact) => ({
+        label: fact.label as NonEmptyString,
+        values: fact.values.map((value) => value as NonEmptyString),
+      })),
+      evidenceIds: (entry.evidence_ids ?? []).map(mapId),
+      reasoningTrace: entry.reasoning_trace
+        ? {
+            conclusion: entry.reasoning_trace.conclusion as NonEmptyString,
+            steps: entry.reasoning_trace.steps.map(
+              (step) => step as NonEmptyString,
+            ),
+            facts: (entry.reasoning_trace.facts ?? []).map((fact) => ({
+              label: fact.label as NonEmptyString,
+              values: fact.values.map((value) => value as NonEmptyString),
+            })),
+            evidenceIds: (entry.reasoning_trace.evidence_ids ?? []).map(mapId),
+          }
+        : null,
+    })),
+    tables: (dto.tables ?? []).map((table) => ({
+      title: table.title as NonEmptyString,
+      columns: table.columns.map((column) => ({
+        key: column.key as NonEmptyString,
+        label: column.label as NonEmptyString,
+        unit: (column.unit as NonEmptyString | null) ?? null,
+      })),
+      rows: (table.rows ?? []).map((row) => ({
+        key: row.key as NonEmptyString,
+        identity: row.identity as NonEmptyString,
+        cells: (row.cells ?? []).map((cell) => ({
+          columnKey: cell.column_key as NonEmptyString,
+          value: cell.value ?? null,
+          status: cell.status ?? "mapped",
+          reason: (cell.reason as NonEmptyString | null) ?? null,
+          evidenceIds: (cell.evidence_ids ?? []).map(mapId),
+        })),
+      })),
+      totalRowCount: table.total_row_count,
+      totalColumnCount: table.total_column_count,
+    })),
+    graphNodes: (dto.graph_nodes ?? []).map((node) => ({
+      key: node.key as NonEmptyString,
+      kind: node.kind as NonEmptyString,
+      label: node.label as NonEmptyString,
+    })),
+    graphEdges: (dto.graph_edges ?? []).map((edge) => ({
+      key: edge.key as NonEmptyString,
+      kind: edge.kind as NonEmptyString,
+      sourceKey: edge.source_key as NonEmptyString,
+      targetKey: edge.target_key as NonEmptyString,
+      evidenceIds: (edge.evidence_ids ?? []).map(mapId),
     })),
   };
 }

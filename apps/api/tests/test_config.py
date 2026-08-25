@@ -45,6 +45,12 @@ def test_dashscope_retry_budget_is_bounded() -> None:
         Settings(_env_file=None, DASHSCOPE_MAX_RETRIES=5)
 
 
+def test_dashscope_model_is_not_limited_to_repository_test_baselines() -> None:
+    settings = Settings(_env_file=None, DASHSCOPE_MODEL="qwen-plus")
+
+    assert settings.DASHSCOPE_MODEL == "qwen-plus"
+
+
 def test_production_accepts_managed_database_url_without_postgres_password() -> None:
     settings = Settings(
         _env_file=None,

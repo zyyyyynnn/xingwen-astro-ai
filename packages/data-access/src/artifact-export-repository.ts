@@ -123,7 +123,7 @@ export function createFixtureArtifactExportRepository(
         ...metadata,
         bytes: new TextEncoder().encode(
           exportRecord.format === "csv"
-            ? "row_id,fixture\nrow_1,demo\n"
+            ? "Fixture value\ndemo\n"
             : JSON.stringify({
                 artifact_version_id: exportRecord.artifactVersionId,
                 source_mode: "fixture",

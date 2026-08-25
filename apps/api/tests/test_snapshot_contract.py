@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from threading import Barrier
 
@@ -17,6 +18,7 @@ from app.schemas.core import (
     CreateShareSnapshotRequest,
     PublicArtifactVersion,
     PublicEvidence,
+    PublicPresentationEntry,
     WorkspaceSnapshotInput,
 )
 from app.security import SecurityProblem
@@ -38,6 +40,11 @@ def _version(*, title: str = "Frozen dataset") -> PublicArtifactVersion:
         content_hash=HASH,
         source_mode="live",
         created_at=NOW,
+        presentation={
+            "kind": "dataset",
+            "facts": [{"label": "记录", "values": ("1 条",)}],
+        },
+        evidence_ids=("ev_01",),
     )
 
 
@@ -46,6 +53,16 @@ def _evidence() -> PublicEvidence:
         id="ev_01",
         artifact_version_id="artv_01",
         source_snapshot_id="srcs_01",
+        locator={"kind": "database_cell", "field": "host_name"},
+        quote_or_value="TOI-700",
+        created_at=NOW,
+        source={
+            "source_id": "gaia",
+            "source_type": "database",
+            "retrieved_at": NOW,
+            "license_note": "Gaia archive terms",
+            "request_metadata": {},
+        },
     )
 
 
@@ -72,6 +89,33 @@ def _workspace_payload(*, layout_preset: str = "research-default") -> dict[str, 
         },
         "layout_preset": layout_preset,
     }
+
+
+def test_public_artifact_contract_rejects_raw_content_and_unknown_fields() -> None:
+    payload = _version().model_dump(mode="json")
+    payload["content"] = {"producer": {"model": "private"}}
+
+    with pytest.raises(ValidationError):
+        PublicArtifactVersion.model_validate(payload)
+
+
+def test_public_evidence_preserves_document_verification_locator() -> None:
+    payload = _evidence().model_dump()
+    payload["locator"] = {
+        "kind": "paper_text",
+        "page": 2,
+        "block_id": "paragraph-4",
+        "table_id": "table-1",
+        "cell_id": "r2c3",
+        "bbox": {"x1": 10, "y1": 20, "x2": 30, "y2": 40},
+    }
+    projected = PublicEvidence.model_validate(payload)
+
+    assert projected.locator.page == 2
+    assert projected.locator.block_id == "paragraph-4"
+    assert projected.locator.table_id == "table-1"
+    assert projected.locator.cell_id == "r2c3"
+    assert projected.locator.bbox is not None
 
 
 def _session_client() -> tuple[FastAPI, TestClient, str, str]:
@@ -230,12 +274,22 @@ def test_cross_session_private_resources_are_hidden() -> None:
 def test_share_freezes_redacted_scope_and_never_lists_token_material() -> None:
     app, client, session_id, csrf_token = _session_client()
     _seed_project(app, session_id)
+    app.state.snapshot_store.register_artifact_version(
+        project_id="proj_01",
+        projection=_version().model_copy(update={"evidence_ids": ("ev_01", "ev_02")}),
+    )
+    app.state.snapshot_store.register_evidence(
+        project_id="proj_01",
+        projection=_evidence().model_copy(
+            update={"id": "ev_02", "quote_or_value": "not selected"}
+        ),
+    )
     expires_at = datetime.now(UTC) + timedelta(hours=1)
     payload = {
         "title": "Public dataset evidence",
         "artifact_version_ids": ["artv_01"],
         "evidence_ids": ["ev_01"],
-        "redaction_policy": "public_metadata_only",
+        "redaction_policy": "redacted_public_snapshot",
         "expires_at": expires_at.isoformat(),
     }
     missing_csrf = client.post("/api/projects/proj_01/shares", json=payload)
@@ -279,7 +333,22 @@ def test_share_freezes_redacted_scope_and_never_lists_token_material() -> None:
     assert public.status_code == 200
     public_data = public.json()["data"]
     assert public_data["artifact_versions"][0]["title"] == "Frozen dataset"
+    assert public_data["artifact_versions"][0]["presentation"] == {
+        "kind": "dataset",
+        "summary": None,
+        "facts": [{"label": "记录", "values": ["1 条"]}],
+        "sections": [],
+        "entries": [],
+        "tables": [],
+        "graph_nodes": [],
+        "graph_edges": [],
+    }
     assert "content" not in public_data["artifact_versions"][0]
+    assert public_data["artifact_versions"][0]["evidence_ids"] == ["ev_01"]
+    assert [item["id"] for item in public_data["evidence"]] == ["ev_01"]
+    assert "ev_02" not in public.text
+    assert public_data["evidence"][0]["quote_or_value"] == "TOI-700"
+    assert public_data["evidence"][0]["source"]["source_id"] == "gaia"
     assert "project_id" not in public_data
     assert "session_id" not in public.text
     assert raw_token not in public.text
@@ -306,6 +375,118 @@ def test_share_freezes_redacted_scope_and_never_lists_token_material() -> None:
     assert "default-src 'none'" in after_revoke.headers["content-security-policy"]
 
 
+def test_public_dataset_export_is_frozen_allowlisted_and_non_enumerating() -> None:
+    app, client, session_id, csrf_token = _session_client()
+    _seed_project(app, session_id)
+    expires_at = datetime.now(UTC) + timedelta(hours=1)
+    created = client.post(
+        "/api/projects/proj_01/shares",
+        headers={"X-CSRF-Token": csrf_token},
+        json={
+            "title": "Frozen CSV",
+            "artifact_version_ids": ["artv_01"],
+            "evidence_ids": ["ev_01"],
+            "redaction_policy": "redacted_public_snapshot",
+            "expires_at": expires_at.isoformat(),
+        },
+    )
+    assert created.status_code == 201
+    share = created.json()["data"]
+    calls: list[dict[str, str]] = []
+
+    class RecordingDataArtifactService:
+        def render_public_dataset_csv(self, **kwargs: str) -> bytes:
+            calls.append(kwargs)
+            return b"Object name\nTOI-700 d\n"
+
+    app.state.data_artifact_read_service = RecordingDataArtifactService()
+    anonymous = TestClient(app, base_url="https://testserver")
+    path = (
+        f"/api/public/shares/{share['share_token']}"
+        "/artifacts/artv_01/exports/csv"
+    )
+    downloaded = anonymous.get(path)
+
+    assert downloaded.status_code == 200
+    assert downloaded.content == b"Object name\nTOI-700 d\n"
+    assert downloaded.headers["content-type"] == "text/csv; charset=utf-8"
+    assert downloaded.headers["content-disposition"] == (
+        'attachment; filename="shared-research-data.csv"'
+    )
+    assert downloaded.headers["cache-control"] == "no-store"
+    assert downloaded.headers["referrer-policy"] == "no-referrer"
+    assert calls[0]["version_id"] == "artv_01"
+    assert calls[0]["session_id"] == session_id
+    assert "proj_01" not in downloaded.text
+    assert "artv_01" not in downloaded.text
+    assert "row_id" not in downloaded.text
+    assert "storage" not in downloaded.text
+
+    disallowed = anonymous.get(
+        f"/api/public/shares/{share['share_token']}"
+        "/artifacts/artv_future/exports/csv"
+    )
+    invalid = anonymous.get(
+        "/api/public/shares/not-a-real-token/artifacts/artv_01/exports/csv"
+    )
+    assert disallowed.status_code == invalid.status_code == 404
+    assert disallowed.json()["code"] == invalid.json()["code"] == "SHARE_NOT_FOUND"
+    assert disallowed.json()["detail"] == invalid.json()["detail"]
+    assert len(calls) == 1
+
+    revoked = client.delete(
+        f"/api/projects/proj_01/shares/{share['id']}",
+        headers={"X-CSRF-Token": csrf_token},
+    )
+    assert revoked.status_code == 204
+    after_revoke = anonymous.get(path)
+    assert after_revoke.status_code == 404
+    assert after_revoke.json()["code"] == "SHARE_NOT_FOUND"
+    assert len(calls) == 1
+
+
+def test_public_export_authorization_expires_without_revealing_the_version() -> None:
+    store = InMemorySnapshotStore()
+    store.register_project(project_id="proj_01", owner_session_id="sess_01")
+    store.register_artifact_version(project_id="proj_01", projection=_version())
+    store.register_evidence(project_id="proj_01", projection=_evidence())
+    service = SnapshotService(store)
+    created = service.create_share(
+        project_id="proj_01",
+        session_id="sess_01",
+        request=CreateShareSnapshotRequest(
+            title="Expiring export",
+            artifact_version_ids=("artv_01",),
+            evidence_ids=("ev_01",),
+            redaction_policy="redacted_public_snapshot",
+            expires_at=NOW + timedelta(minutes=1),
+        ),
+        now=NOW,
+    )
+
+    authorized = service.authorize_public_export(
+        raw_token=created.share_token,
+        artifact_version_id="artv_01",
+        now=NOW,
+    )
+    assert authorized.artifact_version_id == "artv_01"
+    with pytest.raises(SecurityProblem) as expired:
+        service.authorize_public_export(
+            raw_token=created.share_token,
+            artifact_version_id="artv_01",
+            now=NOW + timedelta(minutes=2),
+        )
+    with pytest.raises(SecurityProblem) as invalid:
+        service.authorize_public_export(
+            raw_token="not-a-real-token",
+            artifact_version_id="artv_01",
+            now=NOW,
+        )
+    assert expired.value.status == invalid.value.status == 404
+    assert expired.value.code == invalid.value.code == "SHARE_NOT_FOUND"
+    assert expired.value.detail == invalid.value.detail
+
+
 def test_share_create_has_an_independent_per_session_rate_limit() -> None:
     app, client, session_id, csrf_token = _session_client()
     _seed_project(app, session_id)
@@ -313,7 +494,7 @@ def test_share_create_has_an_independent_per_session_rate_limit() -> None:
     payload = {
         "title": "Rate-limited share",
         "artifact_version_ids": ["artv_01"],
-        "redaction_policy": "public_metadata_only",
+        "redaction_policy": "redacted_public_snapshot",
         "expires_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
     }
 
@@ -352,7 +533,7 @@ def test_share_rejects_cross_project_versions_and_unselected_evidence() -> None:
         title="Invalid scope",
         artifact_version_ids=("artv_01",),
         evidence_ids=(),
-        redaction_policy="public_metadata_only",
+        redaction_policy="redacted_public_snapshot",
         expires_at=NOW + timedelta(hours=1),
     )
     with pytest.raises(SecurityProblem) as cross_project:
@@ -370,6 +551,16 @@ def test_share_rejects_cross_project_versions_and_unselected_evidence() -> None:
         id="ev_02",
         artifact_version_id="artv_other",
         source_snapshot_id="srcs_02",
+        locator={"kind": "database_cell", "field": "host_name"},
+        quote_or_value="unrelated",
+        created_at=NOW,
+        source={
+            "source_id": "gaia",
+            "source_type": "database",
+            "retrieved_at": NOW,
+            "license_note": "Gaia archive terms",
+            "request_metadata": {},
+        },
     )
     store.register_evidence(project_id="proj_01", projection=unrelated)
     with pytest.raises(SecurityProblem) as invalid_scope:
@@ -383,6 +574,72 @@ def test_share_rejects_cross_project_versions_and_unselected_evidence() -> None:
     assert invalid_scope.value.code == "SHARE_SCOPE_INVALID"
 
 
+def test_share_requires_and_revalidates_presentation_evidence_closure() -> None:
+    store = InMemorySnapshotStore()
+    store.register_project(project_id="proj_01", owner_session_id="sess_01")
+    version = _version()
+    version = version.model_copy(
+        update={
+            "presentation": version.presentation.model_copy(
+                update={
+                    "entries": (
+                        PublicPresentationEntry(
+                            key="finding.1",
+                            title="可核验结论",
+                            evidence_ids=("ev_01",),
+                        ),
+                    )
+                }
+            )
+        }
+    )
+    store.register_artifact_version(project_id="proj_01", projection=version)
+    store.register_evidence(project_id="proj_01", projection=_evidence())
+    service = SnapshotService(store)
+    request = CreateShareSnapshotRequest(
+        title="Evidence closure",
+        artifact_version_ids=(version.id,),
+        evidence_ids=(),
+        redaction_policy="redacted_public_snapshot",
+        expires_at=NOW + timedelta(hours=1),
+    )
+
+    with pytest.raises(SecurityProblem) as missing:
+        service.create_share(
+            project_id="proj_01",
+            session_id="sess_01",
+            request=request,
+            now=NOW,
+        )
+    assert missing.value.code == "SHARE_SCOPE_INVALID"
+
+    created = service.create_share(
+        project_id="proj_01",
+        session_id="sess_01",
+        request=request.model_copy(update={"evidence_ids": ("ev_01",)}),
+        now=NOW,
+    )
+    record = store._shares[created.id]
+    store._shares[created.id] = replace(
+        record,
+        artifact_versions=(
+            record.artifact_versions[0].model_copy(
+                update={"evidence_ids": ("ev_01", "ev_02")}
+            ),
+        ),
+    )
+    with pytest.raises(SecurityProblem) as overdeclared:
+        service.get_public_share(raw_token=created.share_token, now=NOW)
+    assert overdeclared.value.status == 404
+    assert overdeclared.value.code == "SHARE_NOT_FOUND"
+
+    store._shares[created.id] = replace(record, evidence=())
+    with pytest.raises(SecurityProblem) as corrupted:
+        service.get_public_share(raw_token=created.share_token, now=NOW)
+    assert corrupted.value.status == 404
+    assert corrupted.value.code == "SHARE_NOT_FOUND"
+
+
 def test_expired_and_invalid_share_tokens_have_identical_public_errors() -> None:
     store = InMemorySnapshotStore()
     store.register_project(project_id="proj_01", owner_session_id="sess_01")
@@ -394,7 +651,7 @@ def test_expired_and_invalid_share_tokens_have_identical_public_errors() -> None
         request=CreateShareSnapshotRequest(
             title="Expiring share",
             artifact_version_ids=("artv_01",),
-            redaction_policy="public_metadata_only",
+            redaction_policy="redacted_public_snapshot",
             expires_at=NOW + timedelta(seconds=1),
         ),
         now=NOW,
@@ -418,7 +675,7 @@ def test_private_share_cursor_is_stable_and_invalid_cursor_is_rejected() -> None
     request = CreateShareSnapshotRequest(
         title="Share",
         artifact_version_ids=("artv_01",),
-        redaction_policy="public_metadata_only",
+        redaction_policy="redacted_public_snapshot",
         expires_at=NOW + timedelta(hours=1),
     )
     service.create_share(

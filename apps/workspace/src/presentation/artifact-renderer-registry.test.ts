@@ -16,6 +16,9 @@ describe("Artifact Renderer Registry", () => {
     expect(resolveArtifactRenderer("paper_summary")?.capability).toBe(
       "supported",
     );
+    expect(resolveArtifactRenderer("graph")?.FullscreenRenderer).toBeTypeOf(
+      "function",
+    );
   });
 
   it("rejects missing and duplicate registrations", () => {

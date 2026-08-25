@@ -12,6 +12,7 @@ import pytest
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import (
+    ArtifactKind,
     ResearchContract,
     ResearchContractInput,
     ScientificSkillId,
@@ -27,6 +28,7 @@ from app.schemas.scientific_skills import (
     VisualizationArtifactContent,
 )
 from app.services.content_storage import sha256_content_hash
+from app.services.public_presentation import build_artifact_presentation
 from app.workflow.publisher import PublicationAdmissionError, admit_artifact_candidate
 from app.workflow.scientific_admission import (
     _validate_source_table_admission_cardinality,
@@ -1279,6 +1281,28 @@ async def test_step_adapter_materializes_an_onnx_model_binary() -> None:
     assert model.input_shape[0] is None
     assert model.opset_imports
     assert storage.content[model.model_binary.content_hash]
+
+    evaluation_presentation = build_artifact_presentation(
+        ArtifactKind.model_evaluation,
+        evaluation.model_dump(mode="json"),
+        (),
+    )
+    evaluation_facts = {
+        fact.label: fact.values for fact in evaluation_presentation.facts
+    }
+    assert evaluation_facts["算法"] == ("random_forest",)
+    assert evaluation_facts["训练数据"] == ("研究数据集",)
+    assert evaluation_facts["划分方式"] == ("实体隔离划分",)
+    assert {"算法版本", "训练输入", "随机种子"}.isdisjoint(evaluation_facts)
+
+    model_presentation = build_artifact_presentation(
+        ArtifactKind.model_artifact,
+        model.model_dump(mode="json"),
+        (),
+    )
+    model_facts = {fact.label: fact.values for fact in model_presentation.facts}
+    assert model_facts["算法"] == ("random_forest",)
+    assert {"状态", "算法版本", "运行依赖"}.isdisjoint(model_facts)
 
 
 @pytest.mark.anyio

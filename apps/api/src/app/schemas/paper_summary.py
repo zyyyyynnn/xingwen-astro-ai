@@ -380,6 +380,7 @@ class PaperSummaryProducerExecution(BaseModel):
     model_name: ShortString
     model_revision: ShortString | None = None
     provider: ShortString | None = None
+    provider_returned_model: ShortString | None = None
     provider_request_id: ShortString | None = None
     usage: PaperSummaryModelUsage | None = None
     prompt_name: Identifier

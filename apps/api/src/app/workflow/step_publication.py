@@ -16,8 +16,8 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass
-from typing import Callable, cast
+from dataclasses import dataclass, replace
+from typing import Callable, Protocol, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from pydantic import BaseModel
@@ -491,9 +491,7 @@ class StepPublicationFactory:
                             f"{kind}:evidence:{pipeline_id}",
                         )
                     ),
-                    persisted_source_snapshot_id=persisted_id(
-                        pipeline_snapshot_id
-                    ),
+                    persisted_source_snapshot_id=persisted_id(pipeline_snapshot_id),
                 )
             )
         return snapshots, tuple(evidence)
@@ -549,6 +547,31 @@ class StepPublicationFactory:
         return tuple(bindings[key] for key in sorted(bindings))
 
 
+class ModelCallRuntime(Protocol):
+    port: ModelExecutionPort
+    provider: str
+    requested_model: str
+    explicit_revision: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class ModelCallIdentity:
+    provider: str
+    requested_model: str
+    explicit_revision: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class PinnedModelCallRuntime:
+    port: ModelExecutionPort
+    provider: str
+    requested_model: str
+    explicit_revision: str | None
+
+
+ModelRuntimeResolver = Callable[[], ModelCallRuntime]
+
+
 class TrackedStepModelExecutionPort:
     """Persist Qwen execution facts before the provider request is issued."""
 
@@ -561,6 +584,7 @@ class TrackedStepModelExecutionPort:
         step_key: str,
         attempt: AttemptHandle,
         lease: LeaseGrant,
+        runtime_resolver: ModelRuntimeResolver | None = None,
     ) -> None:
         self._base = base
         self._publications = publications
@@ -568,18 +592,96 @@ class TrackedStepModelExecutionPort:
         self._step_key = step_key
         self._attempt = attempt
         self._lease = lease
+        self._runtime_resolver = runtime_resolver
+        self._last_identity: ModelCallIdentity | None = None
+
+    @property
+    def last_identity(self) -> ModelCallIdentity | None:
+        return self._last_identity
+
+    def pin_runtime(self, fallback: ModelCallIdentity) -> PinnedModelCallRuntime:
+        runtime = self._runtime_resolver() if self._runtime_resolver else None
+        pinned = PinnedModelCallRuntime(
+            port=runtime.port if runtime else self._base,
+            provider=runtime.provider if runtime else fallback.provider,
+            requested_model=(
+                runtime.requested_model if runtime else fallback.requested_model
+            ),
+            explicit_revision=(
+                runtime.explicit_revision if runtime else fallback.explicit_revision
+            ),
+        )
+        self._last_identity = ModelCallIdentity(
+            provider=pinned.provider,
+            requested_model=pinned.requested_model,
+            explicit_revision=pinned.explicit_revision,
+        )
+        return pinned
+
+    def _remember(self, runtime: ModelCallRuntime) -> None:
+        self._last_identity = ModelCallIdentity(
+            provider=runtime.provider,
+            requested_model=runtime.requested_model,
+            explicit_revision=runtime.explicit_revision,
+        )
+
+    def _resolve(
+        self,
+        request: ModelExecutionRequest,
+        pinned_runtime: ModelCallRuntime | None = None,
+    ) -> tuple[ModelExecutionPort, ModelExecutionRequest]:
+        runtime = pinned_runtime
+        if runtime is None and self._runtime_resolver is not None:
+            runtime = self._runtime_resolver()
+        if runtime is None:
+            self._last_identity = ModelCallIdentity(
+                provider=request.provider,
+                requested_model=request.requested_model,
+                explicit_revision=request.explicit_revision,
+            )
+            return self._base, request
+        resolved = replace(
+            request,
+            provider=runtime.provider,
+            requested_model=runtime.requested_model,
+            explicit_revision=runtime.explicit_revision,
+        )
+        self._remember(runtime)
+        return runtime.port, resolved
 
     def start(
         self, request: ModelExecutionRequest
     ) -> tuple[ModelExecutionResponse, UUID]:
-        return self.start_named(
-            request,
-            producer_name=f"{request.provider}-chat-completions",
-            producer_version=request.explicit_revision or request.requested_model,
+        base, resolved = self._resolve(request)
+        return self._start_named(
+            base,
+            resolved,
+            producer_name=f"{resolved.provider}-chat-completions",
+            producer_version=resolved.explicit_revision or resolved.requested_model,
         )
 
     def start_named(
         self,
+        request: ModelExecutionRequest,
+        *,
+        producer_name: str,
+        producer_version: str,
+        parameters_hash_override: str | None = None,
+        resume_completed: bool = False,
+    ) -> tuple[ModelExecutionResponse, UUID]:
+        base, resolved = self._resolve(request)
+        return self._start_named(
+            base,
+            resolved,
+            producer_name=producer_name,
+            producer_version=producer_version,
+            parameters_hash_override=parameters_hash_override,
+            resume_completed=resume_completed,
+        )
+
+    def _start_named(
+        self,
+        base: ModelExecutionPort,
         request: ModelExecutionRequest,
         *,
         producer_name: str,
@@ -628,7 +730,7 @@ class TrackedStepModelExecutionPort:
         if execution.replayed:
             return _replayed_model_response(execution), execution.id
         try:
-            response = self._base.execute(request)
+            response = base.execute(request)
         except ModelExecutionError as error:
             self._publications.finish_producer(
                 execution.id,
@@ -670,14 +772,19 @@ class TrackedStepModelExecutionPort:
         return response
 
     def execute_resumable(
-        self, request: ModelExecutionRequest
+        self,
+        request: ModelExecutionRequest,
+        *,
+        pinned_runtime: ModelCallRuntime | None = None,
     ) -> ModelExecutionResponse:
         """Replay exact completed child calls across step attempts."""
 
-        response, execution_id = self.start_named(
-            request,
-            producer_name=f"{request.provider}-chat-completions",
-            producer_version=request.explicit_revision or request.requested_model,
+        base, resolved = self._resolve(request, pinned_runtime)
+        response, execution_id = self._start_named(
+            base,
+            resolved,
+            producer_name=f"{resolved.provider}-chat-completions",
+            producer_version=resolved.explicit_revision or resolved.requested_model,
             resume_completed=True,
         )
         self._publications.finish_producer(
@@ -698,6 +805,7 @@ class TrackedStepModelExecutionPort:
     ) -> tuple[ModelExecutionResponse, UUID]:
         """Persist the governed function-call producer before the provider call."""
 
+        base, request = self._resolve(request)
         execution = self._publications.start_producer(
             self._context,
             step_key=self._step_key,
@@ -727,7 +835,7 @@ class TrackedStepModelExecutionPort:
         if execution.replayed:
             return _replayed_model_response(execution), execution.id
         try:
-            response = self._base.execute(request)
+            response = base.execute(request)
         except ModelExecutionError as error:
             self._publications.finish_producer(
                 execution.id,
@@ -889,11 +997,18 @@ def _replayed_model_response(
 class ResumableStepModelExecutionPort:
     """Model port that reuses exact completed child calls across attempts."""
 
-    def __init__(self, tracked: TrackedStepModelExecutionPort) -> None:
+    def __init__(
+        self,
+        tracked: TrackedStepModelExecutionPort,
+        pinned_runtime: PinnedModelCallRuntime,
+    ) -> None:
         self._tracked = tracked
+        self._pinned_runtime = pinned_runtime
 
     def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
-        return self._tracked.execute_resumable(request)
+        return self._tracked.execute_resumable(
+            request, pinned_runtime=self._pinned_runtime
+        )
 
 
 class StepModelCaller:
@@ -925,6 +1040,30 @@ class StepModelCaller:
     @property
     def explicit_revision(self) -> str | None:
         return self._explicit_revision
+
+    @property
+    def identity(self) -> ModelCallIdentity:
+        return ModelCallIdentity(
+            provider=self._provider,
+            requested_model=self._requested_model,
+            explicit_revision=self._explicit_revision,
+        )
+
+    def pin_resumable_port(self) -> ResumableStepModelExecutionPort:
+        pinned = self._model_port.pin_runtime(self.identity)
+        self._adopt_identity(
+            ModelCallIdentity(
+                provider=pinned.provider,
+                requested_model=pinned.requested_model,
+                explicit_revision=pinned.explicit_revision,
+            )
+        )
+        return ResumableStepModelExecutionPort(self._model_port, pinned)
+
+    def _adopt_identity(self, identity: ModelCallIdentity) -> None:
+        self._provider = identity.provider
+        self._requested_model = identity.requested_model
+        self._explicit_revision = identity.explicit_revision
 
     def prompt(self, name: str) -> PromptRecord:
         return self._prompts.get(name)
@@ -963,6 +1102,8 @@ class StepModelCaller:
             if producer_name is not None and producer_version is not None
             else self._model_port.start(request)
         )
+        if self._model_port.last_identity is not None:
+            self._adopt_identity(self._model_port.last_identity)
         model_response = json.dumps(
             response.payload,
             ensure_ascii=False,

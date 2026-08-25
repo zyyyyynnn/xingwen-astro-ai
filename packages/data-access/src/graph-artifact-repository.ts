@@ -205,6 +205,7 @@ function mapEdge(read: GraphEdgeRead): GraphEdgeReview {
     edgeType: read.edge.edge_type,
     sourceNodeId: id(read.edge.source_node_id),
     targetNodeId: id(read.edge.target_node_id),
+    evidenceIds: read.evidence.map((item) => id(item.evidence.id)),
     evidenceUseIds: read.edge.evidence_use_ids.map(id),
     dataAggregation: read.edge.data_aggregation
       ? mapAggregation(read.edge.data_aggregation)

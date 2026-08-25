@@ -107,32 +107,38 @@ export function SpectrumContent({
   title,
   sourceMode,
   surface,
+  enhancementOnly = false,
 }: {
   readonly content: SpectrumArtifactReviewContent;
   readonly title: string;
   readonly sourceMode: string;
   readonly surface: ScientificContentSurface;
+  readonly enhancementOnly?: boolean;
 }) {
   return (
     <article
       className="scientific-artifact scientific-artifact--spectrum"
       data-surface={surface}
     >
-      <ScientificContentHeader
-        title={content.title || title}
-        subtitle={`光谱 · ${content.objectName}`}
-      />
-      <div className="scientific-artifact__summary" aria-label="光谱摘要">
-        <span>采样 {content.sampleCount} 点</span>
-        <span>S/N {formatNumber(content.signalToNoise, 2)}</span>
-        <span>谱线 {content.detectedLines.length} 条</span>
-        <span>
-          波长 {content.wavelengthUnit} · 通量 {content.fluxUnit}
-        </span>
-        <span>静止波长 {formatNumber(content.restWavelength)}</span>
-        <span>径向速度 {formatNumber(content.radialVelocityKmS)} km/s</span>
-        <span>{sourceModeLabel(sourceMode)}</span>
-      </div>
+      {!enhancementOnly ? (
+        <ScientificContentHeader
+          title={content.title || title}
+          subtitle={`光谱 · ${content.objectName}`}
+        />
+      ) : null}
+      {!enhancementOnly ? (
+        <div className="scientific-artifact__summary" aria-label="光谱摘要">
+          <span>采样 {content.sampleCount} 点</span>
+          <span>S/N {formatNumber(content.signalToNoise, 2)}</span>
+          <span>谱线 {content.detectedLines.length} 条</span>
+          <span>
+            波长 {content.wavelengthUnit} · 通量 {content.fluxUnit}
+          </span>
+          <span>静止波长 {formatNumber(content.restWavelength)}</span>
+          <span>径向速度 {formatNumber(content.radialVelocityKmS)} km/s</span>
+          <span>{sourceModeLabel(sourceMode)}</span>
+        </div>
+      ) : null}
       <section className="scientific-artifact__section">
         <h4>采样点</h4>
         {content.points.length > 0 ? (

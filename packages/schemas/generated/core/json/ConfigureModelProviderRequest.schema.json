@@ -1,0 +1,54 @@
+{
+  "$defs": {
+    "ModelProviderPreset": {
+      "enum": [
+        "dashscope",
+        "custom"
+      ],
+      "title": "ModelProviderPreset",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Configure and verify the instance-wide Chat Completions provider.",
+  "properties": {
+    "api_key": {
+      "format": "password",
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Api Key",
+      "type": "string",
+      "writeOnly": true
+    },
+    "base_url": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Base Url"
+    },
+    "model": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Model",
+      "type": "string"
+    },
+    "preset": {
+      "$ref": "#/$defs/ModelProviderPreset"
+    }
+  },
+  "required": [
+    "preset",
+    "model",
+    "api_key"
+  ],
+  "title": "ConfigureModelProviderRequest",
+  "type": "object"
+}

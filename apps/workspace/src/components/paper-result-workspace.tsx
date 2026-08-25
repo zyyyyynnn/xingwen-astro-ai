@@ -1,4 +1,4 @@
-import type { PaperSummaryReview } from "@xingwen/domain";
+import type { DomainEntityId } from "@xingwen/domain";
 import type {
   ArtifactVersionMetadataViewModel,
   ResearchArtifactViewModel,
@@ -12,13 +12,13 @@ import {
   TabsTrigger,
 } from "@xingwen/ui";
 import { useEffect, useRef, useState } from "react";
-import { PaperSummaryFullscreenRenderer } from "./paper-summary-renderer";
 import { PaperPdfViewer, type PaperPdfViewerHandle } from "./paper-pdf-viewer";
+import { ArtifactPresentationContent } from "./scientific-presentation";
 
 export interface PaperResultWorkspaceProps {
   readonly artifact: ResearchArtifactViewModel;
   readonly version: ArtifactVersionMetadataViewModel;
-  readonly review: PaperSummaryReview;
+  readonly onSelectEvidence: (evidenceId: DomainEntityId) => void;
   readonly documentUrl?: string | null;
   readonly documentKind?: "pdf" | "image" | null;
   readonly requestedPage?: {
@@ -33,7 +33,7 @@ type PaperResultPane = "report" | "document";
 export function PaperResultWorkspace({
   artifact,
   version,
-  review,
+  onSelectEvidence,
   documentUrl = null,
   documentKind = null,
   requestedPage = null,
@@ -53,14 +53,6 @@ export function PaperResultWorkspace({
   const widePdfRef = useRef<PaperPdfViewerHandle>(null);
   const narrowPdfRef = useRef<PaperPdfViewerHandle>(null);
 
-  const jumpToPage = (pageIndex: number) => {
-    setActivePane("document");
-    // Both viewers stay mounted. Calling both keeps the visible viewer exact
-    // across the desktop/narrow breakpoint without coupling scroll positions.
-    widePdfRef.current?.jumpToPage(pageIndex);
-    narrowPdfRef.current?.jumpToPage(pageIndex);
-  };
-
   useEffect(() => {
     if (requestedPageIndex === null || requestedPageNonce === null) return;
     widePdfRef.current?.jumpToPage(requestedPageIndex);
@@ -68,11 +60,12 @@ export function PaperResultWorkspace({
   }, [requestedPageIndex, requestedPageNonce]);
 
   const report = (
-    <PaperSummaryFullscreenRenderer
-      artifact={artifact}
-      version={version}
-      review={review}
-      onJumpToPage={jumpToPage}
+    <ArtifactPresentationContent
+      title={artifact.title}
+      presentation={version.presentation}
+      surface="fullscreen"
+      onSelectEvidence={onSelectEvidence}
+      showHeader={false}
     />
   );
 
@@ -80,6 +73,7 @@ export function PaperResultWorkspace({
     <div
       className={`xw-paper-result-workspace flex h-full w-full flex-col overflow-hidden bg-background ${className}`}
       data-testid="paper-result-workspace"
+      data-artifact-version-id={version.id}
     >
       <div className="flex border-b border-border bg-muted/40 p-1 xl:hidden">
         <Tabs

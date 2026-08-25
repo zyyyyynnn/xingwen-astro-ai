@@ -21,6 +21,7 @@ import type {
   ArtifactVersionSummary,
   CaseKey,
   CreateShareSnapshotRequest,
+  ConfigureModelProviderInput,
   DatasetArtifactReview,
   DomainEntityId,
   Evidence,
@@ -28,6 +29,7 @@ import type {
   FieldDictionaryArtifactReview,
   GraphArtifactReview,
   LiteratureArtifactReview,
+  ModelProviderConfigurationStatus,
   PaperAcquisitionReview,
   PaperSummaryDocumentSourceReview,
   PaperSummaryReview,
@@ -50,6 +52,7 @@ import type {
   RunEvent,
   ShareSnapshot,
   ShareSnapshotCreated,
+  SourceSnapshotSummary,
   SourceCollectionArtifactReview,
   UtcIsoTimestamp,
   WorkspaceSnapshot,
@@ -204,6 +207,7 @@ export interface ArtifactReadRepository {
    */
   getVersion(id: DomainEntityId): Promise<ArtifactVersionMetadata | null>;
   getEvidence(id: DomainEntityId): Promise<Evidence | null>;
+  getSourceSnapshot(id: DomainEntityId): Promise<SourceSnapshotSummary | null>;
 }
 
 export interface ResearchInputRepository {
@@ -397,6 +401,21 @@ export interface ShareRepository {
   ): Promise<ShareSnapshotCreated>;
   revoke(projectId: DomainEntityId, shareId: DomainEntityId): Promise<void>;
   getPublic(shareToken: string): Promise<PublicShareSnapshot | null>;
+  downloadPublicDatasetCsv(
+    shareToken: string,
+    artifactVersionId: DomainEntityId,
+  ): Promise<ArtifactExportDownload>;
+}
+
+export interface ModelProviderRepository {
+  getConfiguration(): Promise<ModelProviderConfigurationStatus>;
+  configure(
+    input: ConfigureModelProviderInput,
+    expectedRevision: number,
+  ): Promise<ModelProviderConfigurationStatus>;
+  removeConfiguration(
+    expectedRevision: number,
+  ): Promise<ModelProviderConfigurationStatus>;
 }
 
 /**
@@ -422,6 +441,7 @@ export interface RepositorySet {
   readonly revisions: RevisionRepository;
   readonly workspaces: WorkspaceSnapshotRepository;
   readonly shares: ShareRepository;
+  readonly modelProvider: ModelProviderRepository;
 }
 
 /**

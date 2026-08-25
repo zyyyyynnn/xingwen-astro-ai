@@ -371,7 +371,7 @@ export type RunStepStatus =
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ShareRedactionPolicy".
  */
-export type ShareRedactionPolicy = "public_metadata_only";
+export type ShareRedactionPolicy = "redacted_public_snapshot";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ShareStatus".
@@ -393,6 +393,11 @@ export type ConditionOperator =
  * via the `definition` "ConfidenceBand".
  */
 export type ConfidenceBand = "high" | "medium" | "low" | "not_applicable";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelProviderPreset".
+ */
+export type ModelProviderPreset = "dashscope" | "custom";
 /**
  * The only Case and Field Manifest selection declaration approved for this case.
  *
@@ -631,6 +636,11 @@ export type GraphNodeType =
   | "relation"
   | "reasoning_trace"
   | "evidence";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelProviderConfigurationSource".
+ */
+export type ModelProviderConfigurationSource = "deployment" | "workspace";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "PaperAccessEvidenceKind".
@@ -1088,6 +1098,7 @@ export interface ArtifactVersionDetail {
   evidence_ids?: string[];
   id: string;
   input_hash: string;
+  presentation: PublicArtifactPresentation;
   producer: ProducerReference;
   producer_execution: ProducerExecutionDetail;
   project_id: string;
@@ -1119,6 +1130,157 @@ export interface EvidenceDetail {
   source_snapshot_id: string;
   target_id: string;
   target_type: string;
+}
+/**
+ * Single positive-contract presentation model shared by private/public UI.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PublicArtifactPresentation".
+ */
+export interface PublicArtifactPresentation {
+  entries?: PublicPresentationEntry[];
+  facts?: PublicPresentationFact[];
+  graph_edges?: PublicPresentationGraphEdge[];
+  graph_nodes?: PublicPresentationGraphNode[];
+  kind: ArtifactKind;
+  sections?: PublicPresentationSection[];
+  summary?: string | null;
+  tables?: PublicPresentationTable[];
+}
+/**
+ * One claim, relation, field, paper, or scientific finding.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PublicPresentationEntry".
+ */
+export interface PublicPresentationEntry {
+  assessment?: string | null;
+  evidence_ids?: string[];
+  external_url?: string | null;
+  facts?: PublicPresentationFact[];
+  key: string;
+  paragraphs?: string[];
+  reasoning_trace?: PublicPresentationTrace | null;
+  status?: string | null;
+  title: string;
+}
+/**
+ * One human-readable fact in the shared scientific presentation model.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PublicPresentationFact".
+ */
+export interface PublicPresentationFact {
+  label: string;
+  /**
+   * @minItems 1
+   */
+  values: [string, ...string[]];
+}
+/**
+ * Presentation-safe reasoning trace with private execution facts removed.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PublicPresentationTrace".
+ */
+export interface PublicPresentationTrace {
+  conclusion: string;
+  evidence_ids?: string[];
+  facts?: PublicPresentationFact[];
+  steps: string[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PublicPresentationGraphEdge".
+ */
+export interface PublicPresentationGraphEdge {
+  evidence_ids?: string[];
+  key: string;
+  kind: string;
+  source_key: string;
+  target_key: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PublicPresentationGraphNode".
+ */
+export interface PublicPresentationGraphNode {
+  key: string;
+  kind: string;
+  label: string;
+}
+/**
+ * A bounded narrative section in a shared result presentation.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PublicPresentationSection".
+ */
+export interface PublicPresentationSection {
+  /**
+   * @minItems 1
+   */
+  paragraphs: [PublicPresentationParagraph, ...PublicPresentationParagraph[]];
+  title: string;
+}
+/**
+ * One narrative statement with its directly supporting Evidence.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PublicPresentationParagraph".
+ */
+export interface PublicPresentationParagraph {
+  evidence_ids?: string[];
+  status?: string | null;
+  text: string;
+}
+/**
+ * Bounded tabular result projected from a typed Artifact authority.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PublicPresentationTable".
+ */
+export interface PublicPresentationTable {
+  /**
+   * @minItems 1
+   */
+  columns: [PublicPresentationTableColumn, ...PublicPresentationTableColumn[]];
+  rows?: PublicPresentationTableRow[];
+  title: string;
+  total_column_count: number;
+  total_row_count: number;
+}
+/**
+ * One explicitly projected column in a shared scientific table.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PublicPresentationTableColumn".
+ */
+export interface PublicPresentationTableColumn {
+  key: string;
+  label: string;
+  unit?: string | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PublicPresentationTableRow".
+ */
+export interface PublicPresentationTableRow {
+  cells?: PublicPresentationTableCell[];
+  identity: string;
+  key: string;
+}
+/**
+ * One display-safe canonical value and its directly supporting Evidence.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PublicPresentationTableCell".
+ */
+export interface PublicPresentationTableCell {
+  column_key: string;
+  evidence_ids?: string[];
+  reason?: string | null;
+  status?: "mapped" | "missing" | "unresolved";
+  value?: string | null;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -2262,6 +2424,18 @@ export interface ShareSnapshot {
   title: string;
 }
 /**
+ * Configure and verify the instance-wide Chat Completions provider.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ConfigureModelProviderRequest".
+ */
+export interface ConfigureModelProviderRequest {
+  api_key: string;
+  base_url?: string | null;
+  model: string;
+  preset: ModelProviderPreset;
+}
+/**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ConfirmResearchContractRequest".
  */
@@ -2445,7 +2619,7 @@ export interface CreateShareSnapshotRequest {
    */
   evidence_ids?: string[];
   expires_at: string;
-  redaction_policy: "public_metadata_only";
+  redaction_policy: "redacted_public_snapshot";
   title: string;
 }
 /**
@@ -3495,6 +3669,34 @@ export interface Envelope_LiteratureRelationRead_ {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_ModelProviderConfigurationStatus_".
+ */
+export interface Envelope_ModelProviderConfigurationStatus_ {
+  data: ModelProviderConfigurationStatus;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * Write-only credentials are represented only by a non-secret suffix hint.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelProviderConfigurationStatus".
+ */
+export interface ModelProviderConfigurationStatus {
+  api_key_hint: string | null;
+  base_url: string | null;
+  dashscope_base_url: string;
+  editable: boolean;
+  model: string | null;
+  preset: ModelProviderPreset | null;
+  revision: number;
+  source: ModelProviderConfigurationSource | null;
+  status: "unconfigured" | "ready";
+  updated_at: string | null;
+  verified_at: string | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "Envelope_PaperCandidateInputBinding_".
  */
 export interface Envelope_PaperCandidateInputBinding_ {
@@ -4055,6 +4257,7 @@ export interface PaperSummaryProducerExecution {
   prompt_version: string;
   provider?: string | null;
   provider_request_id?: string | null;
+  provider_returned_model?: string | null;
   run_id?: string | null;
   started_at: string;
   status: "completed" | "rejected";
@@ -4107,7 +4310,7 @@ export interface PublicShareSnapshot {
   title: string;
 }
 /**
- * Redacted immutable version metadata safe for an anonymous share response.
+ * Immutable result metadata plus a typed anonymous presentation.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "PublicArtifactVersion".
@@ -4116,23 +4319,76 @@ export interface PublicArtifactVersion {
   artifact_id: string;
   content_hash: string;
   created_at: string;
+  evidence_ids: string[];
   id: string;
   kind: ArtifactKind;
+  presentation: PublicArtifactPresentation;
   schema_version: string;
   source_mode: SourceMode;
   title: string;
   version_number: number;
 }
 /**
- * Minimal Evidence identity bound to a shared immutable version.
+ * Redacted Evidence detail frozen with a shared immutable result.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "PublicEvidence".
  */
 export interface PublicEvidence {
   artifact_version_id: string;
+  created_at: string;
   id: string;
+  locator: PublicEvidenceLocator;
+  quote_or_value: string | null;
+  source: PublicSourceSnapshot;
   source_snapshot_id: string;
+}
+/**
+ * Positive public locator contract preserving scientific verification.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PublicEvidenceLocator".
+ */
+export interface PublicEvidenceLocator {
+  bbox?: PublicEvidenceBBox | null;
+  block_id?: string | null;
+  cell_id?: string | null;
+  field?: string | null;
+  kind: string;
+  page?: number | null;
+  paragraph?: number | null;
+  reading_order?: number | null;
+  row_key?: string | null;
+  section?: string | null;
+  table_id?: string | null;
+  text_range?: string | null;
+}
+/**
+ * Page-relative bounding box in absolute document points.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PublicEvidenceBBox".
+ */
+export interface PublicEvidenceBBox {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
+}
+/**
+ * Public source facts required by the shared Evidence inspector.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PublicSourceSnapshot".
+ */
+export interface PublicSourceSnapshot {
+  license_note: string;
+  request_metadata: {
+    [k: string]: JsonValue;
+  };
+  retrieved_at: string;
+  source_id: string;
+  source_type: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema

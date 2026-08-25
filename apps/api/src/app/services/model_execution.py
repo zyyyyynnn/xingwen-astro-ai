@@ -6,9 +6,16 @@ from dataclasses import dataclass
 import json
 from datetime import timedelta
 from time import monotonic
-from typing import Any, Callable, Literal, Protocol, cast
+from typing import Any, Literal, Protocol, cast
 
-from openai import APIConnectionError, APIError, APIStatusError, APITimeoutError, OpenAI
+from openai import (
+    APIConnectionError,
+    APIError,
+    APIStatusError,
+    APITimeoutError,
+    DefaultHttpxClient,
+    OpenAI,
+)
 
 from app.security import canonical_request_hash
 
@@ -118,8 +125,8 @@ class ModelRuntimeUnavailable(ModelExecutionError):
         )
 
 
-class QwenModelExecutionAdapter:
-    """Thin Qwen adapter over the platform's OpenAI-compatible SDK route.
+class OpenAICompatibleModelExecutionAdapter:
+    """Thin adapter over the OpenAI Chat Completions compatible SDK route.
 
     The adapter owns transport mapping only. It does not validate planner
     semantics or persist provider payloads; callers must do both at the
@@ -134,15 +141,18 @@ class QwenModelExecutionAdapter:
         timeout_seconds: float,
         max_retries: int = 2,
         client: OpenAI | None = None,
+        qwen_thinking_control: bool = False,
     ) -> None:
         self._api_key = api_key.strip() if api_key else None
         self._client = client
+        self._qwen_thinking_control = qwen_thinking_control
         if self._api_key and self._client is None:
             self._client = OpenAI(
                 api_key=self._api_key,
                 base_url=base_url.rstrip("/"),
                 timeout=timeout_seconds,
                 max_retries=max_retries,
+                http_client=DefaultHttpxClient(follow_redirects=False),
             )
 
     def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
@@ -170,12 +180,13 @@ class QwenModelExecutionAdapter:
         create_arguments: dict[str, Any] = {
             "model": request.explicit_revision or request.requested_model,
             "messages": messages,
-            "extra_body": {
-                "enable_thinking": request.enable_thinking,
-                "preserve_thinking": request.enable_thinking,
-            },
             **request.parameters,
         }
+        if self._qwen_thinking_control:
+            create_arguments["extra_body"] = {
+                "enable_thinking": request.enable_thinking,
+                "preserve_thinking": request.enable_thinking,
+            }
         if request.response_mode == "json":
             create_arguments["response_format"] = {"type": "json_object"}
         if request.tools:
@@ -277,6 +288,28 @@ class QwenModelExecutionAdapter:
         )
 
 
+class QwenModelExecutionAdapter(OpenAICompatibleModelExecutionAdapter):
+    """DashScope specialization retaining Qwen thinking-control arguments."""
+
+    def __init__(
+        self,
+        *,
+        api_key: str | None,
+        base_url: str,
+        timeout_seconds: float,
+        max_retries: int = 2,
+        client: OpenAI | None = None,
+    ) -> None:
+        super().__init__(
+            api_key=api_key,
+            base_url=base_url,
+            timeout_seconds=timeout_seconds,
+            max_retries=max_retries,
+            client=client,
+            qwen_thinking_control=True,
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class _RawCompletion:
     content: str
@@ -299,9 +332,7 @@ def _consume_completion(
         {
             "id": str(getattr(item, "id", "")),
             "name": str(getattr(getattr(item, "function", None), "name", "")),
-            "arguments": str(
-                getattr(getattr(item, "function", None), "arguments", "")
-            ),
+            "arguments": str(getattr(getattr(item, "function", None), "arguments", "")),
         }
         for item in (getattr(message, "tool_calls", None) or ())
     )
@@ -311,10 +342,11 @@ def _consume_completion(
         tool_calls=tool_calls,
         token_usage=_standard_token_usage(getattr(completion, "usage", None)),
         provider_request_id=(
-            getattr(completion, "_request_id", None)
-            or getattr(completion, "id", None)
+            getattr(completion, "_request_id", None) or getattr(completion, "id", None)
         ),
-        model=returned_model if isinstance(returned_model, str) and returned_model else None,
+        model=returned_model
+        if isinstance(returned_model, str) and returned_model
+        else None,
     )
 
 
@@ -374,6 +406,7 @@ __all__ = [
     "ModelExecutionResponse",
     "ModelToolCall",
     "ModelRuntimeUnavailable",
+    "OpenAICompatibleModelExecutionAdapter",
     "QwenModelExecutionAdapter",
     "qwen_execution_lease_duration",
 ]

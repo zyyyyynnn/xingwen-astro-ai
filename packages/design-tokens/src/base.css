@@ -131,6 +131,10 @@
   --font-size-ui-label: var(--font-size-0);
   --font-size-ui-body: 0.875rem;
   --font-size-ui-heading: 1.25rem;
+  --font-weight-ui-medium: 500;
+  --font-weight-ui-heading: 560;
+  --font-weight-ui-emphasis: 600;
+  --font-weight-ui-strong: 650;
   --line-height-ui-label: 1.5;
   --line-height-ui-body: 1.6;
   --line-height-ui-heading: 1.5;

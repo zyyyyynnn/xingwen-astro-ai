@@ -106,6 +106,7 @@ class ResearchApplicationService:
         workflow_store: PersistentWorkflowStore,
         manifests: ManifestBundle,
         planner: ResearchContractPlanner | None = None,
+        planner_resolver: Callable[[], ResearchContractPlanner] | None = None,
         model_execution_lease_duration: timedelta = timedelta(minutes=5),
     ) -> None:
         if model_execution_lease_duration <= timedelta(0):
@@ -114,6 +115,7 @@ class ResearchApplicationService:
         self._workflow = workflow_store
         self._manifests = manifests
         self._planner = planner
+        self._planner_resolver = planner_resolver
         self._model_execution_lease_duration = model_execution_lease_duration
 
     # ---- Project ---------------------------------------------------------
@@ -902,7 +904,8 @@ class ResearchApplicationService:
         idempotency_key: str,
         request: ResearchTurnRequest,
     ) -> ResearchTurnResult:
-        if self._planner is None:
+        planner = self._planner_resolver() if self._planner_resolver else self._planner
+        if planner is None:
             raise SecurityProblem(
                 status=503,
                 code="MODEL_RUNTIME_UNAVAILABLE",
@@ -973,7 +976,7 @@ class ResearchApplicationService:
                 )
             )
             project_read = self._project_read(session, project)
-            prepared_request = self._planner.prepare_request(
+            prepared_request = planner.prepare_request(
                 project=project_read,
                 entries=current_entries,
                 message=request.message,
@@ -1036,7 +1039,7 @@ class ResearchApplicationService:
                 raise _research_assistant_busy()
 
         try:
-            planner_result = self._planner.execute(prepared_request)
+            planner_result = planner.execute(prepared_request)
             _validate_planner_outcome(
                 planner_result.output,
                 case_key=project_read.case_key,

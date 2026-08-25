@@ -25,6 +25,7 @@ from app.middleware import (
 from app.routers import (
     artifacts,
     health,
+    model_provider,
     research,
     research_inputs,
     revisions,
@@ -44,8 +45,16 @@ from app.services.artifacts import ArtifactReadService
 from app.services.data_artifacts import DataArtifactReadService
 from app.services.feedback_targets import FeedbackTargetAuthority
 from app.services.model_execution import (
-    QwenModelExecutionAdapter,
     qwen_execution_lease_duration,
+)
+from app.services.model_provider_configuration import (
+    CredentialCipher,
+    ModelProviderConfigurationService,
+    ModelProviderConfigurationStore,
+    ModelRuntimeRegistry,
+    ModelRuntimeSnapshot,
+    RegistryModelExecutionPort,
+    deployment_runtime,
 )
 from app.services.research import ResearchApplicationService
 from app.services.research_planner import ResearchContractPlanner
@@ -107,12 +116,22 @@ def _configure_database_runtime(
             DeterministicIntegrationModelExecutionPort,
         )
 
-        model_port = DeterministicIntegrationModelExecutionPort()
-        planner_provider = "integration_fixture"
-        planner_model = model_port.model_name
-        planner_revision = model_port.model_revision
+        integration_port = DeterministicIntegrationModelExecutionPort()
+        fallback_runtime = ModelRuntimeSnapshot(
+            port=integration_port,
+            provider="integration_fixture",
+            requested_model=integration_port.model_name,
+            explicit_revision=integration_port.model_revision,
+            revision=0,
+            source=None,
+            preset=None,
+            base_url=None,
+            api_key_hint=None,
+            verified_at=None,
+            updated_at=None,
+        )
     else:
-        model_port = QwenModelExecutionAdapter(
+        fallback_runtime = deployment_runtime(
             api_key=(
                 settings.DASHSCOPE_API_KEY.get_secret_value()
                 if settings.DASHSCOPE_API_KEY is not None
@@ -121,10 +140,35 @@ def _configure_database_runtime(
             base_url=settings.DASHSCOPE_BASE_URL,
             timeout_seconds=settings.DASHSCOPE_TIMEOUT_SECONDS,
             max_retries=settings.DASHSCOPE_MAX_RETRIES,
+            model=settings.DASHSCOPE_MODEL,
+            explicit_revision=settings.DASHSCOPE_EXPLICIT_MODEL_REVISION,
         )
-        planner_provider = "qwen"
-        planner_model = settings.DASHSCOPE_MODEL
-        planner_revision = settings.DASHSCOPE_EXPLICIT_MODEL_REVISION
+    root_secret = (
+        settings.MODEL_PROVIDER_CONFIG_KEY or settings.CURSOR_SIGNING_KEY
+    ).get_secret_value()
+    credential_cipher = CredentialCipher(root_secret)
+    model_provider_store = ModelProviderConfigurationStore(factory)
+    model_runtime_registry = ModelRuntimeRegistry(
+        fallback=fallback_runtime,
+        store=model_provider_store,
+        cipher=credential_cipher,
+        timeout_seconds=settings.DASHSCOPE_TIMEOUT_SECONDS,
+        max_retries=settings.DASHSCOPE_MAX_RETRIES,
+        load_workspace_override=settings.model_provider_config_writable,
+    )
+    model_port = RegistryModelExecutionPort(model_runtime_registry)
+    app.state.model_runtime_registry = model_runtime_registry
+    app.state.model_provider_configuration_service = ModelProviderConfigurationService(
+        store=model_provider_store,
+        registry=model_runtime_registry,
+        cipher=credential_cipher,
+        writable=settings.model_provider_config_writable,
+        app_env=settings.APP_ENV,
+        dashscope_base_url=settings.DASHSCOPE_BASE_URL,
+        allowed_custom_hosts=tuple(settings.MODEL_PROVIDER_ALLOWED_HOSTS or ()),
+        timeout_seconds=settings.DASHSCOPE_TIMEOUT_SECONDS,
+        max_retries=settings.DASHSCOPE_MAX_RETRIES,
+    )
     app.state.model_execution_port = model_port
     manifests = _load_case_manifests()
     from app.services.content_storage import LocalContentStorage
@@ -150,18 +194,23 @@ def _configure_database_runtime(
         visual_parser=visual_parser,
         max_pages=settings.DOCUMENT_PARSE_MAX_PAGES,
     )
-    app.state.research_planner = ResearchContractPlanner(
-        model_port=model_port,
-        provider=planner_provider,
-        requested_model=planner_model,
-        explicit_revision=planner_revision,
-        manifests=manifests,
-    )
+
+    def _resolve_planner() -> ResearchContractPlanner:
+        current = model_runtime_registry.refresh()
+        return ResearchContractPlanner(
+            model_port=current.port,
+            provider=current.provider,
+            requested_model=current.requested_model,
+            explicit_revision=current.explicit_revision,
+            manifests=manifests,
+        )
+
+    app.state.research_planner = _resolve_planner()
     app.state.research_service = ResearchApplicationService(
         factory=factory,
         workflow_store=workflow_store,
         manifests=manifests,
-        planner=app.state.research_planner,
+        planner_resolver=_resolve_planner,
         model_execution_lease_duration=qwen_execution_lease_duration(
             timeout_seconds=settings.DASHSCOPE_TIMEOUT_SECONDS,
             max_retries=settings.DASHSCOPE_MAX_RETRIES,
@@ -178,6 +227,7 @@ def _configure_database_runtime(
             model_port=model_port,
             requested_model=settings.DASHSCOPE_MODEL,
             explicit_revision=settings.DASHSCOPE_EXPLICIT_MODEL_REVISION,
+            model_runtime_resolver=model_runtime_registry.refresh,
             content_storage=content_storage,
             document_parser=app.state.document_parser,
         )
@@ -211,6 +261,8 @@ def create_app() -> FastAPI:
     app.state.revision_service = None
     app.state.model_execution_port = None
     app.state.research_planner = None
+    app.state.model_runtime_registry = None
+    app.state.model_provider_configuration_service = None
     app.state.research_run_worker = None
     app.state.db_session_factory = None
     app.state.content_storage = None
@@ -238,6 +290,9 @@ def create_app() -> FastAPI:
     )
     app.state.revision_rate_limiter = InMemoryRateLimiter(
         limit=settings.REVISION_WRITE_RATE_LIMIT
+    )
+    app.state.model_provider_config_rate_limiter = InMemoryRateLimiter(
+        limit=settings.MODEL_PROVIDER_CONFIG_RATE_LIMIT
     )
 
     app.state.snapshot_store = None
@@ -381,6 +436,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(sessions.router)
+    app.include_router(model_provider.router)
     app.include_router(artifacts.router)
     app.include_router(research.router)
     app.include_router(revisions.router)

@@ -247,6 +247,19 @@ class DataArtifactReadService:
             item=record,
         )
 
+    def render_public_dataset_csv(
+        self, *, version_id: str, session_id: str
+    ) -> bytes:
+        """Render one exact Dataset through the export serializer without private export state."""
+
+        dataset = self.get_dataset(version_id=version_id, session_id=session_id)
+        payload, _, _ = _render_export(
+            dataset,
+            "csv",
+            visibility="public_share",
+        )
+        return payload
+
     def get_export(self, *, export_id: str, session_id: str) -> ArtifactExportRead:
         return _EXPORTS.get(export_id, session_id).export
 
@@ -681,6 +694,8 @@ def _base(version: ArtifactVersionDetail) -> DataArtifactReadBase:
 def _render_export(
     typed: DataArtifactReadBase,
     export_format: Literal["csv", "json", "provenance_report"],
+    *,
+    visibility: Literal["private", "public_share"] = "private",
 ) -> tuple[bytes, str, str]:
     payload = typed.model_dump(mode="json")
     version_id = typed.artifact_version_id
@@ -730,17 +745,17 @@ def _render_export(
     output = StringIO(newline="")
     writer = csv.writer(output, lineterminator="\n")
     fields = [column.field for column in typed.dataset.columns]
-    writer.writerow(["row_id", *(field.field_id for field in fields)])
+    if visibility == "public_share":
+        writer.writerow([field.label_en for field in fields])
+    else:
+        writer.writerow(["row_id", *(field.field_id for field in fields)])
     for row in typed.dataset.rows:
         values = {item.canonical_field_id: _outcome_value(item) for item in row.fields}
+        public_values = [
+            _csv_cell(values.get(field.field_id), field.data_type) for field in fields
+        ]
         writer.writerow(
-            [
-                row.row_id,
-                *(
-                    _csv_cell(values.get(field.field_id), field.data_type)
-                    for field in fields
-                ),
-            ]
+            public_values if visibility == "public_share" else [row.row_id, *public_values]
         )
     return (
         output.getvalue().encode("utf-8"),

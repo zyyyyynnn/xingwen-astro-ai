@@ -37,6 +37,7 @@ import {
 } from "../upstream/openhands/src/root";
 import type { WorkspaceRuntimeBoundaries } from "./boundaries";
 import { ProjectActionDialogs } from "./components/project-action-dialogs";
+import { ModelProviderControl } from "./components/model-provider-control";
 import { useArtifactPresentation } from "./components/artifact-presentation";
 import { ResearchMessageStream } from "./components/research-message-stream";
 import { ProtocolDraftCard } from "./components/protocol-draft-card";
@@ -581,18 +582,21 @@ export function WorkspaceEntry({
     </section>
   ) : (
     <WorkspaceShell
-      runtime={runtimeForEntry(
-        entry.composer,
-        runtime,
-        projectList,
-        pinned.pinnedProjects,
-        access.accessLog,
-        onOpenProject,
-        () => void creation.create(),
-        pinned.togglePinned,
-        actions.requestRename,
-        actions.requestDelete,
-      )}
+      runtime={{
+        ...runtimeForEntry(
+          entry.composer,
+          runtime,
+          projectList,
+          pinned.pinnedProjects,
+          access.accessLog,
+          onOpenProject,
+          () => void creation.create(),
+          pinned.togglePinned,
+          actions.requestRename,
+          actions.requestDelete,
+        ),
+        headerActions: <ModelProviderControl runtime={runtime} />,
+      }}
     />
   );
   return (
@@ -1043,6 +1047,7 @@ export function WorkspaceHost({
       : null,
     threadPanel,
     threadItemCount: streamItems.length,
+    headerActions: <ModelProviderControl runtime={runtime} />,
     inspectorPanel:
       !isArtifactFullscreen &&
       (hasPersistedConversation ||

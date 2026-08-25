@@ -1,7 +1,7 @@
 # Deployment
 
-| 元数据 | 值 |
-| --- | --- |
+| 元数据    | 值                                           |
+| --------- | -------------------------------------------- |
 | Authority | 环境拓扑、配置边界、迁移、健康检查与发布验证 |
 
 本文定义系统在本地与生产环境的部署、运行与发布规范。安全要求见 [Security](SECURITY.md)，退出标准见 [Acceptance](docs/product/ACCEPTANCE.md)，本地开发命令见 [Setup](docs/setup.md)。
@@ -22,16 +22,21 @@ FastAPI Backend -> Model Provider / Data Sources / Paper Sources
 
 ## 2. 环境矩阵
 
-| 环境 | 主要用途 | 数据与外部调用 |
-| --- | --- | --- |
-| local | 本地开发与测试 | Fixture、stub、recorded，按需 Live |
-| preview | PR 浏览器、路由、安全与部署 smoke | 隔离配置、受控 Live 或测试凭据 |
-| production | 生产环境 | 受限主案例、配额与只读来源范围 |
+| 环境       | 主要用途                          | 数据与外部调用                     |
+| ---------- | --------------------------------- | ---------------------------------- |
+| local      | 本地开发与测试                    | Fixture、stub、recorded，按需 Live |
+| preview    | PR 浏览器、路由、安全与部署 smoke | 隔离配置、受控 Live 或测试凭据     |
+| production | 生产环境                          | 受限主案例、配额与只读来源范围     |
 
 ## 3. 配置与 Secrets
 
 - **Browser-visible**：仅包含 API 公开 origin、公开配置与 `VITE_` / `PUBLIC_` 变量，均视为公开信息。
 - **Backend-only**：包含数据库连接、模型 API Key、Session/Share 散列密钥与限流配置。
+- 模型服务默认使用 `DASHSCOPE_*` 部署 baseline。development/test/integration 可以通过工作台保存
+  一个实例级 DashScope Qwen 或自定义 OpenAI-compatible override；凭据使用 `MODEL_PROVIDER_CONFIG_KEY`（为空时使用稳定的
+  `CURSOR_SIGNING_KEY`）派生的独立加密密钥后写入 PostgreSQL。production 只读。
+- custom provider 远程 host 必须列入 `MODEL_PROVIDER_ALLOWED_HOSTS` 且使用 HTTPS；本地环境只对
+  localhost、`127.0.0.1`、`::1` 与 `host.docker.internal` 开放 HTTP 例外。
 - Session、WorkspaceSnapshot 与 ShareSnapshot 使用同一 PostgreSQL schema；所有 API 实例必须连接同一数据库。`SESSION_RETENTION_SECONDS` 与 `SHARE_RETENTION_SECONDS` 控制写入时的有界清理，不得通过清理级联删除科研历史。
 - 生产环境严禁使用 DEBUG 模式、默认数据库密码、占位密钥或通配 CORS。
 

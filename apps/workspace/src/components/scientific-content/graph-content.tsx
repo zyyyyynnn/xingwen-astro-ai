@@ -1,200 +1,677 @@
-import type { DomainEntityId } from "@xingwen/domain";
+import { graphlib, layout } from "@dagrejs/dagre";
+import {
+  Background,
+  Controls,
+  Handle,
+  MarkerType,
+  Position,
+  ReactFlow,
+  type Edge,
+  type Node,
+  type NodeProps,
+  type ReactFlowInstance,
+} from "@xyflow/react";
+import type {
+  DomainEntityId,
+  GraphEdgeReview,
+  PublicArtifactPresentation,
+} from "@xingwen/domain";
+import { workspaceGraphGeometry } from "@xingwen/design-tokens";
 import type { GraphArtifactReviewViewModel } from "@xingwen/research-adapter";
+import {
+  Button,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@xingwen/ui";
+import { Quote, Target } from "@xingwen/ui/icons";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import {
-  limitNote,
+  comparabilityLabel,
   ScientificContentHeader,
-  SURFACE_LIMITS,
   taxonomyLabel,
   type ScientificContentSurface,
 } from "./shared";
+import { PresentationGraphRelationships } from "../scientific-presentation";
 
-function NodeTable({
-  nodes,
-  surface,
-}: {
-  readonly nodes: readonly GraphArtifactReviewViewModel["nodes"][number][];
-  readonly surface: ScientificContentSurface;
-}) {
-  const visible = nodes.slice(0, SURFACE_LIMITS[surface]);
+import "@xyflow/react/dist/style.css";
+
+const INITIAL_NODE_BUDGET = 60;
+const NODE_BUDGET_INCREMENT = 60;
+
+interface ResolvedGraphGeometry {
+  readonly nodeInlineSize: number;
+  readonly nodeBlockSize: number;
+  readonly nodeSeparation: number;
+  readonly rankSeparation: number;
+  readonly focusPadding: number;
+}
+
+function readCssNumber(variable: string, length: boolean): number | null {
+  const root = document.documentElement;
+  const value = getComputedStyle(root).getPropertyValue(variable).trim();
+  if (!value) return null;
+  if (!length) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+  const match = value.match(/^([\d.]+)(px|rem)$/u);
+  if (!match) return null;
+  const number = Number(match[1]);
+  if (!Number.isFinite(number)) return null;
+  if (match[2] === "px") return number;
+  const rootFontSize = Number.parseFloat(getComputedStyle(root).fontSize);
+  return Number.isFinite(rootFontSize) ? number * rootFontSize : null;
+}
+
+function readGraphGeometry(
+  probe: HTMLElement | null,
+): ResolvedGraphGeometry | null {
+  const bounds = probe?.getBoundingClientRect();
+  const nodeInlineSize =
+    bounds && bounds.width > 0
+      ? bounds.width
+      : readCssNumber(workspaceGraphGeometry.nodeInlineSize, true);
+  const nodeBlockSize =
+    bounds && bounds.height > 0
+      ? bounds.height
+      : readCssNumber(workspaceGraphGeometry.nodeBlockSize, true);
+  const nodeSeparation = readCssNumber(
+    workspaceGraphGeometry.nodeSeparation,
+    true,
+  );
+  const rankSeparation = readCssNumber(
+    workspaceGraphGeometry.rankSeparation,
+    true,
+  );
+  const focusPadding = readCssNumber(
+    workspaceGraphGeometry.focusPadding,
+    false,
+  );
+  return nodeInlineSize !== null &&
+    nodeBlockSize !== null &&
+    nodeSeparation !== null &&
+    rankSeparation !== null &&
+    focusPadding !== null
+    ? {
+        nodeInlineSize,
+        nodeBlockSize,
+        nodeSeparation,
+        rankSeparation,
+        focusPadding,
+      }
+    : null;
+}
+
+function useGraphGeometry() {
+  const probeRef = useRef<HTMLSpanElement>(null);
+  const [geometry, setGeometry] = useState<ResolvedGraphGeometry | null>(null);
+  useLayoutEffect(() => {
+    const update = () => setGeometry(readGraphGeometry(probeRef.current));
+    update();
+    window.addEventListener("resize", update);
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    if (probeRef.current) observer?.observe(probeRef.current);
+    return () => {
+      window.removeEventListener("resize", update);
+      observer?.disconnect();
+    };
+  }, []);
+  return { geometry, probeRef };
+}
+
+interface ScientificGraphNodeData extends Record<string, unknown> {
+  readonly label: string;
+  readonly typeLabel: string;
+}
+
+type ScientificGraphNode = Node<ScientificGraphNodeData, "scientific">;
+type ScientificGraphEdge = Edge<{ readonly review: GraphEdgeReview }>;
+
+function unique<T>(values: readonly T[]): T[] {
+  return [...new Set(values)];
+}
+
+function evidenceIdsForEdge(edge: GraphEdgeReview): DomainEntityId[] {
+  return unique(edge.evidenceIds);
+}
+
+function isPresentableEdge(edge: GraphEdgeReview): boolean {
+  if (evidenceIdsForEdge(edge).length === 0) return false;
+  if (edge.relation === null && edge.relationTrace === null) return true;
   return (
-    <div className="scientific-artifact__table-scroll overflow-x-auto my-2 border rounded border-[var(--oh-border)]">
-      <table className="ui-text-body w-full text-left border-collapse">
-        <caption className="sr-only">证据关系节点</caption>
-        <thead>
-          <tr className="border-b bg-[var(--oh-surface-subtle)] border-[var(--oh-border)]">
-            <th scope="col" className="p-2 font-medium">
-              节点名称 / 标识
-            </th>
-            <th scope="col" className="p-2 font-medium">
-              节点类别
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[var(--oh-border)]">
-          {visible.map((node, index) => (
-            <tr
-              key={node.nodeId}
-              className="hover:bg-[var(--oh-surface-subtle)]"
-            >
-              <th
-                scope="row"
-                className="p-2 font-medium text-[var(--oh-foreground)]"
-              >
-                {node.label || `节点 ${index + 1}`}
-              </th>
-              <td className="p-2 text-[var(--oh-muted)]">
-                {taxonomyLabel(node.nodeType)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {limitNote(nodes.length, visible.length, "个节点") ? (
-        <p className="p-2 text-xs text-[var(--oh-muted)] bg-[var(--oh-surface-subtle)] border-t border-[var(--oh-border)]">
-          {limitNote(nodes.length, visible.length, "个节点")}
-        </p>
-      ) : null}
+    edge.relation?.status === "accepted" &&
+    edge.relation.graphEligible &&
+    edge.relation.reasoningTrace !== null &&
+    edge.relationTrace?.relationStatus === "accepted"
+  );
+}
+
+function ScientificNode({ data, selected }: NodeProps<ScientificGraphNode>) {
+  return (
+    <div
+      className="graph-workspace__node"
+      data-selected={selected || undefined}
+    >
+      <Handle type="target" position={Position.Left} />
+      <span>{data.typeLabel}</span>
+      <strong>{data.label}</strong>
+      <Handle type="source" position={Position.Right} />
     </div>
   );
 }
 
-function EdgeTable({
-  edges,
-  nodeLabelById,
-  surface,
+const nodeTypes = { scientific: ScientificNode };
+
+function layoutElements(
+  nodes: readonly GraphArtifactReviewViewModel["nodes"][number][],
+  edges: readonly GraphEdgeReview[],
+  geometry: ResolvedGraphGeometry,
+): {
+  readonly nodes: ScientificGraphNode[];
+  readonly edges: ScientificGraphEdge[];
+} {
+  const graph = new graphlib.Graph().setDefaultEdgeLabel(() => ({}));
+  graph.setGraph({
+    rankdir: "LR",
+    nodesep: geometry.nodeSeparation,
+    ranksep: geometry.rankSeparation,
+  });
+  for (const node of nodes) {
+    graph.setNode(node.nodeId, {
+      width: geometry.nodeInlineSize,
+      height: geometry.nodeBlockSize,
+    });
+  }
+  for (const edge of edges) {
+    if (edge.sourceNodeId && edge.targetNodeId) {
+      graph.setEdge(edge.sourceNodeId, edge.targetNodeId);
+    }
+  }
+  layout(graph);
+  return {
+    nodes: nodes.map((node) => {
+      const position = graph.node(node.nodeId);
+      return {
+        id: node.nodeId,
+        type: "scientific",
+        position: {
+          x: position.x - geometry.nodeInlineSize / 2,
+          y: position.y - geometry.nodeBlockSize / 2,
+        },
+        data: {
+          label: node.label || "未命名研究对象",
+          typeLabel: taxonomyLabel(node.nodeType),
+        },
+        ariaLabel: `${taxonomyLabel(node.nodeType)}：${node.label || "未命名研究对象"}`,
+        draggable: false,
+        selectable: true,
+      };
+    }),
+    edges: edges.flatMap((edge) => {
+      if (!edge.sourceNodeId || !edge.targetNodeId) return [];
+      return [
+        {
+          id: edge.edgeId,
+          source: edge.sourceNodeId,
+          target: edge.targetNodeId,
+          type: "smoothstep",
+          markerEnd: { type: MarkerType.ArrowClosed },
+          data: { review: edge },
+          ariaLabel: taxonomyLabel(edge.edgeType),
+          className: "graph-workspace__edge",
+          focusable: true,
+          selectable: true,
+        },
+      ];
+    }),
+  };
+}
+
+function GraphFilters({
+  query,
+  onQueryChange,
+  nodeType,
+  onNodeTypeChange,
+  edgeType,
+  onEdgeTypeChange,
+  nodeTypes: availableNodeTypes,
+  edgeTypes: availableEdgeTypes,
 }: {
-  readonly edges: readonly GraphArtifactReviewViewModel["edges"][number][];
-  readonly nodeLabelById: ReadonlyMap<DomainEntityId, string>;
-  readonly surface: ScientificContentSurface;
+  readonly query: string;
+  readonly onQueryChange: (value: string) => void;
+  readonly nodeType: string;
+  readonly onNodeTypeChange: (value: string) => void;
+  readonly edgeType: string;
+  readonly onEdgeTypeChange: (value: string) => void;
+  readonly nodeTypes: readonly string[];
+  readonly edgeTypes: readonly string[];
 }) {
-  const visible = edges.slice(0, SURFACE_LIMITS[surface]);
   return (
-    <div className="scientific-artifact__table-scroll overflow-x-auto my-2 border rounded border-[var(--oh-border)]">
-      <table className="ui-text-body w-full text-left border-collapse">
-        <caption className="sr-only">证据关系与上游证据</caption>
-        <thead>
-          <tr className="border-b bg-[var(--oh-surface-subtle)] border-[var(--oh-border)]">
-            <th scope="col" className="p-2 font-medium">
-              起止路径
-            </th>
-            <th scope="col" className="p-2 font-medium">
-              边类别
-            </th>
-            <th scope="col" className="p-2 font-medium">
-              证据支撑
-            </th>
-            <th scope="col" className="p-2 font-medium">
-              关系 / 聚合详情
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[var(--oh-border)]">
-          {visible.map((edge) => (
-            <tr
-              key={edge.edgeId}
-              className="hover:bg-[var(--oh-surface-subtle)]"
-            >
-              <td className="p-2">
-                {edge.sourceNodeId && edge.targetNodeId
-                  ? `${nodeLabelById.get(edge.sourceNodeId) ?? "未命名节点"} → ${nodeLabelById.get(edge.targetNodeId) ?? "未命名节点"}`
-                  : "未提供节点路径"}
-              </td>
-              <td className="p-2">{taxonomyLabel(edge.edgeType)}</td>
-              <td className="p-2">
-                {edge.evidenceUseIds.length > 0
-                  ? `证据使用 ${edge.evidenceUseIds.length} 条`
-                  : "未提供"}
-              </td>
-              <td className="p-2">
-                <div>
-                  {edge.relation
-                    ? taxonomyLabel(edge.relation.relationType)
-                    : edge.dataAggregation
-                      ? `聚合行 ${edge.dataAggregation.projectedRowCount}`
-                      : "未提供关系明细"}
-                </div>
-                {edge.relationTrace ? (
-                  <div className="text-xs text-[var(--oh-muted)]">
-                    推导证据 {edge.relationTrace.traceEvidenceIds.length} 条
-                  </div>
-                ) : null}
-              </td>
-            </tr>
+    <div className="graph-workspace__filters" aria-label="关系图筛选">
+      <Input
+        type="search"
+        value={query}
+        onChange={(event) => onQueryChange(event.target.value)}
+        placeholder="筛选研究对象"
+        aria-label="按名称筛选研究对象"
+      />
+      <Select value={nodeType} onValueChange={onNodeTypeChange}>
+        <SelectTrigger aria-label="筛选节点类别">
+          <SelectValue placeholder="全部对象类别" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">全部对象类别</SelectItem>
+          {availableNodeTypes.map((value) => (
+            <SelectItem key={value} value={value}>
+              {taxonomyLabel(value)}
+            </SelectItem>
           ))}
-        </tbody>
-      </table>
-      {limitNote(edges.length, visible.length, "条边") ? (
-        <p className="p-2 text-xs text-[var(--oh-muted)] bg-[var(--oh-surface-subtle)] border-t border-[var(--oh-border)]">
-          {limitNote(edges.length, visible.length, "条边")}
-        </p>
-      ) : null}
+        </SelectContent>
+      </Select>
+      <Select value={edgeType} onValueChange={onEdgeTypeChange}>
+        <SelectTrigger aria-label="筛选关系类别">
+          <SelectValue placeholder="全部关系类别" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">全部关系类别</SelectItem>
+          {availableEdgeTypes.map((value) => (
+            <SelectItem key={value} value={value}>
+              {taxonomyLabel(value)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
+  );
+}
+
+function EdgeDetails({
+  edge,
+  nodeLabelById,
+  onSelectEvidence,
+}: {
+  readonly edge: GraphEdgeReview;
+  readonly nodeLabelById: ReadonlyMap<DomainEntityId, string>;
+  readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
+}) {
+  const evidenceIds = evidenceIdsForEdge(edge);
+  const relation = edge.relation;
+  const trace = relation?.reasoningTrace ?? null;
+  return (
+    <aside className="graph-workspace__selection" aria-live="polite">
+      <header>
+        <p>{taxonomyLabel(edge.edgeType)}</p>
+        <h4>
+          {edge.sourceNodeId
+            ? (nodeLabelById.get(edge.sourceNodeId) ?? "未命名研究对象")
+            : "起点未公开"}
+          <span aria-hidden="true">→</span>
+          {edge.targetNodeId
+            ? (nodeLabelById.get(edge.targetNodeId) ?? "未命名研究对象")
+            : "终点未公开"}
+        </h4>
+      </header>
+      {relation ? (
+        <dl>
+          <div>
+            <dt>关系</dt>
+            <dd>{taxonomyLabel(relation.relationType)}</dd>
+          </div>
+          <div>
+            <dt>可比性</dt>
+            <dd>
+              研究对象{comparabilityLabel(relation.comparability.objectStatus)}
+              ， 指标{comparabilityLabel(relation.comparability.metricStatus)}
+              ，单位
+              {comparabilityLabel(relation.comparability.unitStatus)}
+            </dd>
+          </div>
+          {relation.conditions.length > 0 ? (
+            <div>
+              <dt>成立条件</dt>
+              <dd>{relation.conditions.join("；")}</dd>
+            </div>
+          ) : null}
+          {trace ? (
+            <div>
+              <dt>公开推导</dt>
+              <dd>
+                <p>{trace.conclusion}</p>
+                {trace.steps.length > 0 ? (
+                  <ol>
+                    {trace.steps.map((step) => (
+                      <li key={step.order}>{step.statement}</li>
+                    ))}
+                  </ol>
+                ) : null}
+              </dd>
+            </div>
+          ) : null}
+          {trace &&
+          (trace.conflicts.length > 0 || trace.limitations.length > 0) ? (
+            <div>
+              <dt>冲突与限制</dt>
+              <dd>{[...trace.conflicts, ...trace.limitations].join("；")}</dd>
+            </div>
+          ) : null}
+        </dl>
+      ) : edge.dataAggregation ? (
+        <p>
+          该关系汇总了 {edge.dataAggregation.projectedRowCount}{" "}
+          条可核验记录；其中
+          {edge.dataAggregation.conflictCount} 条存在冲突。
+        </p>
+      ) : (
+        <p>这条关系没有更多可公开说明。</p>
+      )}
+      <div className="graph-workspace__evidence-actions">
+        {evidenceIds.length > 0 && onSelectEvidence ? (
+          evidenceIds.map((evidenceId, index) => (
+            <Button
+              key={evidenceId}
+              size="small"
+              variant="ghost"
+              onClick={() => onSelectEvidence(evidenceId)}
+            >
+              <Quote aria-hidden="true" />
+              查看证据 {index + 1}
+            </Button>
+          ))
+        ) : (
+          <p>没有可公开核验的证据。</p>
+        )}
+      </div>
+    </aside>
   );
 }
 
 export function GraphContent({
   review,
+  presentation,
   title,
   surface,
+  onSelectEvidence,
 }: {
   readonly review: GraphArtifactReviewViewModel;
+  readonly presentation: PublicArtifactPresentation;
   readonly title: string;
   readonly surface: ScientificContentSurface;
+  readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
 }) {
-  const nodeLabelById = new Map<DomainEntityId, string>(
-    review.nodes.map((node, index) => [
-      node.nodeId,
-      node.label || `节点 ${index + 1}`,
-    ]),
+  const [query, setQuery] = useState("");
+  const [nodeType, setNodeType] = useState("all");
+  const [edgeType, setEdgeType] = useState("all");
+  const [nodeBudget, setNodeBudget] = useState(INITIAL_NODE_BUDGET);
+  const [selectedNodeId, setSelectedNodeId] = useState<DomainEntityId | null>(
+    null,
   );
+  const [selectedEdgeId, setSelectedEdgeId] = useState<DomainEntityId | null>(
+    null,
+  );
+  const [instance, setInstance] = useState<
+    ReactFlowInstance<ScientificGraphNode, ScientificGraphEdge> | undefined
+  >();
+  const { geometry: graphGeometry, probeRef } = useGraphGeometry();
+
+  const nodeLabelById = useMemo(
+    () =>
+      new Map<DomainEntityId, string>(
+        review.nodes.map((node) => [
+          node.nodeId,
+          node.label || "未命名研究对象",
+        ]),
+      ),
+    [review.nodes],
+  );
+  const presentableEdges = useMemo(
+    () => review.edges.filter(isPresentableEdge),
+    [review.edges],
+  );
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const matchingNodes = useMemo(
+    () =>
+      review.nodes.filter(
+        (node) =>
+          (nodeType === "all" || node.nodeType === nodeType) &&
+          (normalizedQuery === "" ||
+            node.label.toLocaleLowerCase().includes(normalizedQuery)),
+      ),
+    [nodeType, normalizedQuery, review.nodes],
+  );
+  const visibleNodes = matchingNodes.slice(0, nodeBudget);
+  const visibleNodeIds = new Set(visibleNodes.map((node) => node.nodeId));
+  const visibleEdges = presentableEdges.filter(
+    (edge) =>
+      (edgeType === "all" || edge.edgeType === edgeType) &&
+      edge.sourceNodeId !== null &&
+      edge.targetNodeId !== null &&
+      visibleNodeIds.has(edge.sourceNodeId) &&
+      visibleNodeIds.has(edge.targetNodeId),
+  );
+  const elements = useMemo(
+    () =>
+      graphGeometry
+        ? layoutElements(visibleNodes, visibleEdges, graphGeometry)
+        : { nodes: [], edges: [] },
+    [graphGeometry, visibleEdges, visibleNodes],
+  );
+  const selectedEdge =
+    presentableEdges.find((edge) => edge.edgeId === selectedEdgeId) ?? null;
+  const selectedNode =
+    review.nodes.find((node) => node.nodeId === selectedNodeId) ?? null;
+  const hiddenUnsafeEdgeCount = review.edges.length - presentableEdges.length;
+  const visibleNodeKeys = new Set(
+    visibleNodes.map((node) => String(node.nodeId)),
+  );
+  const visibleEdgeKeys = new Set(
+    visibleEdges.map((edge) => String(edge.edgeId)),
+  );
+  const presentationNodes = presentation.graphNodes.filter((node) =>
+    visibleNodeKeys.has(node.key),
+  );
+  const presentationEdges = presentation.graphEdges.filter((edge) =>
+    visibleEdgeKeys.has(edge.key),
+  );
+
+  const focusSelection = () => {
+    const id = selectedEdgeId ?? selectedNodeId;
+    if (!instance || !id) return;
+    const nodes = selectedEdge
+      ? [selectedEdge.sourceNodeId, selectedEdge.targetNodeId]
+          .filter((value): value is DomainEntityId => value !== null)
+          .map((nodeId) => ({ id: nodeId }))
+      : [{ id }];
+    void instance.fitView({
+      nodes,
+      padding: graphGeometry?.focusPadding ?? 0,
+    });
+  };
+
   return (
     <article
       className="scientific-artifact scientific-artifact--graph"
       data-surface={surface}
     >
-      <ScientificContentHeader title={title} subtitle="证据关系" />
-      <div
-        className="scientific-artifact__summary ui-text-body my-2 flex flex-wrap gap-x-4 gap-y-1 text-[var(--oh-muted)]"
-        aria-label="证据关系摘要"
-      >
-        <span>节点 {review.nodeCount} 个</span>
-        <span>边 {review.edgeCount} 条</span>
-        <span>证据关联 {review.evidenceUseCount} 项</span>
-      </div>
-      {review.integrity.findings.length > 0 ? (
-        <p className="text-xs text-[var(--oh-warning)] my-1">
-          完整性提示：{review.integrity.findings[0]?.message ?? "未提供说明"}
+      <span
+        ref={probeRef}
+        className="graph-workspace__geometry-probe"
+        aria-hidden="true"
+      />
+      <ScientificContentHeader
+        title={title}
+        subtitle={`可核验证据关系，${presentableEdges.length} 条`}
+      />
+      {hiddenUnsafeEdgeCount > 0 ? (
+        <p className="graph-workspace__notice">
+          有 {hiddenUnsafeEdgeCount} 条关系因证据或公开推导不完整而未显示。
         </p>
       ) : null}
-      <section className="mt-3">
-        <h4 className="mb-1 text-sm font-semibold text-[var(--oh-foreground)]">
-          研究对象与论点
-        </h4>
-        {review.nodes.length > 0 ? (
-          <NodeTable nodes={review.nodes} surface={surface} />
-        ) : (
-          <p className="text-xs text-[var(--oh-muted)] py-2 text-center">
-            当前版本没有可展示的节点。
-          </p>
-        )}
-      </section>
-      <section className="mt-3">
-        <h4 className="mb-1 text-sm font-semibold text-[var(--oh-foreground)]">
-          关系
-        </h4>
-        {review.edges.length > 0 ? (
-          <EdgeTable
-            edges={review.edges}
-            nodeLabelById={nodeLabelById}
-            surface={surface}
-          />
-        ) : (
-          <p className="text-xs text-[var(--oh-muted)] py-2 text-center">
-            当前版本没有可展示的边。
-          </p>
-        )}
-      </section>
+      <GraphFilters
+        query={query}
+        onQueryChange={setQuery}
+        nodeType={nodeType}
+        onNodeTypeChange={setNodeType}
+        edgeType={edgeType}
+        onEdgeTypeChange={setEdgeType}
+        nodeTypes={unique(review.nodes.map((node) => node.nodeType)).sort()}
+        edgeTypes={unique(presentableEdges.map((edge) => edge.edgeType)).sort()}
+      />
+      <Tabs defaultValue="canvas" className="graph-workspace">
+        <div className="graph-workspace__toolbar">
+          <TabsList aria-label="关系图展示方式">
+            <TabsTrigger value="canvas">关系图</TabsTrigger>
+            <TabsTrigger value="list">列表</TabsTrigger>
+          </TabsList>
+          {selectedEdgeId || selectedNodeId ? (
+            <Button size="small" variant="ghost" onClick={focusSelection}>
+              <Target aria-hidden="true" />
+              聚焦选择
+            </Button>
+          ) : null}
+        </div>
+        <TabsContent value="canvas" className="graph-workspace__canvas-panel">
+          {graphGeometry === null ? (
+            <p className="graph-workspace__empty" aria-busy="true">
+              正在适配关系图布局…
+            </p>
+          ) : elements.nodes.length > 0 ? (
+            <ReactFlow<ScientificGraphNode, ScientificGraphEdge>
+              nodes={elements.nodes.map((node) => ({
+                ...node,
+                selected: node.id === selectedNodeId,
+              }))}
+              edges={elements.edges.map((edge) => ({
+                ...edge,
+                selected: edge.id === selectedEdgeId,
+              }))}
+              nodeTypes={nodeTypes}
+              onInit={setInstance}
+              onNodeClick={(_event, node) => {
+                setSelectedNodeId(node.id as DomainEntityId);
+                setSelectedEdgeId(null);
+              }}
+              onEdgeClick={(_event, edge) => {
+                setSelectedEdgeId(edge.id as DomainEntityId);
+                setSelectedNodeId(null);
+              }}
+              onNodesChange={(changes) => {
+                const selection = changes.find(
+                  (change) => change.type === "select" && change.selected,
+                );
+                if (selection?.type === "select") {
+                  setSelectedNodeId(selection.id as DomainEntityId);
+                  setSelectedEdgeId(null);
+                } else if (
+                  changes.some(
+                    (change) =>
+                      change.type === "select" &&
+                      change.id === selectedNodeId &&
+                      !change.selected,
+                  )
+                ) {
+                  setSelectedNodeId(null);
+                }
+              }}
+              onEdgesChange={(changes) => {
+                const selection = changes.find(
+                  (change) => change.type === "select" && change.selected,
+                );
+                if (selection?.type === "select") {
+                  setSelectedEdgeId(selection.id as DomainEntityId);
+                  setSelectedNodeId(null);
+                } else if (
+                  changes.some(
+                    (change) =>
+                      change.type === "select" &&
+                      change.id === selectedEdgeId &&
+                      !change.selected,
+                  )
+                ) {
+                  setSelectedEdgeId(null);
+                }
+              }}
+              onPaneClick={() => {
+                setSelectedNodeId(null);
+                setSelectedEdgeId(null);
+              }}
+              nodesDraggable={false}
+              nodesConnectable={false}
+              elementsSelectable
+              nodesFocusable
+              edgesFocusable
+              disableKeyboardA11y={false}
+              deleteKeyCode={null}
+              fitView
+              aria-label="可交互科学关系图"
+              ariaLabelConfig={{
+                "node.a11yDescription.default":
+                  "按回车或空格选择研究对象，按 Escape 取消选择。",
+                "edge.a11yDescription.default":
+                  "按回车或空格选择关系，按 Escape 取消选择。",
+                "controls.ariaLabel": "关系图视图控制",
+              }}
+            >
+              <Background />
+              <Controls showInteractive={false} />
+            </ReactFlow>
+          ) : (
+            <p className="graph-workspace__empty">
+              当前筛选下没有可展示的研究对象。
+            </p>
+          )}
+        </TabsContent>
+        <TabsContent value="list">
+          {presentationEdges.length > 0 ? (
+            <PresentationGraphRelationships
+              nodes={presentationNodes}
+              edges={presentationEdges}
+              selectedKey={selectedEdgeId}
+              onSelectRelationship={(id) => {
+                setSelectedEdgeId(id as DomainEntityId);
+                setSelectedNodeId(null);
+              }}
+            />
+          ) : (
+            <p className="graph-workspace__empty">当前筛选下没有可核验关系。</p>
+          )}
+        </TabsContent>
+      </Tabs>
+      {matchingNodes.length > visibleNodes.length ? (
+        <Button
+          variant="secondary"
+          onClick={() =>
+            setNodeBudget((current) => current + NODE_BUDGET_INCREMENT)
+          }
+          className="graph-workspace__load-more"
+        >
+          显示更多研究对象
+        </Button>
+      ) : null}
+      {selectedEdge ? (
+        <EdgeDetails
+          edge={selectedEdge}
+          nodeLabelById={nodeLabelById}
+          onSelectEvidence={onSelectEvidence}
+        />
+      ) : selectedNode ? (
+        <aside className="graph-workspace__selection" aria-live="polite">
+          <header>
+            <p>{taxonomyLabel(selectedNode.nodeType)}</p>
+            <h4>{selectedNode.label || "未命名研究对象"}</h4>
+          </header>
+          <p>选择与此对象连接的关系，可继续查看公开推导与来源证据。</p>
+        </aside>
+      ) : null}
     </article>
   );
 }

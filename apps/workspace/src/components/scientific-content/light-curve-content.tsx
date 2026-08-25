@@ -124,50 +124,58 @@ export function LightCurveContent({
   title,
   sourceMode,
   surface,
+  enhancementOnly = false,
 }: {
   readonly content: LightCurveArtifactReviewContent;
   readonly title: string;
   readonly sourceMode: string;
   readonly surface: ScientificContentSurface;
+  readonly enhancementOnly?: boolean;
 }) {
   return (
     <article
       className="scientific-artifact scientific-artifact--light-curve"
       data-surface={surface}
     >
-      <ScientificContentHeader
-        title={content.title || title}
-        subtitle={`光变曲线 · ${content.objectName}`}
-      />
-      <div className="scientific-artifact__summary" aria-label="光变曲线摘要">
-        <span>采样 {content.sampleCount} 点</span>
-        <span>有效 {content.acceptedSampleCount}</span>
-        <span>剔除 {content.rejectedSampleCount}</span>
-        <span>
-          周期 {formatNumber(content.bestPeriod)} {content.timeUnit}
-        </span>
-        <span>FAP {formatNumber(content.falseAlarmProbability, 4)}</span>
-        <span>
-          {content.timeScale.toUpperCase()} · {content.timeUnit}
-        </span>
-        <span>
-          {valueKindLabel(content.valueKind)} · {content.valueUnit} ·{" "}
-          {normalizationLabel(content.normalization)}
-        </span>
-        <span>{sourceModeLabel(sourceMode)}</span>
-      </div>
+      {!enhancementOnly ? (
+        <ScientificContentHeader
+          title={content.title || title}
+          subtitle={`光变曲线 · ${content.objectName}`}
+        />
+      ) : null}
+      {!enhancementOnly ? (
+        <div className="scientific-artifact__summary" aria-label="光变曲线摘要">
+          <span>采样 {content.sampleCount} 点</span>
+          <span>有效 {content.acceptedSampleCount}</span>
+          <span>剔除 {content.rejectedSampleCount}</span>
+          <span>
+            周期 {formatNumber(content.bestPeriod)} {content.timeUnit}
+          </span>
+          <span>FAP {formatNumber(content.falseAlarmProbability, 4)}</span>
+          <span>
+            {content.timeScale.toUpperCase()} · {content.timeUnit}
+          </span>
+          <span>
+            {valueKindLabel(content.valueKind)} · {content.valueUnit} ·{" "}
+            {normalizationLabel(content.normalization)}
+          </span>
+          <span>{sourceModeLabel(sourceMode)}</span>
+        </div>
+      ) : null}
       <section className="scientific-artifact__section">
         <h4>周期分析</h4>
-        <div className="scientific-artifact__summary">
-          <span>最佳功率 {formatNumber(content.bestPower, 4)}</span>
-          <span>
-            持续时间 {formatNumber(content.duration)} {content.timeUnit}
-          </span>
-          <span>
-            中位采样间隔 {formatNumber(content.medianCadence)}{" "}
-            {content.timeUnit}
-          </span>
-        </div>
+        {!enhancementOnly ? (
+          <div className="scientific-artifact__summary">
+            <span>最佳功率 {formatNumber(content.bestPower, 4)}</span>
+            <span>
+              持续时间 {formatNumber(content.duration)} {content.timeUnit}
+            </span>
+            <span>
+              中位采样间隔 {formatNumber(content.medianCadence)}{" "}
+              {content.timeUnit}
+            </span>
+          </div>
+        ) : null}
         {content.periodPeaks.length > 0 ? (
           <PeriodogramTable
             peaks={content.periodPeaks}

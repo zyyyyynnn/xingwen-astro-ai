@@ -18,6 +18,7 @@ from app.services.document_parse_store import (
     DocumentParseService,
 )
 from app.services.model_execution import ModelExecutionPort
+from app.services.model_provider_configuration import ModelRuntimeSnapshot
 from app.services.paper_candidate_inputs import (
     PaperCandidateInputReadService,
     PaperCandidateInputRepository,
@@ -28,7 +29,6 @@ from app.services.scientific_document.ports import DocumentParserPort
 from app.workflow.agent_runtime import AgentActivity, ResearchStepAgent, StepTool
 from app.workflow.step_publication import (
     PreparedStep,
-    ResumableStepModelExecutionPort,
     RunStepContext,
     StepModelCaller,
     StepPublicationFactory,
@@ -37,7 +37,10 @@ from app.workflow.step_publication import (
 )
 from app.workflow.steps.data_steps import DataStepService
 from app.workflow.steps.graph_steps import GraphStepService
-from app.workflow.steps.literature_steps import LiteratureStepService
+from app.workflow.steps.literature_steps import (
+    LiteratureStepService,
+    RelationConfidenceBuilder,
+)
 from app.workflow.steps.paper_steps import PaperStepService
 from app.workflow.steps.scientific_steps import ScientificStepService
 from app.workflow.store import AttemptHandle, LeaseGrant, PersistentWorkflowStore
@@ -60,10 +63,12 @@ class ResearchStepRuntime:
         model_port: ModelExecutionPort,
         requested_model: str,
         explicit_revision: str | None,
+        model_runtime_resolver: Callable[[], ModelRuntimeSnapshot] | None = None,
         prompts: PromptRegistry | None = None,
         paper_collection_runner: LivePaperCollectionRunner | None = None,
         content_storage: ContentStorage | None = None,
         document_parser: DocumentParserPort | None = None,
+        relation_confidence_builder: RelationConfidenceBuilder | None = None,
     ) -> None:
         self._factory = factory
         self._store = store
@@ -72,6 +77,7 @@ class ResearchStepRuntime:
         self._model_port = model_port
         self._requested_model = requested_model
         self._explicit_revision = explicit_revision
+        self._model_runtime_resolver = model_runtime_resolver
         build_inputs = DataArtifactBuildInputRepository(factory)
         self._scientific_steps = (
             ScientificStepService(
@@ -132,6 +138,7 @@ class ResearchStepRuntime:
         self._literature_steps = LiteratureStepService(
             publications=self._publications,
             summary_reader=summary_reader,
+            relation_confidence_builder=relation_confidence_builder,
         )
         self._graph_steps = GraphStepService(
             factory=factory, publications=self._publications
@@ -167,26 +174,44 @@ class ResearchStepRuntime:
                 details=activity.details,
             )
 
+        runtime = (
+            self._model_runtime_resolver()
+            if self._model_runtime_resolver is not None
+            else ModelRuntimeSnapshot(
+                port=self._model_port,
+                provider="qwen",
+                requested_model=self._requested_model,
+                explicit_revision=self._explicit_revision,
+                revision=0,
+                source=None,
+                preset=None,
+                base_url=None,
+                api_key_hint=None,
+                verified_at=None,
+                updated_at=None,
+            )
+        )
         tracked_model = TrackedStepModelExecutionPort(
-            base=self._model_port,
+            base=runtime.port,
             publications=self._publications,
             context=context,
             step_key=step_key,
             attempt=attempt,
             lease=lease,
+            runtime_resolver=self._model_runtime_resolver,
         )
         model_caller = StepModelCaller(
             model_port=tracked_model,
-            provider="qwen",
-            requested_model=self._requested_model,
-            explicit_revision=self._explicit_revision,
+            provider=runtime.provider,
+            requested_model=runtime.requested_model,
+            explicit_revision=runtime.explicit_revision,
             prompts=self._prompts,
         )
         result = ResearchStepAgent(
             model_port=tracked_model,
-            provider="qwen",
-            requested_model=self._requested_model,
-            explicit_revision=self._explicit_revision,
+            provider=runtime.provider,
+            requested_model=runtime.requested_model,
+            explicit_revision=runtime.explicit_revision,
             prompt=self._prompts.get("research_step_agent"),
             emit=emit,
         ).run(
@@ -197,7 +222,7 @@ class ResearchStepRuntime:
                 kind: str(version_id) for kind, version_id in context.versions.items()
             },
             execute_primary=lambda: self._execute_step_tool(
-                context, step_key, attempt, lease, model_caller, tracked_model
+                context, step_key, attempt, lease, model_caller
             ),
             describe_primary_result=lambda prepared: prepared.activity_result_summary,
             tool=scientific_tool,
@@ -243,7 +268,6 @@ class ResearchStepRuntime:
         attempt: AttemptHandle,
         lease: LeaseGrant,
         model_caller: StepModelCaller,
-        model_execution: ModelExecutionPort,
     ) -> PreparedStep:
         if step_key == "planning":
             return PreparedStep((), "已按确认协议冻结本次研究执行路径。")
@@ -266,7 +290,6 @@ class ResearchStepRuntime:
                 attempt=attempt,
                 lease=lease,
                 model_caller=model_caller,
-                model_execution=ResumableStepModelExecutionPort(model_execution),
             )
         if step_key == "reasoning_literature":
             return self._literature_steps.reason(

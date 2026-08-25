@@ -6,11 +6,43 @@ import { WwtViewport } from "../wwt-viewport";
 import {
   ScientificContentHeader,
   formatNumber,
-  humanizeToken,
   sourceModeLabel,
   taxonomyLabel,
   type ScientificContentSurface,
 } from "./shared";
+
+const STRETCH_LABELS: Readonly<
+  Record<
+    Extract<
+      VisualizationReviewContent["spec"],
+      { mode: "fits_image" }
+    >["stretch"],
+    string
+  >
+> = {
+  linear: "线性",
+  sqrt: "平方根",
+  log: "对数",
+  power: "幂律",
+  histogram_equalization: "直方图均衡",
+};
+
+const DIAGNOSTIC_LABELS: Readonly<
+  Record<
+    Extract<
+      VisualizationReviewContent["spec"],
+      { mode: "model_diagnostic" }
+    >["diagnostic"],
+    string
+  >
+> = {
+  confusion_matrix: "混淆矩阵",
+  roc_curve: "ROC 曲线",
+  precision_recall: "精确率—召回率",
+  residuals: "残差",
+  forecast: "预测",
+  feature_importance: "特征重要性",
+};
 
 function ChartSummary({
   content,
@@ -53,7 +85,7 @@ function FitsImageSummary({
           className="scientific-artifact__summary"
           aria-label="FITS 图像摘要"
         >
-          <span>拉伸 {humanizeToken(spec.stretch)}</span>
+          <span>拉伸 {STRETCH_LABELS[spec.stretch]}</span>
           <span>色表 {spec.colorMap}</span>
         </div>
         <p className="scientific-artifact__empty">
@@ -126,7 +158,7 @@ function ModelDiagnosticSummary({
   if (content.spec.mode !== "model_diagnostic") return null;
   return (
     <div className="scientific-artifact__summary" aria-label="模型诊断摘要">
-      <span>诊断类型 {humanizeToken(content.spec.diagnostic)}</span>
+      <span>诊断类型 {DIAGNOSTIC_LABELS[content.spec.diagnostic]}</span>
       <span>关联模型评估结果可在工作台结果索引中打开</span>
     </div>
   );
@@ -139,6 +171,7 @@ export function VisualizationContent({
   surface,
   versionNumber,
   loadContent,
+  enhancementOnly = false,
 }: {
   readonly content: VisualizationReviewContent;
   readonly title: string;
@@ -146,17 +179,20 @@ export function VisualizationContent({
   readonly surface: ScientificContentSurface;
   readonly versionNumber: number;
   readonly loadContent?: (contentHash: ContentHash) => Promise<ArrayBuffer>;
+  readonly enhancementOnly?: boolean;
 }) {
   return (
     <article
       className="scientific-artifact scientific-artifact--visualization"
       data-surface={surface}
     >
-      <ScientificContentHeader
-        title={content.title || title}
-        subtitle={`可视化 · ${sourceModeLabel(sourceMode)}`}
-      />
-      {content.description ? (
+      {!enhancementOnly ? (
+        <ScientificContentHeader
+          title={content.title || title}
+          subtitle={`可视化 · ${sourceModeLabel(sourceMode)}`}
+        />
+      ) : null}
+      {!enhancementOnly && content.description ? (
         <p className="artifact-view__lead">{content.description}</p>
       ) : null}
       <ChartSummary content={content} />

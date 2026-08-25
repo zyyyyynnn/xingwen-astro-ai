@@ -42,6 +42,8 @@ from app.db.models import (
     SourceSnapshotModel,
 )
 from app.schemas.core import (
+    ArtifactKind,
+    ExportArtifactContent,
     ResearchContract,
 )
 from app.schemas.data_artifacts import (
@@ -82,6 +84,7 @@ from services.data_pipeline.data_quality import (
 from services.data_pipeline.data_quality.policy import load_frozen_quality_rule_set
 from app.workflow.publisher import (
     AdmittedArtifactCandidate,
+    ArtifactAdmissionContext,
     ArtifactEvidenceBinding,
     ArtifactPublication,
     ArtifactSourceSnapshotBinding,
@@ -116,12 +119,39 @@ class BootstrapResult(BaseModel):
     scenario: str = "exoplanet_host_star"
 
 
+class UnsupportedExportBootstrapResult(BaseModel):
+    """Known ids of a Publisher-created Export fixture. Never contains credentials."""
+
+    model_config = ConfigDict(frozen=True)
+
+    artifact_id: str
+    artifact_version_id: str
+
+
+def _accept_fixture_export(_: ArtifactAdmissionContext) -> None:
+    """Accept the canonical test-only Export candidate after publisher validation."""
+
+
 @dataclass(frozen=True, slots=True)
 class FixtureDatasetPublication:
     data_input: DataArtifactBuildInput
     candidate: AdmittedArtifactCandidate
     source_snapshot_bindings: tuple[ArtifactSourceSnapshotBinding, ...]
     evidence_bindings: tuple[ArtifactEvidenceBinding, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class FixtureArtifactPublication:
+    kind: ArtifactKind
+    candidate: AdmittedArtifactCandidate
+    source_snapshot_bindings: tuple[ArtifactSourceSnapshotBinding, ...]
+    evidence_bindings: tuple[ArtifactEvidenceBinding, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class FixtureDataPublicationBundle:
+    data_input: DataArtifactBuildInput
+    artifacts: tuple[FixtureArtifactPublication, ...]
 
 
 def build_fixture_dataset_publication(
@@ -131,6 +161,23 @@ def build_fixture_dataset_publication(
 ) -> FixtureDatasetPublication:
     """Build and admit the frozen Dataset against the exact Run Contract."""
 
+    bundle = _build_fixture_data_publication_bundle(contract=contract, run_id=run_id)
+    publication = next(
+        item for item in bundle.artifacts if item.kind is ArtifactKind.dataset
+    )
+    return FixtureDatasetPublication(
+        data_input=bundle.data_input,
+        candidate=publication.candidate,
+        source_snapshot_bindings=publication.source_snapshot_bindings,
+        evidence_bindings=publication.evidence_bindings,
+    )
+
+
+def _build_fixture_data_publication_bundle(
+    *,
+    contract: ResearchContract,
+    run_id: str,
+) -> FixtureDataPublicationBundle:
     data_input = _build_fixture_data_input(tuple(contract.requested_fields))
     build_result = build_data_artifact_candidates(data_input)
     quality_input = _build_quality_input(
@@ -151,29 +198,46 @@ def build_fixture_dataset_publication(
         evaluation_input=quality_input,
         evaluation_result=quality_result,
     )
-    source_snapshot_bindings, evidence_bindings = _publication_bindings(
-        run_id=run_id,
-        candidate=build_result.dataset,
-    )
-    candidate = admit_artifact_candidate(
-        build_result.dataset,
-        schema_version=build_result.dataset.schema_version,
-        source_snapshot_ids=build_result.dataset.source_snapshot_ids,
-        evidence_ids=build_result.dataset.evidence_ids,
-        evidence_validator=validate_data_artifact_evidence,
-        domain_validator=validate_data_artifact_domain,
-        quality_validator=build_data_quality_publication_validator(
-            quality_admission,
-            candidate_kind="dataset",
-        ),
-        source_snapshot_bindings=source_snapshot_bindings,
-        evidence_bindings=evidence_bindings,
-    )
-    return FixtureDatasetPublication(
+    candidates = {
+        ArtifactKind.dataset: build_result.dataset,
+        ArtifactKind.field_dictionary: build_result.field_dictionary,
+        ArtifactKind.source_collection: build_result.source_collection,
+    }
+    publications: list[FixtureArtifactPublication] = []
+    for kind, artifact_candidate in candidates.items():
+        source_snapshot_bindings, evidence_bindings = _publication_bindings(
+            run_id=run_id,
+            kind=kind,
+            candidate=build_result.dataset,
+        )
+        candidate = admit_artifact_candidate(
+            artifact_candidate,
+            schema_version=artifact_candidate.schema_version,
+            source_snapshot_ids=artifact_candidate.source_snapshot_ids,
+            evidence_ids=artifact_candidate.evidence_ids,
+            evidence_validator=validate_data_artifact_evidence,
+            domain_validator=validate_data_artifact_domain,
+            quality_validator=build_data_quality_publication_validator(
+                quality_admission,
+                candidate_kind=kind.value,
+            ),
+            source_snapshot_bindings=source_snapshot_bindings,
+            evidence_bindings=evidence_bindings,
+            data_provenance_candidate=(
+                None if kind is ArtifactKind.dataset else build_result.dataset
+            ),
+        )
+        publications.append(
+            FixtureArtifactPublication(
+                kind=kind,
+                candidate=candidate,
+                source_snapshot_bindings=source_snapshot_bindings,
+                evidence_bindings=evidence_bindings,
+            )
+        )
+    return FixtureDataPublicationBundle(
         data_input=data_input,
-        candidate=candidate,
-        source_snapshot_bindings=source_snapshot_bindings,
-        evidence_bindings=evidence_bindings,
+        artifacts=tuple(publications),
     )
 
 
@@ -206,43 +270,64 @@ def bootstrap_fixture_artifacts(
         contract_id=run.contract_id,
         session_id=session_id,
     )
-    publication = build_fixture_dataset_publication(contract=contract, run_id=run.id)
-    data_input = publication.data_input
-    candidate = publication.candidate
-    source_snapshot_bindings = publication.source_snapshot_bindings
-    evidence_bindings = publication.evidence_bindings
-    artifact_id = step_uuid(str(project_id), "artifact:dataset")
+    bundle = _build_fixture_data_publication_bundle(contract=contract, run_id=run.id)
+    artifact_ids = {
+        publication.kind: step_uuid(
+            str(project_id), f"artifact:{publication.kind.value}"
+        )
+        for publication in bundle.artifacts
+    }
 
     with factory() as session:
-        existing_version = session.scalar(
-            select(ArtifactVersionModel)
-            .where(ArtifactVersionModel.artifact_id == artifact_id)
-            .limit(1)
-        )
-    if existing_version is None:
-        existing_version_id = _publish_fixture_version(
+        existing_versions = {
+            kind: session.scalar(
+                select(ArtifactVersionModel)
+                .where(
+                    ArtifactVersionModel.artifact_id == artifact_id,
+                    ArtifactVersionModel.created_by_run_id == run_uuid,
+                )
+                .limit(1)
+            )
+            for kind, artifact_id in artifact_ids.items()
+        }
+        supersedes_version_ids = {
+            kind: (
+                artifact.latest_version_id
+                if (artifact := session.get(ResearchArtifactModel, artifact_id))
+                is not None
+                else None
+            )
+            for kind, artifact_id in artifact_ids.items()
+        }
+    existing_count = sum(value is not None for value in existing_versions.values())
+    if existing_count not in {0, len(existing_versions)}:
+        raise RuntimeError("Bootstrap data Artifact bundle is only partially published")
+    if existing_count == 0:
+        published_ids = _publish_fixture_bundle(
             run_id=run.id,
             factory=factory,
             workflow_store=workflow_store,
             run_uuid=run_uuid,
             project_id=project_id,
-            artifact_id=artifact_id,
-            data_input=data_input,
-            candidate=candidate,
-            source_snapshot_bindings=source_snapshot_bindings,
-            evidence_bindings=evidence_bindings,
+            artifact_ids=artifact_ids,
+            bundle=bundle,
+            supersedes_version_ids=supersedes_version_ids,
         )
         with factory() as session:
-            existing_version = session.get(ArtifactVersionModel, existing_version_id)
-    if existing_version is None:
+            existing_versions = {
+                kind: session.get(ArtifactVersionModel, version_id)
+                for kind, version_id in published_ids.items()
+            }
+    dataset_version = existing_versions[ArtifactKind.dataset]
+    if dataset_version is None:
         raise RuntimeError("Bootstrap publication did not persist an ArtifactVersion")
 
     return BootstrapResult(
         run_id=run.id,
-        artifact_id=str(artifact_id),
-        artifact_version_id=str(existing_version.id),
-        source_snapshot_ids=tuple(existing_version.source_snapshot_ids),
-        evidence_ids=tuple(existing_version.evidence_ids),
+        artifact_id=str(artifact_ids[ArtifactKind.dataset]),
+        artifact_version_id=str(dataset_version.id),
+        source_snapshot_ids=tuple(dataset_version.source_snapshot_ids),
+        evidence_ids=tuple(dataset_version.evidence_ids),
     )
 
 
@@ -318,6 +403,7 @@ def _build_quality_input(
 def _publication_bindings(
     *,
     run_id: str,
+    kind: ArtifactKind,
     candidate: DatasetArtifactCandidate,
 ) -> tuple[
     tuple[ArtifactSourceSnapshotBinding, ...], tuple[ArtifactEvidenceBinding, ...]
@@ -338,10 +424,7 @@ def _publication_bindings(
         item.evidence_id: item for item in candidate.transformation_evidence
     }
     crossmatch_evidence = (
-        {
-            item.evidence_id: item
-            for item in candidate.authority.evidence
-        }
+        {item.evidence_id: item for item in candidate.authority.evidence}
         if isinstance(candidate.authority, CrossmatchArtifactAuthority)
         else {}
     )
@@ -376,7 +459,7 @@ def _publication_bindings(
                 pipeline_evidence_id=pipeline_id,
                 pipeline_source_snapshot_id=pipeline_snapshot_id,
                 persisted_evidence_id=str(
-                    _seed_uuid(run_id, f"evidence:{pipeline_id}")
+                    _seed_uuid(run_id, f"{kind.value}:evidence:{pipeline_id}")
                 ),
                 persisted_source_snapshot_id=persisted_snapshots[pipeline_snapshot_id],
             )
@@ -384,21 +467,26 @@ def _publication_bindings(
     return snapshot_bindings, tuple(evidence_bindings)
 
 
-def _publish_fixture_version(
+def _publish_fixture_bundle(
     *,
     run_id: str,
     factory: Callable[[], Session],
     workflow_store: PersistentWorkflowStore,
     run_uuid: UUID,
     project_id: UUID,
-    artifact_id: UUID,
-    data_input: DataArtifactBuildInput,
-    candidate: AdmittedArtifactCandidate,
-    source_snapshot_bindings: tuple[ArtifactSourceSnapshotBinding, ...],
-    evidence_bindings: tuple[ArtifactEvidenceBinding, ...],
-) -> UUID:
-    """Drive one workflow step and publish the frozen Dataset candidate."""
+    artifact_ids: dict[ArtifactKind, UUID],
+    bundle: FixtureDataPublicationBundle,
+    supersedes_version_ids: dict[ArtifactKind, UUID | None],
+) -> dict[ArtifactKind, UUID]:
+    """Drive the frozen Run and publish one coherent Data Artifact bundle."""
     snapshot = workflow_store.load_snapshot(run_uuid)
+    if "cleaning_data" not in {step.key for step in snapshot.steps}:
+        raise SecurityProblem(
+            status=409,
+            code="BOOTSTRAP_RUN_PLAN_UNSUPPORTED",
+            title="Bootstrap run plan unsupported",
+            detail="Fixture data publication requires the cleaning_data RunStep",
+        )
     lease = workflow_store.acquire_lease(
         run_uuid,
         owner="real_integration-test-bootstrap",
@@ -406,37 +494,35 @@ def _publish_fixture_version(
         expected_status="queued",
         expected_revision=snapshot.revision,
     )
-    attempt = workflow_store.begin_step(
-        run_uuid,
-        step_key="planning",
-        attempt_idempotency_key=f"real_integration-bootstrap-attempt-{run_id}",
-        token=lease.token,
-        generation=lease.generation,
-        expected_status="queued",
-        expected_revision=lease.revision,
-        public_message="Building deterministic demo_replay Dataset",
-    )
-
     with factory() as session, session.begin():
-        session.execute(
-            insert(ResearchArtifactModel)
-            .values(
-                id=artifact_id,
-                project_id=project_id,
-                kind="dataset",
-                title="Exoplanet host-star dataset",
-                logical_key="dataset.primary",
+        titles = {
+            ArtifactKind.dataset: "Exoplanet host-star dataset",
+            ArtifactKind.field_dictionary: "Dataset field dictionary",
+            ArtifactKind.source_collection: "Dataset source collection",
+        }
+        for kind, artifact_id in artifact_ids.items():
+            session.execute(
+                insert(ResearchArtifactModel)
+                .values(
+                    id=artifact_id,
+                    project_id=project_id,
+                    kind=kind.value,
+                    title=titles[kind],
+                    logical_key=f"{kind.value}.primary",
+                )
+                .on_conflict_do_nothing(index_elements=("id",))
             )
-            .on_conflict_do_nothing(index_elements=("id",))
-        )
-        artifact = session.get(ResearchArtifactModel, artifact_id)
-        if (
-            artifact is None
-            or artifact.project_id != project_id
-            or artifact.kind != "dataset"
-            or artifact.logical_key != "dataset.primary"
-        ):
-            raise RuntimeError("Bootstrap Dataset artifact identity is not consistent")
+            artifact = session.get(ResearchArtifactModel, artifact_id)
+            if (
+                artifact is None
+                or artifact.project_id != project_id
+                or artifact.kind != kind.value
+                or artifact.logical_key != f"{kind.value}.primary"
+            ):
+                raise RuntimeError(
+                    f"Bootstrap {kind.value} artifact identity is not consistent"
+                )
+        data_input = bundle.data_input
         if not isinstance(
             data_input.authority,
             CrossmatchDataArtifactAuthority,
@@ -475,51 +561,336 @@ def _publish_fixture_version(
                     "Bootstrap SourceSnapshot identity is not consistent"
                 )
 
-    producer_payload = candidate.content.get("producer")
-    if not isinstance(producer_payload, dict):
-        raise TypeError("Bootstrap Dataset candidate is missing producer metadata")
     ledger = ProducerExecutionStore(factory)
-    execution = ledger.start_producer_execution(
-        ProducerExecutionRequest(
-            run_id=run_uuid,
-            step_key="planning",
+    publisher = ArtifactPublisher(factory)
+    published_ids: dict[ArtifactKind, UUID] = {}
+    current_revision = lease.revision
+    current_status = snapshot.status
+    for step in snapshot.steps:
+        attempt = workflow_store.begin_step(
+            run_uuid,
+            step_key=step.key,
+            attempt_idempotency_key=(
+                f"real_integration-bootstrap-attempt-{run_id}-{step.key}"
+            ),
+            token=lease.token,
+            generation=lease.generation,
+            expected_status=current_status,
+            expected_revision=current_revision,
+            public_message=f"Completing deterministic {step.label}",
+        )
+        publications: tuple[ArtifactPublication, ...] = ()
+        if step.key == "cleaning_data":
+            outputs: list[ArtifactPublication] = []
+            for publication in bundle.artifacts:
+                producer_payload = publication.candidate.content.get("producer")
+                if not isinstance(producer_payload, dict):
+                    raise TypeError(
+                        f"Bootstrap {publication.kind.value} candidate is missing producer metadata"
+                    )
+                execution = ledger.start_producer_execution(
+                    ProducerExecutionRequest(
+                        run_id=run_uuid,
+                        step_key=step.key,
+                        attempt_id=attempt.attempt_id,
+                        idempotency_key=(
+                            "real_integration-bootstrap-producer-"
+                            f"{run_id}-{publication.kind.value}"
+                        ),
+                        producer_type=str(
+                            producer_payload.get("producer_type", "algorithm")
+                        ),
+                        producer_name=str(
+                            producer_payload.get(
+                                "producer_name",
+                                f"data-artifact-{publication.kind.value}",
+                            )
+                        ),
+                        producer_version=str(
+                            producer_payload.get("producer_version", "1.0.0")
+                        ),
+                        input_hash=bundle.data_input.input_hash,
+                        parameters={"scenario": _SCENARIO_ID},
+                    ),
+                    token=lease.token,
+                    generation=lease.generation,
+                    expected_status=attempt.run_status,
+                    expected_revision=attempt.run_revision,
+                )
+                ledger.finish_producer_execution(
+                    execution.id,
+                    status="completed",
+                    output_hash=publication.candidate.content_hash,
+                )
+                outputs.append(
+                    ArtifactPublication(
+                        artifact_id=artifact_ids[publication.kind],
+                        publication_key=(
+                            "real_integration-bootstrap-"
+                            f"{publication.kind.value}-{run_id}"
+                        ),
+                        producer_execution_id=execution.id,
+                        candidate=publication.candidate,
+                        source_mode="fixture",
+                        supersedes_version_id=supersedes_version_ids[publication.kind],
+                    )
+                )
+            publications = tuple(outputs)
+        result = publisher.publish_step_outputs(
+            run_uuid,
+            step_key=step.key,
             attempt_id=attempt.attempt_id,
-            idempotency_key=f"real_integration-bootstrap-producer-{run_id}",
-            producer_type=str(producer_payload.get("producer_type", "algorithm")),
-            producer_name=str(
-                producer_payload.get("producer_name", "data-artifact-pipeline")
+            token=lease.token,
+            generation=lease.generation,
+            expected_status=attempt.run_status,
+            expected_revision=attempt.run_revision,
+            publications=publications,
+            public_message=(
+                "Deterministic demo_replay Data Artifacts published"
+                if publications
+                else f"Deterministic {step.label} completed"
             ),
-            producer_version=str(producer_payload.get("producer_version", "1.0.0")),
-            input_hash=data_input.input_hash,
-            parameters={"scenario": _SCENARIO_ID},
-        ),
-        token=lease.token,
-        generation=lease.generation,
-        expected_status=attempt.run_status,
-        expected_revision=attempt.run_revision,
+        )
+        current_status = result.status
+        current_revision = result.revision
+        if publications:
+            kind_by_artifact_id = {
+                artifact_id: kind for kind, artifact_id in artifact_ids.items()
+            }
+            for version in result.versions:
+                kind = kind_by_artifact_id.get(version.artifact_id)
+                if kind is None:
+                    raise RuntimeError(
+                        "Bootstrap publisher returned an unknown ResearchArtifact"
+                    )
+                published_ids[kind] = version.id
+    if set(published_ids) != set(artifact_ids):
+        raise RuntimeError(
+            "Bootstrap did not publish the complete Data Artifact bundle"
+        )
+    return published_ids
+
+
+def bootstrap_unsupported_export_artifact(
+    *,
+    session_id: str,
+    run_id: str,
+    source_version_id: str,
+    factory: Callable[[], Session],
+    research_service: ResearchApplicationService,
+    workflow_store: PersistentWorkflowStore,
+) -> UnsupportedExportBootstrapResult:
+    """Publish one canonical Export through the real demo_replay Publisher path."""
+
+    run = research_service.get_run(run_id=run_id, session_id=session_id)
+    if run.execution_mode.value != "demo_replay":
+        raise SecurityProblem(
+            status=409,
+            code="BOOTSTRAP_RUN_NOT_DEMO_REPLAY",
+            title="Bootstrap requires a demo_replay run",
+            detail="Fixture artifacts can only be published onto a demo_replay run",
+        )
+    try:
+        source_uuid = UUID(source_version_id)
+    except ValueError as exc:
+        raise _bootstrap_version_not_found() from exc
+    run_uuid = UUID(run.id)
+    project_id = UUID(run.project_id)
+    artifact_id = step_uuid(str(project_id), "artifact:unsupported-export")
+    with factory() as session:
+        source = session.get(ArtifactVersionModel, source_uuid)
+        source_artifact = (
+            session.get(ResearchArtifactModel, source.artifact_id)
+            if source is not None
+            else None
+        )
+        if (
+            source is None
+            or source.project_id != project_id
+            or source_artifact is None
+            or source_artifact.kind != ArtifactKind.dataset.value
+        ):
+            raise _bootstrap_version_not_found()
+        existing = session.scalar(
+            select(ArtifactVersionModel)
+            .where(
+                ArtifactVersionModel.artifact_id == artifact_id,
+                ArtifactVersionModel.created_by_run_id == run_uuid,
+            )
+            .limit(1)
+        )
+        export_artifact = session.get(ResearchArtifactModel, artifact_id)
+        supersedes_version_id = (
+            export_artifact.latest_version_id
+            if export_artifact is not None
+            else None
+        )
+        input_hash = source.content_hash
+    version_id = (
+        existing.id
+        if existing is not None
+        else _publish_fixture_export(
+            run_id=run.id,
+            source_version_id=source_version_id,
+            input_hash=input_hash,
+            factory=factory,
+            workflow_store=workflow_store,
+            run_uuid=run_uuid,
+            project_id=project_id,
+            artifact_id=artifact_id,
+            supersedes_version_id=supersedes_version_id,
+        )
     )
-    ledger.finish_producer_execution(
-        execution.id,
-        status="completed",
-        output_hash=candidate.content_hash,
+    return UnsupportedExportBootstrapResult(
+        artifact_id=str(artifact_id),
+        artifact_version_id=str(version_id),
     )
-    published = ArtifactPublisher(factory).publish_step_outputs(
+
+
+def _publish_fixture_export(
+    *,
+    run_id: str,
+    source_version_id: str,
+    input_hash: str,
+    factory: Callable[[], Session],
+    workflow_store: PersistentWorkflowStore,
+    run_uuid: UUID,
+    project_id: UUID,
+    artifact_id: UUID,
+    supersedes_version_id: UUID | None,
+) -> UUID:
+    snapshot = workflow_store.load_snapshot(run_uuid)
+    if not snapshot.steps:
+        raise SecurityProblem(
+            status=409,
+            code="BOOTSTRAP_RUN_PLAN_UNSUPPORTED",
+            title="Bootstrap run plan unsupported",
+            detail="Fixture export publication requires one RunStep",
+        )
+    with factory() as session, session.begin():
+        session.execute(
+            insert(ResearchArtifactModel)
+            .values(
+                id=artifact_id,
+                project_id=project_id,
+                kind=ArtifactKind.export.value,
+                title="Frozen export package",
+                logical_key="export.unsupported-preview",
+            )
+            .on_conflict_do_nothing(index_elements=("id",))
+        )
+        artifact = session.get(ResearchArtifactModel, artifact_id)
+        if (
+            artifact is None
+            or artifact.project_id != project_id
+            or artifact.kind != ArtifactKind.export.value
+            or artifact.logical_key != "export.unsupported-preview"
+        ):
+            raise RuntimeError("Bootstrap Export artifact identity is inconsistent")
+
+    export_content = ExportArtifactContent(
+        kind=ArtifactKind.export,
+        format="csv",
+        artifact_version_ids=(source_version_id,),
+    )
+    candidate = admit_artifact_candidate(
+        export_content,
+        schema_version=export_content.schema_version,
+        source_snapshot_ids=(),
+        evidence_ids=(),
+        evidence_validator=_accept_fixture_export,
+        domain_validator=_accept_fixture_export,
+        quality_validator=_accept_fixture_export,
+    )
+    lease = workflow_store.acquire_lease(
         run_uuid,
-        step_key="planning",
-        attempt_id=attempt.attempt_id,
-        token=lease.token,
-        generation=lease.generation,
-        expected_status=attempt.run_status,
-        expected_revision=attempt.run_revision,
-        publications=(
-            ArtifactPublication(
-                artifact_id=artifact_id,
-                publication_key=f"real_integration-bootstrap-dataset-{run_id}",
-                producer_execution_id=execution.id,
-                candidate=candidate,
-                source_mode="fixture",
-            ),
-        ),
-        public_message="Deterministic demo_replay Dataset published",
+        owner="real_integration-export-bootstrap",
+        lease_duration=timedelta(minutes=5),
+        expected_status="queued",
+        expected_revision=snapshot.revision,
     )
-    return published.versions[0].id
+    ledger = ProducerExecutionStore(factory)
+    publisher = ArtifactPublisher(factory)
+    current_status = snapshot.status
+    current_revision = lease.revision
+    published_version_id: UUID | None = None
+    for index, step in enumerate(snapshot.steps):
+        attempt = workflow_store.begin_step(
+            run_uuid,
+            step_key=step.key,
+            attempt_idempotency_key=(
+                f"real_integration-export-attempt-{run_id}-{step.key}"
+            ),
+            token=lease.token,
+            generation=lease.generation,
+            expected_status=current_status,
+            expected_revision=current_revision,
+            public_message=f"Completing deterministic {step.label}",
+        )
+        publications: tuple[ArtifactPublication, ...] = ()
+        if index == 0:
+            execution = ledger.start_producer_execution(
+                ProducerExecutionRequest(
+                    run_id=run_uuid,
+                    step_key=step.key,
+                    attempt_id=attempt.attempt_id,
+                    idempotency_key=f"real_integration-export-producer-{run_id}",
+                    producer_type="algorithm",
+                    producer_name="artifact-export",
+                    producer_version="1.0.0",
+                    input_hash=input_hash,
+                    parameters={"format": "csv", "scenario": _SCENARIO_ID},
+                ),
+                token=lease.token,
+                generation=lease.generation,
+                expected_status=attempt.run_status,
+                expected_revision=attempt.run_revision,
+            )
+            ledger.finish_producer_execution(
+                execution.id,
+                status="completed",
+                output_hash=candidate.content_hash,
+            )
+            publications = (
+                ArtifactPublication(
+                    artifact_id=artifact_id,
+                    publication_key=f"real_integration-export-{run_id}",
+                    producer_execution_id=execution.id,
+                    candidate=candidate,
+                    source_mode="fixture",
+                    supersedes_version_id=supersedes_version_id,
+                ),
+            )
+        result = publisher.publish_step_outputs(
+            run_uuid,
+            step_key=step.key,
+            attempt_id=attempt.attempt_id,
+            token=lease.token,
+            generation=lease.generation,
+            expected_status=attempt.run_status,
+            expected_revision=attempt.run_revision,
+            publications=publications,
+            public_message=(
+                "Deterministic frozen export published"
+                if publications
+                else f"Deterministic {step.label} completed"
+            ),
+        )
+        current_status = result.status
+        current_revision = result.revision
+        if publications:
+            if len(result.versions) != 1:
+                raise RuntimeError("Bootstrap Export publication is incomplete")
+            published_version_id = result.versions[0].id
+    if published_version_id is None:
+        raise RuntimeError("Bootstrap Export publication did not persist a version")
+    return published_version_id
+
+
+def _bootstrap_version_not_found() -> SecurityProblem:
+    return SecurityProblem(
+        status=404,
+        code="ARTIFACT_VERSION_NOT_FOUND",
+        title="Artifact version not found",
+        detail="The requested ArtifactVersion is unavailable",
+    )
