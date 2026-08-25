@@ -43,6 +43,7 @@
 - 原 token 只在创建时返回一次，不写入日志、Referer 或 Project 聚合。
 - 分享响应严格过滤会话信息、内部错误、受限全文与敏感来源字段。
 - 公开分享页面只消费冻结的公开投影；不得凭 share token 调用私有 Artifact、Evidence、下载或修订接口。
+- 公开下载仅允许经 ShareSnapshot allowlist 授权的精确 DatasetVersion CSV 读取；它复用既有导出序列化规则但不创建私有 Export 记录、不消耗所有者配额，并移除内部行标识与私有 provenance。
 - Workspace 文档使用 `no-referrer`，含 share token 的 URL 不得随同源或跨源导航进入 `Referer`。
 - Share 持久化创建时已脱敏的 ArtifactVersion/Evidence/SourceSnapshot identity 投影；公开读取不回查动态 latest，也不因进程重启改变冻结内容。
 - 无效、撤销和过期 token 不泄露底层资源存在性。

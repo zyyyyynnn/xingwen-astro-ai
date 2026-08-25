@@ -94,6 +94,22 @@ def _share_evidence_closure_is_valid(
     return True
 
 
+def _authorized_public_dataset_version(
+    versions: tuple[PublicArtifactVersion, ...],
+    evidence: tuple[PublicEvidence, ...],
+    artifact_version_id: str,
+) -> PublicArtifactVersion:
+    if not _share_evidence_closure_is_valid(versions, evidence):
+        raise _not_found("SHARE_NOT_FOUND")
+    version = next(
+        (item for item in versions if item.id == artifact_version_id),
+        None,
+    )
+    if version is None or version.kind is not ArtifactKind.dataset:
+        raise _not_found("SHARE_NOT_FOUND")
+    return version
+
+
 def _scope_share_versions(
     versions: tuple[PublicArtifactVersion, ...],
     evidence: tuple[PublicEvidence, ...],
@@ -144,7 +160,6 @@ class _ShareRecord:
 class PublicExportAuthorization:
     """Internal capability for one frozen, share-allowlisted Dataset export."""
 
-    share_id: str
     owner_session_id: str
     artifact_version_id: str
 
@@ -395,22 +410,14 @@ class InMemorySnapshotStore:
             if record is None or not hmac.compare_digest(record.token_hash, token_hash):
                 raise _not_found("SHARE_NOT_FOUND")
             snapshot = self._snapshot_status(record.snapshot, now)
-            if snapshot.status is not ShareStatus.active or not _share_evidence_closure_is_valid(
-                record.artifact_versions, record.evidence
-            ):
+            if snapshot.status is not ShareStatus.active:
                 raise _not_found("SHARE_NOT_FOUND")
-            version = next(
-                (
-                    item
-                    for item in record.artifact_versions
-                    if item.id == artifact_version_id
-                ),
-                None,
+            version = _authorized_public_dataset_version(
+                record.artifact_versions,
+                record.evidence,
+                artifact_version_id,
             )
-            if version is None or version.kind is not ArtifactKind.dataset:
-                raise _not_found("SHARE_NOT_FOUND")
             return PublicExportAuthorization(
-                share_id=snapshot.id,
                 owner_session_id=record.owner_session_id,
                 artifact_version_id=version.id,
             )
@@ -812,15 +819,12 @@ class PersistentSnapshotStore(InMemorySnapshotStore):
                 )
             except ValidationError as exc:
                 raise _not_found("SHARE_NOT_FOUND") from exc
-            if not _share_evidence_closure_is_valid(versions, evidence):
-                raise _not_found("SHARE_NOT_FOUND")
-            version = next(
-                (item for item in versions if item.id == artifact_version_id), None
+            version = _authorized_public_dataset_version(
+                versions,
+                evidence,
+                artifact_version_id,
             )
-            if version is None or version.kind is not ArtifactKind.dataset:
-                raise _not_found("SHARE_NOT_FOUND")
             return PublicExportAuthorization(
-                share_id=str(row.id),
                 owner_session_id=str(row.owner_session_id),
                 artifact_version_id=version.id,
             )

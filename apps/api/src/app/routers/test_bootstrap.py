@@ -120,17 +120,21 @@ def create_research_results_bootstrap(
 )
 def create_unsupported_export_bootstrap(
     request: Request,
+    run_id: str = Query(min_length=1),
     source_version_id: str = Query(min_length=1),
 ) -> UnsupportedExportBootstrapResponse:
     record = request.state.session
     factory = getattr(request.app.state, "db_session_factory", None)
     research_service = request.app.state.research_service
-    if factory is None or research_service is None:
+    workflow_store = request.app.state.workflow_store
+    if factory is None or research_service is None or workflow_store is None:
         raise _persistent_runtime_unavailable()
     result = bootstrap_unsupported_export_artifact(
         session_id=record.id,
+        run_id=run_id,
         source_version_id=source_version_id,
         factory=factory,
         research_service=research_service,
+        workflow_store=workflow_store,
     )
     return UnsupportedExportBootstrapResponse(data=result)

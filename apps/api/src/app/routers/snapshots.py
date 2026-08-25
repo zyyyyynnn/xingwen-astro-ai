@@ -238,18 +238,13 @@ def download_public_share_dataset_csv(
         raw_token=share_token,
         artifact_version_id=artifact_version_id,
     )
-    export = _data_service(request).create_export(
+    content = _data_service(request).render_public_dataset_csv(
         version_id=authorization.artifact_version_id,
         session_id=authorization.owner_session_id,
-        idempotency_key=(
-            f"public-share:{authorization.share_id}:"
-            f"{authorization.artifact_version_id}:csv"
-        ),
-        export_format="csv",
     )
     return RawResponse(
-        content=export.content,
-        media_type=export.media_type,
+        content=content,
+        media_type="text/csv; charset=utf-8",
         headers={
             "Cache-Control": "no-store",
             "Content-Disposition": 'attachment; filename="shared-research-data.csv"',

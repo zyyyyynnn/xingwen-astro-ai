@@ -334,26 +334,6 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
           }),
         }),
       );
-      const unsupportedExport = await json(
-        await fetch(
-          `${apiOrigin}/api/test/bootstrap/unsupported-export?source_version_id=${encodeURIComponent(current.data.artifact_version_id)}`,
-          { method: "POST", credentials: "include", headers },
-        ),
-      );
-      const unsupportedShare = await json(
-        await fetch(`${apiOrigin}/api/projects/${projectId}/shares`, {
-          method: "POST",
-          credentials: "include",
-          headers,
-          body: JSON.stringify({
-            title: "Unsupported export presentation",
-            artifact_version_ids: [unsupportedExport.data.artifact_version_id],
-            evidence_ids: [],
-            expires_at: new Date(Date.now() + 60_000).toISOString(),
-            redaction_policy: "redacted_public_snapshot",
-          }),
-        }),
-      );
       return {
         runId: secondRun.data.id as string,
         contractId: secondConfirmed.data.id as string,
@@ -361,7 +341,6 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
         versionId: current.data.artifact_version_id as string,
         expiredAt,
         expiringShareUrl: `${window.location.origin}/share/${expiringShare.data.share_token as string}`,
-        unsupportedShareUrl: `${window.location.origin}/share/${unsupportedShare.data.share_token as string}`,
       };
     },
     { apiOrigin: API_ORIGIN, projectId: projectId ?? "" },
@@ -486,8 +465,8 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   const frozenExportBefore = await page.request.get(frozenExportUrl);
   expect(frozenExportBefore.status()).toBe(200);
   const frozenExportBeforeBytes = await frozenExportBefore.body();
-  const laterVersion = await page.evaluate(
-    async ({ apiOrigin, projectId, contractId }) => {
+  const laterResult = await page.evaluate(
+    async ({ apiOrigin, projectId, contractId, sourceVersionId }) => {
       async function json(response: Response) {
         if (!response.ok)
           throw new Error(`${response.status} ${await response.text()}`);
@@ -503,6 +482,40 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
         "Content-Type": "application/json",
         "X-CSRF-Token": session.data.csrf_token as string,
       };
+      const unsupportedRun = await json(
+        await fetch(`${apiOrigin}/api/projects/${projectId}/runs`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            ...headers,
+            "Idempotency-Key": "browser-fixture-unsupported-export-run",
+          },
+          body: JSON.stringify({
+            contract_id: contractId,
+            execution_mode: "demo_replay",
+          }),
+        }),
+      );
+      const unsupportedExport = await json(
+        await fetch(
+          `${apiOrigin}/api/test/bootstrap/unsupported-export?run_id=${encodeURIComponent(unsupportedRun.data.id)}&source_version_id=${encodeURIComponent(sourceVersionId)}`,
+          { method: "POST", credentials: "include", headers },
+        ),
+      );
+      const unsupportedShare = await json(
+        await fetch(`${apiOrigin}/api/projects/${projectId}/shares`, {
+          method: "POST",
+          credentials: "include",
+          headers,
+          body: JSON.stringify({
+            title: "Unsupported export presentation",
+            artifact_version_ids: [unsupportedExport.data.artifact_version_id],
+            evidence_ids: [],
+            expires_at: new Date(Date.now() + 60_000).toISOString(),
+            redaction_policy: "redacted_public_snapshot",
+          }),
+        }),
+      );
       const run = await json(
         await fetch(`${apiOrigin}/api/projects/${projectId}/runs`, {
           method: "POST",
@@ -517,19 +530,26 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
           }),
         }),
       );
-      return json(
+      const later = await json(
         await fetch(
           `${apiOrigin}/api/test/bootstrap?run_id=${encodeURIComponent(run.data.id)}`,
           { method: "POST", credentials: "include", headers },
         ),
       );
+      return {
+        later,
+        unsupportedShareUrl: `${window.location.origin}/share/${unsupportedShare.data.share_token as string}`,
+      };
     },
     {
       apiOrigin: API_ORIGIN,
       projectId: projectId ?? "",
       contractId: bootstrap.contractId,
+      sourceVersionId: bootstrap.versionId,
     },
   );
+  const laterVersion = laterResult.later;
+  const unsupportedShareUrl = laterResult.unsupportedShareUrl;
   expect(laterVersion.data.artifact_version_id).not.toBe(bootstrap.versionId);
   const frozenExportAfter = await page.request.get(frozenExportUrl);
   expect(frozenExportAfter.status()).toBe(200);
@@ -571,7 +591,8 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   const downloadedPath = await downloaded.path();
   expect(downloadedPath).not.toBeNull();
   const downloadedCsv = await readFile(downloadedPath!, "utf8");
-  expect(downloadedCsv).toContain("row_id");
+  expect(downloadedCsv).toContain("Planet Name");
+  expect(downloadedCsv).not.toContain("row_id");
   expect(downloadedCsv).not.toContain(bootstrap.versionId);
   expect(downloadedCsv).not.toContain("storage");
   await page.getByRole("button", { name: "查看证据 1", exact: true }).click();
@@ -594,7 +615,7 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   await expect(page.getByRole("heading", { name: "证据 1" })).toHaveCount(0);
   expect(runtimeErrors).toEqual([]);
 
-  await page.goto(bootstrap.unsupportedShareUrl);
+  await page.goto(unsupportedShareUrl);
   await expect(
     page.getByLabel("共享科研结果").getByText("暂不支持预览此类结果"),
   ).toBeVisible();

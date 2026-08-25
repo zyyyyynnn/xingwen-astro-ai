@@ -22,7 +22,6 @@ from app.schemas.core import (
     WorkspaceSnapshotInput,
 )
 from app.security import SecurityProblem
-from app.schemas.data_artifact_api import ArtifactExportDownload, ArtifactExportRead
 from app.services.snapshots import InMemorySnapshotStore, SnapshotService
 
 
@@ -396,24 +395,9 @@ def test_public_dataset_export_is_frozen_allowlisted_and_non_enumerating() -> No
     calls: list[dict[str, str]] = []
 
     class RecordingDataArtifactService:
-        def create_export(self, **kwargs: str) -> ArtifactExportDownload:
+        def render_public_dataset_csv(self, **kwargs: str) -> bytes:
             calls.append(kwargs)
-            return ArtifactExportDownload(
-                export=ArtifactExportRead(
-                    id="exp_public",
-                    artifact_version_id=kwargs["version_id"],
-                    project_id="proj_01",
-                    format="csv",
-                    status="completed",
-                    content_hash=HASH,
-                    generated_at=NOW,
-                    expires_at=NOW + timedelta(minutes=15),
-                    download_url="/private/storage/reference",
-                ),
-                content=b"row_id,value\nrow-1,TOI-700 d\n",
-                media_type="text/csv; charset=utf-8",
-                filename="artv_01.csv",
-            )
+            return b"Object name\nTOI-700 d\n"
 
     app.state.data_artifact_read_service = RecordingDataArtifactService()
     anonymous = TestClient(app, base_url="https://testserver")
@@ -424,7 +408,7 @@ def test_public_dataset_export_is_frozen_allowlisted_and_non_enumerating() -> No
     downloaded = anonymous.get(path)
 
     assert downloaded.status_code == 200
-    assert downloaded.content == b"row_id,value\nrow-1,TOI-700 d\n"
+    assert downloaded.content == b"Object name\nTOI-700 d\n"
     assert downloaded.headers["content-type"] == "text/csv; charset=utf-8"
     assert downloaded.headers["content-disposition"] == (
         'attachment; filename="shared-research-data.csv"'
@@ -433,9 +417,9 @@ def test_public_dataset_export_is_frozen_allowlisted_and_non_enumerating() -> No
     assert downloaded.headers["referrer-policy"] == "no-referrer"
     assert calls[0]["version_id"] == "artv_01"
     assert calls[0]["session_id"] == session_id
-    assert share["share_token"] not in calls[0]["idempotency_key"]
     assert "proj_01" not in downloaded.text
     assert "artv_01" not in downloaded.text
+    assert "row_id" not in downloaded.text
     assert "storage" not in downloaded.text
 
     disallowed = anonymous.get(

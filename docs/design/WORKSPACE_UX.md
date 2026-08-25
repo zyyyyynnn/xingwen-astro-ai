@@ -264,9 +264,11 @@ Thread 中结果作为研究叙事的一部分出现。
 - Fullscreen 的“分享”入口冻结当前 ArtifactVersion 与关联 Evidence；用户选择有效期后创建一次性公开
   链接，并可直接复制。创建流程不得要求用户理解 API 路径、token 或内部资源标识。
 - `/share/$shareToken` 只读取创建时冻结的公开副本；有效链接展示分享标题、公开结果、
-  证据摘录、locator 与安全来源链接，不加载私有 Project shell、Composer、运行活动、修订或下载动作。
+  证据摘录、locator 与安全来源链接，不加载私有 Project shell、Composer、运行活动或修订动作。
+  冻结范围内的 Dataset 可下载脱敏 CSV；其他格式不展示下载入口。
 - 公开结果类型、排序和布局能力复用 Workspace 的唯一 Artifact Renderer Registry；不得建立
-  第二套类型注册表。公开投影可以使用专属只读 renderer，但不得重新读取私有 Artifact API。
+  第二套类型注册表。`unsupported` 类型显示 registry 定义的只读状态，不进入通用结果呈现；
+  公开投影可以使用专属只读 renderer，但不得重新读取私有 Artifact API。
 - 无效、撤销、过期和读取失败使用同一不可区分边界；页面与错误文案不得回显 share token。
 
 ### 10.2 模型服务配置

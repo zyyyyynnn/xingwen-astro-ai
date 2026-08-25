@@ -41,7 +41,6 @@ from app.db.models import (
     ResearchArtifactModel,
     SourceSnapshotModel,
 )
-from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import (
     ArtifactKind,
     ExportArtifactContent,
@@ -85,6 +84,7 @@ from services.data_pipeline.data_quality import (
 from services.data_pipeline.data_quality.policy import load_frozen_quality_rule_set
 from app.workflow.publisher import (
     AdmittedArtifactCandidate,
+    ArtifactAdmissionContext,
     ArtifactEvidenceBinding,
     ArtifactPublication,
     ArtifactSourceSnapshotBinding,
@@ -120,7 +120,7 @@ class BootstrapResult(BaseModel):
 
 
 class UnsupportedExportBootstrapResult(BaseModel):
-    """Test-only frozen export result used to exercise unsupported presentation."""
+    """Known ids of a Publisher-created Export fixture. Never contains credentials."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -128,100 +128,8 @@ class UnsupportedExportBootstrapResult(BaseModel):
     artifact_version_id: str
 
 
-def bootstrap_unsupported_export_artifact(
-    *,
-    session_id: str,
-    source_version_id: str,
-    factory: Callable[[], Session],
-    research_service: ResearchApplicationService,
-) -> UnsupportedExportBootstrapResult:
-    """Seed one read-only export version; mounted only in test/integration."""
-
-    try:
-        source_uuid = UUID(source_version_id)
-    except ValueError as exc:
-        raise SecurityProblem(
-            status=404,
-            code="ARTIFACT_VERSION_NOT_FOUND",
-            title="Artifact version not found",
-            detail="The requested ArtifactVersion is unavailable",
-        ) from exc
-    with factory() as session:
-        source = session.get(ArtifactVersionModel, source_uuid)
-        if source is None:
-            raise SecurityProblem(
-                status=404,
-                code="ARTIFACT_VERSION_NOT_FOUND",
-                title="Artifact version not found",
-                detail="The requested ArtifactVersion is unavailable",
-            )
-        run_id = str(source.created_by_run_id)
-    run = research_service.get_run(run_id=run_id, session_id=session_id)
-    project_id = UUID(run.project_id)
-    artifact_id = step_uuid(str(project_id), "artifact:unsupported-export")
-    version_id = _seed_uuid(source_version_id, "artifact-version:unsupported-export")
-    content_model = ExportArtifactContent(
-        kind=ArtifactKind.export,
-        format="csv",
-        artifact_version_ids=(source_version_id,),
-    )
-    content = content_model.model_dump(mode="json")
-    with factory() as session, session.begin():
-        source = session.get(ArtifactVersionModel, source_uuid)
-        if source is None or source.project_id != project_id:
-            raise SecurityProblem(
-                status=404,
-                code="ARTIFACT_VERSION_NOT_FOUND",
-                title="Artifact version not found",
-                detail="The requested ArtifactVersion is unavailable",
-            )
-        session.execute(
-            insert(ResearchArtifactModel)
-            .values(
-                id=artifact_id,
-                project_id=project_id,
-                kind=ArtifactKind.export.value,
-                title="Frozen export package",
-                logical_key="export.unsupported-preview",
-            )
-            .on_conflict_do_nothing(index_elements=("id",))
-        )
-        artifact = session.get(ResearchArtifactModel, artifact_id)
-        if artifact is None or artifact.project_id != project_id:
-            raise RuntimeError("Unsupported export fixture artifact is inconsistent")
-        existing = session.get(ArtifactVersionModel, version_id)
-        if existing is None:
-            existing = ArtifactVersionModel(
-                id=version_id,
-                artifact_id=artifact_id,
-                project_id=project_id,
-                created_by_run_id=source.created_by_run_id,
-                run_step_id=source.run_step_id,
-                step_attempt_id=source.step_attempt_id,
-                producer_execution_id=source.producer_execution_id,
-                version_number=1,
-                publication_key=f"unsupported-export-{source_version_id}",
-                schema_version=content_model.schema_version,
-                content=content,
-                content_hash=compute_canonical_payload_hash(content),
-                input_hash=source.input_hash,
-                source_mode="fixture",
-                producer=source.producer,
-                source_snapshot_ids=[],
-                evidence_ids=[],
-                quality_projection=None,
-                quality_projection_hash=None,
-                supersedes_version_id=None,
-            )
-            session.add(existing)
-            session.flush()
-            artifact.latest_version_id = existing.id
-        elif existing.artifact_id != artifact_id or existing.project_id != project_id:
-            raise RuntimeError("Unsupported export fixture version is inconsistent")
-    return UnsupportedExportBootstrapResult(
-        artifact_id=str(artifact_id),
-        artifact_version_id=str(version_id),
-    )
+def _accept_fixture_export(_: ArtifactAdmissionContext) -> None:
+    """Accept the canonical test-only Export candidate after publisher validation."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -761,3 +669,228 @@ def _publish_fixture_bundle(
             "Bootstrap did not publish the complete Data Artifact bundle"
         )
     return published_ids
+
+
+def bootstrap_unsupported_export_artifact(
+    *,
+    session_id: str,
+    run_id: str,
+    source_version_id: str,
+    factory: Callable[[], Session],
+    research_service: ResearchApplicationService,
+    workflow_store: PersistentWorkflowStore,
+) -> UnsupportedExportBootstrapResult:
+    """Publish one canonical Export through the real demo_replay Publisher path."""
+
+    run = research_service.get_run(run_id=run_id, session_id=session_id)
+    if run.execution_mode.value != "demo_replay":
+        raise SecurityProblem(
+            status=409,
+            code="BOOTSTRAP_RUN_NOT_DEMO_REPLAY",
+            title="Bootstrap requires a demo_replay run",
+            detail="Fixture artifacts can only be published onto a demo_replay run",
+        )
+    try:
+        source_uuid = UUID(source_version_id)
+    except ValueError as exc:
+        raise _bootstrap_version_not_found() from exc
+    run_uuid = UUID(run.id)
+    project_id = UUID(run.project_id)
+    artifact_id = step_uuid(str(project_id), "artifact:unsupported-export")
+    with factory() as session:
+        source = session.get(ArtifactVersionModel, source_uuid)
+        source_artifact = (
+            session.get(ResearchArtifactModel, source.artifact_id)
+            if source is not None
+            else None
+        )
+        if (
+            source is None
+            or source.project_id != project_id
+            or source_artifact is None
+            or source_artifact.kind != ArtifactKind.dataset.value
+        ):
+            raise _bootstrap_version_not_found()
+        existing = session.scalar(
+            select(ArtifactVersionModel)
+            .where(
+                ArtifactVersionModel.artifact_id == artifact_id,
+                ArtifactVersionModel.created_by_run_id == run_uuid,
+            )
+            .limit(1)
+        )
+        export_artifact = session.get(ResearchArtifactModel, artifact_id)
+        supersedes_version_id = (
+            export_artifact.latest_version_id
+            if export_artifact is not None
+            else None
+        )
+        input_hash = source.content_hash
+    version_id = (
+        existing.id
+        if existing is not None
+        else _publish_fixture_export(
+            run_id=run.id,
+            source_version_id=source_version_id,
+            input_hash=input_hash,
+            factory=factory,
+            workflow_store=workflow_store,
+            run_uuid=run_uuid,
+            project_id=project_id,
+            artifact_id=artifact_id,
+            supersedes_version_id=supersedes_version_id,
+        )
+    )
+    return UnsupportedExportBootstrapResult(
+        artifact_id=str(artifact_id),
+        artifact_version_id=str(version_id),
+    )
+
+
+def _publish_fixture_export(
+    *,
+    run_id: str,
+    source_version_id: str,
+    input_hash: str,
+    factory: Callable[[], Session],
+    workflow_store: PersistentWorkflowStore,
+    run_uuid: UUID,
+    project_id: UUID,
+    artifact_id: UUID,
+    supersedes_version_id: UUID | None,
+) -> UUID:
+    snapshot = workflow_store.load_snapshot(run_uuid)
+    if not snapshot.steps:
+        raise SecurityProblem(
+            status=409,
+            code="BOOTSTRAP_RUN_PLAN_UNSUPPORTED",
+            title="Bootstrap run plan unsupported",
+            detail="Fixture export publication requires one RunStep",
+        )
+    with factory() as session, session.begin():
+        session.execute(
+            insert(ResearchArtifactModel)
+            .values(
+                id=artifact_id,
+                project_id=project_id,
+                kind=ArtifactKind.export.value,
+                title="Frozen export package",
+                logical_key="export.unsupported-preview",
+            )
+            .on_conflict_do_nothing(index_elements=("id",))
+        )
+        artifact = session.get(ResearchArtifactModel, artifact_id)
+        if (
+            artifact is None
+            or artifact.project_id != project_id
+            or artifact.kind != ArtifactKind.export.value
+            or artifact.logical_key != "export.unsupported-preview"
+        ):
+            raise RuntimeError("Bootstrap Export artifact identity is inconsistent")
+
+    export_content = ExportArtifactContent(
+        kind=ArtifactKind.export,
+        format="csv",
+        artifact_version_ids=(source_version_id,),
+    )
+    candidate = admit_artifact_candidate(
+        export_content,
+        schema_version=export_content.schema_version,
+        source_snapshot_ids=(),
+        evidence_ids=(),
+        evidence_validator=_accept_fixture_export,
+        domain_validator=_accept_fixture_export,
+        quality_validator=_accept_fixture_export,
+    )
+    lease = workflow_store.acquire_lease(
+        run_uuid,
+        owner="real_integration-export-bootstrap",
+        lease_duration=timedelta(minutes=5),
+        expected_status="queued",
+        expected_revision=snapshot.revision,
+    )
+    ledger = ProducerExecutionStore(factory)
+    publisher = ArtifactPublisher(factory)
+    current_status = snapshot.status
+    current_revision = lease.revision
+    published_version_id: UUID | None = None
+    for index, step in enumerate(snapshot.steps):
+        attempt = workflow_store.begin_step(
+            run_uuid,
+            step_key=step.key,
+            attempt_idempotency_key=(
+                f"real_integration-export-attempt-{run_id}-{step.key}"
+            ),
+            token=lease.token,
+            generation=lease.generation,
+            expected_status=current_status,
+            expected_revision=current_revision,
+            public_message=f"Completing deterministic {step.label}",
+        )
+        publications: tuple[ArtifactPublication, ...] = ()
+        if index == 0:
+            execution = ledger.start_producer_execution(
+                ProducerExecutionRequest(
+                    run_id=run_uuid,
+                    step_key=step.key,
+                    attempt_id=attempt.attempt_id,
+                    idempotency_key=f"real_integration-export-producer-{run_id}",
+                    producer_type="algorithm",
+                    producer_name="artifact-export",
+                    producer_version="1.0.0",
+                    input_hash=input_hash,
+                    parameters={"format": "csv", "scenario": _SCENARIO_ID},
+                ),
+                token=lease.token,
+                generation=lease.generation,
+                expected_status=attempt.run_status,
+                expected_revision=attempt.run_revision,
+            )
+            ledger.finish_producer_execution(
+                execution.id,
+                status="completed",
+                output_hash=candidate.content_hash,
+            )
+            publications = (
+                ArtifactPublication(
+                    artifact_id=artifact_id,
+                    publication_key=f"real_integration-export-{run_id}",
+                    producer_execution_id=execution.id,
+                    candidate=candidate,
+                    source_mode="fixture",
+                    supersedes_version_id=supersedes_version_id,
+                ),
+            )
+        result = publisher.publish_step_outputs(
+            run_uuid,
+            step_key=step.key,
+            attempt_id=attempt.attempt_id,
+            token=lease.token,
+            generation=lease.generation,
+            expected_status=attempt.run_status,
+            expected_revision=attempt.run_revision,
+            publications=publications,
+            public_message=(
+                "Deterministic frozen export published"
+                if publications
+                else f"Deterministic {step.label} completed"
+            ),
+        )
+        current_status = result.status
+        current_revision = result.revision
+        if publications:
+            if len(result.versions) != 1:
+                raise RuntimeError("Bootstrap Export publication is incomplete")
+            published_version_id = result.versions[0].id
+    if published_version_id is None:
+        raise RuntimeError("Bootstrap Export publication did not persist a version")
+    return published_version_id
+
+
+def _bootstrap_version_not_found() -> SecurityProblem:
+    return SecurityProblem(
+        status=404,
+        code="ARTIFACT_VERSION_NOT_FOUND",
+        title="Artifact version not found",
+        detail="The requested ArtifactVersion is unavailable",
+    )

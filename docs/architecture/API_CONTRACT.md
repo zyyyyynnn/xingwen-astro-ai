@@ -41,6 +41,9 @@
     bbox，不透传其他内部键。
   - ShareSnapshot 必须冻结 presentation 引用的全部 Evidence；创建与公开读取边界均按
     ArtifactVersion 复验该闭包并在不完整时失败关闭。
+  - `GET /api/public/shares/{shareToken}/artifacts/{artifactVersionId}/exports/csv`
+    只读输出 share allowlist 中精确 DatasetVersion 的脱敏 CSV；复用 Artifact Export serializer，
+    不创建私有导出记录或消耗所有者配额。撤销、过期、不在 allowlist 与不支持的类型保持同形 `404`。
   - Share token 服务端仅存 hash；公开读取不授予写权限或敏感调试信息。
 - **未授权保护**：会话缺失/过期返回 `401`；无权访问或不存在的私有资源统一返回 `404`（不泄露资源存在性）；CSRF 校验失败返回 `403`。
 - **会话恢复**：配置 PostgreSQL 时，匿名会话凭据、有限 CSRF 令牌集合、状态与有效期由数据库持久化；浏览器刷新、多标签和 API 进程重启必须恢复同一 Session 所有权，不得创建无法读取既有项目的平行会话。

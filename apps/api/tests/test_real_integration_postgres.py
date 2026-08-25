@@ -500,6 +500,37 @@ def test_bootstrap_publishes_fixture_onto_public_chain_run(
     assert replayed.status_code == 201
     assert replayed.json()["data"] == data
 
+    export_run = client.post(
+        f"/api/projects/{chain['project_id']}/runs",
+        headers={
+            "X-CSRF-Token": csrf,
+            "Idempotency-Key": "bootstrap-export-run",
+        },
+        json={
+            "contract_id": chain["contract_id"],
+            "execution_mode": "demo_replay",
+        },
+    )
+    assert export_run.status_code == 201, export_run.text
+    export_run_id = export_run.json()["data"]["id"]
+    unsupported = client.post(
+        "/api/test/bootstrap/unsupported-export",
+        headers={"X-CSRF-Token": csrf},
+        params={
+            "run_id": export_run_id,
+            "source_version_id": data["artifact_version_id"],
+        },
+    )
+    assert unsupported.status_code == 201, unsupported.text
+    export_version_id = unsupported.json()["data"]["artifact_version_id"]
+    export_version = client.get(f"/api/artifact-versions/{export_version_id}")
+    assert export_version.status_code == 200
+    assert export_version.json()["data"]["content"]["kind"] == "export"
+    assert export_version.json()["data"]["created_by_run_id"] == export_run_id
+    assert client.get(f"/api/runs/{export_run_id}").json()["data"]["status"] == (
+        "completed"
+    )
+
     # A second completed Run publishes the next coherent Data bundle. The
     # current version can then drive the real Feedback → Plan → derived Run
     # path without bypassing revision guards.
