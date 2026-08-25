@@ -44,20 +44,12 @@ ModelExecutionPort 是 provider-neutral 的模型执行边界，拥有 typed req
 
 ### 5.1 实例级 Provider 配置
 
-- Provider 配置是实例级运行事实，不属于 Project、Thread、Session 或 Run。部署环境变量提供只读
-  baseline；本地工作台可安装一个已验证 override，供所有后续模型调用复用。
-- 通用 Adapter 复用 OpenAI SDK 的 Chat Completions-compatible `POST /chat/completions` 传输、Bearer API Key、
-  `model` 与 `messages`。DashScope preset 使用 Qwen Adapter 并追加 Qwen 明确支持的 thinking control；
-  自定义 OpenAI-compatible preset 使用通用 Adapter，不擅自注入 provider 私有参数。
-- 保存配置前必须执行真实、最小连接探测。探测成功后才加密持久化并原子替换运行快照；已开始的
-  调用继续使用其快照，新调用读取最新配置。
-- 分块模型任务以一个父 ProducerExecution 为调用边界：父级开始时固定一个运行快照，所有有序
-  子请求继承该快照并分别记录执行事实；下一独立调用或下一父级任务再读取最新配置。父级与子级
-  的 provider、model 与 revision 必须一致，不得用启动前或结束后的配置代替实际 provenance。
-  父级聚合记录不得冒用任一子请求的 provider request id；子级分别保存其请求 id 与 provider
-  返回 model，父级仅在所有子级返回 model 完整且一致时保存该共识值。
-- 配置状态只公开 preset、base URL、model、来源、验证时间与 API Key 尾号，不公开原始凭据、
-  认证头或 provider 响应体。
+- Provider 配置是实例级运行事实，不属于 Project、Thread、Session 或 Run。部署环境变量提供只读 baseline；本地工作台可安装一个已验证 override，供所有后续模型调用复用。
+- 默认 preset 绑定赛题指定合格模型的官方服务与受治理参数；自定义 preset 只允许通过当前批准的标准兼容聊天接口。Adapter 负责传输映射，不把 provider 私有参数扩散到领域层。
+- 保存配置前必须执行真实、最小连接探测。探测成功后才加密持久化并原子替换运行快照；已开始的调用继续使用其快照，新调用读取最新配置。
+- 分块模型任务以一个父 ProducerExecution 为调用边界：父级开始时固定一个运行快照，所有有序子请求继承该快照并分别记录执行事实；下一独立调用或下一父级任务再读取最新配置。父级与子级的 provider、model 与 revision 必须一致，不得用启动前或结束后的配置代替实际 provenance。
+- 父级聚合记录不得冒用任一子请求的 provider request id；子级分别保存其请求 id 与 provider 返回 model，父级仅在所有子级返回 model 完整且一致时保存该共识值。
+- 配置状态只公开 preset、base URL、model、来源、验证时间与 API Key 尾号，不公开原始凭据、认证头或 provider 响应体。
 
 ## 6. CacheSelector 协作
 

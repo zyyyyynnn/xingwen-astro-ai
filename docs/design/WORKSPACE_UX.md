@@ -11,11 +11,9 @@ Web 应用，正式主题为 Light。`/workspace` 是唯一私有工作台入口
 禁止注入假事件。自动化覆盖与门禁见
 [Test Strategy](../engineering/TEST_STRATEGY.md)。
 
-当前 full-stack packaging 可以跨 Frontend、API、Workflow 与测试收敛一个完整实现，
-但不会转移模块所有权。Research Workspace UX 仍由本文件定义；科学执行、Reference
-Integration、Scientific Skill、Executor、Worker、Attempt、Artifact scientific
-presentation 与 Live closure 由对应科学执行 Authority 定义。当前已验收行为优先于
-历史测试、旧任务文案与旧实现；冲突内容应删除，不建立 compatibility layer。
+Research Workspace UX 只描述当前产品行为。科学执行、Scientific Skill、Executor、
+Worker、Attempt、Artifact scientific presentation 与 Live closure 由对应 Authority 定义；
+冲突时应把当前 Authority、生产实现与验证证据重新收敛，不在本文件保存迁移历史或过程说明。
 
 ## 1. 目标
 
@@ -278,9 +276,9 @@ Thread 中结果作为研究叙事的一部分出现。
   最新已安装配置。
 - 工作台顶栏提供常驻“模型服务”入口和连接状态，不在进入工作台或进入会话时自动弹窗；用户主动打开后可用
   “后续配置”直接关闭，不创建虚假配置，也不阻塞研究浏览。
-- 默认服务是 DashScope Qwen；备选是自定义 OpenAI Chat Completions-compatible 接口。Base URL
-  始终可见：DashScope 地址只读，自定义地址可编辑。模型 ID 由用户填写，不向产品界面暴露仓库测试 fixture。
-- 提交前必须通过 `/chat/completions` 真实连接测试；测试失败不保存。自定义接口只承诺基础协议连通性，
+- 默认服务绑定赛题指定合格模型的官方调用路径；备选为受治理的标准兼容聊天接口。Base URL
+  在产品需要用户配置时保持可见，官方地址只读、自定义地址可编辑。模型 ID 由用户填写，不向产品界面暴露仓库测试 fixture。
+- 提交前必须通过正式兼容调用端点执行真实连接测试；测试失败不保存。自定义接口只承诺基础协议连通性，
   不宣称项目已验证其模型质量或 provider 私有能力。
 - API Key 不回显、不进入浏览器持久化；界面只显示掩码尾号。部署环境配置只读，生产环境在没有
   管理员身份体系时不得允许匿名 Session 修改实例级配置。
@@ -343,8 +341,8 @@ hash / parameters hash / provider request id
 基于此结果修改
 ```
 
-例外只允许外部不可改正式名称，例如 OpenHands 外部 release tag、第三方
-pipeline 正式版本、模型正式名称、Schema/协议真正机器版本。
+例外只允许具有真实外部版本语义且用户需要识别的正式技术名称，例如模型正式名称、
+Schema/协议真正机器版本。内部结果版本继续使用自然语言表达。
 
 ## 15. 响应式与可访问性
 

@@ -29,37 +29,21 @@
 - **Ownership 校验**：所有 Project、Run、ArtifactVersion、UserFeedback、RevisionPlan、WorkspaceSnapshot 与 ShareSnapshot 在服务端强制校验 Session ownership。
 - **只读分享**：
   - ShareSnapshot 锁定不可变 ArtifactVersion 与可公开 Evidence 范围。
-  - 私有 `ArtifactVersionDetail` 与公开版本复用同一服务端
-    `PublicArtifactPresentation` 投影；公开面只缩减资源与权限，不在前端重建另一套
-    文献、关系或图谱解释规则。叙述段落显式携带支持该句的 Evidence identity；同一
-    持久化 Evidence 可支持多个段落，不为每次引用复制 Evidence 记录。
-  - 公开 `PublicArtifactVersion` 仅返回由既有 typed Artifact authoring contract 正向投影的
-    `PublicArtifactPresentation`，不得返回原始 `content`、递归 JSON 或另一套科研
-    解释规则；条目中的 Evidence 引用必须映射到该版本已经持久化的 Evidence identity。
-  - 公开 Evidence 仅返回核验所需的来源事实、短引文/标量与 typed locator；locator
-    允许页、段落、章节、文本范围、block、reading order、table/cell、field/row 与
-    bbox，不透传其他内部键。
-  - ShareSnapshot 必须冻结 presentation 引用的全部 Evidence；创建与公开读取边界均按
-    ArtifactVersion 复验该闭包并在不完整时失败关闭。
-  - `GET /api/public/shares/{shareToken}/artifacts/{artifactVersionId}/exports/csv`
-    只读输出 share allowlist 中精确 DatasetVersion 的脱敏 CSV；复用 Artifact Export serializer，
-    不创建私有导出记录或消耗所有者配额。撤销、过期、不在 allowlist 与不支持的类型保持同形 `404`。
+  - 私有 `ArtifactVersionDetail` 与公开版本复用同一服务端 `PublicArtifactPresentation` 投影；公开面只缩减资源与权限，不在前端重建另一套文献、关系或图谱解释规则。叙述段落显式携带支持该句的 Evidence identity；同一持久化 Evidence 可支持多个段落，不为每次引用复制 Evidence 记录。
+  - 公开 `PublicArtifactVersion` 仅返回由既有 typed Artifact authoring contract 正向投影的 `PublicArtifactPresentation`，不得返回原始 `content`、递归 JSON 或另一套科研解释规则；条目中的 Evidence 引用必须映射到该版本已经持久化的 Evidence identity。
+  - 公开 Evidence 仅返回核验所需的来源事实、短引文/标量与 typed locator；locator 允许页、段落、章节、文本范围、block、reading order、table/cell、field/row 与 bbox，不透传其他内部键。
+  - ShareSnapshot 必须冻结 presentation 引用的全部 Evidence；创建与公开读取边界均按 ArtifactVersion 复验该闭包并在不完整时失败关闭。
+  - `GET /api/public/shares/{shareToken}/artifacts/{artifactVersionId}/exports/csv` 只读输出 share allowlist 中精确 DatasetVersion 的脱敏 CSV；复用 Artifact Export serializer，不创建私有导出记录或消耗所有者配额。撤销、过期、不在 allowlist 与不支持的类型保持同形 `404`。
   - Share token 服务端仅存 hash；公开读取不授予写权限或敏感调试信息。
 - **未授权保护**：会话缺失/过期返回 `401`；无权访问或不存在的私有资源统一返回 `404`（不泄露资源存在性）；CSRF 校验失败返回 `403`。
 - **会话恢复**：配置 PostgreSQL 时，匿名会话凭据、有限 CSRF 令牌集合、状态与有效期由数据库持久化；浏览器刷新、多标签和 API 进程重启必须恢复同一 Session 所有权，不得创建无法读取既有项目的平行会话。
 
 ### 3.1 模型服务配置资源
 
-- `GET /api/model-provider/configuration` 返回实例级模型服务状态、当前 revision、来源、兼容端点、模型身份、
-  DashScope 默认 Base URL、掩码凭据尾号与可编辑性；不得返回原始 API Key。
-- `PUT /api/model-provider/configuration` 使用 `ConfigureModelProviderRequest` 测试并保存一个
-  DashScope Qwen 或自定义 OpenAI Chat Completions-compatible 配置；`DELETE` 移除工作台 override
-  并回到部署 baseline。
-- 写操作要求有效 Session、CSRF 与独立限流。当前只有 development/test/integration 可写；
-  production 返回只读状态，直到存在正式管理员授权边界。`PUT` / `DELETE` 必须携带当前 revision 的
-  `If-Match`；删除也推进 revision，过期 revision 在连接探测或写入前以 `409` 拒绝。
-- DashScope preset 不接受浏览器覆盖其官方 Base URL；custom preset 受 HTTPS、部署 host allowlist
-  与本地开发例外约束。连接测试失败不得改变当前运行配置。
+- `GET /api/model-provider/configuration` 返回实例级模型服务状态、当前 revision、来源、兼容端点、模型身份、默认官方 Base URL、掩码凭据尾号与可编辑性；不得返回原始 API Key。
+- `PUT /api/model-provider/configuration` 使用 `ConfigureModelProviderRequest` 测试并保存赛题指定合格模型的官方 preset 或受治理的自定义标准兼容配置；`DELETE` 移除工作台 override 并回到部署 baseline。
+- 写操作要求有效 Session、CSRF 与独立限流。当前只有 development/test/integration 可写；production 返回只读状态，直到存在正式管理员授权边界。`PUT` / `DELETE` 必须携带当前 revision 的 `If-Match`；删除也推进 revision，过期 revision 在连接探测或写入前以 `409` 拒绝。
+- 官方 preset 不接受浏览器覆盖其固定 Base URL；custom preset 受 HTTPS、部署 host allowlist 与本地开发例外约束。连接测试失败不得改变当前运行配置。
 
 ## 4. 通用响应结构
 
@@ -121,38 +105,8 @@ ArtifactVersion -> UserFeedback -> RevisionPlan -> revision Run
 - **ShareSnapshot**：持久化创建时冻结的公开只读投影；公开读取只依赖冻结内容与 token hash，不跟随动态 latest。
 - **ResearchInput**：受控输入边界（URL / PDF / CSV / FITS / JSON / 图片 / 文本）的不可变引用与溯源；二进制内容与全文永不进入公开 DTO。Composer 文件附件统一走现有 ResearchInput 摄取边界；不得新增 chat upload blob、temporary attachment 或第二文件存储。
 
-- **PaperCandidate 到 ResearchInput**：选中的 PaperCollection candidate 通过
-  `POST /api/artifact-versions/{version_id}/paper-candidates/{candidate_id}/research-input`
-  桥接到既有 ResearchInput 摄取边界。请求必须带 `Idempotency-Key` 与
-  `X-CSRF-Token`，且只能选择 `selected=true` 的 candidate。`mode=open_access_url`
-  要求无凭据 HTTPS `access_url` 以及 `publisher_open_access`、
-  `repository_open_access` 或 `author_provided` 的显式 access evidence；URL 下载仍
-  复用 ResearchInput 的 allowlist、SSRF、重定向、大小、MIME、哈希、CAS、ownership
-  与幂等规则。`mode=existing_research_input` 只引用同一 Session/Project 已拥有的
-  ResearchInput，并保留其 content hash；`mode=metadata_only` 必须给出稳定 reason，
-  不声明 access evidence、ResearchInput 或全文。Fixture、recorded、cached candidate
-  只能走 metadata-only，synthetic candidate 不能创建输入。响应绑定是不可变的，返回
-  `accepted` 或 `metadata_only` outcome；幂等重放以 `reused=true` 表示并返回相同绑定，
-  不使用第三种持久化 outcome。服务端必须在 URL fetch、CAS 或 ResearchInput 创建前原子
-  预留 Project-scoped bridge `Idempotency-Key`；不同请求复用同一 key 必须在副作用前冲突，
-  相同并发请求最多只有一个 lease owner 执行摄取，完成 binding 时原子关闭 reservation。
-  任何未证明访问、paywall、受限/部分元数据、非法 URL、
-  SSRF、redirect、MIME、大小、超时或上游失败均 fail closed，且不执行 parser。
-  所有 PaperSummary 读取（摘要 API、导出、Literature/Graph 派生读取与 Feedback 目标
-  准入）都先复用同一异步读取边界完成完整 provenance 校验；DocumentParse-backed 摘要
-  必须在返回任何内容前重放持久化 DocumentParse/CAS、SourceSnapshot、locator 与引文闭包。
-  全文只通过 `GET /api/artifact-versions/{version_id}/paper-summary/document-source` 解析：
-  PaperCollection-backed 摘要按
-  `(paper_collection_version_id, canonical_paper_id)` 解析最新 `accepted` 桥接绑定，
-  DocumentParse-backed 摘要先按持久化 `document_parse_id` 重放同一 Project 的
-  DocumentParse/CAS 与 SourceSnapshot，再逐项核对冻结的 ResearchInput、content hash、
-  parser profile/config、canonical output hash、Evidence locator 和 block text span 引文闭包，
-  最后按 `(research_input_id, input_content_hash)` 解析原始 ResearchInput；任何持久化身份或
-  Evidence 漂移均 fail closed。两条路径都重新校验 ResearchInput 的 ownership、未过期、
-  content hash，以及 `pdf + application/pdf` 或 `image +` 受支持科研文档图片 MIME 的严格
-  类型配对；禁止仅因 type 或 MIME 其中之一合法而放行。无绑定与未配置读取运行时返回
-  `research_input: null`，禁止从标题、DOI、candidate 顺序或数组首项推断 ResearchInput
-  或原文 URL。
+- **PaperCandidate 到 ResearchInput**：选中的 PaperCollection candidate 通过 `POST /api/artifact-versions/{version_id}/paper-candidates/{candidate_id}/research-input` 桥接到既有 ResearchInput 摄取边界。请求必须带 `Idempotency-Key` 与 `X-CSRF-Token`，且只能选择 `selected=true` 的 candidate。`mode=open_access_url` 要求无凭据 HTTPS `access_url` 以及 `publisher_open_access`、`repository_open_access` 或 `author_provided` 的显式 access evidence；URL 下载仍复用 ResearchInput 的 allowlist、SSRF、重定向、大小、MIME、哈希、CAS、ownership 与幂等规则。`mode=existing_research_input` 只引用同一 Session/Project 已拥有的 ResearchInput，并保留其 content hash；`mode=metadata_only` 必须给出稳定 reason，不声明 access evidence、ResearchInput 或全文。Fixture、recorded、cached candidate 只能走 metadata-only，synthetic candidate 不能创建输入。响应绑定是不可变的，返回 `accepted` 或 `metadata_only` outcome；幂等重放以 `reused=true` 表示并返回相同绑定，不使用第三种持久化 outcome。服务端必须在 URL fetch、CAS 或 ResearchInput 创建前原子预留 Project-scoped bridge `Idempotency-Key`；不同请求复用同一 key 必须在副作用前冲突，相同并发请求最多只有一个 lease owner 执行摄取，完成 binding 时原子关闭 reservation。任何未证明访问、paywall、受限/部分元数据、非法 URL、SSRF、redirect、MIME、大小、超时或上游失败均 fail closed，且不执行 parser。
+  所有 PaperSummary 读取（摘要 API、导出、Literature/Graph 派生读取与 Feedback 目标准入）都先复用同一异步读取边界完成完整 provenance 校验；DocumentParse-backed 摘要必须在返回任何内容前重放持久化 DocumentParse/CAS、SourceSnapshot、locator 与引文闭包。全文只通过 `GET /api/artifact-versions/{version_id}/paper-summary/document-source` 解析：PaperCollection-backed 摘要按 `(paper_collection_version_id, canonical_paper_id)` 解析最新 `accepted` 桥接绑定，DocumentParse-backed 摘要先按持久化 `document_parse_id` 重放同一 Project 的 DocumentParse/CAS 与 SourceSnapshot，再逐项核对冻结的 ResearchInput、content hash、parser profile/config、canonical output hash、Evidence locator 和 block text span 引文闭包，最后按 `(research_input_id, input_content_hash)` 解析原始 ResearchInput；任何持久化身份或 Evidence 漂移均 fail closed。两条路径都重新校验 ResearchInput 的 ownership、未过期、content hash，以及 `pdf + application/pdf` 或 `image +` 受支持科研文档图片 MIME 的严格类型配对；禁止仅因 type 或 MIME 其中之一合法而放行。无绑定与未配置读取运行时返回 `research_input: null`，禁止从标题、DOI、candidate 顺序或数组首项推断 ResearchInput 或原文 URL。
 
 ## 6. Research Turn
 
@@ -169,8 +123,7 @@ ArtifactVersion -> UserFeedback -> RevisionPlan -> revision Run
 - Run 生命周期命令只暴露有真实执行闭环的窄端点，Route 只调用现有 Workflow command/store，不实现 workflow algorithm：
   - `POST /api/runs/{run_id}/cancel`：条件状态写入，未完成 Step 与运行中 Attempt 一致 `cancelled`，追加单调 Event，拒绝 late publish，重复取消幂等。
   - `POST /api/runs/{run_id}/retry`：Application Service 验证 Run failed、存在 retryable failed step 与合法 `retry_from_step` 后创建 `derivation_kind=retry` 派生 Run（`parent_run_id`、`retry_from_step`），不复活/覆盖 failed Attempt，不静默从头全跑。
-  - `GET /api/runs/{run_id}/checkpoint` 读取当前等待中的 Checkpoint；`POST /api/runs/{run_id}/checkpoint-decision` 原子写入不可变 Decision 并将同一 Run 从 `waiting_for_input` 恢复到合法可执行状态，不创建新 Run、新 Contract 或 review session。重复相同 Decision 按既有 idempotency convention 幂等或明确 conflict。
-    未实现的能力不得先声明成功。
+  - `GET /api/runs/{run_id}/checkpoint` 读取当前等待中的 Checkpoint；`POST /api/runs/{run_id}/checkpoint-decision` 原子写入不可变 Decision 并将同一 Run 从 `waiting_for_input` 恢复到合法可执行状态，不创建新 Run、新 Contract 或 review session。重复相同 Decision 按既有 idempotency convention 幂等或明确 conflict。未实现的能力不得先声明成功。
 - 同一 Project 同时最多一个 non-terminal ResearchRun：Application Service 对并发创建返回用户友好 `409`，PostgreSQL partial unique index 是权威并发围栏；不得仅靠前端按钮限制。
 - `GET /api/artifacts/{artifact_id}/versions` 按稳定 newest-first 顺序分页读取一个逻辑 Artifact 的全部不可变 ArtifactVersion；要求 Project/Session ownership，不创建第二版本存储。
 

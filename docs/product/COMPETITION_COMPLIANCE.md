@@ -6,7 +6,7 @@
 
 ## 1. 固定方向
 
-产品固定参加 Track 2 / Direction 1 / A：科学数据查询、解析与整合。主叙事围绕可复核的科学数据纵向链，而不是通用聊天、通用 OCR、通用多 Agent 或外部能力集合。
+产品参加科学数据查询、解析与整合方向。主叙事围绕可复核的科学数据纵向链，而不是通用聊天、通用 OCR、通用多 Agent 或外部能力集合。
 
 ```text
 confirmed Contract
@@ -20,13 +20,13 @@ confirmed Contract
 
 ## 2. 合格模型
 
-参赛主案例的合格模型必须是 Qwen，并通过 Alibaba Cloud Model Studio / Bailian 或比赛官网明确认可的路径调用。提交证据不得使用浮动 latest。
+参赛主案例必须使用赛题指定的合格模型，并通过比赛规则认可的官方平台或调用路径。提交证据不得使用浮动 latest。
 
 合格调用必须能够复核：provider 与官方接入路径、model name/version/revision、Prompt name/version/hash、Contract/input hash、参数、调用时间与运行环境、脱敏 request/call proof、response/output hash、Schema/Evidence admission、ProducerExecution 与最终 ArtifactVersion。
 
 API Key、原始认证头、完整 provider 原始响应与模型私有 chain-of-thought 不进入提交材料、公开 Artifact 或日志；只保留完成复核所需的脱敏事实。
 
-其他模型只可用于 benchmark、消融或对照，不得包装为合格主模型。
+非合格模型只可用于 benchmark、消融或对照，不得包装为合格主模型。
 
 ## 3. 差异化与能力归属
 
@@ -50,7 +50,7 @@ Live、Cached、Recorded、Fixture、Benchmark 与 Revision 必须清楚区分�
 
 最终材料至少包含：
 
-- 主案例与赛道声明；
+- 主案例与参赛方向声明；
 - 固定代码 Commit / container image / environment manifest；
 - 合格模型 provider/model/revision 与脱敏调用证明；
 - Research Intent → Contract → Run → ArtifactVersion → Evidence → Revision/Export/Share 的纵向链；

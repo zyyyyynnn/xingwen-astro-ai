@@ -13,7 +13,7 @@
 - Type 允许：`feat`, `fix`, `refactor`, `docs`, `test`, `ci`, `build`, `chore`, `perf`, `style`, `revert`。
 - Scope 使用稳定系统域，例如 `repo`, `frontend`, `backend`, `api`, `contracts`, `data`, `security`, `docs`, `ci`, `deps`, `release`, `sync`；禁止过程性 scope。
 - Summary 使用英文动作描述，不写 Issue/PR 编号、本地绝对路径、Commit SHA、Review ID、日期或 WIP/Ready/PASS/BLOCKED 等过程状态。
-- 分支 Commit subject 不写 Issue/PR 编号。Squash merge 的集成 Commit 可由 GitHub 附加 PR 回链。
+- 分支 Commit subject 不写 Issue/PR 编号。Squash merge 的集成 Commit 可由托管平台附加 PR 回链。
 - 精确 staging；不要用全仓 staging 命令替代范围检查。
 
 ## 2. Delivery Mode
@@ -80,10 +80,10 @@ Reviewer 必须：
 
 1. 核对 Scope / Delivery Mode / Issue acceptance；
 2. 审查 correctness、architecture、current-only、security、scientific truth、user reachability、tests/CI；
-3. 检查 Reference Integration 是否吸收进现有 Authority 而非形成第二系统；
+3. 检查新增或迁入能力是否吸收进现有 Authority，而非形成第二系统；
 4. 形成 preliminary findings；
 5. 再执行一次 adversarial omission sweep；
-6. 提交一个 exact-head GitHub Review，默认 action 为 `COMMENT`，正文明确 `verdict: PASS`、`verdict: NOT READY` 或 `verdict: BLOCKED` 及理由。
+6. 提交一个 exact-head PR Review，默认 action 为 `COMMENT`，正文明确 `verdict: PASS`、`verdict: NOT READY` 或 `verdict: BLOCKED` 及理由。
 
 新 Commit 到达后，旧 Review、旧 exact-head CI 结论与旧修复确认自动失效；必须对新 HEAD 重新审查。除非用户要求，不用 APPROVE / REQUEST_CHANGES 代替上述 exact-head Review 纪律。
 
