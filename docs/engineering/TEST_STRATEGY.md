@@ -90,7 +90,7 @@ Live proof 用于验证真实 provider/source/model 行为；Benchmark 用固定
 | Cached | 真实历史 Run 的复用 | 指向 origin Run，说明当前失败/选择原因 |
 | Revision | 派生运行结果 | 绑定 parent/confirmed plan/supersedes |
 
-合格模型测试必须区分 Alibaba Cloud Model Studio / Bailian 的 Qwen 真实调用证据与 DeepSeek、Gemini 等 non-qualifying benchmark/reference。没有 provider/model/version 或 revision/call proof 的测试只证明契约或 Adapter 行为，不证明竞赛资格。
+合格模型测试必须单独验证 Alibaba Cloud Model Studio / Bailian 的 Qwen 真实调用证据。其他非合格 provider 若用于 benchmark、消融或对照，必须明确标记为 non-qualifying；没有 provider/model/version 或 revision/call proof 的测试只证明契约或 Adapter 行为，不证明竞赛资格。
 
 ## 4. 能力融合验证
 

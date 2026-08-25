@@ -112,6 +112,7 @@ API、库函数、单测、Fixture、benchmark 或静态截图单独存在不满
 | 目标字段覆盖率 | >= 80% |
 | 关键字段来源完整性 | 100% |
 | 关键数值单位一致性 | 100% |
+| 论文候选检索信息完整性 | 100% |
 | 最终 Relation 的 Evidence / Trace 覆盖率 | 100% |
 | GraphEdge Evidence 覆盖率 | 100% |
 | 从关键结果定位 Evidence | <= 3 次交互 |

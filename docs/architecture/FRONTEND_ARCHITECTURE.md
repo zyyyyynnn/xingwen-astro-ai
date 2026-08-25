@@ -99,6 +99,8 @@ Artifact / Evidence Renderer
   -> @xingwen/ui
 ```
 
+`@xingwen/research-adapter` 是 framework-free、stateless 的应用边界，负责 Domain → ViewModel、公开 RunEvent activity presentation、typed UI command 与 fail-closed public application error。它不拥有 transport parsing、Session lifecycle、Query/cache state、polling、renderer 或 server state。
+
 依赖约束：
 
 - 共享包不得反向依赖 App；
@@ -168,6 +170,7 @@ Router(projectId, artifactVersionId)
 - Session Gate 负责私有会话边界；
 - Query Layer 负责 server state、分页、polling/backoff、mutation invalidation 和终态后的 Artifact 刷新；
 - `/workspace` 的首次使用、项目创建和项目恢复都留在同一个 Workspace Shell；
+- “返回首页”只执行导航，不撤销当前 Session；撤销 Session 必须是明确、独立的安全动作并清理私有 Query cache，只有真实 Session 失效或私有边界拒绝才进入安全的会话重建状态；
 - Evidence Inspector 是跨 Artifact 共享 presentation contract；
 - `/share/$shareToken` 只读取冻结公开投影，不复用私有读取路径。
 

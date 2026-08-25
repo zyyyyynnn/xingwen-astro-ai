@@ -26,6 +26,7 @@
 | 可复现 | 关键结果可定位 Contract、Run、ArtifactVersion、来源、模型/Prompt 与生成条件 |
 | 可溯源 | 数据、Summary、Accepted Relation、GraphEdge 与关键科学结论逐项可定位 Evidence |
 | 可修订 | Feedback → confirmed RevisionPlan → derived Run → superseding ArtifactVersion 可验证 |
+| 可降级 | 外部服务、数据源或可选能力失败时真实呈现 failure/partial/unsupported，并保持仍可成立的核心研究链可用，不以假结果填补缺口 |
 | 可分享 | 冻结版本公开投影可撤销、可过期、最小披露且不加载私有编辑会话 |
 | 可部署 | 当前 schema、配置、健康检查、PostgreSQL、Worker 与前端部署边界完整 |
 | 可访问 | Keyboard、Focus、Screen Reader、Reduced Motion、200% text 与正式桌面视口可用 |
