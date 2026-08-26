@@ -24,9 +24,11 @@ FIXTURES = ROOT / "services" / "scientific_document" / "fixtures"
 
 
 class _VisualParser:
+    engine_identity = "test visual parser"
     engine_version = "1.6"
     model_id = "PaddleOCR-VL-1.6-0.9B"
     model_revision = "test-revision"
+    runtime_binding_hash = "sha256:" + "f" * 64
 
     def parse_page(self, image_bytes: bytes) -> VisualPageResult:
         assert image_bytes.startswith(b"\x89PNG")

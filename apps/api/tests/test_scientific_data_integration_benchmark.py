@@ -233,6 +233,8 @@ def test_source_retrieval_metric_executes_recorded_acquisition_adapters(
     "locator_update",
     (
         {"source_snapshot_id": "snapshot.tampered"},
+        {"source_id": "source.tampered"},
+        {"query_hash": "sha256:" + "f" * 64},
         {"row_key": (("toi", "999999.99"),)},
         {"raw_field": "not_a_frozen_raw_field"},
     ),
@@ -420,6 +422,38 @@ def test_checker_rejects_incomplete_evidence_closure(tmp_path: Path) -> None:
     )
 
 
+def test_checker_rejects_unstable_reproduction_metric(tmp_path: Path) -> None:
+    from app.schemas.scientific_data_integration_benchmark import (
+        compute_integration_report_hash,
+    )
+
+    report = _evaluate()
+    metrics = tuple(
+        metric.model_copy(
+            update={
+                "numerator": metric.numerator - 1,
+                "rate": (metric.numerator - 1) / metric.denominator,
+            }
+        )
+        if metric.name == "reproducibility_hash_stability"
+        else metric
+        for metric in report.metrics
+    )
+    report = report.model_copy(
+        update={"metrics": metrics, "output_hash": "sha256:" + "0" * 64}
+    )
+    report = report.model_copy(
+        update={"output_hash": compute_integration_report_hash(report)}
+    )
+    path = tmp_path / "unstable-reproduction.json"
+    path.write_text(report.model_dump_json(), encoding="utf-8")
+
+    checked = _run_checker(path)
+
+    assert checked.returncode == 1
+    assert "reproducibility_hash_stability must close" in checked.stderr
+
+
 def test_checker_rejects_pending_output_hash(tmp_path: Path) -> None:
     report = _evaluate().model_copy(update={"output_hash": "sha256:" + "0" * 64})
     path = tmp_path / "pending-output-hash.json"
@@ -429,3 +463,19 @@ def test_checker_rejects_pending_output_hash(tmp_path: Path) -> None:
 
     assert checked.returncode == 1
     assert "output_hash is still pending" in checked.stderr
+
+
+def test_checker_recomputes_frozen_manifest_hash() -> None:
+    from scripts.check_scientific_data_integration_report import (
+        _manifest_integrity_errors,
+    )
+
+    manifest = _load()
+    drifted = manifest.model_copy(
+        update={"provenance_note": f"{manifest.provenance_note} drift"}
+    )
+
+    errors = _manifest_integrity_errors(drifted)
+
+    assert errors
+    assert "content_hash does not self-verify" in errors[0]

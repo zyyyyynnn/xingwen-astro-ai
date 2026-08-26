@@ -14,6 +14,7 @@ Checks that the benchmark genuinely ran with no silent skips:
 
 from __future__ import annotations
 
+from collections import Counter
 import json
 import sys
 from pathlib import Path
@@ -26,6 +27,112 @@ from app.schemas.scientific_document_benchmark import (
 )
 
 _PENDING_OUTPUT_HASH = "sha256:" + "0" * 64
+_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _current_authority_errors(
+    report: BenchmarkReport, *, require_local_bundle: bool
+) -> list[str]:
+    if str(_ROOT) not in sys.path:
+        sys.path.insert(0, str(_ROOT))
+    from app.services.scientific_document.hybrid_parser import (
+        LOCAL_PADDLE_ENGINE_IDENTITY,
+        native_engine_identity,
+    )
+    from services.scientific_document.benchmark_runner import (
+        SCHEMA_VERSION,
+        _config_hash_from_provenance,
+        _expected_annotation_hash,
+        _fixture_bytes,
+        _load_golden_manifest,
+        _manifest_content_hash,
+        _report_input_hash,
+    )
+    from services.scientific_document.model_asset_contract import load_asset_manifest
+
+    errors: list[str] = []
+    manifest = _load_golden_manifest()
+    expected_annotation_hash = _expected_annotation_hash(manifest)
+    expected_manifest_hash = _manifest_content_hash(manifest)
+    native_engine, native_version = native_engine_identity()
+    if (
+        report.schema_version != SCHEMA_VERSION
+        or report.golden_set_manifest_id != manifest.manifest_id
+        or report.golden_set_version != manifest.version
+        or report.golden_set_content_hash != expected_manifest_hash
+        or report.expected_annotation_hash != expected_annotation_hash
+        or report.native_engine != native_engine
+        or report.native_engine_version != native_version
+    ):
+        errors.append("report does not match the current Golden Set/schema/native pins")
+
+    fixture_entries = {
+        entry.entry_id: entry
+        for entry in manifest.entries
+        if entry.data_type.value == "fixture"
+    }
+    expected_modes = (
+        (BenchmarkParserMode.native_only, BenchmarkParserMode.hybrid)
+        if report.parser_mode == BenchmarkParserMode.paired
+        else (report.parser_mode,)
+    )
+    expected_cases = Counter(
+        (entry_id, mode) for entry_id in fixture_entries for mode in expected_modes
+    )
+    observed_cases = Counter((case.entry_id, case.parser_mode) for case in report.cases)
+    if observed_cases != expected_cases:
+        errors.append("report case/mode set does not match every committed fixture")
+    for entry in fixture_entries.values():
+        try:
+            _fixture_bytes(entry)
+        except RuntimeError as exc:
+            errors.append(str(exc))
+    for case in report.cases:
+        entry = fixture_entries.get(case.entry_id)
+        if entry is None or case.input_hash != entry.content_hash:
+            errors.append(
+                f"case {case.entry_id}/{case.parser_mode.value} input_hash "
+                "does not match the current fixture"
+            )
+
+    if report.parser_mode != BenchmarkParserMode.native_only and (
+        require_local_bundle or report.visual_engine == LOCAL_PADDLE_ENGINE_IDENTITY
+    ):
+        assets = load_asset_manifest()
+        vlm = next(
+            component
+            for component in assets["components"]
+            if component["role"] == "vlm_recognition"
+        )
+        if (
+            report.visual_engine != LOCAL_PADDLE_ENGINE_IDENTITY
+            or report.visual_engine_version != "1.6"
+            or report.visual_model_id != vlm["resolved_model_id"]
+            or report.visual_model_revision != vlm["revision"]
+            or report.visual_runtime_binding_hash != assets["bundle_digest"]
+        ):
+            errors.append(
+                "hybrid report does not match the current verified local Paddle bundle"
+            )
+
+    expected_config_hash = _config_hash_from_provenance(
+        visual_engine=report.visual_engine,
+        visual_engine_version=report.visual_engine_version,
+        visual_model_id=report.visual_model_id,
+        visual_model_revision=report.visual_model_revision,
+        visual_runtime_binding_hash=report.visual_runtime_binding_hash,
+    )
+    if report.config_hash != expected_config_hash:
+        errors.append("report config_hash does not match current execution provenance")
+    expected_input_hash = _report_input_hash(
+        manifest,
+        expected_annotation_hash,
+        expected_config_hash,
+        modes=(report.parser_mode.value,),
+    )
+    if report.input_hash != expected_input_hash:
+        errors.append("report input_hash does not match current frozen inputs")
+    return errors
 
 
 def _measured_metric(report: BenchmarkReport, name: str) -> bool:
@@ -36,11 +143,16 @@ def _measured_metric(report: BenchmarkReport, name: str) -> bool:
 
 
 def main() -> int:
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 2 or len(sys.argv) > 3:
         print(
-            "usage: check_scientific_document_benchmark_report.py <report.json>",
+            "usage: check_scientific_document_benchmark_report.py <report.json> "
+            "[--require-local-bundle]",
             file=sys.stderr,
         )
+        return 2
+    require_local_bundle = len(sys.argv) == 3
+    if require_local_bundle and sys.argv[2] != "--require-local-bundle":
+        print(f"unknown checker option: {sys.argv[2]}", file=sys.stderr)
         return 2
     path = Path(sys.argv[1])
     if not path.is_file():
@@ -49,7 +161,9 @@ def main() -> int:
     data = json.loads(path.read_text(encoding="utf-8"))
     report = BenchmarkReport.model_validate(data)  # raises if output_hash mismatches
 
-    errors: list[str] = []
+    errors = _current_authority_errors(
+        report, require_local_bundle=require_local_bundle
+    )
     if report.output_hash == _PENDING_OUTPUT_HASH:
         errors.append("benchmark report output_hash is still pending")
     if len(report.cases) == 0:

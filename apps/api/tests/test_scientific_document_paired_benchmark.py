@@ -81,13 +81,18 @@ def _stub_visual_client() -> object:
     )
 
 
-def _run_checker(report_path: Path) -> subprocess.CompletedProcess[str]:
+def _run_checker(
+    report_path: Path, *, require_local_bundle: bool = False
+) -> subprocess.CompletedProcess[str]:
+    command = [
+        sys.executable,
+        str(ROOT / "scripts" / "check_scientific_document_benchmark_report.py"),
+        str(report_path),
+    ]
+    if require_local_bundle:
+        command.append("--require-local-bundle")
     return subprocess.run(
-        [
-            sys.executable,
-            str(ROOT / "scripts" / "check_scientific_document_benchmark_report.py"),
-            str(report_path),
-        ],
+        command,
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -168,6 +173,34 @@ def test_paired_report_is_comparable_and_proves_visual_execution(
     path.write_text(report.model_dump_json(), encoding="utf-8")
     result = _run_checker(path)
     assert result.returncode == 0, result.stderr
+    local_proof = _run_checker(path, require_local_bundle=True)
+    assert local_proof.returncode == 1
+    assert "verified local Paddle bundle" in local_proof.stderr
+
+
+def test_checker_rejects_report_with_missing_current_fixture(tmp_path: Path) -> None:
+    from app.schemas.scientific_document_benchmark import (
+        compute_benchmark_report_hash,
+    )
+
+    report = _paired_report_with_stub()
+    omitted_entry_id = report.cases[-1].entry_id
+    remaining_cases = tuple(
+        case for case in report.cases if case.entry_id != omitted_entry_id
+    )
+    report = report.model_copy(
+        update={"cases": remaining_cases, "output_hash": "sha256:" + "0" * 64}
+    )
+    report = report.model_copy(
+        update={"output_hash": compute_benchmark_report_hash(report)}
+    )
+    path = tmp_path / "missing-fixture.json"
+    path.write_text(report.model_dump_json(), encoding="utf-8")
+
+    checked = _run_checker(path)
+
+    assert checked.returncode == 1
+    assert "case/mode set" in checked.stderr
 
 
 def test_paired_report_without_visual_provenance_fails_closed() -> None:
@@ -303,6 +336,7 @@ def test_checker_rejects_unproven_hybrid_latency(tmp_path: Path) -> None:
         visual_engine_version="1.6",
         visual_model_id="PaddleOCR-VL-1.6-0.9B",
         visual_model_revision="stub-0",
+        visual_runtime_binding_hash="sha256:" + "f" * 64,
         config_hash="sha256:" + "e" * 64,
         metrics=(
             metric("accepted_rate"),
@@ -524,6 +558,35 @@ def test_official_html_table_projects_to_canonical_cells() -> None:
     assert _blocks[0].bbox is not None
 
 
+def test_official_html_table_rejects_unbounded_span_before_projection() -> None:
+    from app.services.scientific_document.hybrid_parser import (
+        VisualPageBlock,
+        VisualPageResult,
+        VisualParseError,
+        _canonical_visual_page,
+    )
+
+    with pytest.raises(VisualParseError, match="span exceeds"):
+        _canonical_visual_page(
+            VisualPageResult(
+                width_pixels=200,
+                height_pixels=100,
+                blocks=(
+                    VisualPageBlock(
+                        label="table",
+                        content='<table><tr><td colspan="1000000000">x</td></tr></table>',
+                        bbox=(10.0, 20.0, 190.0, 90.0),
+                        order=0,
+                    ),
+                ),
+            ),
+            page_index=1,
+            page_width=200.0,
+            page_height=100.0,
+            profile_id="hybrid-default",
+        )
+
+
 @pytest.mark.parametrize(
     "report_name,expected_mode",
     (
@@ -543,6 +606,7 @@ def test_committed_real_paddle_machine_evidence_passes_checker(
     assert payload["golden_set_manifest_id"] == "scientific_document-golden-set"
     assert payload["visual_model_id"] == "PaddleOCR-VL-1.6-0.9B"
     assert payload["visual_model_revision"]
+    assert payload["visual_runtime_binding_hash"].startswith("sha256:")
     assert payload["config_hash"].startswith("sha256:")
     assert payload["input_hash"].startswith("sha256:")
     assert payload["output_hash"].startswith("sha256:")
@@ -553,7 +617,7 @@ def test_committed_real_paddle_machine_evidence_passes_checker(
         if case["parser_mode"] == "hybrid"
     )
 
-    checked = _run_checker(report_path)
+    checked = _run_checker(report_path, require_local_bundle=True)
     assert checked.returncode == 0, checked.stderr
 
 

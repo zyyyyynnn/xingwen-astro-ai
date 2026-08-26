@@ -19,12 +19,14 @@ from services.scientific_document.model_asset_contract import (
 )
 
 from .hybrid_parser import (
+    LOCAL_PADDLE_ENGINE_IDENTITY,
     VisualPageBlock,
     VisualPageResult,
     VisualParseError,
     _non_negative_int,
     _positive_int,
     _visual_bbox,
+    admit_visual_page_result,
 )
 
 _PIPELINE_VERSION = "1.6"
@@ -72,6 +74,14 @@ class LocalPaddleOcrVlPipeline:
     @property
     def bundle_digest(self) -> str:
         return self._bundle_digest
+
+    @property
+    def runtime_binding_hash(self) -> str:
+        return self._bundle_digest
+
+    @property
+    def engine_identity(self) -> str:
+        return LOCAL_PADDLE_ENGINE_IDENTITY
 
     @property
     def engine_version(self) -> str:
@@ -153,4 +163,10 @@ class LocalPaddleOcrVlPipeline:
             raise VisualParseError(
                 "local PaddleOCR-VL returned an unusable page structure"
             ) from exc
-        return VisualPageResult(width_pixels=width, height_pixels=height, blocks=blocks)
+        return admit_visual_page_result(
+            VisualPageResult(
+                width_pixels=width,
+                height_pixels=height,
+                blocks=blocks,
+            )
+        )

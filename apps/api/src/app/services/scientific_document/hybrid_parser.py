@@ -45,8 +45,19 @@ _PARSER_PROFILE_VERSION = "1.1.0"
 _ROUTING_POLICY_ID = "native-first-page-hybrid"
 _RESOURCE_POLICY_ID = "bounded-document-pages"
 _VISUAL_ENGINE = "PaddleOCR-VL layout-parsing service"
+LOCAL_PADDLE_ENGINE_IDENTITY = (
+    "PaddleOCRVL official in-process pipeline (verified local bundle)"
+)
 _DEFAULT_VISUAL_MODEL_ID = "PaddleOCR-VL-1.6-0.9B"
 _MAX_DOCUMENT_BYTES = 64 * 1024 * 1024
+_MAX_VISUAL_BLOCKS = 4096
+_MAX_VISUAL_BLOCK_CONTENT_CHARS = 4 * 1024 * 1024
+_MAX_VISUAL_TOTAL_CONTENT_CHARS = 16 * 1024 * 1024
+_MAX_VISUAL_PAGE_DIMENSION = 100_000
+_MAX_TABLE_CONTENT_CHARS = 4 * 1024 * 1024
+_MAX_TABLE_ROWS = 512
+_MAX_TABLE_COLUMNS = 256
+_MAX_TABLE_LOGICAL_CELLS = 65_536
 
 
 class VisualParseError(RuntimeError):
@@ -70,6 +81,9 @@ class VisualPageResult:
 
 class VisualPageParserPort(Protocol):
     @property
+    def engine_identity(self) -> str: ...
+
+    @property
     def engine_version(self) -> str: ...
 
     @property
@@ -77,6 +91,9 @@ class VisualPageParserPort(Protocol):
 
     @property
     def model_revision(self) -> str: ...
+
+    @property
+    def runtime_binding_hash(self) -> str: ...
 
     def parse_page(self, image_bytes: bytes) -> VisualPageResult: ...
 
@@ -108,12 +125,22 @@ class PaddleOcrVlClient:
         return "1.6"
 
     @property
+    def engine_identity(self) -> str:
+        return _VISUAL_ENGINE
+
+    @property
     def model_id(self) -> str:
         return self._model_id
 
     @property
     def model_revision(self) -> str:
         return self._model_revision
+
+    @property
+    def runtime_binding_hash(self) -> str:
+        return compute_canonical_payload_hash(
+            {"backend": "http", "base_url": self._base_url}
+        )
 
     def parse_page(self, image_bytes: bytes) -> VisualPageResult:
         try:
@@ -162,7 +189,7 @@ class PaddleOcrVlClient:
                     order=_non_negative_int(raw.get("block_order"), index),
                 )
             )
-        return VisualPageResult(width, height, tuple(blocks))
+        return admit_visual_page_result(VisualPageResult(width, height, tuple(blocks)))
 
 
 class HybridScientificDocumentParser:
@@ -187,10 +214,15 @@ class HybridScientificDocumentParser:
         configuration = {
             "profile_version": _PARSER_PROFILE_VERSION,
             "native_engine": f"{_NATIVE_PACKAGE}=={native_version}",
-            "visual_engine": _VISUAL_ENGINE if self._visual is not None else None,
+            "visual_engine": (
+                self._visual.engine_identity if self._visual is not None else None
+            ),
             "visual_model_id": self._visual.model_id if self._visual else None,
             "visual_model_revision": (
                 self._visual.model_revision if self._visual else None
+            ),
+            "visual_runtime_binding_hash": (
+                self._visual.runtime_binding_hash if self._visual else None
             ),
             "min_native_characters": self._min_native_characters,
             "max_pages": self._max_pages,
@@ -663,6 +695,8 @@ def _markdown_table(
     page_index: int,
     bbox: DocumentBBox | None,
 ) -> DocumentTable:
+    if len(content or "") > _MAX_TABLE_CONTENT_CHARS:
+        raise VisualParseError("visual table content exceeds the configured budget")
     if (content or "").lstrip().lower().startswith("<table"):
         html_rows = _parse_official_html_table(content or "")
         if html_rows:
@@ -675,6 +709,24 @@ def _markdown_table(
                 for text, row_span, column_span, header_tag in raw_row:
                     while (row_index, column_index) in occupied:
                         column_index += 1
+                        if column_index >= _MAX_TABLE_COLUMNS:
+                            raise VisualParseError(
+                                "visual table exceeds the configured column budget"
+                            )
+                    if column_index + column_span > _MAX_TABLE_COLUMNS:
+                        raise VisualParseError(
+                            "visual table span exceeds the configured column budget"
+                        )
+                    occupied_rows = (
+                        min(len(html_rows), row_index + row_span) - row_index
+                    )
+                    if (
+                        len(occupied) + occupied_rows * column_span
+                        > _MAX_TABLE_LOGICAL_CELLS
+                    ):
+                        raise VisualParseError(
+                            "visual table exceeds the configured logical-cell budget"
+                        )
                     for occupied_row in range(
                         row_index, min(len(html_rows), row_index + row_span)
                     ):
@@ -720,6 +772,8 @@ def _markdown_table(
         for line in (content or "").splitlines()
         if line.strip().count("|") >= 2
     ]
+    if len(raw_rows) > _MAX_TABLE_ROWS:
+        raise VisualParseError("visual table exceeds the configured row budget")
     if len(raw_rows) >= 2 and all(
         set(cell.replace(":", "").replace("-", "").strip()) == set()
         for cell in raw_rows[1]
@@ -735,6 +789,10 @@ def _markdown_table(
             quality=DocumentParseQuality.partial,
         )
     column_count = max(len(row) for row in raw_rows)
+    if column_count > _MAX_TABLE_COLUMNS or sum(map(len, raw_rows)) > (
+        _MAX_TABLE_LOGICAL_CELLS
+    ):
+        raise VisualParseError("visual table exceeds the configured cell budget")
     rows = tuple(
         tuple(
             DocumentTableCell(
@@ -776,12 +834,21 @@ class _OfficialTableHtmlParser(HTMLParser):
         self._cell_row_span = 1
         self._cell_column_span = 1
         self._cell_is_header = False
+        self._cell_count = 0
 
     def handle_starttag(self, tag: str, attrs) -> None:
         lowered = tag.casefold()
         if lowered == "tr":
+            if self._row is not None or len(self.rows) >= _MAX_TABLE_ROWS:
+                raise VisualParseError("visual table exceeds or nests the row budget")
             self._row = []
         elif lowered in {"td", "th"} and self._row is not None:
+            if (
+                self._cell_text is not None
+                or len(self._row) >= _MAX_TABLE_COLUMNS
+                or self._cell_count >= _MAX_TABLE_LOGICAL_CELLS
+            ):
+                raise VisualParseError("visual table exceeds or nests the cell budget")
             values = {name.casefold(): value for name, value in attrs}
             self._cell_text = []
             self._cell_row_span = _html_span(values.get("rowspan"))
@@ -804,6 +871,7 @@ class _OfficialTableHtmlParser(HTMLParser):
                     self._cell_is_header,
                 )
             )
+            self._cell_count += 1
             self._cell_text = None
         elif lowered == "tr" and self._row is not None:
             if self._row:
@@ -816,16 +884,42 @@ def _html_span(value: str | None) -> int:
         parsed = int(value or "1")
     except ValueError:
         return 1
-    return max(parsed, 1)
+    normalized = max(parsed, 1)
+    if normalized > _MAX_TABLE_COLUMNS:
+        raise VisualParseError("visual table span exceeds the configured budget")
+    return normalized
 
 
 def _parse_official_html_table(
     content: str,
 ) -> tuple[tuple[tuple[str, int, int, bool], ...], ...]:
+    if len(content) > _MAX_TABLE_CONTENT_CHARS:
+        raise VisualParseError("visual table content exceeds the configured budget")
     parser = _OfficialTableHtmlParser()
     parser.feed(content)
     parser.close()
+    if parser._row is not None or parser._cell_text is not None:
+        raise VisualParseError("visual table contains an unterminated row or cell")
     return tuple(tuple(row) for row in parser.rows)
+
+
+def admit_visual_page_result(result: VisualPageResult) -> VisualPageResult:
+    """Bound untrusted visual output before canonical scientific projection."""
+    if len(result.blocks) > _MAX_VISUAL_BLOCKS:
+        raise VisualParseError("visual page exceeds the configured block budget")
+    total_content = 0
+    for block in result.blocks:
+        content_size = len(block.content or "")
+        if content_size > _MAX_VISUAL_BLOCK_CONTENT_CHARS:
+            raise VisualParseError(
+                "visual block content exceeds the configured character budget"
+            )
+        total_content += content_size
+        if total_content > _MAX_VISUAL_TOTAL_CONTENT_CHARS:
+            raise VisualParseError(
+                "visual page content exceeds the configured character budget"
+            )
+    return result
 
 
 def _scale_bbox(
@@ -866,7 +960,12 @@ def _visual_bbox(
 
 
 def _positive_int(value: Any, field: str) -> int:
-    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+    if (
+        not isinstance(value, int)
+        or isinstance(value, bool)
+        or value <= 0
+        or value > _MAX_VISUAL_PAGE_DIMENSION
+    ):
         raise VisualParseError(f"PaddleOCR-VL returned an invalid {field}")
     return value
 
@@ -887,6 +986,8 @@ def native_engine_identity() -> tuple[str, str]:
 
 
 __all__ = [
+    "LOCAL_PADDLE_ENGINE_IDENTITY",
+    "admit_visual_page_result",
     "HybridScientificDocumentParser",
     "native_engine_identity",
     "PaddleOcrVlClient",

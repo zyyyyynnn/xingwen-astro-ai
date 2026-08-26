@@ -303,6 +303,7 @@ class BenchmarkReport(BaseModel):
     visual_engine_version: str | None = None
     visual_model_id: str | None = None
     visual_model_revision: str | None = None
+    visual_runtime_binding_hash: ContentHash | None = None
     config_hash: ContentHash
     metrics: tuple[BenchmarkMetricValue, ...] = Field(default=())
     cases: tuple[BenchmarkCaseResult, ...] = Field(default=())
@@ -331,6 +332,7 @@ class BenchmarkReport(BaseModel):
             self.visual_engine_version,
             self.visual_model_id,
             self.visual_model_revision,
+            self.visual_runtime_binding_hash,
         )
         case_modes = {case.parser_mode for case in self.cases}
         if self.parser_mode == BenchmarkParserMode.native_only:

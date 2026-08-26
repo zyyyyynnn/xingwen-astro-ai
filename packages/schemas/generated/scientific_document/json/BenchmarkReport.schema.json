@@ -469,6 +469,19 @@
       ],
       "default": null,
       "title": "Visual Model Revision"
+    },
+    "visual_runtime_binding_hash": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Visual Runtime Binding Hash"
     }
   },
   "required": [

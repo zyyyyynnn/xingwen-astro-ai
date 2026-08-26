@@ -17,6 +17,7 @@ from app.schemas.scientific_data_integration_benchmark import (
     IntegrationCaseCategory,
     ScientificDataIntegrationBenchmarkManifest,
     ScientificDataIntegrationReport,
+    compute_integration_manifest_content_hash,
 )
 from app.schemas.scientific_document_benchmark import BenchmarkMetricStatus
 
@@ -29,6 +30,98 @@ _MANIFEST_PATH = (
     / "exoplanet_host_star"
     / "scientific-data-integration-benchmark.json"
 )
+
+
+def _manifest_integrity_errors(
+    manifest: ScientificDataIntegrationBenchmarkManifest,
+) -> list[str]:
+    actual_hash = compute_integration_manifest_content_hash(manifest)
+    if manifest.content_hash != actual_hash:
+        return [
+            "frozen integration manifest content_hash does not self-verify "
+            f"(got {manifest.content_hash}, expected {actual_hash})"
+        ]
+    return []
+
+
+def _expected_frozen_denominators(
+    manifest: ScientificDataIntegrationBenchmarkManifest,
+    report: ScientificDataIntegrationReport,
+) -> dict[str, float]:
+    report_cases = {case.case_id: case for case in report.cases}
+    expected_pairs = sum(
+        len(case.expected_accepted_pairs)
+        for case in manifest.cases
+        if case.category == IntegrationCaseCategory.integration
+    )
+    predicted_pairs = sum(
+        int(report_cases[case.case_id].observed.get("accepted_pair_count", 0))
+        for case in manifest.cases
+        if case.category == IntegrationCaseCategory.integration
+        and case.case_id in report_cases
+    )
+    return {
+        "source_retrieval_completeness": float(
+            sum(len(case.source_retrieval_expectations) for case in manifest.cases)
+        ),
+        "field_value_correctness": float(
+            sum(len(case.field_value_adjudications) for case in manifest.cases)
+        ),
+        "entity_alignment_precision": float(predicted_pairs),
+        "entity_alignment_recall": float(expected_pairs),
+        "unit_normalization_success": float(
+            sum(
+                not probe.expects_rejection
+                for case in manifest.cases
+                for probe in case.conversion_probes
+            )
+        ),
+        "conflict_detection": float(
+            sum(len(case.conflict_adjudications) for case in manifest.cases)
+        ),
+        "repair_success": float(
+            sum(
+                adjudication.expected_resolution == "resolved"
+                for case in manifest.cases
+                for adjudication in case.repair_adjudications
+            )
+        ),
+        "false_repair_rate": float(
+            sum(
+                adjudication.expected_resolution == "unresolved"
+                for case in manifest.cases
+                for adjudication in case.repair_adjudications
+            )
+        ),
+        "failure_recovery": float(
+            sum(
+                case.category == IntegrationCaseCategory.failure_injection
+                and case.scenario_id is not None
+                and case.expected_error_code is not None
+                for case in manifest.cases
+            )
+            + sum(
+                case.category == IntegrationCaseCategory.failure_injection
+                and probe.expects_rejection
+                for case in manifest.cases
+                for probe in case.conversion_probes
+            )
+        ),
+    }
+
+
+def _expected_case_ids(
+    manifest: ScientificDataIntegrationBenchmarkManifest,
+) -> set[str]:
+    expected: set[str] = set()
+    for case in manifest.cases:
+        if case.scenario_id is not None:
+            expected.add(case.case_id)
+        if case.field_value_adjudications:
+            expected.add(f"{case.case_id}.field_value")
+        if case.conversion_probes:
+            expected.add(case.case_id)
+    return expected
 
 
 def main() -> int:
@@ -48,7 +141,7 @@ def main() -> int:
         _MANIFEST_PATH.read_text(encoding="utf-8")
     )
 
-    errors: list[str] = []
+    errors = _manifest_integrity_errors(manifest)
     if report.output_hash == _PENDING_OUTPUT_HASH:
         errors.append("integration report output_hash is still pending")
     by_name = {metric.name: metric for metric in report.metrics}
@@ -60,6 +153,15 @@ def main() -> int:
         or report.metric_formulas != manifest.metric_formulas
     ):
         errors.append("report does not match the current frozen benchmark manifest")
+    observed_case_ids = {case.case_id for case in report.cases}
+    expected_case_ids = _expected_case_ids(manifest)
+    if observed_case_ids != expected_case_ids:
+        errors.append(
+            "report case set does not match the frozen benchmark corpus "
+            f"(missing={sorted(expected_case_ids - observed_case_ids)}, "
+            f"unexpected={sorted(observed_case_ids - expected_case_ids)})"
+        )
+    expected_denominators = _expected_frozen_denominators(manifest, report)
     for name in REQUIRED_METRIC_NAMES:
         metric = by_name.get(name)
         if metric is None:
@@ -69,8 +171,21 @@ def main() -> int:
             errors.append(f"metric {name} must be measured, got {metric.status.value}")
         elif not metric.denominator:
             errors.append(f"measured metric {name} has an empty denominator")
+        expected_denominator = expected_denominators.get(name)
+        if (
+            expected_denominator is not None
+            and metric.denominator != expected_denominator
+        ):
+            errors.append(
+                f"metric {name} denominator {metric.denominator} does not match "
+                f"frozen corpus denominator {expected_denominator}"
+            )
 
-    for name in ("source_retrieval_completeness", "evidence_coverage"):
+    for name in (
+        "source_retrieval_completeness",
+        "evidence_coverage",
+        "reproducibility_hash_stability",
+    ):
         metric = by_name.get(name)
         if (
             metric is not None

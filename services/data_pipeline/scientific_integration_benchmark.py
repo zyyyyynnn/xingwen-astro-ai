@@ -54,7 +54,7 @@ from app.schemas.scientific_document_benchmark import (
     BenchmarkMetricValue,
 )
 from app.schemas.source_acquisition import DataSourceDataLevel
-from app.workflow.steps.data_steps import (
+from services.data_pipeline.crossmatch.repair import (
     assess_repair_resolution,
     build_repair_manual_review_decision,
     derive_repair_defects,
@@ -858,6 +858,23 @@ def evaluate(
                 stability_den += 1
                 if reproduced_result.output_hash == evaluated_result.output_hash:
                     stable += 1
+                else:
+                    current = case_results[-1]
+                    detail = (
+                        "reproducibility hash mismatch: "
+                        f"{evaluated_result.output_hash} != "
+                        f"{reproduced_result.output_hash}"
+                    )
+                    case_results[-1] = current.model_copy(
+                        update={
+                            "status": "failed",
+                            "failure_detail": "; ".join(
+                                value
+                                for value in (current.failure_detail, detail)
+                                if value
+                            ),
+                        }
+                    )
 
             if case_results and case_results[-1].case_id == case.case_id:
                 case_results[-1] = case_results[-1].model_copy(

@@ -69,16 +69,35 @@ _NATIVE_ENGINE, _NATIVE_VERSION = native_engine_identity()
 
 
 def _config_hash(visual: VisualPageParserPort | None) -> ContentHash:
+    return _config_hash_from_provenance(
+        visual_engine=(visual.engine_identity if visual is not None else None),
+        visual_engine_version=(visual.engine_version if visual is not None else None),
+        visual_model_id=(visual.model_id if visual is not None else None),
+        visual_model_revision=(visual.model_revision if visual is not None else None),
+        visual_runtime_binding_hash=(
+            visual.runtime_binding_hash if visual is not None else None
+        ),
+    )
+
+
+def _config_hash_from_provenance(
+    *,
+    visual_engine: str | None,
+    visual_engine_version: str | None,
+    visual_model_id: str | None,
+    visual_model_revision: str | None,
+    visual_runtime_binding_hash: str | None,
+) -> ContentHash:
     payload = {
         "schema_version": SCIENTIFIC_DOCUMENT_SCHEMA_VERSION,
         "schema_hash": compute_scientific_document_schema_hash(),
         "native_engine": _NATIVE_ENGINE,
         "native_version": _NATIVE_VERSION,
-        "visual_engine": visual.engine_version if visual is not None else None,
-        "visual_model_id": visual.model_id if visual is not None else None,
-        "visual_model_revision": (
-            visual.model_revision if visual is not None else None
-        ),
+        "visual_engine": visual_engine,
+        "visual_engine_version": visual_engine_version,
+        "visual_model_id": visual_model_id,
+        "visual_model_revision": visual_model_revision,
+        "visual_runtime_binding_hash": visual_runtime_binding_hash,
     }
     return compute_canonical_payload_hash(payload)
 
@@ -550,13 +569,7 @@ def _build_report(
         native_engine=_NATIVE_ENGINE,
         native_engine_version=_NATIVE_VERSION,
         visual_engine=(
-            (
-                "PaddleOCR-VL layout-parsing service"
-                if isinstance(visual_parser, PaddleOcrVlClient)
-                else "PaddleOCRVL official in-process pipeline (verified local bundle)"
-            )
-            if visual_parser is not None
-            else None
+            visual_parser.engine_identity if visual_parser is not None else None
         ),
         visual_engine_version=(
             visual_parser.engine_version if visual_parser is not None else None
@@ -564,6 +577,9 @@ def _build_report(
         visual_model_id=visual_parser.model_id if visual_parser is not None else None,
         visual_model_revision=(
             visual_parser.model_revision if visual_parser is not None else None
+        ),
+        visual_runtime_binding_hash=(
+            visual_parser.runtime_binding_hash if visual_parser is not None else None
         ),
         config_hash=config_hash,
         metrics=metrics,
