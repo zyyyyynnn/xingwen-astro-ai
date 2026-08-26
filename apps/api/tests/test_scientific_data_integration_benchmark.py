@@ -50,6 +50,28 @@ def _run_checker(path: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
+def test_checker_runs_with_ci_pythonpath_only(tmp_path: Path) -> None:
+    report_path = tmp_path / "report.json"
+    report_path.write_text(_evaluate().model_dump_json(), encoding="utf-8")
+
+    checked = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "check_scientific_data_integration_report.py"),
+            str(report_path),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "PYTHONPATH": str(ROOT / "apps" / "api" / "src"),
+        },
+    )
+
+    assert checked.returncode == 0, checked.stderr
+
+
 def test_manifest_is_frozen_and_self_verifying() -> None:
     manifest = _load()
     assert manifest.data_level == "synthetic_fixture_plus_recorded_response"

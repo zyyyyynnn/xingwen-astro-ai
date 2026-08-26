@@ -15,14 +15,20 @@ from pathlib import Path
 from app.schemas.scientific_data_integration_benchmark import (
     REQUIRED_METRIC_NAMES,
     IntegrationCaseCategory,
+    ScientificDataIntegrationBenchmarkManifest,
     ScientificDataIntegrationReport,
 )
 from app.schemas.scientific_document_benchmark import BenchmarkMetricStatus
-from services.data_pipeline.scientific_integration_benchmark import (
-    load_integration_benchmark,
-)
 
 _PENDING_OUTPUT_HASH = "sha256:" + "0" * 64
+_MANIFEST_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "services"
+    / "data_pipeline"
+    / "benchmarks"
+    / "exoplanet_host_star"
+    / "scientific-data-integration-benchmark.json"
+)
 
 
 def main() -> int:
@@ -38,7 +44,9 @@ def main() -> int:
         return 1
     data = json.loads(path.read_text(encoding="utf-8"))
     report = ScientificDataIntegrationReport.model_validate(data)
-    manifest = load_integration_benchmark()
+    manifest = ScientificDataIntegrationBenchmarkManifest.model_validate_json(
+        _MANIFEST_PATH.read_text(encoding="utf-8")
+    )
 
     errors: list[str] = []
     if report.output_hash == _PENDING_OUTPUT_HASH:
