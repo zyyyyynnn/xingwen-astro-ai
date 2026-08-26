@@ -117,6 +117,11 @@ records separation plus both strict and manual-review thresholds. The
 metrics, Snapshot, RuleSet, and producer references even if a caller recomputes
 hashes. Each Evidence locator must identify the referenced candidate's source
 row and the exact normalized identity raw field required by its condition.
+System-level evidence coverage resolves both sides of every admitted
+`CrossmatchEvidence` through the complete locator tuple
+`source_snapshot_id + source_id + query_hash + row_key + raw_field` to the
+case's frozen `SourceSnapshotRecord` and its exact `RawDataSourceRecord`;
+partial identity or hash-only membership does not count as covered.
 Condition IDs are derived from their complete payload; coordinate separation,
 operator, thresholds, and rule reference are checked against the candidate
 coordinates and frozen RuleSet. Conflict codes are derived from the admitted
@@ -211,6 +216,36 @@ values but does not fabricate a TOI Gaia field merely to claim an exact Gaia
 cross-source case. Existing recorded TOI and PS fixtures also do not share a
 verified entity identity; they are acquisition evidence and are not presented
 as a real successful crossmatch.
+
+On top of this scenario family,
+`services/data_pipeline/benchmarks/exoplanet_host_star/scientific-data-integration-benchmark.json`
+freezes the system-level Scientific Data Integration Benchmark: hash-pinned
+references into the crossmatch corpus plus independently frozen adjudication
+(expected retrieved source rows, canonical field/value outputs, accepted entity
+pairs, positive and negative conflict decisions, exact unit-conversion outputs,
+repair dispositions, and failure injections pinned to exact error codes). Runner
+`services/data_pipeline/scientific_integration_benchmark.py` observes the
+production alignment / identity normalization / conversion and
+`scientific_repair` checkpoint/manual-review stages and emits a self-verifying
+`ScientificDataIntegrationReport` (schema group
+`scientific_data_integration`) whose eleven required metrics each carry an
+explicit numerator, denominator, empty-denominator behavior and version — never
+a single vague accuracy. The same frozen inputs always reproduce the same report
+`output_hash`. Retrieval completeness is computed from frozen source-row
+expectations by executing the production TOI/PS acquisition adapters over
+hash-pinned recorded transports and comparing the resulting frozen
+SourceSnapshot/row identities; constructing `CrossmatchInput` rows is not a
+retrieval observation. Field correctness is computed
+from frozen field/value adjudication through production mapping; conflict truth
+is scored independently from entity-pair expectations; and repair success plus
+false-repair rate require non-empty should-repair and must-not-repair denominators.
+Incomplete source results never become a whole-case proxy metric. The benchmark
+only observes production engines and never supplies a second repair algorithm.
+`scripts/check_scientific_data_integration_report.py` fails closed on missing
+metrics, unmeasured/empty denominators, incomplete repair controls, failing cases
+or mismatched injection codes. It also requires full retrieval and exact
+two-sided Evidence-locator closure, so locator tampering cannot retain a passing
+coverage score.
 
 ## 8. Validation
 

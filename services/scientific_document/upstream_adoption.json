@@ -97,7 +97,7 @@
       "license": "Apache-2.0",
       "official_interface_used": "PaddleOCRVL(pipeline_version='v1.6', layout_detection_model_name='PP-DocLayoutV3', layout_detection_model_dir=verified_layout_dir, vl_rec_model_name='PaddleOCR-VL-1.6-0.9B', vl_rec_model_dir=verified_vlm_dir, use_doc_orientation_classify=False, use_doc_unwarping=False, use_layout_detection=True, use_chart_recognition=False, use_seal_recognition=False, use_ocr_for_image_block=False); pipeline.predict(image)",
       "explicitly_unused_scope": "chart recognition, plot digitization, curve recovery, scatter-point recovery, human parse revision",
-      "cpu_behavior": "paddlepaddle==3.2.1 is approved only for device=cpu after an isolated local-bundle Live predict probe",
+      "cpu_behavior": "paddlepaddle==3.2.1 is approved only for device=cpu after an isolated local-bundle Live predict probe; current full frozen-Golden-Set paired execution evidence is the canonical tracked machine report services/scientific_document/evidence/real-paddle-cpu-paired.json",
       "gpu_behavior": "paddlepaddle-gpu==3.2.1 remains deferred with probe_evidence=not_run and is not approved by CPU evidence",
       "network_behavior": "runtime network access is disabled; provisioning uses only the pinned Hugging Face snapshot and PaddleX 3.6.0 official BOS source",
       "model_download_behavior": "implicit runtime download is forbidden; both verified local model directories are required before PaddleOCRVL construction",

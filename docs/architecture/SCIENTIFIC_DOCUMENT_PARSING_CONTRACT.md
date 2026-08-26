@@ -81,6 +81,11 @@ textual payload。
 左上角原点、x 向右、y 向下的绝对 PDF points；不使用 0..1 归一化。未知几何
 使用 `None`，不能用零矩形代替。
 
+HTML table 只提供 enclosing table/block geometry 时，各 `DocumentTableCell.bbox`
+必须为 `None`，不能把 enclosing bbox 复制成伪 cell geometry。由该 cell 派生的
+`DocumentLocator` 仍绑定真实 `table_id`/`cell_id`，其 `bbox` 明确回退到 enclosing
+table block bbox；这样既保留可核验的 region locator，也不虚构 cell-level 坐标。
+
 `cell_id` 必须同时有 `table_id`；`text_span` 必须同时有 `block_id`。持久化
 层必须在 immutable parse 上重新验证 locator，确认 page、block、table、cell
 与 bbox 闭合。
@@ -150,6 +155,28 @@ identity。CPU 与 GPU profile 的证据必须独立，未验证能力必须明�
 运行已提交 fixture，验证 Golden/config/schema/upstream identity、quality counts、
 geometry locator 与 deterministic input/output hash。未测能力必须保持显式状态，
 不能表示成零覆盖率。
+
+Runner 提供三种显式模式，消费同一冻结 Golden Set：`native-only`（无视觉后端）、
+`hybrid`（必须配置真实 PaddleOCR-VL layout-parsing 服务，或已由 committed asset
+manifest 完整校验的 local bundle；远程 URL+revision 与 local bundle 严格互斥，
+缺配置时拒绝启动，绝不把降级运行标成 hybrid）与 `paired`（同一 manifest 的两种模式合并为一份可
+对比报告，逐 mode 携带 accepted/partial/unsupported、anchor recovery、
+routing coverage 与延迟/内存均值指标）。测量诚实性由契约强制：latency 取自
+单调时钟实测；`peak_memory_bytes` 必须携带真实观测口径
+（`python_heap_tracemalloc`），不得冒充进程 RSS 或 GPU 内存；GPU 未执行必须
+记为 `not_run`/`deferred`；hybrid/paired 报告必须携带完整 visual provenance，
+且 `scripts/check_scientific_document_benchmark_report.py` 对缺少实测 hybrid
+case、latency、provenance，或没有任何成功 visual routing 的自述直接失败。报告 identity hash 排除 wall-clock
+与计时噪声字段，同输入重复运行保持稳定。真实 Paddle invocation 属受控集成证据，
+公共 CI 只验证 schema、deterministic parser tests 与已产出报告的
+provenance/hash 契约。
+
+受控 real Paddle CPU 执行的 hybrid/paired machine reports 固化在
+`services/scientific_document/evidence/`。报告输入的 publication assets 是
+`source_mode=fixture`，模型推理、routing、latency 与 output 则来自真实 production
+hybrid adapter；因此这些 Artifact/evidence 不得标记为 `live`。CI 对两份报告执行
+同一个 fail-closed checker，使任意 exact checkout 都能复核 model/revision、
+config/input/output hash、case-level latency 与成功 visual routing。
 
 API 只暴露一个 `HybridScientificDocumentParser` 与一个 DocumentParse persistence
 边界。CAS reload、persisted SourceSnapshot、parser identity、locator 与 quoted

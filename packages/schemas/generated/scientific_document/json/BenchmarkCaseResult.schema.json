@@ -1,9 +1,29 @@
 {
   "$defs": {
+    "BenchmarkDeviceStatus": {
+      "description": "Explicit device execution fact; absence of a GPU run is never inferred.",
+      "enum": [
+        "run",
+        "not_run",
+        "deferred"
+      ],
+      "title": "BenchmarkDeviceStatus",
+      "type": "string"
+    },
+    "BenchmarkMemoryBasis": {
+      "description": "What ``peak_memory_bytes`` actually observed — never mislabel the boundary.",
+      "enum": [
+        "process_rss",
+        "python_heap_tracemalloc"
+      ],
+      "title": "BenchmarkMemoryBasis",
+      "type": "string"
+    },
     "BenchmarkParserMode": {
       "enum": [
         "native_only",
-        "hybrid"
+        "hybrid",
+        "paired"
       ],
       "title": "BenchmarkParserMode",
       "type": "string"
@@ -100,6 +120,17 @@
       "title": "Gpu Result",
       "type": "boolean"
     },
+    "gpu_status": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BenchmarkDeviceStatus"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "input_hash": {
       "pattern": "^sha256:[0-9a-f]{64}$",
       "title": "Input Hash",
@@ -147,6 +178,17 @@
       "title": "Partial Count",
       "type": "integer"
     },
+    "peak_memory_basis": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BenchmarkMemoryBasis"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "peak_memory_bytes": {
       "anyOf": [
         {
@@ -170,6 +212,18 @@
       ],
       "default": null,
       "title": "Reading Order Error"
+    },
+    "scientific_value_recovery": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scientific Value Recovery"
     },
     "table_structure_recovery": {
       "anyOf": [

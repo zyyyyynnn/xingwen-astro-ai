@@ -1,0 +1,63 @@
+{
+  "additionalProperties": false,
+  "description": "One frozen mapping/unit assertion against the production conversion stage.\n\nPositive probes assert the exact serialized canonical value; rejection\nprobes assert that a contradictory request fails closed.",
+  "properties": {
+    "expected_value": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Expected Value"
+    },
+    "expects_rejection": {
+      "default": false,
+      "title": "Expects Rejection",
+      "type": "boolean"
+    },
+    "input_value": {
+      "minLength": 1,
+      "title": "Input Value",
+      "type": "string"
+    },
+    "quantity_kind": {
+      "minLength": 1,
+      "title": "Quantity Kind",
+      "type": "string"
+    },
+    "source_unit": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Unit"
+    },
+    "target_unit": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Target Unit"
+    }
+  },
+  "required": [
+    "quantity_kind",
+    "input_value"
+  ],
+  "title": "ConversionProbe",
+  "type": "object"
+}

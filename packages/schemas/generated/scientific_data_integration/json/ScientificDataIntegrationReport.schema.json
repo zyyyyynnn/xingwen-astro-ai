@@ -1,0 +1,291 @@
+{
+  "$defs": {
+    "BenchmarkMetricStatus": {
+      "description": "How a metric value should be interpreted (Scientific Document Parsing Contract E5/E6).",
+      "enum": [
+        "measured",
+        "not_applicable",
+        "unsupported",
+        "not_run"
+      ],
+      "title": "BenchmarkMetricStatus",
+      "type": "string"
+    },
+    "BenchmarkMetricValue": {
+      "additionalProperties": false,
+      "description": "One metric with explicit denominator and empty-sample behavior.\n\n``status`` disambiguates a true zero (``measured`` with rate 0.0) from\n\"we never measured this capability\" (``not_applicable`` / ``unsupported`` /\n``not_run``). A ``measured`` metric MUST carry a non-``None`` denominator.\n\n``rate`` is a derived (computed) field: it is always ``numerator /\ndenominator`` when a positive denominator is present, regardless of how the\nobject was constructed or loaded. This keeps the serialized payload and the\nbenchmark ``output_hash`` deterministic across construction and reload (Scientific Document Parsing Contract\nE7/E8).",
+      "properties": {
+        "denominator": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Denominator"
+        },
+        "empty_behavior": {
+          "default": "report_zero_rate",
+          "title": "Empty Behavior",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "numerator": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Numerator",
+          "type": "number"
+        },
+        "rate": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rate"
+        },
+        "status": {
+          "$ref": "#/$defs/BenchmarkMetricStatus",
+          "default": "measured"
+        },
+        "version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "BenchmarkMetricValue",
+      "type": "object"
+    },
+    "IntegrationCaseCategory": {
+      "description": "Why a case exists in the frozen corpus.",
+      "enum": [
+        "integration",
+        "failure_injection",
+        "repair_probe"
+      ],
+      "title": "IntegrationCaseCategory",
+      "type": "string"
+    },
+    "IntegrationCaseResult": {
+      "additionalProperties": false,
+      "description": "Observed outcome of one frozen case; never mutates production state.",
+      "properties": {
+        "case_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Case Id",
+          "type": "string"
+        },
+        "category": {
+          "$ref": "#/$defs/IntegrationCaseCategory"
+        },
+        "expected_error_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Error Code"
+        },
+        "failure_detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failure Detail"
+        },
+        "input_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Input Hash"
+        },
+        "observed": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Observed",
+          "type": "object"
+        },
+        "observed_error_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observed Error Code"
+        },
+        "output_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Hash"
+        },
+        "reproduced_output_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reproduced Output Hash"
+        },
+        "status": {
+          "pattern": "^(passed|failed)$",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "case_id",
+        "category",
+        "status"
+      ],
+      "title": "IntegrationCaseResult",
+      "type": "object"
+    },
+    "JsonValue": {}
+  },
+  "additionalProperties": false,
+  "description": "Aggregate machine-readable integration benchmark report (hashed).",
+  "properties": {
+    "benchmark_manifest_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Benchmark Manifest Content Hash",
+      "type": "string"
+    },
+    "benchmark_manifest_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Benchmark Manifest Id",
+      "type": "string"
+    },
+    "benchmark_manifest_version": {
+      "title": "Benchmark Manifest Version",
+      "type": "string"
+    },
+    "cases": {
+      "items": {
+        "$ref": "#/$defs/IntegrationCaseResult"
+      },
+      "minItems": 1,
+      "title": "Cases",
+      "type": "array"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "evaluation_version": {
+      "title": "Evaluation Version",
+      "type": "string"
+    },
+    "inconclusive_policy": {
+      "minLength": 1,
+      "title": "Inconclusive Policy",
+      "type": "string"
+    },
+    "input_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Input Hash",
+      "type": "string"
+    },
+    "metric_formulas": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Metric Formulas",
+      "type": "object"
+    },
+    "metrics": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkMetricValue"
+      },
+      "minItems": 1,
+      "title": "Metrics",
+      "type": "array"
+    },
+    "output_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Output Hash",
+      "type": "string"
+    },
+    "report_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Report Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "report_id",
+    "schema_version",
+    "benchmark_manifest_id",
+    "benchmark_manifest_version",
+    "benchmark_manifest_content_hash",
+    "evaluation_version",
+    "metric_formulas",
+    "inconclusive_policy",
+    "metrics",
+    "cases",
+    "input_hash",
+    "output_hash",
+    "created_at"
+  ],
+  "title": "ScientificDataIntegrationReport",
+  "type": "object"
+}

@@ -1,0 +1,771 @@
+{
+  "benchmark_id": "exoplanet_host_star.scientific_data_integration_benchmark",
+  "version": "2.1.0",
+  "content_hash": "sha256:945058c3b70c43c932e59303b6e31c2239a8d5240f3176e89abe7fae883c18ae",
+  "data_level": "synthetic_fixture_plus_recorded_response",
+  "provenance_note": "Frozen integration corpus over independently adjudicated synthetic crossmatch records and hash-pinned Recorded TOI/PS acquisition fixtures. Expected retrievals are scored only after the existing production adapters replay their fixture transports; field values, entity pairs, conflicts, unit outcomes, and repair dispositions remain independent frozen adjudications. Production output is observed but never copied into truth.",
+  "adjudication_source": "The pinned TOI and PS recorded acquisition fixtures, crossmatch benchmark corpus, field manifest, mapping rules, and unit catalog, independently reviewed as frozen fixture contracts",
+  "adjudicated_at": "2026-08-25T00:00:00Z",
+  "inconclusive_policy": "Only explicitly enumerated retrievable source rows and adjudicated observations enter a metric denominator. Truncated or incomplete source status never substitutes whole-case pass/fail for an observation and is excluded unless the frozen corpus declares an expectation.",
+  "evaluation_version": "2.1.0",
+  "metric_formulas": {
+    "source_retrieval_completeness": "formally_acquired_expected_source_rows_with_pinned_snapshot_identity / frozen_recorded_source_row_expectations",
+    "field_value_correctness": "exact_canonical_field_values / frozen_field_value_adjudications",
+    "entity_alignment_precision": "true_positive_pairs / observed_accepted_pairs",
+    "entity_alignment_recall": "true_positive_pairs / frozen_expected_pairs",
+    "unit_normalization_success": "exact_canonical_values / frozen_unit_normalization_adjudications",
+    "conflict_detection": "correct_conflict_decisions / frozen_conflict_adjudications",
+    "repair_success": "resolved_required_repairs / frozen_should_repair_adjudications",
+    "false_repair_rate": "incorrectly_resolved_no_repair_cases / frozen_must_not_repair_adjudications",
+    "evidence_coverage": "crossmatch_evidence_with_exact_snapshot_source_query_row_field_closure / audited_crossmatch_evidence",
+    "reproducibility_hash_stability": "stable_rerun_hashes / successful_scenario_reruns",
+    "failure_recovery": "exact_expected_failures / frozen_failure_injections"
+  },
+  "crossmatch_benchmark_id": "exoplanet_host_star.crossmatch_benchmark",
+  "crossmatch_benchmark_version": "2.0.0",
+  "crossmatch_benchmark_content_hash": "sha256:5824e2c093e670cd6b00c18aac7e74e53bd4aa63daf02eadeafe1e7d2828e75c",
+  "rule_set_id": "exoplanet_host_star.crossmatch_rules",
+  "rule_set_version": "2.0.0",
+  "rule_set_content_hash": "sha256:66e365e1f600aa2a9b4fdec9915d1e9f669057404bd0cbd2ff57227eeeb89247",
+  "cases": [
+    {
+      "case_id": "int.exact_one_to_one",
+      "category": "integration",
+      "scenario_id": "exact_one_to_one",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "101.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Topology One b"
+            ],
+            [
+              "pl_refname",
+              "Reference 1"
+            ]
+          ]
+        }
+      ],
+      "source_retrieval_expectations": [
+        {
+          "side": "left",
+          "source_id": "nasa_exoplanet_archive.toi",
+          "source_snapshot_id": "snapshot.nasa-toi.e9ce26a8760a7bf42d47377a",
+          "source_snapshot_content_hash": "sha256:5088ff9bc27109de7742bcef89c5d6c3033146510beafbcceedc7af33bd034ba",
+          "query_hash": "sha256:bb6deb337eacb15ddd68b942abdda52442de78a8b67e4021037960c27c6a2859",
+          "fixture_id": "fixture.nasa-toi.first-page.2026-07-22",
+          "fixture_content_hash": "sha256:2303943c13a7ee985b412ff2e73cf900268fbc904983e783aff3bf5d7f928949",
+          "row_key": [["toi", "1000.01"]]
+        },
+        {
+          "side": "right",
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_snapshot_id": "snapshot.nasa-ps.42e7e7a0142553765af546f2",
+          "source_snapshot_content_hash": "sha256:e41328b8d61850461d353398532262596df2bfebbebeede7080e2ccb00809094",
+          "query_hash": "sha256:8beeda393f1d407e18401b54377f1dda810bdc17f0abae89ff233b43a335fde2",
+          "fixture_id": "fixture.nasa-ps.by-tic-first-page.2026-07-30",
+          "fixture_content_hash": "sha256:abd53480378d9b1a51610247350e090ed0cfe922a8fb660cf420b5e4663004c3",
+          "row_key": [
+            ["pl_name", "TOI-1243 b"],
+            ["pl_refname", "<a refstr=EXOFOP href=https://exofop.ipac.caltech.edu/tess/view_toi.php target=ref>ExoFOP</a>"]
+          ]
+        }
+      ],
+      "field_value_adjudications": [
+        {
+          "field_id": "planet.radius",
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "pl_radj",
+          "raw_value": "1",
+          "expected_canonical_value": "11.20898073093868079835687744"
+        },
+        {
+          "field_id": "star.effective_temperature",
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "st_teff",
+          "raw_value": "5200",
+          "expected_canonical_value": "5200"
+        }
+      ],
+      "conflict_adjudications": [
+        {
+          "conflict_code": "crossmatch.identifier_conflict",
+          "expected_detected": false,
+          "left_row_keys": [
+            [["toi", "101.01"]]
+          ],
+          "right_row_keys": [
+            [
+              ["pl_name", "Topology One b"],
+              ["pl_refname", "Reference 1"]
+            ]
+          ]
+        }
+      ],
+      "identity_expectations": [
+        {
+          "side": "left",
+          "row_key": [
+            [
+              "toi",
+              "101.01"
+            ]
+          ],
+          "field_id": "star.tic_id",
+          "expected_normalized_value": "TIC 101"
+        },
+        {
+          "side": "left",
+          "row_key": [
+            [
+              "toi",
+              "101.01"
+            ]
+          ],
+          "field_id": "planet.toi_id",
+          "expected_normalized_value": "101.01"
+        },
+        {
+          "side": "right",
+          "row_key": [
+            [
+              "pl_name",
+              "Topology One b"
+            ],
+            [
+              "pl_refname",
+              "Reference 1"
+            ]
+          ],
+          "field_id": "planet.name",
+          "expected_normalized_value": "topology one b"
+        }
+      ],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "int.exact_one_to_many",
+      "category": "integration",
+      "scenario_id": "exact_one_to_many",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "102.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Topology Two b"
+            ],
+            [
+              "pl_refname",
+              "Reference 1"
+            ]
+          ]
+        },
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "102.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Topology Two b"
+            ],
+            [
+              "pl_refname",
+              "Reference 2"
+            ]
+          ]
+        }
+      ],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "int.exact_many_to_one",
+      "category": "integration",
+      "scenario_id": "exact_many_to_one",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "103.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Topology Three b"
+            ],
+            [
+              "pl_refname",
+              "Reference 1"
+            ]
+          ]
+        },
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "103.02"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Topology Three b"
+            ],
+            [
+              "pl_refname",
+              "Reference 1"
+            ]
+          ]
+        }
+      ],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "int.exact_many_to_many",
+      "category": "integration",
+      "scenario_id": "exact_many_to_many",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "104.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Topology Four b"
+            ],
+            [
+              "pl_refname",
+              "Reference 1"
+            ]
+          ]
+        },
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "104.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Topology Four c"
+            ],
+            [
+              "pl_refname",
+              "Reference 2"
+            ]
+          ]
+        },
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "104.02"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Topology Four b"
+            ],
+            [
+              "pl_refname",
+              "Reference 1"
+            ]
+          ]
+        },
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "104.02"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Topology Four c"
+            ],
+            [
+              "pl_refname",
+              "Reference 2"
+            ]
+          ]
+        }
+      ],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "int.same_tic_host_only",
+      "category": "integration",
+      "scenario_id": "same_tic_host_only",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "105.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Different Candidate b"
+            ],
+            [
+              "pl_refname",
+              "Reference"
+            ]
+          ]
+        }
+      ],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "int.multiple_planet_assertions",
+      "category": "integration",
+      "scenario_id": "multiple_planet_assertions",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "106.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Assertion Planet b"
+            ],
+            [
+              "pl_refname",
+              "Reference A"
+            ]
+          ]
+        },
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "106.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Assertion Planet b"
+            ],
+            [
+              "pl_refname",
+              "Reference B"
+            ]
+          ]
+        }
+      ],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "int.gaia_not_inferred",
+      "category": "integration",
+      "scenario_id": "gaia_not_inferred",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "107.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Gaia Retained b"
+            ],
+            [
+              "pl_refname",
+              "Reference"
+            ]
+          ]
+        }
+      ],
+      "identity_expectations": [
+        {
+          "side": "right",
+          "row_key": [
+            [
+              "pl_name",
+              "Gaia Retained b"
+            ],
+            [
+              "pl_refname",
+              "Reference"
+            ]
+          ],
+          "field_id": "star.gaia_dr3_id",
+          "expected_normalized_value": "Gaia DR3 700107"
+        }
+      ],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "int.curated_alias_review_required",
+      "category": "integration",
+      "scenario_id": "curated_alias",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "int.compound_alias",
+      "category": "integration",
+      "scenario_id": "compound_alias",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "800.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Planet Eight b"
+            ],
+            [
+              "pl_refname",
+              "Reference"
+            ]
+          ]
+        }
+      ],
+      "identity_expectations": [
+        {
+          "side": "right",
+          "row_key": [
+            [
+              "pl_name",
+              "Planet Eight b"
+            ],
+            [
+              "pl_refname",
+              "Reference"
+            ]
+          ],
+          "field_id": "planet.name",
+          "expected_normalized_value": "planet eight b"
+        }
+      ],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "conflict.alias_conflict",
+      "category": "integration",
+      "scenario_id": "alias_conflict",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "900.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Planet Nine b"
+            ],
+            [
+              "pl_refname",
+              "Reference B"
+            ]
+          ]
+        },
+        {
+          "left_row_key": [
+            [
+              "toi",
+              "900.01"
+            ]
+          ],
+          "right_row_key": [
+            [
+              "pl_name",
+              "Planet Nine c"
+            ],
+            [
+              "pl_refname",
+              "Reference C"
+            ]
+          ]
+        }
+      ],
+      "conflict_adjudications": [
+        {
+          "conflict_code": "crossmatch.alias_conflict",
+          "expected_detected": true,
+          "left_row_keys": [
+            [["toi", "900.01"]]
+          ],
+          "right_row_keys": [
+            [
+              ["pl_name", "Planet Nine b"],
+              ["pl_refname", "Reference B"]
+            ],
+            [
+              ["pl_name", "Planet Nine c"],
+              ["pl_refname", "Reference C"]
+            ]
+          ]
+        }
+      ],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "conflict.identifier_conflict",
+      "category": "integration",
+      "scenario_id": "identifier_conflict",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [],
+      "conflict_adjudications": [
+        {
+          "conflict_code": "crossmatch.identifier_conflict",
+          "expected_detected": true,
+          "left_row_keys": [
+            [["toi", "1000.01"]]
+          ],
+          "right_row_keys": [
+            [
+              ["pl_name", "Identifier Conflict b"],
+              ["pl_refname", "Reference"]
+            ]
+          ]
+        }
+      ],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "completion.complete_unmatched",
+      "category": "integration",
+      "scenario_id": "complete_unmatched",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "completion.truncated_inconclusive",
+      "category": "integration",
+      "scenario_id": "truncated_inconclusive",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "repair.accepted_decision_resolves_match",
+      "category": "repair_probe",
+      "scenario_id": "coordinate_only",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [],
+      "repair_adjudications": [
+        {
+          "conflict_code": "low_confidence_match",
+          "action": "accepted",
+          "expected_resolution": "resolved",
+          "rationale": "Frozen adjudication confirms the coordinate-only pair as the same system.",
+          "adjudicated_at": "2026-08-25T00:00:00Z"
+        }
+      ],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "repair.keep_unresolved_does_not_mutate_match",
+      "category": "repair_probe",
+      "scenario_id": "coordinate_only",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [],
+      "repair_adjudications": [
+        {
+          "conflict_code": "low_confidence_match",
+          "action": "keep_unresolved",
+          "expected_resolution": "unresolved",
+          "rationale": "Frozen negative control withholds repair because the coordinate-only evidence is insufficient.",
+          "adjudicated_at": "2026-08-25T00:00:00Z"
+        }
+      ],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "fault.invalid_coordinate",
+      "category": "failure_injection",
+      "scenario_id": "invalid_coordinate",
+      "injection_class": "source_failure",
+      "expected_error_code": "CROSSMATCH_INVALID_COORDINATE",
+      "expected_accepted_pairs": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "fault.duplicate_record_reference",
+      "category": "failure_injection",
+      "scenario_id": "duplicate_record_reference",
+      "injection_class": "source_failure",
+      "expected_error_code": "CROSSMATCH_DUPLICATE_RECORD_REFERENCE",
+      "expected_accepted_pairs": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "fault.record_source_mismatch",
+      "category": "failure_injection",
+      "scenario_id": "record_source_mismatch",
+      "injection_class": "source_failure",
+      "expected_error_code": "CROSSMATCH_RECORD_SOURCE_MISMATCH",
+      "expected_accepted_pairs": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "fault.stale_rule_binding",
+      "category": "failure_injection",
+      "scenario_id": "manual_decision_stale_binding",
+      "injection_class": "stale_binding",
+      "expected_error_code": "CROSSMATCH_MANUAL_DECISION_RULE_SET_MISMATCH",
+      "expected_accepted_pairs": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "fault.capacity_exceeded",
+      "category": "failure_injection",
+      "scenario_id": "eligible_capacity_exceeded",
+      "injection_class": "capacity_exhaustion",
+      "expected_error_code": "CROSSMATCH_CAPACITY_EXCEEDED",
+      "expected_accepted_pairs": [],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "unit.canonical_conversions",
+      "category": "integration",
+      "scenario_id": null,
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [],
+      "identity_expectations": [],
+      "conversion_probes": [
+        {
+          "quantity_kind": "length",
+          "source_unit": "jupiter_radius",
+          "target_unit": "earth_radius",
+          "input_value": "1",
+          "expected_value": "11.20898073093868079835687744",
+          "expects_rejection": false
+        },
+        {
+          "quantity_kind": "mass",
+          "source_unit": "jupiter_mass",
+          "target_unit": "earth_mass",
+          "input_value": "2.5",
+          "expected_value": "794.5710164866869175244179382",
+          "expects_rejection": false
+        },
+        {
+          "quantity_kind": "none",
+          "source_unit": null,
+          "target_unit": null,
+          "input_value": "5174.0849",
+          "expected_value": "5174.0849",
+          "expects_rejection": false
+        },
+        {
+          "quantity_kind": "none",
+          "source_unit": null,
+          "target_unit": null,
+          "input_value": "0",
+          "expected_value": "0",
+          "expects_rejection": false
+        }
+      ]
+    },
+    {
+      "case_id": "fault.unit_conflict_rejected",
+      "category": "failure_injection",
+      "scenario_id": null,
+      "injection_class": "unit_conflict",
+      "expected_error_code": "UNKNOWN_CONVERSION_RULE",
+      "expected_accepted_pairs": [],
+      "identity_expectations": [],
+      "conversion_probes": [
+        {
+          "quantity_kind": "length",
+          "source_unit": "jupiter_radius",
+          "target_unit": "earth_mass",
+          "input_value": "1",
+          "expected_value": null,
+          "expects_rejection": true
+        }
+      ]
+    }
+  ]
+}

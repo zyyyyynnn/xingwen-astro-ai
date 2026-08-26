@@ -92,6 +92,17 @@
           "title": "Gpu Result",
           "type": "boolean"
         },
+        "gpu_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BenchmarkDeviceStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "input_hash": {
           "pattern": "^sha256:[0-9a-f]{64}$",
           "title": "Input Hash",
@@ -139,6 +150,17 @@
           "title": "Partial Count",
           "type": "integer"
         },
+        "peak_memory_basis": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BenchmarkMemoryBasis"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "peak_memory_bytes": {
           "anyOf": [
             {
@@ -162,6 +184,18 @@
           ],
           "default": null,
           "title": "Reading Order Error"
+        },
+        "scientific_value_recovery": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scientific Value Recovery"
         },
         "table_structure_recovery": {
           "anyOf": [
@@ -204,6 +238,25 @@
       ],
       "title": "BenchmarkCaseResult",
       "type": "object"
+    },
+    "BenchmarkDeviceStatus": {
+      "description": "Explicit device execution fact; absence of a GPU run is never inferred.",
+      "enum": [
+        "run",
+        "not_run",
+        "deferred"
+      ],
+      "title": "BenchmarkDeviceStatus",
+      "type": "string"
+    },
+    "BenchmarkMemoryBasis": {
+      "description": "What ``peak_memory_bytes`` actually observed — never mislabel the boundary.",
+      "enum": [
+        "process_rss",
+        "python_heap_tracemalloc"
+      ],
+      "title": "BenchmarkMemoryBasis",
+      "type": "string"
     },
     "BenchmarkMetricStatus": {
       "description": "How a metric value should be interpreted (Scientific Document Parsing Contract E5/E6).",
@@ -281,7 +334,8 @@
     "BenchmarkParserMode": {
       "enum": [
         "native_only",
-        "hybrid"
+        "hybrid",
+        "paired"
       ],
       "title": "BenchmarkParserMode",
       "type": "string"
@@ -415,6 +469,19 @@
       ],
       "default": null,
       "title": "Visual Model Revision"
+    },
+    "visual_runtime_binding_hash": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Visual Runtime Binding Hash"
     }
   },
   "required": [

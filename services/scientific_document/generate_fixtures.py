@@ -233,6 +233,78 @@ def build_low_quality(path: Path) -> None:
     _save(pdf, path)
 
 
+def build_scientific_table_image(path: Path) -> None:
+    """Build a document-like raster table for the governed visual path."""
+    if Image is None:  # pragma: no cover - fixture tooling dependency
+        raise RuntimeError("pillow is required to build the visual table fixture")
+    image = Image.new("RGB", (1800, 1200), "white")
+    draw = ImageDraw.Draw(image)
+
+    def font(name: str, size: int):
+        dejavu_name = {
+            "arial.ttf": "DejaVuSans.ttf",
+            "arialbd.ttf": "DejaVuSans-Bold.ttf",
+        }[name]
+        candidates = (name, dejavu_name)
+        for candidate in candidates:
+            try:
+                return ImageFont.truetype(candidate, size)
+            except OSError:
+                continue
+        return ImageFont.load_default()
+
+    body = font("arial.ttf", 46)
+    bold = font("arialbd.ttf", 50)
+    title = font("arialbd.ttf", 64)
+    draw.text((100, 70), "Scientific Host-Star Measurements", fill="black", font=title)
+    draw.text(
+        (100, 165),
+        "Table 1. Adjudicated stellar parameters",
+        fill="black",
+        font=body,
+    )
+    x_positions = (100, 600, 1150, 1700)
+    y_positions = (270, 430, 590, 750)
+    for x_position in x_positions:
+        draw.line(
+            (x_position, y_positions[0], x_position, y_positions[-1]),
+            fill="black",
+            width=6,
+        )
+    for y_position in y_positions:
+        draw.line(
+            (x_positions[0], y_position, x_positions[-1], y_position),
+            fill="black",
+            width=6,
+        )
+    for column, text in enumerate(("star.tic_id", "Teff [K]", "star.radius [R_sun]")):
+        draw.text(
+            (x_positions[column] + 24, y_positions[0] + 45),
+            text,
+            fill="black",
+            font=bold,
+        )
+    for row_index, row in enumerate(
+        (("TIC 101", "5200", "0.80"), ("TIC 102", "6100", "1.10")),
+        start=1,
+    ):
+        for column, text in enumerate(row):
+            draw.text(
+                (x_positions[column] + 24, y_positions[row_index] + 45),
+                text,
+                fill="black",
+                font=body,
+            )
+    draw.text(
+        (100, 870),
+        "Values are reported for the observed exoplanet host stars.",
+        fill="black",
+        font=body,
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    image.save(path, format="PNG", optimize=False)
+
+
 def _save(pdf: FPDF, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     pdf.output(str(path))
@@ -259,13 +331,20 @@ def build_all(out_dir: Path) -> list[Path]:
         path = out_dir / f"golden_{key}.pdf"
         builder(path)
         paths.append(path)
+    visual_table = out_dir / "scientific_host_star_table.png"
+    build_scientific_table_image(visual_table)
+    paths.append(visual_table)
     return paths
 
 
 if __name__ == "__main__":
     import sys
 
-    target = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("services/scientific_document/fixtures")
+    target = (
+        Path(sys.argv[1])
+        if len(sys.argv) > 1
+        else Path("services/scientific_document/fixtures")
+    )
     built = build_all(target)
     for p in built:
         print(p)

@@ -1,0 +1,637 @@
+{
+  "$defs": {
+    "ConflictAdjudication": {
+      "additionalProperties": false,
+      "description": "Frozen conflict truth, including the exact participating source rows.",
+      "properties": {
+        "conflict_code": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Conflict Code",
+          "type": "string"
+        },
+        "expected_detected": {
+          "title": "Expected Detected",
+          "type": "boolean"
+        },
+        "left_row_keys": {
+          "items": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Left Row Keys",
+          "type": "array"
+        },
+        "right_row_keys": {
+          "items": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Right Row Keys",
+          "type": "array"
+        }
+      },
+      "required": [
+        "conflict_code",
+        "expected_detected",
+        "left_row_keys",
+        "right_row_keys"
+      ],
+      "title": "ConflictAdjudication",
+      "type": "object"
+    },
+    "ConversionProbe": {
+      "additionalProperties": false,
+      "description": "One frozen mapping/unit assertion against the production conversion stage.\n\nPositive probes assert the exact serialized canonical value; rejection\nprobes assert that a contradictory request fails closed.",
+      "properties": {
+        "expected_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Value"
+        },
+        "expects_rejection": {
+          "default": false,
+          "title": "Expects Rejection",
+          "type": "boolean"
+        },
+        "input_value": {
+          "minLength": 1,
+          "title": "Input Value",
+          "type": "string"
+        },
+        "quantity_kind": {
+          "minLength": 1,
+          "title": "Quantity Kind",
+          "type": "string"
+        },
+        "source_unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Unit"
+        },
+        "target_unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Unit"
+        }
+      },
+      "required": [
+        "quantity_kind",
+        "input_value"
+      ],
+      "title": "ConversionProbe",
+      "type": "object"
+    },
+    "ExpectedEntityPair": {
+      "additionalProperties": false,
+      "description": "One adjudicated ground-truth alignment between a left and a right row.",
+      "properties": {
+        "left_row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Left Row Key",
+          "type": "array"
+        },
+        "right_row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Right Row Key",
+          "type": "array"
+        }
+      },
+      "required": [
+        "left_row_key",
+        "right_row_key"
+      ],
+      "title": "ExpectedEntityPair",
+      "type": "object"
+    },
+    "FieldValueAdjudication": {
+      "additionalProperties": false,
+      "description": "Frozen canonical field/value truth evaluated through production mapping.",
+      "properties": {
+        "expected_canonical_value": {
+          "minLength": 1,
+          "title": "Expected Canonical Value",
+          "type": "string"
+        },
+        "field_id": {
+          "minLength": 1,
+          "title": "Field Id",
+          "type": "string"
+        },
+        "raw_field": {
+          "minLength": 1,
+          "title": "Raw Field",
+          "type": "string"
+        },
+        "raw_value": {
+          "minLength": 1,
+          "title": "Raw Value",
+          "type": "string"
+        },
+        "source_id": {
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_table": {
+          "minLength": 1,
+          "title": "Source Table",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field_id",
+        "source_id",
+        "source_table",
+        "raw_field",
+        "raw_value",
+        "expected_canonical_value"
+      ],
+      "title": "FieldValueAdjudication",
+      "type": "object"
+    },
+    "IdentityValueExpectation": {
+      "additionalProperties": false,
+      "description": "Expected canonical identity value for one aligned source row.",
+      "properties": {
+        "expected_normalized_value": {
+          "minLength": 1,
+          "title": "Expected Normalized Value",
+          "type": "string"
+        },
+        "field_id": {
+          "minLength": 1,
+          "title": "Field Id",
+          "type": "string"
+        },
+        "row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Row Key",
+          "type": "array"
+        },
+        "side": {
+          "pattern": "^(left|right)$",
+          "title": "Side",
+          "type": "string"
+        }
+      },
+      "required": [
+        "side",
+        "row_key",
+        "field_id",
+        "expected_normalized_value"
+      ],
+      "title": "IdentityValueExpectation",
+      "type": "object"
+    },
+    "IntegrationCase": {
+      "additionalProperties": false,
+      "description": "One frozen benchmark case composing referenced scenario + expectations.\n\n``scenario_id`` references a scenario of the pinned crossmatch benchmark\nmanifest; conversion-only cases omit it. Failure-injection cases name the\nrequired injection class they cover and their exact expected error code.",
+      "properties": {
+        "case_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Case Id",
+          "type": "string"
+        },
+        "category": {
+          "$ref": "#/$defs/IntegrationCaseCategory"
+        },
+        "conflict_adjudications": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ConflictAdjudication"
+          },
+          "title": "Conflict Adjudications",
+          "type": "array"
+        },
+        "conversion_probes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ConversionProbe"
+          },
+          "title": "Conversion Probes",
+          "type": "array"
+        },
+        "expected_accepted_pairs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ExpectedEntityPair"
+          },
+          "title": "Expected Accepted Pairs",
+          "type": "array"
+        },
+        "expected_error_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Error Code"
+        },
+        "field_value_adjudications": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FieldValueAdjudication"
+          },
+          "title": "Field Value Adjudications",
+          "type": "array"
+        },
+        "identity_expectations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/IdentityValueExpectation"
+          },
+          "title": "Identity Expectations",
+          "type": "array"
+        },
+        "injection_class": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Injection Class"
+        },
+        "repair_adjudications": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/RepairAdjudication"
+          },
+          "title": "Repair Adjudications",
+          "type": "array"
+        },
+        "scenario_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scenario Id"
+        },
+        "source_retrieval_expectations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SourceRetrievalExpectation"
+          },
+          "title": "Source Retrieval Expectations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "case_id",
+        "category"
+      ],
+      "title": "IntegrationCase",
+      "type": "object"
+    },
+    "IntegrationCaseCategory": {
+      "description": "Why a case exists in the frozen corpus.",
+      "enum": [
+        "integration",
+        "failure_injection",
+        "repair_probe"
+      ],
+      "title": "IntegrationCaseCategory",
+      "type": "string"
+    },
+    "RepairAdjudication": {
+      "additionalProperties": false,
+      "description": "Frozen checkpoint decision and independently expected resolution.",
+      "properties": {
+        "action": {
+          "enum": [
+            "accepted",
+            "rejected",
+            "keep_unresolved"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "adjudicated_at": {
+          "format": "date-time",
+          "title": "Adjudicated At",
+          "type": "string"
+        },
+        "conflict_code": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Conflict Code",
+          "type": "string"
+        },
+        "expected_resolution": {
+          "enum": [
+            "resolved",
+            "unresolved"
+          ],
+          "title": "Expected Resolution",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "conflict_code",
+        "action",
+        "expected_resolution",
+        "rationale",
+        "adjudicated_at"
+      ],
+      "title": "RepairAdjudication",
+      "type": "object"
+    },
+    "SourceRetrievalExpectation": {
+      "additionalProperties": false,
+      "description": "One independently adjudicated source row that must be observable.",
+      "properties": {
+        "fixture_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Fixture Content Hash",
+          "type": "string"
+        },
+        "fixture_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Fixture Id",
+          "type": "string"
+        },
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Row Key",
+          "type": "array"
+        },
+        "side": {
+          "enum": [
+            "left",
+            "right"
+          ],
+          "title": "Side",
+          "type": "string"
+        },
+        "source_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_snapshot_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Snapshot Content Hash",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Snapshot Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "side",
+        "source_id",
+        "source_snapshot_id",
+        "source_snapshot_content_hash",
+        "query_hash",
+        "fixture_id",
+        "fixture_content_hash",
+        "row_key"
+      ],
+      "title": "SourceRetrievalExpectation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Frozen corpus: hash-pinned scenarios + adjudicated ground truth.",
+  "properties": {
+    "adjudicated_at": {
+      "format": "date-time",
+      "title": "Adjudicated At",
+      "type": "string"
+    },
+    "adjudication_source": {
+      "minLength": 1,
+      "title": "Adjudication Source",
+      "type": "string"
+    },
+    "benchmark_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Benchmark Id",
+      "type": "string"
+    },
+    "cases": {
+      "items": {
+        "$ref": "#/$defs/IntegrationCase"
+      },
+      "minItems": 1,
+      "title": "Cases",
+      "type": "array"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "crossmatch_benchmark_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Crossmatch Benchmark Content Hash",
+      "type": "string"
+    },
+    "crossmatch_benchmark_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Crossmatch Benchmark Id",
+      "type": "string"
+    },
+    "crossmatch_benchmark_version": {
+      "title": "Crossmatch Benchmark Version",
+      "type": "string"
+    },
+    "data_level": {
+      "default": "synthetic_fixture",
+      "title": "Data Level",
+      "type": "string"
+    },
+    "evaluation_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Evaluation Version",
+      "type": "string"
+    },
+    "inconclusive_policy": {
+      "minLength": 1,
+      "title": "Inconclusive Policy",
+      "type": "string"
+    },
+    "metric_formulas": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "minProperties": 11,
+      "title": "Metric Formulas",
+      "type": "object"
+    },
+    "provenance_note": {
+      "minLength": 1,
+      "title": "Provenance Note",
+      "type": "string"
+    },
+    "rule_set_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Rule Set Content Hash",
+      "type": "string"
+    },
+    "rule_set_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Rule Set Id",
+      "type": "string"
+    },
+    "rule_set_version": {
+      "title": "Rule Set Version",
+      "type": "string"
+    },
+    "version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "benchmark_id",
+    "version",
+    "content_hash",
+    "provenance_note",
+    "adjudication_source",
+    "adjudicated_at",
+    "inconclusive_policy",
+    "evaluation_version",
+    "metric_formulas",
+    "crossmatch_benchmark_id",
+    "crossmatch_benchmark_version",
+    "crossmatch_benchmark_content_hash",
+    "rule_set_id",
+    "rule_set_version",
+    "rule_set_content_hash",
+    "cases"
+  ],
+  "title": "ScientificDataIntegrationBenchmarkManifest",
+  "type": "object"
+}

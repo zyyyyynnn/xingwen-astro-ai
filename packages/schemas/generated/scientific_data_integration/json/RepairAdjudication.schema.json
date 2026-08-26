@@ -1,0 +1,48 @@
+{
+  "additionalProperties": false,
+  "description": "Frozen checkpoint decision and independently expected resolution.",
+  "properties": {
+    "action": {
+      "enum": [
+        "accepted",
+        "rejected",
+        "keep_unresolved"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "adjudicated_at": {
+      "format": "date-time",
+      "title": "Adjudicated At",
+      "type": "string"
+    },
+    "conflict_code": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Conflict Code",
+      "type": "string"
+    },
+    "expected_resolution": {
+      "enum": [
+        "resolved",
+        "unresolved"
+      ],
+      "title": "Expected Resolution",
+      "type": "string"
+    },
+    "rationale": {
+      "minLength": 1,
+      "title": "Rationale",
+      "type": "string"
+    }
+  },
+  "required": [
+    "conflict_code",
+    "action",
+    "expected_resolution",
+    "rationale",
+    "adjudicated_at"
+  ],
+  "title": "RepairAdjudication",
+  "type": "object"
+}

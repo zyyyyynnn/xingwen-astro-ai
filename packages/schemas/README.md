@@ -78,6 +78,15 @@ uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/ge
 uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/generated/graph --include GraphBuildRequest --include GraphArtifactNode --include GraphArtifactEdge --include GraphEvidenceUse --include GraphIntegrityReport --include GraphArtifactCandidate --include GraphAdmissionResult --include GraphBenchmarkEvaluationCase --include GraphBenchmarkReport --manifest-content-hashes --check
 ```
 
+Scientific Data Integration Benchmark 同样使用独立 tracked schema 组；其
+source retrieval、field/value、conflict 与 repair adjudication 都来自同一 Pydantic
+编写源：
+
+```powershell
+Set-Location apps/api
+uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/generated/scientific_data_integration --include BenchmarkMetricValue --include ExpectedEntityPair --include IdentityValueExpectation --include SourceRetrievalExpectation --include FieldValueAdjudication --include ConflictAdjudication --include RepairAdjudication --include ConversionProbe --include IntegrationCase --include ScientificDataIntegrationBenchmarkManifest --include IntegrationCaseResult --include ScientificDataIntegrationReport --check
+```
+
 `app.contracts.core` 只参与完整 OpenAPI 生成，不直接挂载到运行应用；运行挂载范围以 FastAPI Router 为准。
 
 CI 使用临时目录执行导出和 stale diff。只有作为契约漂移基线的生成文件进入版本控制，其他导出作为本地或 CI Artifact。

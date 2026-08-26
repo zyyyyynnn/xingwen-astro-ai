@@ -1,0 +1,46 @@
+{
+  "additionalProperties": false,
+  "description": "One adjudicated ground-truth alignment between a left and a right row.",
+  "properties": {
+    "left_row_key": {
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "type": "array"
+      },
+      "title": "Left Row Key",
+      "type": "array"
+    },
+    "right_row_key": {
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "type": "array"
+      },
+      "title": "Right Row Key",
+      "type": "array"
+    }
+  },
+  "required": [
+    "left_row_key",
+    "right_row_key"
+  ],
+  "title": "ExpectedEntityPair",
+  "type": "object"
+}
