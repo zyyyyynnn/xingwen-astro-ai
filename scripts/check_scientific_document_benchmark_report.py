@@ -35,7 +35,10 @@ def _measured_metric(report: BenchmarkReport, name: str) -> bool:
 
 def main() -> int:
     if len(sys.argv) < 2:
-        print("usage: check_scientific_document_benchmark_report.py <report.json>", file=sys.stderr)
+        print(
+            "usage: check_scientific_document_benchmark_report.py <report.json>",
+            file=sys.stderr,
+        )
         return 2
     path = Path(sys.argv[1])
     if not path.is_file():
@@ -75,9 +78,7 @@ def main() -> int:
             or not report.visual_model_id
             or not report.visual_model_revision
         ):
-            errors.append(
-                f"{report.parser_mode.value} report lacks visual provenance"
-            )
+            errors.append(f"{report.parser_mode.value} report lacks visual provenance")
         hybrid_cases = [
             case
             for case in report.cases
@@ -91,13 +92,22 @@ def main() -> int:
                 f"{report.parser_mode.value} report has no latency-measured "
                 "hybrid case; visual execution is unproven"
             )
+        successfully_routed = [
+            case
+            for case in hybrid_cases
+            if case.failure_category is None
+            and (case.visual_routing_coverage or 0.0) > 0.0
+        ]
+        if not successfully_routed:
+            errors.append(
+                f"{report.parser_mode.value} report has no hybrid case with "
+                "successful visual routing"
+            )
         if report.parser_mode == BenchmarkParserMode.paired:
             if not _measured_metric(report, "native_only_accepted_rate") or (
                 not _measured_metric(report, "hybrid_accepted_rate")
             ):
-                errors.append(
-                    "paired report missing per-mode accepted_rate metrics"
-                )
+                errors.append("paired report missing per-mode accepted_rate metrics")
             if not _measured_metric(report, "hybrid_latency"):
                 errors.append("paired report missing measured hybrid_latency metric")
         else:

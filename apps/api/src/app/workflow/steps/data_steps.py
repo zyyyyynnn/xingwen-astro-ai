@@ -238,7 +238,7 @@ class DataStepService:
         )
         crossmatch_input = CrossmatchInput.model_validate(crossmatch_payload)
         crossmatch = align_cross_source_records(crossmatch_input)
-        defects = _repair_defects(crossmatch, manifests=self._manifests)
+        defects = derive_repair_defects(crossmatch, manifests=self._manifests)
         repair_state = self._store.repair_checkpoint_decision(
             context.run_id, step_key=step_key
         )
@@ -270,7 +270,7 @@ class DataStepService:
             )
             raise WorkflowCheckpointRequested()
         if repair_state is not None:
-            _validate_repair_checkpoint(
+            validate_repair_checkpoint(
                 repair_state.context,
                 defects=defects,
                 rules=rules,
@@ -278,7 +278,7 @@ class DataStepService:
                 before_output_hash=crossmatch.output_hash,
             )
             crossmatch_payload["manual_review_decisions"] = tuple(
-                _manual_review_decision(
+                build_repair_manual_review_decision(
                     decision,
                     defect=next(
                         item for item in defects if item.defect_id == decision.defect_id
@@ -601,7 +601,7 @@ class DataStepService:
         )
 
 
-def _repair_defects(
+def derive_repair_defects(
     crossmatch: CrossmatchResult, *, manifests: ManifestBundle
 ) -> tuple[RepairDefect, ...]:
     defects: list[RepairDefect] = []
@@ -717,7 +717,7 @@ def _repair_condition_summary(condition: CrossmatchCondition) -> str:
     return f"{field}：{condition.left_value} / {condition.right_value}（{label}）"
 
 
-def _validate_repair_checkpoint(
+def validate_repair_checkpoint(
     repair_context: RepairCheckpointContext,
     *,
     defects: tuple[RepairDefect, ...],
@@ -736,7 +736,7 @@ def _validate_repair_checkpoint(
         raise ValueError("科学修复检查点与当前不可变输入或 RuleSet 不一致")
 
 
-def _manual_review_decision(
+def build_repair_manual_review_decision(
     decision: Any,
     *,
     defect: RepairDefect,
@@ -744,14 +744,16 @@ def _manual_review_decision(
     decided_at: Any,
     source_input_hash: str,
     rules: Any,
+    adjudicated_by: str = "workspace_user",
+    reviewer_kind: ReviewerKind = ReviewerKind.human,
 ) -> ManualReviewDecision:
     payload: dict[str, Any] = {
         "schema_version": "1.0.0",
-        "decision_id": f"{checkpoint_id}:{defect.defect_id}",
+        "decision_id": f"{checkpoint_id}.{defect.defect_id}",
         "logical_match_key": defect.logical_match_key,
         "adjudication": AdjudicationDecision(decision.action),
-        "adjudicated_by": "workspace_user",
-        "reviewer_kind": ReviewerKind.human,
+        "adjudicated_by": adjudicated_by,
+        "reviewer_kind": reviewer_kind,
         "adjudication_rule_or_actor": (f"{rules.rule_set_id}@{rules.version}"),
         "adjudicated_at": decided_at,
         "rationale": decision.rationale,
@@ -789,28 +791,11 @@ def _repair_outcome(
     crossmatch: Any,
     quality_result: DataQualityEvaluationResult,
 ) -> RepairOutcome:
-    remaining = {
-        item.logical_match_key
-        for item in crossmatch.records
-        if isinstance(item, ConflictGroup)
-        or (
-            isinstance(item, PairedMatch)
-            and item.decision is MatchDecision.review_required
-        )
-    }
-    defects_by_id = {item.defect_id: item for item in before_defects}
-    false_repair = False
-    resolved: list[str] = []
-    unresolved: list[str] = []
-    for decision in repair_state.decisions:
-        defect = defects_by_id[decision.defect_id]
-        remains = defect.logical_match_key in remaining
-        if remains:
-            unresolved.append(defect.defect_id)
-        else:
-            resolved.append(defect.defect_id)
-        if (decision.action == "keep_unresolved") != remains:
-            false_repair = True
+    assessment = assess_repair_resolution(
+        decisions=repair_state.decisions,
+        before_defects=before_defects,
+        crossmatch=crossmatch,
+    )
     after_evidence = sorted(
         {
             evidence_id
@@ -831,10 +816,71 @@ def _repair_outcome(
             )
         ),
         after_evidence_ids=tuple(after_evidence),
+        resolved_defect_ids=assessment.resolved_defect_ids,
+        unresolved_defect_ids=assessment.unresolved_defect_ids,
+        status=assessment.status,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class RepairResolutionAssessment:
+    """Shared deterministic repair assessment for workflow and benchmark use."""
+
+    resolved_defect_ids: tuple[str, ...]
+    unresolved_defect_ids: tuple[str, ...]
+    status: str
+
+
+def assess_repair_resolution(
+    *,
+    decisions: tuple[Any, ...],
+    before_defects: tuple[RepairDefect, ...],
+    crossmatch: CrossmatchResult,
+) -> RepairResolutionAssessment:
+    """Classify repair output against the submitted adjudications.
+
+    The automatic decision remains auditable after adjudication, so a
+    ``review_required`` or conflict record is unresolved only when its explicit
+    adjudication is absent or ``keep_unresolved``.
+    """
+    remaining = {
+        item.logical_match_key
+        for item in crossmatch.records
+        if (
+            isinstance(item, ConflictGroup)
+            and item.adjudication in {None, AdjudicationDecision.keep_unresolved}
+        )
+        or (
+            isinstance(item, PairedMatch)
+            and item.decision is MatchDecision.review_required
+            and item.adjudication in {None, AdjudicationDecision.keep_unresolved}
+        )
+    }
+    defects_by_id = {item.defect_id: item for item in before_defects}
+    false_repair = False
+    resolved: list[str] = []
+    unresolved: list[str] = []
+    for decision in decisions:
+        defect = defects_by_id[decision.defect_id]
+        remains = defect.logical_match_key in remaining
+        if remains:
+            unresolved.append(defect.defect_id)
+        else:
+            resolved.append(defect.defect_id)
+        if (decision.action == "keep_unresolved") != remains:
+            false_repair = True
+    return RepairResolutionAssessment(
         resolved_defect_ids=tuple(sorted(resolved)),
         unresolved_defect_ids=tuple(sorted(unresolved)),
         status="false_repair" if false_repair else "revalidated",
     )
 
 
-__all__ = ["DataStepService"]
+__all__ = [
+    "DataStepService",
+    "RepairResolutionAssessment",
+    "assess_repair_resolution",
+    "build_repair_manual_review_decision",
+    "derive_repair_defects",
+    "validate_repair_checkpoint",
+]

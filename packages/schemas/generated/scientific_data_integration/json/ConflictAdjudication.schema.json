@@ -1,0 +1,66 @@
+{
+  "additionalProperties": false,
+  "description": "Frozen conflict truth, including the exact participating source rows.",
+  "properties": {
+    "conflict_code": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Conflict Code",
+      "type": "string"
+    },
+    "expected_detected": {
+      "title": "Expected Detected",
+      "type": "boolean"
+    },
+    "left_row_keys": {
+      "items": {
+        "items": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "type": "array"
+        },
+        "type": "array"
+      },
+      "minItems": 1,
+      "title": "Left Row Keys",
+      "type": "array"
+    },
+    "right_row_keys": {
+      "items": {
+        "items": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "type": "array"
+        },
+        "type": "array"
+      },
+      "minItems": 1,
+      "title": "Right Row Keys",
+      "type": "array"
+    }
+  },
+  "required": [
+    "conflict_code",
+    "expected_detected",
+    "left_row_keys",
+    "right_row_keys"
+  ],
+  "title": "ConflictAdjudication",
+  "type": "object"
+}

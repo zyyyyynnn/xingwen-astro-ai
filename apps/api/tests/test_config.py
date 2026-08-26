@@ -51,6 +51,16 @@ def test_dashscope_model_is_not_limited_to_repository_test_baselines() -> None:
     assert settings.DASHSCOPE_MODEL == "qwen-plus"
 
 
+def test_paddleocr_remote_and_local_backends_are_mutually_exclusive() -> None:
+    with pytest.raises(ValidationError, match="mutually exclusive"):
+        Settings(
+            _env_file=None,
+            PADDLEOCR_VL_BASE_URL="http://127.0.0.1:9000",
+            PADDLEOCR_VL_MODEL_REVISION="paddle-revision",
+            PADDLEOCR_VL_LOCAL_BUNDLE="E:/models/paddleocr-vl",
+        )
+
+
 def test_production_accepts_managed_database_url_without_postgres_password() -> None:
     settings = Settings(
         _env_file=None,

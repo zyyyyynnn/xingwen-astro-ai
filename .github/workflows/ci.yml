@@ -259,6 +259,10 @@ jobs:
           --include BenchmarkMetricValue
           --include ExpectedEntityPair
           --include IdentityValueExpectation
+          --include SourceRetrievalExpectation
+          --include FieldValueAdjudication
+          --include ConflictAdjudication
+          --include RepairAdjudication
           --include ConversionProbe
           --include IntegrationCase
           --include ScientificDataIntegrationBenchmarkManifest

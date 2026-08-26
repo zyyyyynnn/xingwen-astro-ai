@@ -1,0 +1,46 @@
+{
+  "additionalProperties": false,
+  "description": "Frozen canonical field/value truth evaluated through production mapping.",
+  "properties": {
+    "expected_canonical_value": {
+      "minLength": 1,
+      "title": "Expected Canonical Value",
+      "type": "string"
+    },
+    "field_id": {
+      "minLength": 1,
+      "title": "Field Id",
+      "type": "string"
+    },
+    "raw_field": {
+      "minLength": 1,
+      "title": "Raw Field",
+      "type": "string"
+    },
+    "raw_value": {
+      "minLength": 1,
+      "title": "Raw Value",
+      "type": "string"
+    },
+    "source_id": {
+      "minLength": 1,
+      "title": "Source Id",
+      "type": "string"
+    },
+    "source_table": {
+      "minLength": 1,
+      "title": "Source Table",
+      "type": "string"
+    }
+  },
+  "required": [
+    "field_id",
+    "source_id",
+    "source_table",
+    "raw_field",
+    "raw_value",
+    "expected_canonical_value"
+  ],
+  "title": "FieldValueAdjudication",
+  "type": "object"
+}

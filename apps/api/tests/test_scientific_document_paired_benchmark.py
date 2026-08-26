@@ -119,9 +119,8 @@ def test_hybrid_refuses_to_start_without_configured_backend(
     )
 
     monkeypatch.setattr(settings, "PADDLEOCR_VL_BASE_URL", None, raising=False)
-    monkeypatch.setattr(
-        settings, "PADDLEOCR_VL_MODEL_REVISION", None, raising=False
-    )
+    monkeypatch.setattr(settings, "PADDLEOCR_VL_MODEL_REVISION", None, raising=False)
+    monkeypatch.setattr(settings, "PADDLEOCR_VL_LOCAL_BUNDLE", None, raising=False)
     with pytest.raises(RuntimeError, match="visual backend"):
         visual_parser_from_settings()
     with pytest.raises(RuntimeError, match="visual backend"):
@@ -153,8 +152,7 @@ def test_paired_report_is_comparable_and_proves_visual_execution(
     hybrid_cases = [
         case
         for case in report.cases
-        if case.parser_mode.value == "hybrid"
-        and case.failure_category is None
+        if case.parser_mode.value == "hybrid" and case.failure_category is None
     ]
     assert hybrid_cases, "every hybrid case failed against the stub backend"
     # Visual routing actually happened on stubbed pages and latency is real.
@@ -238,6 +236,30 @@ def test_memory_without_basis_rejected() -> None:
         )
 
 
+def test_missing_memory_measurement_is_not_reported_as_zero() -> None:
+    from app.schemas.scientific_document_benchmark import (
+        BenchmarkCaseResult,
+        BenchmarkMetricStatus,
+        BenchmarkParserMode,
+    )
+    from services.scientific_document.benchmark_runner import _mode_quality_metrics
+
+    case = BenchmarkCaseResult(
+        entry_id="gs-x",
+        parser_mode=BenchmarkParserMode.native_only,
+        document_parse_id="parse_x",
+        overall_quality="accepted",
+        latency_seconds=0.1,
+        input_hash="sha256:" + "a" * 64,
+        output_hash="sha256:" + "b" * 64,
+    )
+
+    metrics = {metric.name: metric for metric in _mode_quality_metrics("", [case])}
+
+    assert metrics["peak_memory"].status is BenchmarkMetricStatus.not_run
+    assert metrics["peak_memory"].rate is None
+
+
 def test_checker_rejects_unproven_hybrid_latency(tmp_path: Path) -> None:
     from app.schemas.scientific_document_benchmark import (
         BenchmarkCaseResult,
@@ -292,12 +314,44 @@ def test_checker_rejects_unproven_hybrid_latency(tmp_path: Path) -> None:
         output_hash="sha256:" + "0" * 64,
         created_at="2026-08-25T00:00:00Z",
     )
-    report = report.model_copy(update={"output_hash": compute_benchmark_report_hash(report)})
+    report = report.model_copy(
+        update={"output_hash": compute_benchmark_report_hash(report)}
+    )
     path = tmp_path / "unproven-hybrid.json"
     path.write_text(report.model_dump_json(), encoding="utf-8")
     result = _run_checker(path)
     assert result.returncode == 1
     assert "latency-measured" in result.stderr
+
+
+def test_checker_rejects_hybrid_without_successful_visual_routing(
+    tmp_path: Path,
+) -> None:
+    from app.schemas.scientific_document_benchmark import (
+        BenchmarkParserMode,
+        compute_benchmark_report_hash,
+    )
+
+    report = _paired_report_with_stub()
+    cases = tuple(
+        case.model_copy(update={"visual_routing_coverage": 0.0})
+        if case.parser_mode == BenchmarkParserMode.hybrid
+        else case
+        for case in report.cases
+    )
+    report = report.model_copy(
+        update={"cases": cases, "output_hash": "sha256:" + "0" * 64}
+    )
+    report = report.model_copy(
+        update={"output_hash": compute_benchmark_report_hash(report)}
+    )
+    path = tmp_path / "hybrid-without-routing.json"
+    path.write_text(report.model_dump_json(), encoding="utf-8")
+
+    result = _run_checker(path)
+
+    assert result.returncode == 1
+    assert "successful visual routing" in result.stderr
 
 
 def test_local_bundle_backend_refuses_unverified_bundle(
@@ -310,9 +364,7 @@ def test_local_bundle_backend_refuses_unverified_bundle(
     )
 
     monkeypatch.setattr(settings, "PADDLEOCR_VL_BASE_URL", None, raising=False)
-    monkeypatch.setattr(
-        settings, "PADDLEOCR_VL_MODEL_REVISION", None, raising=False
-    )
+    monkeypatch.setattr(settings, "PADDLEOCR_VL_MODEL_REVISION", None, raising=False)
     monkeypatch.setattr(settings, "PADDLEOCR_VL_LOCAL_BUNDLE", str(tmp_path))
     with pytest.raises(RuntimeError):
         visual_parser_from_settings()
@@ -334,9 +386,7 @@ def test_local_bundle_backend_wiring(monkeypatch: pytest.MonkeyPatch) -> None:
             raise AssertionError
 
     monkeypatch.setattr(settings, "PADDLEOCR_VL_BASE_URL", None, raising=False)
-    monkeypatch.setattr(
-        settings, "PADDLEOCR_VL_MODEL_REVISION", None, raising=False
-    )
+    monkeypatch.setattr(settings, "PADDLEOCR_VL_MODEL_REVISION", None, raising=False)
     monkeypatch.setattr(settings, "PADDLEOCR_VL_LOCAL_BUNDLE", "bundle-x")
     monkeypatch.setattr(local_mod, "LocalPaddleOcrVlPipeline", _Dummy)
     parser = visual_parser_from_settings()
@@ -365,6 +415,90 @@ def test_real_local_pipeline_constructs_against_verified_bundle() -> None:
     assert pipeline.engine_version == "1.6"
 
 
+def test_local_pipeline_projects_official_layout_block_objects() -> None:
+    """The in-process API returns LayoutBlock objects, not HTTP-shaped dicts."""
+    from io import BytesIO
+    from types import SimpleNamespace
+
+    from PIL import Image
+
+    from app.services.scientific_document.local_paddle_pipeline import (
+        LocalPaddleOcrVlPipeline,
+    )
+
+    class _Engine:
+        def predict(self, _array, **kwargs):
+            assert kwargs["format_block_content"] is True
+            return [
+                {
+                    "width": 200,
+                    "height": 100,
+                    "parsing_res_list": [
+                        SimpleNamespace(
+                            label="table",
+                            content="| TOI | Teff [K] |\n| --- | --- |\n| 101.01 | 5200 |",
+                            bbox=[10, 20, 190, 90],
+                            order_index=2,
+                        )
+                    ],
+                }
+            ]
+
+    image = Image.new("RGB", (200, 100), "white")
+    encoded = BytesIO()
+    image.save(encoded, format="PNG")
+    pipeline = object.__new__(LocalPaddleOcrVlPipeline)
+    pipeline._engine = _Engine()
+
+    result = pipeline.parse_page(encoded.getvalue())
+
+    assert len(result.blocks) == 1
+    assert result.blocks[0].label == "table"
+    assert result.blocks[0].content == (
+        "| TOI | Teff [K] |\n| --- | --- |\n| 101.01 | 5200 |"
+    )
+    assert result.blocks[0].bbox == (10.0, 20.0, 190.0, 90.0)
+    assert result.blocks[0].order == 2
+
+
+def test_official_html_table_projects_to_canonical_cells() -> None:
+    from app.services.scientific_document.hybrid_parser import (
+        VisualPageBlock,
+        VisualPageResult,
+        _canonical_visual_page,
+    )
+
+    _blocks, tables, _formulas, _figures = _canonical_visual_page(
+        VisualPageResult(
+            width_pixels=200,
+            height_pixels=100,
+            blocks=(
+                VisualPageBlock(
+                    label="table",
+                    content=(
+                        "<table><tr><td>TOI</td><td>Teff [K]</td></tr>"
+                        "<tr><td>101.01</td><td>5200</td></tr></table>"
+                    ),
+                    bbox=(10.0, 20.0, 190.0, 90.0),
+                    order=0,
+                ),
+            ),
+        ),
+        page_index=1,
+        page_width=200.0,
+        page_height=100.0,
+        profile_id="hybrid-default",
+    )
+
+    assert len(tables) == 1
+    assert tables[0].quality.value == "accepted"
+    assert [[cell.text for cell in row] for row in tables[0].rows] == [
+        ["TOI", "Teff [K]"],
+        ["101.01", "5200"],
+    ]
+    assert all(cell.bbox is not None for row in tables[0].rows for cell in row)
+
+
 def test_paired_double_run_identity_ignores_volatile_metrics() -> None:
     """Paired identity must stay stable across runs despite real cost noise.
 
@@ -380,9 +514,7 @@ def test_paired_double_run_identity_ignores_volatile_metrics() -> None:
     second = _paired_report_with_stub()
     assert first.output_hash == second.output_hash
 
-    names = {
-        metric["name"] for metric in benchmark_payload_for_hash(first)["metrics"]
-    }
+    names = {metric["name"] for metric in benchmark_payload_for_hash(first)["metrics"]}
     assert any(name.startswith("native_only_") for name in names)
     assert not any(
         name == tail or name.endswith(f"_{tail}")

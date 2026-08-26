@@ -1,10 +1,26 @@
 {
   "benchmark_id": "exoplanet_host_star.scientific_data_integration_benchmark",
-  "version": "1.0.0",
-  "content_hash": "sha256:93329a64395e603de9ffba61bf704a2798130306b133deb6861e11e95e082705",
+  "version": "2.0.0",
+  "content_hash": "sha256:4d4542abe73b5c2fee684560c84121df7d619218f68a9e7f2a1af1fb9c7468dc",
   "data_level": "synthetic_fixture",
-  "provenance_note": "Frozen integration corpus over synthetic fixtures. Expected pairs, identity values and unit expectations were adjudicated once against the deterministic production engines and are pinned here; the runner observes production behavior and never mutates it.",
-  "evaluation_version": "1.0.0",
+  "provenance_note": "Frozen integration corpus over independently adjudicated synthetic source records. Expected retrievals, field values, entity pairs, conflicts, unit outcomes, and repair dispositions were written from the source fixture contract before evaluation; production output is observed but never copied into truth.",
+  "adjudication_source": "services/data_pipeline/benchmarks/exoplanet_host_star/crossmatch-benchmark.json plus the pinned field and unit authorities, independently reviewed as a frozen fixture contract",
+  "adjudicated_at": "2026-08-25T00:00:00Z",
+  "inconclusive_policy": "Only explicitly enumerated retrievable source rows and adjudicated observations enter a metric denominator. Truncated or incomplete source status never substitutes whole-case pass/fail for an observation and is excluded unless the frozen corpus declares an expectation.",
+  "evaluation_version": "2.0.0",
+  "metric_formulas": {
+    "source_retrieval_completeness": "observed_expected_source_rows / frozen_expected_source_rows",
+    "field_value_correctness": "exact_canonical_field_values / frozen_field_value_adjudications",
+    "entity_alignment_precision": "true_positive_pairs / observed_accepted_pairs",
+    "entity_alignment_recall": "true_positive_pairs / frozen_expected_pairs",
+    "unit_normalization_success": "exact_canonical_values / frozen_unit_normalization_adjudications",
+    "conflict_detection": "correct_conflict_decisions / frozen_conflict_adjudications",
+    "repair_success": "resolved_required_repairs / frozen_should_repair_adjudications",
+    "false_repair_rate": "incorrectly_resolved_no_repair_cases / frozen_must_not_repair_adjudications",
+    "evidence_coverage": "observed_evidence_items / evidence-eligible_observations",
+    "reproducibility_hash_stability": "stable_rerun_hashes / successful_scenario_reruns",
+    "failure_recovery": "exact_expected_failures / frozen_failure_injections"
+  },
   "crossmatch_benchmark_id": "exoplanet_host_star.crossmatch_benchmark",
   "crossmatch_benchmark_version": "2.0.0",
   "crossmatch_benchmark_content_hash": "sha256:5824e2c093e670cd6b00c18aac7e74e53bd4aa63daf02eadeafe1e7d2828e75c",
@@ -38,8 +54,52 @@
           ]
         }
       ],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
+      "source_retrieval_expectations": [
+        {
+          "side": "left",
+          "row_key": [["toi", "101.01"]]
+        },
+        {
+          "side": "right",
+          "row_key": [
+            ["pl_name", "Topology One b"],
+            ["pl_refname", "Reference 1"]
+          ]
+        }
+      ],
+      "field_value_adjudications": [
+        {
+          "field_id": "planet.radius",
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "pl_radj",
+          "raw_value": "1",
+          "expected_canonical_value": "11.20898073093868079835687744"
+        },
+        {
+          "field_id": "star.effective_temperature",
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "st_teff",
+          "raw_value": "5200",
+          "expected_canonical_value": "5200"
+        }
+      ],
+      "conflict_adjudications": [
+        {
+          "conflict_code": "crossmatch.identifier_conflict",
+          "expected_detected": false,
+          "left_row_keys": [
+            [["toi", "101.01"]]
+          ],
+          "right_row_keys": [
+            [
+              ["pl_name", "Topology One b"],
+              ["pl_refname", "Reference 1"]
+            ]
+          ]
+        }
+      ],
       "identity_expectations": [
         {
           "side": "left",
@@ -125,8 +185,6 @@
           ]
         }
       ],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
       "identity_expectations": [],
       "conversion_probes": []
     },
@@ -174,8 +232,6 @@
           ]
         }
       ],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
       "identity_expectations": [],
       "conversion_probes": []
     },
@@ -259,8 +315,6 @@
           ]
         }
       ],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
       "identity_expectations": [],
       "conversion_probes": []
     },
@@ -290,8 +344,6 @@
           ]
         }
       ],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
       "identity_expectations": [],
       "conversion_probes": []
     },
@@ -339,8 +391,6 @@
           ]
         }
       ],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
       "identity_expectations": [],
       "conversion_probes": []
     },
@@ -370,8 +420,6 @@
           ]
         }
       ],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
       "identity_expectations": [
         {
           "side": "right",
@@ -398,8 +446,6 @@
       "injection_class": null,
       "expected_error_code": null,
       "expected_accepted_pairs": [],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
       "identity_expectations": [],
       "conversion_probes": []
     },
@@ -429,8 +475,6 @@
           ]
         }
       ],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
       "identity_expectations": [
         {
           "side": "right",
@@ -494,9 +538,24 @@
           ]
         }
       ],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [
-        "crossmatch.alias_conflict"
+      "conflict_adjudications": [
+        {
+          "conflict_code": "crossmatch.alias_conflict",
+          "expected_detected": true,
+          "left_row_keys": [
+            [["toi", "900.01"]]
+          ],
+          "right_row_keys": [
+            [
+              ["pl_name", "Planet Nine b"],
+              ["pl_refname", "Reference B"]
+            ],
+            [
+              ["pl_name", "Planet Nine c"],
+              ["pl_refname", "Reference C"]
+            ]
+          ]
+        }
       ],
       "identity_expectations": [],
       "conversion_probes": []
@@ -508,9 +567,20 @@
       "injection_class": null,
       "expected_error_code": null,
       "expected_accepted_pairs": [],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [
-        "crossmatch.identifier_conflict"
+      "conflict_adjudications": [
+        {
+          "conflict_code": "crossmatch.identifier_conflict",
+          "expected_detected": true,
+          "left_row_keys": [
+            [["toi", "1000.01"]]
+          ],
+          "right_row_keys": [
+            [
+              ["pl_name", "Identifier Conflict b"],
+              ["pl_refname", "Reference"]
+            ]
+          ]
+        }
       ],
       "identity_expectations": [],
       "conversion_probes": []
@@ -522,8 +592,6 @@
       "injection_class": null,
       "expected_error_code": null,
       "expected_accepted_pairs": [],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
       "identity_expectations": [],
       "conversion_probes": []
     },
@@ -534,20 +602,44 @@
       "injection_class": null,
       "expected_error_code": null,
       "expected_accepted_pairs": [],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
       "identity_expectations": [],
       "conversion_probes": []
     },
     {
-      "case_id": "repair.manual_decision_resolves_conflict",
+      "case_id": "repair.accepted_decision_resolves_match",
       "category": "repair_probe",
-      "scenario_id": "manual_decision_valid",
+      "scenario_id": "coordinate_only",
       "injection_class": null,
       "expected_error_code": null,
       "expected_accepted_pairs": [],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
+      "repair_adjudications": [
+        {
+          "conflict_code": "low_confidence_match",
+          "action": "accepted",
+          "expected_resolution": "resolved",
+          "rationale": "Frozen adjudication confirms the coordinate-only pair as the same system.",
+          "adjudicated_at": "2026-08-25T00:00:00Z"
+        }
+      ],
+      "identity_expectations": [],
+      "conversion_probes": []
+    },
+    {
+      "case_id": "repair.keep_unresolved_does_not_mutate_match",
+      "category": "repair_probe",
+      "scenario_id": "coordinate_only",
+      "injection_class": null,
+      "expected_error_code": null,
+      "expected_accepted_pairs": [],
+      "repair_adjudications": [
+        {
+          "conflict_code": "low_confidence_match",
+          "action": "keep_unresolved",
+          "expected_resolution": "unresolved",
+          "rationale": "Frozen negative control withholds repair because the coordinate-only evidence is insufficient.",
+          "adjudicated_at": "2026-08-25T00:00:00Z"
+        }
+      ],
       "identity_expectations": [],
       "conversion_probes": []
     },
@@ -558,8 +650,6 @@
       "injection_class": "source_failure",
       "expected_error_code": "CROSSMATCH_INVALID_COORDINATE",
       "expected_accepted_pairs": [],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
       "identity_expectations": [],
       "conversion_probes": []
     },
@@ -570,8 +660,6 @@
       "injection_class": "source_failure",
       "expected_error_code": "CROSSMATCH_DUPLICATE_RECORD_REFERENCE",
       "expected_accepted_pairs": [],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
       "identity_expectations": [],
       "conversion_probes": []
     },
@@ -582,8 +670,6 @@
       "injection_class": "source_failure",
       "expected_error_code": "CROSSMATCH_RECORD_SOURCE_MISMATCH",
       "expected_accepted_pairs": [],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
       "identity_expectations": [],
       "conversion_probes": []
     },
@@ -594,8 +680,6 @@
       "injection_class": "stale_binding",
       "expected_error_code": "CROSSMATCH_MANUAL_DECISION_RULE_SET_MISMATCH",
       "expected_accepted_pairs": [],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
       "identity_expectations": [],
       "conversion_probes": []
     },
@@ -606,8 +690,6 @@
       "injection_class": "capacity_exhaustion",
       "expected_error_code": "CROSSMATCH_CAPACITY_EXCEEDED",
       "expected_accepted_pairs": [],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
       "identity_expectations": [],
       "conversion_probes": []
     },
@@ -618,8 +700,6 @@
       "injection_class": null,
       "expected_error_code": null,
       "expected_accepted_pairs": [],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
       "identity_expectations": [],
       "conversion_probes": [
         {
@@ -663,8 +743,6 @@
       "injection_class": "unit_conflict",
       "expected_error_code": "UNKNOWN_CONVERSION_RULE",
       "expected_accepted_pairs": [],
-      "adjudication_expected_pairs": [],
-      "expected_conflict_codes": [],
       "identity_expectations": [],
       "conversion_probes": [
         {

@@ -441,15 +441,15 @@ def _latency_mean(cases: list[BenchmarkCaseResult]) -> float:
     return sum(measured) / len(measured)
 
 
-def _memory_mean(cases: list[BenchmarkCaseResult]) -> float:
+def _memory_mean(cases: list[BenchmarkCaseResult]) -> tuple[BenchmarkMetricStatus, float, float]:
     measured = [
         float(case.peak_memory_bytes)
         for case in cases
         if case.peak_memory_bytes is not None
     ]
     if not measured:
-        return 0.0
-    return sum(measured) / len(measured)
+        return BenchmarkMetricStatus.not_run, 0.0, 0.0
+    return BenchmarkMetricStatus.measured, sum(measured) / len(measured), 1.0
 
 
 def _mode_quality_metrics(
@@ -468,6 +468,7 @@ def _mode_quality_metrics(
     order_status, order_num, order_den = _mean_measured(
         [case.reading_order_error for case in cases]
     )
+    memory_status, memory_num, memory_den = _memory_mean(cases)
     return (
         _metric(
             f"{prefix}accepted_rate", BenchmarkMetricStatus.measured, accepted, total
@@ -497,9 +498,9 @@ def _mode_quality_metrics(
         ),
         _metric(
             f"{prefix}peak_memory",
-            BenchmarkMetricStatus.measured,
-            _memory_mean(cases),
-            1.0,
+            memory_status,
+            memory_num,
+            memory_den,
         ),
     )
 

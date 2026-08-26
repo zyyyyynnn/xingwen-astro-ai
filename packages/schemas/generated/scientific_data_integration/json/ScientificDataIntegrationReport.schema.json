@@ -229,10 +229,22 @@
       "title": "Evaluation Version",
       "type": "string"
     },
+    "inconclusive_policy": {
+      "minLength": 1,
+      "title": "Inconclusive Policy",
+      "type": "string"
+    },
     "input_hash": {
       "pattern": "^sha256:[0-9a-f]{64}$",
       "title": "Input Hash",
       "type": "string"
+    },
+    "metric_formulas": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Metric Formulas",
+      "type": "object"
     },
     "metrics": {
       "items": {
@@ -266,6 +278,8 @@
     "benchmark_manifest_version",
     "benchmark_manifest_content_hash",
     "evaluation_version",
+    "metric_formulas",
+    "inconclusive_policy",
     "metrics",
     "cases",
     "input_hash",

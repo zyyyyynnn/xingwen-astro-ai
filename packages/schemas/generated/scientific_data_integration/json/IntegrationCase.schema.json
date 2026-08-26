@@ -1,5 +1,71 @@
 {
   "$defs": {
+    "ConflictAdjudication": {
+      "additionalProperties": false,
+      "description": "Frozen conflict truth, including the exact participating source rows.",
+      "properties": {
+        "conflict_code": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Conflict Code",
+          "type": "string"
+        },
+        "expected_detected": {
+          "title": "Expected Detected",
+          "type": "boolean"
+        },
+        "left_row_keys": {
+          "items": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Left Row Keys",
+          "type": "array"
+        },
+        "right_row_keys": {
+          "items": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Right Row Keys",
+          "type": "array"
+        }
+      },
+      "required": [
+        "conflict_code",
+        "expected_detected",
+        "left_row_keys",
+        "right_row_keys"
+      ],
+      "title": "ConflictAdjudication",
+      "type": "object"
+    },
     "ConversionProbe": {
       "additionalProperties": false,
       "description": "One frozen mapping/unit assertion against the production conversion stage.\n\nPositive probes assert the exact serialized canonical value; rejection\nprobes assert that a contradictory request fails closed.",
@@ -109,6 +175,52 @@
       "title": "ExpectedEntityPair",
       "type": "object"
     },
+    "FieldValueAdjudication": {
+      "additionalProperties": false,
+      "description": "Frozen canonical field/value truth evaluated through production mapping.",
+      "properties": {
+        "expected_canonical_value": {
+          "minLength": 1,
+          "title": "Expected Canonical Value",
+          "type": "string"
+        },
+        "field_id": {
+          "minLength": 1,
+          "title": "Field Id",
+          "type": "string"
+        },
+        "raw_field": {
+          "minLength": 1,
+          "title": "Raw Field",
+          "type": "string"
+        },
+        "raw_value": {
+          "minLength": 1,
+          "title": "Raw Value",
+          "type": "string"
+        },
+        "source_id": {
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_table": {
+          "minLength": 1,
+          "title": "Source Table",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field_id",
+        "source_id",
+        "source_table",
+        "raw_field",
+        "raw_value",
+        "expected_canonical_value"
+      ],
+      "title": "FieldValueAdjudication",
+      "type": "object"
+    },
     "IdentityValueExpectation": {
       "additionalProperties": false,
       "description": "Expected canonical identity value for one aligned source row.",
@@ -164,19 +276,97 @@
       ],
       "title": "IntegrationCaseCategory",
       "type": "string"
+    },
+    "RepairAdjudication": {
+      "additionalProperties": false,
+      "description": "Frozen checkpoint decision and independently expected resolution.",
+      "properties": {
+        "action": {
+          "enum": [
+            "accepted",
+            "rejected",
+            "keep_unresolved"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "adjudicated_at": {
+          "format": "date-time",
+          "title": "Adjudicated At",
+          "type": "string"
+        },
+        "conflict_code": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Conflict Code",
+          "type": "string"
+        },
+        "expected_resolution": {
+          "enum": [
+            "resolved",
+            "unresolved"
+          ],
+          "title": "Expected Resolution",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "conflict_code",
+        "action",
+        "expected_resolution",
+        "rationale",
+        "adjudicated_at"
+      ],
+      "title": "RepairAdjudication",
+      "type": "object"
+    },
+    "SourceRetrievalExpectation": {
+      "additionalProperties": false,
+      "description": "One independently adjudicated source row that must be observable.",
+      "properties": {
+        "row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Row Key",
+          "type": "array"
+        },
+        "side": {
+          "enum": [
+            "left",
+            "right"
+          ],
+          "title": "Side",
+          "type": "string"
+        }
+      },
+      "required": [
+        "side",
+        "row_key"
+      ],
+      "title": "SourceRetrievalExpectation",
+      "type": "object"
     }
   },
   "additionalProperties": false,
   "description": "One frozen benchmark case composing referenced scenario + expectations.\n\n``scenario_id`` references a scenario of the pinned crossmatch benchmark\nmanifest; conversion-only cases omit it. Failure-injection cases name the\nrequired injection class they cover and their exact expected error code.",
   "properties": {
-    "adjudication_expected_pairs": {
-      "default": [],
-      "items": {
-        "$ref": "#/$defs/ExpectedEntityPair"
-      },
-      "title": "Adjudication Expected Pairs",
-      "type": "array"
-    },
     "case_id": {
       "maxLength": 128,
       "minLength": 1,
@@ -185,6 +375,14 @@
     },
     "category": {
       "$ref": "#/$defs/IntegrationCaseCategory"
+    },
+    "conflict_adjudications": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ConflictAdjudication"
+      },
+      "title": "Conflict Adjudications",
+      "type": "array"
     },
     "conversion_probes": {
       "default": [],
@@ -202,16 +400,6 @@
       "title": "Expected Accepted Pairs",
       "type": "array"
     },
-    "expected_conflict_codes": {
-      "default": [],
-      "items": {
-        "maxLength": 128,
-        "minLength": 1,
-        "type": "string"
-      },
-      "title": "Expected Conflict Codes",
-      "type": "array"
-    },
     "expected_error_code": {
       "anyOf": [
         {
@@ -223,6 +411,14 @@
       ],
       "default": null,
       "title": "Expected Error Code"
+    },
+    "field_value_adjudications": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/FieldValueAdjudication"
+      },
+      "title": "Field Value Adjudications",
+      "type": "array"
     },
     "identity_expectations": {
       "default": [],
@@ -244,6 +440,14 @@
       "default": null,
       "title": "Injection Class"
     },
+    "repair_adjudications": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/RepairAdjudication"
+      },
+      "title": "Repair Adjudications",
+      "type": "array"
+    },
     "scenario_id": {
       "anyOf": [
         {
@@ -257,6 +461,14 @@
       ],
       "default": null,
       "title": "Scenario Id"
+    },
+    "source_retrieval_expectations": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/SourceRetrievalExpectation"
+      },
+      "title": "Source Retrieval Expectations",
+      "type": "array"
     }
   },
   "required": [

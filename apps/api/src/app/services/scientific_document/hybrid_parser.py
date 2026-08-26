@@ -14,6 +14,7 @@ import hashlib
 import io
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from html.parser import HTMLParser
 from importlib.metadata import version
 from typing import Any, Protocol
 
@@ -603,6 +604,7 @@ def _canonical_visual_page(
                     table_id=f"table-{block_id}",
                     block_id=block_id,
                     page_index=page_index,
+                    bbox=bbox,
                 )
             )
         elif kind is DocumentBlockKind.formula:
@@ -659,7 +661,56 @@ def _markdown_table(
     table_id: str,
     block_id: str,
     page_index: int,
+    bbox: DocumentBBox | None,
 ) -> DocumentTable:
+    if (content or "").lstrip().lower().startswith("<table"):
+        html_rows = _parse_official_html_table(content or "")
+        if html_rows:
+            cells: list[tuple[DocumentTableCell, ...]] = []
+            occupied: set[tuple[int, int]] = set()
+            column_count = 0
+            for row_index, raw_row in enumerate(html_rows):
+                row: list[DocumentTableCell] = []
+                column_index = 0
+                for text, row_span, column_span, header_tag in raw_row:
+                    while (row_index, column_index) in occupied:
+                        column_index += 1
+                    for occupied_row in range(
+                        row_index, min(len(html_rows), row_index + row_span)
+                    ):
+                        for occupied_column in range(
+                            column_index, column_index + column_span
+                        ):
+                            occupied.add((occupied_row, occupied_column))
+                    row.append(
+                        DocumentTableCell(
+                            cell_id=(f"{table_id}-r{row_index}-c{column_index}"),
+                            row_index=row_index,
+                            column_index=column_index,
+                            row_span=min(row_span, len(html_rows) - row_index),
+                            column_span=column_span,
+                            is_header=header_tag or row_index == 0,
+                            bbox=bbox,
+                            text=text or None,
+                            quality=(
+                                DocumentParseQuality.accepted
+                                if text
+                                else DocumentParseQuality.partial
+                            ),
+                        )
+                    )
+                    column_index += column_span
+                    column_count = max(column_count, column_index)
+                cells.append(tuple(row))
+            return DocumentTable(
+                table_id=table_id,
+                page_index=page_index,
+                block_id=block_id,
+                row_count=len(cells),
+                column_count=column_count,
+                rows=tuple(cells),
+                quality=DocumentParseQuality.accepted,
+            )
     raw_rows = [
         [cell.strip() for cell in line.strip().strip("|").split("|")]
         for line in (content or "").splitlines()
@@ -687,6 +738,7 @@ def _markdown_table(
                 row_index=row_index,
                 column_index=column_index,
                 is_header=row_index == 0,
+                bbox=bbox,
                 text=cell or None,
                 quality=(
                     DocumentParseQuality.accepted
@@ -707,6 +759,69 @@ def _markdown_table(
         rows=rows,
         quality=DocumentParseQuality.accepted,
     )
+
+
+class _OfficialTableHtmlParser(HTMLParser):
+    """Project PaddleOCR-VL's table HTML without importing vendor types."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.rows: list[list[tuple[str, int, int, bool]]] = []
+        self._row: list[tuple[str, int, int, bool]] | None = None
+        self._cell_text: list[str] | None = None
+        self._cell_row_span = 1
+        self._cell_column_span = 1
+        self._cell_is_header = False
+
+    def handle_starttag(self, tag: str, attrs) -> None:
+        lowered = tag.casefold()
+        if lowered == "tr":
+            self._row = []
+        elif lowered in {"td", "th"} and self._row is not None:
+            values = {name.casefold(): value for name, value in attrs}
+            self._cell_text = []
+            self._cell_row_span = _html_span(values.get("rowspan"))
+            self._cell_column_span = _html_span(values.get("colspan"))
+            self._cell_is_header = lowered == "th"
+
+    def handle_data(self, data: str) -> None:
+        if self._cell_text is not None:
+            self._cell_text.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        lowered = tag.casefold()
+        if lowered in {"td", "th"} and self._cell_text is not None:
+            assert self._row is not None
+            self._row.append(
+                (
+                    " ".join("".join(self._cell_text).split()),
+                    self._cell_row_span,
+                    self._cell_column_span,
+                    self._cell_is_header,
+                )
+            )
+            self._cell_text = None
+        elif lowered == "tr" and self._row is not None:
+            if self._row:
+                self.rows.append(self._row)
+            self._row = None
+
+
+def _html_span(value: str | None) -> int:
+    try:
+        parsed = int(value or "1")
+    except ValueError:
+        return 1
+    return max(parsed, 1)
+
+
+def _parse_official_html_table(
+    content: str,
+) -> tuple[tuple[tuple[str, int, int, bool], ...], ...]:
+    parser = _OfficialTableHtmlParser()
+    parser.feed(content)
+    parser.close()
+    return tuple(tuple(row) for row in parser.rows)
 
 
 def _scale_bbox(

@@ -19,19 +19,28 @@ same report ``output_hash`` (wall-clock time excluded by contract).
 from __future__ import annotations
 
 import argparse
-import json
 from datetime import datetime, timezone
 from pathlib import Path
-
 from pydantic import ValidationError
 
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.core import (
+    RepairCheckpointContext,
+    RepairDecisionInput,
+    RepairRuleSetReference,
+)
+from app.schemas.crossmatch import (
+    CrossmatchInput,
+    ReviewerKind,
+    compute_crossmatch_input_hash,
+)
 from app.schemas.scientific_data_integration_benchmark import (
     SCHEMA_VERSION,
     ConversionProbe,
     IntegrationCase,
     IntegrationCaseCategory,
     IntegrationCaseResult,
+    RepairAdjudication,
     ScientificDataIntegrationBenchmarkManifest,
     ScientificDataIntegrationReport,
     compute_integration_manifest_content_hash,
@@ -41,6 +50,12 @@ from app.schemas.scientific_document_benchmark import (
     BenchmarkMetricStatus,
     BenchmarkMetricValue,
 )
+from app.workflow.steps.data_steps import (
+    assess_repair_resolution,
+    build_repair_manual_review_decision,
+    derive_repair_defects,
+    validate_repair_checkpoint,
+)
 
 from services.data_pipeline.crossmatch.benchmark import (
     _validation_error_code,
@@ -49,6 +64,7 @@ from services.data_pipeline.crossmatch.benchmark import (
 )
 from services.data_pipeline.crossmatch.engine import align_cross_source_records
 from services.data_pipeline.crossmatch.errors import CrossmatchError
+from services.data_pipeline.crossmatch.policy import load_crossmatch_rule_set
 from services.data_pipeline.data_artifacts.conversion import (
     convert_decimal_value,
     resolve_conversion_rule,
@@ -56,6 +72,8 @@ from services.data_pipeline.data_artifacts.conversion import (
 )
 from services.data_pipeline.data_artifacts.errors import DataArtifactError
 from services.data_pipeline.data_artifacts.policy import load_unit_conversion_catalog
+from services.data_pipeline.data_artifacts.projection import canonicalize_source_value
+from services.data_pipeline.manifest import load_frozen_manifest_bundle
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_MANIFEST_PATH = (
@@ -66,7 +84,7 @@ DEFAULT_MANIFEST_PATH = (
 )
 
 PRODUCER_NAME = "scientific_integration_benchmark"
-EVALUATION_VERSION = "1.0.0"
+EVALUATION_VERSION = "2.0.0"
 
 
 def load_integration_benchmark(
@@ -135,6 +153,37 @@ def _conflict_codes(result) -> set[str]:
     }
 
 
+def _retrieved_source_rows(
+    input_value: CrossmatchInput,
+) -> set[tuple[str, tuple[tuple[str, str], ...]]]:
+    return {
+        *(("left", tuple(record.row_key)) for record in input_value.left.records),
+        *(("right", tuple(record.row_key)) for record in input_value.right.records),
+    }
+
+
+def _conflict_observations(result) -> set[tuple]:
+    candidates = {
+        candidate.candidate_id: (
+            candidate.side.value,
+            tuple(candidate.source_record.row_key),
+        )
+        for candidate in result.candidates
+    }
+    observations: set[tuple] = set()
+    for record in result.records:
+        if getattr(record, "record_type", None) != "conflict_group":
+            continue
+        left = tuple(
+            sorted(candidates[value][1] for value in record.left_candidate_ids)
+        )
+        right = tuple(
+            sorted(candidates[value][1] for value in record.right_candidate_ids)
+        )
+        observations.add((record.conflict_code, left, right))
+    return observations
+
+
 def _run_alignment(scenario):
     try:
         input_value = build_crossmatch_scenario_input(scenario)
@@ -143,7 +192,7 @@ def _run_alignment(scenario):
         return None, None, error.code, None
     except ValidationError as error:
         return None, None, _validation_error_code(error), None
-    return input_value.input_hash, result, None, None
+    return input_value, result, None, None
 
 
 def _evaluate_conversion_probes(
@@ -234,20 +283,215 @@ def _probe_outcome(probe: ConversionProbe, catalog) -> tuple[str, str | None]:
             if probe.expects_rejection
             else ("conversion_failed", None)
         )
-    except Exception:  # noqa: BLE001 - probe outcomes classify failures
-        return (
-            ("rejected", None)
-            if probe.expects_rejection
-            else ("conversion_failed", None)
-        )
+    except Exception:  # noqa: BLE001 - unexpected execution failure is not recovery
+        return "execution_failed", None
     if probe.expects_rejection:
         return "unexpected_success", None
     status = (
-        "matched"
-        if serialized == probe.expected_value
-        else f"mismatch:{serialized}"
+        "matched" if serialized == probe.expected_value else f"mismatch:{serialized}"
     )
     return status, None
+
+
+def _evaluate_field_value_adjudications(
+    case: IntegrationCase,
+) -> tuple[IntegrationCaseResult | None, int, int]:
+    if not case.field_value_adjudications:
+        return None, 0, 0
+    bundle = load_frozen_manifest_bundle()
+    catalog = load_unit_conversion_catalog()
+    conversion_versions = {
+        rule.rule_id: rule.rule_version
+        for rule in bundle.field_manifest.conversion_rules
+    }
+    matched = 0
+    failures: list[str] = []
+    observed: list[dict[str, str]] = []
+    for adjudication in case.field_value_adjudications:
+        field = next(
+            (
+                value
+                for value in bundle.field_manifest.fields
+                if value.field_id == adjudication.field_id
+            ),
+            None,
+        )
+        if field is None:
+            failures.append(f"unknown field {adjudication.field_id}")
+            continue
+        alias = next(
+            (
+                value
+                for value in field.source_aliases
+                if value.source_id == adjudication.source_id
+                and value.source_table == adjudication.source_table
+                and value.raw_field == adjudication.raw_field
+            ),
+            None,
+        )
+        if alias is None:
+            failures.append(
+                f"missing frozen alias {adjudication.field_id}:"
+                f"{adjudication.source_id}:{adjudication.raw_field}"
+            )
+            continue
+        try:
+            actual = canonicalize_source_value(
+                adjudication.raw_value,
+                field,
+                alias,
+                catalog,
+                bundle,
+                conversion_versions,
+            )
+        except DataArtifactError as error:
+            failures.append(f"{adjudication.field_id} failed with {error.code}")
+            continue
+        observed.append(
+            {
+                "field_id": adjudication.field_id,
+                "canonical_value": actual,
+                "canonical_unit": field.canonical_unit,
+            }
+        )
+        if actual == adjudication.expected_canonical_value:
+            matched += 1
+        else:
+            failures.append(
+                f"{adjudication.field_id} expected "
+                f"{adjudication.expected_canonical_value}, got {actual}"
+            )
+    return (
+        IntegrationCaseResult(
+            case_id=f"{case.case_id}.field_value",
+            category=case.category,
+            status="passed" if not failures else "failed",
+            observed={"field_values": observed},
+            failure_detail="; ".join(failures) or None,
+        ),
+        matched,
+        len(case.field_value_adjudications),
+    )
+
+
+def _evaluate_repair_probe(
+    case: IntegrationCase,
+    *,
+    input_value: CrossmatchInput,
+    before_result,
+) -> tuple[IntegrationCaseResult, object, int, int, int, int]:
+    manifests = load_frozen_manifest_bundle()
+    rules = load_crossmatch_rule_set()
+    defects = derive_repair_defects(before_result, manifests=manifests)
+    context = RepairCheckpointContext(
+        rule_set=RepairRuleSetReference(
+            rule_set_id=rules.rule_set_id,
+            rule_set_version=rules.version,
+            rule_set_content_hash=rules.content_hash,
+        ),
+        source_input_hash=input_value.source_input_hash,
+        before_output_hash=before_result.output_hash,
+        defects=defects,
+    )
+    validate_repair_checkpoint(
+        context,
+        defects=defects,
+        rules=rules,
+        source_input_hash=input_value.source_input_hash,
+        before_output_hash=before_result.output_hash,
+    )
+
+    failures: list[str] = []
+    decision_inputs: list[RepairDecisionInput] = []
+    manual_decisions = []
+    adjudication_by_defect: dict[str, RepairAdjudication] = {}
+    for adjudication in case.repair_adjudications:
+        matching = [
+            defect
+            for defect in defects
+            if defect.conflict_code == adjudication.conflict_code
+        ]
+        if len(matching) != 1:
+            failures.append(
+                f"repair truth expected one {adjudication.conflict_code} defect, "
+                f"observed {len(matching)}"
+            )
+            continue
+        defect = matching[0]
+        decision = RepairDecisionInput(
+            defect_id=defect.defect_id,
+            action=adjudication.action,
+            rationale=adjudication.rationale,
+        )
+        decision_inputs.append(decision)
+        adjudication_by_defect[defect.defect_id] = adjudication
+        manual_decisions.append(
+            build_repair_manual_review_decision(
+                decision,
+                defect=defect,
+                checkpoint_id=f"benchmark-{case.case_id}",
+                decided_at=adjudication.adjudicated_at,
+                source_input_hash=input_value.source_input_hash,
+                rules=rules,
+                adjudicated_by="frozen_adjudicated_corpus",
+                reviewer_kind=ReviewerKind.benchmark_fixture,
+            )
+        )
+
+    payload = input_value.model_dump(mode="json")
+    payload["manual_review_decisions"] = tuple(
+        value.model_dump(mode="json") for value in manual_decisions
+    )
+    payload["input_hash"] = compute_crossmatch_input_hash(payload)
+    repaired_input = CrossmatchInput.model_validate(payload)
+    repaired_result = align_cross_source_records(repaired_input)
+    assessment = assess_repair_resolution(
+        decisions=tuple(decision_inputs),
+        before_defects=defects,
+        crossmatch=repaired_result,
+    )
+    resolved = set(assessment.resolved_defect_ids)
+    repair_success_num = repair_success_den = 0
+    false_repair_num = false_repair_den = 0
+    for defect_id, adjudication in adjudication_by_defect.items():
+        expected_resolved = adjudication.expected_resolution == "resolved"
+        actually_resolved = defect_id in resolved
+        if expected_resolved:
+            repair_success_den += 1
+            repair_success_num += int(actually_resolved)
+        else:
+            false_repair_den += 1
+            false_repair_num += int(actually_resolved)
+        if expected_resolved != actually_resolved:
+            failures.append(
+                f"{defect_id} expected {adjudication.expected_resolution}, got "
+                f"{'resolved' if actually_resolved else 'unresolved'}"
+            )
+    if assessment.status == "false_repair":
+        failures.append("production repair assessment reported false_repair")
+    return (
+        IntegrationCaseResult(
+            case_id=case.case_id,
+            category=case.category,
+            status="passed" if not failures else "failed",
+            observed={
+                "checkpoint_validated": True,
+                "decision_count": len(decision_inputs),
+                "expected_resolution": case.repair_adjudications[0].expected_resolution,
+                "repair_status": assessment.status,
+                "resolved_defect_ids": list(assessment.resolved_defect_ids),
+                "unresolved_defect_ids": list(assessment.unresolved_defect_ids),
+            },
+            input_hash=repaired_input.input_hash,
+            output_hash=repaired_result.output_hash,
+            failure_detail="; ".join(failures) or None,
+        ),
+        repaired_result,
+        repair_success_num,
+        repair_success_den,
+        false_repair_num,
+        false_repair_den,
+    )
 
 
 def evaluate(
@@ -255,7 +499,7 @@ def evaluate(
 ) -> ScientificDataIntegrationReport:
     crossmatch = load_crossmatch_benchmark()
     scenarios = {s.scenario_id: s for s in crossmatch.scenarios}
-    _catalog = load_unit_conversion_catalog()  # fail fast on catalog drift
+    load_unit_conversion_catalog()  # fail fast on catalog drift
 
     case_results: list[IntegrationCaseResult] = []
     retrieval_num = retrieval_den = 0
@@ -263,10 +507,11 @@ def evaluate(
     unit_matched = unit_total = 0
     conflict_num = conflict_den = 0
     repair_num = repair_den = 0
+    false_repair_num = false_repair_den = 0
     evidence_num = evidence_den = 0.0
     stable = stability_den = 0
     recovery_num = recovery_den = 0
-    identity_num = identity_den = 0
+    field_value_num = field_value_den = 0
 
     for case in manifest.cases:
         if case.scenario_id is not None:
@@ -275,7 +520,7 @@ def evaluate(
                 raise RuntimeError(
                     f"case {case.case_id} references unknown scenario {case.scenario_id}"
                 )
-            input_hash, result, observed_code, _ = _run_alignment(scenario)
+            input_value, result, observed_code, _ = _run_alignment(scenario)
             if result is None:
                 passed = case.expected_error_code is not None and (
                     observed_code == case.expected_error_code
@@ -300,99 +545,169 @@ def evaluate(
                 )
                 continue
 
-            observed_pairs = _accepted_pairs(result)
-            observed_codes = _conflict_codes(result)
-            truth_pairs = (
-                {(tuple(p.left_row_key), tuple(p.right_row_key)) for p in case.adjudication_expected_pairs}
-                if case.adjudication_expected_pairs
-                else {(tuple(p.left_row_key), tuple(p.right_row_key)) for p in case.expected_accepted_pairs}
-            )
-            pair_failure = None
-            if truth_pairs != observed_pairs:
-                pair_failure = (
-                    f"pairs mismatch: expected={sorted(truth_pairs)} "
-                    f"observed={sorted(observed_pairs)}"
+            assert input_value is not None
+            evaluated_result = result
+            if case.category == IntegrationCaseCategory.repair_probe:
+                (
+                    repair_result,
+                    evaluated_result,
+                    repaired,
+                    repair_total,
+                    false_repairs,
+                    no_repair_total,
+                ) = _evaluate_repair_probe(
+                    case,
+                    input_value=input_value,
+                    before_result=result,
                 )
-            code_failure = None
-            if set(case.expected_conflict_codes) != observed_codes:
-                code_failure = (
-                    f"conflict codes mismatch: expected="
-                    f"{sorted(case.expected_conflict_codes)} observed={sorted(observed_codes)}"
-                )
-
-            identity_failures: list[str] = []
-            candidates_by_key: dict[tuple, list] = {}
-            for candidate in result.candidates:
-                key = (candidate.side.value, tuple(candidate.source_record.row_key))
-                candidates_by_key.setdefault(key, []).append(candidate)
-            for expectation in case.identity_expectations:
-                identity_den += 1
-                key = (expectation.side, tuple(expectation.row_key))
-                values = {
-                    value.field_id: value.normalized_value
-                    for candidate in candidates_by_key.get(key, ())
-                    for value in candidate.identity_values
+                repair_num += repaired
+                repair_den += repair_total
+                false_repair_num += false_repairs
+                false_repair_den += no_repair_total
+                case_results.append(repair_result)
+            else:
+                observed_pairs = _accepted_pairs(result)
+                observed_codes = _conflict_codes(result)
+                observed_conflicts = _conflict_observations(result)
+                truth_pairs = {
+                    (tuple(pair.left_row_key), tuple(pair.right_row_key))
+                    for pair in case.expected_accepted_pairs
                 }
-                actual = values.get(expectation.field_id)
-                if actual == expectation.expected_normalized_value:
-                    identity_num += 1
-                else:
-                    identity_failures.append(
-                        f"{key}:{expectation.field_id} expected "
-                        f"{expectation.expected_normalized_value}, got {actual}"
+                pair_failure = None
+                if truth_pairs != observed_pairs:
+                    pair_failure = (
+                        f"pairs mismatch: expected={sorted(truth_pairs)} "
+                        f"observed={sorted(observed_pairs)}"
                     )
 
-            stage_failures = [f for f in (pair_failure, code_failure) if f]
-            if stage_failures or identity_failures:
-                status = "failed"
-                detail = "; ".join(stage_failures + identity_failures)
-            else:
-                status = "passed"
-                detail = None
-
-            if case.category == IntegrationCaseCategory.repair_probe:
-                repair_den += 1
-                repair_num += 1 if status == "passed" else 0
-            elif case.category == IntegrationCaseCategory.integration:
-                retrieval_den += 1
-                retrieval_num += 1 if status == "passed" else 0
-                if case.expected_conflict_codes:
+                conflict_failures: list[str] = []
+                expected_positive_conflicts: set[tuple] = set()
+                for adjudication in case.conflict_adjudications:
+                    expected_conflict = (
+                        adjudication.conflict_code,
+                        tuple(sorted(adjudication.left_row_keys)),
+                        tuple(sorted(adjudication.right_row_keys)),
+                    )
+                    detected = expected_conflict in observed_conflicts
                     conflict_den += 1
-                    conflict_num += 1 if status == "passed" else 0
-                predicted += len(observed_pairs)
-                expected_pairs_total += len(truth_pairs)
-                tp += len(observed_pairs & truth_pairs)
+                    if detected == adjudication.expected_detected:
+                        conflict_num += 1
+                    else:
+                        conflict_failures.append(
+                            f"conflict {expected_conflict} expected detected="
+                            f"{adjudication.expected_detected}, got {detected}"
+                        )
+                    if adjudication.expected_detected:
+                        expected_positive_conflicts.add(expected_conflict)
+                unexpected_conflicts = observed_conflicts - expected_positive_conflicts
+                if unexpected_conflicts:
+                    conflict_failures.append(
+                        "unexpected conflict observations: "
+                        f"{sorted(unexpected_conflicts)}"
+                    )
 
-            metrics = result.metrics
+                retrieved_rows = _retrieved_source_rows(input_value)
+                retrieval_failures: list[str] = []
+                for expectation in case.source_retrieval_expectations:
+                    retrieval_den += 1
+                    expected = (expectation.side, tuple(expectation.row_key))
+                    if expected in retrieved_rows:
+                        retrieval_num += 1
+                    else:
+                        retrieval_failures.append(
+                            f"source row not retrieved: {expected}"
+                        )
+
+                identity_failures: list[str] = []
+                candidates_by_key: dict[tuple, list] = {}
+                for candidate in result.candidates:
+                    key = (
+                        candidate.side.value,
+                        tuple(candidate.source_record.row_key),
+                    )
+                    candidates_by_key.setdefault(key, []).append(candidate)
+                for expectation in case.identity_expectations:
+                    key = (expectation.side, tuple(expectation.row_key))
+                    values = {
+                        value.field_id: value.normalized_value
+                        for candidate in candidates_by_key.get(key, ())
+                        for value in candidate.identity_values
+                    }
+                    actual = values.get(expectation.field_id)
+                    if actual != expectation.expected_normalized_value:
+                        identity_failures.append(
+                            f"{key}:{expectation.field_id} expected "
+                            f"{expectation.expected_normalized_value}, got {actual}"
+                        )
+
+                failures = (
+                    ([pair_failure] if pair_failure is not None else [])
+                    + conflict_failures
+                    + retrieval_failures
+                    + identity_failures
+                )
+                status = "passed" if not failures else "failed"
+                case_results.append(
+                    IntegrationCaseResult(
+                        case_id=case.case_id,
+                        category=case.category,
+                        status=status,
+                        observed={
+                            "accepted_pair_count": len(observed_pairs),
+                            "conflict_codes": sorted(observed_codes),
+                            "retrieved_source_rows": len(retrieved_rows),
+                        },
+                        input_hash=input_value.input_hash,
+                        output_hash=result.output_hash,
+                        failure_detail="; ".join(failures) or None,
+                    )
+                )
+
+                if case.category == IntegrationCaseCategory.integration:
+                    predicted += len(observed_pairs)
+                    expected_pairs_total += len(truth_pairs)
+                    tp += len(observed_pairs & truth_pairs)
+
+            metrics = evaluated_result.metrics
             if metrics.evidence_coverage.denominator:
                 evidence_num += float(metrics.evidence_coverage.numerator)
                 evidence_den += float(metrics.evidence_coverage.denominator)
 
-            _, rerun, rerun_code, _ = _run_alignment(scenario)
-            if rerun is not None:
+            rerun_input, rerun, _, _ = _run_alignment(scenario)
+            reproduced_result = rerun
+            if (
+                rerun_input is not None
+                and rerun is not None
+                and case.category == IntegrationCaseCategory.repair_probe
+            ):
+                _, reproduced_result, _, _, _, _ = _evaluate_repair_probe(
+                    case,
+                    input_value=rerun_input,
+                    before_result=rerun,
+                )
+            if reproduced_result is not None:
                 stability_den += 1
-                if rerun.output_hash == result.output_hash:
+                if reproduced_result.output_hash == evaluated_result.output_hash:
                     stable += 1
 
-            case_results.append(
-                IntegrationCaseResult(
-                    case_id=case.case_id,
-                    category=case.category,
-                    status=status,
-                    observed={
-                        "accepted_pair_count": len(observed_pairs),
-                        "conflict_codes": sorted(observed_codes),
-                    },
-                    expected_error_code=None,
-                    observed_error_code=None,
-                    input_hash=input_hash,
-                    output_hash=result.output_hash,
-                    reproduced_output_hash=(
-                        rerun.output_hash if rerun is not None else None
-                    ),
-                    failure_detail=detail,
+            if case_results and case_results[-1].case_id == case.case_id:
+                case_results[-1] = case_results[-1].model_copy(
+                    update={
+                        "reproduced_output_hash": (
+                            reproduced_result.output_hash
+                            if reproduced_result is not None
+                            else None
+                        )
+                    }
                 )
-            )
+
+        field_result, matched_fields, total_fields = (
+            _evaluate_field_value_adjudications(case)
+        )
+        if field_result is not None:
+            field_value_num += matched_fields
+            field_value_den += total_fields
+            case_results.append(field_result)
 
         probe_results, p_matched, p_total, r_matched, r_total = (
             _evaluate_conversion_probes(case)
@@ -404,13 +719,15 @@ def evaluate(
         case_results.extend(probe_results)
 
     def _metric(name: str, num: float, den: float) -> BenchmarkMetricValue:
+        if den <= 0:
+            raise RuntimeError(f"metric {name} has no frozen adjudication denominator")
         return BenchmarkMetricValue(
             name=name,
             status=BenchmarkMetricStatus.measured,
             numerator=num,
-            denominator=den if den else 0.0,
-            rate=(num / den) if den else None,
-            empty_behavior="report_zero_rate",
+            denominator=den,
+            rate=num / den,
+            empty_behavior="fail_closed_without_adjudication",
             version=EVALUATION_VERSION,
         )
 
@@ -418,12 +735,12 @@ def evaluate(
     recall = tp / expected_pairs_total if expected_pairs_total else None
     metrics = (
         _metric("source_retrieval_completeness", retrieval_num, retrieval_den),
-        _metric("field_value_correctness", identity_num, identity_den),
+        _metric("field_value_correctness", field_value_num, field_value_den),
         BenchmarkMetricValue(
             name="entity_alignment_precision",
             status=BenchmarkMetricStatus.measured,
             numerator=tp,
-            denominator=predicted if predicted else 0.0,
+            denominator=predicted,
             rate=precision,
             empty_behavior="report_zero_rate",
             version=EVALUATION_VERSION,
@@ -432,7 +749,7 @@ def evaluate(
             name="entity_alignment_recall",
             status=BenchmarkMetricStatus.measured,
             numerator=tp,
-            denominator=expected_pairs_total if expected_pairs_total else 0.0,
+            denominator=expected_pairs_total,
             rate=recall,
             empty_behavior="report_zero_rate",
             version=EVALUATION_VERSION,
@@ -440,16 +757,7 @@ def evaluate(
         _metric("unit_normalization_success", unit_matched, unit_total),
         _metric("conflict_detection", conflict_num, conflict_den),
         _metric("repair_success", repair_num, repair_den),
-        # Production supports fixture-adjudication repair (measured above);
-        # false-repair detection lives behind the scientific_repair checkpoint
-        # execution surface (workflow + database), which this frozen runner
-        # does not drive. Declared honestly as not_run instead of fabricated.
-        BenchmarkMetricValue(
-            name="false_repair_rate",
-            status=BenchmarkMetricStatus.not_run,
-            empty_behavior="report_zero_rate",
-            version=EVALUATION_VERSION,
-        ),
+        _metric("false_repair_rate", false_repair_num, false_repair_den),
         _metric("evidence_coverage", evidence_num, evidence_den),
         _metric("reproducibility_hash_stability", stable, stability_den),
         _metric("failure_recovery", recovery_num, recovery_den),
@@ -464,6 +772,8 @@ def evaluate(
             manifest
         ),
         evaluation_version=EVALUATION_VERSION,
+        metric_formulas=manifest.metric_formulas,
+        inconclusive_policy=manifest.inconclusive_policy,
         metrics=metrics,
         cases=tuple(sorted(case_results, key=lambda item: item.case_id)),
         input_hash=_manifest_identity_hash(manifest),
@@ -483,18 +793,16 @@ def render_summary(report: ScientificDataIntegrationReport) -> str:
         f"v{report.benchmark_manifest_version}",
         f"- manifest content hash: `{report.benchmark_manifest_content_hash}`",
         f"- evaluation version: `{report.evaluation_version}`",
+        f"- inconclusive handling: {report.inconclusive_policy}",
         "",
-        "| metric | status | numerator | denominator | rate |",
-        "| --- | --- | --- | --- | --- |",
+        "| metric | formula | status | numerator | denominator | rate |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
     for metric in report.metrics:
-        rate = (
-            ""
-            if metric.rate is None
-            else f"{metric.rate:.4f}"
-        )
+        rate = "" if metric.rate is None else f"{metric.rate:.4f}"
         lines.append(
-            f"| {metric.name} | {metric.status.value} | "
+            f"| {metric.name} | {report.metric_formulas[metric.name]} | "
+            f"{metric.status.value} | "
             f"{_fmt(metric.numerator)} | {_fmt(metric.denominator)} | {rate} |"
         )
     failed = [case for case in report.cases if case.status == "failed"]

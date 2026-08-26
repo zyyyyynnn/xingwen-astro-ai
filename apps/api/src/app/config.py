@@ -217,12 +217,19 @@ class Settings(BaseSettings):
             )
         paddle_url = (self.PADDLEOCR_VL_BASE_URL or "").strip().rstrip("/")
         paddle_revision = (self.PADDLEOCR_VL_MODEL_REVISION or "").strip()
+        paddle_bundle = (self.PADDLEOCR_VL_LOCAL_BUNDLE or "").strip()
         self.PADDLEOCR_VL_BASE_URL = paddle_url or None
         self.PADDLEOCR_VL_MODEL_REVISION = paddle_revision or None
+        self.PADDLEOCR_VL_LOCAL_BUNDLE = paddle_bundle or None
         if bool(paddle_url) != bool(paddle_revision):
             raise ValueError(
                 "PADDLEOCR_VL_BASE_URL and PADDLEOCR_VL_MODEL_REVISION "
                 "must be configured together"
+            )
+        if paddle_url and paddle_bundle:
+            raise ValueError(
+                "PADDLEOCR_VL_BASE_URL (+ PADDLEOCR_VL_MODEL_REVISION) and "
+                "PADDLEOCR_VL_LOCAL_BUNDLE are mutually exclusive"
             )
         if paddle_url and not paddle_url.startswith(("http://", "https://")):
             raise ValueError("PADDLEOCR_VL_BASE_URL must use HTTP or HTTPS")

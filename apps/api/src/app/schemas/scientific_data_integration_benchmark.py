@@ -12,7 +12,7 @@ engines only and never mutates production results.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -23,7 +23,7 @@ from .scientific_document_benchmark import (
     _PENDING_OUTPUT_HASH,
 )
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "2.0.0"
 
 #: The eleven required integration metrics. Every report must declare each one;
 #: a capability that genuinely cannot run yet must still be declared with an
@@ -71,6 +71,51 @@ class IdentityValueExpectation(BaseModel):
     expected_normalized_value: str = Field(min_length=1)
 
 
+class SourceRetrievalExpectation(BaseModel):
+    """One independently adjudicated source row that must be observable."""
+
+    model_config = ConfigDict(**CORE_MODEL_CONFIG, title="SourceRetrievalExpectation")
+
+    side: Literal["left", "right"]
+    row_key: tuple[tuple[str, str], ...] = Field(min_length=1)
+
+
+class FieldValueAdjudication(BaseModel):
+    """Frozen canonical field/value truth evaluated through production mapping."""
+
+    model_config = ConfigDict(**CORE_MODEL_CONFIG, title="FieldValueAdjudication")
+
+    field_id: str = Field(min_length=1)
+    source_id: str = Field(min_length=1)
+    source_table: str = Field(min_length=1)
+    raw_field: str = Field(min_length=1)
+    raw_value: str = Field(min_length=1)
+    expected_canonical_value: str = Field(min_length=1)
+
+
+class ConflictAdjudication(BaseModel):
+    """Frozen conflict truth, including the exact participating source rows."""
+
+    model_config = ConfigDict(**CORE_MODEL_CONFIG, title="ConflictAdjudication")
+
+    conflict_code: Identifier
+    expected_detected: bool
+    left_row_keys: tuple[tuple[tuple[str, str], ...], ...] = Field(min_length=1)
+    right_row_keys: tuple[tuple[tuple[str, str], ...], ...] = Field(min_length=1)
+
+
+class RepairAdjudication(BaseModel):
+    """Frozen checkpoint decision and independently expected resolution."""
+
+    model_config = ConfigDict(**CORE_MODEL_CONFIG, title="RepairAdjudication")
+
+    conflict_code: Identifier
+    action: Literal["accepted", "rejected", "keep_unresolved"]
+    expected_resolution: Literal["resolved", "unresolved"]
+    rationale: str = Field(min_length=1)
+    adjudicated_at: UtcDateTime
+
+
 class ConversionProbe(BaseModel):
     """One frozen mapping/unit assertion against the production conversion stage.
 
@@ -114,14 +159,22 @@ class IntegrationCase(BaseModel):
     injection_class: str | None = None
     expected_error_code: str | None = None
     expected_accepted_pairs: tuple[ExpectedEntityPair, ...] = Field(default=())
-    adjudication_expected_pairs: tuple[ExpectedEntityPair, ...] = Field(default=())
-    expected_conflict_codes: tuple[Identifier, ...] = Field(default=())
+    source_retrieval_expectations: tuple[SourceRetrievalExpectation, ...] = Field(
+        default=()
+    )
+    field_value_adjudications: tuple[FieldValueAdjudication, ...] = Field(default=())
+    conflict_adjudications: tuple[ConflictAdjudication, ...] = Field(default=())
+    repair_adjudications: tuple[RepairAdjudication, ...] = Field(default=())
     identity_expectations: tuple[IdentityValueExpectation, ...] = Field(default=())
     conversion_probes: tuple[ConversionProbe, ...] = Field(default=())
 
     @model_validator(mode="after")
     def require_content(self) -> Self:
-        if self.scenario_id is None and not self.conversion_probes:
+        if (
+            self.scenario_id is None
+            and not self.conversion_probes
+            and not self.field_value_adjudications
+        ):
             raise ValueError(
                 f"case {self.case_id} needs a scenario reference or conversion probes"
             )
@@ -139,12 +192,16 @@ class IntegrationCase(BaseModel):
                     f"failure-injection case {self.case_id} must declare its "
                     "injection class"
                 )
-        if self.adjudication_expected_pairs and self.category != (
-            IntegrationCaseCategory.repair_probe
+        if (
+            self.repair_adjudications
+            and self.category != IntegrationCaseCategory.repair_probe
         ):
-            raise ValueError(
-                "adjudication expectations belong to repair_probe cases only"
-            )
+            raise ValueError("repair adjudications belong to repair_probe cases only")
+        if (
+            self.category == IntegrationCaseCategory.repair_probe
+            and not self.repair_adjudications
+        ):
+            raise ValueError("repair_probe cases must freeze repair adjudications")
         return self
 
 
@@ -161,7 +218,11 @@ class ScientificDataIntegrationBenchmarkManifest(BaseModel):
     content_hash: ContentHash
     data_level: str = Field(default="synthetic_fixture")
     provenance_note: str = Field(min_length=1)
+    adjudication_source: str = Field(min_length=1)
+    adjudicated_at: UtcDateTime
+    inconclusive_policy: str = Field(min_length=1)
     evaluation_version: Annotated[str, Field(pattern=r"^[1-9]\d*\.\d+\.\d+$")]
+    metric_formulas: dict[str, str] = Field(min_length=len(REQUIRED_METRIC_NAMES))
     crossmatch_benchmark_id: Identifier
     crossmatch_benchmark_version: str
     crossmatch_benchmark_content_hash: ContentHash
@@ -175,6 +236,8 @@ class ScientificDataIntegrationBenchmarkManifest(BaseModel):
         ids = [case.case_id for case in self.cases]
         if len(ids) != len(set(ids)):
             raise ValueError("integration benchmark case_ids must be unique")
+        if set(self.metric_formulas) != set(REQUIRED_METRIC_NAMES):
+            raise ValueError("integration benchmark metric formulas must be complete")
         return self
 
 
@@ -217,6 +280,8 @@ class ScientificDataIntegrationReport(BaseModel):
     benchmark_manifest_version: str
     benchmark_manifest_content_hash: ContentHash
     evaluation_version: str
+    metric_formulas: dict[str, str]
+    inconclusive_policy: str = Field(min_length=1)
     metrics: tuple[BenchmarkMetricValue, ...] = Field(min_length=1)
     cases: tuple[IntegrationCaseResult, ...] = Field(min_length=1)
     input_hash: ContentHash
@@ -228,9 +293,12 @@ class ScientificDataIntegrationReport(BaseModel):
         names = {metric.name for metric in self.metrics}
         missing = [name for name in REQUIRED_METRIC_NAMES if name not in names]
         if missing:
-            raise ValueError(
-                f"integration report missing required metrics: {missing}"
-            )
+            raise ValueError(f"integration report missing required metrics: {missing}")
+        if set(self.metric_formulas) != set(REQUIRED_METRIC_NAMES):
+            raise ValueError("integration report metric formulas must be complete")
+        case_ids = [case.case_id for case in self.cases]
+        if len(case_ids) != len(set(case_ids)):
+            raise ValueError("integration report case_ids must be unique")
         return self
 
     @model_validator(mode="after")
@@ -262,6 +330,10 @@ __all__ = [
     "IntegrationCaseCategory",
     "ExpectedEntityPair",
     "IdentityValueExpectation",
+    "SourceRetrievalExpectation",
+    "FieldValueAdjudication",
+    "ConflictAdjudication",
+    "RepairAdjudication",
     "ConversionProbe",
     "IntegrationCase",
     "ScientificDataIntegrationBenchmarkManifest",

@@ -436,7 +436,7 @@ def test_fixture_revision_publishes_actual_live_reacquisition_provenance(
         repair_checkpoint_decision=lambda *_args, **_kwargs: None
     )
     monkeypatch.setattr(service, "_admit_document_observations", lambda *_a, **_k: None)
-    monkeypatch.setattr(data_steps_module, "_repair_defects", lambda *_a, **_k: ())
+    monkeypatch.setattr(data_steps_module, "derive_repair_defects", lambda *_a, **_k: ())
     context = SimpleNamespace(
         run_id=uuid4(),
         data_revision=execution_input,
@@ -708,7 +708,7 @@ def test_changed_crossmatch_uses_repair_seam_and_readmits_documents(
         return None
 
     monkeypatch.setattr(service, "_admit_document_observations", admit_documents)
-    monkeypatch.setattr(data_steps_module, "_repair_defects", lambda *_args, **_kwargs: ())
+    monkeypatch.setattr(data_steps_module, "derive_repair_defects", lambda *_args, **_kwargs: ())
     returned_authorities: list[CrossmatchDataArtifactAuthority] = []
 
     def execute_with_changed_crossmatch(value):

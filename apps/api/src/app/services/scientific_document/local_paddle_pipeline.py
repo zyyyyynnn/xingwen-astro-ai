@@ -29,6 +29,20 @@ from .hybrid_parser import (
 
 _PIPELINE_VERSION = "1.6"
 
+_BLOCK_ATTRIBUTE_NAMES = {
+    "block_label": "label",
+    "block_content": "content",
+    "block_bbox": "bbox",
+    "block_order": "order_index",
+}
+
+
+def _block_field(item: object, name: str):
+    """Read either the HTTP projection or the official in-process LayoutBlock."""
+    if isinstance(item, dict) or hasattr(item, "get"):
+        return item.get(name)
+    return getattr(item, _BLOCK_ATTRIBUTE_NAMES[name], None)
+
 
 def pinned_visual_model_revision() -> str:
     """The committed HF snapshot revision for the VLM component."""
@@ -50,9 +64,7 @@ class LocalPaddleOcrVlPipeline:
         }
         # Fail closed before any vendor import: every committed file must be
         # present with the exact pinned size/hash.
-        self._bundle_digest = verify_model_bundle(
-            load_asset_manifest(), directories
-        )
+        self._bundle_digest = verify_model_bundle(load_asset_manifest(), directories)
         self._layout_dir = directories["layout_detection"]
         self._vlm_dir = directories["vlm_recognition"]
         self._engine = None
@@ -106,7 +118,7 @@ class LocalPaddleOcrVlPipeline:
         if array is None:
             raise VisualParseError("visual backend could not decode the page image")
         try:
-            results = list(self._pipeline().predict(array))
+            results = list(self._pipeline().predict(array, format_block_content=True))
         except VisualParseError:
             raise
         except Exception as exc:  # noqa: BLE001 - vendor errors are normalized
@@ -114,11 +126,6 @@ class LocalPaddleOcrVlPipeline:
         if len(results) != 1:
             raise VisualParseError("local PaddleOCR-VL returned an invalid page count")
         raw = results[0]
-
-        def field(item: object, name: str):
-            if isinstance(item, dict) or hasattr(item, "get"):
-                return item.get(name)
-            return getattr(item, name, None)
 
         try:
             width = _positive_int(raw["width"], "width")
@@ -131,12 +138,14 @@ class LocalPaddleOcrVlPipeline:
         try:
             blocks = tuple(
                 VisualPageBlock(
-                    label=str(field(item, "block_label") or "text").strip().lower(),
-                    content=(str(field(item, "block_content")).strip() or None)
-                    if field(item, "block_content") is not None
+                    label=str(_block_field(item, "block_label") or "text")
+                    .strip()
+                    .lower(),
+                    content=(str(_block_field(item, "block_content")).strip() or None)
+                    if _block_field(item, "block_content") is not None
                     else None,
-                    bbox=_visual_bbox(field(item, "block_bbox"), width, height),
-                    order=_non_negative_int(field(item, "block_order"), index),
+                    bbox=_visual_bbox(_block_field(item, "block_bbox"), width, height),
+                    order=_non_negative_int(_block_field(item, "block_order"), index),
                 )
                 for index, item in enumerate(parsing_list)
             )

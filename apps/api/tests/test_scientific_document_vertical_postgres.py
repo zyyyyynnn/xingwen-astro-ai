@@ -1,4 +1,4 @@
-"""Real PostgreSQL verticals for the Scientific Document chain (#62).
+"""Real PostgreSQL verticals for the Scientific Document chain.
 
 Branch A composes, through production services only (no test bootstrap):
 ResearchInput ingestion → content-addressed storage → SourceSnapshot →
@@ -19,8 +19,10 @@ and every downstream pipeline stage run for real against PostgreSQL.
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import os
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -30,28 +32,31 @@ from sqlalchemy import Engine, select
 from app.db.models import (
     ArtifactVersionModel,
     DocumentParseModel,
+    EvidenceModel,
     ProducerExecutionModel,
     ResearchArtifactModel,
     ResearchInputBindingModel,
     ResearchInputContentModel,
+    SourceSnapshotModel,
 )
 from app.db.session import create_engine_from_url, session_factory
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import (
+    ArtifactKind,
     ResearchContract,
     compute_research_contract_content_hash,
-)
-from app.schemas.data_quality import (
-    DataQualityEvaluationInput,
-    DataQualityEvaluationResult,
-    compute_data_quality_input_hash,
 )
 from app.schemas.paper_summary import (
     PaperSummaryPaperMetadata,
     PaperSummarySourceSnapshotReference,
 )
 from app.schemas.research_input import ResearchInputCreate
-from app.schemas.scientific_document import DocumentParseInput
+from app.schemas.enums import SourceMode
+from app.schemas.scientific_document import (
+    DocumentParseInput,
+    ScientificDataExtractionCandidate,
+)
+from app.services.data_artifact_build_inputs import DataArtifactBuildInputRepository
 from app.services.content_storage import LocalContentStorage
 from app.services.document_data_admission import DocumentDataAdmissionService
 from app.services.document_parse_store import (
@@ -79,14 +84,25 @@ from app.services.research_input_store import (
 from app.services.scientific_document.hybrid_parser import (
     HybridScientificDocumentParser,
 )
+from app.services.scientific_document.local_paddle_pipeline import (
+    LocalPaddleOcrVlPipeline,
+)
 from app.services.url_fetcher import UrlFetchConfig
 from app.workflow.publisher import ArtifactPublisher, admit_artifact_candidate
+from app.workflow.data_artifact_publication import (
+    DataArtifactPublicationConfig,
+    DataArtifactPublicationService,
+)
 from app.workflow.step_publication import (
     RunStepContext,
     StepPublicationFactory,
-    step_uuid,
 )
-from app.workflow.store import AttemptHandle, LeaseGrant, PersistentWorkflowStore, RunStepDefinition
+from app.workflow.store import (
+    AttemptHandle,
+    LeaseGrant,
+    PersistentWorkflowStore,
+    RunStepDefinition,
+)
 from authoring_test_support import (
     build_contract_draft,
     build_research_contract,
@@ -100,22 +116,9 @@ from services.data_pipeline.crossmatch.benchmark import (
     load_crossmatch_benchmark,
 )
 from services.data_pipeline.crossmatch.engine import align_cross_source_records
-from services.data_pipeline.data_artifacts.admission import (
-    validate_data_artifact_domain,
-    validate_data_artifact_evidence,
-)
-from services.data_pipeline.data_artifacts.pipeline import (
-    build_data_artifact_candidates,
-)
 from services.data_pipeline.data_artifacts.projection import (
     derive_document_snapshot_bindings,
 )
-from services.data_pipeline.data_quality import (
-    admit_data_artifact_quality,
-    build_data_quality_publication_validator,
-    evaluate_data_quality,
-)
-from services.data_pipeline.data_quality.policy import load_frozen_quality_rule_set
 from services.data_pipeline.manifest import load_frozen_manifest_bundle
 from services.paper_pipeline.constants import (
     SUMMARY_PRODUCER_NAME,
@@ -137,6 +140,14 @@ GOLDEN_PDF = (
     / "fixtures"
     / "golden_born_digital.pdf"
 )
+SCIENTIFIC_TABLE_IMAGE = (
+    Path(__file__).resolve().parents[3]
+    / "services"
+    / "scientific_document"
+    / "fixtures"
+    / "scientific_host_star_table.png"
+)
+LOCAL_MODEL_BUNDLE = Path(__file__).resolve().parents[3] / "models"
 
 
 class _StubSummaryModel:
@@ -605,9 +616,7 @@ def test_paper_summary_statement_closes_to_research_input(chain: VerticalChain) 
         )
         locator = item.locator.document_locator
         assert locator.bbox is not None
-    assert set(summary.evidence_ids) <= {
-        item.evidence_id for item in summary.evidence
-    }
+    assert set(summary.evidence_ids) <= {item.evidence_id for item in summary.evidence}
 
     with chain.factory() as session:
         version_row = session.get(ArtifactVersionModel, version_id)
@@ -626,14 +635,12 @@ def test_paper_summary_statement_closes_to_research_input(chain: VerticalChain) 
 def test_document_observations_truthfully_empty_without_structured_tables(
     chain: VerticalChain,
 ) -> None:
-    """Branch B, honest degradation: native-only parses carry no DocumentTable
-    structures, so the production observation stage must extract nothing and
-    publish nothing rather than promoting paragraph text into dataset facts.
-    Structured table admission through the same real persistence/admission/
-    publisher stack is covered at fixture-parse truth level by
-    ``test_document_data_admission.py::test_postgres_document_provenance_closes_on_persisted_snapshot``;
-    value-level closure on REAL documents requires the visual backend that is
-    currently an external blocker (see PR notes).
+    """Honest degradation only; zero extraction is never success closure.
+
+    Native-only parsing of this fixture yields no ``DocumentTable``. The
+    production observation stage must therefore publish nothing instead of
+    promoting paragraph text into scientific facts. The successful real-data
+    vertical is asserted independently by the local-Paddle test below.
     """
     crossmatch_benchmark = load_crossmatch_benchmark()
     scenario = next(
@@ -677,3 +684,366 @@ def test_document_observations_truthfully_empty_without_structured_tables(
         assert published_for_project.latest_version_id is None, (
             "no Dataset ArtifactVersion may appear without structured tables"
         )
+
+
+def test_real_visual_document_publishes_coherent_data_artifact_bundle(
+    postgres_engine: Engine,
+    tmp_path,
+) -> None:
+    """Real local Paddle output closes through admission and the sole Publisher."""
+    if importlib.util.find_spec("paddleocr") is None:
+        pytest.skip("approved paddleocr runtime is not installed")
+    if not (
+        (LOCAL_MODEL_BUNDLE / "layout_detection").is_dir()
+        and (LOCAL_MODEL_BUNDLE / "vlm_recognition").is_dir()
+    ):
+        pytest.skip("verified local PaddleOCR-VL bundle is not provisioned")
+
+    factory = session_factory(postgres_engine)
+    project_model = build_research_project(
+        project_id=uuid4(),
+        session_id=f"session-{uuid4()}",
+        name="Real visual scientific-data vertical",
+        case_key="exoplanet_host_star",
+    )
+    payload = _contract_payload()
+    draft_model = build_contract_draft(project_model, content=payload)
+    contract_model = build_research_contract(
+        project_model,
+        draft_model,
+        contract_id=uuid4(),
+        content_hash=compute_research_contract_content_hash(payload),
+        content=payload,
+    )
+    with factory() as session, session.begin():
+        persist_authoring_models(
+            session,
+            project=project_model,
+            draft=draft_model,
+            contract=contract_model,
+        )
+
+    storage = LocalContentStorage(tmp_path / "real-visual-cas")
+    ingestion = ResearchInputIngestionService(
+        repository=PersistentResearchInputStore(factory),
+        idempotency_repository=PersistentIdempotencyRepository(factory),
+        content_storage=storage,
+        policy=ResearchInputPolicy.from_values(
+            allowed_mime_types=("image/png",),
+            max_size_bytes=8 * 1024 * 1024,
+        ),
+        url_fetch_config=UrlFetchConfig(
+            allowed_protocols=("https",),
+            allowed_hosts=(),
+            timeout_seconds=1,
+            max_redirects=0,
+            max_response_bytes=1024,
+        ),
+    )
+    image_bytes = SCIENTIFIC_TABLE_IMAGE.read_bytes()
+    research_input = asyncio.run(
+        ingestion.create(
+            ResearchInputIngestionCommand(
+                session_id=project_model.session_id,
+                project_id=str(project_model.id),
+                payload=ResearchInputCreate(
+                    type="image",
+                    filename=SCIENTIFIC_TABLE_IMAGE.name,
+                    mime_type="image/png",
+                ),
+                idempotency_key=f"real-visual-upload-{uuid4()}",
+                file_content=image_bytes,
+                file_filename=SCIENTIFIC_TABLE_IMAGE.name,
+            )
+        )
+    )
+    PersistentResearchInputStore(factory).bind_to_contract(
+        session_id=project_model.session_id,
+        input_id=research_input.id,
+        project_id=str(project_model.id),
+        contract_draft_id=str(draft_model.id),
+    )
+
+    workflow = PersistentWorkflowStore(factory)
+    run = workflow.create_run(
+        project_id=project_model.id,
+        contract_id=contract_model.id,
+        execution_mode="live",
+        idempotency_key=f"real-visual-run-{uuid4()}",
+        request_hash="sha256:" + "e" * 64,
+        steps=_doc_steps(),
+    )
+    lease = workflow.acquire_lease(
+        run.id,
+        owner="real-visual-vertical",
+        lease_duration=timedelta(minutes=20),
+        expected_status="queued",
+        expected_revision=run.revision,
+    )
+    attempt = workflow.begin_step(
+        run.id,
+        step_key="planning",
+        attempt_idempotency_key=f"real-visual-attempt-{uuid4()}",
+        token=lease.token,
+        generation=lease.generation,
+        expected_status="queued",
+        expected_revision=lease.revision,
+        public_message="Parse and admit a real visual scientific table",
+    )
+
+    artifact_ids: dict[str, UUID] = {}
+    with factory() as session, session.begin():
+        for kind in ("dataset", "field_dictionary", "source_collection"):
+            artifact = ResearchArtifactModel(
+                id=uuid4(),
+                project_id=project_model.id,
+                kind=kind,
+                title=f"real visual {kind}",
+                logical_key=f"{kind}.real-visual-primary",
+            )
+            session.add(artifact)
+            artifact_ids[kind] = artifact.id
+
+    contract = ResearchContract(
+        id=str(contract_model.id),
+        project_id=str(contract_model.project_id),
+        version=contract_model.version,
+        content_hash=contract_model.content_hash,
+        created_from_draft_id=str(contract_model.created_from_draft_id),
+        created_at=contract_model.created_at or NOW,
+        **payload,
+    )
+    context = RunStepContext(
+        run_id=run.id,
+        project_id=project_model.id,
+        session_id=project_model.session_id,
+        contract=contract,
+        artifacts=artifact_ids,
+        versions={},
+    )
+    publications = StepPublicationFactory(factory=factory)
+    parser = HybridScientificDocumentParser(
+        visual_parser=LocalPaddleOcrVlPipeline(bundle_root=LOCAL_MODEL_BUNDLE)
+    )
+    parse_input = DocumentParseInput(
+        research_input_id=str(research_input.id),
+        content_hash=research_input.content_hash,
+        source_type="upload",
+        mime_type="image/png",
+        filename=SCIENTIFIC_TABLE_IMAGE.name,
+        input_bytes=image_bytes,
+    )
+    parse_input_hash = compute_canonical_payload_hash(
+        {
+            "input": parse_input.model_dump(
+                mode="json", exclude_none=True, exclude={"input_bytes"}
+            ),
+            "profile": parser.profile.model_dump(mode="json"),
+        }
+    )
+    parse_execution = publications.start_producer(
+        context,
+        step_key="planning",
+        operation_key="document_parse:real_visual",
+        producer_type="algorithm",
+        producer_name="scientific-document-parser",
+        producer_version=parser.profile.parser_profile_version,
+        input_hash=parse_input_hash,
+        parameters={
+            "parser_profile_id": parser.profile.parser_profile_id,
+            "routing_policy_id": parser.profile.routing_policy_id,
+        },
+        parameters_hash=parser.profile.configuration_hash,
+        attempt=attempt,
+        lease=lease,
+    )
+    document = parser.parse_document(parse_input)
+    assert document.overall_quality.value == "accepted"
+    assert document.tables, "real Paddle execution must recover a table"
+    assert document.visual_model_revision is not None
+    publications.finish_producer(
+        parse_execution.id,
+        status="completed",
+        output_hash=document.canonical_output_hash,
+    )
+    parse_service = DocumentParseService(DocumentParseRepository(factory), storage)
+    parse_record = asyncio.run(
+        parse_service.persist(
+            PersistDocumentParseRequest(
+                project_id=project_model.id,
+                run_id=run.id,
+                run_step_id=attempt.run_step_id,
+                producer_execution_id=parse_execution.id,
+                parse_input_hash=parse_input_hash,
+                candidate=document,
+            )
+        )
+    )
+
+    scenario = next(
+        item
+        for item in load_crossmatch_benchmark().scenarios
+        if item.scenario_id == "exact_one_to_one"
+    )
+    crossmatch = align_cross_source_records(build_crossmatch_scenario_input(scenario))
+    admission = DocumentDataAdmissionService(
+        factory=factory,
+        document_parses=parse_service,
+        manifests=load_frozen_manifest_bundle(),
+    )
+    plan = asyncio.run(
+        admission.prepare(
+            project_id=project_model.id,
+            run_id=run.id,
+            contract=contract,
+            crossmatch=crossmatch,
+        )
+    )
+    assert plan is not None
+    batch = admission.execute(plan)
+    assert batch.raw_candidates
+    assert all(
+        isinstance(item, ScientificDataExtractionCandidate)
+        for item in batch.raw_candidates
+    )
+    accepted_fields = {item.canonical_field_id for item in batch.accepted}
+    assert {"star.effective_temperature", "star.radius"} <= accepted_fields
+    for observation in batch.accepted:
+        locator = observation.document_locator
+        assert locator.page_index == document.pages[0].page_index
+        assert locator.block_id
+        assert locator.table_id
+        assert locator.cell_id
+        assert locator.bbox is not None
+
+    data_input = _with_documents(build_input(*REQUESTED_FIELDS), batch.accepted)
+    publication_service = DataArtifactPublicationService(
+        publications,
+        DataArtifactBuildInputRepository(factory),
+    )
+    config = DataArtifactPublicationConfig(
+        publish_kinds=(
+            ArtifactKind.dataset,
+            ArtifactKind.field_dictionary,
+            ArtifactKind.source_collection,
+        ),
+        operation_key_prefix="data_artifact:real_visual",
+        producer_error_code="REAL_VISUAL_DATA_ARTIFACT_FAILED",
+        producer_version=data_input.producer_version,
+        quality_failure_message="real visual data quality did not pass",
+        source_mode=SourceMode.live,
+        snapshot_bindings_override=derive_document_snapshot_bindings(data_input),
+        source_snapshots=(
+            data_input.authority.left_acquisition.snapshot,
+            data_input.authority.right_acquisition.snapshot,
+        ),
+    )
+    prepared = publication_service.prepare(
+        context,
+        step_key="planning",
+        attempt=attempt,
+        lease=lease,
+        data_input=data_input,
+        config=config,
+    )
+    document_values = {
+        item.canonical_field_id: item
+        for item in prepared.build_result.dataset.source_values
+        if item.origin.kind == "document_research_input"
+    }
+    temperature = document_values["star.effective_temperature"]
+    radius = document_values["star.radius"]
+    assert temperature.canonical_value is not None
+    assert radius.canonical_value is not None
+    assert Decimal(temperature.canonical_value) == Decimal("5200")
+    assert temperature.source_unit == "kelvin"
+    assert temperature.canonical_unit == "kelvin"
+    assert Decimal(radius.canonical_value) == Decimal("0.80")
+    assert radius.source_unit == "solar_radius"
+    assert radius.canonical_unit == "solar_radius"
+    assert (
+        prepared.quality.evaluation_result.contract_gate.overall_status.value == "pass"
+    )
+    bundle = publication_service.publish(
+        context,
+        prepared=prepared,
+        config=config,
+    )
+    published = ArtifactPublisher(factory).publish_step_outputs(
+        run.id,
+        step_key="planning",
+        attempt_id=attempt.attempt_id,
+        token=lease.token,
+        generation=lease.generation,
+        expected_status=attempt.run_status,
+        expected_revision=attempt.run_revision,
+        publications=bundle,
+        public_message="Published the real visual scientific-data bundle",
+    )
+    assert published.status == "fetching_data"
+    assert len(published.versions) == 3
+
+    version_ids = {item.id for item in published.versions}
+    with factory() as session:
+        versions = tuple(
+            session.scalars(
+                select(ArtifactVersionModel).where(
+                    ArtifactVersionModel.id.in_(version_ids)
+                )
+            )
+        )
+        artifacts = {
+            session.get(ResearchArtifactModel, item.artifact_id).kind: item
+            for item in versions
+        }
+        assert set(artifacts) == {
+            "dataset",
+            "field_dictionary",
+            "source_collection",
+        }
+        assert {item.run_step_id for item in versions} == {attempt.run_step_id}
+        assert {item.step_attempt_id for item in versions} == {attempt.attempt_id}
+        assert {item.input_hash for item in versions} == {data_input.input_hash}
+        assert all(
+            str(parse_record.source_snapshot_id) in item.source_snapshot_ids
+            for item in versions
+        )
+
+        evidence = tuple(
+            session.scalars(
+                select(EvidenceModel).where(
+                    EvidenceModel.artifact_version_id == artifacts["dataset"].id
+                )
+            )
+        )
+        document_evidence = next(
+            item
+            for item in evidence
+            if item.locator.get("kind") == "document_observation"
+        )
+        assert document_evidence.source_snapshot_id == parse_record.source_snapshot_id
+        locator = document_evidence.locator["document_locator"]
+        assert locator["page_index"] == document.pages[0].page_index
+        assert locator["block_id"]
+        assert locator["table_id"]
+        assert locator["cell_id"]
+        assert locator["bbox"] is not None
+
+        snapshot = session.get(SourceSnapshotModel, parse_record.source_snapshot_id)
+        assert snapshot is not None
+        assert snapshot.content_hash == research_input.content_hash
+        content = session.scalar(
+            select(ResearchInputContentModel).where(
+                ResearchInputContentModel.content_hash == research_input.content_hash
+            )
+        )
+        assert content is not None
+        binding = session.scalar(
+            select(ResearchInputBindingModel).where(
+                ResearchInputBindingModel.input_id == UUID(str(research_input.id))
+            )
+        )
+        assert binding is not None
+        parse_row = session.get(DocumentParseModel, parse_record.id)
+        assert parse_row is not None
+        assert parse_row.input_content_hash == research_input.content_hash

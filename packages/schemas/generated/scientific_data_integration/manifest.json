@@ -8,6 +8,11 @@
     },
     {
       "module": "app.schemas.scientific_data_integration_benchmark",
+      "name": "ConflictAdjudication",
+      "path": "json/ConflictAdjudication.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_data_integration_benchmark",
       "name": "ConversionProbe",
       "path": "json/ConversionProbe.schema.json"
     },
@@ -15,6 +20,11 @@
       "module": "app.schemas.scientific_data_integration_benchmark",
       "name": "ExpectedEntityPair",
       "path": "json/ExpectedEntityPair.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_data_integration_benchmark",
+      "name": "FieldValueAdjudication",
+      "path": "json/FieldValueAdjudication.schema.json"
     },
     {
       "module": "app.schemas.scientific_data_integration_benchmark",
@@ -33,6 +43,11 @@
     },
     {
       "module": "app.schemas.scientific_data_integration_benchmark",
+      "name": "RepairAdjudication",
+      "path": "json/RepairAdjudication.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_data_integration_benchmark",
       "name": "ScientificDataIntegrationBenchmarkManifest",
       "path": "json/ScientificDataIntegrationBenchmarkManifest.schema.json"
     },
@@ -40,6 +55,11 @@
       "module": "app.schemas.scientific_data_integration_benchmark",
       "name": "ScientificDataIntegrationReport",
       "path": "json/ScientificDataIntegrationReport.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_data_integration_benchmark",
+      "name": "SourceRetrievalExpectation",
+      "path": "json/SourceRetrievalExpectation.schema.json"
     }
   ],
   "schema_version": 1

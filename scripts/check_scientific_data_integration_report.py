@@ -1,9 +1,9 @@
 """Validate a produced Scientific Data Integration Benchmark report (fail-closed).
 
 Checks that the report genuinely ran over the frozen corpus with no silent
-skips: schema + self-verifying output hash, all eleven required metrics
-declared, honest statuses for capabilities this runner cannot execute, every
-case passing, and failure-injection cases pinned to their exact error codes.
+skips: schema + self-verifying output hash, all eleven required metrics with
+measured, non-empty denominators, every case passing, and failure-injection
+cases pinned to their exact error codes.
 """
 
 from __future__ import annotations
@@ -41,16 +41,26 @@ def main() -> int:
         if metric is None:
             errors.append(f"missing required metric {name}")
             continue
-        if name == "false_repair_rate":
-            # Requires the scientific_repair checkpoint execution surface; a
-            # measured value from this frozen runner would be fabrication.
-            if metric.status != BenchmarkMetricStatus.not_run:
-                errors.append("false_repair_rate must stay not_run at this surface")
-            continue
         if metric.status != BenchmarkMetricStatus.measured:
             errors.append(f"metric {name} must be measured, got {metric.status.value}")
         elif not metric.denominator:
             errors.append(f"measured metric {name} has an empty denominator")
+
+    repair_cases = [
+        case
+        for case in report.cases
+        if case.category == IntegrationCaseCategory.repair_probe
+    ]
+    if len(repair_cases) < 2:
+        errors.append("report must contain should-repair and must-not-repair cases")
+    else:
+        repair_expectations = {
+            str(case.observed.get("expected_resolution")) for case in repair_cases
+        }
+        if repair_expectations != {"resolved", "unresolved"}:
+            errors.append(
+                "repair corpus must measure resolved and unresolved expectations"
+            )
 
     failed = [case for case in report.cases if case.status != "passed"]
     if failed:
