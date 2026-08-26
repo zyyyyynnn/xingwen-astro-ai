@@ -519,6 +519,41 @@ def test_local_pipeline_projects_official_layout_block_objects(
     assert result.blocks[0].order == 2
 
 
+def test_visual_projection_rejects_oversized_block_lists_before_projection() -> None:
+    from app.services.scientific_document.hybrid_parser import (
+        VisualParseError,
+        project_visual_page_result,
+    )
+
+    with pytest.raises(VisualParseError, match="block budget"):
+        project_visual_page_result(
+            width=200,
+            height=100,
+            raw_blocks=[object()] * 4097,
+        )
+
+
+def test_visual_projection_rejects_oversized_block_content() -> None:
+    from app.services.scientific_document.hybrid_parser import (
+        VisualParseError,
+        project_visual_page_result,
+    )
+
+    with pytest.raises(VisualParseError, match="character budget"):
+        project_visual_page_result(
+            width=200,
+            height=100,
+            raw_blocks=[
+                {
+                    "block_label": "text",
+                    "block_content": "x" * (4 * 1024 * 1024 + 1),
+                    "block_bbox": [0, 0, 200, 100],
+                    "block_order": 0,
+                }
+            ],
+        )
+
+
 def test_official_html_table_projects_to_canonical_cells() -> None:
     from app.services.scientific_document.hybrid_parser import (
         VisualPageBlock,

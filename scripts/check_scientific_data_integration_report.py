@@ -93,6 +93,12 @@ def _expected_frozen_denominators(
                 for adjudication in case.repair_adjudications
             )
         ),
+        "reproducibility_hash_stability": float(
+            sum(
+                case.scenario_id is not None and case.expected_error_code is None
+                for case in manifest.cases
+            )
+        ),
         "failure_recovery": float(
             sum(
                 case.category == IntegrationCaseCategory.failure_injection
@@ -161,6 +167,26 @@ def main() -> int:
             f"(missing={sorted(expected_case_ids - observed_case_ids)}, "
             f"unexpected={sorted(observed_case_ids - expected_case_ids)})"
         )
+    report_cases = {case.case_id: case for case in report.cases}
+    for manifest_case in manifest.cases:
+        if (
+            manifest_case.scenario_id is None
+            or manifest_case.expected_error_code is not None
+        ):
+            continue
+        observed_case = report_cases.get(manifest_case.case_id)
+        if (
+            observed_case is None
+            or observed_case.output_hash is None
+            or observed_case.reproduced_output_hash is None
+        ):
+            errors.append(
+                f"case {manifest_case.case_id} lacks a completed reproducibility rerun"
+            )
+        elif observed_case.output_hash != observed_case.reproduced_output_hash:
+            errors.append(
+                f"case {manifest_case.case_id} reproducibility hashes do not match"
+            )
     expected_denominators = _expected_frozen_denominators(manifest, report)
     for name in REQUIRED_METRIC_NAMES:
         metric = by_name.get(name)

@@ -10,6 +10,7 @@ Canonical ``DocumentParseCandidate`` contract.
 from __future__ import annotations
 
 import base64
+from collections.abc import Iterable, Sized
 import hashlib
 import io
 from dataclasses import dataclass
@@ -58,6 +59,12 @@ _MAX_TABLE_CONTENT_CHARS = 4 * 1024 * 1024
 _MAX_TABLE_ROWS = 512
 _MAX_TABLE_COLUMNS = 256
 _MAX_TABLE_LOGICAL_CELLS = 65_536
+_BLOCK_ATTRIBUTE_NAMES = {
+    "block_label": "label",
+    "block_content": "content",
+    "block_bbox": "bbox",
+    "block_order": "order_index",
+}
 
 
 class VisualParseError(RuntimeError):
@@ -170,26 +177,14 @@ class PaddleOcrVlClient:
         pruned = results[0].get("prunedResult")
         if not isinstance(pruned, dict):
             raise VisualParseError("PaddleOCR-VL omitted prunedResult")
-        width = _positive_int(pruned.get("width"), "width")
-        height = _positive_int(pruned.get("height"), "height")
         raw_blocks = pruned.get("parsing_res_list")
         if not isinstance(raw_blocks, list):
             raise VisualParseError("PaddleOCR-VL omitted parsing_res_list")
-        blocks: list[VisualPageBlock] = []
-        for index, raw in enumerate(raw_blocks):
-            if not isinstance(raw, dict):
-                raise VisualParseError("PaddleOCR-VL returned a malformed block")
-            label = str(raw.get("block_label") or "text").strip().lower()
-            content = str(raw.get("block_content") or "").strip() or None
-            blocks.append(
-                VisualPageBlock(
-                    label=label,
-                    content=content,
-                    bbox=_visual_bbox(raw.get("block_bbox"), width, height),
-                    order=_non_negative_int(raw.get("block_order"), index),
-                )
-            )
-        return admit_visual_page_result(VisualPageResult(width, height, tuple(blocks)))
+        return project_visual_page_result(
+            width=pruned.get("width"),
+            height=pruned.get("height"),
+            raw_blocks=raw_blocks,
+        )
 
 
 class HybridScientificDocumentParser:
@@ -334,7 +329,9 @@ class HybridScientificDocumentParser:
         if width < 1 or height < 1:
             raise ValueError("document image has invalid geometry")
         try:
-            visual = self._visual.parse_page(output.getvalue())
+            visual = admit_visual_page_result(
+                self._visual.parse_page(output.getvalue())
+            )
             blocks, tables, formulas, figures = _canonical_visual_page(
                 visual,
                 page_index=1,
@@ -488,7 +485,9 @@ class HybridScientificDocumentParser:
                 else:
                     try:
                         image_bytes = _render_page_png(page, text_unit)
-                        visual = self._visual.parse_page(image_bytes)
+                        visual = admit_visual_page_result(
+                            self._visual.parse_page(image_bytes)
+                        )
                         (
                             page_blocks,
                             page_tables,
@@ -922,6 +921,80 @@ def admit_visual_page_result(result: VisualPageResult) -> VisualPageResult:
     return result
 
 
+def project_visual_page_result(
+    *,
+    width: object,
+    height: object,
+    raw_blocks: object,
+) -> VisualPageResult:
+    """Project bounded HTTP or official in-process blocks into the visual port."""
+
+    page_width = _positive_int(width, "width")
+    page_height = _positive_int(height, "height")
+    if (
+        not isinstance(raw_blocks, Iterable)
+        or isinstance(raw_blocks, (str, bytes, bytearray, dict))
+    ):
+        raise VisualParseError("PaddleOCR-VL omitted parsing_res_list")
+    if isinstance(raw_blocks, Sized) and len(raw_blocks) > _MAX_VISUAL_BLOCKS:
+        raise VisualParseError("visual page exceeds the configured block budget")
+
+    blocks: list[VisualPageBlock] = []
+    total_content = 0
+    for index, raw in enumerate(raw_blocks):
+        if index >= _MAX_VISUAL_BLOCKS:
+            raise VisualParseError("visual page exceeds the configured block budget")
+        if not _is_visual_block(raw):
+            raise VisualParseError("PaddleOCR-VL returned a malformed block")
+        raw_content = _visual_block_field(raw, "block_content")
+        content = (
+            (str(raw_content).strip() or None) if raw_content is not None else None
+        )
+        content_size = len(content or "")
+        if content_size > _MAX_VISUAL_BLOCK_CONTENT_CHARS:
+            raise VisualParseError(
+                "visual block content exceeds the configured character budget"
+            )
+        total_content += content_size
+        if total_content > _MAX_VISUAL_TOTAL_CONTENT_CHARS:
+            raise VisualParseError(
+                "visual page content exceeds the configured character budget"
+            )
+        blocks.append(
+            VisualPageBlock(
+                label=str(_visual_block_field(raw, "block_label") or "text")
+                .strip()
+                .lower(),
+                content=content,
+                bbox=_visual_bbox(
+                    _visual_block_field(raw, "block_bbox"),
+                    page_width,
+                    page_height,
+                ),
+                order=_non_negative_int(
+                    _visual_block_field(raw, "block_order"), index
+                ),
+            )
+        )
+    return VisualPageResult(page_width, page_height, tuple(blocks))
+
+
+def _is_visual_block(item: object) -> bool:
+    get = getattr(item, "get", None)
+    return isinstance(item, dict) or callable(get) or any(
+        hasattr(item, attribute) for attribute in _BLOCK_ATTRIBUTE_NAMES.values()
+    )
+
+
+def _visual_block_field(item: object, name: str) -> object:
+    if isinstance(item, dict):
+        return item.get(name)
+    get = getattr(item, "get", None)
+    if callable(get):
+        return get(name)
+    return getattr(item, _BLOCK_ATTRIBUTE_NAMES[name], None)
+
+
 def _scale_bbox(
     bbox: tuple[float, float, float, float] | None,
     *,
@@ -991,6 +1064,7 @@ __all__ = [
     "HybridScientificDocumentParser",
     "native_engine_identity",
     "PaddleOcrVlClient",
+    "project_visual_page_result",
     "VisualPageBlock",
     "VisualPageParserPort",
     "VisualPageResult",

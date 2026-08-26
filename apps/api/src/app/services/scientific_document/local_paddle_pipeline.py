@@ -20,31 +20,12 @@ from services.scientific_document.model_asset_contract import (
 
 from .hybrid_parser import (
     LOCAL_PADDLE_ENGINE_IDENTITY,
-    VisualPageBlock,
     VisualPageResult,
     VisualParseError,
-    _non_negative_int,
-    _positive_int,
-    _visual_bbox,
-    admit_visual_page_result,
+    project_visual_page_result,
 )
 
 _PIPELINE_VERSION = "1.6"
-
-_BLOCK_ATTRIBUTE_NAMES = {
-    "block_label": "label",
-    "block_content": "content",
-    "block_bbox": "bbox",
-    "block_order": "order_index",
-}
-
-
-def _block_field(item: object, name: str):
-    """Read either the HTTP projection or the official in-process LayoutBlock."""
-    if isinstance(item, dict) or hasattr(item, "get"):
-        return item.get(name)
-    return getattr(item, _BLOCK_ATTRIBUTE_NAMES[name], None)
-
 
 def pinned_visual_model_revision() -> str:
     """The committed HF snapshot revision for the VLM component."""
@@ -138,35 +119,22 @@ class LocalPaddleOcrVlPipeline:
         raw = results[0]
 
         try:
-            width = _positive_int(raw["width"], "width")
-            height = _positive_int(raw["height"], "height")
-            parsing_list = list(raw["parsing_res_list"])
-        except (KeyError, TypeError, ValueError) as exc:
+            width = raw["width"]
+            height = raw["height"]
+            parsing_list = raw["parsing_res_list"]
+        except (KeyError, TypeError) as exc:
             raise VisualParseError(
                 "local PaddleOCR-VL returned an unusable page geometry"
             ) from exc
         try:
-            blocks = tuple(
-                VisualPageBlock(
-                    label=str(_block_field(item, "block_label") or "text")
-                    .strip()
-                    .lower(),
-                    content=(str(_block_field(item, "block_content")).strip() or None)
-                    if _block_field(item, "block_content") is not None
-                    else None,
-                    bbox=_visual_bbox(_block_field(item, "block_bbox"), width, height),
-                    order=_non_negative_int(_block_field(item, "block_order"), index),
-                )
-                for index, item in enumerate(parsing_list)
+            return project_visual_page_result(
+                width=width,
+                height=height,
+                raw_blocks=parsing_list,
             )
+        except VisualParseError:
+            raise
         except (KeyError, TypeError, ValueError) as exc:
             raise VisualParseError(
                 "local PaddleOCR-VL returned an unusable page structure"
             ) from exc
-        return admit_visual_page_result(
-            VisualPageResult(
-                width_pixels=width,
-                height_pixels=height,
-                blocks=blocks,
-            )
-        )

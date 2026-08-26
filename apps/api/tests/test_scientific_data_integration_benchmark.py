@@ -157,6 +157,41 @@ def test_double_evaluation_is_bit_stable() -> None:
     assert all(case.reproduced_output_hash == case.output_hash for case in repair_cases)
 
 
+def test_failed_reproducibility_rerun_cannot_shrink_the_denominator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from services.data_pipeline import scientific_integration_benchmark as runner
+
+    original = runner._run_alignment
+    exact_calls = 0
+
+    def fail_second_exact_run(scenario):
+        nonlocal exact_calls
+        if scenario.scenario_id == "exact_one_to_one":
+            exact_calls += 1
+            if exact_calls == 2:
+                return None, None, "injected_rerun_failure", None
+        return original(scenario)
+
+    monkeypatch.setattr(runner, "_run_alignment", fail_second_exact_run)
+
+    report = runner.evaluate(_load())
+    stability = next(
+        metric
+        for metric in report.metrics
+        if metric.name == "reproducibility_hash_stability"
+    )
+    failed = next(
+        case for case in report.cases if case.case_id == "int.exact_one_to_one"
+    )
+
+    assert stability.numerator == 14
+    assert stability.denominator == 15
+    assert failed.status == "failed"
+    assert failed.reproduced_output_hash is None
+    assert "injected_rerun_failure" in (failed.failure_detail or "")
+
+
 def test_every_frozen_case_passes() -> None:
     report = _evaluate()
     failed = [case for case in report.cases if case.status != "passed"]
@@ -422,7 +457,7 @@ def test_checker_rejects_incomplete_evidence_closure(tmp_path: Path) -> None:
     )
 
 
-def test_checker_rejects_unstable_reproduction_metric(tmp_path: Path) -> None:
+def test_checker_rejects_a_shrunk_reproduction_denominator(tmp_path: Path) -> None:
     from app.schemas.scientific_data_integration_benchmark import (
         compute_integration_report_hash,
     )
@@ -432,15 +467,26 @@ def test_checker_rejects_unstable_reproduction_metric(tmp_path: Path) -> None:
         metric.model_copy(
             update={
                 "numerator": metric.numerator - 1,
-                "rate": (metric.numerator - 1) / metric.denominator,
+                "denominator": metric.denominator - 1,
+                "rate": 1.0,
             }
         )
         if metric.name == "reproducibility_hash_stability"
         else metric
         for metric in report.metrics
     )
+    cases = tuple(
+        case.model_copy(update={"reproduced_output_hash": None})
+        if case.case_id == "int.exact_one_to_one"
+        else case
+        for case in report.cases
+    )
     report = report.model_copy(
-        update={"metrics": metrics, "output_hash": "sha256:" + "0" * 64}
+        update={
+            "metrics": metrics,
+            "cases": cases,
+            "output_hash": "sha256:" + "0" * 64,
+        }
     )
     report = report.model_copy(
         update={"output_hash": compute_integration_report_hash(report)}
@@ -451,7 +497,8 @@ def test_checker_rejects_unstable_reproduction_metric(tmp_path: Path) -> None:
     checked = _run_checker(path)
 
     assert checked.returncode == 1
-    assert "reproducibility_hash_stability must close" in checked.stderr
+    assert "does not match frozen corpus denominator 15.0" in checked.stderr
+    assert "lacks a completed reproducibility rerun" in checked.stderr
 
 
 def test_checker_rejects_pending_output_hash(tmp_path: Path) -> None:

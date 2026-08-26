@@ -842,7 +842,8 @@ def evaluate(
                     }
                 )
 
-            rerun_input, rerun, _, _ = _run_alignment(scenario)
+            stability_den += 1
+            rerun_input, rerun, rerun_error_code, _ = _run_alignment(scenario)
             reproduced_result = rerun
             if (
                 rerun_input is not None
@@ -854,27 +855,41 @@ def evaluate(
                     input_value=rerun_input,
                     before_result=rerun,
                 )
-            if reproduced_result is not None:
-                stability_den += 1
-                if reproduced_result.output_hash == evaluated_result.output_hash:
-                    stable += 1
-                else:
-                    current = case_results[-1]
-                    detail = (
-                        "reproducibility hash mismatch: "
-                        f"{evaluated_result.output_hash} != "
-                        f"{reproduced_result.output_hash}"
-                    )
-                    case_results[-1] = current.model_copy(
-                        update={
-                            "status": "failed",
-                            "failure_detail": "; ".join(
-                                value
-                                for value in (current.failure_detail, detail)
-                                if value
-                            ),
-                        }
-                    )
+            if reproduced_result is None:
+                current = case_results[-1]
+                detail = (
+                    "reproducibility rerun failed: "
+                    f"{rerun_error_code or 'missing_result'}"
+                )
+                case_results[-1] = current.model_copy(
+                    update={
+                        "status": "failed",
+                        "failure_detail": "; ".join(
+                            value
+                            for value in (current.failure_detail, detail)
+                            if value
+                        ),
+                    }
+                )
+            elif reproduced_result.output_hash == evaluated_result.output_hash:
+                stable += 1
+            else:
+                current = case_results[-1]
+                detail = (
+                    "reproducibility hash mismatch: "
+                    f"{evaluated_result.output_hash} != "
+                    f"{reproduced_result.output_hash}"
+                )
+                case_results[-1] = current.model_copy(
+                    update={
+                        "status": "failed",
+                        "failure_detail": "; ".join(
+                            value
+                            for value in (current.failure_detail, detail)
+                            if value
+                        ),
+                    }
+                )
 
             if case_results and case_results[-1].case_id == case.case_id:
                 case_results[-1] = case_results[-1].model_copy(
