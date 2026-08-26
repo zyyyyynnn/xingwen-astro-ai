@@ -931,7 +931,7 @@ def test_real_visual_document_publishes_coherent_data_artifact_bundle(
         producer_error_code="REAL_VISUAL_DATA_ARTIFACT_FAILED",
         producer_version=data_input.producer_version,
         quality_failure_message="real visual data quality did not pass",
-        source_mode=SourceMode.live,
+        source_mode=SourceMode.fixture,
         snapshot_bindings_override=derive_document_snapshot_bindings(data_input),
         source_snapshots=(
             data_input.authority.left_acquisition.snapshot,
@@ -982,6 +982,7 @@ def test_real_visual_document_publishes_coherent_data_artifact_bundle(
     )
     assert published.status == "fetching_data"
     assert len(published.versions) == 3
+    assert {item.source_mode for item in published.versions} == {"fixture"}
 
     version_ids = {item.id for item in published.versions}
     with factory() as session:
@@ -1004,6 +1005,7 @@ def test_real_visual_document_publishes_coherent_data_artifact_bundle(
         assert {item.run_step_id for item in versions} == {attempt.run_step_id}
         assert {item.step_attempt_id for item in versions} == {attempt.attempt_id}
         assert {item.input_hash for item in versions} == {data_input.input_hash}
+        assert {item.source_mode for item in versions} == {"fixture"}
         assert all(
             str(parse_record.source_snapshot_id) in item.source_snapshot_ids
             for item in versions

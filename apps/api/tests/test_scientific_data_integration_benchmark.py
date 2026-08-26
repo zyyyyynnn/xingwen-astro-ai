@@ -52,7 +52,7 @@ def _run_checker(path: Path) -> subprocess.CompletedProcess[str]:
 
 def test_manifest_is_frozen_and_self_verifying() -> None:
     manifest = _load()
-    assert manifest.data_level == "synthetic_fixture"
+    assert manifest.data_level == "synthetic_fixture_plus_recorded_response"
     categories = {case.category.value for case in manifest.cases}
     assert categories == {"integration", "failure_injection", "repair_probe"}
     injection_classes = {
@@ -167,6 +167,95 @@ def test_retrieval_and_conflict_metrics_do_not_inherit_pair_failure() -> None:
     assert "pairs mismatch" in (failed.failure_detail or "")
 
 
+def test_source_retrieval_metric_executes_recorded_acquisition_adapters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from services.data_pipeline import scientific_integration_benchmark as runner
+
+    observed: dict[str, object] = {}
+    original_toi = runner.NasaExoplanetArchiveAdapter.acquire
+    original_ps = runner.NasaPlanetarySystemsSupplementalAdapter.acquire
+
+    def acquire_toi(self, *args, **kwargs):
+        result = original_toi(self, *args, **kwargs)
+        observed["left"] = result
+        return result
+
+    def acquire_ps(self, *args, **kwargs):
+        result = original_ps(self, *args, **kwargs)
+        observed["right"] = result
+        return result
+
+    monkeypatch.setattr(runner.NasaExoplanetArchiveAdapter, "acquire", acquire_toi)
+    monkeypatch.setattr(
+        runner.NasaPlanetarySystemsSupplementalAdapter,
+        "acquire",
+        acquire_ps,
+    )
+
+    report = runner.evaluate(_load())
+
+    retrieval = next(
+        metric
+        for metric in report.metrics
+        if metric.name == "source_retrieval_completeness"
+    )
+    assert retrieval.numerator == retrieval.denominator == 2
+    assert set(observed) == {"left", "right"}
+    for result in observed.values():
+        assert result.snapshot.request_metadata["source_mode"] == "fixture"
+        assert result.snapshot.request_metadata["data_level"] == "recorded_response"
+
+
+@pytest.mark.parametrize(
+    "locator_update",
+    (
+        {"source_snapshot_id": "snapshot.tampered"},
+        {"row_key": (("toi", "999999.99"),)},
+        {"raw_field": "not_a_frozen_raw_field"},
+    ),
+)
+def test_evidence_coverage_requires_exact_locator_closure(
+    locator_update: dict[str, object],
+) -> None:
+    from services.data_pipeline.crossmatch.benchmark import (
+        build_crossmatch_scenario_input,
+        load_crossmatch_benchmark,
+    )
+    from services.data_pipeline.crossmatch.engine import align_cross_source_records
+    from services.data_pipeline.scientific_integration_benchmark import (
+        audit_crossmatch_evidence_closure,
+    )
+
+    scenario = next(
+        item
+        for item in load_crossmatch_benchmark().scenarios
+        if item.scenario_id == "exact_one_to_one"
+    )
+    input_value = build_crossmatch_scenario_input(scenario)
+    result = align_cross_source_records(input_value)
+    covered, denominator, failures = audit_crossmatch_evidence_closure(
+        input_value,
+        result,
+    )
+    assert covered == denominator > 0
+    assert not failures
+
+    evidence = result.evidence[0]
+    locator = evidence.left_locators[0].model_copy(update=locator_update)
+    tampered_evidence = evidence.model_copy(update={"left_locators": (locator,)})
+    tampered_result = result.model_copy(
+        update={"evidence": (tampered_evidence, *result.evidence[1:])}
+    )
+
+    tampered_covered, tampered_denominator, tampered_failures = (
+        audit_crossmatch_evidence_closure(input_value, tampered_result)
+    )
+    assert tampered_denominator == denominator
+    assert tampered_covered == covered - 1
+    assert tampered_failures == (evidence.evidence_id,)
+
+
 def test_failure_injection_cases_recover_with_exact_codes() -> None:
     report = _evaluate()
     injections = [
@@ -273,6 +362,40 @@ def test_checker_requires_measured_false_repair_denominator(tmp_path: Path) -> N
 
     assert checked.returncode == 1
     assert "false_repair_rate must be measured" in checked.stderr
+
+
+def test_checker_rejects_incomplete_evidence_closure(tmp_path: Path) -> None:
+    from app.schemas.scientific_data_integration_benchmark import (
+        compute_integration_report_hash,
+    )
+
+    report = _evaluate()
+    metrics = tuple(
+        metric.model_copy(
+            update={
+                "numerator": metric.numerator - 1,
+                "rate": (metric.numerator - 1) / metric.denominator,
+            }
+        )
+        if metric.name == "evidence_coverage"
+        else metric
+        for metric in report.metrics
+    )
+    report = report.model_copy(
+        update={"metrics": metrics, "output_hash": "sha256:" + "0" * 64}
+    )
+    report = report.model_copy(
+        update={"output_hash": compute_integration_report_hash(report)}
+    )
+    path = tmp_path / "incomplete-evidence-closure.json"
+    path.write_text(report.model_dump_json(), encoding="utf-8")
+
+    checked = _run_checker(path)
+
+    assert checked.returncode == 1
+    assert (
+        "evidence_coverage must close every frozen denominator item" in checked.stderr
+    )
 
 
 def test_checker_rejects_pending_output_hash(tmp_path: Path) -> None:

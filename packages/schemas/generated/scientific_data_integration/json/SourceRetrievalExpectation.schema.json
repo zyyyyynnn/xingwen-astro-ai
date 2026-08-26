@@ -2,6 +2,22 @@
   "additionalProperties": false,
   "description": "One independently adjudicated source row that must be observable.",
   "properties": {
+    "fixture_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Fixture Content Hash",
+      "type": "string"
+    },
+    "fixture_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Fixture Id",
+      "type": "string"
+    },
+    "query_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Query Hash",
+      "type": "string"
+    },
     "row_key": {
       "items": {
         "maxItems": 2,
@@ -27,10 +43,33 @@
       ],
       "title": "Side",
       "type": "string"
+    },
+    "source_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Source Id",
+      "type": "string"
+    },
+    "source_snapshot_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Source Snapshot Content Hash",
+      "type": "string"
+    },
+    "source_snapshot_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Source Snapshot Id",
+      "type": "string"
     }
   },
   "required": [
     "side",
+    "source_id",
+    "source_snapshot_id",
+    "source_snapshot_content_hash",
+    "query_hash",
+    "fixture_id",
+    "fixture_content_hash",
     "row_key"
   ],
   "title": "SourceRetrievalExpectation",

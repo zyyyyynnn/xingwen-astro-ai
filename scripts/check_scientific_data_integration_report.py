@@ -18,6 +18,9 @@ from app.schemas.scientific_data_integration_benchmark import (
     ScientificDataIntegrationReport,
 )
 from app.schemas.scientific_document_benchmark import BenchmarkMetricStatus
+from services.data_pipeline.scientific_integration_benchmark import (
+    load_integration_benchmark,
+)
 
 _PENDING_OUTPUT_HASH = "sha256:" + "0" * 64
 
@@ -35,11 +38,20 @@ def main() -> int:
         return 1
     data = json.loads(path.read_text(encoding="utf-8"))
     report = ScientificDataIntegrationReport.model_validate(data)
+    manifest = load_integration_benchmark()
 
     errors: list[str] = []
     if report.output_hash == _PENDING_OUTPUT_HASH:
         errors.append("integration report output_hash is still pending")
     by_name = {metric.name: metric for metric in report.metrics}
+    if (
+        report.benchmark_manifest_id != manifest.benchmark_id
+        or report.benchmark_manifest_version != manifest.version
+        or report.benchmark_manifest_content_hash != manifest.content_hash
+        or report.evaluation_version != manifest.evaluation_version
+        or report.metric_formulas != manifest.metric_formulas
+    ):
+        errors.append("report does not match the current frozen benchmark manifest")
     for name in REQUIRED_METRIC_NAMES:
         metric = by_name.get(name)
         if metric is None:
@@ -49,6 +61,34 @@ def main() -> int:
             errors.append(f"metric {name} must be measured, got {metric.status.value}")
         elif not metric.denominator:
             errors.append(f"measured metric {name} has an empty denominator")
+
+    for name in ("source_retrieval_completeness", "evidence_coverage"):
+        metric = by_name.get(name)
+        if (
+            metric is not None
+            and metric.status == BenchmarkMetricStatus.measured
+            and metric.numerator != metric.denominator
+        ):
+            errors.append(f"metric {name} must close every frozen denominator item")
+
+    expected_retrieval_snapshots = {
+        expectation.source_snapshot_id
+        for case in manifest.cases
+        for expectation in case.source_retrieval_expectations
+    }
+    observed_retrieval_snapshots = {
+        str(snapshot_id)
+        for case in report.cases
+        for snapshot_id in (
+            case.observed.get("retrieval_source_snapshot_ids", [])
+            if isinstance(case.observed.get("retrieval_source_snapshot_ids", []), list)
+            else []
+        )
+    }
+    if not expected_retrieval_snapshots <= observed_retrieval_snapshots:
+        errors.append(
+            "report does not expose every frozen retrieval SourceSnapshot identity"
+        )
 
     repair_cases = [
         case

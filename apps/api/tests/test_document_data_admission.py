@@ -332,6 +332,15 @@ def test_table_extraction_admits_typed_observations_with_locator_closure(
     assert len(batch.raw_candidates) == 2
     assert all(item.candidate_id.startswith("cand.") for item in batch.raw_candidates)
     assert batch.producer_output_summary["accepted_count"] == 2
+    assert all(
+        cell.bbox is None
+        for row in parse.tables[0].rows
+        for cell in row
+    )
+    assert all(
+        item.document_locator.bbox == parse.blocks[0].bbox
+        for item in batch.accepted
+    )
     teff = _accepted_for(batch, "star.effective_temperature")
     radius = _accepted_for(batch, "star.radius")
     assert len(teff) == 1 and len(radius) == 1

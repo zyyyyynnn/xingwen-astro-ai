@@ -251,6 +251,8 @@ jobs:
           && uv run --project apps/api python -m services.scientific_document.benchmark_runner
           --output .artifacts/scientific_document-native-benchmark-report.json
           && uv run --project apps/api python scripts/check_scientific_document_benchmark_report.py .artifacts/scientific_document-native-benchmark-report.json
+          && uv run --project apps/api python scripts/check_scientific_document_benchmark_report.py services/scientific_document/evidence/real-paddle-cpu-hybrid.json
+          && uv run --project apps/api python scripts/check_scientific_document_benchmark_report.py services/scientific_document/evidence/real-paddle-cpu-paired.json
 
       - name: Check scientific data integration benchmark contracts
         run: >-

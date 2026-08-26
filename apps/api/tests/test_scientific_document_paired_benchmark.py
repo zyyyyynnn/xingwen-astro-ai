@@ -520,7 +520,41 @@ def test_official_html_table_projects_to_canonical_cells() -> None:
         ["TOI", "Teff [K]"],
         ["101.01", "5200"],
     ]
-    assert all(cell.bbox is not None for row in tables[0].rows for cell in row)
+    assert all(cell.bbox is None for row in tables[0].rows for cell in row)
+    assert _blocks[0].bbox is not None
+
+
+@pytest.mark.parametrize(
+    "report_name,expected_mode",
+    (
+        ("real-paddle-cpu-hybrid.json", "hybrid"),
+        ("real-paddle-cpu-paired.json", "paired"),
+    ),
+)
+def test_committed_real_paddle_machine_evidence_passes_checker(
+    report_name: str,
+    expected_mode: str,
+) -> None:
+    report_path = ROOT / "services/scientific_document/evidence" / report_name
+    assert report_path.is_file(), f"missing exact-head machine evidence: {report_path}"
+
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert payload["parser_mode"] == expected_mode
+    assert payload["golden_set_manifest_id"] == "scientific_document-golden-set"
+    assert payload["visual_model_id"] == "PaddleOCR-VL-1.6-0.9B"
+    assert payload["visual_model_revision"]
+    assert payload["config_hash"].startswith("sha256:")
+    assert payload["input_hash"].startswith("sha256:")
+    assert payload["output_hash"].startswith("sha256:")
+    assert all(case["latency_seconds"] >= 0 for case in payload["cases"])
+    assert any(
+        case["failure_category"] is None and case["visual_routing_coverage"] > 0
+        for case in payload["cases"]
+        if case["parser_mode"] == "hybrid"
+    )
+
+    checked = _run_checker(report_path)
+    assert checked.returncode == 0, checked.stderr
 
 
 def test_paired_double_run_identity_ignores_volatile_metrics() -> None:

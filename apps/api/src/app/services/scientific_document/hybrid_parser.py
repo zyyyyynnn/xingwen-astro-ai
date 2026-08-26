@@ -690,7 +690,11 @@ def _markdown_table(
                             row_span=min(row_span, len(html_rows) - row_index),
                             column_span=column_span,
                             is_header=header_tag or row_index == 0,
-                            bbox=bbox,
+                            # Paddle's official HTML table payload supplies only
+                            # the enclosing layout block geometry.  Repeating
+                            # that rectangle on every logical cell would falsely
+                            # claim cell-level geometry.
+                            bbox=None,
                             text=text or None,
                             quality=(
                                 DocumentParseQuality.accepted

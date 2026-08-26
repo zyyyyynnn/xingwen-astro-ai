@@ -31,9 +31,11 @@ from app.schemas.core import (
 )
 from app.schemas.crossmatch import (
     CrossmatchInput,
+    CrossmatchResult,
     ReviewerKind,
     compute_crossmatch_input_hash,
 )
+from app.schemas.enums import SourceMode
 from app.schemas.scientific_data_integration_benchmark import (
     SCHEMA_VERSION,
     ConversionProbe,
@@ -43,6 +45,7 @@ from app.schemas.scientific_data_integration_benchmark import (
     RepairAdjudication,
     ScientificDataIntegrationBenchmarkManifest,
     ScientificDataIntegrationReport,
+    SourceRetrievalExpectation,
     compute_integration_manifest_content_hash,
     compute_integration_report_hash,
 )
@@ -50,6 +53,7 @@ from app.schemas.scientific_document_benchmark import (
     BenchmarkMetricStatus,
     BenchmarkMetricValue,
 )
+from app.schemas.source_acquisition import DataSourceDataLevel
 from app.workflow.steps.data_steps import (
     assess_repair_resolution,
     build_repair_manual_review_decision,
@@ -74,6 +78,27 @@ from services.data_pipeline.data_artifacts.errors import DataArtifactError
 from services.data_pipeline.data_artifacts.policy import load_unit_conversion_catalog
 from services.data_pipeline.data_artifacts.projection import canonicalize_source_value
 from services.data_pipeline.manifest import load_frozen_manifest_bundle
+from services.data_pipeline.query import normalize_toi_query
+from services.data_pipeline.sources.base import DataSourceAcquisitionResult
+from services.data_pipeline.sources.nasa_exoplanet_archive import (
+    NasaExoplanetArchiveAdapter,
+)
+from services.data_pipeline.sources.nasa_planetary_systems import (
+    NasaPlanetarySystemsSupplementalAdapter,
+)
+from services.data_pipeline.sources.recorded import (
+    DEFAULT_RECORDED_TOI_FIXTURE_PATH,
+    RecordedNasaToiFixture,
+    RecordedNasaToiTransport,
+)
+from services.data_pipeline.sources.supplemental_recorded import (
+    DEFAULT_RECORDED_PS_FIXTURE_PATH,
+    RecordedNasaPsFixture,
+    RecordedNasaPsTransport,
+)
+from services.data_pipeline.supplemental_query import (
+    normalize_ps_supplemental_query,
+)
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_MANIFEST_PATH = (
@@ -84,7 +109,7 @@ DEFAULT_MANIFEST_PATH = (
 )
 
 PRODUCER_NAME = "scientific_integration_benchmark"
-EVALUATION_VERSION = "2.0.0"
+EVALUATION_VERSION = "2.1.0"
 
 
 def load_integration_benchmark(
@@ -153,13 +178,137 @@ def _conflict_codes(result) -> set[str]:
     }
 
 
-def _retrieved_source_rows(
-    input_value: CrossmatchInput,
+def _acquired_source_rows(
+    acquisitions: dict[str, DataSourceAcquisitionResult],
 ) -> set[tuple[str, tuple[tuple[str, str], ...]]]:
     return {
-        *(("left", tuple(record.row_key)) for record in input_value.left.records),
-        *(("right", tuple(record.row_key)) for record in input_value.right.records),
+        (side, tuple(record.row_key))
+        for side, acquisition in acquisitions.items()
+        for record in acquisition.records
     }
+
+
+def _acquire_frozen_source_rows() -> dict[str, DataSourceAcquisitionResult]:
+    """Replay the existing pinned TOI/PS transports through production adapters."""
+
+    manifests = load_frozen_manifest_bundle()
+
+    def fixed_clock() -> datetime:
+        return datetime(2026, 8, 25, tzinfo=timezone.utc)
+
+    toi_fixture = RecordedNasaToiFixture.model_validate_json(
+        DEFAULT_RECORDED_TOI_FIXTURE_PATH.read_text(encoding="utf-8")
+    )
+    toi_query = normalize_toi_query(
+        manifests,
+        page_size=toi_fixture.pagination.page_size,
+        max_pages=toi_fixture.pagination.max_pages,
+        record_limit=toi_fixture.pagination.record_limit,
+    )
+    toi_result = NasaExoplanetArchiveAdapter(
+        transport=RecordedNasaToiTransport(toi_fixture, query=toi_query),
+        clock=fixed_clock,
+        sleeper=lambda _: None,
+    ).acquire(
+        toi_query,
+        source_mode=SourceMode.fixture,
+        data_level=DataSourceDataLevel.recorded_response,
+    )
+
+    ps_fixture = RecordedNasaPsFixture.model_validate_json(
+        DEFAULT_RECORDED_PS_FIXTURE_PATH.read_text(encoding="utf-8")
+    )
+    ps_query = normalize_ps_supplemental_query(
+        manifests,
+        tic_ids=ps_fixture.input_values,
+        page_size=ps_fixture.pagination.page_size,
+        max_pages=ps_fixture.pagination.max_pages,
+        record_limit=ps_fixture.pagination.record_limit,
+    )
+    ps_result = NasaPlanetarySystemsSupplementalAdapter(
+        transport=RecordedNasaPsTransport(ps_fixture, query=ps_query),
+        clock=fixed_clock,
+        sleeper=lambda _: None,
+    ).acquire(
+        ps_query,
+        source_mode=SourceMode.fixture,
+        data_level=DataSourceDataLevel.recorded_response,
+    )
+    return {"left": toi_result, "right": ps_result}
+
+
+def _retrieval_expectation_is_observed(
+    expectation: SourceRetrievalExpectation,
+    acquisitions: dict[str, DataSourceAcquisitionResult],
+) -> bool:
+    acquisition = acquisitions[expectation.side]
+    snapshot = acquisition.snapshot
+    fixture = snapshot.request_metadata.get("fixture")
+    if not isinstance(fixture, dict):
+        return False
+    return (
+        snapshot.source_id == expectation.source_id
+        and snapshot.snapshot_id == expectation.source_snapshot_id
+        and snapshot.content_hash == expectation.source_snapshot_content_hash
+        and snapshot.query_hash == expectation.query_hash
+        and fixture.get("fixture_id") == expectation.fixture_id
+        and fixture.get("content_hash") == expectation.fixture_content_hash
+        and any(
+            record.source_id == expectation.source_id
+            and tuple(record.row_key) == tuple(expectation.row_key)
+            for record in acquisition.records
+        )
+    )
+
+
+def audit_crossmatch_evidence_closure(
+    input_value: CrossmatchInput,
+    result: CrossmatchResult,
+) -> tuple[int, int, tuple[str, ...]]:
+    """Resolve every Evidence locator to its frozen Snapshot and raw record."""
+
+    acquisitions = {"left": input_value.left, "right": input_value.right}
+    candidates = {candidate.candidate_id: candidate for candidate in result.candidates}
+    covered = 0
+    failures: list[str] = []
+
+    for evidence in result.evidence:
+        closed = True
+        for side, candidate_id, locators in (
+            ("left", evidence.left_candidate_id, evidence.left_locators),
+            ("right", evidence.right_candidate_id, evidence.right_locators),
+        ):
+            acquisition = acquisitions[side]
+            snapshot = acquisition.snapshot
+            candidate = candidates.get(candidate_id)
+            records = {tuple(record.row_key): record for record in acquisition.records}
+            if candidate is None or candidate.side.value != side:
+                closed = False
+                continue
+            reference = candidate.source_record
+            for locator in locators:
+                record = records.get(tuple(locator.row_key))
+                if (
+                    locator.side.value != side
+                    or locator.source_snapshot_id != snapshot.snapshot_id
+                    or locator.source_id != snapshot.source_id
+                    or locator.query_hash != snapshot.query_hash
+                    or reference.source_snapshot_id != locator.source_snapshot_id
+                    or reference.source_snapshot_content_hash != snapshot.content_hash
+                    or reference.source_id != locator.source_id
+                    or reference.query_hash != locator.query_hash
+                    or tuple(reference.row_key) != tuple(locator.row_key)
+                    or record is None
+                    or record.source_id != locator.source_id
+                    or record.content_hash != reference.record_content_hash
+                    or locator.raw_field not in record.payload
+                ):
+                    closed = False
+        if closed:
+            covered += 1
+        else:
+            failures.append(evidence.evidence_id)
+    return covered, len(result.evidence), tuple(failures)
 
 
 def _conflict_observations(result) -> set[tuple]:
@@ -500,6 +649,7 @@ def evaluate(
     crossmatch = load_crossmatch_benchmark()
     scenarios = {s.scenario_id: s for s in crossmatch.scenarios}
     load_unit_conversion_catalog()  # fail fast on catalog drift
+    retrieval_acquisitions = _acquire_frozen_source_rows()
 
     case_results: list[IntegrationCaseResult] = []
     retrieval_num = retrieval_den = 0
@@ -606,12 +756,15 @@ def evaluate(
                         f"{sorted(unexpected_conflicts)}"
                     )
 
-                retrieved_rows = _retrieved_source_rows(input_value)
+                retrieved_rows = _acquired_source_rows(retrieval_acquisitions)
                 retrieval_failures: list[str] = []
                 for expectation in case.source_retrieval_expectations:
                     retrieval_den += 1
                     expected = (expectation.side, tuple(expectation.row_key))
-                    if expected in retrieved_rows:
+                    if _retrieval_expectation_is_observed(
+                        expectation,
+                        retrieval_acquisitions,
+                    ):
                         retrieval_num += 1
                     else:
                         retrieval_failures.append(
@@ -656,6 +809,10 @@ def evaluate(
                             "accepted_pair_count": len(observed_pairs),
                             "conflict_codes": sorted(observed_codes),
                             "retrieved_source_rows": len(retrieved_rows),
+                            "retrieval_source_snapshot_ids": sorted(
+                                acquisition.snapshot.snapshot_id
+                                for acquisition in retrieval_acquisitions.values()
+                            ),
                         },
                         input_hash=input_value.input_hash,
                         output_hash=result.output_hash,
@@ -668,10 +825,22 @@ def evaluate(
                     expected_pairs_total += len(truth_pairs)
                     tp += len(observed_pairs & truth_pairs)
 
-            metrics = evaluated_result.metrics
-            if metrics.evidence_coverage.denominator:
-                evidence_num += float(metrics.evidence_coverage.numerator)
-                evidence_den += float(metrics.evidence_coverage.denominator)
+            closure_num, closure_den, closure_failures = (
+                audit_crossmatch_evidence_closure(input_value, evaluated_result)
+            )
+            evidence_num += closure_num
+            evidence_den += closure_den
+            if closure_failures:
+                current = case_results[-1]
+                detail = f"evidence locator closure failed: {list(closure_failures)}"
+                case_results[-1] = current.model_copy(
+                    update={
+                        "status": "failed",
+                        "failure_detail": "; ".join(
+                            value for value in (current.failure_detail, detail) if value
+                        ),
+                    }
+                )
 
             rerun_input, rerun, _, _ = _run_alignment(scenario)
             reproduced_result = rerun
@@ -805,6 +974,38 @@ def render_summary(report: ScientificDataIntegrationReport) -> str:
             f"{metric.status.value} | "
             f"{_fmt(metric.numerator)} | {_fmt(metric.denominator)} | {rate} |"
         )
+    retrieval_snapshots = sorted(
+        {
+            str(snapshot_id)
+            for case in report.cases
+            for snapshot_id in (
+                case.observed.get("retrieval_source_snapshot_ids", [])
+                if isinstance(
+                    case.observed.get("retrieval_source_snapshot_ids", []), list
+                )
+                else []
+            )
+        }
+    )
+    evidence_metric = next(
+        metric for metric in report.metrics if metric.name == "evidence_coverage"
+    )
+    lines.extend(
+        [
+            "",
+            "## Acquisition and Evidence Closure",
+            "",
+            "- source retrieval: existing TOI/PS production adapters over their "
+            "hash-pinned Recorded transports",
+            "- frozen retrieval SourceSnapshots: "
+            + ", ".join(f"`{value}`" for value in retrieval_snapshots),
+            "- Evidence closure: each audited CrossmatchEvidence resolves both "
+            "locator sides through source_snapshot_id + source_id + query_hash + "
+            "row_key + raw_field to the case acquisition records",
+            f"- closed Evidence: {_fmt(evidence_metric.numerator)} / "
+            f"{_fmt(evidence_metric.denominator)}",
+        ]
+    )
     failed = [case for case in report.cases if case.status == "failed"]
     lines.extend(["", f"## Cases ({len(report.cases)}, failed: {len(failed)})", ""])
     if failed:

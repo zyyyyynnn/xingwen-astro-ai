@@ -23,7 +23,7 @@ from .scientific_document_benchmark import (
     _PENDING_OUTPUT_HASH,
 )
 
-SCHEMA_VERSION = "2.0.0"
+SCHEMA_VERSION = "2.1.0"
 
 #: The eleven required integration metrics. Every report must declare each one;
 #: a capability that genuinely cannot run yet must still be declared with an
@@ -77,6 +77,12 @@ class SourceRetrievalExpectation(BaseModel):
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="SourceRetrievalExpectation")
 
     side: Literal["left", "right"]
+    source_id: Identifier
+    source_snapshot_id: Identifier
+    source_snapshot_content_hash: ContentHash
+    query_hash: ContentHash
+    fixture_id: Identifier
+    fixture_content_hash: ContentHash
     row_key: tuple[tuple[str, str], ...] = Field(min_length=1)
 
 

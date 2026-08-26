@@ -1,15 +1,15 @@
 {
   "benchmark_id": "exoplanet_host_star.scientific_data_integration_benchmark",
-  "version": "2.0.0",
-  "content_hash": "sha256:4d4542abe73b5c2fee684560c84121df7d619218f68a9e7f2a1af1fb9c7468dc",
-  "data_level": "synthetic_fixture",
-  "provenance_note": "Frozen integration corpus over independently adjudicated synthetic source records. Expected retrievals, field values, entity pairs, conflicts, unit outcomes, and repair dispositions were written from the source fixture contract before evaluation; production output is observed but never copied into truth.",
-  "adjudication_source": "services/data_pipeline/benchmarks/exoplanet_host_star/crossmatch-benchmark.json plus the pinned field and unit authorities, independently reviewed as a frozen fixture contract",
+  "version": "2.1.0",
+  "content_hash": "sha256:945058c3b70c43c932e59303b6e31c2239a8d5240f3176e89abe7fae883c18ae",
+  "data_level": "synthetic_fixture_plus_recorded_response",
+  "provenance_note": "Frozen integration corpus over independently adjudicated synthetic crossmatch records and hash-pinned Recorded TOI/PS acquisition fixtures. Expected retrievals are scored only after the existing production adapters replay their fixture transports; field values, entity pairs, conflicts, unit outcomes, and repair dispositions remain independent frozen adjudications. Production output is observed but never copied into truth.",
+  "adjudication_source": "The pinned TOI and PS recorded acquisition fixtures, crossmatch benchmark corpus, field manifest, mapping rules, and unit catalog, independently reviewed as frozen fixture contracts",
   "adjudicated_at": "2026-08-25T00:00:00Z",
   "inconclusive_policy": "Only explicitly enumerated retrievable source rows and adjudicated observations enter a metric denominator. Truncated or incomplete source status never substitutes whole-case pass/fail for an observation and is excluded unless the frozen corpus declares an expectation.",
-  "evaluation_version": "2.0.0",
+  "evaluation_version": "2.1.0",
   "metric_formulas": {
-    "source_retrieval_completeness": "observed_expected_source_rows / frozen_expected_source_rows",
+    "source_retrieval_completeness": "formally_acquired_expected_source_rows_with_pinned_snapshot_identity / frozen_recorded_source_row_expectations",
     "field_value_correctness": "exact_canonical_field_values / frozen_field_value_adjudications",
     "entity_alignment_precision": "true_positive_pairs / observed_accepted_pairs",
     "entity_alignment_recall": "true_positive_pairs / frozen_expected_pairs",
@@ -17,7 +17,7 @@
     "conflict_detection": "correct_conflict_decisions / frozen_conflict_adjudications",
     "repair_success": "resolved_required_repairs / frozen_should_repair_adjudications",
     "false_repair_rate": "incorrectly_resolved_no_repair_cases / frozen_must_not_repair_adjudications",
-    "evidence_coverage": "observed_evidence_items / evidence-eligible_observations",
+    "evidence_coverage": "crossmatch_evidence_with_exact_snapshot_source_query_row_field_closure / audited_crossmatch_evidence",
     "reproducibility_hash_stability": "stable_rerun_hashes / successful_scenario_reruns",
     "failure_recovery": "exact_expected_failures / frozen_failure_injections"
   },
@@ -57,13 +57,25 @@
       "source_retrieval_expectations": [
         {
           "side": "left",
-          "row_key": [["toi", "101.01"]]
+          "source_id": "nasa_exoplanet_archive.toi",
+          "source_snapshot_id": "snapshot.nasa-toi.e9ce26a8760a7bf42d47377a",
+          "source_snapshot_content_hash": "sha256:5088ff9bc27109de7742bcef89c5d6c3033146510beafbcceedc7af33bd034ba",
+          "query_hash": "sha256:bb6deb337eacb15ddd68b942abdda52442de78a8b67e4021037960c27c6a2859",
+          "fixture_id": "fixture.nasa-toi.first-page.2026-07-22",
+          "fixture_content_hash": "sha256:2303943c13a7ee985b412ff2e73cf900268fbc904983e783aff3bf5d7f928949",
+          "row_key": [["toi", "1000.01"]]
         },
         {
           "side": "right",
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_snapshot_id": "snapshot.nasa-ps.42e7e7a0142553765af546f2",
+          "source_snapshot_content_hash": "sha256:e41328b8d61850461d353398532262596df2bfebbebeede7080e2ccb00809094",
+          "query_hash": "sha256:8beeda393f1d407e18401b54377f1dda810bdc17f0abae89ff233b43a335fde2",
+          "fixture_id": "fixture.nasa-ps.by-tic-first-page.2026-07-30",
+          "fixture_content_hash": "sha256:abd53480378d9b1a51610247350e090ed0cfe922a8fb660cf420b5e4663004c3",
           "row_key": [
-            ["pl_name", "Topology One b"],
-            ["pl_refname", "Reference 1"]
+            ["pl_name", "TOI-1243 b"],
+            ["pl_refname", "<a refstr=EXOFOP href=https://exofop.ipac.caltech.edu/tess/view_toi.php target=ref>ExoFOP</a>"]
           ]
         }
       ],

@@ -52,6 +52,7 @@ from app.schemas.manifest import (
     normalize_document_alias_label,
 )
 from app.schemas.scientific_document import (
+    DocumentBBox,
     DocumentLocator,
     DocumentParseCandidate,
     DocumentParseQuality,
@@ -147,6 +148,7 @@ def extract_document_observations(
         resolver=resolver,
         entities=entities,
         rules=rules,
+        block_bboxes={block.block_id: block.bbox for block in parse.blocks},
     )
 
     authorization_code = _authorization_rejection(
@@ -744,11 +746,13 @@ class _Extractor:
         resolver: _Resolver,
         entities: _EntityIndex,
         rules: DocumentObservationRuleSet,
+        block_bboxes: dict[str, DocumentBBox | None],
     ) -> None:
         self._context = context
         self._resolver = resolver
         self._entities = entities
         self._rules = rules
+        self._block_bboxes = block_bboxes
 
     def table_drafts(self, table: DocumentTable) -> list[_Draft]:
         if not table.rows:
@@ -796,7 +800,11 @@ class _Extractor:
                     locator=DocumentLocator(
                         page_index=table.page_index,
                         block_id=table.block_id,
-                        bbox=cell.bbox,
+                        bbox=(
+                            cell.bbox
+                            if cell.bbox is not None
+                            else self._block_bboxes.get(table.block_id or "")
+                        ),
                         table_id=table.table_id,
                         cell_id=cell.cell_id,
                     ),

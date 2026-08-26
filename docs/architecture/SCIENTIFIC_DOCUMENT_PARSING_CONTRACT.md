@@ -81,6 +81,11 @@ textual payload。
 左上角原点、x 向右、y 向下的绝对 PDF points；不使用 0..1 归一化。未知几何
 使用 `None`，不能用零矩形代替。
 
+HTML table 只提供 enclosing table/block geometry 时，各 `DocumentTableCell.bbox`
+必须为 `None`，不能把 enclosing bbox 复制成伪 cell geometry。由该 cell 派生的
+`DocumentLocator` 仍绑定真实 `table_id`/`cell_id`，其 `bbox` 明确回退到 enclosing
+table block bbox；这样既保留可核验的 region locator，也不虚构 cell-level 坐标。
+
 `cell_id` 必须同时有 `table_id`；`text_span` 必须同时有 `block_id`。持久化
 层必须在 immutable parse 上重新验证 locator，确认 page、block、table、cell
 与 bbox 闭合。
@@ -165,6 +170,13 @@ case、latency、provenance，或没有任何成功 visual routing 的自述直�
 与计时噪声字段，同输入重复运行保持稳定。真实 Paddle invocation 属受控集成证据，
 公共 CI 只验证 schema、deterministic parser tests 与已产出报告的
 provenance/hash 契约。
+
+受控 real Paddle CPU 执行的 hybrid/paired machine reports 固化在
+`services/scientific_document/evidence/`。报告输入的 publication assets 是
+`source_mode=fixture`，模型推理、routing、latency 与 output 则来自真实 production
+hybrid adapter；因此这些 Artifact/evidence 不得标记为 `live`。CI 对两份报告执行
+同一个 fail-closed checker，使任意 exact checkout 都能复核 model/revision、
+config/input/output hash、case-level latency 与成功 visual routing。
 
 API 只暴露一个 `HybridScientificDocumentParser` 与一个 DocumentParse persistence
 边界。CAS reload、persisted SourceSnapshot、parser identity、locator 与 quoted
