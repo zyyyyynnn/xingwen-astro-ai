@@ -273,3 +273,14 @@ def test_checker_requires_measured_false_repair_denominator(tmp_path: Path) -> N
 
     assert checked.returncode == 1
     assert "false_repair_rate must be measured" in checked.stderr
+
+
+def test_checker_rejects_pending_output_hash(tmp_path: Path) -> None:
+    report = _evaluate().model_copy(update={"output_hash": "sha256:" + "0" * 64})
+    path = tmp_path / "pending-output-hash.json"
+    path.write_text(report.model_dump_json(), encoding="utf-8")
+
+    checked = _run_checker(path)
+
+    assert checked.returncode == 1
+    assert "output_hash is still pending" in checked.stderr

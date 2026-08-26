@@ -354,6 +354,19 @@ def test_checker_rejects_hybrid_without_successful_visual_routing(
     assert "successful visual routing" in result.stderr
 
 
+def test_checker_rejects_pending_output_hash(tmp_path: Path) -> None:
+    report = _paired_report_with_stub().model_copy(
+        update={"output_hash": "sha256:" + "0" * 64}
+    )
+    path = tmp_path / "pending-output-hash.json"
+    path.write_text(report.model_dump_json(), encoding="utf-8")
+
+    result = _run_checker(path)
+
+    assert result.returncode == 1
+    assert "output_hash is still pending" in result.stderr
+
+
 def test_local_bundle_backend_refuses_unverified_bundle(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

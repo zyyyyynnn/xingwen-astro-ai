@@ -25,6 +25,8 @@ from app.schemas.scientific_document_benchmark import (
     BenchmarkReport,
 )
 
+_PENDING_OUTPUT_HASH = "sha256:" + "0" * 64
+
 
 def _measured_metric(report: BenchmarkReport, name: str) -> bool:
     return any(
@@ -48,6 +50,8 @@ def main() -> int:
     report = BenchmarkReport.model_validate(data)  # raises if output_hash mismatches
 
     errors: list[str] = []
+    if report.output_hash == _PENDING_OUTPUT_HASH:
+        errors.append("benchmark report output_hash is still pending")
     if len(report.cases) == 0:
         errors.append("benchmark report has zero cases (silent skip?)")
     for case in report.cases:

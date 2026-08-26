@@ -19,6 +19,8 @@ from app.schemas.scientific_data_integration_benchmark import (
 )
 from app.schemas.scientific_document_benchmark import BenchmarkMetricStatus
 
+_PENDING_OUTPUT_HASH = "sha256:" + "0" * 64
+
 
 def main() -> int:
     if len(sys.argv) < 2:
@@ -35,6 +37,8 @@ def main() -> int:
     report = ScientificDataIntegrationReport.model_validate(data)
 
     errors: list[str] = []
+    if report.output_hash == _PENDING_OUTPUT_HASH:
+        errors.append("integration report output_hash is still pending")
     by_name = {metric.name: metric for metric in report.metrics}
     for name in REQUIRED_METRIC_NAMES:
         metric = by_name.get(name)
