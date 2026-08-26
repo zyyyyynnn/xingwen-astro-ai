@@ -415,9 +415,12 @@ def test_real_local_pipeline_constructs_against_verified_bundle() -> None:
     assert pipeline.engine_version == "1.6"
 
 
-def test_local_pipeline_projects_official_layout_block_objects() -> None:
+def test_local_pipeline_projects_official_layout_block_objects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """The in-process API returns LayoutBlock objects, not HTTP-shaped dicts."""
     from io import BytesIO
+    import sys
     from types import SimpleNamespace
 
     from PIL import Image
@@ -447,6 +450,14 @@ def test_local_pipeline_projects_official_layout_block_objects() -> None:
     image = Image.new("RGB", (200, 100), "white")
     encoded = BytesIO()
     image.save(encoded, format="PNG")
+    monkeypatch.setitem(
+        sys.modules,
+        "cv2",
+        SimpleNamespace(
+            IMREAD_COLOR=1,
+            imdecode=lambda _buffer, _mode: object(),
+        ),
+    )
     pipeline = object.__new__(LocalPaddleOcrVlPipeline)
     pipeline._engine = _Engine()
 
