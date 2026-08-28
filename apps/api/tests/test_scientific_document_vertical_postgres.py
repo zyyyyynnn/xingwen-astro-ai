@@ -385,7 +385,7 @@ def chain(postgres_engine: Engine, tmp_path_factory) -> VerticalChain:
         version=contract_model.version,
         content_hash=contract_model.content_hash,
         created_from_draft_id=str(contract_model.created_from_draft_id),
-        created_at=contract_model.created_at or NOW,
+        created_at=(contract_model.created_at or NOW).astimezone(UTC),
         **payload,
     )
     context = RunStepContext(

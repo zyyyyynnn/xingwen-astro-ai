@@ -59,6 +59,7 @@ _MAX_TABLE_CONTENT_CHARS = 4 * 1024 * 1024
 _MAX_TABLE_ROWS = 512
 _MAX_TABLE_COLUMNS = 256
 _MAX_TABLE_LOGICAL_CELLS = 65_536
+_MAX_VISUAL_GENERATION_TOKENS = 4096
 _BLOCK_ATTRIBUTE_NAMES = {
     "block_label": "label",
     "block_content": "content",
@@ -159,7 +160,8 @@ class PaddleOcrVlClient:
                     "useLayoutDetection": True,
                     "useChartRecognition": False,
                     "useSealRecognition": False,
-                    "formatBlockContent": False,
+                    "formatBlockContent": True,
+                    "maxNewTokens": _MAX_VISUAL_GENERATION_TOKENS,
                     "returnMarkdownImages": False,
                     "visualize": False,
                 },

@@ -254,12 +254,8 @@ def _table_quality_parse(
     parse = _parse([(host_token, "5600")], header=("star.tic_id", value_header))
     table = parse.tables[0]
     header_row = list(table.rows[0])
-    header_row[0] = header_row[0].model_copy(
-        update={"quality": entity_header_quality}
-    )
-    header_row[1] = header_row[1].model_copy(
-        update={"quality": value_header_quality}
-    )
+    header_row[0] = header_row[0].model_copy(update={"quality": entity_header_quality})
+    header_row[1] = header_row[1].model_copy(update={"quality": value_header_quality})
     body_row = list(table.rows[1])
     body_row[0] = body_row[0].model_copy(update={"quality": entity_quality})
     body_row[1] = body_row[1].model_copy(update={"quality": value_quality})
@@ -332,14 +328,9 @@ def test_table_extraction_admits_typed_observations_with_locator_closure(
     assert len(batch.raw_candidates) == 2
     assert all(item.candidate_id.startswith("cand.") for item in batch.raw_candidates)
     assert batch.producer_output_summary["accepted_count"] == 2
+    assert all(cell.bbox is None for row in parse.tables[0].rows for cell in row)
     assert all(
-        cell.bbox is None
-        for row in parse.tables[0].rows
-        for cell in row
-    )
-    assert all(
-        item.document_locator.bbox == parse.blocks[0].bbox
-        for item in batch.accepted
+        item.document_locator.bbox == parse.blocks[0].bbox for item in batch.accepted
     )
     teff = _accepted_for(batch, "star.effective_temperature")
     radius = _accepted_for(batch, "star.radius")
@@ -356,6 +347,44 @@ def test_table_extraction_admits_typed_observations_with_locator_closure(
     assert teff[0].source_unit == "kelvin"
     assert teff[0].persisted_source_snapshot_id == str(SNAPSHOT_ID)
     assert radius[0].parsed_scalar == Decimal("1.2")
+
+    from app.services.document_parse_store import validate_document_locator
+
+    for observation in batch.accepted:
+        validate_document_locator(parse, observation.document_locator)
+
+
+def test_transposed_scientific_table_admits_planet_values_with_cell_locators(
+    crossmatch,
+) -> None:
+    parse = _parse(
+        [
+            ("P (days)", "$ 2.253 \\pm 0.001 $"),
+            ("$ R_p $ (R $ \\oplus $)", "$ 0.837 \\pm 0.019 $"),
+        ],
+        header=("Parameter", "Topology One b"),
+    )
+    batch = extract_document_observations(
+        parse=parse,
+        context=_context(),
+        snapshot_projection=_projection(),
+        contract_policy=DocumentSourcePolicy.research_input,
+        case_capability=True,
+        requested_fields=("planet.orbital_period", "planet.radius"),
+        manifests=BUNDLE,
+        crossmatch=crossmatch,
+        rules=RULES,
+    )
+
+    assert len(batch.raw_candidates) == 2
+    assert len(batch.accepted) == 2
+    observations = {item.canonical_field_id: item for item in batch.accepted}
+    assert observations["planet.orbital_period"].parsed_scalar == Decimal("2.253")
+    assert observations["planet.orbital_period"].source_unit == "day"
+    assert observations["planet.orbital_period"].document_locator.cell_id == "c-1-1"
+    assert observations["planet.radius"].parsed_scalar == Decimal("0.837")
+    assert observations["planet.radius"].source_unit == "earth_radius"
+    assert observations["planet.radius"].document_locator.cell_id == "c-2-1"
 
     from app.services.document_parse_store import validate_document_locator
 
@@ -550,9 +579,7 @@ def test_table_observation_quality_propagates_from_all_regions(
         assert observations[0].parse_quality is expected_quality
 
 
-def test_body_row_cannot_be_promoted_to_table_header(
-    crossmatch, host_token
-) -> None:
+def test_body_row_cannot_be_promoted_to_table_header(crossmatch, host_token) -> None:
     parse = _parse(
         [
             ("star.tic_id", "Teff [K]"),
@@ -1156,9 +1183,7 @@ def _structured_orbital_baseline() -> DataArtifactBuildInput:
             "right": add_measurement(crossmatch_input.right),
         }
     )
-    return (
-        _baseline_from_injected(injected)
-    )
+    return _baseline_from_injected(injected)
 
 
 def _baseline_from_injected(crossmatch_input) -> DataArtifactBuildInput:
@@ -1604,9 +1629,7 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
             "document_source_policy": "research_input",
         },
         "requested_fields": list(REQUESTED_FIELDS),
-        "source_scope": {
-            "allowed_sources": ["nasa_exoplanet_archive", "esa_gaia_dr3"]
-        },
+        "source_scope": {"allowed_sources": ["nasa_exoplanet_archive", "esa_gaia_dr3"]},
         "paper_search_scope": {"max_candidates": 20},
         "output_requirements": ["dataset"],
         "evidence_requirements": {},
@@ -1965,9 +1988,12 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
     )
     assert unsupported_batch.raw_candidates == ()
     assert unsupported_batch.accepted == ()
-    assert admission.execute(unsupported_plan).producer_output_summary[
-        "unsupported_regions"
-    ] == unsupported_regions
+    assert (
+        admission.execute(unsupported_plan).producer_output_summary[
+            "unsupported_regions"
+        ]
+        == unsupported_regions
+    )
 
     # The single persisted upload SourceSnapshot is reused, never duplicated.
     bindings = {

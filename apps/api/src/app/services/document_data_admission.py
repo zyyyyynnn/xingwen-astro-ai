@@ -11,6 +11,7 @@ authorities.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC
 from typing import Any
 from uuid import UUID
 
@@ -368,11 +369,16 @@ class DocumentDataAdmissionService:
     ) -> DataSourceSnapshotProjection:
         """Project every persisted SourceSnapshot fact without synthesis."""
 
+        retrieved_at = (
+            snapshot.retrieved_at.astimezone(UTC)
+            if snapshot.retrieved_at.tzinfo is not None
+            else snapshot.retrieved_at.replace(tzinfo=UTC)
+        )
         return DataSourceSnapshotProjection(
             snapshot_id=f"research-input.{context.research_input_id}",
             source_id=snapshot.source_id,
             source_type=snapshot.source_type,
-            retrieved_at=snapshot.retrieved_at,
+            retrieved_at=retrieved_at,
             query=snapshot.query,
             query_hash=snapshot.query_hash,
             source_version_or_etag=snapshot.source_version_or_etag,

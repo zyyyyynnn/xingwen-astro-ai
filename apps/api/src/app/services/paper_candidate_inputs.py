@@ -273,9 +273,13 @@ class PaperCandidateInputService:
             ),
             access_evidence_hash=row.access_evidence_hash,
             research_input=input_ref,
-            created_at=row.created_at,
+            created_at=_utc(row.created_at),
             reused=reused,
         )
+
+
+def _utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
 
 class PaperCandidateInputReadService:

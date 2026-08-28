@@ -1,0 +1,31 @@
+{
+  "title": "Detailed Architecture of the L 98-59 System and Confirmation of a Fifth Planet in the Habitable Zone",
+  "authors": "Charles Cadieux et al.",
+  "journal_citation": "The Astronomical Journal, 170:154 (2025)",
+  "doi": "10.3847/1538-3881/adef59",
+  "arxiv_id": "2507.09343",
+  "source_url": "https://arxiv.org/pdf/2507.09343",
+  "record_url": "https://arxiv.org/abs/2507.09343",
+  "license": "Creative Commons Attribution 4.0 International",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "retrieved_on": "2026-08-26",
+  "fixture_files": [
+    "cadieux-2025-l98-59-table-5.pdf",
+    "cadieux-2025-l98-59-page-14.png",
+    "cadieux-2025-l98-59-table-5.paddleocr-vl-1.6.recorded.json"
+  ],
+  "source_page": 14,
+  "source_table": "Table 5",
+  "excerpt_boundary": "Original page 14 cropped to Table 5 and its note; scientific content is unmodified.",
+  "image_boundary": "Original page 14 rendered at 1360 by 1760 pixels; scientific content is unmodified.",
+  "recorded_response": {
+    "source_mode": "fixture",
+    "data_level": "recorded_response",
+    "engine": "PaddleOCRVL official in-process pipeline",
+    "engine_version": "1.6",
+    "model_id": "PaddleOCR-VL-1.6-0.9B",
+    "model_revision": "cdc88f5feff0e4079e75863205053a68358e52f7",
+    "input_file": "cadieux-2025-l98-59-page-14.png"
+  },
+  "purpose": "Release-candidate visual-parser fixture for transposed scientific table recovery, document-derived data admission, Evidence locator closure, and publication through the production Workspace path."
+}

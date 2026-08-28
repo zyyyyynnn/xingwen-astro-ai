@@ -2,10 +2,26 @@ import { describe, expect, it } from "vitest";
 
 import { paperSummaryReadFixture } from "../src/fixture/paper-summary";
 import { ValidationError } from "../src/errors";
+import { HttpClient } from "../src/http-client";
 import {
   assemblePaperSummaryDocumentSource,
   assemblePaperSummaryReview,
+  createPaperSummaryRepository,
 } from "../src/paper-summary-repository";
+import type { SessionManager } from "../src/session";
+
+function session(): SessionManager {
+  return {
+    ensureSession: async () => {
+      throw new Error("not used");
+    },
+    getCurrent: () => null,
+    revokeSession: async () => undefined,
+    attachCsrf: () => undefined,
+    onSessionExpired: () => () => undefined,
+    notifyExpired: () => undefined,
+  };
+}
 
 function cachedRead() {
   const read = structuredClone(paperSummaryReadFixture);
@@ -113,5 +129,32 @@ describe("assemblePaperSummaryDocumentSource", () => {
         },
       }),
     ).toThrowError(ValidationError);
+  });
+});
+
+describe("PaperSummaryRepository export", () => {
+  it("downloads the exact immutable version in the requested format", async () => {
+    let requestedUrl = "";
+    const repository = createPaperSummaryRepository(
+      new HttpClient({
+        baseUrl: "http://test.local",
+        session: session(),
+        fetchImpl: (async (input) => {
+          requestedUrl = String(input);
+          return new Response("# Frozen summary\n", {
+            status: 200,
+            headers: { "Content-Type": "text/markdown" },
+          });
+        }) as typeof fetch,
+      }),
+    );
+
+    const download = await repository.export("version-pinned", "markdown");
+
+    expect(requestedUrl).toBe(
+      "http://test.local/api/artifact-versions/version-pinned/paper-summary/export?export_format=markdown",
+    );
+    expect(download.fileName).toBe("paper-summary-version-pinned.md");
+    expect(new TextDecoder().decode(download.bytes)).toBe("# Frozen summary\n");
   });
 });

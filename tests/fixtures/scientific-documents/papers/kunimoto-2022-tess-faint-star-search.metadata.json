@@ -1,0 +1,14 @@
+{
+  "title": "The TESS Faint Star Search: 1,617 TOIs from the TESS Primary Mission",
+  "authors": "Michelle Kunimoto et al.",
+  "journal_citation": "The Astrophysical Journal Supplement Series, 259:33 (2022)",
+  "doi": "10.3847/1538-4365/ac5688",
+  "arxiv_id": "2112.02176",
+  "source_url": "https://arxiv.org/pdf/2112.02176",
+  "record_url": "https://arxiv.org/abs/2112.02176",
+  "license": "Creative Commons Attribution 4.0 International",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "retrieved_on": "2026-08-26",
+  "fixture_file": "kunimoto-2022-tess-faint-star-search.pdf",
+  "purpose": "Release-candidate browser fixture for the lawful OA ResearchInput to DocumentParse to PaperSummary provenance chain."
+}

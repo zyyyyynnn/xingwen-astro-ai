@@ -10,6 +10,7 @@ controlled integration evidence.
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 import subprocess
@@ -69,6 +70,8 @@ def _stub_visual_client() -> object:
         assert request.url.path.endswith("/layout-parsing")
         body = json.loads(request.content.decode("ascii"))
         assert isinstance(body["file"], str)
+        assert body["formatBlockContent"] is True
+        assert body["maxNewTokens"] == 4096
         base64.b64decode(body["file"])  # must be real page bytes
         return httpx.Response(200, json=_stub_layout_parsing_payload())
 
@@ -119,15 +122,15 @@ def test_hybrid_refuses_to_start_without_configured_backend(
 ) -> None:
     from app.config import settings
     from services.scientific_document.benchmark_runner import (
+        require_visual_parser,
         run_hybrid,
-        visual_parser_from_settings,
     )
 
     monkeypatch.setattr(settings, "PADDLEOCR_VL_BASE_URL", None, raising=False)
     monkeypatch.setattr(settings, "PADDLEOCR_VL_MODEL_REVISION", None, raising=False)
     monkeypatch.setattr(settings, "PADDLEOCR_VL_LOCAL_BUNDLE", None, raising=False)
     with pytest.raises(RuntimeError, match="visual backend"):
-        visual_parser_from_settings()
+        require_visual_parser()
     with pytest.raises(RuntimeError, match="visual backend"):
         run_hybrid()
 
@@ -135,12 +138,12 @@ def test_hybrid_refuses_to_start_without_configured_backend(
 def _paired_report_with_stub() -> object:
     from services.scientific_document import benchmark_runner
 
-    original = benchmark_runner.visual_parser_from_settings
-    benchmark_runner.visual_parser_from_settings = lambda: _stub_visual_client()
+    original = benchmark_runner.require_visual_parser
+    benchmark_runner.require_visual_parser = lambda: _stub_visual_client()
     try:
         return benchmark_runner.run_paired()
     finally:
-        benchmark_runner.visual_parser_from_settings = original
+        benchmark_runner.require_visual_parser = original
 
 
 @pytest.mark.scientific_document_native
@@ -407,14 +410,14 @@ def test_local_bundle_backend_refuses_unverified_bundle(
     """An unverified/absent bundle must fail closed before any vendor import."""
     from app.config import settings
     from services.scientific_document.benchmark_runner import (
-        visual_parser_from_settings,
+        require_visual_parser,
     )
 
     monkeypatch.setattr(settings, "PADDLEOCR_VL_BASE_URL", None, raising=False)
     monkeypatch.setattr(settings, "PADDLEOCR_VL_MODEL_REVISION", None, raising=False)
     monkeypatch.setattr(settings, "PADDLEOCR_VL_LOCAL_BUNDLE", str(tmp_path))
-    with pytest.raises(RuntimeError):
-        visual_parser_from_settings()
+    with pytest.raises(ValueError):
+        require_visual_parser()
 
 
 def test_local_bundle_backend_wiring(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -422,7 +425,7 @@ def test_local_bundle_backend_wiring(monkeypatch: pytest.MonkeyPatch) -> None:
     import app.services.scientific_document.local_paddle_pipeline as local_mod
     from app.config import settings
     from services.scientific_document.benchmark_runner import (
-        visual_parser_from_settings,
+        require_visual_parser,
     )
 
     class _Dummy:
@@ -436,7 +439,7 @@ def test_local_bundle_backend_wiring(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "PADDLEOCR_VL_MODEL_REVISION", None, raising=False)
     monkeypatch.setattr(settings, "PADDLEOCR_VL_LOCAL_BUNDLE", "bundle-x")
     monkeypatch.setattr(local_mod, "LocalPaddleOcrVlPipeline", _Dummy)
-    parser = visual_parser_from_settings()
+    parser = require_visual_parser()
     assert isinstance(parser, _Dummy)
 
 
@@ -479,6 +482,7 @@ def test_local_pipeline_projects_official_layout_block_objects(
     class _Engine:
         def predict(self, _array, **kwargs):
             assert kwargs["format_block_content"] is True
+            assert kwargs["max_new_tokens"] == 4096
             return [
                 {
                     "width": 200,
@@ -517,6 +521,108 @@ def test_local_pipeline_projects_official_layout_block_objects(
     )
     assert result.blocks[0].bbox == (10.0, 20.0, 190.0, 90.0)
     assert result.blocks[0].order == 2
+
+
+def test_recorded_real_paddle_response_projects_the_paper_table() -> None:
+    from app.schemas.scientific_document import DocumentParseInput
+    from app.services.scientific_document.hybrid_parser import (
+        HybridScientificDocumentParser,
+        PaddleOcrVlClient,
+    )
+
+    fixture_dir = ROOT / "tests" / "fixtures" / "scientific-documents" / "papers"
+    image_path = fixture_dir / "cadieux-2025-l98-59-page-14.png"
+    recorded_path = (
+        fixture_dir
+        / "cadieux-2025-l98-59-table-5.paddleocr-vl-1.6.recorded.json"
+    )
+    recorded = json.loads(recorded_path.read_text(encoding="utf-8"))
+    official_payload = {
+        "errorCode": 0,
+        "result": {
+            "layoutParsingResults": [
+                {
+                    "prunedResult": {
+                        "width": recorded["width_pixels"],
+                        "height": recorded["height_pixels"],
+                        "parsing_res_list": [
+                            {
+                                "block_label": block["label"],
+                                "block_content": block["content"],
+                                "block_bbox": block["bbox"],
+                                "block_order": block["order"],
+                            }
+                            for block in recorded["blocks"]
+                        ],
+                    }
+                }
+            ]
+        },
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content.decode("ascii"))
+        assert body["formatBlockContent"] is True
+        assert body["maxNewTokens"] == 4096
+        return httpx.Response(200, json=official_payload)
+
+    image_bytes = image_path.read_bytes()
+    parser = HybridScientificDocumentParser(
+        visual_parser=PaddleOcrVlClient(
+            base_url="http://127.0.0.1:9/vision",
+            model_revision="cdc88f5feff0e4079e75863205053a68358e52f7",
+            client=httpx.Client(transport=httpx.MockTransport(handler)),
+        )
+    )
+    candidate = parser.parse_document(
+        DocumentParseInput(
+            research_input_id="recorded-cadieux-page-14",
+            content_hash="sha256:" + hashlib.sha256(image_bytes).hexdigest(),
+            source_type="upload",
+            mime_type="image/png",
+            filename=image_path.name,
+            input_bytes=image_bytes,
+        )
+    )
+
+    assert candidate.overall_quality.value == "accepted"
+    assert len(candidate.tables) == 1
+    assert candidate.tables[0].row_count >= 10
+    assert candidate.tables[0].column_count == 6
+
+
+def test_local_pipeline_bounds_cpu_inference_resources(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sys
+    from types import SimpleNamespace
+
+    from app.services.scientific_document.local_paddle_pipeline import (
+        LocalPaddleOcrVlPipeline,
+    )
+
+    captured: dict[str, object] = {}
+    engine = object()
+
+    def _construct(**kwargs: object) -> object:
+        captured.update(kwargs)
+        return engine
+
+    monkeypatch.setitem(
+        sys.modules,
+        "paddleocr",
+        SimpleNamespace(PaddleOCRVL=_construct),
+    )
+    pipeline = object.__new__(LocalPaddleOcrVlPipeline)
+    pipeline._engine = None
+    pipeline._layout_dir = Path("layout")
+    pipeline._vlm_dir = Path("recognition")
+
+    assert pipeline._pipeline() is engine
+    assert captured["device"] == "cpu"
+    assert captured["cpu_threads"] == 2
+    assert captured["enable_mkldnn"] is True
+    assert captured["mkldnn_cache_capacity"] == 1
 
 
 def test_visual_projection_rejects_oversized_block_lists_before_projection() -> None:

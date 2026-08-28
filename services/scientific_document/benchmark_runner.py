@@ -55,10 +55,10 @@ from app.schemas.scientific_document_benchmark import (
 )
 from app.services.scientific_document.hybrid_parser import (
     HybridScientificDocumentParser,
-    PaddleOcrVlClient,
     VisualPageParserPort,
     native_engine_identity,
 )
+from app.services.scientific_document.visual_backend import build_visual_parser
 
 HERE = Path(__file__).resolve().parent
 FIXTURES_DIR = HERE / "fixtures"
@@ -401,23 +401,17 @@ def _run_pass(
                 native_routing_coverage=native_coverage,
                 visual_routing_coverage=visual_coverage,
                 block_recovery=_block_recovery(candidate, entry),
-                scientific_value_recovery=_scientific_value_recovery(
-                    candidate, entry
-                ),
+                scientific_value_recovery=_scientific_value_recovery(candidate, entry),
                 reading_order_error=_reading_order_error(candidate),
                 table_structure_recovery=None,
                 formula_recovery=None,
                 figure_caption_linkage=None,
                 evidence_locator_validity=_locator_validity(candidate),
                 accepted_count=sum(
-                    1
-                    for block in candidate.blocks
-                    if block.quality.value == "accepted"
+                    1 for block in candidate.blocks if block.quality.value == "accepted"
                 ),
                 partial_count=sum(
-                    1
-                    for block in candidate.blocks
-                    if block.quality.value == "partial"
+                    1 for block in candidate.blocks if block.quality.value == "partial"
                 ),
                 unsupported_count=sum(
                     1
@@ -441,7 +435,12 @@ def _run_pass(
 
     if not cases:
         raise RuntimeError("benchmark produced zero fixture cases")
-    return cases, manifest, _expected_annotation_hash(manifest), _manifest_content_hash(manifest)
+    return (
+        cases,
+        manifest,
+        _expected_annotation_hash(manifest),
+        _manifest_content_hash(manifest),
+    )
 
 
 def _mean_measured(
@@ -454,13 +453,17 @@ def _mean_measured(
 
 
 def _latency_mean(cases: list[BenchmarkCaseResult]) -> float:
-    measured = [case.latency_seconds for case in cases if case.latency_seconds is not None]
+    measured = [
+        case.latency_seconds for case in cases if case.latency_seconds is not None
+    ]
     if not measured:
         raise RuntimeError("cases must carry measured latency")
     return sum(measured) / len(measured)
 
 
-def _memory_mean(cases: list[BenchmarkCaseResult]) -> tuple[BenchmarkMetricStatus, float, float]:
+def _memory_mean(
+    cases: list[BenchmarkCaseResult],
+) -> tuple[BenchmarkMetricStatus, float, float]:
     measured = [
         float(case.peak_memory_bytes)
         for case in cases
@@ -606,19 +609,22 @@ def run_native_only() -> BenchmarkReport:
     locator_status, locator_num, locator_den = _mean_measured(
         [case.evidence_locator_validity for case in cases]
     )
-    native_cases = [c for c in cases if c.parser_mode == BenchmarkParserMode.native_only]
+    native_cases = [
+        c for c in cases if c.parser_mode == BenchmarkParserMode.native_only
+    ]
     native_routing = sum(
         (case.native_routing_coverage or 0.0) for case in native_cases
     ) / float(len(native_cases))
     metrics = (
         *_mode_quality_metrics("", native_cases),
         _metric(
-            "native_routing_coverage", BenchmarkMetricStatus.measured, native_routing, 1.0
+            "native_routing_coverage",
+            BenchmarkMetricStatus.measured,
+            native_routing,
+            1.0,
         ),
         _metric("visual_routing_coverage", BenchmarkMetricStatus.not_applicable),
-        _metric(
-            "evidence_locator_validity", locator_status, locator_num, locator_den
-        ),
+        _metric("evidence_locator_validity", locator_status, locator_num, locator_den),
         _metric("table_structure_recovery", BenchmarkMetricStatus.unsupported),
         _metric("formula_recovery", BenchmarkMetricStatus.unsupported),
         _metric("figure_caption_linkage", BenchmarkMetricStatus.unsupported),
@@ -635,50 +641,13 @@ def run_native_only() -> BenchmarkReport:
     )
 
 
-def visual_parser_from_settings() -> VisualPageParserPort:
-    """Build the real production visual backend from environment settings.
-
-    Two mutually exclusive operator paths, both real and fail-closed:
-
-    - ``PADDLEOCR_VL_BASE_URL`` + ``PADDLEOCR_VL_MODEL_REVISION``: the official
-      PaddleOCR-VL layout-parsing HTTP service;
-    - ``PADDLEOCR_VL_LOCAL_BUNDLE``: the approved in-process official
-      ``PaddleOCRVL`` pipeline against a content-addressed bundle that must
-      fully verify against the committed asset manifest first.
-
-    A hybrid/paired benchmark refuses to start without one of them rather than
-    silently degrading and mislabeling the result.
-    """
+def require_visual_parser() -> VisualPageParserPort:
+    """Require the production visual backend for hybrid benchmark modes."""
     from app.config import settings
 
-    base_url = settings.PADDLEOCR_VL_BASE_URL
-    bundle_root = settings.PADDLEOCR_VL_LOCAL_BUNDLE
-    if base_url is not None:
-        if settings.PADDLEOCR_VL_MODEL_REVISION is None:
-            raise RuntimeError(
-                "hybrid/paired benchmark requires a configured visual backend: "
-                "PADDLEOCR_VL_BASE_URL needs PADDLEOCR_VL_MODEL_REVISION"
-            )
-        return PaddleOcrVlClient(
-            base_url=base_url,
-            model_revision=settings.PADDLEOCR_VL_MODEL_REVISION,
-            timeout_seconds=settings.PADDLEOCR_VL_TIMEOUT_SECONDS,
-        )
-    if bundle_root is not None:
-        from app.services.scientific_document.local_paddle_pipeline import (
-            LocalPaddleOcrVlPipeline,
-        )
-        from services.scientific_document.model_asset_contract import (
-            ModelAssetContractError,
-        )
-
-        try:
-            return LocalPaddleOcrVlPipeline(bundle_root=Path(bundle_root))
-        except ModelAssetContractError as error:
-            raise RuntimeError(
-                f"hybrid/paired benchmark visual backend rejected the "
-                f"configured bundle: {error}"
-            ) from error
+    visual = build_visual_parser(settings)
+    if visual is not None:
+        return visual
     raise RuntimeError(
         "hybrid/paired benchmark requires a configured visual backend: set "
         "PADDLEOCR_VL_BASE_URL + PADDLEOCR_VL_MODEL_REVISION (official HTTP "
@@ -689,7 +658,7 @@ def visual_parser_from_settings() -> VisualPageParserPort:
 
 def run_hybrid() -> BenchmarkReport:
     """Real hybrid profile through the production parser and visual client."""
-    visual = visual_parser_from_settings()
+    visual = require_visual_parser()
     cases, manifest, annotation_hash, _ = _run_pass(
         BenchmarkParserMode.hybrid, visual_parser=visual
     )
@@ -706,14 +675,18 @@ def run_hybrid() -> BenchmarkReport:
     metrics = (
         *_mode_quality_metrics("", hybrid_cases),
         _metric(
-            "native_routing_coverage", BenchmarkMetricStatus.measured, native_routing, 1.0
+            "native_routing_coverage",
+            BenchmarkMetricStatus.measured,
+            native_routing,
+            1.0,
         ),
         _metric(
-            "visual_routing_coverage", BenchmarkMetricStatus.measured, visual_routing, 1.0
+            "visual_routing_coverage",
+            BenchmarkMetricStatus.measured,
+            visual_routing,
+            1.0,
         ),
-        _metric(
-            "evidence_locator_validity", locator_status, locator_num, locator_den
-        ),
+        _metric("evidence_locator_validity", locator_status, locator_num, locator_den),
         _metric("table_structure_recovery", BenchmarkMetricStatus.unsupported),
         _metric("formula_recovery", BenchmarkMetricStatus.unsupported),
         _metric("figure_caption_linkage", BenchmarkMetricStatus.unsupported),
@@ -732,13 +705,11 @@ def run_hybrid() -> BenchmarkReport:
 
 def run_paired() -> BenchmarkReport:
     """Paired compare: identical manifest through native-only then real hybrid."""
-    visual = visual_parser_from_settings()
+    visual = require_visual_parser()
     native_cases, manifest, annotation_hash, _ = _run_pass(
         BenchmarkParserMode.native_only, visual_parser=None
     )
-    hybrid_cases, _, _, _ = _run_pass(
-        BenchmarkParserMode.hybrid, visual_parser=visual
-    )
+    hybrid_cases, _, _, _ = _run_pass(BenchmarkParserMode.hybrid, visual_parser=visual)
     cases = [*native_cases, *hybrid_cases]
     locator_status, locator_num, locator_den = _mean_measured(
         [case.evidence_locator_validity for case in cases]
@@ -756,11 +727,12 @@ def run_paired() -> BenchmarkReport:
         *_mode_quality_metrics("native_only_", native_only_cases),
         *_mode_quality_metrics("hybrid_", hybrid_only_cases),
         _metric(
-            "visual_routing_coverage", BenchmarkMetricStatus.measured, visual_routing, 1.0
+            "visual_routing_coverage",
+            BenchmarkMetricStatus.measured,
+            visual_routing,
+            1.0,
         ),
-        _metric(
-            "evidence_locator_validity", locator_status, locator_num, locator_den
-        ),
+        _metric("evidence_locator_validity", locator_status, locator_num, locator_den),
         _metric("table_structure_recovery", BenchmarkMetricStatus.unsupported),
         _metric("formula_recovery", BenchmarkMetricStatus.unsupported),
         _metric("figure_caption_linkage", BenchmarkMetricStatus.unsupported),
@@ -789,7 +761,7 @@ def main() -> int:
     parser.add_argument("--output", type=Path)
     parser.add_argument(
         "--mode",
-        choices=("native-only", "hybrid", "paired"),
+        choices=("native-only", "native_only", "hybrid", "paired"),
         default="native-only",
         help=(
             "native-only runs without a visual backend; hybrid requires a real "
@@ -797,9 +769,10 @@ def main() -> int:
         ),
     )
     args = parser.parse_args()
-    if args.mode == "native-only":
+    mode = args.mode.replace("_", "-")
+    if mode == "native-only":
         report = run_native_only()
-    elif args.mode == "hybrid":
+    elif mode == "hybrid":
         report = run_hybrid()
     else:
         report = run_paired()

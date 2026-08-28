@@ -24,6 +24,7 @@ from app.schemas.paper_summary import (
 )
 from app.schemas.core import ArtifactVersion
 from app.workflow.publisher import PublicationAdmissionError, admit_artifact_candidate
+from app.workflow.steps.paper_steps import _evidence_candidates
 from packages.prompts.registry import (
     PromptRegistry,
     PromptRegistryError,
@@ -201,6 +202,38 @@ def _admit(
         parameters=SAFE_PARAMETERS,
         evidence_candidates=evidence,
     )
+
+
+def test_acquired_abstract_is_available_as_supported_summary_evidence() -> None:
+    collection = _collection()
+    original = collection.candidates[0]
+    abstract = (
+        "The mission searches nearby bright stars for transiting planets and "
+        "reports a validated catalog of candidates."
+    )
+    candidate = original.model_copy(
+        update={"raw": original.raw.model_copy(update={"abstract": abstract})}
+    )
+
+    evidence = _evidence_candidates(candidate)
+    abstract_evidence = next(item for item in evidence if item.evidence_id == "ev.abstract")
+    result = PaperSummaryPipeline(clock=lambda: FIXED_TIME).admit(
+        paper_collection=collection.model_copy(
+            update={"candidates": (candidate, *collection.candidates[1:])}
+        ),
+        paper_collection_version_id="11111111-1111-4111-8111-111111111111",
+        paper_id=candidate.canonical_paper_id,
+        model_response=_model_output(evidence_id="ev.abstract"),
+        model_name="qwen.fixture.1",
+        parameters=SAFE_PARAMETERS,
+        evidence_candidates=evidence,
+    )
+
+    assert abstract_evidence.locator.kind == "paper_text"
+    assert abstract_evidence.locator.section == "abstract"
+    assert abstract_evidence.accessible_excerpt == abstract
+    assert result.summary is not None
+    assert result.summary.evidence[0].status is PaperSummarySupportStatus.supported
 
 
 def test_prompt_registry_resolves_one_hash_pinned_current_definition() -> None:

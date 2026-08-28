@@ -357,7 +357,7 @@ class DocumentParseRepository:
                 source_version_or_etag=row.source_version_or_etag,
                 content_hash=row.content_hash,
                 source_type=row.source_type,
-                retrieved_at=row.retrieved_at,
+                retrieved_at=row.retrieved_at.astimezone(UTC),
                 query=row.query,
                 query_hash=row.query_hash,
                 license_note=row.license_note,

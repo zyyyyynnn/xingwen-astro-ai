@@ -41,6 +41,11 @@ dev = [
 benchmark = [
     "fpdf2>=2.7.0",
 ]
+visual = [
+    "paddleocr[doc-parser]==3.6.0",
+    "paddlepaddle==3.2.1",
+    "paddlex[genai-client,ocr]==3.6.0",
+]
 
 [build-system]
 requires = ["uv_build>=0.11.3,<0.12.0"]

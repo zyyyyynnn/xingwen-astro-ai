@@ -11,7 +11,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@xingwen/ui";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PaperPdfViewer, type PaperPdfViewerHandle } from "./paper-pdf-viewer";
 import { ArtifactPresentationContent } from "./scientific-presentation";
 
@@ -25,6 +25,7 @@ export interface PaperResultWorkspaceProps {
     readonly pageIndex: number;
     readonly nonce: number;
   } | null;
+  readonly toolbar?: ReactNode;
   readonly className?: string;
 }
 
@@ -37,6 +38,7 @@ export function PaperResultWorkspace({
   documentUrl = null,
   documentKind = null,
   requestedPage = null,
+  toolbar = null,
   className = "",
 }: PaperResultWorkspaceProps) {
   const [activePane, setActivePane] = useState<PaperResultPane>("report");
@@ -91,6 +93,12 @@ export function PaperResultWorkspace({
           </TabsList>
         </Tabs>
       </div>
+
+      {toolbar ? (
+        <div className="shrink-0 border-b border-border bg-background px-4 py-2">
+          {toolbar}
+        </div>
+      ) : null}
 
       <div className="hidden min-h-0 flex-1 overflow-hidden xl:flex">
         <ResizablePanelGroup orientation="horizontal" className="h-full w-full">
