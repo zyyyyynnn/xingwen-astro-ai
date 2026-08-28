@@ -135,7 +135,7 @@ export function CommandMenu() {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[var(--oh-layer-command-menu)] flex items-start justify-center bg-[var(--oh-overlay)] px-[var(--oh-space-6)] pt-[var(--oh-command-menu-viewport-offset)]"
+      className="fixed inset-0 z-[var(--workspace-layer-command-menu)] flex items-start justify-center bg-[var(--color-overlay)] px-[var(--space-6)] pt-[var(--workspace-command-menu-viewport-offset)]"
       data-testid="command-menu"
       role="dialog"
       aria-modal="true"
@@ -157,16 +157,16 @@ export function CommandMenu() {
         aria-label="关闭命令菜单"
         onClick={dismiss}
       />
-      <div className="relative flex max-h-[var(--oh-command-menu-max-block-size)] w-full max-w-[var(--oh-command-menu-max-inline-size)] flex-col overflow-hidden rounded-[var(--oh-radius-lg)] border border-[var(--oh-border)] bg-[var(--oh-surface)] shadow-[var(--oh-shadow-modal)]">
-        <div className="group flex items-center gap-[var(--oh-space-3)] border-b border-[var(--oh-border)] px-[var(--oh-space-4)] py-[var(--oh-space-2)] transition-colors focus-within:border-[var(--oh-border-strong)] motion-reduce:transition-none">
+      <div className="relative flex max-h-[var(--workspace-command-menu-max-block-size)] w-full max-w-[var(--workspace-command-menu-max-inline-size)] flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-modal)]">
+        <div className="group flex items-center gap-[var(--space-3)] border-b border-[var(--color-border)] px-[var(--space-4)] py-[var(--space-2)] transition-colors focus-within:border-[var(--color-border-strong)] motion-reduce:transition-none">
           <Search
-            className="size-[var(--oh-icon-size-lg)] shrink-0 text-[var(--oh-text-dim)] transition-colors group-focus-within:text-[var(--oh-accent)] motion-reduce:transition-none"
+            className="size-[var(--icon-size-lg)] shrink-0 text-[var(--color-ink-tertiary)] transition-colors group-focus-within:text-[var(--color-brand)] motion-reduce:transition-none"
             aria-hidden="true"
           />
           <input
             ref={inputRef}
             id={SEARCH_INPUT_ID}
-            className="h-[var(--oh-control-size-lg)] min-w-0 flex-1 bg-transparent text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] text-[var(--oh-text)] caret-[var(--oh-accent)] outline-none placeholder:text-[var(--oh-text-dim)]"
+            className="h-[var(--control-size-lg)] min-w-0 flex-1 bg-transparent text-[length:var(--font-size-ui-body)] leading-[var(--line-height-ui-body)] text-[var(--color-ink-primary)] caret-[var(--color-brand)] outline-none placeholder:text-[var(--color-ink-tertiary)]"
             placeholder="搜索命令"
             aria-label="搜索命令"
             role="combobox"
@@ -193,7 +193,7 @@ export function CommandMenu() {
                 inputRef.current?.focus();
               }}
             >
-              <X className="size-[var(--oh-icon-size-md)]" aria-hidden="true" />
+              <X className="size-[var(--icon-size-md)]" aria-hidden="true" />
             </button>
           ) : null}
         </div>
@@ -201,10 +201,10 @@ export function CommandMenu() {
         <div
           id={LISTBOX_ID}
           role="listbox"
-          className="min-h-0 flex-1 overflow-y-auto p-[var(--oh-space-2)]"
+          className="min-h-0 flex-1 overflow-y-auto p-[var(--space-2)]"
         >
           {filteredItems.length === 0 ? (
-            <p className="px-[var(--oh-space-4)] py-[var(--oh-space-8)] text-center text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] text-[var(--oh-muted)]">
+            <p className="px-[var(--space-4)] py-[var(--space-8)] text-center text-[length:var(--font-size-ui-body)] leading-[var(--line-height-ui-body)] text-[var(--color-ink-secondary)]">
               没有匹配的命令
             </p>
           ) : (
@@ -214,8 +214,8 @@ export function CommandMenu() {
               );
               if (groupItems.length === 0) return null;
               return (
-                <section key={group} className="py-[var(--oh-space-1)]">
-                  <h2 className="px-[var(--oh-space-3)] py-[var(--oh-space-2)] text-[length:var(--oh-font-size-label)] leading-[var(--oh-line-height-label)] font-semibold text-[var(--oh-text-dim)]">
+                <section key={group} className="py-[var(--space-1)]">
+                  <h2 className="px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--font-size-ui-label)] leading-[var(--line-height-ui-label)] font-semibold text-[var(--color-ink-tertiary)]">
                     {COMMAND_MENU_GROUP_LABELS[group]}
                   </h2>
                   {groupItems.map((item) => {
@@ -234,16 +234,16 @@ export function CommandMenu() {
                         aria-selected={active}
                         tabIndex={-1}
                         className={cn(
-                          "flex w-full items-center gap-[var(--oh-space-3)] rounded-[var(--oh-radius-md)] px-[var(--oh-space-3)] py-[var(--oh-space-3)] text-left text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)]",
+                          "flex w-full items-center gap-[var(--space-3)] rounded-[var(--radius-md)] px-[var(--space-3)] py-[var(--space-3)] text-left text-[length:var(--font-size-ui-body)] leading-[var(--line-height-ui-body)]",
                           active
-                            ? "bg-[var(--oh-accent-muted)] text-[var(--oh-text)]"
-                            : "text-[var(--oh-muted)] hover:bg-[var(--oh-surface-raised)] hover:text-[var(--oh-text)]",
+                            ? "bg-[var(--color-brand-muted)] text-[var(--color-ink-primary)]"
+                            : "text-[var(--color-ink-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-ink-primary)]",
                         )}
                         onMouseEnter={() => setActiveIndex(index)}
                         onClick={() => runItem(item)}
                       >
                         <span
-                          className="flex size-[var(--oh-control-size-md)] shrink-0 items-center justify-center"
+                          className="flex size-[var(--control-size-md)] shrink-0 items-center justify-center"
                           aria-hidden="true"
                         >
                           {item.icon}
@@ -252,7 +252,7 @@ export function CommandMenu() {
                           <span className="block font-medium">
                             {item.title}
                           </span>
-                          <span className="block truncate text-[length:var(--oh-font-size-label)] leading-[var(--oh-line-height-label)] text-[var(--oh-text-dim)]">
+                          <span className="block truncate text-[length:var(--font-size-ui-label)] leading-[var(--line-height-ui-label)] text-[var(--color-ink-tertiary)]">
                             {item.description}
                           </span>
                         </span>
@@ -264,7 +264,7 @@ export function CommandMenu() {
             })
           )}
         </div>
-        <p className="border-t border-[var(--oh-border)] px-[var(--oh-space-4)] py-[var(--oh-space-2)] text-[length:var(--oh-font-size-label)] leading-[var(--oh-line-height-label)] text-[var(--oh-text-dim)]">
+        <p className="border-t border-[var(--color-border)] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-ui-label)] leading-[var(--line-height-ui-label)] text-[var(--color-ink-tertiary)]">
           使用方向键选择，Enter 执行，Esc 关闭
         </p>
       </div>

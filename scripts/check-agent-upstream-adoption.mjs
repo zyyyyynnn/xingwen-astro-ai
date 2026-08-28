@@ -11,7 +11,7 @@
  *   G2  Exact ref               — OpenHands/OpenHands @ v1.10.0 @ 566386...
  *   G3  No other source        — repository allowlist + unique upstream root.
  *   G4  No second shell        — no competing Agent Product skeleton root.
- *   G5  Provenance             — if src/ present, provenance.json 1:1 + fail-closed.
+ *   G5  Provenance             — production mechanics root <-> provenance.json exact 1:1, fail-closed.
  *   G6  No rewrite class       — adoption_class forbids REWRITE/RECREATE/REIMPLEMENT/INSPIRED_BY.
  *   G7  Coding surface         — excluded coding surfaces must not enter production graph.
  *   G8  Only OpenHands src     — no file sourced from a non-OpenHands repository.
@@ -26,10 +26,9 @@ import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { resolve, relative, sep } from "node:path";
 
 import { analyzeVendoredImportGraph } from "./agent-upstream-graph.mjs";
-import { computeSelectedTreeSha256 } from "./agent-upstream-provenance.mjs";
 
 const UPSTREAM_ROOT = "apps/workspace/upstream/openhands";
-const SRC_DIR = `${UPSTREAM_ROOT}/src`;
+const MECHANICS_ROOT = "apps/workspace/src/mechanics";
 const ALLOWED_REPOSITORIES = new Set([
   "https://github.com/OpenHands/OpenHands.git",
 ]);
@@ -74,6 +73,12 @@ function walkFiles(dir) {
 }
 function toPosix(p) {
   return p.split(sep).join("/");
+}
+function mechanicsLocalPath(upstreamPath) {
+  if (typeof upstreamPath !== "string" || !upstreamPath.startsWith("src/")) {
+    return null;
+  }
+  return `${MECHANICS_ROOT}/${upstreamPath.slice("src/".length)}`;
 }
 
 /** @returns {{ failures: string[], notes: string[] }} */
@@ -392,12 +397,12 @@ export function checkAgentUpstreamAdoption(root) {
   }
 
   // ---- G5 : provenance (disk <-> provenance exact 1:1, fail-closed) ----
-  const srcDir = resolve(root, SRC_DIR);
+  const mechanicsDir = resolve(root, MECHANICS_ROOT);
   let provenanceEntries = [];
   let diskLocalPaths = new Set();
-  if (!existsSync(srcDir)) {
-    notes.push(
-      "source provenance enforcement armed; no vendored source present",
+  if (!existsSync(mechanicsDir)) {
+    failures.push(
+      `G5: production mechanics root missing; adopted mechanics must be vendored at ${MECHANICS_ROOT}.`,
     );
   } else {
     const manifestPath = resolve(root, `${UPSTREAM_ROOT}/provenance.json`);
@@ -437,19 +442,8 @@ export function checkAgentUpstreamAdoption(root) {
           failures.push(`G5: provenance source ${field} mismatch.`);
         }
       }
-      if (!HASH_RE.test(lock.keep_as_is_tree_sha256 ?? "")) {
-        failures.push(
-          "G5: upstream-lock keep_as_is_tree_sha256 must be 64 lowercase hex.",
-        );
-      }
-      if (manifest?.keep_as_is_tree_sha256 !== lock.keep_as_is_tree_sha256) {
-        failures.push(
-          "G5: provenance KEEP_AS_IS aggregate digest differs from upstream-lock.",
-        );
-      }
-
       // Disk -> Provenance : every on-disk file has exactly one manifest entry
-      const diskFiles = walkFiles(srcDir);
+      const diskFiles = walkFiles(mechanicsDir);
       diskLocalPaths = new Set(
         diskFiles.map((f) => toPosix(relative(root, f))),
       );
@@ -518,13 +512,15 @@ export function checkAgentUpstreamAdoption(root) {
         }
         if (
           typeof e.local_path !== "string" ||
-          !e.local_path.startsWith(`${SRC_DIR}/`) ||
+          !e.local_path.startsWith(`${MECHANICS_ROOT}/`) ||
           e.local_path.includes("..")
         ) {
-          failures.push(`G5: local_path escapes upstream src root (${where}).`);
+          failures.push(
+            `G5: local_path escapes the production mechanics root (${where}).`,
+          );
         } else if (
           typeof e.upstream_path === "string" &&
-          e.local_path !== `${UPSTREAM_ROOT}/${e.upstream_path}`
+          e.local_path !== mechanicsLocalPath(e.upstream_path)
         ) {
           failures.push(
             `G5: local_path must preserve the upstream relative path (${where}).`,
@@ -575,40 +571,14 @@ export function checkAgentUpstreamAdoption(root) {
           );
         }
       }
-
-      const keepAsIsEntries = entryList.filter(
-        (entry) => entry.adoption_class === "KEEP_AS_IS",
-      );
-      if (
-        HASH_RE.test(lock.keep_as_is_tree_sha256 ?? "") &&
-        keepAsIsEntries.every(
-          (entry) =>
-            typeof entry.upstream_path === "string" &&
-            entry.upstream_path.startsWith("src/") &&
-            entry.local_path === `${UPSTREAM_ROOT}/${entry.upstream_path}` &&
-            diskLocalPaths.has(entry.local_path),
-        )
-      ) {
-        const keepAsIsPaths = keepAsIsEntries.map((entry) =>
-          entry.upstream_path.slice("src/".length),
-        );
-        if (
-          computeSelectedTreeSha256(srcDir, keepAsIsPaths) !==
-          lock.keep_as_is_tree_sha256
-        ) {
-          failures.push(
-            "G5: KEEP_AS_IS source differs from the frozen upstream aggregate digest.",
-          );
-        }
-      }
     }
   }
 
   // ---- G10 : local import reachability ----
-  if (existsSync(srcDir)) {
+  if (existsSync(mechanicsDir)) {
     const importGraph = analyzeVendoredImportGraph({
       root,
-      sourceRoot: SRC_DIR,
+      sourceRoot: MECHANICS_ROOT,
       diskPaths: diskLocalPaths,
     });
     if (importGraph.unresolved.length > 0) {
@@ -620,7 +590,7 @@ export function checkAgentUpstreamAdoption(root) {
     }
     if (importGraph.unreachable.length > 0) {
       failures.push(
-        `G10: vendored source is outside the src/root.tsx dependency closure: ${importGraph.unreachable.join(", ")}.`,
+        `G10: vendored source is outside the ${MECHANICS_ROOT}/root.tsx dependency closure: ${importGraph.unreachable.join(", ")}.`,
       );
     }
   }

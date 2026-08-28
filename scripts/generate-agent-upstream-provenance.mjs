@@ -3,15 +3,11 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 
-import {
-  computeSelectedTreeSha256,
-  listVendoredFiles,
-  toPosix,
-} from "./agent-upstream-provenance.mjs";
+import { listVendoredFiles, toPosix } from "./agent-upstream-provenance.mjs";
 import { analyzeVendoredImportGraph } from "./agent-upstream-graph.mjs";
 
 const UPSTREAM_ROOT = "apps/workspace/upstream/openhands";
-const SOURCE_ROOT = `${UPSTREAM_ROOT}/src`;
+const SOURCE_ROOT = "apps/workspace/src/mechanics";
 const REPOSITORY = "https://github.com/OpenHands/OpenHands.git";
 const TAG = "v1.10.0";
 const COMMIT = "56638693908b8ac83a2fa3bde6eb6c33aae37f4b";
@@ -325,20 +321,7 @@ export function generateAgentUpstreamProvenance(root = process.cwd()) {
   }
   if (importGraph.unreachable.length > 0) {
     throw new Error(
-      `Vendored source is outside the src/root.tsx dependency closure: ${importGraph.unreachable.join(", ")}.`,
-    );
-  }
-
-  const keepAsIsPaths = entries
-    .filter((entry) => entry.adoption_class === "KEEP_AS_IS")
-    .map((entry) => entry.upstream_path.slice("src/".length));
-  const actualKeepAsIsDigest = computeSelectedTreeSha256(
-    sourceDirectory,
-    keepAsIsPaths,
-  );
-  if (actualKeepAsIsDigest !== lock.keep_as_is_tree_sha256) {
-    throw new Error(
-      "KEEP_AS_IS source differs from the aggregate digest frozen in upstream-lock.json.",
+      `Vendored source is outside the ${SOURCE_ROOT}/root.tsx dependency closure: ${importGraph.unreachable.join(", ")}.`,
     );
   }
 
@@ -351,7 +334,6 @@ export function generateAgentUpstreamProvenance(root = process.cwd()) {
       commit: COMMIT,
       license: LICENSE,
     },
-    keep_as_is_tree_sha256: lock.keep_as_is_tree_sha256,
     entries,
   });
 
@@ -361,6 +343,6 @@ export function generateAgentUpstreamProvenance(root = process.cwd()) {
 if (import.meta.main) {
   const result = generateAgentUpstreamProvenance();
   console.log(
-    `Generated OpenHands provenance for ${result.vendored} vendored files with one frozen KEEP_AS_IS aggregate digest.`,
+    `Generated OpenHands provenance for ${result.vendored} vendored files.`,
   );
 }

@@ -9,11 +9,7 @@ import type {
   WorkspaceStreamItem,
 } from "@xingwen/research-adapter";
 
-import {
-  ChatMessage,
-  CollapsibleThinking,
-  Messages as OpenHandsMessages,
-} from "../../upstream/openhands/src/root";
+import { ChatMessage, CollapsibleThinking, Messages } from "../mechanics/root";
 import { ClarificationPrompt } from "./clarification-prompt";
 import { ChoicePrompt } from "./choice-prompt";
 import { ScientificRepairPrompt } from "./scientific-repair-prompt";
@@ -98,7 +94,7 @@ function groupToolEvents(
   return blocks;
 }
 
-/** Product seam: domain messages around the unmodified OpenHands event engine. */
+/** Product seam between research view models and current Workspace mechanics. */
 export const ResearchMessageStream = memo(function ResearchMessageStream({
   items,
   onOpenArtifactVersion,
@@ -125,7 +121,7 @@ export const ResearchMessageStream = memo(function ResearchMessageStream({
       {blocks.map((block) => {
         if (block.kind === "tool_events") {
           return (
-            <OpenHandsMessages
+            <Messages
               key={block.id}
               events={block.events}
               onOpenArtifactVersion={onOpenArtifactVersion}

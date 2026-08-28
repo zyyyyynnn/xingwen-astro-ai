@@ -31,10 +31,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import {
-  OpenHandsWorkspaceRoot,
+  WorkspaceMechanicsRoot,
   type ResearchNavigationStatus,
   type ResearchWorkspaceRuntime,
-} from "../upstream/openhands/src/root";
+} from "./mechanics/root";
 import type { WorkspaceRuntimeBoundaries } from "./boundaries";
 import { ProjectActionDialogs } from "./components/project-action-dialogs";
 import { ModelProviderControl } from "./components/model-provider-control";
@@ -99,15 +99,15 @@ function RunLifecycleControls({
 
   return (
     <div
-      className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[var(--oh-radius-sm)] border border-[var(--oh-border)] bg-[var(--oh-surface-raised)] px-3 py-2 text-xs"
+      className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface-hover)] px-3 py-2 text-xs"
       data-testid="run-lifecycle-controls"
       role="status"
       aria-live="polite"
     >
-      <div className="flex min-w-0 items-center gap-2 text-[var(--oh-muted)]">
+      <div className="flex min-w-0 items-center gap-2 text-[var(--color-ink-secondary)]">
         {isFailed ? (
           <TriangleAlert
-            className="size-3.5 text-[var(--oh-warning)]"
+            className="size-3.5 text-[var(--color-warning)]"
             aria-hidden="true"
           />
         ) : (
@@ -120,7 +120,7 @@ function RunLifecycleControls({
           {isFailed ? "研究遇到问题" : statusLabel}
         </span>
         {cancelError || retryError ? (
-          <span className="truncate text-[var(--oh-warning)]">
+          <span className="truncate text-[var(--color-warning)]">
             {cancelError ?? retryError}
           </span>
         ) : null}
@@ -140,7 +140,9 @@ function RunLifecycleControls({
         ) : (
           <>
             {isWaiting ? (
-              <span className="text-[var(--oh-muted)]">等待你的回答</span>
+              <span className="text-[var(--color-ink-secondary)]">
+                等待你的回答
+              </span>
             ) : null}
             <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
               <Button
@@ -148,7 +150,7 @@ function RunLifecycleControls({
                 size="small"
                 disabled={isCancelling}
                 onClick={() => setCancelOpen(true)}
-                className="gap-1.5 text-[var(--oh-muted)] hover:text-foreground"
+                className="gap-1.5 text-[var(--color-ink-secondary)] hover:text-foreground"
               >
                 <Square className="size-3.5" aria-hidden="true" />
                 {isCancelling ? "正在停止" : "停止研究"}
@@ -469,14 +471,14 @@ function ResearchComposerLeadingActions({
   readonly onOpenProtocolEditor: () => void;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-[var(--oh-space-2)]">
+    <div className="flex min-w-0 items-center gap-[var(--space-2)]">
       {attachmentAction}
       <Button
         variant="ghost"
         size="small"
         disabled={protocolDisabled}
         onClick={onOpenProtocolEditor}
-        className="gap-1 text-xs text-[var(--oh-muted)]"
+        className="gap-1 text-xs text-[var(--color-ink-secondary)]"
       >
         {protocolLabel}
       </Button>
@@ -520,8 +522,6 @@ function runtimeForEntry(
       onRequestProjectRename,
       onRequestProjectDelete,
     },
-    // The empty workspace is itself the research entry: one explicit send
-    // creates the Project and submits the first research turn.
     composer: {
       submitting: entryComposer.submitting,
       value: entryComposer.value,
@@ -603,7 +603,7 @@ export function WorkspaceEntry({
     <>
       {missingNotice ? (
         <p
-          className="px-4 py-2 text-sm text-[var(--oh-muted)]"
+          className="px-4 py-2 text-sm text-[var(--color-ink-secondary)]"
           data-testid="missing-project-notice"
           role="status"
         >
@@ -755,8 +755,6 @@ export function WorkspaceHost({
   const threadEntries = thread.data ?? [];
   const artifactList = artifacts.data ?? [];
 
-  // Real server version→Artifact metadata; the stream never guesses the
-  // relationship by comparing Artifact ids with ArtifactVersion ids.
   const versionQueries = useQueries({
     queries: artifactList.map((artifact) =>
       runtime.application.queries.artifactVersions(projectId, artifact.id),
@@ -857,7 +855,6 @@ export function WorkspaceHost({
     throw new Error("Loaded project is missing its research presentation.");
   }
 
-  // Synthesize Unified Stream Items
   const streamItems = buildUnifiedWorkspaceStream({
     project: project.data,
     entries: threadEntries,
@@ -1009,7 +1006,7 @@ export function WorkspaceHost({
               {attachments.attachmentStrip}
               {runStartFailed && currentContract ? (
                 <div
-                  className="mb-2 flex items-center justify-between gap-2 rounded-[var(--oh-radius-sm)] border border-[var(--oh-border)] bg-[var(--oh-surface-raised)] px-3 py-2 text-sm"
+                  className="mb-2 flex items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface-hover)] px-3 py-2 text-sm"
                   data-testid="run-start-failed"
                   role="status"
                 >
@@ -1025,7 +1022,7 @@ export function WorkspaceHost({
                 </div>
               ) : null}
               {answerToQuestionId ? (
-                <div className="flex items-center justify-between px-1 text-xs text-[var(--oh-muted)]">
+                <div className="flex items-center justify-between px-1 text-xs text-[var(--color-ink-secondary)]">
                   <span>正在回答助手的问题</span>
                   <Button
                     variant="ghost"
@@ -1120,7 +1117,7 @@ function WorkspaceShell({
         跳到主要内容
       </a>
       <div className="workspace-host__desktop h-full w-full">
-        <OpenHandsWorkspaceRoot runtime={runtime} />
+        <WorkspaceMechanicsRoot runtime={runtime} />
       </div>
       <Toaster closeButton />
     </div>

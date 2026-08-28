@@ -13,7 +13,7 @@ interface CollapsibleThinkingProps {
   readonly label?: string;
 }
 
-/** OpenHands disclosure mechanics with an explicit public-analysis boundary. */
+/** Public-analysis disclosure mechanics. */
 export function CollapsibleThinking({
   content,
   isStreaming = false,
@@ -22,27 +22,33 @@ export function CollapsibleThinking({
   if (!content.trim()) return null;
   return (
     <Collapsible
-      className="oh-narrative-node"
+      className="workspace-narrative-node"
       data-testid="collapsible-thinking"
     >
       <CollapsibleTrigger asChild>
-        <button type="button" className="oh-narrative-row oh-narrative-trigger">
+        <button
+          type="button"
+          className="workspace-narrative-row workspace-narrative-trigger"
+        >
           <ChevronDown
-            className="oh-narrative-chevron xw-disclosure-chevron"
+            className="workspace-narrative-chevron xw-disclosure-chevron"
             aria-hidden="true"
           />
-          <BrainCircuit className="oh-narrative-icon" aria-hidden="true" />
-          <span className="oh-narrative-title flex items-center gap-[var(--oh-space-2)]">
+          <BrainCircuit
+            className="workspace-narrative-icon"
+            aria-hidden="true"
+          />
+          <span className="workspace-narrative-title flex items-center gap-[var(--space-2)]">
             <span className="truncate">{label}</span>
             {isStreaming ? (
-              <span className="shrink-0 text-xs text-[var(--oh-muted)]">
+              <span className="shrink-0 text-xs text-[var(--color-ink-secondary)]">
                 进行中
               </span>
             ) : null}
           </span>
         </button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="oh-narrative-content">
+      <CollapsibleContent className="workspace-narrative-content">
         <div
           role="region"
           data-testid="collapsible-thinking-content"
@@ -55,7 +61,7 @@ export function CollapsibleThinking({
   );
 }
 
-/** Retained as the upstream disclosure seam for public rationale consumers. */
+/** Disclosure seam for public rationale consumers. */
 export function NarrativeDisclosure({
   summary,
   children,
@@ -64,18 +70,24 @@ export function NarrativeDisclosure({
   readonly children: React.ReactNode;
 }) {
   return (
-    <Collapsible className="oh-narrative-node">
+    <Collapsible className="workspace-narrative-node">
       <CollapsibleTrigger asChild>
-        <button type="button" className="oh-narrative-row oh-narrative-trigger">
+        <button
+          type="button"
+          className="workspace-narrative-row workspace-narrative-trigger"
+        >
           <ChevronDown
-            className="oh-narrative-chevron xw-disclosure-chevron"
+            className="workspace-narrative-chevron xw-disclosure-chevron"
             aria-hidden="true"
           />
-          <BrainCircuit className="oh-narrative-icon" aria-hidden="true" />
-          <span className="oh-narrative-title truncate">{summary}</span>
+          <BrainCircuit
+            className="workspace-narrative-icon"
+            aria-hidden="true"
+          />
+          <span className="workspace-narrative-title truncate">{summary}</span>
         </button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="oh-narrative-content">
+      <CollapsibleContent className="workspace-narrative-content">
         {children}
       </CollapsibleContent>
     </Collapsible>

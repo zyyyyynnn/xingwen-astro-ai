@@ -241,8 +241,7 @@ const uiSourceFiles = listedFiles.filter(
 const applicationPresentationSourceFiles = listedFiles.filter(
   (file) =>
     (file.startsWith("apps/site/src/") ||
-      file.startsWith("apps/workspace/src/") ||
-      file.startsWith("apps/workspace/upstream/openhands/src/")) &&
+      file.startsWith("apps/workspace/src/")) &&
     /\.(?:astro|css|ts|tsx)$/u.test(file) &&
     !/\.(?:test|spec)\.(?:ts|tsx)$/u.test(file),
 );
@@ -648,7 +647,7 @@ if (
 for (const file of sourceFiles.filter(
   (entry) =>
     entry.startsWith("apps/") &&
-    !entry.startsWith("apps/workspace/upstream/openhands/src/") &&
+    !entry.startsWith("apps/workspace/src/mechanics/") &&
     !/\.(?:test|spec)\.(?:ts|tsx)$/u.test(entry),
 )) {
   const content = readFileSync(resolve(root, file), "utf8");
@@ -999,7 +998,7 @@ for (const file of workspaceProductionFiles) {
 const workspaceZustandStoreFiles = sourceFiles.filter(
   (entry) =>
     (entry.startsWith("apps/workspace/src/stores/") ||
-      entry.startsWith("apps/workspace/upstream/openhands/src/stores/")) &&
+      entry.startsWith("apps/workspace/src/mechanics/stores/")) &&
     !/\.(?:test|spec)\.(?:ts|tsx)$/u.test(entry),
 );
 const serverStateStorePattern =
@@ -1153,12 +1152,10 @@ if (
 }
 
 const workspaceShellRoots = listedFiles.filter(
-  (entry) => entry === "apps/workspace/upstream/openhands/src/root.tsx",
+  (entry) => entry === "apps/workspace/src/mechanics/root.tsx",
 );
 if (workspaceShellRoots.length !== 1) {
-  failures.push(
-    "Workspace must have exactly one source-adopted OpenHands product root.",
-  );
+  failures.push("Workspace must have exactly one current mechanics root.");
 }
 
 const workspaceHostPath = "apps/workspace/src/workspace-host.tsx";
@@ -1166,9 +1163,9 @@ if (!listedFiles.includes(workspaceHostPath)) {
   failures.push("Workspace host composition file is missing.");
 } else {
   const workspaceHost = readFileSync(resolve(root, workspaceHostPath), "utf8");
-  if (!workspaceHost.includes("OpenHandsWorkspaceRoot")) {
+  if (!workspaceHost.includes("WorkspaceMechanicsRoot")) {
     failures.push(
-      "Workspace host must mount the single source-adopted OpenHands root.",
+      "Workspace host must mount the single current mechanics root.",
     );
   }
 }

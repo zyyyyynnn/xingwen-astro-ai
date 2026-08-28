@@ -147,7 +147,7 @@
       "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
       "adaptation": "Retains Radix menu focus, grouping and portal mechanics with clsx composition and the shared icon gateway.",
       "production_consumers": [
-        "apps/workspace/upstream/openhands/src/components/features/sidebar/sidebar-rail-body.tsx"
+        "apps/workspace/src/mechanics/components/features/sidebar/sidebar-rail-body.tsx"
       ]
     },
     {
@@ -207,7 +207,7 @@
       "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
       "adaptation": "Retains Radix viewport and scrollbar mechanics with clsx composition and semantic focus, track and thumb styling.",
       "production_consumers": [
-        "apps/workspace/upstream/openhands/src/components/features/conversation/conversation-main/conversation-main.tsx"
+        "apps/workspace/src/mechanics/components/features/conversation/conversation-main/conversation-main.tsx"
       ]
     },
     {
@@ -324,7 +324,7 @@
       "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
       "adaptation": "Retains Radix Dialog overlay, focus-trap and Escape mechanics with clsx composition, side modifier classes and Xingwen tokens.",
       "production_consumers": [
-        "apps/workspace/upstream/openhands/src/components/features/conversation/conversation-main/conversation-main.tsx"
+        "apps/workspace/src/mechanics/components/features/conversation/conversation-main/conversation-main.tsx"
       ]
     },
     {

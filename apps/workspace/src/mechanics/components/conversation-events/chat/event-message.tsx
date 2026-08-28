@@ -13,7 +13,7 @@ import {
 
 import type { ActivityPresentationEvent } from "./group-events";
 
-/** OpenHands event row with a public research-event projection. */
+/** Public research-event projection. */
 export function EventMessage({
   event,
 }: {
@@ -33,23 +33,26 @@ export function EventMessage({
     <>
       {hasDetails ? (
         <ChevronDown
-          className="oh-narrative-chevron xw-disclosure-chevron"
+          className="workspace-narrative-chevron xw-disclosure-chevron"
           aria-hidden="true"
         />
       ) : (
-        <span className="oh-narrative-disclosure-slot" aria-hidden="true" />
+        <span
+          className="workspace-narrative-disclosure-slot"
+          aria-hidden="true"
+        />
       )}
       <StatusIcon
-        className={`oh-narrative-icon ${isRunning ? "animate-spin motion-reduce:animate-none" : ""}`}
+        className={`workspace-narrative-icon ${isRunning ? "animate-spin motion-reduce:animate-none" : ""}`}
         aria-hidden="true"
       />
-      <span className="oh-narrative-title truncate">{event.title}</span>
+      <span className="workspace-narrative-title truncate">{event.title}</span>
     </>
   );
   if (!hasDetails) {
     return (
       <div
-        className="oh-narrative-node oh-narrative-row"
+        className="workspace-narrative-node workspace-narrative-row"
         data-testid="event-message"
         data-event-kind={event.kind}
         data-event-status={event.status}
@@ -71,23 +74,26 @@ export function EventMessage({
 
   return (
     <Collapsible
-      className="oh-narrative-node"
+      className="workspace-narrative-node"
       data-testid="event-message"
       data-event-kind={event.kind}
       data-event-status={event.status}
       role={event.status === "error" ? "alert" : undefined}
     >
       <CollapsibleTrigger asChild>
-        <button type="button" className="oh-narrative-row oh-narrative-trigger">
+        <button
+          type="button"
+          className="workspace-narrative-row workspace-narrative-trigger"
+        >
           {content}
         </button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="oh-narrative-content">
+      <CollapsibleContent className="workspace-narrative-content">
         <div role="region">
           {distinctUpdates.length <= 1 ? (
             <p>{distinctUpdates[0]?.message || event.summary}</p>
           ) : (
-            <ol className="space-y-1.5 text-xs text-[var(--oh-muted)]">
+            <ol className="space-y-1.5 text-xs text-[var(--color-ink-secondary)]">
               {distinctUpdates.map((update, idx) => {
                 const isLatest = idx === distinctUpdates.length - 1;
                 return (
@@ -95,7 +101,7 @@ export function EventMessage({
                     key={update.sequence}
                     className={
                       isLatest
-                        ? "font-medium leading-relaxed text-[var(--oh-text)]"
+                        ? "font-medium leading-relaxed text-[var(--color-ink-primary)]"
                         : "leading-relaxed"
                     }
                   >

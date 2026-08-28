@@ -18,14 +18,14 @@ function readUnitlessWorkspaceToken(name: string) {
   return value;
 }
 
-for (const [workspaceName, openHandsName] of [
-  ["--workspace-panel-default-ratio", "--oh-panel-default-ratio"],
-  ["--workspace-panel-min-ratio", "--oh-panel-min-ratio"],
-  ["--workspace-panel-max-ratio", "--oh-panel-max-ratio"],
-  ["--workspace-panel-keyboard-step", "--oh-panel-keyboard-step"],
+for (const workspaceName of [
+  "--workspace-panel-default-ratio",
+  "--workspace-panel-min-ratio",
+  "--workspace-panel-max-ratio",
+  "--workspace-panel-keyboard-step",
 ] as const) {
   document.documentElement.style.setProperty(
-    openHandsName,
+    workspaceName,
     readUnitlessWorkspaceToken(workspaceName),
   );
 }

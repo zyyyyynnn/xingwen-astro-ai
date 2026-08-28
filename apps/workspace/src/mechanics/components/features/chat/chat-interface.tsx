@@ -22,7 +22,7 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
     scrollDomToBottom,
   } = useScrollToBottom(scrollRef, runtime.threadItemCount);
   const inspectorInsetStyle = {
-    paddingInlineEnd: "var(--oh-workspace-inspector-reserved-inline-size, 0px)",
+    paddingInlineEnd: "var(--workspace-inspector-reserved-inline-size, 0px)",
   };
 
   React.useLayoutEffect(() => {
@@ -32,7 +32,6 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
   }, [autoScroll, runtime.threadPanel, composer?.submitting]);
 
   const handleSubmit = async (message: string) => {
-    // Sending the user's own message always resumes bottom-follow first.
     scrollDomToBottom();
     await composer?.onSubmit(message);
   };
@@ -47,8 +46,8 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
         data-testid="chat-scroll-container"
         className={
           hasStartedConversation
-            ? "custom-scrollbar-always min-h-0 grow overflow-x-hidden overflow-y-auto transition-[padding-inline-end] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none"
-            : "shrink-0 overflow-visible transition-[padding-inline-end] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none"
+            ? "custom-scrollbar-always min-h-0 grow overflow-x-hidden overflow-y-auto transition-[padding-inline-end] duration-[var(--workspace-motion-panel)] ease-[var(--workspace-ease-panel)] motion-reduce:transition-none"
+            : "shrink-0 overflow-visible transition-[padding-inline-end] duration-[var(--workspace-motion-panel)] ease-[var(--workspace-ease-panel)] motion-reduce:transition-none"
         }
         style={inspectorInsetStyle}
         aria-live="polite"
@@ -64,7 +63,7 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
       </div>
       {composer ? (
         <div
-          className="relative shrink-0 transition-[padding-inline-end] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none"
+          className="relative shrink-0 transition-[padding-inline-end] duration-[var(--workspace-motion-panel)] ease-[var(--workspace-ease-panel)] motion-reduce:transition-none"
           data-testid="chat-composer-track"
           style={inspectorInsetStyle}
         >
@@ -73,9 +72,9 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
             data-testid="chat-composer-gutter"
           >
             {!hasStartedConversation ? (
-              <div className="mx-auto mb-6 flex w-full max-w-[var(--oh-content-max-inline-size)] flex-col items-center text-center">
+              <div className="mx-auto mb-6 flex w-full max-w-[var(--workspace-content-max-inline-size)] flex-col items-center text-center">
                 <h1
-                  className="oh-font-serif text-2xl font-medium tracking-tight text-[var(--oh-text)]"
+                  className="workspace-font-serif text-2xl font-medium tracking-tight text-[var(--color-ink-primary)]"
                   role="heading"
                   aria-level={1}
                 >
@@ -83,7 +82,7 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
                 </h1>
               </div>
             ) : null}
-            <div className="relative mx-auto flex w-full max-w-[var(--oh-content-max-inline-size)] flex-col gap-[var(--oh-space-2)]">
+            <div className="relative mx-auto flex w-full max-w-[var(--workspace-content-max-inline-size)] flex-col gap-[var(--space-2)]">
               {hasStartedConversation && !hitBottom ? (
                 <div className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2">
                   <ScrollToBottomButton

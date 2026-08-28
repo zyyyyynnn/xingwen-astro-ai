@@ -19,7 +19,7 @@ interface EventGroupProps {
   readonly children: React.ReactNode;
 }
 
-/** OpenHands consecutive action/observation group presentation. */
+/** Consecutive action/observation group presentation. */
 export function EventGroup({
   events,
   isFinalized = false,
@@ -41,18 +41,18 @@ export function EventGroup({
       ? `需要处理 ${errorCount}/${events.length}`
       : `${events.length} 项已完成`;
   return (
-    <Collapsible className="oh-narrative-node" data-testid="event-group">
+    <Collapsible className="workspace-narrative-node" data-testid="event-group">
       <CollapsibleTrigger asChild>
         <button
           type="button"
           data-testid="event-group-toggle"
-          className="oh-narrative-row oh-narrative-trigger"
+          className="workspace-narrative-row workspace-narrative-trigger"
         >
           <ChevronDown
-            className="oh-narrative-chevron xw-disclosure-chevron"
+            className="workspace-narrative-chevron xw-disclosure-chevron"
             aria-hidden="true"
           />
-          <span className="oh-narrative-title flex items-center gap-[var(--oh-space-2)]">
+          <span className="workspace-narrative-title flex items-center gap-[var(--space-2)]">
             <span className="truncate">
               {isFinalized
                 ? countSummary
@@ -64,17 +64,17 @@ export function EventGroup({
           </span>
           {!isFinalized ? (
             isRunning ? (
-              <LoaderCircle className="oh-narrative-icon animate-spin motion-reduce:animate-none" />
+              <LoaderCircle className="workspace-narrative-icon animate-spin motion-reduce:animate-none" />
             ) : errorCount > 0 ? (
-              <AlertCircle className="oh-narrative-icon" />
+              <AlertCircle className="workspace-narrative-icon" />
             ) : (
-              <Check className="oh-narrative-icon" />
+              <Check className="workspace-narrative-icon" />
             )
           ) : null}
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent
-        className="oh-narrative-content flex flex-col"
+        className="workspace-narrative-content flex flex-col"
         data-testid="event-group-content"
       >
         {children}

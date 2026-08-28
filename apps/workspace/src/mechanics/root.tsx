@@ -71,15 +71,15 @@ export interface ResearchWorkspaceRuntime {
   };
 }
 
-interface OpenHandsWorkspaceRootProps {
+interface WorkspaceMechanicsRootProps {
   readonly runtime: ResearchWorkspaceRuntime;
 }
 
-/** Source-adopted OpenHands mechanics with Xingwen research presentation data. */
-export function OpenHandsWorkspaceRoot({
+/** Current Workspace mechanics with Xingwen research presentation data. */
+export function WorkspaceMechanicsRoot({
   runtime,
-}: OpenHandsWorkspaceRootProps) {
+}: WorkspaceMechanicsRootProps) {
   return <MainApp runtime={runtime} />;
 }
 
-export default OpenHandsWorkspaceRoot;
+export default WorkspaceMechanicsRoot;

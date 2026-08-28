@@ -48,10 +48,10 @@ function readWorkspacePanelLayout(): WorkspacePanelLayout {
   };
 
   const layout = {
-    defaultLeftWidth: readToken("--oh-panel-default-ratio"),
-    minLeftWidth: readToken("--oh-panel-min-ratio"),
-    maxLeftWidth: readToken("--oh-panel-max-ratio"),
-    keyboardStep: readToken("--oh-panel-keyboard-step"),
+    defaultLeftWidth: readToken("--workspace-panel-default-ratio"),
+    minLeftWidth: readToken("--workspace-panel-min-ratio"),
+    maxLeftWidth: readToken("--workspace-panel-max-ratio"),
+    keyboardStep: readToken("--workspace-panel-keyboard-step"),
   };
   if (
     !(
@@ -71,11 +71,7 @@ interface ConversationMainProps {
   readonly runtime: ResearchWorkspaceRuntime;
 }
 
-/**
- * OpenHands ConversationMain with one product-owned adaptation: the research
- * detail rail is always docked and participates in layout. The thread and its
- * native scrollbar always occupy the remaining main-column width.
- */
+/** Current Workspace split-panel composition for the product-owned research detail rail. */
 export function ConversationMain({ runtime }: ConversationMainProps) {
   const hasInspector = runtime.inspectorPanel !== null;
   const requestedInspector = runtime.inspectorRequest;
@@ -159,7 +155,7 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
     >
       <div
         className={cn(
-          "flex h-full min-h-0 min-w-0 flex-col bg-[var(--oh-surface)] transition-[padding-inline-end] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none",
+          "flex h-full min-h-0 min-w-0 flex-col bg-[var(--color-surface)] transition-[padding-inline-end] duration-[var(--workspace-motion-panel)] ease-[var(--workspace-ease-panel)] motion-reduce:transition-none",
           isDragging && "transition-none",
         )}
         style={mainColumnStyle}
@@ -167,7 +163,7 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
         data-testid="workspace-main-column"
       >
         <header
-          className="flex h-[var(--oh-header-block-size)] shrink-0 items-center gap-[var(--oh-space-3)] border-b border-[var(--oh-border)] px-[var(--oh-header-inline-padding)] py-0"
+          className="flex h-[var(--workspace-header-block-size)] shrink-0 items-center gap-[var(--space-3)] border-b border-[var(--color-border)] px-[var(--workspace-header-inline-padding)] py-0"
           data-testid="workspace-topbar"
         >
           <div className="flex min-w-0 flex-1 items-center">
@@ -191,7 +187,7 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
       {hasInspector && !isNarrow ? (
         <div
           className={cn(
-            "absolute inset-y-0 z-[var(--oh-layer-resize-handle)] transition-[right,opacity] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none",
+            "absolute inset-y-0 z-[var(--workspace-layer-resize-handle)] transition-[right,opacity] duration-[var(--workspace-motion-panel)] ease-[var(--workspace-ease-panel)] motion-reduce:transition-none",
             !inspectorVisible && "pointer-events-none opacity-0",
             isDragging && "transition-none",
           )}
@@ -213,14 +209,14 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
         <aside
           id="research-inspector-panel"
           className={cn(
-            "absolute inset-y-0 right-0 z-[var(--oh-layer-header-toggle)] flex min-h-0 min-w-0 flex-col overflow-hidden border-l bg-[var(--oh-surface-muted)]",
+            "absolute inset-y-0 right-0 z-[var(--workspace-layer-header-toggle)] flex min-h-0 min-w-0 flex-col overflow-hidden border-l bg-[var(--color-surface-muted)]",
             SIDEBAR_RAIL_TRANSITION_CLASS,
             isDragging && "transition-none",
           )}
           style={{
             width: inspectorVisible ? `${rightWidth}%` : "0px",
             borderInlineStartColor: inspectorVisible
-              ? "var(--oh-border)"
+              ? "var(--color-border)"
               : "transparent",
           }}
           aria-label="右侧研究栏"
@@ -231,15 +227,15 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
             className="flex h-full min-h-0 flex-col"
             style={{ width: `${rightWidth}cqi` }}
           >
-            <div className="flex h-[var(--oh-header-block-size)] shrink-0 items-center gap-[var(--oh-space-2)] border-b-0 px-[var(--oh-space-5)] pe-[var(--oh-header-control-reserve-inline)]">
+            <div className="flex h-[var(--workspace-header-block-size)] shrink-0 items-center gap-[var(--space-2)] border-b-0 px-[var(--space-5)] pe-[var(--workspace-header-control-reserve-inline)]">
               {inspectorToolbar ?? (
-                <h2 className="min-w-0 truncate px-[var(--oh-space-1)] text-[length:var(--oh-font-size-body)] font-medium text-[var(--oh-text)]">
+                <h2 className="min-w-0 truncate px-[var(--space-1)] text-[length:var(--font-size-ui-body)] font-medium text-[var(--color-ink-primary)]">
                   {inspectorHeading}
                 </h2>
               )}
             </div>
             <ScrollArea className="min-h-0 flex-1">
-              <div className="px-[var(--oh-space-5)] pb-[var(--oh-space-5)]">
+              <div className="px-[var(--space-5)] pb-[var(--space-5)]">
                 {inspectorContent}
               </div>
             </ScrollArea>
@@ -258,9 +254,9 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
             side="right"
             className="flex w-[380px] max-w-full flex-col p-0"
           >
-            <SheetHeader className="flex h-[var(--oh-header-block-size)] shrink-0 items-center justify-between border-b border-[var(--oh-border)] px-[var(--oh-space-5)]">
+            <SheetHeader className="flex h-[var(--workspace-header-block-size)] shrink-0 items-center justify-between border-b border-[var(--color-border)] px-[var(--space-5)]">
               {inspectorToolbar ?? (
-                <SheetTitle className="min-w-0 truncate text-[length:var(--oh-font-size-body)] font-medium text-[var(--oh-text)]">
+                <SheetTitle className="min-w-0 truncate text-[length:var(--font-size-ui-body)] font-medium text-[var(--color-ink-primary)]">
                   {inspectorHeading}
                 </SheetTitle>
               )}
@@ -269,7 +265,7 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
               </SheetDescription>
             </SheetHeader>
             <ScrollArea className="min-h-0 flex-1">
-              <div className="px-[var(--oh-space-5)] pb-[var(--oh-space-5)] pt-[var(--oh-space-4)]">
+              <div className="px-[var(--space-5)] pb-[var(--space-5)] pt-[var(--space-4)]">
                 {inspectorContent}
               </div>
             </ScrollArea>
@@ -282,7 +278,7 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
           type="button"
           className={cn(
             SIDEBAR_ICON_BUTTON_CLASS,
-            "absolute right-[var(--oh-header-control-inset-inline)] top-[var(--oh-header-control-inset-block)] z-[var(--oh-layer-header-toggle)]",
+            "absolute right-[var(--workspace-header-control-inset-inline)] top-[var(--workspace-header-control-inset-block)] z-[var(--workspace-layer-header-toggle)]",
           )}
           aria-label={inspectorVisible ? "关闭右侧研究栏" : "打开右侧研究栏"}
           aria-controls="research-inspector-panel"
@@ -291,12 +287,12 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
         >
           {inspectorVisible ? (
             <PanelRightClose
-              className="size-[var(--oh-icon-size-md)]"
+              className="size-[var(--icon-size-md)]"
               aria-hidden="true"
             />
           ) : (
             <PanelRightOpen
-              className="size-[var(--oh-icon-size-md)]"
+              className="size-[var(--icon-size-md)]"
               aria-hidden="true"
             />
           )}

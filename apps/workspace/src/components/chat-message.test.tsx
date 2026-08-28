@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ChatMessage } from "../../upstream/openhands/src/root";
+import { ChatMessage } from "../mechanics/root";
 
 describe("ChatMessage", () => {
   afterEach(() => vi.restoreAllMocks());
