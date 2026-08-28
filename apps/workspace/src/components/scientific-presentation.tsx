@@ -238,6 +238,16 @@ export function PresentationGraphRelationships({
   );
 }
 
+export type PresentationRevisionIntent =
+  | {
+      readonly kind: "relation_correction";
+      readonly relationId: DomainEntityId;
+    }
+  | {
+      readonly kind: "trace_correction";
+      readonly traceId: DomainEntityId;
+    };
+
 export function ArtifactPresentationContent({
   title,
   presentation,
@@ -245,6 +255,7 @@ export function ArtifactPresentationContent({
   onSelectEvidence,
   evidenceOrdinal,
   showHeader = true,
+  onRequestRevision,
 }: {
   readonly title: string;
   readonly presentation: PublicArtifactPresentation;
@@ -252,6 +263,7 @@ export function ArtifactPresentationContent({
   readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
   readonly evidenceOrdinal?: (evidenceId: DomainEntityId) => number | null;
   readonly showHeader?: boolean;
+  readonly onRequestRevision?: (intent: PresentationRevisionIntent) => void;
 }) {
   const count =
     presentation.entries.length ||
@@ -307,6 +319,7 @@ export function ArtifactPresentationContent({
         <ol className="candidate-dossier" aria-label="科学结果档案">
           {presentation.entries.map((entry) => {
             const externalUrl = safeExternalUrl(entry.externalUrl);
+            const reasoningTrace = entry.reasoningTrace;
             return (
               <li key={entry.key}>
                 <article className="dossier__entry" data-status={entry.status}>
@@ -342,12 +355,45 @@ export function ArtifactPresentationContent({
                     onSelectEvidence={onSelectEvidence}
                     evidenceOrdinal={evidenceOrdinal}
                   />
-                  {entry.reasoningTrace ? (
-                    <PresentationTrace
-                      trace={entry.reasoningTrace}
-                      onSelectEvidence={onSelectEvidence}
-                      evidenceOrdinal={evidenceOrdinal}
-                    />
+                  {onRequestRevision &&
+                  presentation.kind === "literature_relations" ? (
+                    <Button
+                      size="small"
+                      variant="ghost"
+                      className="mt-2"
+                      onClick={() =>
+                        onRequestRevision({
+                          kind: "relation_correction",
+                          relationId: entry.key as DomainEntityId,
+                        })
+                      }
+                    >
+                      重新分析此关系
+                    </Button>
+                  ) : null}
+                  {reasoningTrace ? (
+                    <>
+                      {onRequestRevision ? (
+                        <Button
+                          size="small"
+                          variant="ghost"
+                          className="mt-2"
+                          onClick={() =>
+                            onRequestRevision({
+                              kind: "trace_correction",
+                              traceId: reasoningTrace.traceId,
+                            })
+                          }
+                        >
+                          重新分析此推导
+                        </Button>
+                      ) : null}
+                      <PresentationTrace
+                        trace={reasoningTrace}
+                        onSelectEvidence={onSelectEvidence}
+                        evidenceOrdinal={evidenceOrdinal}
+                      />
+                    </>
                   ) : null}
                 </article>
               </li>

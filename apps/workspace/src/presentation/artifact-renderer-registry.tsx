@@ -36,9 +36,13 @@ import { useMemo, useState, type ComponentType, type ReactNode } from "react";
 
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
 import { ArtifactExportActions } from "../components/artifact-export-actions";
-import { ArtifactPresentationContent } from "../components/scientific-presentation";
+import {
+  ArtifactPresentationContent,
+  type PresentationRevisionIntent,
+} from "../components/scientific-presentation";
 import { DataArtifactRenderer } from "../components/data-artifact-renderer";
 import { PaperResultWorkspace } from "../components/paper-result-workspace";
+import { PaperSummaryExportActions } from "../components/paper-summary-export-actions";
 import { ScientificArtifactRenderer } from "../components/scientific-artifact-renderer";
 import { ScientificDiffView } from "../components/scientific-diff-view";
 import { artifactKindLabel } from "./artifact-presentation-labels";
@@ -91,12 +95,15 @@ export interface ArtifactThreadRendererProps {
   readonly onOpen: (() => void) | null;
 }
 
+export type RevisionIntent = PresentationRevisionIntent;
+
 export interface ArtifactFullscreenRendererProps {
   readonly runtime: WorkspaceRuntimeBoundaries;
   readonly projectId: DomainEntityId;
   readonly artifact: ResearchArtifactViewModel;
   readonly version: ArtifactVersionMetadataViewModel;
   readonly onSelectEvidence: (evidenceId: DomainEntityId) => void;
+  readonly onRequestRevision?: (intent: RevisionIntent) => void;
   readonly paperPageRequest?: {
     readonly pageIndex: number;
     readonly nonce: number;
@@ -354,14 +361,24 @@ function defineRenderer<
       enabled: currentRunQuery.data !== undefined,
     });
     const baselineEvidenceQueries = useQueries({
-      queries: props.baselineVersion.provenance.evidenceIds.map((evidenceId) =>
-        props.runtime.application.queries.evidence(props.projectId, evidenceId),
-      ),
+      queries: props.baselineVersion.evidence
+        ? []
+        : props.baselineVersion.provenance.evidenceIds.map((evidenceId) =>
+            props.runtime.application.queries.evidence(
+              props.projectId,
+              evidenceId,
+            ),
+          ),
     });
     const currentEvidenceQueries = useQueries({
-      queries: props.currentVersion.provenance.evidenceIds.map((evidenceId) =>
-        props.runtime.application.queries.evidence(props.projectId, evidenceId),
-      ),
+      queries: props.currentVersion.evidence
+        ? []
+        : props.currentVersion.provenance.evidenceIds.map((evidenceId) =>
+            props.runtime.application.queries.evidence(
+              props.projectId,
+              evidenceId,
+            ),
+          ),
     });
     const baselineSourceQueries = useQueries({
       queries: props.baselineVersion.provenance.sourceSnapshotIds.map(
@@ -434,12 +451,16 @@ function defineRenderer<
 
     const baselineSnapshot = definition.buildDiffSnapshot(baselineQuery.data);
     const currentSnapshot = definition.buildDiffSnapshot(currentQuery.data);
-    const baselineEvidence = baselineEvidenceQueries.flatMap((query) =>
-      query.data ? [query.data] : [],
-    );
-    const currentEvidence = currentEvidenceQueries.flatMap((query) =>
-      query.data ? [query.data] : [],
-    );
+    const baselineEvidence =
+      props.baselineVersion.evidence ??
+      baselineEvidenceQueries.flatMap((query) =>
+        query.data ? [query.data] : [],
+      );
+    const currentEvidence =
+      props.currentVersion.evidence ??
+      currentEvidenceQueries.flatMap((query) =>
+        query.data ? [query.data] : [],
+      );
     const baselineSources = baselineSourceQueries.flatMap((query) =>
       query.data ? [query.data] : [],
     );
@@ -574,6 +595,12 @@ function PaperSummaryFullscreen({
       documentUrl={documentUrl}
       documentKind={documentSource.data?.documentKind ?? null}
       requestedPage={paperPageRequest}
+      toolbar={
+        <PaperSummaryExportActions
+          runtime={runtime}
+          artifactVersionId={version.id}
+        />
+      }
       className="h-full w-full"
     />
   );
@@ -747,7 +774,13 @@ function literature(kind: LiteratureKind, displayPriority: number) {
         version.id,
         kind,
       ),
-    fullscreen: ({ viewModel, artifact, version, onSelectEvidence }) => (
+    fullscreen: ({
+      viewModel,
+      artifact,
+      version,
+      onSelectEvidence,
+      onRequestRevision,
+    }) => (
       <div className="scientific-result-fullscreen">
         <ScientificArtifactRenderer
           review={viewModel}
@@ -755,6 +788,7 @@ function literature(kind: LiteratureKind, displayPriority: number) {
           title={artifact.title}
           surface="fullscreen"
           onSelectEvidence={onSelectEvidence}
+          onRequestRevision={onRequestRevision}
         />
       </div>
     ),

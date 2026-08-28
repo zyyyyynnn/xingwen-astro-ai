@@ -1,11 +1,20 @@
-import type { ArtifactVersionSummary, DomainEntityId } from "@xingwen/domain";
+import type {
+  ArtifactVersionSummary,
+  DomainEntityId,
+  PublicArtifactPresentation,
+  PublicPresentationEntry,
+} from "@xingwen/domain";
 import type {
   ArtifactVersionMetadataViewModel,
   ResearchRunViewModel,
 } from "@xingwen/research-adapter";
 import { describe, expect, it } from "vitest";
 
-import { describeArtifactLineage } from "./artifact-fullscreen-workspace";
+import {
+  describeArtifactLineage,
+  selectRevisionMode,
+  toCandidateRelationOptions,
+} from "./artifact-fullscreen-workspace";
 
 describe("Artifact result lineage", () => {
   it("uses formal supersedes and Run derivation fields to locate history", () => {
@@ -34,5 +43,78 @@ describe("Artifact result lineage", () => {
     expect(result.description).toContain("修订");
     expect(result.description).not.toContain("version-before");
     expect(result.description).not.toContain("run-before");
+  });
+});
+
+describe("Object revision candidate gating", () => {
+  function relationsPresentation(
+    entries: readonly Partial<PublicPresentationEntry>[],
+  ): PublicArtifactPresentation {
+    return {
+      kind: "literature_relations",
+      summary: null,
+      facts: [],
+      sections: [],
+      entries: entries.map(
+        (entry) =>
+          ({
+            key: "relation",
+            title: "候选关系",
+            externalUrl: null,
+            status: null,
+            assessment: null,
+            paragraphs: [],
+            facts: [],
+            evidenceIds: [],
+            reasoningTrace: null,
+            canAdjudicate: null,
+            ...entry,
+          }) as unknown as PublicPresentationEntry,
+      ),
+      tables: [],
+      graphNodes: [],
+      graphEdges: [],
+    } as unknown as PublicArtifactPresentation;
+  }
+
+  it("only surfaces adjudicable candidate relations as revision options", () => {
+    const options = toCandidateRelationOptions(
+      relationsPresentation([
+        { key: "adjudicable", title: "可审定关系", canAdjudicate: true },
+        { key: "not-evaluated", title: "未评估关系", canAdjudicate: null },
+        {
+          key: "not-adjudicable",
+          title: "不可审定关系",
+          canAdjudicate: false,
+        },
+      ]),
+    );
+    expect(options).toEqual([
+      { relationId: "adjudicable", title: "可审定关系" },
+    ]);
+  });
+
+  it("offers no candidate options outside literature relations", () => {
+    expect(toCandidateRelationOptions(relationsPresentation([]))).toEqual([]);
+    expect(
+      toCandidateRelationOptions({
+        ...relationsPresentation([]),
+        kind: "dataset",
+      } as unknown as PublicArtifactPresentation),
+    ).toEqual([]);
+    expect(toCandidateRelationOptions(null)).toEqual([]);
+    expect(toCandidateRelationOptions(undefined)).toEqual([]);
+  });
+
+  it("selects relation adjudication only when an adjudicable candidate exists", () => {
+    expect(selectRevisionMode([])).toEqual({ kind: "artifact_correction" });
+    expect(
+      selectRevisionMode([
+        {
+          relationId: "adjudicable" as DomainEntityId,
+          title: "可审定关系",
+        },
+      ]),
+    ).toEqual({ kind: "relation_adjudication" });
   });
 });

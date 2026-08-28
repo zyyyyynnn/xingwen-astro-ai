@@ -30,7 +30,10 @@ from app.schemas.data_artifacts import (
 )
 from app.schemas.graph_artifact import GraphArtifactCandidate
 from app.schemas.literature_claim import LiteratureClaimsCandidate
-from app.schemas.literature_relation import LiteratureRelationsCandidate
+from app.schemas.literature_relation import (
+    LiteratureRelationsCandidate,
+    literature_relation_adjudicable,
+)
 from app.schemas.paper_collection import PaperCollection
 from app.schemas.paper_summary import PaperSummaryArtifactContent
 from app.schemas.scientific_skills import (
@@ -607,6 +610,7 @@ def build_artifact_presentation(
                     ),
                     status=relation.status.value,
                     assessment=relation.relation_type.value,
+                    can_adjudicate=literature_relation_adjudicable(relation),
                     facts=_facts(
                         _fact("成立条件", *relation.conditions),
                         _fact("条件冲突", *relation.condition_conflicts),
@@ -663,6 +667,7 @@ def build_artifact_presentation(
                     ),
                     reasoning_trace=(
                         PublicPresentationTrace(
+                            trace_id=trace.trace_id,
                             conclusion=trace.conclusion,
                             steps=tuple(step.statement for step in trace.steps),
                             facts=_facts(

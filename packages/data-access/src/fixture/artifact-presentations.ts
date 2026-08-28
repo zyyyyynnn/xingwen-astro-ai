@@ -115,6 +115,7 @@ export const artifactPresentations = {
         ],
         evidence_ids: ["evd_03"],
         reasoning_trace: {
+          trace_id: "trace_01",
           conclusion:
             "The claims are linked because they refer to the same host-star parameter.",
           steps: ["Compare the host-star identity in each claim."],

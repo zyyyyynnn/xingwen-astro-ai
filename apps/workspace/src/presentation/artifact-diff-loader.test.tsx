@@ -12,6 +12,44 @@ afterEach(() => {
 });
 
 describe("Artifact Scientific Diff loading", () => {
+  it("uses ArtifactVersion embedded Evidence without per-item reads", async () => {
+    const runtime = createTestRuntime();
+    const artifact = await runtime.repositories.artifacts.getArtifact(
+      asEntityId("art_dataset_01"),
+    );
+    const version = await runtime.repositories.artifacts.getVersion(
+      asEntityId("artv_dataset_01"),
+    );
+    const evidenceId = version?.evidenceIds[0];
+    const evidence = evidenceId
+      ? await runtime.repositories.artifacts.getEvidence(evidenceId)
+      : null;
+    const descriptor = resolveArtifactRenderer("dataset");
+    if (!artifact || !version || !evidence || !descriptor) {
+      throw new Error("Dataset Diff fixture is incomplete");
+    }
+    const getEvidence = vi.spyOn(runtime.repositories.artifacts, "getEvidence");
+    const versionWithEvidence = { ...version, evidence: [evidence] };
+    const viewModel =
+      runtime.researchAdapter.toArtifactVersionViewModel(versionWithEvidence);
+    const DiffRenderer = descriptor.DiffRenderer;
+
+    render(
+      <QueryClientProvider client={runtime.queryClient}>
+        <DiffRenderer
+          runtime={runtime}
+          projectId={asEntityId("proj_01JEXAMPLE")}
+          artifact={runtime.researchAdapter.toArtifactViewModel(artifact)}
+          baselineVersion={viewModel}
+          currentVersion={viewModel}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText("没有发现科学内容变化")).toBeInTheDocument();
+    expect(getEvidence).not.toHaveBeenCalled();
+  });
+
   it("fails safely when a version-bound SourceSnapshot cannot be read", async () => {
     const runtime = createTestRuntime();
     const artifact = await runtime.repositories.artifacts.getArtifact(

@@ -295,6 +295,7 @@ export type {
   LiteratureReasoningTraceStepReview,
   LiteratureRelationComparabilityReview,
   LiteratureRelationConfidenceReview,
+  LiteratureRelationAdjudicationReview,
   LiteratureRelationDirectionReview,
   LiteratureRelationReview,
   LiteratureRelationsArtifactReview,
@@ -322,7 +323,9 @@ export type {
 export type {
   FeedbackCategory,
   FeedbackTargetType,
+  RelationAdjudicationDecision,
   RevisionConflict,
+  RevisionFeedbackIntent,
   RevisionPlan,
   RevisionVersionDecision,
   UserFeedback,

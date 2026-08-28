@@ -13,6 +13,7 @@ import type {
   CreateShareSnapshotRequest,
   DomainEntityId,
   ExecutionMode,
+  RevisionFeedbackIntent,
   RunCheckpointDecisionRequest,
 } from "@xingwen/domain";
 import type {
@@ -45,6 +46,10 @@ interface WorkspaceMutationDependencies {
 }
 
 const MAX_PENDING_IDEMPOTENCY_KEYS = 64;
+
+type DistributiveOmit<T, K extends keyof T> = T extends unknown
+  ? Omit<T, K>
+  : never;
 
 export function mergeResearchThreadEntries(
   current: readonly ResearchThreadEntryViewModel[] | undefined,
@@ -154,14 +159,10 @@ export interface BindResearchInputToDraftVariables {
   readonly draftId: DomainEntityId;
 }
 
-export interface CreateRevisionFeedbackVariables {
-  readonly projectId: DomainEntityId;
-  readonly artifactId: DomainEntityId;
-  readonly artifactVersionId: DomainEntityId;
-  readonly expectedVersionNumber: number;
-  readonly summary: string;
-  readonly requestedChange: string;
-}
+export type CreateRevisionFeedbackVariables = DistributiveOmit<
+  RevisionFeedbackIntent,
+  "idempotencyKey"
+>;
 
 export interface CreateRevisionPlanVariables {
   readonly projectId: DomainEntityId;
@@ -317,11 +318,7 @@ export function createWorkspaceMutations({
         retry: false,
         mutationFn: (variables: CreateRevisionFeedbackVariables) =>
           repositories.revisions.createFeedback({
-            artifactId: variables.artifactId,
-            artifactVersionId: variables.artifactVersionId,
-            expectedVersionNumber: variables.expectedVersionNumber,
-            summary: variables.summary,
-            requestedChange: variables.requestedChange,
+            ...variables,
             idempotencyKey: idempotency.keyFor(
               "revision.feedback.create",
               variables,

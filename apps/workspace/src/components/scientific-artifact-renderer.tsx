@@ -13,7 +13,10 @@ import { EvidenceLinks } from "./evidence-links";
 import { AnalysisReportContent } from "./scientific-content/analysis-report-content";
 import { GraphContent } from "./scientific-content/graph-content";
 import { LightCurveContent } from "./scientific-content/light-curve-content";
-import { ArtifactPresentationContent } from "./scientific-presentation";
+import {
+  ArtifactPresentationContent,
+  type PresentationRevisionIntent,
+} from "./scientific-presentation";
 import {
   ModelArtifactContent,
   ModelEvaluationContent,
@@ -35,6 +38,7 @@ export interface ScientificArtifactRendererProps {
   readonly title: string;
   readonly surface: ScientificArtifactSurface;
   readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
+  readonly onRequestRevision?: (intent: PresentationRevisionIntent) => void;
   /** Immutable binary read channel, only used by model_artifact content. */
   readonly loadContent?: (contentHash: ContentHash) => Promise<ArrayBuffer>;
 }
@@ -45,6 +49,7 @@ function ScientificArtifactContent({
   title,
   surface,
   onSelectEvidence,
+  onRequestRevision,
   loadContent,
 }: {
   readonly review: ScientificArtifactReview;
@@ -52,6 +57,7 @@ function ScientificArtifactContent({
   readonly title: string;
   readonly surface: ScientificArtifactSurface;
   readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
+  readonly onRequestRevision?: (intent: PresentationRevisionIntent) => void;
   readonly loadContent?: (contentHash: ContentHash) => Promise<ArrayBuffer>;
 }) {
   if ("content" in review) {
@@ -207,6 +213,7 @@ function ScientificArtifactContent({
       title={title}
       surface={surface}
       onSelectEvidence={onSelectEvidence}
+      onRequestRevision={onRequestRevision}
       showHeader={false}
     />
   );
@@ -214,6 +221,7 @@ function ScientificArtifactContent({
 
 export function ScientificArtifactRenderer({
   onSelectEvidence,
+  onRequestRevision,
   ...props
 }: ScientificArtifactRendererProps) {
   const evidenceIds =
@@ -227,6 +235,7 @@ export function ScientificArtifactRenderer({
       <ScientificArtifactContent
         {...props}
         onSelectEvidence={onSelectEvidence}
+        onRequestRevision={onRequestRevision}
       />
       <EvidenceLinks
         evidenceIds={evidenceIds}

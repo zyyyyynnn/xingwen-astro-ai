@@ -2,6 +2,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
   ArtifactVersionSummary,
   DomainEntityId,
+  PublicArtifactPresentation,
+  RelationAdjudicationDecision,
   RevisionPlan,
 } from "@xingwen/domain";
 import type {
@@ -35,13 +37,15 @@ import {
   Textarea,
 } from "@xingwen/ui";
 import { ArrowLeft, ChevronDown, Share2 } from "@xingwen/ui/icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
+import type { CreateRevisionFeedbackVariables } from "../application/mutations";
 import { artifactKindLabel } from "../presentation/artifact-presentation-labels";
 import {
   resolveArtifactRenderer,
   type ArtifactRendererDescriptor,
+  type RevisionIntent,
 } from "../presentation/artifact-renderer-registry";
 import { ArtifactEvidenceSheet } from "./artifact-evidence-sheet";
 import { ArtifactShareDialog } from "./artifact-share-dialog";
@@ -308,6 +312,79 @@ function revisionImpact(plan: RevisionPlan): {
   return { recompute: labels("recompute"), reuse: labels("reuse") };
 }
 
+export type RevisionMode =
+  | { readonly kind: "artifact_correction" }
+  | { readonly kind: "relation_adjudication" }
+  | {
+      readonly kind: "relation_correction";
+      readonly relationId: DomainEntityId;
+    }
+  | { readonly kind: "trace_correction"; readonly traceId: DomainEntityId };
+
+export interface CandidateRelationOption {
+  readonly relationId: DomainEntityId;
+  readonly title: string;
+}
+
+export function toCandidateRelationOptions(
+  presentation: PublicArtifactPresentation | null | undefined,
+): CandidateRelationOption[] {
+  if (!presentation || presentation.kind !== "literature_relations") {
+    return [];
+  }
+  return presentation.entries
+    .filter((entry) => entry.canAdjudicate === true)
+    .map((entry) => ({
+      relationId: entry.key as DomainEntityId,
+      title: entry.title,
+    }));
+}
+
+export function selectRevisionMode(
+  candidateRelations: readonly CandidateRelationOption[],
+): RevisionMode {
+  return candidateRelations.length > 0
+    ? { kind: "relation_adjudication" }
+    : { kind: "artifact_correction" };
+}
+
+function revisionModeCopy(mode: RevisionMode): {
+  readonly title: string;
+  readonly description: string;
+  readonly placeholder: string;
+} {
+  switch (mode.kind) {
+    case "artifact_correction":
+      return {
+        title: "基于此结果重新分析",
+        description:
+          "新约束会形成修订计划；确认后创建派生研究，不修改当前结果或原研究。",
+        placeholder: "例如：加入刚上传的新论文，并重新核对核心结论。",
+      };
+    case "relation_adjudication":
+      return {
+        title: "审定候选关系",
+        description:
+          "选择候选关系与审定结论，并说明审定理由；理由将作为该关系的审定依据进入证据链。",
+        placeholder: "例如：该关系有明确证据支持，接受其进入证据图谱。",
+      };
+    case "relation_correction":
+      return {
+        title: "重新分析此关系",
+        description:
+          "说明希望如何重新分析这条关系；确认后创建派生研究，不修改当前结果或原研究。",
+        placeholder: "例如：请重新核对此关系的证据与方向。",
+      };
+    case "trace_correction":
+      return {
+        title: "重新分析此推导",
+        description:
+          "说明希望如何重新分析这条推导；确认后创建派生研究，不修改当前结果或原研究。",
+        placeholder: "例如：请重新检查此推导的关键步骤。",
+      };
+  }
+}
+
 function RevisionSheet({
   runtime,
   projectId,
@@ -315,6 +392,8 @@ function RevisionSheet({
   artifactVersionId,
   versionNumber,
   parentRunRevision,
+  mode,
+  candidateRelations,
   open,
   onOpenChange,
   onRevisionStarted,
@@ -325,11 +404,22 @@ function RevisionSheet({
   readonly artifactVersionId: DomainEntityId;
   readonly versionNumber: number;
   readonly parentRunRevision: number;
+  readonly mode: RevisionMode;
+  readonly candidateRelations: readonly CandidateRelationOption[];
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onRevisionStarted: () => void;
 }) {
+  const copy = revisionModeCopy(mode);
   const [requestedChange, setRequestedChange] = useState("");
+  const [selectedRelationId, setSelectedRelationId] =
+    useState<DomainEntityId | null>(
+      mode.kind === "relation_adjudication"
+        ? (candidateRelations[0]?.relationId ?? null)
+        : null,
+    );
+  const [selectedDecision, setSelectedDecision] =
+    useState<RelationAdjudicationDecision>("accepted");
   const [plan, setPlan] = useState<RevisionPlan | null>(null);
   const feedbackMutation = useMutation(
     runtime.application.mutations.revisionFeedbackCreate(),
@@ -344,14 +434,47 @@ function RevisionSheet({
   const createPlan = async () => {
     const change = requestedChange.trim();
     if (!change) return;
-    const feedback = await feedbackMutation.mutateAsync({
-      projectId,
+    const base = {
       artifactId,
       artifactVersionId,
       expectedVersionNumber: versionNumber,
       summary: change.slice(0, 200),
       requestedChange: change,
-    });
+    } as const;
+    let variables: CreateRevisionFeedbackVariables;
+    switch (mode.kind) {
+      case "artifact_correction":
+        variables = { ...base, kind: "artifact_correction" };
+        break;
+      case "relation_adjudication":
+        if (selectedRelationId === null) return;
+        variables = {
+          ...base,
+          kind: "relation_adjudication",
+          relationId: selectedRelationId,
+          decision: selectedDecision,
+        };
+        break;
+      case "relation_correction":
+        variables = {
+          ...base,
+          kind: "relation_correction",
+          relationId: mode.relationId,
+        };
+        break;
+      case "trace_correction":
+        variables = {
+          ...base,
+          kind: "trace_correction",
+          traceId: mode.traceId,
+        };
+        break;
+      default: {
+        const _exhaustive: never = mode;
+        throw new Error(`Unsupported revision mode: ${String(_exhaustive)}`);
+      }
+    }
+    const feedback = await feedbackMutation.mutateAsync(variables);
     const nextPlan = await planMutation.mutateAsync({
       projectId,
       feedbackId: feedback.id,
@@ -386,20 +509,66 @@ function RevisionSheet({
     >
       <SheetContent side="right" className="result-side-sheet">
         <SheetHeader>
-          <SheetTitle>基于此结果重新分析</SheetTitle>
-          <SheetDescription>
-            新约束会形成修订计划；确认后创建派生研究，不修改当前结果或原研究。
-          </SheetDescription>
+          <SheetTitle>{copy.title}</SheetTitle>
+          <SheetDescription>{copy.description}</SheetDescription>
         </SheetHeader>
         <div className="result-sheet-body">
           {plan === null ? (
             <>
+              {mode.kind === "relation_adjudication" ? (
+                <>
+                  <label className="result-form-field">
+                    <span>选择候选关系</span>
+                    <Select
+                      value={selectedRelationId ?? undefined}
+                      onValueChange={(value) =>
+                        setSelectedRelationId(value as DomainEntityId)
+                      }
+                    >
+                      <SelectTrigger aria-label="选择候选关系">
+                        <SelectValue placeholder="选择候选关系" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {candidateRelations.map((candidate) => (
+                          <SelectItem
+                            key={candidate.relationId}
+                            value={candidate.relationId}
+                          >
+                            {candidate.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </label>
+                  <label className="result-form-field">
+                    <span>选择关系审定结论</span>
+                    <Select
+                      value={selectedDecision}
+                      onValueChange={(value) =>
+                        setSelectedDecision(
+                          value as RelationAdjudicationDecision,
+                        )
+                      }
+                    >
+                      <SelectTrigger aria-label="选择关系审定结论">
+                        <SelectValue placeholder="选择审定结论" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="accepted">接受并进入图谱</SelectItem>
+                        <SelectItem value="rejected">
+                          拒绝且不进入图谱
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </label>
+                </>
+              ) : null}
               <label className="result-form-field">
                 <span>希望调整什么？</span>
                 <Textarea
                   value={requestedChange}
                   onChange={(event) => setRequestedChange(event.target.value)}
-                  placeholder="例如：加入刚上传的新论文，并重新核对核心结论。"
+                  placeholder={copy.placeholder}
                   maxLength={4000}
                 />
               </label>
@@ -407,6 +576,8 @@ function RevisionSheet({
                 onClick={() => void createPlan()}
                 disabled={
                   !requestedChange.trim() ||
+                  (mode.kind === "relation_adjudication" &&
+                    selectedRelationId === null) ||
                   feedbackMutation.isPending ||
                   planMutation.isPending
                 }
@@ -463,7 +634,8 @@ export function ArtifactFullscreenWorkspace({
   const openerRef = useRef<HTMLElement | null>(null);
   const [selectedEvidenceId, setSelectedEvidenceId] =
     useState<DomainEntityId | null>(null);
-  const [revisionOpen, setRevisionOpen] = useState(false);
+  const [revisionMode, setRevisionMode] = useState<RevisionMode | null>(null);
+  const [revisionOpenNonce, setRevisionOpenNonce] = useState(0);
   const [diffOpen, setDiffOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [paperPageRequest, setPaperPageRequest] = useState<{
@@ -505,6 +677,20 @@ export function ArtifactFullscreenWorkspace({
     ),
     enabled: parentRunId !== null,
   });
+  const candidateRelations = useMemo<CandidateRelationOption[]>(
+    () => toCandidateRelationOptions(versionQuery.data?.presentation),
+    [versionQuery.data],
+  );
+
+  const openRevisionSheet = () => {
+    setRevisionMode(selectRevisionMode(candidateRelations));
+    setRevisionOpenNonce((nonce) => nonce + 1);
+  };
+
+  const handleObjectRevision = (intent: RevisionIntent) => {
+    setRevisionMode(intent);
+    setRevisionOpenNonce((nonce) => nonce + 1);
+  };
 
   const isLoading =
     versionQuery.isPending || (artifactId !== null && artifactQuery.isPending);
@@ -589,11 +775,7 @@ export function ArtifactFullscreenWorkspace({
             {descriptor?.capabilities.revision &&
             version &&
             parentRunQuery.data ? (
-              <Button
-                size="small"
-                variant="ghost"
-                onClick={() => setRevisionOpen(true)}
-              >
+              <Button size="small" variant="ghost" onClick={openRevisionSheet}>
                 基于此结果重新分析
               </Button>
             ) : null}
@@ -626,6 +808,7 @@ export function ArtifactFullscreenWorkspace({
                 artifact={artifact}
                 version={version}
                 onSelectEvidence={setSelectedEvidenceId}
+                onRequestRevision={handleObjectRevision}
                 paperPageRequest={paperPageRequest}
               />
             ) : (
@@ -672,16 +855,21 @@ export function ArtifactFullscreenWorkspace({
             onOpenChange={setShareOpen}
           />
         ) : null}
-        {version && parentRunQuery.data ? (
+        {artifact && version && parentRunQuery.data ? (
           <RevisionSheet
+            key={revisionOpenNonce}
             runtime={runtime}
             projectId={projectId}
             artifactId={version.artifactId}
             artifactVersionId={version.id}
             versionNumber={version.versionNumber}
             parentRunRevision={parentRunQuery.data.revision}
-            open={revisionOpen}
-            onOpenChange={setRevisionOpen}
+            mode={revisionMode ?? { kind: "artifact_correction" }}
+            candidateRelations={candidateRelations}
+            open={revisionMode !== null}
+            onOpenChange={(open) => {
+              if (!open) setRevisionMode(null);
+            }}
             onRevisionStarted={onClose}
           />
         ) : null}

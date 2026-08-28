@@ -72,6 +72,7 @@ export function mapProblemDetails(
       return new NotFoundError(detail, code ?? "NOT_FOUND");
     case 409:
       return new ConflictError(detail, code ?? "RUN_STATE_CONFLICT");
+    case 415:
     case 422:
       return new ValidationError(
         detail,

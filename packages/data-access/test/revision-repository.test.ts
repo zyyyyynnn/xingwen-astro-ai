@@ -13,6 +13,7 @@ const PLAN_ID = asEntityId("00000000-0000-0000-0000-000000000005");
 const PARENT_RUN_ID = asEntityId("00000000-0000-0000-0000-000000000006");
 const CONTRACT_ID = asEntityId("00000000-0000-0000-0000-000000000007");
 const DERIVED_RUN_ID = asEntityId("00000000-0000-0000-0000-000000000008");
+const RELATION_ID = asEntityId("relation.reviewable");
 const HASH = `sha256:${"a".repeat(64)}`;
 
 function session(): SessionManager {
@@ -43,6 +44,66 @@ function envelope(data: unknown): Response {
 }
 
 describe("RevisionRepository", () => {
+  it("sends a structured Relation adjudication through the existing feedback endpoint", async () => {
+    let requestBody: unknown = null;
+    const repository = createRevisionRepository(
+      new HttpClient({
+        baseUrl: "http://test.local",
+        session: session(),
+        fetchImpl: (async (_input, init) => {
+          requestBody = init?.body ? JSON.parse(String(init.body)) : null;
+          return envelope({
+            artifact_id: ARTIFACT_ID,
+            baseline_artifact_version_id: VERSION_ID,
+            baseline_content_hash: HASH,
+            baseline_version_number: 3,
+            category: "adjudication",
+            adjudication_decision: "accepted",
+            created_at: "2026-08-18T00:00:00Z",
+            feedback_hash: HASH,
+            id: FEEDBACK_ID,
+            project_id: PROJECT_ID,
+            requested_change: "将该关系纳入证据图谱",
+            summary: "接受候选关系",
+            target_id: RELATION_ID,
+            target_locator: {
+              artifact_version_id: VERSION_ID,
+              relation_id: RELATION_ID,
+            },
+            target_type: "relation",
+          });
+        }) as typeof fetch,
+      }),
+    );
+
+    const feedback = await repository.createFeedback({
+      kind: "relation_adjudication",
+      artifactId: ARTIFACT_ID,
+      artifactVersionId: VERSION_ID,
+      expectedVersionNumber: 3,
+      summary: "接受候选关系",
+      requestedChange: "将该关系纳入证据图谱",
+      relationId: RELATION_ID,
+      decision: "accepted",
+      idempotencyKey: "relation-adjudication-key",
+    });
+
+    expect(requestBody).toEqual({
+      expected_version_number: 3,
+      target_type: "relation",
+      target_id: RELATION_ID,
+      target_locator: {
+        artifact_version_id: VERSION_ID,
+        relation_id: RELATION_ID,
+      },
+      category: "adjudication",
+      adjudication_decision: "accepted",
+      summary: "接受候选关系",
+      requested_change: "将该关系纳入证据图谱",
+    });
+    expect(feedback.adjudicationDecision).toBe("accepted");
+  });
+
   it("preserves version/revision concurrency facts and idempotency across the derived-run chain", async () => {
     const requests: Array<{
       readonly url: string;
@@ -138,6 +199,7 @@ describe("RevisionRepository", () => {
     );
 
     const feedback = await repository.createFeedback({
+      kind: "artifact_correction",
       artifactId: ARTIFACT_ID,
       artifactVersionId: VERSION_ID,
       expectedVersionNumber: 3,

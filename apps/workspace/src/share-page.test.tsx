@@ -69,6 +69,7 @@ const snapshot: PublicShareSnapshot = {
             facts: [],
             evidenceIds: [],
             reasoningTrace: null,
+            canAdjudicate: null,
           },
         ],
         tables: [
@@ -267,6 +268,7 @@ describe("PublicShareView", () => {
                     facts: [],
                     evidenceIds: [],
                     reasoningTrace: null,
+                    canAdjudicate: false,
                   },
                 ],
                 tables: [],

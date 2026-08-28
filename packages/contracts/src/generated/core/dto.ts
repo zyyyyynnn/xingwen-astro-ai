@@ -202,16 +202,6 @@ export type LiteratureTraceOperation =
   | "record_limitation";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "LiteratureComparabilityStatus".
- */
-export type LiteratureComparabilityStatus = "comparable" | "not_applicable" | "incomparable";
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "LiteratureRelationConfidenceStatus".
- */
-export type LiteratureRelationConfidenceStatus = "assessed" | "not_evaluable";
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "LiteratureRelationType".
  */
 export type LiteratureRelationType =
@@ -222,6 +212,16 @@ export type LiteratureRelationType =
   | "contradicts"
   | "uses_same_dataset"
   | "compares_method";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureComparabilityStatus".
+ */
+export type LiteratureComparabilityStatus = "comparable" | "not_applicable" | "incomparable";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureRelationConfidenceStatus".
+ */
+export type LiteratureRelationConfidenceStatus = "assessed" | "not_evaluable";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "LiteratureRelationFailureStage".
@@ -429,10 +429,15 @@ export type UnitPolicy = "canonical";
 export type ExecutionMode = "demo_replay" | "live";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RelationAdjudicationDecision".
+ */
+export type RelationAdjudicationDecision = "accepted" | "rejected";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "FeedbackCategory".
  */
 export type FeedbackCategory =
-  "correction" | "omission" | "evidence" | "quality" | "interpretation";
+  "correction" | "omission" | "evidence" | "quality" | "interpretation" | "adjudication";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "FeedbackTargetType".
@@ -1155,6 +1160,7 @@ export interface PublicArtifactPresentation {
  */
 export interface PublicPresentationEntry {
   assessment?: string | null;
+  can_adjudicate?: boolean | null;
   evidence_ids?: string[];
   external_url?: string | null;
   facts?: PublicPresentationFact[];
@@ -1188,6 +1194,7 @@ export interface PublicPresentationTrace {
   evidence_ids?: string[];
   facts?: PublicPresentationFact[];
   steps: string[];
+  trace_id: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -1824,6 +1831,7 @@ export interface LiteratureReasoningTraceStepCandidate {
  * via the `definition` "LiteratureRelationCandidate".
  */
 export interface LiteratureRelationCandidate {
+  adjudication?: LiteratureRelationAdjudication | null;
   comparability: LiteratureRelationComparabilityCandidate;
   condition_conflicts: string[];
   condition_uncertainties: string[];
@@ -1851,6 +1859,37 @@ export interface LiteratureRelationCandidate {
   target_claim_artifact_version_id?: string | null;
   target_claim_id: string;
   target_paper_summary_artifact_version_id?: string | null;
+}
+/**
+ * Immutable user decision bound to one exact Relation subject.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureRelationAdjudication".
+ */
+export interface LiteratureRelationAdjudication {
+  adjudication_id: string;
+  baseline_relation_artifact_version_id: string;
+  baseline_relation_id: string;
+  /**
+   * @minItems 1
+   */
+  basis: [string, ...string[]];
+  decision: LiteratureRelationStatus;
+  feedback_hash: string;
+  feedback_id: string;
+  subject: LiteratureRelationConfidenceSubject;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureRelationConfidenceSubject".
+ */
+export interface LiteratureRelationConfidenceSubject {
+  fingerprint: string;
+  relation_type: LiteratureRelationType;
+  source_claim_artifact_version_id: string;
+  source_claim_id: string;
+  target_claim_artifact_version_id: string;
+  target_claim_id: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -1891,18 +1930,6 @@ export interface LiteratureRelationConfidenceAssessment {
   score_interpretation?: "confidence_in_relation_type_and_admission_decision";
   status: LiteratureRelationConfidenceStatus;
   subject: LiteratureRelationConfidenceSubject;
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "LiteratureRelationConfidenceSubject".
- */
-export interface LiteratureRelationConfidenceSubject {
-  fingerprint: string;
-  relation_type: LiteratureRelationType;
-  source_claim_artifact_version_id: string;
-  source_claim_id: string;
-  target_claim_artifact_version_id: string;
-  target_claim_id: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -2627,6 +2654,7 @@ export interface CreateShareSnapshotRequest {
  * via the `definition` "CreateUserFeedbackRequest".
  */
 export interface CreateUserFeedbackRequest {
+  adjudication_decision?: RelationAdjudicationDecision | null;
   category: FeedbackCategory;
   expected_version_number: number;
   requested_change: string;
@@ -5778,6 +5806,7 @@ export interface Envelope_UserFeedback_ {
  * via the `definition` "UserFeedback".
  */
 export interface UserFeedback {
+  adjudication_decision?: RelationAdjudicationDecision | null;
   artifact_id: string;
   baseline_artifact_version_id: string;
   baseline_content_hash: string;

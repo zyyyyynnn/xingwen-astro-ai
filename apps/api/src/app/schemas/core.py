@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from enum import StrEnum
 from typing import Annotated, Any, ClassVar, Generic, Literal, Self, TypeVar
 from uuid import UUID
@@ -51,9 +51,9 @@ PublicAnalysis = Annotated[
 
 
 def _require_utc(value: datetime) -> datetime:
-    if value.utcoffset() != timedelta(0):
-        raise ValueError("datetime must use UTC")
-    return value
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 UtcDateTime = Annotated[AwareDatetime, AfterValidator(_require_utc)]
@@ -1383,6 +1383,7 @@ class PublicPresentationTrace(BaseModel):
 
     model_config = CORE_MODEL_CONFIG
 
+    trace_id: Identifier
     conclusion: NonEmptyString
     steps: tuple[NonEmptyString, ...]
     facts: tuple[PublicPresentationFact, ...] = ()
@@ -1403,6 +1404,7 @@ class PublicPresentationEntry(BaseModel):
     facts: tuple[PublicPresentationFact, ...] = ()
     evidence_ids: tuple[Identifier, ...] = ()
     reasoning_trace: PublicPresentationTrace | None = None
+    can_adjudicate: bool | None = None
 
 
 class PublicPresentationParagraph(BaseModel):

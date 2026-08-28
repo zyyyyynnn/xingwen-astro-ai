@@ -81,6 +81,7 @@ export interface PublicPresentationFact {
 }
 
 export interface PublicPresentationTrace {
+  readonly traceId: DomainEntityId;
   readonly conclusion: NonEmptyString;
   readonly steps: readonly NonEmptyString[];
   readonly facts: readonly PublicPresentationFact[];
@@ -97,6 +98,7 @@ export interface PublicPresentationEntry {
   readonly facts: readonly PublicPresentationFact[];
   readonly evidenceIds: readonly DomainEntityId[];
   readonly reasoningTrace: PublicPresentationTrace | null;
+  readonly canAdjudicate: boolean | null;
 }
 
 export interface PublicPresentationSection {

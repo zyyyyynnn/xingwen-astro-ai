@@ -1740,6 +1740,16 @@
       "CreateUserFeedbackRequest": {
         "additionalProperties": false,
         "properties": {
+          "adjudication_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RelationAdjudicationDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "category": {
             "$ref": "#/components/schemas/FeedbackCategory"
           },
@@ -4730,7 +4740,8 @@
           "omission",
           "evidence",
           "quality",
-          "interpretation"
+          "interpretation",
+          "adjudication"
         ],
         "title": "FeedbackCategory",
         "type": "string"
@@ -8121,9 +8132,80 @@
         "title": "LiteratureReasoningTraceStepCandidate",
         "type": "object"
       },
+      "LiteratureRelationAdjudication": {
+        "additionalProperties": false,
+        "description": "Immutable user decision bound to one exact Relation subject.",
+        "properties": {
+          "adjudication_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Adjudication Id",
+            "type": "string"
+          },
+          "baseline_relation_artifact_version_id": {
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Baseline Relation Artifact Version Id",
+            "type": "string"
+          },
+          "baseline_relation_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Baseline Relation Id",
+            "type": "string"
+          },
+          "basis": {
+            "items": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Basis",
+            "type": "array"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/LiteratureRelationStatus"
+          },
+          "feedback_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Feedback Hash",
+            "type": "string"
+          },
+          "feedback_id": {
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Feedback Id",
+            "type": "string"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/LiteratureRelationConfidenceSubject"
+          }
+        },
+        "required": [
+          "adjudication_id",
+          "subject",
+          "decision",
+          "feedback_id",
+          "feedback_hash",
+          "baseline_relation_artifact_version_id",
+          "baseline_relation_id",
+          "basis"
+        ],
+        "title": "LiteratureRelationAdjudication",
+        "type": "object"
+      },
       "LiteratureRelationCandidate": {
         "additionalProperties": false,
         "properties": {
+          "adjudication": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LiteratureRelationAdjudication"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "comparability": {
             "$ref": "#/components/schemas/LiteratureRelationComparabilityCandidate"
           },
@@ -13495,6 +13577,17 @@
             ],
             "title": "Assessment"
           },
+          "can_adjudicate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Can Adjudicate"
+          },
           "evidence_ids": {
             "default": [],
             "items": {
@@ -13934,9 +14027,16 @@
             },
             "title": "Steps",
             "type": "array"
+          },
+          "trace_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Trace Id",
+            "type": "string"
           }
         },
         "required": [
+          "trace_id",
           "conclusion",
           "steps"
         ],
@@ -14503,6 +14603,14 @@
         ],
         "title": "RawSourceRecordReference",
         "type": "object"
+      },
+      "RelationAdjudicationDecision": {
+        "enum": [
+          "accepted",
+          "rejected"
+        ],
+        "title": "RelationAdjudicationDecision",
+        "type": "string"
       },
       "RepairCandidateCoordinate": {
         "additionalProperties": false,
@@ -20448,6 +20556,16 @@
       "UserFeedback": {
         "additionalProperties": false,
         "properties": {
+          "adjudication_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RelationAdjudicationDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "artifact_id": {
             "maxLength": 128,
             "minLength": 1,

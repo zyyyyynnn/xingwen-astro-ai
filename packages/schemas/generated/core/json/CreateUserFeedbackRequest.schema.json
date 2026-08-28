@@ -6,7 +6,8 @@
         "omission",
         "evidence",
         "quality",
-        "interpretation"
+        "interpretation",
+        "adjudication"
       ],
       "title": "FeedbackCategory",
       "type": "string"
@@ -28,10 +29,29 @@
       "title": "FeedbackTargetType",
       "type": "string"
     },
-    "JsonValue": {}
+    "JsonValue": {},
+    "RelationAdjudicationDecision": {
+      "enum": [
+        "accepted",
+        "rejected"
+      ],
+      "title": "RelationAdjudicationDecision",
+      "type": "string"
+    }
   },
   "additionalProperties": false,
   "properties": {
+    "adjudication_decision": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RelationAdjudicationDecision"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "category": {
       "$ref": "#/$defs/FeedbackCategory"
     },

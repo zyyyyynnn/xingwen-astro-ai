@@ -140,6 +140,11 @@ class RevisionApplicationService:
                 target_id=request.target_id,
                 target_locator=request.target_locator,
                 category=request.category.value,
+                adjudication_decision=(
+                    None
+                    if request.adjudication_decision is None
+                    else request.adjudication_decision.value
+                ),
                 summary=request.summary,
                 requested_change=request.requested_change,
                 feedback_hash=canonical_request_hash(frozen),
@@ -360,6 +365,22 @@ class RevisionApplicationService:
                 and feedback.target_type in {"artifact", "artifact_version"}
                 and feedback.category in {"correction", "evidence"}
             )
+            relation_adjudication_feedback = tuple(
+                feedback
+                for feedback in ordered_feedback
+                if artifact_kind_by_id.get(feedback.artifact_id)
+                == "literature_relations"
+                and feedback.target_type == "relation"
+                and feedback.category == "adjudication"
+                and feedback.adjudication_decision in {"accepted", "rejected"}
+            )
+            if relation_adjudication_feedback and len(
+                relation_adjudication_feedback
+            ) != len(ordered_feedback):
+                raise _conflict(
+                    "REVISION_ADJUDICATION_CONFLICT",
+                    "Relation adjudication must be confirmed in its own RevisionPlan",
+                )
             if source_reacquisition_feedback and "fetching_data" in parent_step_by_key:
                 affected_step_keys.add("fetching_data")
             data_kinds = {"dataset", "field_dictionary", "source_collection"}
@@ -484,6 +505,11 @@ class RevisionApplicationService:
                     producer_key in data_only_scientific_steps
                     and artifact.kind not in data_kinds
                 )
+                reused_adjudication_claims = (
+                    bool(relation_adjudication_feedback)
+                    and artifact.kind == "literature_claims"
+                    and producer_key == "reasoning_literature"
+                )
                 decision = (
                     RevisionDecision.recompute
                     if (
@@ -491,6 +517,7 @@ class RevisionApplicationService:
                         or (
                             producer_key in affected_step_keys
                             and not data_only_scientific_co_output
+                            and not reused_adjudication_claims
                         )
                     )
                     else RevisionDecision.reuse
@@ -576,6 +603,25 @@ class RevisionApplicationService:
                     artifact_id
                 )
             recompute_step_keys = set(recompute_steps)
+
+            def publication_matches_decision(
+                *, step_key: str, artifact_id: UUID
+            ) -> bool:
+                item = decision_by_artifact_id.get(artifact_id)
+                if item is None:
+                    return False
+                if (
+                    item.decision == RevisionDecision.recompute.value
+                    and item.step_key == step_key
+                ):
+                    return True
+                return (
+                    bool(relation_adjudication_feedback)
+                    and step_key == "reasoning_literature"
+                    and artifact_kind_by_id.get(artifact_id) == "literature_claims"
+                    and item.decision == RevisionDecision.reuse.value
+                )
+
             for step in parent_steps:
                 if (
                     step.key not in recompute_step_keys
@@ -584,9 +630,9 @@ class RevisionApplicationService:
                 ):
                     continue
                 if any(
-                    (item := decision_by_artifact_id.get(artifact_id)) is None
-                    or item.decision != RevisionDecision.recompute.value
-                    or item.step_key != step.key
+                    not publication_matches_decision(
+                        step_key=step.key, artifact_id=artifact_id
+                    )
                     for artifact_id in publication_artifact_ids_by_step.get(
                         step.key, ()
                     )
@@ -939,6 +985,7 @@ def _feedback_read(row: UserFeedbackModel) -> UserFeedback:
         target_id=row.target_id,
         target_locator=dict(row.target_locator),
         category=row.category,
+        adjudication_decision=row.adjudication_decision,
         summary=row.summary,
         requested_change=row.requested_change,
         feedback_hash=row.feedback_hash,

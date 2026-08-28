@@ -509,6 +509,18 @@
           "default": null,
           "title": "Assessment"
         },
+        "can_adjudicate": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Can Adjudicate"
+        },
         "evidence_ids": {
           "default": [],
           "items": {
@@ -955,9 +967,16 @@
           },
           "title": "Steps",
           "type": "array"
+        },
+        "trace_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Trace Id",
+          "type": "string"
         }
       },
       "required": [
+        "trace_id",
         "conclusion",
         "steps"
       ],

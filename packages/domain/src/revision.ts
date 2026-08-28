@@ -16,7 +16,14 @@ export type FeedbackTargetType =
   | "graph_edge";
 
 export type FeedbackCategory =
-  "correction" | "omission" | "evidence" | "quality" | "interpretation";
+  | "correction"
+  | "omission"
+  | "evidence"
+  | "quality"
+  | "interpretation"
+  | "adjudication";
+
+export type RelationAdjudicationDecision = "accepted" | "rejected";
 
 export interface UserFeedback {
   readonly id: DomainEntityId;
@@ -29,6 +36,7 @@ export interface UserFeedback {
   readonly targetId: DomainEntityId;
   readonly targetLocator: Readonly<Record<string, unknown>>;
   readonly category: FeedbackCategory;
+  readonly adjudicationDecision: RelationAdjudicationDecision | null;
   readonly summary: string;
   readonly requestedChange: string;
   readonly createdAt: UtcIsoTimestamp;
@@ -67,3 +75,45 @@ export interface RevisionPlan {
   readonly confirmedRunId: DomainEntityId | null;
   readonly createdAt: UtcIsoTimestamp;
 }
+
+export type RevisionFeedbackIntent =
+  | {
+      readonly kind: "artifact_correction";
+      readonly artifactId: DomainEntityId;
+      readonly artifactVersionId: DomainEntityId;
+      readonly expectedVersionNumber: number;
+      readonly summary: string;
+      readonly requestedChange: string;
+      readonly idempotencyKey: string;
+    }
+  | {
+      readonly kind: "relation_correction";
+      readonly artifactId: DomainEntityId;
+      readonly artifactVersionId: DomainEntityId;
+      readonly relationId: DomainEntityId;
+      readonly expectedVersionNumber: number;
+      readonly summary: string;
+      readonly requestedChange: string;
+      readonly idempotencyKey: string;
+    }
+  | {
+      readonly kind: "trace_correction";
+      readonly artifactId: DomainEntityId;
+      readonly artifactVersionId: DomainEntityId;
+      readonly traceId: DomainEntityId;
+      readonly expectedVersionNumber: number;
+      readonly summary: string;
+      readonly requestedChange: string;
+      readonly idempotencyKey: string;
+    }
+  | {
+      readonly kind: "relation_adjudication";
+      readonly artifactId: DomainEntityId;
+      readonly artifactVersionId: DomainEntityId;
+      readonly relationId: DomainEntityId;
+      readonly decision: RelationAdjudicationDecision;
+      readonly expectedVersionNumber: number;
+      readonly summary: string;
+      readonly requestedChange: string;
+      readonly idempotencyKey: string;
+    };

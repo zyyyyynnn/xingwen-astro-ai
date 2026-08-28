@@ -5,7 +5,7 @@ import { Alert, AlertDescription, Button } from "@xingwen/ui";
 import { FileCheck2 } from "@xingwen/ui/icons";
 import { useMemo, type ReactNode } from "react";
 
-import type { ResearchWorkspaceRuntime } from "../../upstream/openhands/src/root";
+import type { ResearchWorkspaceRuntime } from "../mechanics/root";
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
 import { ArtifactFullscreenWorkspace } from "./artifact-fullscreen-workspace";
 

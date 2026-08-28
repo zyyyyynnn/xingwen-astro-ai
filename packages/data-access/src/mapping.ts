@@ -705,6 +705,7 @@ export function mapArtifactVersionMetadata(
     producer: mapProducer(dto.producer),
     sourceSnapshotIds: mapIds(dto.source_snapshot_ids),
     evidenceIds: mapIds(dto.evidence_ids),
+    evidence: "evidence" in dto ? dto.evidence.map(mapEvidenceDetail) : [],
     presentation: mapPublicArtifactPresentation(presentation),
     supersedesVersionId: (dto.supersedes_version_id ??
       null) as DomainEntityId | null,
@@ -944,6 +945,7 @@ export function mapPublicArtifactPresentation(
       evidenceIds: (entry.evidence_ids ?? []).map(mapId),
       reasoningTrace: entry.reasoning_trace
         ? {
+            traceId: mapId(entry.reasoning_trace.trace_id),
             conclusion: entry.reasoning_trace.conclusion as NonEmptyString,
             steps: entry.reasoning_trace.steps.map(
               (step) => step as NonEmptyString,
@@ -955,6 +957,7 @@ export function mapPublicArtifactPresentation(
             evidenceIds: (entry.reasoning_trace.evidence_ids ?? []).map(mapId),
           }
         : null,
+      canAdjudicate: entry.can_adjudicate ?? null,
     })),
     tables: (dto.tables ?? []).map((table) => ({
       title: table.title as NonEmptyString,

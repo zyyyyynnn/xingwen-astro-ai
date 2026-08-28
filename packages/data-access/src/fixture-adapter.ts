@@ -1274,6 +1274,32 @@ export function createFixtureRepositories(
         // the UI must show the plain unavailable state.
         return { researchInputId: null, documentKind: null };
       },
+      export: async (artifactVersionId, format) => {
+        const summary = await (async () => {
+          const entry = bundle.data.paperSummaries.find(
+            (item) => item.summary.artifact_version_id === artifactVersionId,
+          );
+          if (!entry) {
+            throw new NotFoundError(
+              `Paper summary ${artifactVersionId} not found`,
+              "ARTIFACT_VERSION_NOT_FOUND",
+            );
+          }
+          return entry.summary;
+        })();
+        const markdown = `# ${summary.paper.title}\n\nDemo Replay 论文摘要。\n`;
+        const bytes = new TextEncoder().encode(
+          format === "markdown" ? markdown : JSON.stringify(summary),
+        );
+        return {
+          bytes: bytes.buffer,
+          fileName: `paper-summary-${artifactVersionId}.${format === "markdown" ? "md" : "json"}`,
+          mediaType:
+            format === "markdown"
+              ? "text/markdown; charset=utf-8"
+              : "application/json",
+        };
+      },
     },
     dataArtifacts: createFixtureDataArtifactRepository([
       ...(bundle.data.dataArtifactReads ?? []),
