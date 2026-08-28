@@ -79,11 +79,11 @@ export function useGripResize(
   const isManuallySizedRef = React.useRef(false);
 
   const maxHeight = getCssLengthInPixels(
-    "--oh-composer-max-block-size",
+    "--workspace-composer-max-block-size",
     FALLBACK_UNBOUNDED_HEIGHT,
   );
   const keyboardStep = getCssLengthInPixels(
-    "--oh-composer-keyboard-step",
+    "--workspace-composer-keyboard-step",
     getRootFontSize(),
   );
 

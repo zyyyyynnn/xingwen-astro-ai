@@ -33,15 +33,15 @@ export function Sidebar({
 
   return (
     <aside
-      className={`relative z-[var(--oh-layer-sidebar)] h-full shrink-0 overflow-hidden border-r border-[var(--oh-border)] bg-[var(--oh-surface-muted)] ${SIDEBAR_RAIL_TRANSITION_CLASS}`}
+      className={`relative z-[var(--workspace-layer-sidebar)] h-full shrink-0 overflow-hidden border-r border-[var(--color-border)] bg-[var(--color-surface-muted)] ${SIDEBAR_RAIL_TRANSITION_CLASS}`}
       style={{
         width: collapsed
-          ? "var(--oh-sidebar-collapsed-inline-size)"
-          : "var(--oh-sidebar-expanded-inline-size)",
+          ? "var(--workspace-sidebar-collapsed-inline-size)"
+          : "var(--workspace-sidebar-expanded-inline-size)",
       }}
       aria-label="工作台侧栏"
     >
-      <div className="h-full w-[var(--oh-sidebar-inner-inline-size)]">
+      <div className="h-full w-[var(--workspace-sidebar-inner-inline-size)]">
         <SidebarRailBody
           collapsed={collapsed}
           projects={projects}
@@ -55,13 +55,13 @@ export function Sidebar({
       </div>
       <button
         type="button"
-        className={`${SIDEBAR_ICON_BUTTON_CLASS} absolute right-[var(--oh-header-control-inset-inline)] top-[var(--oh-header-control-inset-block)] z-[var(--oh-layer-header-toggle)]`}
+        className={`${SIDEBAR_ICON_BUTTON_CLASS} absolute right-[var(--workspace-header-control-inset-inline)] top-[var(--workspace-header-control-inset-block)] z-[var(--workspace-layer-header-toggle)]`}
         aria-label={collapsed ? "展开侧栏" : "收起侧栏"}
         aria-expanded={!collapsed}
         onClick={toggleCollapsed}
       >
         <CollapseIcon
-          className="size-[var(--oh-icon-size-md)]"
+          className="size-[var(--icon-size-md)]"
           aria-hidden="true"
         />
       </button>

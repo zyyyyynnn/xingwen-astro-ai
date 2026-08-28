@@ -136,7 +136,7 @@ function AttachmentStrip({
       {items.map((item) => (
         <div
           key={item.id}
-          className="min-w-0 max-w-full rounded-[var(--oh-radius-md)] border border-[var(--oh-border)] bg-[var(--oh-surface-raised)] px-2.5 py-1.5 text-xs text-[var(--oh-text)]"
+          className="min-w-0 max-w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-hover)] px-2.5 py-1.5 text-xs text-[var(--color-ink-primary)]"
           data-status={item.status}
         >
           <div className="flex min-w-0 items-center gap-2">
@@ -153,7 +153,7 @@ function AttachmentStrip({
             <span className="min-w-0 truncate" title={item.filename}>
               {item.filename}
             </span>
-            <span className="shrink-0 text-[var(--oh-muted)]">
+            <span className="shrink-0 text-[var(--color-ink-secondary)]">
               {formatBytes(item.sizeBytes)}
             </span>
             {item.status === "failed" ? (
@@ -512,7 +512,7 @@ export function useResearchAttachments({
         size="small"
         onClick={() => inputRef.current?.click()}
         aria-label="添加研究资料"
-        className="gap-1 text-xs text-[var(--oh-muted)]"
+        className="gap-1 text-xs text-[var(--color-ink-secondary)]"
       >
         <Paperclip className="size-3.5" aria-hidden="true" />
         附件

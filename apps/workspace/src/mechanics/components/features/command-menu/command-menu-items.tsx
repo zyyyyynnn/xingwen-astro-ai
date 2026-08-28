@@ -36,7 +36,7 @@ export function createCommandMenuItems({
       title: "切换侧栏",
       description: "展开或收起工作台导航",
       keywords: "侧栏 导航 展开 收起",
-      icon: <PanelLeft className="size-[var(--oh-icon-size-md)]" />,
+      icon: <PanelLeft className="size-[var(--icon-size-md)]" />,
       perform: toggleSidebar,
     },
   ];

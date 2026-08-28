@@ -40,20 +40,20 @@ export function ProtocolDraftCard({
   return (
     <Card
       size="small"
-      className="my-3 border-[var(--oh-border)] bg-[var(--oh-surface)] shadow-none"
+      className="my-3 border-[var(--color-border)] bg-[var(--color-surface)] shadow-none"
       aria-label="研究协议"
       data-testid="protocol-summary-card"
     >
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-3">
-          <CardTitle className="text-sm font-semibold leading-5 text-[var(--oh-text)]">
+          <CardTitle className="text-sm font-semibold leading-5 text-[var(--color-ink-primary)]">
             研究协议
           </CardTitle>
           <span
             className={
               isConfirmed
-                ? "text-xs font-medium text-[var(--oh-status-success)]"
-                : "text-xs text-[var(--oh-muted)]"
+                ? "text-xs font-medium text-[var(--color-success)]"
+                : "text-xs text-[var(--color-ink-secondary)]"
             }
           >
             {isConfirmed ? "已确认" : "待确认"}
@@ -62,7 +62,7 @@ export function ProtocolDraftCard({
       </CardHeader>
 
       <CardContent className="pt-1">
-        <p className="ui-text-body font-serif text-[var(--oh-text)]">
+        <p className="ui-text-body font-serif text-[var(--color-ink-primary)]">
           {active.researchGoal}
         </p>
       </CardContent>
@@ -98,7 +98,7 @@ export function ProtocolDraftCard({
                 variant="ghost"
                 size="small"
                 onClick={onRefineInChat}
-                className="text-xs text-[var(--oh-muted)]"
+                className="text-xs text-[var(--color-ink-secondary)]"
               >
                 在对话中说明修改
               </Button>

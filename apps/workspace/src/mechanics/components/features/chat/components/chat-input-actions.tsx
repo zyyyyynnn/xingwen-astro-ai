@@ -20,9 +20,9 @@ export function ChatInputActions({
   return (
     <div
       data-testid="chat-input-actions"
-      className="flex min-h-[var(--oh-control-size-xs)] w-full items-center justify-between gap-[var(--oh-space-3)]"
+      className="flex min-h-[var(--control-size-xs)] w-full items-center justify-between gap-[var(--space-3)]"
     >
-      <div className="flex min-w-0 items-center gap-[var(--oh-space-2)]">
+      <div className="flex min-w-0 items-center gap-[var(--space-2)]">
         {leadingActions}
       </div>
       <ChatSendButton

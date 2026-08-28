@@ -28,7 +28,7 @@ export function ChatInputGrip({
   return (
     <div
       ref={gripRef}
-      className="group/grip absolute left-1/2 top-0 z-[var(--oh-layer-composer-grip)] h-[var(--oh-space-3)] w-[var(--oh-composer-grip-inline-size)] -translate-x-1/2 -translate-y-1/2 cursor-ns-resize outline-none"
+      className="group/grip absolute left-1/2 top-0 z-[var(--workspace-layer-composer-grip)] h-[var(--space-3)] w-[var(--workspace-composer-grip-inline-size)] -translate-x-1/2 -translate-y-1/2 cursor-ns-resize outline-none"
       role="separator"
       aria-label="调整指令输入区高度"
       aria-orientation="horizontal"
@@ -42,7 +42,7 @@ export function ChatInputGrip({
     >
       <span
         className={cn(
-          "pointer-events-none absolute left-1/2 top-1/2 h-[var(--oh-composer-grip-indicator-block-size)] w-[var(--oh-composer-grip-indicator-inline-size)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--oh-border-strong)] transition-opacity group-focus-visible/grip:opacity-100 motion-reduce:transition-none",
+          "pointer-events-none absolute left-1/2 top-1/2 h-[var(--workspace-composer-grip-indicator-block-size)] w-[var(--workspace-composer-grip-indicator-inline-size)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--color-border-strong)] transition-opacity group-focus-visible/grip:opacity-100 motion-reduce:transition-none",
           isGripVisible || isGripDragging ? "opacity-100" : "opacity-0",
         )}
         aria-hidden="true"

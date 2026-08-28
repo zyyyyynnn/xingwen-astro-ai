@@ -84,11 +84,11 @@ export function ArtifactExportActions({
 
   return (
     <section
-      className="artifact-export p-3 bg-[var(--oh-surface-subtle)] rounded-lg border border-[var(--oh-border)] my-3"
+      className="artifact-export p-3 bg-[var(--color-surface-muted)] rounded-lg border border-[var(--color-border)] my-3"
       aria-label="数据导出"
     >
       <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="text-xs font-medium text-[var(--oh-foreground)]">
+        <span className="text-xs font-medium text-[var(--color-ink-primary)]">
           数据导出
         </span>
       </div>
@@ -121,7 +121,10 @@ export function ArtifactExportActions({
         </Alert>
       ) : null}
       {exportMutation.isSuccess ? (
-        <p className="text-xs text-[var(--oh-muted)] mt-2" role="status">
+        <p
+          className="text-xs text-[var(--color-ink-secondary)] mt-2"
+          role="status"
+        >
           已成功导出 {exportMutation.data.record.format.toUpperCase()}{" "}
           格式数据。
         </p>

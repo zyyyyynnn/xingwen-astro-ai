@@ -61,14 +61,14 @@ export function ResearchInspectorTabs({
       <TabsList className="h-8 justify-start gap-1 border-0 bg-transparent p-0">
         <TabsTrigger
           value="overview"
-          className="h-7 gap-1.5 rounded-[var(--oh-radius-md)] px-2.5 text-xs font-medium text-[var(--oh-muted)] hover:bg-[var(--oh-surface-raised)] hover:text-[var(--oh-text)] data-[state=active]:bg-[var(--oh-surface-raised)] data-[state=active]:text-[var(--oh-text)] data-[state=active]:shadow-none"
+          className="h-7 gap-1.5 rounded-[var(--radius-md)] px-2.5 text-xs font-medium text-[var(--color-ink-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-ink-primary)] data-[state=active]:bg-[var(--color-surface-hover)] data-[state=active]:text-[var(--color-ink-primary)] data-[state=active]:shadow-none"
         >
           <Layers3 className="size-3.5" aria-hidden="true" />
           研究概览
         </TabsTrigger>
         <TabsTrigger
           value="results"
-          className="h-7 gap-1.5 rounded-[var(--oh-radius-md)] px-2.5 text-xs font-medium text-[var(--oh-muted)] hover:bg-[var(--oh-surface-raised)] hover:text-[var(--oh-text)] data-[state=active]:bg-[var(--oh-surface-raised)] data-[state=active]:text-[var(--oh-text)] data-[state=active]:shadow-none"
+          className="h-7 gap-1.5 rounded-[var(--radius-md)] px-2.5 text-xs font-medium text-[var(--color-ink-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-ink-primary)] data-[state=active]:bg-[var(--color-surface-hover)] data-[state=active]:text-[var(--color-ink-primary)] data-[state=active]:shadow-none"
         >
           <ListChecks className="size-3.5" aria-hidden="true" />
           研究结果
@@ -118,13 +118,13 @@ export function DockedWorkspacePanel({
               >
                 <h3 className="docked-workspace-section__title">
                   <Target
-                    className="size-4 text-[var(--oh-muted)]"
+                    className="size-4 text-[var(--color-ink-secondary)]"
                     aria-hidden="true"
                   />
                   研究目标与范围
                 </h3>
                 <ChevronDown
-                  className="xw-disclosure-chevron size-3.5 text-[var(--oh-muted)] group-data-[state=open]/goal:rotate-180"
+                  className="xw-disclosure-chevron size-3.5 text-[var(--color-ink-secondary)] group-data-[state=open]/goal:rotate-180"
                   aria-hidden="true"
                 />
               </Button>
@@ -152,7 +152,7 @@ export function DockedWorkspacePanel({
                 <div className="flex items-center gap-2">
                   <h3 className="docked-workspace-section__title">
                     <ListChecks
-                      className="size-4 text-[var(--oh-muted)]"
+                      className="size-4 text-[var(--color-ink-secondary)]"
                       aria-hidden="true"
                     />
                     研究计划
@@ -168,7 +168,7 @@ export function DockedWorkspacePanel({
                     </span>
                   ) : null}
                   <ChevronDown
-                    className="xw-disclosure-chevron size-3.5 text-[var(--oh-muted)] group-data-[state=open]/plan:rotate-180"
+                    className="xw-disclosure-chevron size-3.5 text-[var(--color-ink-secondary)] group-data-[state=open]/plan:rotate-180"
                     aria-hidden="true"
                   />
                 </div>

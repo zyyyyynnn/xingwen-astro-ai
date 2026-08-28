@@ -18,12 +18,9 @@ export function ScrollToBottomButton({
       onClick={onClick}
       data-testid="scroll-to-bottom"
       aria-label={label}
-      className="rounded-[var(--oh-radius-pill)] text-[var(--oh-muted)]"
+      className="rounded-[var(--radius-pill)] text-[var(--color-ink-secondary)]"
     >
-      <ChevronDown
-        className="size-[var(--oh-icon-size-sm)]"
-        aria-hidden="true"
-      />
+      <ChevronDown className="size-[var(--icon-size-sm)]" aria-hidden="true" />
       {newCount > 0 ? (
         <span className="px-1 text-xs" data-testid="new-progress-count">
           ↓ {newCount} 条新进展

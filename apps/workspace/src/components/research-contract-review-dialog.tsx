@@ -222,7 +222,7 @@ export function ResearchContractReviewDialog({
               >
                 <span>{contract ? "研究协议" : "研究协议草案"}</span>
                 {contract ? (
-                  <span className="text-sm font-normal text-[var(--oh-status-success)]">
+                  <span className="text-sm font-normal text-[var(--color-success)]">
                     已确认
                   </span>
                 ) : null}

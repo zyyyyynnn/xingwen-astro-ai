@@ -31,7 +31,7 @@ export function EvidenceLinks({
         </Button>
       ))}
       {evidenceIds.length > visible.length ? (
-        <span className="text-xs text-[var(--oh-muted)]">
+        <span className="text-xs text-[var(--color-ink-secondary)]">
           另有 {evidenceIds.length - visible.length} 条
         </span>
       ) : null}

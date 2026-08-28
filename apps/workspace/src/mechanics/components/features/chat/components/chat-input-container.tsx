@@ -43,7 +43,7 @@ export function ChatInputContainer({
     <div
       ref={chatContainerRef}
       data-testid="chat-input-container"
-      className={`chat-input-container flex h-full min-h-0 w-full flex-col justify-between gap-y-[var(--oh-composer-row-gap)] rounded-[var(--oh-radius-lg)] border bg-[var(--oh-surface)] px-[var(--oh-composer-padding-inline)] py-[var(--oh-composer-padding-block)] transition-colors focus-within:border-[var(--oh-border-strong)] ${dragActive ? "border-[var(--oh-border-strong)] bg-[var(--oh-surface-raised)]" : "border-[var(--oh-border)]"}`}
+      className={`chat-input-container flex h-full min-h-0 w-full flex-col justify-between gap-y-[var(--workspace-composer-row-gap)] rounded-[var(--radius-lg)] border bg-[var(--color-surface)] px-[var(--workspace-composer-padding-inline)] py-[var(--workspace-composer-padding-block)] transition-colors focus-within:border-[var(--color-border-strong)] ${dragActive ? "border-[var(--color-border-strong)] bg-[var(--color-surface-hover)]" : "border-[var(--color-border)]"}`}
       onDragOver={(event) => {
         event.preventDefault();
         onDragOver?.();

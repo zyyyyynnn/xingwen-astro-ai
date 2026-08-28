@@ -45,7 +45,7 @@ function Cell({ cell }: { readonly cell: ScientificTableCell | undefined }) {
       <span className="inline-flex items-center gap-1">
         <Badge variant="destructive">未解析</Badge>
         {cell.reason ? (
-          <small className="ui-text-label text-[var(--oh-muted)]">
+          <small className="ui-text-label text-[var(--color-ink-secondary)]">
             {cell.reason}
           </small>
         ) : null}
@@ -56,7 +56,7 @@ function Cell({ cell }: { readonly cell: ScientificTableCell | undefined }) {
     <span>
       {displayValue(cell.value)}
       {cell.unit ? (
-        <small className="ui-text-label text-[var(--oh-muted)]">
+        <small className="ui-text-label text-[var(--color-ink-secondary)]">
           {" "}
           {cell.unit}
         </small>
@@ -127,8 +127,8 @@ export function ScientificTable({
   };
 
   return (
-    <div className="scientific-table overflow-x-auto my-2 border rounded border-[var(--oh-border)]">
-      <div className="flex justify-end border-b border-[var(--oh-border)] bg-[var(--oh-surface-subtle)] p-2">
+    <div className="scientific-table overflow-x-auto my-2 border rounded border-[var(--color-border)]">
+      <div className="flex justify-end border-b border-[var(--color-border)] bg-[var(--color-surface-muted)] p-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="small" variant="ghost">
@@ -152,7 +152,7 @@ export function ScientificTable({
       <table className="ui-text-body w-full text-left border-collapse">
         <caption className="sr-only">{caption}</caption>
         <thead>
-          <tr className="border-b bg-[var(--oh-surface-subtle)] border-[var(--oh-border)]">
+          <tr className="border-b bg-[var(--color-surface-muted)] border-[var(--color-border)]">
             {showIdentity ? (
               <th scope="col" className="p-2 font-medium">
                 标识 / 主体
@@ -178,13 +178,13 @@ export function ScientificTable({
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-[var(--oh-border)]">
+        <tbody className="divide-y divide-[var(--color-border)]">
           {rows.map((row) => (
-            <tr key={row.id} className="hover:bg-[var(--oh-surface-subtle)]">
+            <tr key={row.id} className="hover:bg-[var(--color-surface-muted)]">
               {showIdentity ? (
                 <th
                   scope="row"
-                  className="p-2 font-normal text-[var(--oh-muted)]"
+                  className="p-2 font-normal text-[var(--color-ink-secondary)]"
                 >
                   {row.identity || "未命名记录"}
                 </th>
@@ -215,7 +215,7 @@ export function ScientificTable({
         </tbody>
       </table>
       {totalRowCount > rows.length || totalColumnCount > allColumns.length ? (
-        <p className="ui-text-label p-2 text-[var(--oh-muted)] bg-[var(--oh-surface-subtle)] border-t border-[var(--oh-border)]">
+        <p className="ui-text-label p-2 text-[var(--color-ink-secondary)] bg-[var(--color-surface-muted)] border-t border-[var(--color-border)]">
           {totalRowCount > rows.length
             ? `显示前 ${rows.length} / ${totalRowCount} 行`
             : `${totalRowCount} 行`}

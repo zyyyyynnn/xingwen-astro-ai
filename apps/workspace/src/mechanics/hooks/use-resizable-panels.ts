@@ -68,7 +68,7 @@ export function useResizablePanels({
     Object.assign(shield.style, {
       position: "fixed",
       inset: "0",
-      zIndex: "var(--oh-layer-panel-drag-shield)",
+      zIndex: "var(--workspace-layer-panel-drag-shield)",
       cursor: "ew-resize",
     });
     document.body.appendChild(shield);

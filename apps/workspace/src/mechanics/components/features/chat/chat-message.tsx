@@ -49,17 +49,16 @@ export function ChatMessage({
     <article
       data-testid={`${type}-message`}
       className={cn(
-        "relative flex w-fit max-w-[min(42rem,88%)] flex-col rounded-[var(--oh-radius-lg)]",
+        "relative flex w-fit max-w-[min(42rem,88%)] flex-col rounded-[var(--radius-lg)]",
         children && "gap-2",
         type === "user" &&
-          "mt-6 self-end bg-[var(--oh-surface-muted)] px-4 py-2.5",
+          "mt-6 self-end bg-[var(--color-surface-muted)] px-4 py-2.5",
         type === "agent" && "mt-6 w-full bg-transparent",
         pendingStatus === "sending" && "opacity-70",
-        pendingStatus === "error" &&
-          "border border-[var(--oh-status-error)]/40",
+        pendingStatus === "error" && "border border-[var(--color-error)]/40",
         interactive &&
           type === "agent" &&
-          "mt-2 border border-[var(--oh-border)] bg-[var(--oh-surface)] p-4",
+          "mt-2 border border-[var(--color-border)] bg-[var(--color-surface)] p-4",
         "last:mb-4",
       )}
     >
@@ -77,14 +76,16 @@ export function ChatMessage({
       {collapsed ? (
         <button
           type="button"
-          className="absolute inset-0 cursor-pointer rounded-[var(--oh-radius-lg)]"
+          className="absolute inset-0 cursor-pointer rounded-[var(--radius-lg)]"
           aria-label="展开完整研究消息"
           onClick={() => setExpansion({ message, expanded: true })}
         />
       ) : null}
       {children}
       {pendingStatus === "sending" ? (
-        <span className="text-xs text-[var(--oh-muted)]">正在发送…</span>
+        <span className="text-xs text-[var(--color-ink-secondary)]">
+          正在发送…
+        </span>
       ) : null}
     </article>
   );

@@ -268,7 +268,7 @@ function StructuredValue({
         {Object.entries(value as Record<string, unknown>).map(([key, item]) => (
           <div key={key}>
             <dt className="font-medium">{humanColumnLabel(key)}</dt>
-            <dd className="text-[var(--oh-muted)]">
+            <dd className="text-[var(--color-ink-secondary)]">
               <StructuredValue value={item} fieldKey={key} />
             </dd>
           </div>
@@ -315,7 +315,7 @@ export function ResultBlock({
         <h4>{block.label}</h4>
       </header>
       {details.length > 0 ? (
-        <dl className="ui-text-label flex flex-wrap gap-x-4 gap-y-1 text-[var(--oh-muted)]">
+        <dl className="ui-text-label flex flex-wrap gap-x-4 gap-y-1 text-[var(--color-ink-secondary)]">
           {details.map(([label, value]) => (
             <div key={label}>
               <dt className="inline font-medium">{label}：</dt>

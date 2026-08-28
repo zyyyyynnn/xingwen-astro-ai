@@ -67,9 +67,9 @@ export function UserMessageBody({
         <>
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[var(--oh-surface-muted)] to-transparent"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[var(--color-surface-muted)] to-transparent"
           />
-          <span className="pointer-events-none absolute bottom-0.5 left-1/2 z-10 -translate-x-1/2 rounded-[var(--oh-radius-pill)] bg-[var(--oh-surface-raised)] px-2.5 py-0.5 text-xs text-[var(--oh-text)] shadow-sm">
+          <span className="pointer-events-none absolute bottom-0.5 left-1/2 z-10 -translate-x-1/2 rounded-[var(--radius-pill)] bg-[var(--color-surface-hover)] px-2.5 py-0.5 text-xs text-[var(--color-ink-primary)] shadow-sm">
             展开
           </span>
         </>
