@@ -60,9 +60,18 @@ export function ScientificDossier({
             ? "未解析"
             : status);
 
+  const isCandidate = status === "candidate";
+  const isRejected = status === "rejected";
+
+  const surfaceClass = isCandidate
+    ? "bg-surface-muted/40 border-border/80"
+    : isRejected
+      ? "bg-background border-border/40 opacity-75"
+      : "bg-background border-border/60";
+
   return (
     <article
-      className={`xw-scientific-dossier flex flex-col gap-3 rounded-md border border-border/80 bg-background p-4 transition-colors hover:border-border ${className}`}
+      className={`xw-scientific-dossier flex flex-col gap-3 rounded-md border p-4 transition-colors hover:border-border ${surfaceClass} ${className}`}
       data-status={status ?? undefined}
       data-testid={testId}
     >
@@ -104,7 +113,7 @@ export function ScientificDossier({
       {children}
 
       {evidenceActions ? (
-        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/40">
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/40">
           {evidenceActions}
         </div>
       ) : null}

@@ -80,7 +80,6 @@ export function ArtifactWorkspaceHeader({
             <span>返回研究</span>
           </Button>
         </DialogClose>
-        <div className="h-4 w-px bg-border" aria-hidden="true" />
         <DialogTitle className="min-w-0 max-w-lg truncate font-serif text-lg font-semibold tracking-tight text-foreground">
           {title}
         </DialogTitle>

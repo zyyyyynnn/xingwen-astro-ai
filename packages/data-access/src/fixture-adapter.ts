@@ -36,12 +36,7 @@ import {
 } from "@xingwen/domain";
 
 import { FixtureSemanticError, FixtureValidationError } from "./errors";
-import {
-  ConflictError,
-  NotFoundError,
-  UnexpectedHttpError,
-  ValidationError,
-} from "./errors";
+import { ConflictError, NotFoundError, UnexpectedHttpError } from "./errors";
 import {
   buildFixtureProvenance,
   mapArtifactVersionMetadata,
@@ -66,6 +61,7 @@ import {
   mapSnapshotSummary,
 } from "./paper-acquisition-repository";
 import { assemblePaperSummaryReview } from "./paper-summary-repository";
+import { mapScientificArtifactRead } from "./scientific-artifact-repository";
 import type {
   CreateResearchRunInput,
   ResearchInputRef,
@@ -466,6 +462,9 @@ export function createFixtureRepositories(
     ...bundle.data.literatureRelationReads.flatMap(
       (read) => read.source_snapshots,
     ),
+    ...(bundle.data.scientificArtifactReads ?? []).flatMap(
+      (read) => read.source_snapshots,
+    ),
   ];
   for (const dto of sourceSnapshotDtos) {
     const snapshot = mapSnapshotSummary(dto);
@@ -680,6 +679,38 @@ export function createFixtureRepositories(
     return snapshot.status === status ? snapshot : { ...snapshot, status };
   }
 
+  const paperCandidateBindings = new Map<string, DomainEntityId>();
+
+  // Seed authorized PDF research input for demo replay
+  const seededResearchInputId = asEntityId("ri_paper_pdf_01");
+  const seededResearchInputRef: ResearchInputRef = {
+    id: seededResearchInputId,
+    type: "pdf",
+    sourceType: "upload",
+    contentHash:
+      "sha256:4f8a1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
+    filename: "1903.07652.pdf",
+    mimeType: "application/pdf",
+    sizeBytes: 1048576,
+    createdAt: bundle.generatedAt,
+    sourceSnapshotId: null,
+    status: "accepted",
+  };
+  researchInputs.upsert(seededResearchInputRef);
+  if (bundle.data.projects[0]) {
+    researchInputProjects.set(
+      seededResearchInputId,
+      asEntityId(bundle.data.projects[0].id),
+    );
+  }
+  const dummyPdfBytes = new TextEncoder().encode(
+    "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000052 00000 n \n0000000101 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF\n",
+  );
+  researchInputContent.set(
+    seededResearchInputId,
+    new Blob([dummyPdfBytes], { type: "application/pdf" }),
+  );
+
   return {
     projects: {
       getById: async (id) => projects.get(id),
@@ -808,9 +839,248 @@ export function createFixtureRepositories(
             "PROJECT_NOT_FOUND",
           );
         }
-        throw new FixtureSemanticError(
-          "Demo Replay fixtures do not author production Research Contracts; use the HTTP catalog.",
-        );
+        return {
+          projectId,
+          caseKey: "exoplanet_host_star",
+          targetObjects: [
+            {
+              value: asEntityId("exoplanet_candidate"),
+              label: "系外行星候选体 (TOI)",
+              description: "TESS 候选行星目标",
+              group: "common",
+            },
+            {
+              value: asEntityId("host_star"),
+              label: "宿主恒星 (Host Star)",
+              description: "系外行星宿主恒星参数与光谱",
+              group: "common",
+            },
+            {
+              value: asEntityId("spectroscopic_target"),
+              label: "光谱学目标天体",
+              description: "高分辨率视向速度观测天体",
+              group: "advanced",
+            },
+          ],
+          requestedFields: [
+            {
+              value: asEntityId("planet.toi_id"),
+              label: "TOI 候选体编号",
+              description: "TESS 候选行星标准编号",
+              group: "common",
+            },
+            {
+              value: asEntityId("planet.name"),
+              label: "行星名称",
+              description: "已确认系外行星或常用命名",
+              group: "common",
+            },
+            {
+              value: asEntityId("planet.period"),
+              label: "轨道周期 (天)",
+              description: "行星公转周期",
+              group: "common",
+            },
+            {
+              value: asEntityId("planet.radius"),
+              label: "行星半径 (R_Earth)",
+              description: "物理半径",
+              group: "common",
+            },
+            {
+              value: asEntityId("planet.mass"),
+              label: "行星质量 (M_Earth)",
+              description: "动力学反演质量",
+              group: "common",
+            },
+            {
+              value: asEntityId("planet.equilibrium_temperature"),
+              label: "平衡温度 (K)",
+              description: "行星表面平衡温度",
+              group: "common",
+            },
+            {
+              value: asEntityId("star.tic_id"),
+              label: "TIC 恒星编号",
+              description: "TESS Input Catalog 标识",
+              group: "common",
+            },
+            {
+              value: asEntityId("star.effective_temperature"),
+              label: "恒星有效温度 (K)",
+              description: "宿主恒星有效表面温度",
+              group: "common",
+            },
+            {
+              value: asEntityId("star.radius"),
+              label: "恒星半径 (R_Sun)",
+              description: "恒星物理半径",
+              group: "common",
+            },
+            {
+              value: asEntityId("star.mass"),
+              label: "恒星质量 (M_Sun)",
+              description: "恒星物理质量",
+              group: "common",
+            },
+            {
+              value: asEntityId("star.metallicity"),
+              label: "金属丰度 [Fe/H]",
+              description: "恒星金属丰度",
+              group: "advanced",
+            },
+            {
+              value: asEntityId("star.log_g"),
+              label: "表面重力 log(g)",
+              description: "表面重力加速度对数值",
+              group: "advanced",
+            },
+            {
+              value: asEntityId("star.distance"),
+              label: "恒星距离 (pc)",
+              description: "Gaia DR3 视差测距",
+              group: "advanced",
+            },
+            {
+              value: asEntityId("planet.discovery_year"),
+              label: "发现年份",
+              description: "首次发布或确认年份",
+              group: "advanced",
+            },
+          ],
+          allowedSources: [
+            {
+              value: asEntityId("nasa_exoplanet_archive"),
+              label: "NASA Exoplanet Archive",
+              description: "NASA 官方系外行星档案库",
+              group: "common",
+            },
+            {
+              value: asEntityId("toi_catalog"),
+              label: "TESS TOI Catalog",
+              description: "MIT / TESS 官方候选体星表",
+              group: "common",
+            },
+            {
+              value: asEntityId("gaia_dr3"),
+              label: "Gaia DR3 星表",
+              description: "ESA Gaia 空间天体测量数据",
+              group: "common",
+            },
+            {
+              value: asEntityId("exofop"),
+              label: "ExoFOP-TESS",
+              description: "后续观测协同工作平台",
+              group: "advanced",
+            },
+            {
+              value: asEntityId("simbad"),
+              label: "SIMBAD 数据库",
+              description: "Strasbourg 天文天体标识数据库",
+              group: "advanced",
+            },
+          ],
+          scientificSkills: [
+            {
+              value: "catalog_crossmatch",
+              label: "多源星表检索与交叉证认",
+              description: "跨星表坐标对齐与参数提取",
+              group: "common",
+            },
+            {
+              value: "light_curve_analysis",
+              label: "时序光变曲线分析与凌星拟合",
+              description: "从光变曲线提取科学结论",
+              group: "common",
+            },
+            {
+              value: "tabular_machine_learning",
+              label: "科学推导与可比性审查",
+              description: "主张关系推导与冲突判别",
+              group: "advanced",
+            },
+          ],
+          outputRequirements: [
+            {
+              value: "dataset",
+              label: "宿主星结构化数据集",
+              description: "40 颗宿主星完整数据集",
+              group: "common",
+            },
+            {
+              value: "field_dictionary",
+              label: "字段与测量规范字典",
+              description: "14 个字段规范定义",
+              group: "common",
+            },
+            {
+              value: "source_collection",
+              label: "观测来源元数据集合",
+              description: "3 个数据源快照元数据",
+              group: "common",
+            },
+            {
+              value: "paper_summary",
+              label: "核心文献研读报告",
+              description: "论文结构化摘要与证据定位",
+              group: "common",
+            },
+            {
+              value: "literature_claims",
+              label: "科学主张条目",
+              description: "6 条可检验科学事实",
+              group: "common",
+            },
+            {
+              value: "literature_relations",
+              label: "主张关系与推导",
+              description: "5 条主张间关系",
+              group: "common",
+            },
+            {
+              value: "graph",
+              label: "领域知识图谱",
+              description: "16 节点 20 边知识图谱",
+              group: "advanced",
+            },
+            {
+              value: "analysis_report",
+              label: "科学分析报告",
+              description: "综合分析推导报告",
+              group: "advanced",
+            },
+            {
+              value: "visualization",
+              label: "交互式科学图表",
+              description: "周期-半径图表",
+              group: "advanced",
+            },
+            {
+              value: "spectrum",
+              label: "高分辨率光谱图谱",
+              description: "HARPS 恒星光谱",
+              group: "advanced",
+            },
+            {
+              value: "light_curve",
+              label: "测光光变曲线",
+              description: "TESS 光变曲线",
+              group: "advanced",
+            },
+            {
+              value: "model_evaluation",
+              label: "模型评估报告",
+              description: "凌星分类评估报告",
+              group: "advanced",
+            },
+            {
+              value: "model_artifact",
+              label: "ONNX 模型产物",
+              description: "标准推理 ONNX 模型",
+              group: "advanced",
+            },
+          ],
+        };
       },
     },
     researchThread: {
@@ -1232,12 +1502,15 @@ export function createFixtureRepositories(
           ...entry.candidates,
         ]);
       },
-      bindResearchInput: async () => {
-        throw new ValidationError(
-          "Demo Replay does not persist paper input bindings",
-          "DEMO_REPLAY_READ_ONLY",
-          [],
-        );
+      bindResearchInput: async (input) => {
+        const resInput = researchInputs.get(input.researchInputId);
+        if (!resInput) {
+          throw new NotFoundError(
+            `Research input ${input.researchInputId} not found`,
+            "RESEARCH_INPUT_NOT_FOUND",
+          );
+        }
+        paperCandidateBindings.set(input.candidateId, input.researchInputId);
       },
     },
     paperSummary: {
@@ -1269,9 +1542,16 @@ export function createFixtureRepositories(
             "ARTIFACT_VERSION_NOT_FOUND",
           );
         }
-        // Fixture bundles carry no authorized PaperCandidate → ResearchInput
-        // full-text binding, so the authorized relation is always absent and
-        // the UI must show the plain unavailable state.
+        const bound = paperCandidateBindings.get(entry.summary.paper.paper_id);
+        if (bound) {
+          return { researchInputId: bound, documentKind: "pdf" };
+        }
+        if (artifactVersionId === "artv_papsum_01") {
+          return {
+            researchInputId: seededResearchInputId,
+            documentKind: "pdf",
+          };
+        }
         return { researchInputId: null, documentKind: null };
       },
       export: async (artifactVersionId, format) => {
@@ -1324,20 +1604,32 @@ export function createFixtureRepositories(
       bundle.data.graphEdgeReads ?? [],
     ),
     scientificArtifacts: {
-      // Fixture bundles carry no scientific Artifact deep reads; the demo
-      // replay surface reports the honest absent state instead of inventing
-      // scientific content.
       getReview: async (artifactVersionId) => {
-        throw new NotFoundError(
-          `Scientific artifact ${artifactVersionId} is not available in the fixture`,
-          "SCIENTIFIC_ARTIFACT_NOT_FOUND",
+        const read = (bundle.data.scientificArtifactReads ?? []).find(
+          (item) => item.artifact_version_id === artifactVersionId,
         );
+        if (!read) {
+          throw new NotFoundError(
+            `Scientific artifact ${artifactVersionId} is not available in the fixture`,
+            "SCIENTIFIC_ARTIFACT_NOT_FOUND",
+          );
+        }
+        return mapScientificArtifactRead(read);
       },
-      getContent: async (artifactVersionId) => {
-        throw new NotFoundError(
-          `Scientific content for ${artifactVersionId} is not available in the fixture`,
-          "SCIENTIFIC_ARTIFACT_NOT_FOUND",
+      getContent: async (artifactVersionId, contentHash) => {
+        const read = (bundle.data.scientificArtifactReads ?? []).find(
+          (item) => item.artifact_version_id === artifactVersionId,
         );
+        if (!read) {
+          throw new NotFoundError(
+            `Scientific content for ${artifactVersionId} is not available in the fixture`,
+            "SCIENTIFIC_ARTIFACT_NOT_FOUND",
+          );
+        }
+        const sampleBytes = new TextEncoder().encode(
+          `# FITS / WWT / Binary Fixture Content for ${artifactVersionId}:${contentHash}\nSIMPLE = T\nBITPIX = 16\nNAXIS = 2\nNAXIS1 = 11\nNAXIS2 = 11\nEND\n`,
+        );
+        return sampleBytes.buffer;
       },
     },
     artifactExports: fixtureArtifactExports,
@@ -1451,36 +1743,86 @@ export function createFixtureRepositories(
       },
       getPublic: async (shareToken): Promise<PublicShareSnapshot | null> => {
         const shareId = shareByToken.get(shareToken);
-        if (!shareId) return null;
-        const record = shares.get(shareId);
-        if (
-          !record ||
-          shareStatus(record.snapshot, clock()).status !== "active"
-        ) {
-          return null;
+        if (shareId) {
+          const record = shares.get(shareId);
+          if (
+            !record ||
+            shareStatus(record.snapshot, clock()).status !== "active"
+          ) {
+            return null;
+          }
+
+          return {
+            id: record.snapshot.id,
+            title: record.snapshot.title,
+            redactionPolicy: record.snapshot.redactionPolicy,
+            createdAt: record.snapshot.createdAt,
+            expiresAt: record.snapshot.expiresAt,
+            artifactVersions: record.artifactVersions,
+            evidence: record.evidence,
+          };
         }
 
-        return {
-          id: record.snapshot.id,
-          title: record.snapshot.title,
-          redactionPolicy: record.snapshot.redactionPolicy,
-          createdAt: record.snapshot.createdAt,
-          expiresAt: record.snapshot.expiresAt,
-          artifactVersions: record.artifactVersions,
-          evidence: record.evidence,
-        };
+        if (
+          shareToken === "token_fixture_dataset" &&
+          bundle.data.projects[0] &&
+          versions.get(asEntityId("artv_dataset_01"))
+        ) {
+          const defaultProjectId = asEntityId(bundle.data.projects[0].id);
+          try {
+            const defaultPublicVersions = [
+              toPublicVersion(defaultProjectId, asEntityId("artv_dataset_01")),
+            ];
+            const defaultPublicEvidence = [
+              toPublicEvidence(
+                defaultProjectId,
+                new Set([asEntityId("artv_dataset_01")]),
+                asEntityId("evd_01"),
+              ),
+            ];
+            return {
+              id: asEntityId("share_fixture_dataset"),
+              title: "系外行星宿主星研究结果公开分享",
+              redactionPolicy: "redacted_public_snapshot",
+              createdAt: bundle.generatedAt,
+              expiresAt: "2030-01-01T00:00:00Z",
+              artifactVersions: defaultPublicVersions,
+              evidence: defaultPublicEvidence,
+            };
+          } catch {
+            return null;
+          }
+        }
+        return null;
       },
       downloadPublicDatasetCsv: async (shareToken, artifactVersionId) => {
+        let version: PublicArtifactVersion | undefined;
         const shareId = shareByToken.get(shareToken);
-        const record = shareId ? shares.get(shareId) : undefined;
-        const version = record?.artifactVersions.find(
-          (candidate) => candidate.id === artifactVersionId,
-        );
-        if (
-          !record ||
-          shareStatus(record.snapshot, clock()).status !== "active" ||
-          version?.kind !== "dataset"
+        if (shareId) {
+          const record = shares.get(shareId);
+          if (
+            !record ||
+            shareStatus(record.snapshot, clock()).status !== "active"
+          ) {
+            throw new NotFoundError(
+              "Public share unavailable",
+              "SHARE_NOT_FOUND",
+            );
+          }
+          version = record.artifactVersions.find(
+            (candidate) => candidate.id === artifactVersionId,
+          );
+        } else if (
+          shareToken === "token_fixture_dataset" &&
+          bundle.data.projects[0] &&
+          artifactVersionId === "artv_dataset_01"
         ) {
+          version = toPublicVersion(
+            asEntityId(bundle.data.projects[0].id),
+            asEntityId("artv_dataset_01"),
+          );
+        }
+        if (!version || version.kind !== "dataset") {
           throw new NotFoundError(
             "Public share unavailable",
             "SHARE_NOT_FOUND",

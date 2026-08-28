@@ -181,7 +181,12 @@ export const defaultHandlers = [
     // is an opaque base64 project id, mirroring the runtime keyset cursor.
     const url = new URL(request.url);
     const cursor = url.searchParams.get("cursor");
-    const ordered = [...exoplanetHostStarFixture.data.projects];
+    const ordered = [...exoplanetHostStarFixture.data.projects].sort((a, b) => {
+      if (a.created_at !== b.created_at) {
+        return a.created_at < b.created_at ? 1 : -1;
+      }
+      return a.id < b.id ? 1 : -1;
+    });
     let start = 0;
     if (cursor) {
       let anchor: string;

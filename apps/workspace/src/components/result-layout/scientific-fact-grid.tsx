@@ -27,22 +27,17 @@ export function ScientificFactGrid({
 
   return (
     <dl
-      className={`xw-fact-grid grid gap-x-6 gap-y-2 py-2 text-sm ${colClass} ${className}`}
+      className={`xw-fact-grid grid gap-x-6 gap-y-2.5 py-1.5 text-sm ${colClass} ${className}`}
     >
       {facts.map((fact) => {
         const values = Array.isArray(fact.value) ? fact.value : [fact.value];
         if (values.length === 0 || values.every((v) => !v)) return null;
         return (
-          <div
-            key={fact.label}
-            className="flex flex-col gap-0.5 rounded-sm border-l-2 border-border/80 pl-2.5 py-0.5"
-          >
+          <div key={fact.label} className="flex flex-col gap-0.5 py-0.5">
             <dt className="text-xs font-medium text-muted-foreground">
               {fact.label}
             </dt>
-            <dd className="font-mono text-xs text-foreground">
-              {values.join("；")}
-            </dd>
+            <dd className="text-xs text-foreground">{values.join("；")}</dd>
           </div>
         );
       })}

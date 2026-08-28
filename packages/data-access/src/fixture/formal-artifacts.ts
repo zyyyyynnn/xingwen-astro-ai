@@ -1,12 +1,16 @@
 /**
- * Formal read-contract fixtures for the data, literature and graph ports.
+ * Formal read-contract fixtures for data, literature and graph ports.
  *
- * These are deliberately kept as transport-shaped values. The fixture
- * adapter passes them through the same mappers as the HTTP adapter; there is
- * no second fixture-only payload vocabulary or empty-content fallback.
+ * 1. Dataset: 40 realistic TOI records across 14 fields and 3 sources
+ * 2. Field Dictionary: 14 rich domain field definitions
+ * 3. Source Collection: 3 observational and catalog sources (NASA TOI, NASA PS, Gaia DR3)
+ * 4. Claims: 6 distinct grounded scientific claims
+ * 5. Relations: 5 distinct inter-claim relations without self-loops
+ * 6. Graph: 16 nodes, 20 edges consuming accepted relations
  */
 
 import type {
+  CrossmatchArtifactAuthority,
   DatasetArtifactRead,
   DatasetRow,
   EvidenceDetail,
@@ -17,12 +21,14 @@ import type {
   GraphNodeRead,
   LiteratureArtifactVersionContext,
   LiteratureClaimRead,
+  LiteratureClaimRejectionReason,
   LiteratureRelationRead,
+  LiteratureRelationReviewReason,
+  LiteratureRelationType,
   ProducerExecutionDetail,
-  CrossmatchArtifactAuthority,
   SourceCollectionArtifactRead,
-  StructuredSourceCollectionMember,
   SourceSnapshotDetail,
+  StructuredSourceCollectionMember,
 } from "@xingwen/contracts";
 
 const PROJECT_ID = "proj_01JEXAMPLE";
@@ -37,10 +43,9 @@ const CREATED_AT = "2026-07-21T08:28:00Z";
 
 function hash(seed: string): string {
   const encoded = Array.from(seed)
-    .map((character) => character.codePointAt(0)!.toString(16))
+    .map((c) => c.codePointAt(0)!.toString(16))
     .join("");
-  const digest = encoded.repeat(Math.ceil(64 / encoded.length)).slice(0, 64);
-  return `sha256:${digest}`;
+  return `sha256:${encoded.repeat(Math.ceil(64 / encoded.length)).slice(0, 64)}`;
 }
 
 const sourceSnapshot: SourceSnapshotDetail = {
@@ -49,8 +54,8 @@ const sourceSnapshot: SourceSnapshotDetail = {
   source_type: "catalog",
   retrieved_at: "2026-07-21T08:20:00Z",
   query: { table: "toi", fixture: true },
-  query_hash: hash("q"),
-  content_hash: hash("s"),
+  query_hash: hash("q_toi"),
+  content_hash: hash("s_toi"),
   request_metadata: { adapter: "demo_replay" },
   source_version_or_etag: "fixture-2026-07-21-toi",
   license_note:
@@ -63,12 +68,25 @@ const psSourceSnapshot: SourceSnapshotDetail = {
   source_type: "catalog",
   retrieved_at: "2026-07-21T08:20:01Z",
   query: { table: "ps", fixture: true },
-  query_hash: hash("r"),
-  content_hash: hash("t"),
+  query_hash: hash("q_ps"),
+  content_hash: hash("s_ps"),
   request_metadata: { adapter: "demo_replay" },
   source_version_or_etag: "fixture-2026-07-21-ps",
   license_note:
     "Fixture projection of the public NASA Exoplanet Archive PS schema.",
+};
+
+const gaiaSourceSnapshot: SourceSnapshotDetail = {
+  id: "snap_03",
+  source_id: "gaia_dr3",
+  source_type: "catalog",
+  retrieved_at: "2026-07-21T08:20:02Z",
+  query: { table: "gaia_source", fixture: true },
+  query_hash: hash("q_gaia"),
+  content_hash: hash("s_gaia"),
+  request_metadata: { adapter: "demo_replay" },
+  source_version_or_etag: "fixture-2026-07-21-gaia-dr3",
+  license_note: "European Space Agency (ESA) Gaia Data Release 3 catalog.",
 };
 
 const producerExecution: ProducerExecutionDetail = {
@@ -131,7 +149,7 @@ function dataBase(
     input_hash: hash("d"),
     created_at: CREATED_AT,
     producer_execution: producerExecution,
-    source_snapshots: [sourceSnapshot, psSourceSnapshot],
+    source_snapshots: [sourceSnapshot, psSourceSnapshot, gaiaSourceSnapshot],
     evidence: [
       evidence(artifactVersionId, kind, `${kind}.candidate`, "fixture"),
     ],
@@ -165,27 +183,48 @@ function dataBase(
   };
 }
 
-const field: FieldDefinition = {
-  field_id: "planet.toi_id",
-  label_en: "TOI identifier",
-  meaning_zh: "候选行星标识",
-  description:
-    "Stable identifier assigned by the TESS Object of Interest catalog.",
-  data_type: "string",
-  canonical_unit: "dimensionless",
-  object_type: "planet",
-  required: true,
-  nullable: false,
-  crossmatch_key: true,
-  object_identity_key: true,
-  source_priority: ["nasa_exoplanet_archive.toi", "nasa_exoplanet_archive.ps"],
+// ---------------------------------------------------------------------------
+// Field Definitions (14 fields)
+// ---------------------------------------------------------------------------
+const baseFieldDef = (
+  fieldId: string,
+  labelEn: string,
+  meaningZh: string,
+  desc: string,
+  dataType: "string" | "number" | "integer",
+  unit: string,
+  objectType: "planet" | "star" | "system",
+  req: boolean,
+  nullPolicyReason:
+    | "not_in_source"
+    | "not_measured"
+    | "not_applicable"
+    | "unresolved_conflict"
+    | "below_detection_limit",
+): FieldDefinition => ({
+  field_id: fieldId,
+  label_en: labelEn,
+  meaning_zh: meaningZh,
+  description: desc,
+  data_type: dataType,
+  canonical_unit: unit,
+  object_type: objectType,
+  required: req,
+  nullable: !req,
+  crossmatch_key: fieldId === "planet.toi_id" || fieldId === "star.tic_id",
+  object_identity_key: fieldId === "planet.toi_id",
+  source_priority: [
+    "nasa_exoplanet_archive.toi",
+    "nasa_exoplanet_archive.ps",
+    "gaia_dr3",
+  ],
   document_aliases: [],
   source_aliases: [
     {
       source_id: "nasa_exoplanet_archive.toi",
       source_table: "toi",
-      raw_field: "toi",
-      source_unit: "dimensionless",
+      raw_field: fieldId.split(".")[1] ?? fieldId,
+      source_unit: unit,
       priority: 1,
       conversion_rule_id: "identity",
       row_key_fields: ["toi"],
@@ -195,7 +234,7 @@ const field: FieldDefinition = {
   conflict_resolution_strategy: "prefer_source_priority_preserve_all",
   crossmatch_rule_version: "1.0.0",
   evidence_locator_rule_id: "catalog-cell",
-  quality_metric_inputs: ["completeness", "evidence_coverage"],
+  quality_metric_inputs: ["completeness", "unit_consistency"],
   transformation_rule_version: "1.0.0",
   limit_policy: {
     lower_limit_supported: false,
@@ -203,7 +242,7 @@ const field: FieldDefinition = {
     rule_version: "1.0.0",
   },
   null_policy: {
-    allowed_reasons: ["not_in_source"],
+    allowed_reasons: [nullPolicyReason],
     reason_required_when_null: true,
   },
   uncertainty_policy: {
@@ -211,100 +250,976 @@ const field: FieldDefinition = {
     preserve_asymmetric_errors: false,
     rule_version: "1.0.0",
   },
-};
+});
 
-const fieldTemperature: FieldDefinition = {
-  ...field,
-  field_id: "star.effective_temperature",
-  label_en: "Effective temperature",
-  meaning_zh: "恒星有效温度",
-  description: "Stellar effective temperature from the host-star catalog.",
-  data_type: "number",
-  canonical_unit: "kelvin",
-  object_type: "star",
-  required: false,
-  nullable: true,
-  crossmatch_key: false,
-  object_identity_key: false,
-  document_aliases: [],
-  source_aliases: [
-    {
-      ...field.source_aliases[0],
-      source_id: "nasa_exoplanet_archive.ps",
-      source_table: "ps",
-      raw_field: "st_teff",
-      source_unit: "kelvin",
-      row_key_fields: ["tic_id"],
-    },
-  ],
-  null_policy: {
-    allowed_reasons: ["not_measured", "not_in_source"],
-    reason_required_when_null: true,
+export const fieldDefinitions: FieldDefinition[] = [
+  baseFieldDef(
+    "planet.toi_id",
+    "TOI identifier",
+    "TOI 候选体编号",
+    "TESS 候选行星标准编号",
+    "string",
+    "dimensionless",
+    "planet",
+    true,
+    "not_in_source",
+  ),
+  baseFieldDef(
+    "planet.name",
+    "Planet Name",
+    "行星名称",
+    "已确认系外行星或常用命名",
+    "string",
+    "dimensionless",
+    "planet",
+    false,
+    "not_in_source",
+  ),
+  baseFieldDef(
+    "planet.period",
+    "Orbital Period",
+    "轨道周期",
+    "行星绕宿主星公转周期",
+    "number",
+    "day",
+    "planet",
+    true,
+    "not_measured",
+  ),
+  baseFieldDef(
+    "planet.radius",
+    "Planet Radius",
+    "行星半径",
+    "以地球半径为单位的拟合物理半径",
+    "number",
+    "r_earth",
+    "planet",
+    true,
+    "not_measured",
+  ),
+  baseFieldDef(
+    "planet.mass",
+    "Planet Mass",
+    "行星质量",
+    "以地球质量为单位的视向速度/TTV 反演质量",
+    "number",
+    "m_earth",
+    "planet",
+    false,
+    "not_measured",
+  ),
+  baseFieldDef(
+    "planet.equilibrium_temperature",
+    "Equilibrium Temp",
+    "平衡温度",
+    "假设零反照率下的行星表面平衡温度",
+    "number",
+    "k",
+    "planet",
+    false,
+    "not_measured",
+  ),
+  baseFieldDef(
+    "star.tic_id",
+    "TIC identifier",
+    "TIC 恒星编号",
+    "TESS Input Catalog 宿主星标识",
+    "string",
+    "dimensionless",
+    "star",
+    true,
+    "not_in_source",
+  ),
+  baseFieldDef(
+    "star.effective_temperature",
+    "Effective Temp",
+    "恒星有效温度",
+    "宿主恒星表面有效温度",
+    "number",
+    "k",
+    "star",
+    true,
+    "not_measured",
+  ),
+  baseFieldDef(
+    "star.radius",
+    "Stellar Radius",
+    "恒星半径",
+    "以太阳半径为单位的恒星半径",
+    "number",
+    "r_sun",
+    "star",
+    true,
+    "not_measured",
+  ),
+  baseFieldDef(
+    "star.mass",
+    "Stellar Mass",
+    "恒星质量",
+    "以太阳质量为单位的恒星质量",
+    "number",
+    "m_sun",
+    "star",
+    true,
+    "not_measured",
+  ),
+  baseFieldDef(
+    "star.metallicity",
+    "Stellar Metallicity",
+    "恒星金属丰度 [Fe/H]",
+    "恒星相对于太阳的铁丰度",
+    "number",
+    "dex",
+    "star",
+    false,
+    "not_measured",
+  ),
+  baseFieldDef(
+    "star.log_g",
+    "Surface Gravity",
+    "恒星表面重力 log(g)",
+    "恒星表面重力加速度对数值 (cgs)",
+    "number",
+    "cgs",
+    "star",
+    false,
+    "not_measured",
+  ),
+  baseFieldDef(
+    "star.distance",
+    "Distance",
+    "恒星距离",
+    "Gaia DR3 视差反演测距",
+    "number",
+    "pc",
+    "star",
+    true,
+    "not_measured",
+  ),
+  baseFieldDef(
+    "planet.discovery_year",
+    "Discovery Year",
+    "发现年份",
+    "TESS 首次发布或文献确认年份",
+    "integer",
+    "yr",
+    "planet",
+    true,
+    "not_in_source",
+  ),
+];
+
+// ---------------------------------------------------------------------------
+// 40 Rows Generator
+// ---------------------------------------------------------------------------
+interface SampleExoplanetRecord {
+  toi: string;
+  name: string | null;
+  period: number;
+  radius: number;
+  mass: number | null;
+  teq: number;
+  tic: string;
+  teff: number;
+  srad: number;
+  smass: number;
+  feh: number | null;
+  logg: number;
+  dist: number;
+  year: number;
+  status: "mapped" | "declared_null" | "conflict";
+}
+
+const rawSampleData: SampleExoplanetRecord[] = [
+  {
+    toi: "TOI-1233.01",
+    name: "HD 108236 b",
+    period: 3.7952,
+    radius: 2.06,
+    mass: 4.8,
+    teq: 918,
+    tic: "260647166",
+    teff: 5720,
+    srad: 0.88,
+    smass: 0.87,
+    feh: -0.05,
+    logg: 4.49,
+    dist: 64.6,
+    year: 2020,
+    status: "mapped",
   },
-  quality_metric_inputs: ["completeness", "unit_consistency"],
-};
+  {
+    toi: "TOI-1233.02",
+    name: "HD 108236 c",
+    period: 6.2037,
+    radius: 2.07,
+    mass: 6.2,
+    teq: 780,
+    tic: "260647166",
+    teff: 5720,
+    srad: 0.88,
+    smass: 0.87,
+    feh: -0.05,
+    logg: 4.49,
+    dist: 64.6,
+    year: 2020,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-1233.03",
+    name: "HD 108236 d",
+    period: 14.1756,
+    radius: 2.72,
+    mass: 7.9,
+    teq: 595,
+    tic: "260647166",
+    teff: 5720,
+    srad: 0.88,
+    smass: 0.87,
+    feh: -0.05,
+    logg: 4.49,
+    dist: 64.6,
+    year: 2020,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-1233.04",
+    name: "HD 108236 e",
+    period: 19.5917,
+    radius: 3.12,
+    mass: 9.8,
+    teq: 535,
+    tic: "260647166",
+    teff: 5720,
+    srad: 0.88,
+    smass: 0.87,
+    feh: -0.05,
+    logg: 4.49,
+    dist: 64.6,
+    year: 2021,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-175.01",
+    name: "L 98-59 b",
+    period: 2.2531,
+    radius: 0.85,
+    mass: 0.4,
+    teq: 585,
+    tic: "307210830",
+    teff: 3415,
+    srad: 0.31,
+    smass: 0.31,
+    feh: -0.46,
+    logg: 4.86,
+    dist: 10.6,
+    year: 2019,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-175.02",
+    name: "L 98-59 c",
+    period: 3.6907,
+    radius: 1.39,
+    mass: 2.22,
+    teq: 492,
+    tic: "307210830",
+    teff: 3415,
+    srad: 0.31,
+    smass: 0.31,
+    feh: -0.46,
+    logg: 4.86,
+    dist: 10.6,
+    year: 2019,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-175.03",
+    name: "L 98-59 d",
+    period: 7.4507,
+    radius: 1.52,
+    mass: 1.94,
+    teq: 388,
+    tic: "307210830",
+    teff: 3415,
+    srad: 0.31,
+    smass: 0.31,
+    feh: -0.46,
+    logg: 4.86,
+    dist: 10.6,
+    year: 2019,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-270.01",
+    name: "TOI-270 b",
+    period: 3.3601,
+    radius: 1.25,
+    mass: 1.58,
+    teq: 528,
+    tic: "259377017",
+    teff: 3506,
+    srad: 0.38,
+    smass: 0.39,
+    feh: -0.17,
+    logg: 4.87,
+    dist: 22.5,
+    year: 2019,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-270.02",
+    name: "TOI-270 c",
+    period: 5.6602,
+    radius: 2.42,
+    mass: 6.15,
+    teq: 440,
+    tic: "259377017",
+    teff: 3506,
+    srad: 0.38,
+    smass: 0.39,
+    feh: -0.17,
+    logg: 4.87,
+    dist: 22.5,
+    year: 2019,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-270.03",
+    name: "TOI-270 d",
+    period: 11.3801,
+    radius: 2.13,
+    mass: 4.78,
+    teq: 348,
+    tic: "259377017",
+    teff: 3506,
+    srad: 0.38,
+    smass: 0.39,
+    feh: -0.17,
+    logg: 4.87,
+    dist: 22.5,
+    year: 2019,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-421.01",
+    name: "HD 212657 b",
+    period: 5.1967,
+    radius: 2.68,
+    mass: 7.2,
+    teq: 980,
+    tic: "94986319",
+    teff: 5338,
+    srad: 0.87,
+    smass: 0.85,
+    feh: -0.02,
+    logg: 4.49,
+    dist: 75.2,
+    year: 2020,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-421.02",
+    name: "HD 212657 c",
+    period: 16.0682,
+    radius: 5.09,
+    mass: 16.4,
+    teq: 672,
+    tic: "94986319",
+    teff: 5338,
+    srad: 0.87,
+    smass: 0.85,
+    feh: -0.02,
+    logg: 4.49,
+    dist: 75.2,
+    year: 2020,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-561.01",
+    name: "TOI-561 b",
+    period: 0.4465,
+    radius: 1.42,
+    mass: 1.59,
+    teq: 2320,
+    tic: "377064495",
+    teff: 5455,
+    srad: 0.85,
+    smass: 0.8,
+    feh: -0.4,
+    logg: 4.48,
+    dist: 84.4,
+    year: 2021,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-561.02",
+    name: "TOI-561 c",
+    period: 10.7789,
+    radius: 2.88,
+    mass: 5.4,
+    teq: 840,
+    tic: "377064495",
+    teff: 5455,
+    srad: 0.85,
+    smass: 0.8,
+    feh: -0.4,
+    logg: 4.48,
+    dist: 84.4,
+    year: 2021,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-561.03",
+    name: "TOI-561 d",
+    period: 25.6201,
+    radius: 2.53,
+    mass: 11.9,
+    teq: 630,
+    tic: "377064495",
+    teff: 5455,
+    srad: 0.85,
+    smass: 0.8,
+    feh: -0.4,
+    logg: 4.48,
+    dist: 84.4,
+    year: 2021,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-700.01",
+    name: "TOI-700 d",
+    period: 37.426,
+    radius: 1.14,
+    mass: 1.25,
+    teq: 269,
+    tic: "150428135",
+    teff: 3480,
+    srad: 0.42,
+    smass: 0.42,
+    feh: -0.07,
+    logg: 4.82,
+    dist: 31.1,
+    year: 2020,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-700.02",
+    name: "TOI-700 b",
+    period: 9.977,
+    radius: 1.01,
+    mass: 1.07,
+    teq: 418,
+    tic: "150428135",
+    teff: 3480,
+    srad: 0.42,
+    smass: 0.42,
+    feh: -0.07,
+    logg: 4.82,
+    dist: 31.1,
+    year: 2020,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-700.03",
+    name: "TOI-700 c",
+    period: 16.051,
+    radius: 2.63,
+    mass: 7.48,
+    teq: 350,
+    tic: "150428135",
+    teff: 3480,
+    srad: 0.42,
+    smass: 0.42,
+    feh: -0.07,
+    logg: 4.82,
+    dist: 31.1,
+    year: 2020,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-700.04",
+    name: "TOI-700 e",
+    period: 27.809,
+    radius: 0.95,
+    mass: 0.81,
+    teq: 295,
+    tic: "150428135",
+    teff: 3480,
+    srad: 0.42,
+    smass: 0.42,
+    feh: -0.07,
+    logg: 4.82,
+    dist: 31.1,
+    year: 2023,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-776.01",
+    name: "TOI-776 b",
+    period: 8.2466,
+    radius: 1.85,
+    mass: 4.0,
+    teq: 514,
+    tic: "296503644",
+    teff: 3709,
+    srad: 0.54,
+    smass: 0.54,
+    feh: -0.01,
+    logg: 4.7,
+    dist: 27.2,
+    year: 2021,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-776.02",
+    name: "TOI-776 c",
+    period: 15.6653,
+    radius: 2.02,
+    mass: 5.3,
+    teq: 412,
+    tic: "296503644",
+    teff: 3709,
+    srad: 0.54,
+    smass: 0.54,
+    feh: -0.01,
+    logg: 4.7,
+    dist: 27.2,
+    year: 2021,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-849.01",
+    name: "TOI-849 b",
+    period: 0.7655,
+    radius: 3.44,
+    mass: 39.1,
+    teq: 1800,
+    tic: "33595516",
+    teff: 5370,
+    srad: 0.91,
+    smass: 0.93,
+    feh: 0.2,
+    logg: 4.49,
+    dist: 225.0,
+    year: 2020,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-1064.01",
+    name: "TOI-1064 b",
+    period: 6.4439,
+    radius: 2.59,
+    mass: 13.5,
+    teq: 784,
+    tic: "253755159",
+    teff: 4734,
+    srad: 0.73,
+    smass: 0.75,
+    feh: -0.04,
+    logg: 4.59,
+    dist: 69.8,
+    year: 2022,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-1064.02",
+    name: "TOI-1064 c",
+    period: 12.2281,
+    radius: 2.65,
+    mass: 7.7,
+    teq: 634,
+    tic: "253755159",
+    teff: 4734,
+    srad: 0.73,
+    smass: 0.75,
+    feh: -0.04,
+    logg: 4.59,
+    dist: 69.8,
+    year: 2022,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-1444.01",
+    name: null,
+    period: 0.4703,
+    radius: 1.4,
+    mass: 3.87,
+    teq: 2085,
+    tic: "437651061",
+    teff: 5380,
+    srad: 0.91,
+    smass: 0.93,
+    feh: 0.05,
+    logg: 4.49,
+    dist: 125.4,
+    year: 2021,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-1452.01",
+    name: "TOI-1452 b",
+    period: 11.062,
+    radius: 1.67,
+    mass: 4.82,
+    teq: 326,
+    tic: "420112587",
+    teff: 3185,
+    srad: 0.27,
+    smass: 0.25,
+    feh: -0.12,
+    logg: 4.96,
+    dist: 30.5,
+    year: 2022,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-1695.01",
+    name: "TOI-1695 b",
+    period: 3.1343,
+    radius: 2.03,
+    mass: 5.5,
+    teq: 590,
+    tic: "423249352",
+    teff: 3750,
+    srad: 0.55,
+    smass: 0.54,
+    feh: 0.11,
+    logg: 4.69,
+    dist: 45.1,
+    year: 2022,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-1807.01",
+    name: "BD+45 1521 b",
+    period: 0.5494,
+    radius: 1.38,
+    mass: 2.57,
+    teq: 2100,
+    tic: "180548131",
+    teff: 4757,
+    srad: 0.69,
+    smass: 0.75,
+    feh: -0.03,
+    logg: 4.63,
+    dist: 42.6,
+    year: 2021,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-2076.01",
+    name: "TOI-2076 b",
+    period: 10.355,
+    radius: 2.52,
+    mass: null,
+    teq: 870,
+    tic: "27491137",
+    teff: 5187,
+    srad: 0.77,
+    smass: 0.85,
+    feh: -0.08,
+    logg: 4.6,
+    dist: 41.9,
+    year: 2021,
+    status: "declared_null",
+  },
+  {
+    toi: "TOI-2076.02",
+    name: "TOI-2076 c",
+    period: 21.015,
+    radius: 3.5,
+    mass: null,
+    teq: 685,
+    tic: "27491137",
+    teff: 5187,
+    srad: 0.77,
+    smass: 0.85,
+    feh: -0.08,
+    logg: 4.6,
+    dist: 41.9,
+    year: 2021,
+    status: "declared_null",
+  },
+  {
+    toi: "TOI-2076.03",
+    name: "TOI-2076 d",
+    period: 35.125,
+    radius: 2.36,
+    mass: null,
+    teq: 575,
+    tic: "27491137",
+    teff: 5187,
+    srad: 0.77,
+    smass: 0.85,
+    feh: -0.08,
+    logg: 4.6,
+    dist: 41.9,
+    year: 2021,
+    status: "declared_null",
+  },
+  {
+    toi: "TOI-2136.01",
+    name: "TOI-2136 b",
+    period: 7.8519,
+    radius: 2.2,
+    mass: 6.4,
+    teq: 530,
+    tic: "33617190",
+    teff: 3342,
+    srad: 0.34,
+    smass: 0.34,
+    feh: -0.1,
+    logg: 4.9,
+    dist: 33.3,
+    year: 2022,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-2257.01",
+    name: "TOI-2257 b",
+    period: 35.189,
+    radius: 2.2,
+    mass: 5.7,
+    teq: 256,
+    tic: "198485881",
+    teff: 3430,
+    srad: 0.31,
+    smass: 0.33,
+    feh: -0.27,
+    logg: 4.97,
+    dist: 57.8,
+    year: 2021,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-2285.01",
+    name: "TOI-2285 b",
+    period: 27.269,
+    radius: 1.74,
+    mass: null,
+    teq: 284,
+    tic: "329148988",
+    teff: 3491,
+    srad: 0.46,
+    smass: 0.45,
+    feh: 0.05,
+    logg: 4.77,
+    dist: 42.4,
+    year: 2021,
+    status: "declared_null",
+  },
+  {
+    toi: "TOI-244.01",
+    name: "GJ 1018 b",
+    period: 7.3973,
+    radius: 1.52,
+    mass: 2.68,
+    teq: 458,
+    tic: "118327550",
+    teff: 3450,
+    srad: 0.35,
+    smass: 0.35,
+    feh: -0.08,
+    logg: 4.88,
+    dist: 22.0,
+    year: 2023,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-1268.01",
+    name: "TOI-1268 b",
+    period: 8.1577,
+    radius: 9.2,
+    mass: 96.0,
+    teq: 920,
+    tic: "142394656",
+    teff: 5300,
+    srad: 0.92,
+    smass: 0.94,
+    feh: 0.34,
+    logg: 4.48,
+    dist: 110.2,
+    year: 2022,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-1468.01",
+    name: "LP 791-18 b",
+    period: 1.8805,
+    radius: 1.28,
+    mass: 3.21,
+    teq: 682,
+    tic: "290130953",
+    teff: 3400,
+    srad: 0.34,
+    smass: 0.34,
+    feh: -0.15,
+    logg: 4.9,
+    dist: 24.7,
+    year: 2022,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-1468.02",
+    name: "LP 791-18 c",
+    period: 15.532,
+    radius: 2.16,
+    mass: 6.64,
+    teq: 338,
+    tic: "290130953",
+    teff: 3400,
+    srad: 0.34,
+    smass: 0.34,
+    feh: -0.15,
+    logg: 4.9,
+    dist: 24.7,
+    year: 2022,
+    status: "mapped",
+  },
+  {
+    toi: "TOI-1801.01",
+    name: null,
+    period: 10.643,
+    radius: 2.08,
+    mass: null,
+    teq: 490,
+    tic: "119044341",
+    teff: 3810,
+    srad: 0.58,
+    smass: 0.57,
+    feh: null,
+    logg: 4.67,
+    dist: 30.9,
+    year: 2023,
+    status: "declared_null",
+  },
+  {
+    toi: "TOI-2180.01",
+    name: "HD 238894 b",
+    period: 260.79,
+    radius: 11.3,
+    mass: 890.0,
+    teq: 348,
+    tic: "298663884",
+    teff: 5695,
+    srad: 1.6,
+    smass: 1.05,
+    feh: 0.24,
+    logg: 4.05,
+    dist: 177.6,
+    year: 2022,
+    status: "conflict",
+  },
+];
 
-const row: DatasetRow = {
-  row_id: "row_toi_1234",
-  content_hash: hash("r"),
-  row_authority: {
-    authority_kind: "crossmatch",
-    alignment_status: "accepted",
-    entity_level: "planet_candidate",
-    logical_key: hash("a"),
-    record_type: "paired",
-    source_member_ids: [
-      "nasa_exoplanet_archive.toi",
-      "nasa_exoplanet_archive.ps",
-    ],
-    canonical_row_identity: {
+function buildRow(rec: SampleExoplanetRecord, index: number): DatasetRow {
+  const rowId = `row_${rec.toi.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+
+  const mappedField = (
+    fieldId: string,
+    unit: string,
+    val: string,
+    keySuffix: string,
+  ) => ({
+    canonical_field_id: fieldId,
+    canonical_unit: unit,
+    canonical_value: val,
+    candidate_source_value_ids: [`src_${keySuffix}_${index}`],
+    selected_source_value_id: `src_${keySuffix}_${index}`,
+    selection_id: `sel_${keySuffix}_${index}`,
+    conflict_ids: [] as string[],
+    transformation_evidence_ids: [] as string[],
+    status: "mapped" as const,
+  });
+
+  const nullField = (
+    fieldId: string,
+    reason: "not_in_source" | "not_measured" | "not_applicable",
+  ) => ({
+    canonical_field_id: fieldId,
+    candidate_source_value_ids: [] as string[],
+    reason,
+    status: "declared_null" as const,
+    transformation_evidence_ids: [] as string[],
+  });
+
+  const fields = [
+    mappedField("planet.toi_id", "dimensionless", rec.toi, "toi"),
+    rec.name
+      ? mappedField("planet.name", "dimensionless", rec.name, "name")
+      : nullField("planet.name", "not_in_source"),
+    mappedField("planet.period", "day", String(rec.period), "per"),
+    mappedField("planet.radius", "r_earth", String(rec.radius), "rad"),
+    rec.mass !== null
+      ? mappedField("planet.mass", "m_earth", String(rec.mass), "mass")
+      : nullField("planet.mass", "not_measured"),
+    mappedField("planet.equilibrium_temperature", "k", String(rec.teq), "teq"),
+    mappedField("star.tic_id", "dimensionless", rec.tic, "tic"),
+    mappedField("star.effective_temperature", "k", String(rec.teff), "teff"),
+    mappedField("star.radius", "r_sun", String(rec.srad), "srad"),
+    mappedField("star.mass", "m_sun", String(rec.smass), "smass"),
+    rec.feh !== null
+      ? mappedField("star.metallicity", "dex", String(rec.feh), "feh")
+      : nullField("star.metallicity", "not_measured"),
+    mappedField("star.log_g", "cgs", String(rec.logg), "logg"),
+    mappedField("star.distance", "pc", String(rec.dist), "dist"),
+    mappedField("planet.discovery_year", "yr", String(rec.year), "yr"),
+  ];
+
+  return {
+    row_id: rowId,
+    content_hash: hash(rowId),
+    row_authority: {
+      authority_kind: "crossmatch",
       alignment_status: "accepted",
       entity_level: "planet_candidate",
+      logical_key: hash(rec.toi),
       record_type: "paired",
-      member_entities: [
-        {
-          entity_level: "planet_candidate",
-          identity_values: [
-            {
-              field_id: "planet.toi_id",
-              normalized_value: "TOI-1234",
-              normalization_rule_version: "1.0.0",
-            },
-          ],
-        },
+      source_member_ids: [
+        "nasa_exoplanet_archive.toi",
+        "nasa_exoplanet_archive.ps",
+        "gaia_dr3",
       ],
+      canonical_row_identity: {
+        alignment_status: "accepted",
+        entity_level: "planet_candidate",
+        record_type: "paired",
+        member_entities: [
+          {
+            entity_level: "planet_candidate",
+            identity_values: [
+              {
+                field_id: "planet.toi_id",
+                normalized_value: rec.toi,
+                normalization_rule_version: "1.0.0",
+              },
+            ],
+          },
+        ],
+      },
     },
-  },
-  fields: [
-    {
-      canonical_field_id: "planet.toi_id",
-      canonical_unit: "dimensionless",
-      canonical_value: "TOI-1234",
-      candidate_source_value_ids: ["source_value_toi_1234"],
-      selected_source_value_id: "source_value_toi_1234",
-      selection_id: "selection_toi_1234",
-      conflict_ids: [],
-      transformation_evidence_ids: [],
-      status: "mapped",
-    },
-    {
-      canonical_field_id: "star.effective_temperature",
-      canonical_unit: "kelvin",
-      canonical_value: "5800",
-      candidate_source_value_ids: ["source_value_teff_1234"],
-      selected_source_value_id: "source_value_teff_1234",
-      selection_id: "selection_teff_1234",
-      conflict_ids: [],
-      transformation_evidence_ids: [],
-      status: "mapped",
-    },
-  ],
-  conflict_ids: [],
-  projected_field_ids: ["planet.toi_id", "star.effective_temperature"],
-  projection_policy_version: "1.0.0",
-  source_snapshot_ids: [sourceSnapshot.id, psSourceSnapshot.id],
-  evidence_ids: [],
-};
+    fields,
+    conflict_ids: rec.status === "conflict" ? [`conflict_${index}`] : [],
+    projected_field_ids: fields.map((f) => f.canonical_field_id),
+    projection_policy_version: "1.0.0",
+    source_snapshot_ids: [
+      sourceSnapshot.id,
+      psSourceSnapshot.id,
+      gaiaSourceSnapshot.id,
+    ],
+    evidence_ids: [
+      evidence(
+        DATASET_VERSION_ID,
+        "dataset_row",
+        rowId,
+        `${rec.toi} host-star record`,
+      ).id,
+    ],
+  };
+}
+
+const datasetRows: DatasetRow[] = rawSampleData.map(buildRow);
 
 const producer = {
   producer_name: "fixture-data-pipeline",
@@ -333,7 +1248,11 @@ const crossmatchAuthority: CrossmatchArtifactAuthority = {
   input_hash: hash("a"),
   output_hash: hash("b"),
   content_hash: hash("c"),
-  source_snapshot_ids: [sourceSnapshot.id, psSourceSnapshot.id],
+  source_snapshot_ids: [
+    sourceSnapshot.id,
+    psSourceSnapshot.id,
+    gaiaSourceSnapshot.id,
+  ],
   evidence: [],
   evidence_ids: [],
   alignment_record_keys: [hash("b")],
@@ -346,14 +1265,18 @@ const datasetCandidate = {
   candidate_id: "dataset_candidate_01",
   kind: "dataset" as const,
   schema_version: "3.0.0" as const,
-  requested_fields: [field.field_id, fieldTemperature.field_id],
-  columns: [{ field }, { field: fieldTemperature }],
-  rows: [row],
-  row_count: 1,
-  field_count: 2,
+  requested_fields: fieldDefinitions.map((f) => f.field_id),
+  columns: fieldDefinitions.map((field) => ({ field })),
+  rows: datasetRows,
+  row_count: datasetRows.length,
+  field_count: fieldDefinitions.length,
   conflicts: [],
   evidence_ids: [],
-  source_snapshot_ids: [sourceSnapshot.id, psSourceSnapshot.id],
+  source_snapshot_ids: [
+    sourceSnapshot.id,
+    psSourceSnapshot.id,
+    gaiaSourceSnapshot.id,
+  ],
   input_hash: hash("d"),
   output_hash: hash("e"),
   canonical_content_hash: hash("c"),
@@ -377,10 +1300,14 @@ const fieldDictionaryCandidate = {
   candidate_id: "field_dictionary_candidate_01",
   kind: "field_dictionary" as const,
   schema_version: "3.0.0" as const,
-  requested_fields: [field.field_id, fieldTemperature.field_id],
-  field_definitions: [field, fieldTemperature],
+  requested_fields: fieldDefinitions.map((f) => f.field_id),
+  field_definitions: fieldDefinitions,
   evidence_ids: [],
-  source_snapshot_ids: [sourceSnapshot.id, psSourceSnapshot.id],
+  source_snapshot_ids: [
+    sourceSnapshot.id,
+    psSourceSnapshot.id,
+    gaiaSourceSnapshot.id,
+  ],
   input_hash: hash("d"),
   output_hash: hash("e"),
   authority: crossmatchAuthority,
@@ -413,7 +1340,7 @@ const sourceMember: StructuredSourceCollectionMember = {
   side: "left",
   data_level: "fixture",
   source_mode: "fixture",
-  raw_record_count: 1,
+  raw_record_count: 40,
   raw_record_reference_registry_hash: hash("z"),
   raw_record_references: [
     {
@@ -422,7 +1349,7 @@ const sourceMember: StructuredSourceCollectionMember = {
       source_snapshot_content_hash: sourceSnapshot.content_hash,
       query_hash: sourceSnapshot.query_hash,
       raw_record_content_hash: hash("r"),
-      row_key: [["toi", "TOI-1234"]],
+      row_key: [["toi", "TOI-1233.01"]],
     },
   ],
   query_hash: sourceSnapshot.query_hash,
@@ -449,7 +1376,7 @@ const psSourceMember: StructuredSourceCollectionMember = {
   side: "right",
   data_level: "fixture",
   source_mode: "fixture",
-  raw_record_count: 1,
+  raw_record_count: 40,
   raw_record_reference_registry_hash: hash("v"),
   raw_record_references: [
     {
@@ -458,7 +1385,7 @@ const psSourceMember: StructuredSourceCollectionMember = {
       source_snapshot_content_hash: psSourceSnapshot.content_hash,
       query_hash: psSourceSnapshot.query_hash,
       raw_record_content_hash: hash("w"),
-      row_key: [["tic_id", "5678"]],
+      row_key: [["tic_id", "260647166"]],
     },
   ],
   query_hash: psSourceSnapshot.query_hash,
@@ -466,12 +1393,52 @@ const psSourceMember: StructuredSourceCollectionMember = {
   license_note: psSourceSnapshot.license_note,
 };
 
+const gaiaSourceMember: StructuredSourceCollectionMember = {
+  source_id: gaiaSourceSnapshot.source_id,
+  source_snapshot_id: gaiaSourceSnapshot.id,
+  source_snapshot_content_hash: gaiaSourceSnapshot.content_hash,
+  source_snapshot: {
+    snapshot_id: gaiaSourceSnapshot.id,
+    source_id: gaiaSourceSnapshot.source_id,
+    source_type: gaiaSourceSnapshot.source_type,
+    retrieved_at: gaiaSourceSnapshot.retrieved_at,
+    query: JSON.stringify(gaiaSourceSnapshot.query),
+    query_hash: gaiaSourceSnapshot.query_hash,
+    content_hash: gaiaSourceSnapshot.content_hash,
+    license_note: gaiaSourceSnapshot.license_note,
+    request_metadata: gaiaSourceSnapshot.request_metadata,
+    source_version_or_etag: gaiaSourceSnapshot.source_version_or_etag,
+  },
+  side: "right",
+  data_level: "fixture",
+  source_mode: "fixture",
+  raw_record_count: 40,
+  raw_record_reference_registry_hash: hash("g_reg"),
+  raw_record_references: [
+    {
+      source_id: gaiaSourceSnapshot.source_id,
+      source_snapshot_id: gaiaSourceSnapshot.id,
+      source_snapshot_content_hash: gaiaSourceSnapshot.content_hash,
+      query_hash: gaiaSourceSnapshot.query_hash,
+      raw_record_content_hash: hash("g_rec"),
+      row_key: [["source_id", "5489021948102"]],
+    },
+  ],
+  query_hash: gaiaSourceSnapshot.query_hash,
+  completion: { status: "complete", continuation_cursor: null },
+  license_note: gaiaSourceSnapshot.license_note,
+};
+
 const sourceCollectionCandidate = {
   candidate_id: "source_collection_candidate_01",
   kind: "source_collection" as const,
   schema_version: "3.0.0" as const,
-  members: [sourceMember, psSourceMember],
-  source_snapshot_ids: [sourceSnapshot.id, psSourceSnapshot.id],
+  members: [sourceMember, psSourceMember, gaiaSourceMember],
+  source_snapshot_ids: [
+    sourceSnapshot.id,
+    psSourceSnapshot.id,
+    gaiaSourceSnapshot.id,
+  ],
   source_value_ids: [],
   evidence_ids: [],
   input_hash: hash("d"),
@@ -510,6 +1477,9 @@ export const sourceCollectionArtifactReads: readonly SourceCollectionArtifactRea
     },
   ];
 
+// ---------------------------------------------------------------------------
+// Literature Claims & Relations
+// ---------------------------------------------------------------------------
 function literatureVersion(
   artifactId: string,
   artifactVersionId: string,
@@ -530,17 +1500,18 @@ function literatureVersion(
   };
 }
 
-const claimRead: LiteratureClaimRead = {
+const makeClaimRead = (
+  claimId: string,
+  text: string,
+  objects: string[],
+  status: "accepted" | "candidate" | "rejected",
+  metric: string,
+  unit: string,
+  rejectionReason: LiteratureClaimRejectionReason | null = null,
+): LiteratureClaimRead => ({
   version: literatureVersion("art_claims_01", CLAIMS_VERSION_ID),
   source_snapshots: [sourceSnapshot],
-  evidence: [
-    evidence(
-      CLAIMS_VERSION_ID,
-      "claim",
-      "claim_01",
-      "Host-star temperature is 5800 K.",
-    ),
-  ],
+  evidence: [evidence(CLAIMS_VERSION_ID, "claim", claimId, text)],
   paper_summary: {
     artifact_version_id: "artv_papsum_01",
     content_hash: hash("u"),
@@ -550,101 +1521,170 @@ const claimRead: LiteratureClaimRead = {
     summary_id: "psum_01",
   },
   claim: {
-    claim_id: "claim_01",
+    claim_id: claimId,
     claim_type: "finding",
-    text: "The host star TIC-5678 has an effective temperature of 5800 K.",
-    normalized_text: "host star TIC-5678 effective temperature 5800 K",
-    fingerprint: hash("claim"),
-    status: "accepted",
-    polarity: "positive",
+    text,
+    normalized_text: text.toLowerCase(),
+    fingerprint: hash(claimId),
+    status,
+    polarity: status === "rejected" ? "negative" : "positive",
     paper_id: "paper_01",
     producer_execution_id: producerExecution.id,
     model_response_hash: hash("m"),
     normalization_version: "1.0.0",
     input_hash: hash("i"),
-    objects: ["TIC-5678"],
-    scope: ["host star"],
-    conditions: ["catalog host-star parameters"],
+    objects: objects as [string, ...string[]],
+    scope: ["exoplanet host-star system"],
+    conditions: ["TESS photometrical and high-res spectroscopic catalog"],
     qualifiers: [],
-    limitations: ["Evidence is bounded to the cited catalog record."],
-    metric: "effective_temperature",
-    unit: "K",
+    limitations: ["Bounded to the stated observational epoch."],
+    metric,
+    unit,
     uncertainty: null,
     comparison_basis: null,
-    source_statement_id: "statement_01",
+    source_statement_id: `statement_${claimId}`,
     source_summary_id: "psum_01",
     source_paper_summary_artifact_version_id: "artv_papsum_01",
     source_snapshot_ids: [sourceSnapshot.id],
     evidence_ids: [],
     failure_stage: null,
-    rejection_reason: null,
+    rejection_reason: rejectionReason,
   },
-};
+});
 
-const relationRead: LiteratureRelationRead = {
+const claim1 = makeClaimRead(
+  "claim_01",
+  "TOI-1233.01 (HD 108236 b) 是一颗短周期亚海王星，轨道周期为 3.795 天，围绕亮 G 型恒星 TIC-260647166 运行。",
+  ["TOI-1233.01", "TIC-260647166"],
+  "accepted",
+  "orbital_period",
+  "days",
+);
+
+const claim2 = makeClaimRead(
+  "claim_02",
+  "宿主恒星 TIC-260647166 (HD 108236) 的有效表面温度为 5720 ± 60 K，金属丰度 [Fe/H] 为 -0.05 dex。",
+  ["TIC-260647166"],
+  "accepted",
+  "effective_temperature",
+  "K",
+);
+
+const claim3 = makeClaimRead(
+  "claim_03",
+  "TOI-1233.02 (HD 108236 c) 的拟合物理半径为 2.06 R_Earth，与富含挥发分气态包层的行星内部结构模型一致。",
+  ["TOI-1233.02"],
+  "accepted",
+  "planet_radius",
+  "R_Earth",
+);
+
+const claim4 = makeClaimRead(
+  "claim_04",
+  "TOI-1233.01 与外层伴星 TOI-1233.02 的凌星时刻变分 (TTV) 反演预示两者处于接近 5:3 的近平均运动共振区域。",
+  ["TOI-1233.01", "TOI-1233.02"],
+  "candidate",
+  "resonance_period_ratio",
+  "dimensionless",
+);
+
+const claim5 = makeClaimRead(
+  "claim_05",
+  "HARPS 高精度视向速度测量为 TOI-1233.01 的动力学质量确定了 4.8 ± 0.9 M_Earth 的强约束上限。",
+  ["TOI-1233.01"],
+  "candidate",
+  "planet_mass",
+  "M_Earth",
+);
+
+const claim6 = makeClaimRead(
+  "claim_06",
+  "TIC-260647166 为极年轻的金牛座 T Tauri 型恒星，具有强烈的色球活动与耀斑爆发特征。",
+  ["TIC-260647166"],
+  "rejected",
+  "stellar_activity_index",
+  "dimensionless",
+  "literature_claim.normalization_unsafe",
+);
+
+export const literatureClaimReads: readonly LiteratureClaimRead[] = [
+  claim1,
+  claim2,
+  claim3,
+  claim4,
+  claim5,
+  claim6,
+];
+
+const makeRelationRead = (
+  relationId: string,
+  sourceClaim: LiteratureClaimRead,
+  targetClaim: LiteratureClaimRead,
+  relationType: LiteratureRelationType,
+  status: "accepted" | "candidate" | "rejected",
+  conclusion: string,
+  reviewReason: LiteratureRelationReviewReason | null = null,
+): LiteratureRelationRead => ({
   version: literatureVersion("art_rels_01", RELATIONS_VERSION_ID),
   source_snapshots: [sourceSnapshot],
   evidence: [
-    evidence(
-      RELATIONS_VERSION_ID,
-      "relation",
-      "rel_01",
-      "Both claims use the same host-star parameter.",
-    ),
+    evidence(RELATIONS_VERSION_ID, "relation", relationId, conclusion),
   ],
-  graph_eligible: true,
-  source_claim: claimRead,
-  target_claim: claimRead,
+  graph_eligible: status === "accepted",
+  source_claim: sourceClaim,
+  target_claim: targetClaim,
   relation: {
-    relation_id: "rel_01",
-    pair_id: "claim_01:claim_01",
-    relation_type: "uses_same_dataset",
-    status: "accepted",
-    source_claim_id: "claim_01",
-    target_claim_id: "claim_01",
+    relation_id: relationId,
+    pair_id: `${sourceClaim.claim.claim_id}:${targetClaim.claim.claim_id}`,
+    relation_type: relationType,
+    status,
+    source_claim_id: sourceClaim.claim.claim_id,
+    target_claim_id: targetClaim.claim.claim_id,
     source_claim_artifact_version_id: CLAIMS_VERSION_ID,
     target_claim_artifact_version_id: CLAIMS_VERSION_ID,
     source_paper_summary_artifact_version_id: "artv_papsum_01",
     target_paper_summary_artifact_version_id: "artv_papsum_01",
     source_snapshot_ids: [sourceSnapshot.id],
     evidence_ids: [],
-    conditions: ["same host-star catalog"],
+    conditions: ["shared planetary system TIC-260647166"],
     condition_conflicts: [],
     condition_uncertainties: [],
     comparability: {
-      metric_basis: "effective temperature",
+      metric_basis: "stellar and planetary parameters",
       metric_status: "comparable",
-      object_basis: "TIC-5678",
+      object_basis: "TIC-260647166",
       object_status: "comparable",
-      unit_basis: "K",
+      unit_basis: "canonical",
       unit_status: "comparable",
     },
     direction: {
-      basis: "shared host-star parameter",
-      source_claim_id: "claim_01",
-      target_claim_id: "claim_01",
+      basis: "astrophysical derivation and consistency",
+      source_claim_id: sourceClaim.claim.claim_id,
+      target_claim_id: targetClaim.claim.claim_id,
     },
     confidence: null,
-    reasoning_trace_id: "trace_01",
-    fingerprint: hash("rel"),
+    reasoning_trace_id: `trace_${relationId}`,
+    fingerprint: hash(relationId),
     input_hash: hash("i"),
     model_response_hash: hash("m"),
     producer_execution_id: producerExecution.id,
     failure_stage: null,
-    rejection_reason: null,
-    review_reason: null,
+    rejection_reason:
+      status === "rejected"
+        ? "literature_relation.evidence_inconsistent"
+        : null,
+    review_reason: reviewReason,
   },
   reasoning_trace: {
-    trace_id: "trace_01",
-    relation_id: "rel_01",
-    relation_status: "accepted",
-    conclusion:
-      "The claims are linked because they refer to the same host-star parameter.",
-    premise_claim_ids: ["claim_01", "claim_01"],
-    conditions: ["Both records identify TIC-5678."],
+    trace_id: `trace_${relationId}`,
+    relation_id: relationId,
+    relation_status: status,
+    conclusion,
+    premise_claim_ids: [sourceClaim.claim.claim_id, targetClaim.claim.claim_id],
+    conditions: ["两项主张均基于对同一恒星系统 TIC-260647166 的多波段观测。"],
     conflicts: [],
-    limitations: ["No causal relationship is inferred."],
-    evidence_ids: ["ev_artv_rels_01_relation_rel_01"],
+    limitations: ["结论受限于当前测光精度的置信区间。"],
+    evidence_ids: [`ev_${RELATIONS_VERSION_ID}_relation_${relationId}`],
     input_hash: hash("i"),
     model_response_hash: hash("m"),
     producer_execution_id: producerExecution.id,
@@ -653,19 +1693,72 @@ const relationRead: LiteratureRelationRead = {
       {
         order: 1,
         operation: "compare_objects",
-        statement: "Compare the host-star identity in each claim.",
-        claim_ids: ["claim_01", "claim_01"],
-        evidence_ids: ["ev_artv_rels_01_relation_rel_01"],
+        statement: "交叉比对目标恒星标识与行星编号一致性。",
+        claim_ids: [sourceClaim.claim.claim_id, targetClaim.claim.claim_id],
+        evidence_ids: [`ev_${RELATIONS_VERSION_ID}_relation_${relationId}`],
       },
     ],
   },
-};
+});
 
-export const literatureClaimReads: readonly LiteratureClaimRead[] = [claimRead];
+const rel1 = makeRelationRead(
+  "rel_01",
+  claim1,
+  claim2,
+  "uses_same_dataset",
+  "accepted",
+  "主张 1 的候选行星与主张 2 的宿主恒星具有相同的 TIC 标识 (TIC-260647166)，共同构成系统的宿主-行星基本物理基准。",
+);
+
+const rel2 = makeRelationRead(
+  "rel_02",
+  claim1,
+  claim3,
+  "supports",
+  "accepted",
+  "主张 1 与主张 3 分别确定了同一恒星系统中的 b 星与 c 星，两者轨道排列与半径分布符合典型紧凑多行星系统的架构特征。",
+);
+
+const rel3 = makeRelationRead(
+  "rel_03",
+  claim1,
+  claim4,
+  "extends",
+  "candidate",
+  "主张 1 的精确公转周期为主张 4 的 TTV 共振动力学推导提供了基础先验，需人工确认动力学积分拟合优度。",
+  "literature_relation.review.conditions_unresolved",
+);
+
+const rel4 = makeRelationRead(
+  "rel_04",
+  claim1,
+  claim5,
+  "supports",
+  "candidate",
+  "主张 5 的视向速度质量上限进一步约束了主张 1 凌星行星的平均密度与大气流失率。",
+  "literature_relation.review.conditions_unresolved",
+);
+
+const rel5 = makeRelationRead(
+  "rel_05",
+  claim2,
+  claim6,
+  "contradicts",
+  "rejected",
+  "主张 6 宣称的极年轻 T Tauri 阶段与主张 2 测定的主序 G 型有效温度与宁静色球演化阶段直接冲突，予以驳回。",
+);
+
 export const literatureRelationReads: readonly LiteratureRelationRead[] = [
-  relationRead,
+  rel1,
+  rel2,
+  rel3,
+  rel4,
+  rel5,
 ];
 
+// ---------------------------------------------------------------------------
+// Knowledge Graph (16 Nodes, 20 Edges)
+// ---------------------------------------------------------------------------
 const graphVersion = {
   artifact_id: "art_graph_01",
   artifact_version_id: GRAPH_VERSION_ID,
@@ -702,13 +1795,393 @@ const graphInputVersion = {
   producer_version: "1.0.0",
 };
 
+export const graphNodeReads: readonly GraphNodeRead[] = [
+  {
+    version: graphVersion,
+    node: {
+      node_id: "node_goal_01",
+      node_type: "research_goal",
+      label: "系外行星宿主星证据链综合研究目标",
+      logical_reference: [{ name: "project_id", value: PROJECT_ID }],
+      version_bindings: [
+        {
+          artifact_version_id: DATASET_VERSION_ID,
+          domain_object_id: "goal_01",
+        },
+      ],
+    },
+  },
+  {
+    version: graphVersion,
+    node: {
+      node_id: "node_dataset_01",
+      node_type: "dataset",
+      label: "TOI 宿主星交叉证认数据集 (40 颗)",
+      logical_reference: [
+        { name: "artifact_version", value: DATASET_VERSION_ID },
+      ],
+      version_bindings: [
+        {
+          artifact_version_id: DATASET_VERSION_ID,
+          domain_object_id: "dataset_candidate_01",
+        },
+      ],
+    },
+  },
+  {
+    version: graphVersion,
+    node: {
+      node_id: "node_src_toi",
+      node_type: "dataset",
+      label: "NASA Exoplanet Archive (TOI)",
+      logical_reference: [
+        { name: "source_id", value: sourceSnapshot.source_id },
+      ],
+      version_bindings: [
+        {
+          artifact_version_id: DATASET_VERSION_ID,
+          domain_object_id: "src_toi",
+        },
+      ],
+    },
+  },
+  {
+    version: graphVersion,
+    node: {
+      node_id: "node_src_ps",
+      node_type: "dataset",
+      label: "NASA Exoplanet Archive (PS)",
+      logical_reference: [
+        { name: "source_id", value: psSourceSnapshot.source_id },
+      ],
+      version_bindings: [
+        { artifact_version_id: DATASET_VERSION_ID, domain_object_id: "src_ps" },
+      ],
+    },
+  },
+  {
+    version: graphVersion,
+    node: {
+      node_id: "node_src_gaia",
+      node_type: "dataset",
+      label: "Gaia DR3 巡天星表",
+      logical_reference: [
+        { name: "source_id", value: gaiaSourceSnapshot.source_id },
+      ],
+      version_bindings: [
+        {
+          artifact_version_id: DATASET_VERSION_ID,
+          domain_object_id: "src_gaia",
+        },
+      ],
+    },
+  },
+  {
+    version: graphVersion,
+    node: {
+      node_id: "node_paper_01",
+      node_type: "paper",
+      label: "Daylan et al. (2021) TESS Discovery of HD 108236",
+      logical_reference: [{ name: "paper_id", value: "paper_01" }],
+      version_bindings: [
+        { artifact_version_id: "artv_papsum_01", domain_object_id: "paper_01" },
+      ],
+    },
+  },
+  {
+    version: graphVersion,
+    node: {
+      node_id: "node_paper_02",
+      node_type: "paper",
+      label: "Bonfanti et al. (2021) CHEOPS Characterization",
+      logical_reference: [{ name: "paper_id", value: "paper_02" }],
+      version_bindings: [
+        { artifact_version_id: "artv_papsum_01", domain_object_id: "paper_02" },
+      ],
+    },
+  },
+  {
+    version: graphVersion,
+    node: {
+      node_id: "node_star_tic2606",
+      node_type: "field",
+      label: "恒星 TIC-260647166 (HD 108236)",
+      logical_reference: [{ name: "tic_id", value: "260647166" }],
+      version_bindings: [
+        {
+          artifact_version_id: FIELDS_VERSION_ID,
+          domain_object_id: "tic_260647166",
+        },
+      ],
+    },
+  },
+  {
+    version: graphVersion,
+    node: {
+      node_id: "node_planet_toi1233_01",
+      node_type: "field",
+      label: "行星 TOI-1233.01 (b)",
+      logical_reference: [{ name: "toi_id", value: "TOI-1233.01" }],
+      version_bindings: [
+        {
+          artifact_version_id: FIELDS_VERSION_ID,
+          domain_object_id: "toi_1233_01",
+        },
+      ],
+    },
+  },
+  {
+    version: graphVersion,
+    node: {
+      node_id: "node_planet_toi1233_02",
+      node_type: "field",
+      label: "行星 TOI-1233.02 (c)",
+      logical_reference: [{ name: "toi_id", value: "TOI-1233.02" }],
+      version_bindings: [
+        {
+          artifact_version_id: FIELDS_VERSION_ID,
+          domain_object_id: "toi_1233_02",
+        },
+      ],
+    },
+  },
+  {
+    version: graphVersion,
+    node: {
+      node_id: "node_claim_01",
+      node_type: "claim",
+      label: "主张 1: TOI-1233.01 短周期亚海王星",
+      logical_reference: [{ name: "claim_id", value: "claim_01" }],
+      version_bindings: [
+        {
+          artifact_version_id: CLAIMS_VERSION_ID,
+          domain_object_id: "claim_01",
+        },
+      ],
+    },
+  },
+  {
+    version: graphVersion,
+    node: {
+      node_id: "node_claim_02",
+      node_type: "claim",
+      label: "主张 2: 宿主星有效温度 5720 K",
+      logical_reference: [{ name: "claim_id", value: "claim_02" }],
+      version_bindings: [
+        {
+          artifact_version_id: CLAIMS_VERSION_ID,
+          domain_object_id: "claim_02",
+        },
+      ],
+    },
+  },
+  {
+    version: graphVersion,
+    node: {
+      node_id: "node_claim_03",
+      node_type: "claim",
+      label: "主张 3: TOI-1233.02 挥发分气态包层",
+      logical_reference: [{ name: "claim_id", value: "claim_03" }],
+      version_bindings: [
+        {
+          artifact_version_id: CLAIMS_VERSION_ID,
+          domain_object_id: "claim_03",
+        },
+      ],
+    },
+  },
+  {
+    version: graphVersion,
+    node: {
+      node_id: "node_claim_04",
+      node_type: "claim",
+      label: "主张 4: 近共振动力学 TTV 预期",
+      logical_reference: [{ name: "claim_id", value: "claim_04" }],
+      version_bindings: [
+        {
+          artifact_version_id: CLAIMS_VERSION_ID,
+          domain_object_id: "claim_04",
+        },
+      ],
+    },
+  },
+  {
+    version: graphVersion,
+    node: {
+      node_id: "node_claim_05",
+      node_type: "claim",
+      label: "主张 5: HARPS 视向速度质量上限",
+      logical_reference: [{ name: "claim_id", value: "claim_05" }],
+      version_bindings: [
+        {
+          artifact_version_id: CLAIMS_VERSION_ID,
+          domain_object_id: "claim_05",
+        },
+      ],
+    },
+  },
+  {
+    version: graphVersion,
+    node: {
+      node_id: "node_fdict_01",
+      node_type: "field",
+      label: "天文特征字典 (14 个字段)",
+      logical_reference: [
+        { name: "artifact_version", value: FIELDS_VERSION_ID },
+      ],
+      version_bindings: [
+        {
+          artifact_version_id: FIELDS_VERSION_ID,
+          domain_object_id: "field_dictionary_candidate_01",
+        },
+      ],
+    },
+  },
+];
+
+const makeEdge = (
+  edgeId: string,
+  edgeType:
+    | "uses_dataset"
+    | "provides_field"
+    | "supports_finding"
+    | "supports"
+    | "extends"
+    | "derived_from"
+    | "limits"
+    | "contradicts"
+    | "uses_same_dataset"
+    | "compares_method",
+  sourceNodeId: string,
+  targetNodeId: string,
+  relationId: string | null = null,
+): GraphEdgeRead => ({
+  version: graphVersion,
+  evidence: [
+    {
+      use: {
+        evidence_type: "database_query",
+        evidence_use_id: `use_${edgeId}`,
+        graph_edge_id: edgeId,
+        source_snapshot_id: sourceSnapshot.id,
+        upstream_artifact_version_id: relationId
+          ? RELATIONS_VERSION_ID
+          : DATASET_VERSION_ID,
+        upstream_evidence_hash: hash(`ev_${edgeId}`),
+        upstream_evidence_id: `ev_up_${edgeId}`,
+        upstream_is_restricted: false,
+        upstream_target_id: edgeId,
+        upstream_target_type: "graph_edge",
+      },
+      evidence: evidence(
+        GRAPH_VERSION_ID,
+        "graph_edge",
+        edgeId,
+        `Edge ${edgeType} from ${sourceNodeId} to ${targetNodeId}`,
+      ),
+      source_snapshot: sourceSnapshot,
+    },
+  ],
+  edge: {
+    edge_id: edgeId,
+    edge_type: edgeType,
+    source_node_id: sourceNodeId,
+    target_node_id: targetNodeId,
+    evidence_use_ids: [`use_${edgeId}`],
+    data_aggregation: {
+      conflict_count: 0,
+      declared_null_outcome_count: 0,
+      mapped_outcome_count: 14,
+      projected_row_count: 40,
+      retained_candidate_count: 1,
+      selected_candidate_count: 1,
+      unresolved_outcome_count: 0,
+      unselected_candidate_count: 0,
+      upstream_evidence_count: 1,
+    },
+    relation_trace: relationId
+      ? {
+          relation_id: relationId,
+          relation_artifact_version_id: RELATIONS_VERSION_ID,
+          relation_type: "supports",
+          relation_status: "accepted",
+          source_claim_id: sourceNodeId.replace("node_", ""),
+          target_claim_id: targetNodeId.replace("node_", ""),
+          premise_claim_ids: [
+            sourceNodeId.replace("node_", ""),
+            targetNodeId.replace("node_", ""),
+          ],
+          reasoning_trace_id: `trace_${relationId}`,
+          trace_evidence_ids: [`ev_up_${edgeId}`],
+        }
+      : null,
+  },
+});
+
+export const graphEdgeReads: readonly GraphEdgeRead[] = [
+  makeEdge("edge_01", "uses_dataset", "node_goal_01", "node_dataset_01"),
+  makeEdge("edge_02", "provides_field", "node_fdict_01", "node_dataset_01"),
+  makeEdge("edge_03", "derived_from", "node_dataset_01", "node_src_toi"),
+  makeEdge("edge_04", "derived_from", "node_dataset_01", "node_src_ps"),
+  makeEdge("edge_05", "derived_from", "node_dataset_01", "node_src_gaia"),
+  makeEdge("edge_06", "supports", "node_paper_01", "node_planet_toi1233_01"),
+  makeEdge("edge_07", "supports", "node_paper_01", "node_star_tic2606"),
+  makeEdge("edge_08", "supports", "node_paper_02", "node_planet_toi1233_02"),
+  makeEdge(
+    "edge_09",
+    "supports",
+    "node_star_tic2606",
+    "node_planet_toi1233_01",
+  ),
+  makeEdge(
+    "edge_10",
+    "supports",
+    "node_star_tic2606",
+    "node_planet_toi1233_02",
+  ),
+  makeEdge("edge_11", "supports_finding", "node_paper_01", "node_claim_01"),
+  makeEdge("edge_12", "supports_finding", "node_src_ps", "node_claim_02"),
+  makeEdge("edge_13", "supports_finding", "node_paper_02", "node_claim_03"),
+  makeEdge("edge_14", "supports_finding", "node_paper_01", "node_claim_04"),
+  makeEdge("edge_15", "supports_finding", "node_paper_02", "node_claim_05"),
+  makeEdge("edge_16", "uses_dataset", "node_dataset_01", "node_star_tic2606"),
+  makeEdge(
+    "edge_17",
+    "uses_dataset",
+    "node_dataset_01",
+    "node_planet_toi1233_01",
+  ),
+  // Relation-generated edges connecting accepted relations:
+  makeEdge(
+    "edge_18_rel_01",
+    "uses_same_dataset",
+    "node_claim_01",
+    "node_claim_02",
+    "rel_01",
+  ),
+  makeEdge(
+    "edge_19_rel_02",
+    "supports",
+    "node_claim_01",
+    "node_claim_03",
+    "rel_02",
+  ),
+  makeEdge(
+    "edge_20_rel_03",
+    "extends",
+    "node_claim_01",
+    "node_claim_04",
+    "rel_03",
+  ),
+];
+
 export const graphArtifactReads: readonly GraphArtifactRead[] = [
   {
     graph_id: "graph_01",
     project_id: PROJECT_ID,
-    node_count: 2,
-    edge_count: 1,
-    evidence_use_count: 1,
+    node_count: graphNodeReads.length,
+    edge_count: graphEdgeReads.length,
+    evidence_use_count: graphEdgeReads.length,
     version: graphVersion,
     input_versions: {
       project_id: PROJECT_ID,
@@ -716,15 +2189,15 @@ export const graphArtifactReads: readonly GraphArtifactRead[] = [
     },
     integrity_report: {
       status: "passed",
-      content_hash: hash("h"),
+      content_hash: hash("h_graph_int"),
       policy_version: "2.0.0",
       counts: {
-        node_count: 2,
-        edge_count: 1,
-        evidence_use_count: 1,
+        node_count: graphNodeReads.length,
+        edge_count: graphEdgeReads.length,
+        evidence_use_count: graphEdgeReads.length,
         input_version_count: 1,
-        relation_edge_count: 0,
-        source_snapshot_count: 1,
+        relation_edge_count: 3,
+        source_snapshot_count: 3,
       },
       findings: [],
       first_failure_stage: null,
@@ -740,116 +2213,49 @@ export const graphArtifactReads: readonly GraphArtifactRead[] = [
       progressive_id: "graph_progressive_01",
       chunk_count: 1,
       complete: true,
-      chunks: [{ chunk_index: 0, item_ids: ["node_01", "node_02", "edge_01"] }],
+      chunks: [
+        {
+          chunk_index: 0,
+          item_ids: [
+            ...graphNodeReads.map((n) => n.node.node_id),
+            ...graphEdgeReads.map((e) => e.edge.edge_id),
+          ],
+        },
+      ],
     },
     scope: {
       include_data: true,
       research_goal_id: "goal_01",
-      literature_claim_ids: ["claim_01"],
-      literature_paper_ids: ["paper_01"],
-      accepted_relation_ids: [],
+      literature_claim_ids: literatureClaimReads.map((c) => c.claim.claim_id),
+      literature_paper_ids: ["paper_01", "paper_02"],
+      accepted_relation_ids: ["rel_01", "rel_02"],
       excluded_item_count: 0,
       filtered_item_count: 0,
       exclusion_reasons: [],
     },
     taxonomy: {
-      content_hash: hash("t"),
-      node_types: ["research_goal", "dataset", "field", "paper", "claim"],
+      content_hash: hash("t_taxonomy"),
+      node_types: [
+        "research_goal",
+        "dataset",
+        "field",
+        "source",
+        "paper",
+        "entity",
+        "claim",
+      ],
       edge_types: [
         "uses_dataset",
         "provides_field",
-        "supports_finding",
-        "supports",
-        "extends",
         "derived_from",
-        "limits",
-        "contradicts",
-        "uses_same_dataset",
-        "compares_method",
+        "hosts",
+        "observes",
+        "supports",
+        "supports_finding",
+        "describes_same_system",
+        "consistent_with",
+        "predicts",
       ],
     },
   } as unknown as GraphArtifactRead,
-];
-
-export const graphNodeReads: readonly GraphNodeRead[] = [
-  {
-    version: graphVersion,
-    node: {
-      node_id: "node_01",
-      node_type: "dataset",
-      label: "Exoplanet candidate dataset",
-      logical_reference: [
-        { name: "artifact_version", value: DATASET_VERSION_ID },
-      ],
-      version_bindings: [
-        {
-          artifact_version_id: DATASET_VERSION_ID,
-          domain_object_id: "dataset_candidate_01",
-        },
-      ],
-    },
-  },
-  {
-    version: graphVersion,
-    node: {
-      node_id: "node_02",
-      node_type: "claim",
-      label: "Host-star temperature finding",
-      logical_reference: [{ name: "claim_id", value: "claim_01" }],
-      version_bindings: [
-        {
-          artifact_version_id: CLAIMS_VERSION_ID,
-          domain_object_id: "claim_01",
-        },
-      ],
-    },
-  },
-];
-
-export const graphEdgeReads: readonly GraphEdgeRead[] = [
-  {
-    version: graphVersion,
-    evidence: [
-      {
-        use: {
-          evidence_type: "database_query",
-          evidence_use_id: "evidence_use_01",
-          graph_edge_id: "edge_01",
-          source_snapshot_id: sourceSnapshot.id,
-          upstream_artifact_version_id: DATASET_VERSION_ID,
-          upstream_evidence_hash: hash("graph-evidence"),
-          upstream_evidence_id: "ev_graph_edge_01",
-          upstream_is_restricted: false,
-          upstream_target_id: "dataset_candidate_01",
-          upstream_target_type: "dataset",
-        },
-        evidence: evidence(
-          GRAPH_VERSION_ID,
-          "graph_edge",
-          "edge_01",
-          "The selected dataset record supports this graph relation.",
-        ),
-        source_snapshot: sourceSnapshot,
-      },
-    ],
-    edge: {
-      edge_id: "edge_01",
-      edge_type: "supports_finding",
-      source_node_id: "node_01",
-      target_node_id: "node_02",
-      evidence_use_ids: ["evidence_use_01"],
-      data_aggregation: {
-        conflict_count: 0,
-        declared_null_outcome_count: 0,
-        mapped_outcome_count: 2,
-        projected_row_count: 1,
-        retained_candidate_count: 1,
-        selected_candidate_count: 1,
-        unresolved_outcome_count: 0,
-        unselected_candidate_count: 0,
-        upstream_evidence_count: 1,
-      },
-      relation_trace: null,
-    },
-  },
 ];

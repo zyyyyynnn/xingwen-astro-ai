@@ -833,8 +833,6 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding-inline-start: var(--space-3);
-  border-inline-start: var(--border-width-default) solid var(--color-border);
 }
 
 .paper-summary__evidence blockquote {
@@ -1049,12 +1047,10 @@ button:disabled {
   white-space: pre-wrap;
 }
 
-/* Narrative disclosures share one token-driven rail and rhythm. */
+/* Narrative disclosures share unified spacing and rhythm. */
 .workspace-narrative-node {
   margin-block: var(--space-1);
   padding-block: var(--space-1);
-  padding-inline-start: var(--space-3);
-  border-inline-start: var(--border-width-default) solid var(--color-border);
   color: var(--color-ink-secondary);
   font-size: var(--font-size-ui-body);
   line-height: var(--line-height-ui-body);
@@ -1598,8 +1594,6 @@ button:disabled {
 
 .workspace-empty-state {
   max-width: 26rem;
-  border-left: 1px solid var(--color-border-strong);
-  padding-left: var(--space-4);
   color: var(--color-ink-secondary);
   font-size: var(--font-size-ui-body);
   line-height: var(--line-height-ui-body);
@@ -1691,9 +1685,8 @@ button:disabled {
 
 .public-share-hero__notice {
   max-inline-size: var(--workspace-result-reading-max-inline-size);
-  margin-top: var(--space-5) !important;
-  padding-left: var(--space-3);
-  border-left: var(--border-width-default) solid var(--color-border-strong);
+  margin-top: var(--space-4) !important;
+  color: var(--color-ink-secondary);
   font-size: var(--font-size-2) !important;
 }
 
@@ -1862,8 +1855,7 @@ button:disabled {
 }
 
 .evidence-presentation blockquote {
-  padding-inline-start: var(--space-4);
-  border-inline-start: var(--border-width-default) solid var(--color-brand);
+  padding-block: var(--space-2);
   color: var(--color-ink-primary);
   font-family: var(--xw-font-serif);
   font-size: var(--font-size-3);
@@ -2796,22 +2788,8 @@ button:disabled {
 }
 
 .xw-scientific-dossier {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   transition: border-color var(--motion-fast) var(--ease-standard);
-}
-
-.xw-scientific-dossier[data-status="accepted"] {
-  border-left: 3px solid var(--color-success);
-}
-
-.xw-scientific-dossier[data-status="rejected"] {
-  border-left: 3px solid var(--color-error);
-}
-
-.xw-scientific-dossier[data-status="candidate"] {
-  border-left: 3px solid var(--color-brand);
 }
 
 .xw-fact-grid dt {

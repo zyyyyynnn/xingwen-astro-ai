@@ -21,6 +21,7 @@ import type {
   PaperCollectionRead as PaperCollectionReadDto,
   PaperSummaryRead as PaperSummaryReadDto,
   PublicArtifactPresentation,
+  ScientificArtifactRead as ScientificArtifactReadDto,
   SourceCollectionArtifactRead,
   ResearchArtifactDto,
   ResearchContractDto,
@@ -77,6 +78,8 @@ export interface FixtureBundleData {
   readonly graphArtifactReads: readonly GraphArtifactRead[];
   readonly graphNodeReads: readonly GraphNodeRead[];
   readonly graphEdgeReads: readonly GraphEdgeRead[];
+  /** Formal typed Scientific reads shared by fixture and HTTP mappers. */
+  readonly scientificArtifactReads?: readonly ScientificArtifactReadDto[];
   /** Frozen positive-contract presentations keyed by ArtifactVersion id. */
   readonly artifactPresentations: Readonly<
     Record<string, PublicArtifactPresentation>
