@@ -15,6 +15,7 @@ from app.schemas.core import (
     ArtifactVersionDetail,
     EvidenceDetail,
     EvidenceRead,
+    ProducerExecutionDetail,
     ResearchArtifactDetail,
     SourceSnapshotDetail,
 )
@@ -375,7 +376,67 @@ class ArtifactVersionGraphInputReadAdapter:
             candidate=candidate,
             source_snapshot_bindings=source_bindings,
             evidence_bindings=tuple(evidence_bindings),
+            scientific_producer_execution=(
+                self._literature_scientific_producer_execution(version, candidate)
+            ),
         )
+
+    def _literature_scientific_producer_execution(
+        self,
+        version: ArtifactVersionDetail,
+        candidate: LiteratureRelationsCandidate,
+    ) -> ProducerExecutionDetail | None:
+        if not any(item.adjudication is not None for item in candidate.relations):
+            return None
+
+        current_version = version
+        current_candidate = candidate
+        visited = {version.id}
+        while any(
+            item.adjudication is not None for item in current_candidate.relations
+        ):
+            if current_version.producer_execution.producer.type != "algorithm":
+                raise _artifact_error(
+                    "adjudicated LiteratureRelations must be published by an algorithm execution",
+                    reason=GraphRejectionReason.producer_execution_mismatch,
+                    path=f"input_versions.{current_version.id}.producer_execution",
+                )
+            predecessor_id = current_version.supersedes_version_id
+            if predecessor_id is None or predecessor_id in visited:
+                raise _artifact_error(
+                    "adjudicated LiteratureRelations has no valid predecessor version",
+                    reason=GraphRejectionReason.provenance_version_mismatch,
+                    path=f"input_versions.{current_version.id}.supersedes_version_id",
+                )
+            if not any(
+                item.adjudication is not None
+                and item.adjudication.baseline_relation_artifact_version_id
+                == predecessor_id
+                for item in current_candidate.relations
+            ):
+                raise _artifact_error(
+                    "adjudication does not bind the superseded LiteratureRelations version",
+                    reason=GraphRejectionReason.provenance_version_mismatch,
+                    path=f"input_versions.{current_version.id}.adjudication",
+                )
+            predecessor = self._read_version(
+                version_id=predecessor_id,
+                project_id=version.project_id,
+                expected_kind="literature_relations",
+            )
+            if predecessor.artifact_id != version.artifact_id:
+                raise _artifact_error(
+                    "LiteratureRelations producer lineage crosses artifacts",
+                    reason=GraphRejectionReason.cross_version_reference,
+                    path=f"input_versions.{predecessor_id}.artifact_id",
+                )
+            visited.add(predecessor_id)
+            current_version = predecessor
+            current_candidate = _candidate(
+                predecessor,
+                LiteratureRelationsCandidate,
+            )
+        return current_version.producer_execution
 
     def _data_provenance(
         self,

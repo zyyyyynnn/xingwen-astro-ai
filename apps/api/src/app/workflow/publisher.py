@@ -44,8 +44,15 @@ from app.schemas.data_artifacts import (
     SourceTableTransformationAuthority,
 )
 from app.schemas.enums import SourceMode
+from app.schemas.literature_relation import LiteratureRelationsCandidate
 from app.services.research_thread import append_assistant_message
 from app.workflow.store import TERMINAL_RUN_STATUSES
+from services.paper_pipeline.constants import (
+    RELATION_ADJUDICATION_PRODUCER_NAME,
+)
+from services.paper_pipeline.relation import (
+    compute_literature_relation_adjudication_input_hash,
+)
 
 _HASH_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 _PARAMETER_KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
@@ -1194,6 +1201,7 @@ class ArtifactPublisher:
                     step_id=step.id,
                     attempt_id=attempt.id,
                     output=output,
+                    session=session,
                 )
                 _validate_supersedes(
                     session,
@@ -1435,6 +1443,7 @@ class ArtifactPublisher:
                 step_id=step.id,
                 attempt_id=attempt_id,
                 output=output,
+                session=session,
             )
             _validate_materialized_literature_provenance(
                 session, version, output.candidate
@@ -3674,6 +3683,7 @@ def _validate_publishable_producer(
     step_id: UUID,
     attempt_id: UUID,
     output: ArtifactPublication,
+    session: Session,
 ) -> None:
     if (
         producer is None
@@ -3686,7 +3696,12 @@ def _validate_publishable_producer(
         raise PublicationAdmissionError(
             "Publication requires a completed matching ProducerExecution"
         )
-    if not _producer_matches_candidate_input_hash(producer, output.candidate):
+    if not _producer_matches_candidate_input_hash(
+        producer,
+        output.candidate,
+        session=session,
+        supersedes_version_id=output.supersedes_version_id,
+    ):
         raise PublicationAdmissionError(
             "ProducerExecution input_hash must match the admitted candidate"
         )
@@ -3699,16 +3714,76 @@ def _validate_publishable_producer(
 def _producer_matches_candidate_input_hash(
     producer: ProducerExecutionModel,
     candidate: AdmittedArtifactCandidate,
+    *,
+    session: Session,
+    supersedes_version_id: UUID | None,
 ) -> bool:
     """Bind every typed candidate input to the ProducerExecution that publishes it."""
 
     content = candidate.content
     if content.get("kind") == "export":
         return True
+    if producer.producer_name == RELATION_ADJUDICATION_PRODUCER_NAME:
+        return _adjudication_producer_matches_candidate(
+            producer,
+            content,
+            session=session,
+            supersedes_version_id=supersedes_version_id,
+        )
     declared_input_hash = content.get("input_hash")
     return isinstance(declared_input_hash, str) and (
         producer.input_hash == declared_input_hash
     )
+
+
+def _adjudication_producer_matches_candidate(
+    producer: ProducerExecutionModel,
+    content: Mapping[str, object],
+    *,
+    session: Session,
+    supersedes_version_id: UUID | None,
+) -> bool:
+    """Bind the adjudication algorithm to its canonical operation input hash.
+
+    The adjudicated Relations candidate preserves the predecessor model-origin
+    ``input_hash``, while the adjudication ProducerExecution records the
+    canonical adjudication operation hash; publication must verify the latter.
+    """
+
+    if supersedes_version_id is None:
+        return False
+    baseline = session.get(ArtifactVersionModel, supersedes_version_id)
+    if baseline is None:
+        return False
+    try:
+        relations = LiteratureRelationsCandidate.model_validate(content)
+    except ValueError:
+        return False
+    claim_versions = relations.input_versions.claim_artifact_versions
+    adjudications = tuple(
+        relation.adjudication
+        for relation in relations.relations
+        if relation.adjudication is not None
+    )
+    if (
+        len(claim_versions) != 1
+        or not adjudications
+        or any(
+            str(item.baseline_relation_artifact_version_id)
+            != str(supersedes_version_id)
+            for item in adjudications
+        )
+    ):
+        return False
+    expected = compute_literature_relation_adjudication_input_hash(
+        baseline_relation_artifact_version_id=str(supersedes_version_id),
+        baseline_relation_content_hash=baseline.content_hash,
+        literature_claim_artifact_version_id=str(
+            claim_versions[0].artifact_version_id
+        ),
+        adjudications=adjudications,
+    )
+    return producer.input_hash == expected
 
 
 def _producer_matches_graph_candidate(

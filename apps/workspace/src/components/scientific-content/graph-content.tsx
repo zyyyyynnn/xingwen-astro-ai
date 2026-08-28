@@ -342,6 +342,17 @@ function EdgeDetails({
               <dd>{relation.conditions.join("；")}</dd>
             </div>
           ) : null}
+          {relation.adjudication ? (
+            <div>
+              <dt>人工审定</dt>
+              <dd>
+                {relation.adjudication.decision === "accepted"
+                  ? "已接受"
+                  : "已拒绝"}
+                ：{relation.adjudication.basis.join("；")}
+              </dd>
+            </div>
+          ) : null}
           {trace ? (
             <div>
               <dt>公开推导</dt>

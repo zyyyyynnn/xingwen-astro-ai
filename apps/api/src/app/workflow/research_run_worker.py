@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import timedelta
+from datetime import timedelta, timezone
 import logging
 from typing import Any, Callable
 from uuid import UUID
@@ -56,7 +56,10 @@ from app.workflow.store import (
 )
 from app.services.research_thread import append_assistant_message
 from packages.prompts.registry import PromptRegistry
-from services.paper_pipeline.errors import PaperSearchExecutionError
+from services.paper_pipeline.errors import (
+    LiteratureAdmissionExecutionError,
+    PaperSearchExecutionError,
+)
 from services.data_pipeline.revision import DataRevisionError, DataRevisionErrorCode
 from services.paper_pipeline.live_collection import LivePaperCollectionRunner
 
@@ -425,13 +428,18 @@ class ResearchRunWorker:
             contract = session.get(ResearchContractModel, run.contract_id)
             if project is None or contract is None:
                 raise ValueError("ResearchRun ownership is incomplete")
+            contract_created_at = (
+                contract.created_at.astimezone(timezone.utc)
+                if contract.created_at.tzinfo is not None
+                else contract.created_at.replace(tzinfo=timezone.utc)
+            )
             contract_value = ResearchContract(
                 id=str(contract.id),
                 project_id=str(contract.project_id),
                 version=contract.version,
                 content_hash=contract.content_hash,
                 created_from_draft_id=str(contract.created_from_draft_id),
-                created_at=contract.created_at,
+                created_at=contract_created_at,
                 **contract.content,
             )
             revision = self._revision_contexts.load(
@@ -451,6 +459,7 @@ class ResearchRunWorker:
                     non_data_recompute_step_keys=(
                         revision.non_data_recompute_step_keys
                     ),
+                    relation_adjudications=revision.relation_adjudications,
                 )
             # Fixed pipeline steps need their stable primary Artifact targets
             # before execution. A Gaia SourceTable is assembled by the
@@ -515,6 +524,13 @@ class ResearchRunWorker:
             "activity_name": activity_error.activity_name if activity_error else None,
         }
         if isinstance(cause, PaperSearchExecutionError):
+            return FailureDecision(
+                error_code=cause.code,
+                public_message=cause.public_message,
+                retryable=cause.retryable,
+                **activity_fields,
+            )
+        if isinstance(cause, LiteratureAdmissionExecutionError):
             return FailureDecision(
                 error_code=cause.code,
                 public_message=cause.public_message,

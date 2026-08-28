@@ -9,6 +9,7 @@ from app.workflow.agent_runtime import AgentActivityError
 from app.workflow.research_run_worker import ResearchRunWorker, _step_started_message
 from app.workflow.research_step_runtime import RunStepContext
 from app.workflow.step_publication import StepPublicationFactory
+from services.paper_pipeline.errors import LiteratureAdmissionExecutionError
 
 
 def test_scientific_step_has_a_public_start_message() -> None:
@@ -75,6 +76,26 @@ def test_invalid_model_response_is_not_retried() -> None:
     decision = ResearchRunWorker._classify_failure(error)
 
     assert decision.retryable is False
+
+
+def test_literature_admission_rejection_uses_the_step_retry_budget() -> None:
+    cause = LiteratureAdmissionExecutionError(
+        code="LITERATURE_RELATION_REJECTED",
+        public_message="文献关系输出未通过科学准入，正在重新生成。",
+    )
+    error = AgentActivityError(
+        activity_id="tool-call-relation",
+        activity_kind="observation",
+        activity_name="分析并验证文献证据",
+        cause=cause,
+    )
+
+    decision = ResearchRunWorker._classify_failure(error)
+
+    assert decision.error_code == cause.code
+    assert decision.public_message == cause.public_message
+    assert decision.retryable is True
+    assert decision.activity_id == "tool-call-relation"
 
 
 def test_literature_bindings_materialize_shared_evidence_per_domain_target() -> None:

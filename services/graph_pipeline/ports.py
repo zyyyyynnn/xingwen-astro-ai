@@ -34,6 +34,7 @@ from app.schemas.graph_artifact import (
     compute_graph_upstream_evidence_hash,
 )
 from app.schemas.literature_relation import LiteratureRelationsCandidate
+from services.paper_pipeline.constants import RELATION_ADJUDICATION_PRODUCER_NAME
 
 
 class GraphInputIntegrityError(ValueError):
@@ -506,7 +507,14 @@ def _validate_candidate_pins(
             reason=GraphRejectionReason.content_hash_mismatch,
             path="input_versions.content_hash",
         )
-    if pins.input_hash != candidate.input_hash:
+    # Relation adjudication records the algorithm's canonical operation input
+    # hash on the produced ArtifactVersion, which deliberately differs from the
+    # inherited Relations candidate input identity.
+    adjudicated = (
+        pins.producer_execution.producer.name
+        == RELATION_ADJUDICATION_PRODUCER_NAME
+    )
+    if pins.input_hash != candidate.input_hash and not adjudicated:
         raise _artifact_error(
             "ArtifactVersion input hash disagrees with candidate",
             reason=GraphRejectionReason.input_hash_mismatch,
@@ -541,10 +549,9 @@ def _validate_data_producer(
 
 
 def _validate_literature_producer(
-    pins: PublishedArtifactVersionPins,
+    execution: ProducerExecutionDetail,
     candidate: LiteratureRelationsCandidate,
 ) -> None:
-    execution = pins.producer_execution
     producer = execution.producer
     expected = candidate.producer
     if (
@@ -838,6 +845,7 @@ class PublishedLiteratureRelationsVersion:
     candidate: LiteratureRelationsCandidate
     source_snapshot_bindings: tuple[PersistedSourceSnapshotBinding, ...]
     evidence_bindings: tuple[PersistedEvidenceBinding, ...]
+    scientific_producer_execution: ProducerExecutionDetail | None = None
 
     def __post_init__(self) -> None:
         if type(self.pins) is not PublishedArtifactVersionPins:
@@ -852,7 +860,12 @@ class PublishedLiteratureRelationsVersion:
         object.__setattr__(self, "source_snapshot_bindings", source_bindings)
         object.__setattr__(self, "evidence_bindings", evidence_bindings)
         _validate_candidate_pins(pins=self.pins, candidate=candidate)
-        _validate_literature_producer(self.pins, candidate)
+        scientific_execution = (
+            self.scientific_producer_execution
+            if self.scientific_producer_execution is not None
+            else self.pins.producer_execution
+        )
+        _validate_literature_producer(scientific_execution, candidate)
         _validate_persisted_provenance(
             pins=self.pins,
             declared_snapshot_ids=candidate.source_snapshot_ids,

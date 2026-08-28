@@ -229,19 +229,6 @@
           "title": "Conditions",
           "type": "array"
         },
-        "confidence_assessment_id": {
-          "anyOf": [
-            {
-              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Confidence Assessment Id"
-        },
         "direction": {
           "$ref": "#/$defs/LiteratureRelationDirectionCandidate"
         },

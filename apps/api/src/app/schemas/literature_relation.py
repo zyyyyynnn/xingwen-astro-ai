@@ -179,7 +179,6 @@ class LiteratureRelationModelCandidate(BaseModel):
     comparability: LiteratureRelationComparabilityCandidate
     evidence_ids: tuple[Identifier, ...]
     trace: LiteratureReasoningTraceModelCandidate | None = None
-    confidence_assessment_id: Identifier | None = None
 
     @model_validator(mode="after")
     def validate_sets(self) -> Self:
@@ -252,6 +251,27 @@ class LiteratureRelationConfidenceAssessment(BaseModel):
                 raise ValueError("assessed confidence requires a calibrated score")
         elif self.score is not None:
             raise ValueError("not_evaluable confidence cannot contain a score")
+        return self
+
+
+class LiteratureRelationAdjudication(BaseModel):
+    """Immutable user decision bound to one exact Relation subject."""
+
+    model_config = MODEL_CONFIG
+
+    adjudication_id: Identifier
+    subject: LiteratureRelationConfidenceSubject
+    decision: LiteratureRelationStatus
+    feedback_id: PersistedUuid
+    feedback_hash: ContentHash
+    baseline_relation_artifact_version_id: PersistedUuid
+    baseline_relation_id: Identifier
+    basis: tuple[ShortString, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_decision(self) -> LiteratureRelationAdjudication:
+        if self.decision is LiteratureRelationStatus.candidate:
+            raise ValueError("Relation adjudication must accept or reject")
         return self
 
 
@@ -395,6 +415,7 @@ class LiteratureRelationCandidate(BaseModel):
     source_snapshot_ids: tuple[Identifier | PersistedUuid, ...]
     reasoning_trace_id: Identifier | None = None
     confidence: LiteratureRelationConfidenceAssessment | None = None
+    adjudication: LiteratureRelationAdjudication | None = None
     fingerprint: ContentHash
     status: LiteratureRelationStatus
     failure_stage: LiteratureRelationFailureStage | None = None
@@ -412,8 +433,17 @@ class LiteratureRelationCandidate(BaseModel):
         _require_unique(self.evidence_ids, "LiteratureRelation Evidence")
         _require_unique(self.source_snapshot_ids, "LiteratureRelation SourceSnapshot")
         if self.status is LiteratureRelationStatus.rejected:
-            if self.failure_stage is None or self.rejection_reason is None:
-                raise ValueError("rejected Relation requires stage and reason")
+            pipeline_rejection = (
+                self.failure_stage is not None and self.rejection_reason is not None
+            )
+            adjudicated_rejection = (
+                self.adjudication is not None
+                and self.adjudication.decision is LiteratureRelationStatus.rejected
+            )
+            if pipeline_rejection == adjudicated_rejection:
+                raise ValueError(
+                    "rejected Relation requires exactly one rejection authority"
+                )
             if self.review_reason is not None:
                 raise ValueError("rejected Relation cannot contain review_reason")
         else:
@@ -434,14 +464,21 @@ class LiteratureRelationCandidate(BaseModel):
         if self.status is LiteratureRelationStatus.accepted:
             if self.review_reason is not None:
                 raise ValueError("accepted Relation cannot contain review_reason")
-            if (
-                self.confidence is None
-                or self.confidence.status
-                is not LiteratureRelationConfidenceStatus.assessed
-                or self.confidence.score is None
-                or self.confidence.score < self.confidence.acceptance_threshold
-            ):
-                raise ValueError("accepted Relation requires threshold-passing confidence")
+            adjudicated_acceptance = (
+                self.adjudication is not None
+                and self.adjudication.decision is LiteratureRelationStatus.accepted
+            )
+            calibrated_acceptance = (
+                self.confidence is not None
+                and self.confidence.status
+                is LiteratureRelationConfidenceStatus.assessed
+                and self.confidence.score is not None
+                and self.confidence.score >= self.confidence.acceptance_threshold
+            )
+            if not adjudicated_acceptance and not calibrated_acceptance:
+                raise ValueError(
+                    "accepted Relation requires adjudication or threshold-passing confidence"
+                )
         if (
             self.status is LiteratureRelationStatus.candidate
             and self.review_reason is None
@@ -450,12 +487,13 @@ class LiteratureRelationCandidate(BaseModel):
         expected = compute_literature_relation_fingerprint(self)
         if self.fingerprint != expected:
             raise ValueError(f"fingerprint does not match LiteratureRelation: {expected}")
-        if self.confidence is not None:
+        expected_subject: LiteratureRelationConfidenceSubject | None = None
+        if self.confidence is not None or self.adjudication is not None:
             if (
                 self.source_claim_artifact_version_id is None
                 or self.target_claim_artifact_version_id is None
             ):
-                raise ValueError("confidence requires resolved Relation endpoints")
+                raise ValueError("Relation decision requires resolved endpoints")
             expected_subject = build_literature_relation_confidence_subject(
                 source_claim_artifact_version_id=(
                     self.source_claim_artifact_version_id
@@ -467,11 +505,19 @@ class LiteratureRelationCandidate(BaseModel):
                 target_claim_id=self.target_claim_id,
                 relation_type=self.relation_type,
             )
-            if (
-                self.confidence.subject != expected_subject
-                or self.confidence.decision is not self.status
-            ):
-                raise ValueError("confidence subject/decision does not match Relation")
+        if self.confidence is not None and (
+            self.confidence.subject != expected_subject
+            or (
+                self.adjudication is None
+                and self.confidence.decision is not self.status
+            )
+        ):
+            raise ValueError("confidence subject/decision does not match Relation")
+        if self.adjudication is not None and (
+            self.adjudication.subject != expected_subject
+            or self.adjudication.decision is not self.status
+        ):
+            raise ValueError("adjudication subject/decision does not match Relation")
         return self
 
 
@@ -538,9 +584,7 @@ class LiteratureRelationsCandidate(BaseModel):
     """The only LiteratureRelation Pipeline typed candidate accepted by the generic Publisher port."""
 
     model_config = MODEL_CONFIG
-    __artifact_publication_requires_admission__: ClassVar[bool] = True
-    _artifact_publication_seal: Any = PrivateAttr(default=None)
-    _artifact_publication_context: Any = PrivateAttr(default=None)
+    __artifact_publication_requires_admission__: ClassVar[bool] = False
 
     kind: Literal["literature_relations"] = "literature_relations"
     schema_version: Literal["1.0.0"] = "1.0.0"
@@ -720,21 +764,12 @@ class LiteratureRelationsCandidate(BaseModel):
         expected_hash = compute_literature_relations_output_hash(self)
         if self.output_hash != expected_hash:
             raise ValueError(f"output_hash does not match Relations: {expected_hash}")
-        if self.producer.output_hash != expected_hash:
+        # Adjudicated candidates keep immutable model origin producer; current
+        # algorithm producer lives only in ArtifactVersion/ProducerExecution.
+        has_adjudication = any(item.adjudication is not None for item in self.relations)
+        if not has_adjudication and self.producer.output_hash != expected_hash:
             raise ValueError("ProducerExecution output_hash mismatch")
         return self
-
-    def __artifact_publication_is_admitted__(self) -> bool:
-        from ._literature_relation_seal import (
-            literature_relations_candidate_is_sealed,
-        )
-
-        return literature_relations_candidate_is_sealed(
-            self,
-            self._artifact_publication_seal,
-            self._artifact_publication_context,
-            public_payload_hash=compute_literature_relations_public_payload_hash(self),
-        )
 
 
 class LiteratureRelationAdmissionResult(BaseModel):
@@ -1392,6 +1427,27 @@ def _require_sorted_unique(values: tuple[Any, ...], label: str) -> None:
         raise ValueError(f"{label} values must use stable order")
 
 
+_ADJUDICABLE_REVIEW_REASONS: frozenset[LiteratureRelationReviewReason] = frozenset(
+    {
+        LiteratureRelationReviewReason.confidence_not_evaluable,
+        LiteratureRelationReviewReason.confidence_below_threshold,
+    }
+)
+
+
+def literature_relation_adjudicable(relation: LiteratureRelationCandidate) -> bool:
+    """Whether a human may adjudicate this Relation candidate.
+
+    Single source of truth shared by revision enforcement and presentation so
+    callers never re-derive the confidence-gate rule.
+    """
+    return (
+        relation.status is LiteratureRelationStatus.candidate
+        and relation.confidence is not None
+        and relation.review_reason in _ADJUDICABLE_REVIEW_REASONS
+    )
+
+
 __all__ = [
     "LiteratureClaimArtifactVersionReference",
     "LiteratureComparabilityStatus",
@@ -1399,6 +1455,7 @@ __all__ = [
     "LiteratureReasoningTraceModelCandidate",
     "LiteratureReasoningTraceStepCandidate",
     "LiteratureRelationAdmissionResult",
+    "LiteratureRelationAdjudication",
     "LiteratureRelationBenchmarkCaseKind",
     "LiteratureRelationBenchmarkCaseResult",
     "LiteratureRelationBenchmarkEvaluationCase",
@@ -1428,5 +1485,6 @@ __all__ = [
     "compute_literature_relation_confidence_subject_fingerprint",
     "compute_literature_relations_output_hash",
     "compute_literature_relations_public_payload_hash",
+    "literature_relation_adjudicable",
     "build_literature_relation_confidence_subject",
 ]

@@ -44,6 +44,13 @@ function id(value: string): DomainEntityId {
   return asEntityId(value);
 }
 
+function adjudicationDecision(value: string): "accepted" | "rejected" {
+  if (value !== "accepted" && value !== "rejected") {
+    throw invalid("LiteratureRelation adjudication decision is invalid");
+  }
+  return value;
+}
+
 function invalid(detail: string): ValidationError {
   return new ValidationError(detail, "SCHEMA_VALIDATION_FAILED", []);
 }
@@ -244,6 +251,17 @@ function mapRelation(read: LiteratureRelationRead): LiteratureRelationReview {
           acceptanceThreshold: confidence.acceptance_threshold,
         }
       : null,
+    adjudication: relation.adjudication
+      ? {
+          decision: adjudicationDecision(relation.adjudication.decision),
+          basis: [...relation.adjudication.basis],
+          feedbackId: id(relation.adjudication.feedback_id),
+          baselineArtifactVersionId: id(
+            relation.adjudication.baseline_relation_artifact_version_id,
+          ),
+          baselineRelationId: id(relation.adjudication.baseline_relation_id),
+        }
+      : null,
     evidenceIds: persistedEvidenceIds,
     sourceSnapshotIds: relation.source_snapshot_ids.map(id),
     sourceClaim: claimReference(read.source_claim),
@@ -253,6 +271,7 @@ function mapRelation(read: LiteratureRelationRead): LiteratureRelationReview {
       : null,
     failureStage: relation.failure_stage ?? null,
     rejectionReason: relation.rejection_reason ?? null,
+    reviewReason: relation.review_reason ?? null,
   };
 }
 

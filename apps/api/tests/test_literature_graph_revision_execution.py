@@ -34,6 +34,9 @@ from services.paper_pipeline.constants import (
     CLAIM_PRODUCER_NAME,
     RELATION_PRODUCER_NAME,
 )
+from services.paper_pipeline.relation import (
+    compute_literature_relation_adjudication_input_hash,
+)
 from app.schemas.core import (
     ConfirmResearchContractRequest,
     CreateResearchContractDraftRequest,
@@ -41,9 +44,10 @@ from app.schemas.core import (
     CreateRunRequest,
     ExecutionMode,
 )
-from app.schemas.enums import LiteratureRelationType
+from app.schemas.enums import GraphEdgeType, LiteratureRelationType
 from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.literature_relation import (
+    LiteratureRelationsCandidate,
     build_literature_relation_confidence_subject,
 )
 from app.schemas.manifest import load_manifest_bundle
@@ -60,6 +64,7 @@ from app.schemas.revision import (
     CreateUserFeedbackRequest,
     FeedbackCategory,
     FeedbackTargetType,
+    RelationAdjudicationDecision,
 )
 from app.schemas.scientific_document import (
     DocumentBBox,
@@ -169,25 +174,9 @@ def _claim_payload(
     }
 
 
-def _assessment_id_for(
-    claims_version_id: str, source_claim_id: str, target_claim_id: str
-) -> str:
-    """Mirror the provider-side assessment identity exactly."""
-
-    fingerprint = build_literature_relation_confidence_subject(
-        source_claim_artifact_version_id=claims_version_id,
-        source_claim_id=source_claim_id,
-        target_claim_artifact_version_id=claims_version_id,
-        target_claim_id=target_claim_id,
-        relation_type=LiteratureRelationType.compares_method,
-    ).fingerprint
-    return f"assessment.live_scope.{fingerprint[7:31]}"
-
-
 def _relation_payload(
     claim_a: str,
     claim_b: str,
-    assessment_id: str,
     evidence_ids: list[str] | None = None,
 ) -> dict[str, object]:
     ev_ids = evidence_ids or [_EVIDENCE_ID]
@@ -220,7 +209,6 @@ def _relation_payload(
             "unit_basis": "Neither structural claim declares a unit.",
         },
         "evidence_ids": ev_ids,
-        "confidence_assessment_id": assessment_id,
         "trace": {
             "premise_claim_ids": [claim_a, claim_b],
             "steps": [
@@ -352,7 +340,7 @@ class _RevisionScriptedModel:
                 },
                 latency_ms=2,
                 provider_request_id="req-revision-agent",
-                provider_returned_model="qwen3.8-max-2026-08-01",
+                provider_returned_model="qwen3.7-max-2026-08-01",
                 tool_calls=(
                     ModelToolCall(
                         id=f"call-{uuid4()}",
@@ -438,18 +426,26 @@ class _RevisionScriptedModel:
             claim_ids = [item["claim_id"] for item in claims_list]
             assert len(claim_ids) >= 2, "relation fixture needs two claims"
             ev_ids = claims_list[0].get("evidence_ids") or [_EVIDENCE_ID]
-            claims_version_id = request.input_payload[
-                "literature_claim_artifact_version_ids"
-            ][0]
+            assert "confidence_assessments" not in request.input_payload
+            assert request.input_payload["max_relation_candidates"] == 1
+            comparability_policy = request.input_payload[
+                "relation_comparability_policy"
+            ]
+            pair = next(
+                item
+                for item in comparability_policy["pairs"]
+                if item["source_claim_id"] == claim_ids[0]
+                and item["target_claim_id"] == claim_ids[1]
+            )
+            assert pair["non_structural_allowed"] is True
+            assert pair["non_structural_metric_status"] == "not_applicable"
+            assert pair["non_structural_unit_status"] == "not_applicable"
             payload = {
                 "schema_version": "1.0.0",
                 "relations": (
                     _relation_payload(
                         claim_ids[0],
                         claim_ids[1],
-                        _assessment_id_for(
-                            claims_version_id, claim_ids[0], claim_ids[1]
-                        ),
                         evidence_ids=list(ev_ids),
                     ),
                 ),
@@ -466,7 +462,7 @@ class _RevisionScriptedModel:
             },
             latency_ms=3,
             provider_request_id=f"req-revision-{request.prompt_name}",
-            provider_returned_model="qwen3.8-max-2026-08-01",
+            provider_returned_model="qwen3.7-max-2026-08-01",
         )
 
 
@@ -619,7 +615,7 @@ def _create_chain(postgres_engine: Engine) -> dict[str, object]:
             executor=executor,
             manifests=manifests,
             model_port=model,
-            requested_model="qwen3.8-max",
+            requested_model="qwen3.7-max",
             explicit_revision=None,
             paper_collection_runner=LivePaperCollectionRunner(
                 adapter=adapter,
@@ -671,6 +667,13 @@ def chain(postgres_engine: Engine):
         )
 
 
+@pytest.fixture(scope="function")
+def candidate_chain(postgres_engine: Engine):
+    """Production confidence scope leaves the live Relation for adjudication."""
+
+    return _create_chain(postgres_engine)
+
+
 def _latest_version_id(chain, kind: str) -> UUID:
     with chain["factory"]() as session:
         artifact = session.scalar(
@@ -699,6 +702,8 @@ def _create_feedback_for_target(
     target_type: FeedbackTargetType,
     summary: str = "修正事实",
     requested_change: str = "重新执行相关推理与构建",
+    category: FeedbackCategory = FeedbackCategory.correction,
+    adjudication_decision: RelationAdjudicationDecision | None = None,
 ):
     version_id = str(_latest_version_id(chain, kind))
     version_number = _latest_version_number(chain, kind)
@@ -804,7 +809,8 @@ def _create_feedback_for_target(
                 target_type=target_type,
                 target_id=target_id,
                 target_locator=locator,
-                category=FeedbackCategory.correction,
+                category=category,
+                adjudication_decision=adjudication_decision,
                 summary=summary,
                 requested_change=requested_change,
             ),
@@ -960,6 +966,209 @@ def test_relation_feedback_recomputes_only_affected_closure(chain) -> None:
             item["artifact_version_id"] == str(new_relations)
             for item in graph_row.content["input_versions"]["versions"]
         )
+
+
+_RELATION_SCIENTIFIC_FIELDS = (
+    "relation_id",
+    "pair_id",
+    "source_claim_id",
+    "target_claim_id",
+    "source_claim_artifact_version_id",
+    "target_claim_artifact_version_id",
+    "source_paper_summary_artifact_version_id",
+    "target_paper_summary_artifact_version_id",
+    "relation_type",
+    "direction",
+    "conditions",
+    "condition_conflicts",
+    "condition_uncertainties",
+    "comparability",
+    "evidence_ids",
+    "source_snapshot_ids",
+    "reasoning_trace_id",
+    "confidence",
+    "fingerprint",
+    "scientific_review_status",
+)
+_TRACE_SCIENTIFIC_FIELDS = (
+    "trace_id",
+    "relation_id",
+    "premise_claim_ids",
+    "steps",
+    "conditions",
+    "limitations",
+    "conflicts",
+    "conclusion",
+    "evidence_ids",
+    "trace_protocol_version",
+    "scientific_review_status",
+)
+
+
+def _scientific_projection(value, fields: tuple[str, ...]) -> dict[str, object]:
+    payload = value.model_dump(mode="json")
+    return {field: payload[field] for field in fields}
+
+
+@pytest.mark.parametrize(
+    ("decision", "expected_status", "expected_relation_edges"),
+    (
+        (RelationAdjudicationDecision.accepted, "accepted", 1),
+        (RelationAdjudicationDecision.rejected, "rejected", 0),
+    ),
+)
+def test_relation_adjudication_reuses_claims_and_updates_graph(
+    candidate_chain,
+    decision: RelationAdjudicationDecision,
+    expected_status: str,
+    expected_relation_edges: int,
+) -> None:
+    """A reviewer decision promotes or rejects the exact candidate without model calls."""
+
+    chain = candidate_chain
+    artifacts = ArtifactReadService(chain["factory"])
+    literature = LiteratureArtifactReadService(artifacts)
+    graph = GraphArtifactReadService(artifacts)
+    frozen = {
+        kind: _latest_version_id(chain, kind)
+        for kind in ("literature_claims", "literature_relations", "graph")
+    }
+    baseline_items, _, _ = asyncio.run(
+        literature.list_relations(
+            version_id=str(frozen["literature_relations"]),
+            session_id=chain["session_id"],
+            status=None,
+            cursor=None,
+            limit=10,
+        )
+    )
+    assert len(baseline_items) == 1
+    baseline_item = baseline_items[0]
+    assert baseline_item.relation.status == "candidate"
+    assert baseline_item.relation.adjudication is None
+    assert baseline_item.reasoning_trace is not None
+    graph_before = graph.get_graph(
+        version_id=str(frozen["graph"]), session_id=chain["session_id"]
+    )
+    assert graph_before.edge_count > 0
+    assert graph_before.integrity_report.counts.relation_edge_count == 0
+
+    claims_calls_before = chain["model"].call_counts["literature_claim"]
+    relation_calls_before = chain["model"].call_counts["literature_relation"]
+    feedback = _create_feedback_for_target(
+        chain,
+        kind="literature_relations",
+        target_type=FeedbackTargetType.relation,
+        category=FeedbackCategory.adjudication,
+        adjudication_decision=decision,
+        summary=f"{expected_status} 该候选关系",
+        requested_change=f"将该关系标记为{expected_status}并重建证据图谱",
+    )
+    plan, run_id = _confirm_plan(chain, str(feedback.id))
+    assert plan.recompute_steps == (
+        "planning",
+        "reasoning_literature",
+        "building_graph",
+    )
+    decisions = {item.artifact_kind: item for item in plan.version_decisions}
+    assert decisions["literature_claims"].decision == "reuse"
+    assert decisions["literature_relations"].decision == "recompute"
+    assert decisions["graph"].decision == "recompute"
+
+    asyncio.run(chain["make_worker"]().execute_run(run_id))
+    final = chain["store"].load_snapshot(run_id)
+    assert final.status == "completed", final.failure_summary
+    assert chain["model"].call_counts["literature_claim"] == claims_calls_before
+    assert chain["model"].call_counts["literature_relation"] == relation_calls_before
+    assert _latest_version_id(chain, "literature_claims") == frozen[
+        "literature_claims"
+    ]
+
+    new_relations = _latest_version_id(chain, "literature_relations")
+    new_graph = _latest_version_id(chain, "graph")
+    assert new_relations != frozen["literature_relations"]
+    assert new_graph != frozen["graph"]
+    with chain["factory"]() as session:
+        version = session.get(ArtifactVersionModel, new_relations)
+        assert version is not None
+        assert version.supersedes_version_id == frozen["literature_relations"]
+        producer = session.get(ProducerExecutionModel, version.producer_execution_id)
+        assert producer is not None
+        assert producer.run_id == UUID(str(run_id))
+        assert producer.producer_type == "algorithm"
+        assert producer.producer_name == "xingwen.literature_relation_adjudication"
+        baseline_version = session.get(
+            ArtifactVersionModel, frozen["literature_relations"]
+        )
+        assert baseline_version is not None
+        new_candidate = LiteratureRelationsCandidate.model_validate(version.content)
+        baseline_candidate = LiteratureRelationsCandidate.model_validate(
+            baseline_version.content
+        )
+        adjudications = tuple(
+            relation.adjudication
+            for relation in new_candidate.relations
+            if relation.adjudication is not None
+        )
+        expected_input_hash = compute_literature_relation_adjudication_input_hash(
+            baseline_relation_artifact_version_id=str(frozen["literature_relations"]),
+            baseline_relation_content_hash=baseline_version.content_hash,
+            literature_claim_artifact_version_id=str(frozen["literature_claims"]),
+            adjudications=adjudications,
+        )
+        assert producer.input_hash == expected_input_hash
+        assert producer.input_hash != baseline_candidate.input_hash
+        assert new_candidate.input_hash == baseline_candidate.input_hash
+        revision_producers = tuple(
+            session.scalars(
+                select(ProducerExecutionModel).where(
+                    ProducerExecutionModel.run_id == UUID(str(run_id))
+                )
+            )
+        )
+        assert not any(
+            item.producer_name == RELATION_PRODUCER_NAME
+            for item in revision_producers
+        )
+
+    adjudicated_items, _, _ = asyncio.run(
+        literature.list_relations(
+            version_id=str(new_relations),
+            session_id=chain["session_id"],
+            status=None,
+            cursor=None,
+            limit=10,
+        )
+    )
+    assert len(adjudicated_items) == 1
+    adjudicated_item = adjudicated_items[0]
+    assert adjudicated_item.relation.status == expected_status
+    assert adjudicated_item.relation.adjudication is not None
+    assert adjudicated_item.relation.adjudication.decision == expected_status
+    assert _scientific_projection(
+        adjudicated_item.relation,
+        _RELATION_SCIENTIFIC_FIELDS,
+    ) == _scientific_projection(
+        baseline_item.relation,
+        _RELATION_SCIENTIFIC_FIELDS,
+    )
+    assert adjudicated_item.reasoning_trace is not None
+    assert _scientific_projection(
+        adjudicated_item.reasoning_trace,
+        _TRACE_SCIENTIFIC_FIELDS,
+    ) == _scientific_projection(
+        baseline_item.reasoning_trace,
+        _TRACE_SCIENTIFIC_FIELDS,
+    )
+    assert adjudicated_item.reasoning_trace.relation_status == expected_status
+
+    graph_after = graph.get_graph(
+        version_id=str(new_graph), session_id=chain["session_id"]
+    )
+    assert (
+        graph_after.integrity_report.counts.relation_edge_count
+        == expected_relation_edges
+    )
 
 
 def test_trace_feedback_recomputes_literature_relations_closure(chain) -> None:
@@ -1395,8 +1604,13 @@ def test_literature_evidence_locator_full_provenance_and_graph_build(chain) -> N
     )
     assert len(edges) >= 1
     for item in edges:
-        assert item.edge.relation_trace is not None
-        assert item.edge.relation_trace.relation_id is not None
+        if item.edge.edge_type is GraphEdgeType.supports_finding:
+            assert item.edge.relation_trace is None
+            assert len(item.evidence) >= 1
+        else:
+            assert item.edge.relation_trace is not None
+            assert item.edge.relation_trace.relation_id is not None
+            assert len(item.evidence) >= 1
 
 
 def test_document_parse_backed_summary_revision_preserves_provenance_and_recomputes_graph(
@@ -1562,7 +1776,7 @@ def test_document_parse_backed_summary_revision_preserves_provenance_and_recompu
             executor=executor,
             manifests=manifests,
             model_port=model,
-            requested_model="qwen3.8-max",
+            requested_model="qwen3.7-max",
             explicit_revision=None,
             paper_collection_runner=LivePaperCollectionRunner(
                 adapter=adapter,

@@ -328,10 +328,10 @@ def test_claim_prompt_is_hash_pinned_and_schema_aligned() -> None:
     record = PromptRegistry().get("literature_claim")
     prompt_bytes = (ROOT / "packages" / "prompts" / record.path).read_bytes()
 
-    assert record.version == "1.0.1"
+    assert record.version == "1.0.2"
     assert record.output_models == ("LiteratureClaimExtractionOutput",)
     assert record.content_hash == (
-        "sha256:e102677308262248d92a40699321b21d3c7a8c35d9b9b2082cab5ecdac7fa486"
+        "sha256:e12fecc51d91b976dd385e73e3f98d572b1fb2c59ab97f69b518b2fe4eb47b11"
     )
     assert b"\r" not in prompt_bytes
     assert f"sha256:{sha256(prompt_bytes).hexdigest()}" == record.content_hash
@@ -339,6 +339,8 @@ def test_claim_prompt_is_hash_pinned_and_schema_aligned() -> None:
         record.content_hash
     )
     assert "confidence" in record.content
+    assert "必须始终是 JSON 数组" in record.content
+    assert "默认只保留一个能够代表该断言的主要科研对象" in record.content
     assert "ReasoningTrace" in record.content
     assert "chain-of-thought" in record.content
 
@@ -436,7 +438,7 @@ def test_valid_claim_is_fully_traceable_and_publisher_ready() -> None:
     assert claim.model_response_hash == result.producer.model_response_hash
     assert candidate.input_versions.paper_summary_output_hash == _summary().output_hash
     assert candidate.producer.prompt_name == "literature_claim"
-    assert candidate.producer.prompt_version == "1.0.1"
+    assert candidate.producer.prompt_version == "1.0.2"
     assert candidate.producer.model_name == "qwen.fixture.1"
     assert candidate.producer.parameters_version == CLAIM_PARAMETERS_VERSION
     assert candidate.producer.output_hash == candidate.output_hash
@@ -793,7 +795,7 @@ def test_prompt_definition_change_changes_input_and_output_hashes(
     shutil.copytree(ROOT / "packages" / "prompts", prompt_root)
     prompt_path = prompt_root / "literature_claim" / "prompt.md"
     changed_content = prompt_path.read_text(encoding="utf-8").replace(
-        "version: 1.0.1",
+        "version: 1.0.2",
         "version: 2.0.0",
         1,
     )
@@ -816,7 +818,7 @@ def test_prompt_definition_change_changes_input_and_output_hashes(
         prompt_registry=PromptRegistry(prompt_root),
     )
 
-    assert first.producer.prompt_version == "1.0.1"
+    assert first.producer.prompt_version == "1.0.2"
     assert second.producer.prompt_version == "2.0.0"
     assert first.producer.input_hash != second.producer.input_hash
     assert first.output_hash != second.output_hash

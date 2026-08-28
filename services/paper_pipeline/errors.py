@@ -19,3 +19,13 @@ class PaperSearchExecutionError(RuntimeError):
         self.public_message = public_message
         self.retryable = retryable
         self.producer_status = producer_status
+
+
+class LiteratureAdmissionExecutionError(RuntimeError):
+    """Retryable rejection from the production literature admission boundary."""
+
+    def __init__(self, *, code: str, public_message: str) -> None:
+        super().__init__(code)
+        self.code = code
+        self.public_message = public_message
+        self.retryable = True

@@ -1,6 +1,6 @@
 ---
 name: literature_claim
-version: 1.0.1
+version: 1.0.2
 output_model: LiteratureClaimExtractionOutput
 input_schema_version: 1.0.0
 output_schema_version: 1.0.0
@@ -21,6 +21,13 @@ evidence_required: true
   `claim_type`、`polarity`、`objects`、`metric`、`unit`、`conditions`、`scope`、
   `limitations`、`qualifiers`、`uncertainty`、`comparison_basis` 和
   `evidence_ids`。
+- `objects`、`conditions`、`scope`、`limitations`、`qualifiers` 和
+  `evidence_ids` 必须始终是 JSON 数组；没有对应内容时使用空数组。`metric`、
+  `unit`、`uncertainty` 和 `comparison_basis` 必须是 JSON 字符串或 `null`。
+- `objects` 默认只保留一个能够代表该断言的主要科研对象，不把数据来源、条件、
+  方法和指标重复列为对象。只有 statement 明确比较多个科研对象时才允许多个
+  `objects`，且此时 `comparison_basis` 必须是说明比较口径的非空字符串；单对象时
+  `comparison_basis` 为 `null`。
 - `claim_type` 只使用契约枚举；finding、method、dataset、limitation 分别保持原
   Summary statement 的科研角色。
 - 每条 Claim 只引用一个明确的 Summary statement，并且每个 `evidence_id` 必须

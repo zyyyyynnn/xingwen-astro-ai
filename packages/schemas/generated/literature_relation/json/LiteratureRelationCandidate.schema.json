@@ -9,6 +9,67 @@
       "title": "LiteratureComparabilityStatus",
       "type": "string"
     },
+    "LiteratureRelationAdjudication": {
+      "additionalProperties": false,
+      "description": "Immutable user decision bound to one exact Relation subject.",
+      "properties": {
+        "adjudication_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Adjudication Id",
+          "type": "string"
+        },
+        "baseline_relation_artifact_version_id": {
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "title": "Baseline Relation Artifact Version Id",
+          "type": "string"
+        },
+        "baseline_relation_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Baseline Relation Id",
+          "type": "string"
+        },
+        "basis": {
+          "items": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Basis",
+          "type": "array"
+        },
+        "decision": {
+          "$ref": "#/$defs/LiteratureRelationStatus"
+        },
+        "feedback_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Feedback Hash",
+          "type": "string"
+        },
+        "feedback_id": {
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "title": "Feedback Id",
+          "type": "string"
+        },
+        "subject": {
+          "$ref": "#/$defs/LiteratureRelationConfidenceSubject"
+        }
+      },
+      "required": [
+        "adjudication_id",
+        "subject",
+        "decision",
+        "feedback_id",
+        "feedback_hash",
+        "baseline_relation_artifact_version_id",
+        "baseline_relation_id",
+        "basis"
+      ],
+      "title": "LiteratureRelationAdjudication",
+      "type": "object"
+    },
     "LiteratureRelationComparabilityCandidate": {
       "additionalProperties": false,
       "properties": {
@@ -343,6 +404,17 @@
   },
   "additionalProperties": false,
   "properties": {
+    "adjudication": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LiteratureRelationAdjudication"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "comparability": {
       "$ref": "#/$defs/LiteratureRelationComparabilityCandidate"
     },

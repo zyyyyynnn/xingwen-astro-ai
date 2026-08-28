@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from typing import Callable, Protocol, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
@@ -34,7 +34,10 @@ from app.schemas.data_artifacts import (
     SourceTableArtifactAuthority,
 )
 from app.schemas.literature_claim import LiteratureClaimsCandidate
-from app.schemas.literature_relation import LiteratureRelationsCandidate
+from app.schemas.literature_relation import (
+    LiteratureRelationAdjudication,
+    LiteratureRelationsCandidate,
+)
 from app.schemas.paper_collection import PaperCollection
 from app.schemas.paper_summary import PaperSummaryArtifactContent
 from app.services.model_execution import (
@@ -93,6 +96,9 @@ class RunStepContext:
     data_revision: DataRevisionExecutionInput | None = None
     data_recompute_step_key: str | None = None
     non_data_recompute_step_keys: frozenset[str] = frozenset()
+    relation_adjudications: dict[str, LiteratureRelationAdjudication] = field(
+        default_factory=dict
+    )
     paper_collection: PaperCollection | None = None
     paper_summary: PaperSummaryArtifactContent | None = None
     literature_claims: LiteratureClaimsCandidate | None = None

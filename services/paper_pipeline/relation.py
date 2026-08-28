@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
@@ -26,6 +26,7 @@ from app.schemas.literature_relation import (
     LiteratureReasoningTraceCandidate,
     LiteratureReasoningTraceStepCandidate,
     LiteratureRelationAdmissionResult,
+    LiteratureRelationAdjudication,
     LiteratureRelationCandidate,
     LiteratureRelationConfidenceAssessment,
     LiteratureRelationConfidenceSubject,
@@ -47,10 +48,7 @@ from app.schemas.literature_relation import (
     compute_literature_relations_output_hash,
     compute_literature_relations_public_payload_hash,
 )
-from app.schemas._literature_relation_seal import (
-    LiteratureRelationAdmissionSnapshot,
-    _bind_literature_relation_pipeline_authority,
-)
+
 from app.schemas.paper_summary import PaperSummaryEvidence
 from packages.prompts.registry import PromptRegistry
 
@@ -73,6 +71,7 @@ from .constants import (
     RELATION_SCHEMA_VERSION,
     RELATION_TRACE_PROTOCOL_VERSION,
 )
+from .relation_pairing import expected_literature_relation_comparability
 from .summary import ParameterValue, _validate_parameters
 
 
@@ -145,7 +144,6 @@ class LiteratureRelationPipeline:
         available_source_snapshot_ids: frozenset[str] | None = None,
         available_paper_summary_artifact_version_ids: frozenset[str] | None = None,
         existing_relation_fingerprints: frozenset[str] = frozenset(),
-        _authority_minter: Callable[..., LiteratureRelationsCandidate],
     ) -> LiteratureRelationAdmissionResult:
         requested_ids = tuple(sorted(set(literature_claim_artifact_version_ids)))
         if not requested_ids:
@@ -364,41 +362,6 @@ class LiteratureRelationPipeline:
         producer_payload["output_hash"] = output_hash
         candidate_payload["output_hash"] = output_hash
         candidate = LiteratureRelationsCandidate.model_validate(candidate_payload)
-        public_payload_hash = compute_literature_relations_public_payload_hash(candidate)
-        commitment_input = json.dumps(
-            {
-                "input_hash": input_hash,
-                "model_response_hash": response_hash,
-                "output_hash": output_hash,
-                "input_artifact_version_ids": requested_ids,
-            },
-            ensure_ascii=False,
-            separators=(",", ":"),
-            sort_keys=True,
-        )
-        context_hash = compute_canonical_payload_hash(
-            {"input_json": commitment_input, "input_hash": input_hash}
-        )
-        admission_commitment_hash = compute_canonical_payload_hash(
-            {
-                "candidate_kind": candidate.kind,
-                "schema_version": candidate.schema_version,
-                "input_hash": input_hash,
-                "output_hash": output_hash,
-                "public_payload_hash": public_payload_hash,
-                "context_hash": context_hash,
-            }
-        )
-        candidate = _authority_minter(
-            candidate,
-            LiteratureRelationAdmissionSnapshot(
-                input_json=commitment_input,
-                input_hash=input_hash,
-                context_hash=context_hash,
-                admission_commitment_hash=admission_commitment_hash,
-            ),
-            public_payload_hash=public_payload_hash,
-        )
         return LiteratureRelationAdmissionResult(
             admission_status=status,
             records=records,
@@ -408,11 +371,216 @@ class LiteratureRelationPipeline:
             output_hash=output_hash,
         )
 
+    def adjudicate(
+        self,
+        *,
+        baseline: LiteratureRelationsCandidate,
+        baseline_artifact_version_id: str,
+        literature_claim_artifact_version_id: str,
+        adjudications: Mapping[str, LiteratureRelationAdjudication],
+    ) -> LiteratureRelationsCandidate:
+        """Deterministic review-state transition without model execution.
+
+        Only relations in ``candidate`` state gated by
+        ``confidence_not_evaluable`` or ``confidence_below_threshold`` may be
+        adjudicated. Scientific content remains identical; only
+        ``relation.status``, ``relation.adjudication``,
+        ``relation.review_reason``, ``trace.relation_status``,
+        ``status_counts`` and content/output identity change.
+        """
+
+        if not baseline_artifact_version_id.strip():
+            raise ValueError("baseline ArtifactVersion id is required")
+        if not literature_claim_artifact_version_id.strip():
+            raise ValueError("LiteratureClaims ArtifactVersion id is required")
+        # Frozen claim identity must match baseline.
+        claim_version_ids = tuple(
+            item.artifact_version_id
+            for item in baseline.input_versions.claim_artifact_versions
+        )
+        if literature_claim_artifact_version_id not in claim_version_ids:
+            raise ValueError(
+                "adjudicated Relation does not use the frozen LiteratureClaims version"
+            )
+        if not adjudications:
+            raise ValueError("at least one adjudication is required")
+
+        # Validate adjudications and build lookup by relation_id.
+        baseline_relations = {item.relation_id: item for item in baseline.relations}
+        adjudication_by_relation: dict[str, LiteratureRelationAdjudication] = {}
+        for mapping_id, adjudication in adjudications.items():
+            # Re-validate adjudication via Pydantic to ensure canonical form.
+            validated = LiteratureRelationAdjudication.model_validate(
+                adjudication.model_dump(mode="json", exclude_none=True)
+            )
+            if mapping_id != validated.adjudication_id:
+                raise ValueError("adjudication mapping key must equal adjudication_id")
+            relation_id = validated.baseline_relation_id
+            if validated.baseline_relation_artifact_version_id != baseline_artifact_version_id:
+                raise ValueError("adjudication baseline ArtifactVersion mismatch")
+            relation = baseline_relations.get(relation_id)
+            if relation is None:
+                raise ValueError(f"adjudication targets unknown relation {relation_id}")
+            if relation.status is not LiteratureRelationStatus.candidate:
+                raise ValueError("only candidate relations may be adjudicated")
+            if relation.adjudication is not None:
+                raise ValueError("relation already adjudicated")
+            if relation.confidence is None:
+                raise ValueError("relation has no confidence assessment to adjudicate")
+            if relation.review_reason not in {
+                LiteratureRelationReviewReason.confidence_not_evaluable,
+                LiteratureRelationReviewReason.confidence_below_threshold,
+            }:
+                raise ValueError("relation is not gated for human adjudication")
+            if validated.subject != relation.confidence.subject:
+                raise ValueError("adjudication subject does not match relation confidence")
+            if validated.decision not in {
+                LiteratureRelationStatus.accepted,
+                LiteratureRelationStatus.rejected,
+            }:
+                raise ValueError("adjudication decision must be accepted or rejected")
+            if relation_id in adjudication_by_relation:
+                raise ValueError(f"duplicate adjudication for relation {relation_id}")
+            adjudication_by_relation[relation_id] = validated
+
+        # Build new relations with only review-state changes.
+        new_relations: list[LiteratureRelationCandidate] = []
+        for relation in baseline.relations:
+            adjudication = adjudication_by_relation.get(relation.relation_id)
+            if adjudication is None:
+                # Unrelated relations must stay identical.
+                new_relations.append(relation)
+                continue
+            # Science fields must remain identical except review state.
+            # Copy relation payload and update only allowed fields.
+            payload = relation.model_dump(mode="json", exclude_none=True)
+            payload["status"] = adjudication.decision.value
+            payload["adjudication"] = adjudication.model_dump(
+                mode="json", exclude_none=True
+            )
+            payload["review_reason"] = None
+            # adjudicated accepted/rejected must clear pipeline rejection metadata
+            payload["failure_stage"] = None
+            payload["rejection_reason"] = None
+            new_relation = LiteratureRelationCandidate.model_validate(payload)
+            # Ensure scientific identity preserved (except allowed fields)
+            for field in (
+                "relation_id",
+                "pair_id",
+                "source_claim_id",
+                "target_claim_id",
+                "source_claim_artifact_version_id",
+                "target_claim_artifact_version_id",
+                "source_paper_summary_artifact_version_id",
+                "target_paper_summary_artifact_version_id",
+                "relation_type",
+                "direction",
+                "conditions",
+                "condition_conflicts",
+                "condition_uncertainties",
+                "comparability",
+                "evidence_ids",
+                "source_snapshot_ids",
+                "reasoning_trace_id",
+                "fingerprint",
+            ):
+                if getattr(relation, field) != getattr(new_relation, field):
+                    raise ValueError("adjudication changed frozen scientific content")
+            new_relations.append(new_relation)
+
+        # Build new traces with updated relation_status.
+        baseline_traces = {item.trace_id: item for item in baseline.reasoning_traces}
+        new_traces: list[LiteratureReasoningTraceCandidate] = []
+        for trace in baseline.reasoning_traces:
+            relation = next(
+                (item for item in new_relations if item.relation_id == trace.relation_id),
+                None,
+            )
+            if relation is None:
+                raise ValueError("trace relation mismatch")
+            if trace.relation_id in adjudication_by_relation:
+                if trace.relation_status == relation.status:
+                    raise ValueError("trace status already matches adjudication")
+                updated = trace.model_copy(update={"relation_status": relation.status})
+                # Validate trace still consistent
+                if updated.relation_id != trace.relation_id:
+                    raise ValueError("trace relation_id changed")
+                new_traces.append(updated)
+            else:
+                if trace.relation_status != relation.status:
+                    raise ValueError("unrelated trace status changed")
+                new_traces.append(trace)
+
+        # Recompute status_counts and hashes; keep all other top-level fields identical.
+        status_counts = _status_counts(tuple(new_relations))
+        candidate_payload = baseline.model_dump(mode="json", exclude_none=True)
+        # Update only mutable review-state fields.
+        candidate_payload["relations"] = [
+            item.model_dump(mode="json", exclude_none=True) for item in new_relations
+        ]
+        candidate_payload["reasoning_traces"] = [
+            item.model_dump(mode="json", exclude_none=True) for item in new_traces
+        ]
+        candidate_payload["status_counts"] = status_counts.model_dump(mode="json")
+        # Remove old output_hash so it will be recomputed.
+        candidate_payload.pop("output_hash", None)
+        # Producer remains immutable model origin — do not rewrite run_id/latency/input_hash/model_response.
+        # Compute new output_hash deterministically from content.
+        new_output_hash = compute_literature_relations_output_hash(candidate_payload)
+        candidate_payload["output_hash"] = new_output_hash
+        # For adjudicated candidates, producer.output_hash is intentionally the original
+        # model output_hash, not the new adjudicated output_hash. The schema validation
+        # is relaxed to allow this; the current version's algorithm producer lives only
+        # in ArtifactVersion/ProducerExecution.
+        # Keep producer as baseline's origin.
+        new_candidate = LiteratureRelationsCandidate.model_validate(candidate_payload)
+        return new_candidate
+
     def _now(self) -> datetime:
         value = self.clock()
         if value.tzinfo is None:
             raise ValueError("Relation pipeline clock must return timezone-aware datetime")
         return value
+
+
+def compute_literature_relation_adjudication_input_hash(
+    *,
+    baseline_relation_artifact_version_id: str,
+    baseline_relation_content_hash: str,
+    literature_claim_artifact_version_id: str,
+    adjudications: Iterable[LiteratureRelationAdjudication],
+) -> str:
+    """Canonical input identity of one deterministic human-adjudication operation.
+
+    Binds only the immutable facts the adjudication algorithm consumes: the exact
+    frozen baseline LiteratureRelations version identity and content hash, the exact
+    frozen LiteratureClaims version identity, and the canonical sorted adjudications.
+    It deliberately excludes model responses, prompts, latency, model names, run
+    state, and any hash-of-hash. The workflow ProducerExecution input identity and
+    the read-side validation must both reuse this single function.
+    """
+
+    baseline_id = baseline_relation_artifact_version_id.strip()
+    claim_id = literature_claim_artifact_version_id.strip()
+    if not baseline_id:
+        raise ValueError("baseline LiteratureRelations ArtifactVersion id is required")
+    if not baseline_relation_content_hash.strip():
+        raise ValueError("baseline LiteratureRelations content hash is required")
+    if not claim_id:
+        raise ValueError("frozen LiteratureClaims ArtifactVersion id is required")
+    ordered = sorted(adjudications, key=lambda item: item.adjudication_id)
+    if not ordered:
+        raise ValueError("at least one adjudication is required")
+    return compute_canonical_payload_hash(
+        {
+            "baseline_relation_artifact_version_id": baseline_id,
+            "baseline_relation_content_hash": baseline_relation_content_hash,
+            "literature_claim_artifact_version_id": claim_id,
+            "adjudications": [
+                item.model_dump(mode="json", exclude_none=True) for item in ordered
+            ],
+        }
+    )
 
 
 def _fatal_rejection(
@@ -773,8 +941,20 @@ def _admit_relations(
                 source_claim=source_claim,
                 target_claim=target_claim,
             )
+        expected_confidence_subject = (
+            None
+            if source_version_id is None or target_version_id is None
+            else build_literature_relation_confidence_subject(
+                source_claim_artifact_version_id=source_version_id,
+                source_claim_id=candidate.source_claim_id,
+                target_claim_artifact_version_id=target_version_id,
+                target_claim_id=candidate.target_claim_id,
+                relation_type=candidate.relation_type,
+            )
+        )
         confidence = _confidence(
-            candidate.confidence_assessment_id, confidence_assessments
+            expected_subject=expected_confidence_subject,
+            assessments=confidence_assessments,
         )
         unsafe_authored_text = _contains_unsafe_authored_text(candidate, confidence)
         trace_failure = (
@@ -790,19 +970,7 @@ def _admit_relations(
         )
         if reason is None and trace_failure is not None:
             stage, reason = trace_failure
-        expected_confidence_subject = (
-            None
-            if source_version_id is None or target_version_id is None
-            else build_literature_relation_confidence_subject(
-                source_claim_artifact_version_id=source_version_id,
-                source_claim_id=candidate.source_claim_id,
-                target_claim_artifact_version_id=target_version_id,
-                target_claim_id=candidate.target_claim_id,
-                relation_type=candidate.relation_type,
-            )
-        )
         confidence_failure = _confidence_failure(
-            candidate.confidence_assessment_id,
             confidence,
             expected_subject=expected_confidence_subject,
         )
@@ -863,6 +1031,7 @@ def _admit_relations(
             and decision_matches
             else None
         )
+        retained_adjudication = None
 
         trace_evidence_ids = (
             ()
@@ -985,6 +1154,11 @@ def _admit_relations(
                     if retained_confidence is None
                     else _safe_confidence_payload(retained_confidence)
                 ),
+                "adjudication": (
+                    None
+                    if retained_adjudication is None
+                    else _safe_adjudication_payload(retained_adjudication)
+                ),
                 "fingerprint": fingerprint,
                 "status": status,
                 "failure_stage": stage,
@@ -1078,23 +1252,13 @@ def _comparability_failure(
             LiteratureRelationFailureStage.comparability,
             LiteratureRelationRejectionReason.object_incomparable,
         )
-    if candidate.relation_type in {
-        LiteratureRelationType.derived_from,
-        LiteratureRelationType.uses_same_dataset,
-        LiteratureRelationType.compares_method,
-    }:
-        if comparison.metric_status is not LiteratureComparabilityStatus.not_applicable:
-            return (
-                LiteratureRelationFailureStage.comparability,
-                LiteratureRelationRejectionReason.metric_incomparable,
-            )
-        if comparison.unit_status is not LiteratureComparabilityStatus.not_applicable:
-            return (
-                LiteratureRelationFailureStage.comparability,
-                LiteratureRelationRejectionReason.unit_incomparable,
-            )
-        return None, None
-    metric_expected = _expected_comparability(source_claim.metric, target_claim.metric)
+    metric_expected, unit_expected = expected_literature_relation_comparability(
+        relation_type=candidate.relation_type,
+        source_metric=source_claim.metric,
+        target_metric=target_claim.metric,
+        source_unit=source_claim.unit,
+        target_unit=target_claim.unit,
+    )
     if (
         comparison.metric_status is not metric_expected
         or metric_expected is LiteratureComparabilityStatus.incomparable
@@ -1103,7 +1267,6 @@ def _comparability_failure(
             LiteratureRelationFailureStage.comparability,
             LiteratureRelationRejectionReason.metric_incomparable,
         )
-    unit_expected = _expected_comparability(source_claim.unit, target_claim.unit)
     if (
         comparison.unit_status is not unit_expected
         or unit_expected is LiteratureComparabilityStatus.incomparable
@@ -1113,16 +1276,6 @@ def _comparability_failure(
             LiteratureRelationRejectionReason.unit_incomparable,
         )
     return None, None
-
-
-def _expected_comparability(
-    source: str | None, target: str | None
-) -> LiteratureComparabilityStatus:
-    if source is None and target is None:
-        return LiteratureComparabilityStatus.not_applicable
-    if source is not None and target is not None and source.casefold() == target.casefold():
-        return LiteratureComparabilityStatus.comparable
-    return LiteratureComparabilityStatus.incomparable
 
 
 def _trace_failure(
@@ -1217,15 +1370,41 @@ def _trace_failure(
 
 
 def _confidence(
-    assessment_id: str | None,
+    *,
+    expected_subject: LiteratureRelationConfidenceSubject | None,
     assessments: Mapping[str, LiteratureRelationConfidenceAssessment],
 ) -> LiteratureRelationConfidenceAssessment | None:
-    if assessment_id is None:
+    if expected_subject is None:
         return None
-    assessment = assessments.get(assessment_id)
-    if assessment is None or assessment.assessment_id != assessment_id:
+    available = tuple(
+        assessment
+        for mapping_id, assessment in assessments.items()
+        if mapping_id == assessment.assessment_id
+    )
+    matches = tuple(
+        assessment
+        for assessment in available
+        if assessment.subject == expected_subject
+    )
+    if len(matches) != 1:
+        return available[0] if not matches and len(available) == 1 else None
+    return matches[0]
+
+
+def _adjudication(
+    *,
+    expected_subject: LiteratureRelationConfidenceSubject | None,
+    adjudications: Mapping[str, LiteratureRelationAdjudication],
+) -> LiteratureRelationAdjudication | None:
+    if expected_subject is None:
         return None
-    return assessment
+    matches = tuple(
+        adjudication
+        for mapping_id, adjudication in adjudications.items()
+        if mapping_id == adjudication.adjudication_id
+        and adjudication.subject == expected_subject
+    )
+    return matches[0] if len(matches) == 1 else None
 
 
 def _contains_unsafe_authored_text(
@@ -1287,6 +1466,14 @@ def _safe_confidence_payload(
     return payload
 
 
+def _safe_adjudication_payload(
+    adjudication: LiteratureRelationAdjudication,
+) -> dict[str, Any]:
+    payload = adjudication.model_dump(mode="json", exclude_none=True)
+    payload["basis"] = list(_safe_text_tuple(adjudication.basis))
+    return payload
+
+
 def _confidence_inputs(
     assessments: Mapping[str, LiteratureRelationConfidenceAssessment],
 ) -> tuple[
@@ -1317,13 +1504,44 @@ def _confidence_inputs(
     return valid, payload
 
 
+def _adjudication_inputs(
+    adjudications: Mapping[str, LiteratureRelationAdjudication],
+) -> tuple[dict[str, LiteratureRelationAdjudication], list[dict[str, Any]]]:
+    valid: dict[str, LiteratureRelationAdjudication] = {}
+    payload: list[dict[str, Any]] = []
+    for key, value in sorted(adjudications.items()):
+        try:
+            raw = value.model_dump(mode="json", exclude_none=True)
+            adjudication = LiteratureRelationAdjudication.model_validate(raw)
+        except (
+            ValidationError,
+            PydanticSerializationError,
+            AttributeError,
+            TypeError,
+        ):
+            payload.append({"mapping_id": key, "invalid_adjudication": True})
+            continue
+        if key != adjudication.adjudication_id:
+            payload.append({"mapping_id": key, "invalid_adjudication": True})
+            continue
+        valid[key] = adjudication
+        payload.append(
+            {
+                "mapping_id": key,
+                "adjudication": adjudication.model_dump(
+                    mode="json", exclude_none=True
+                ),
+            }
+        )
+    return valid, payload
+
+
 def _confidence_failure(
-    assessment_id: str | None,
     confidence: LiteratureRelationConfidenceAssessment | None,
     *,
     expected_subject: LiteratureRelationConfidenceSubject | None,
 ) -> tuple[LiteratureRelationFailureStage, LiteratureRelationRejectionReason] | None:
-    if assessment_id is None or confidence is None:
+    if confidence is None:
         return (
             LiteratureRelationFailureStage.confidence,
             LiteratureRelationRejectionReason.confidence_undefined,
@@ -1409,12 +1627,6 @@ def _status_counts(
         ),
         rejected=sum(item.status is LiteratureRelationStatus.rejected for item in records),
     )
-
-
-LiteratureRelationPipeline = _bind_literature_relation_pipeline_authority(
-    LiteratureRelationPipeline
-)
-del _bind_literature_relation_pipeline_authority
 
 
 __all__ = [

@@ -7,7 +7,7 @@ import binascii
 import hashlib
 import hmac
 import json
-from collections.abc import Collection, Iterable, Mapping
+from collections.abc import Callable, Collection, Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any, TypeVar
 
@@ -41,6 +41,12 @@ from app.schemas.literature_relation import (
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
 from app.services.paper_summaries import PaperSummaryReadPort, PaperSummaryReadService
+from services.paper_pipeline.constants import (
+    RELATION_ADJUDICATION_PRODUCER_NAME,
+)
+from services.paper_pipeline.relation import (
+    compute_literature_relation_adjudication_input_hash,
+)
 
 _MAX_PAGE_SIZE = 100
 _MAX_CONTENT_BYTES = 10 * 1024 * 1024
@@ -399,7 +405,13 @@ class LiteratureArtifactReadService:
             > _MAX_DOMAIN_ITEMS
         ):
             raise _capacity_problem("LiteratureRelation")
-        _validate_runtime_producer(version, candidate)
+        _validate_runtime_producer(
+            version,
+            candidate,
+            read_version=lambda v_id: self._version(
+                version_id=v_id, session_id=session_id
+            ),
+        )
 
         claim_reads: dict[str, LiteratureClaimRead] = {}
         upstream_claims: dict[str, LiteratureClaimCandidate] = {}
@@ -660,10 +672,14 @@ def _validated_candidate(
         candidate = model.model_validate(version.content)  # type: ignore[attr-defined]
     except ValidationError as exc:
         raise _schema_problem(error_code) from exc
+    # Relation adjudication records the algorithm's canonical operation input
+    # hash on the ArtifactVersion, which deliberately differs from the
+    # inherited Relations candidate input identity.
+    adjudicated = version.producer.name == RELATION_ADJUDICATION_PRODUCER_NAME
     if (
         version.schema_version != candidate.schema_version  # type: ignore[attr-defined]
         or version.content_hash != compute_canonical_payload_hash(version.content)
-        or version.input_hash != candidate.input_hash  # type: ignore[attr-defined]
+        or (version.input_hash != candidate.input_hash and not adjudicated)  # type: ignore[attr-defined]
     ):
         raise _schema_problem(error_code)
     return candidate
@@ -672,37 +688,150 @@ def _validated_candidate(
 def _validate_runtime_producer(
     version: ArtifactVersionDetail,
     candidate: LiteratureClaimsCandidate | LiteratureRelationsCandidate,
+    read_version: Callable[[str], ArtifactVersionDetail] | None = None,
 ) -> None:
     producer = candidate.producer
     runtime = version.producer_execution
     if (
-        runtime.run_id != version.created_by_run_id
-        or runtime.step_key != producer.step_key
-        or runtime.producer.type != producer.producer_type
-        or runtime.producer.name != producer.producer_name
-        or runtime.producer.version != producer.producer_version
-        or runtime.producer.requested_model != producer.model_name
-        or runtime.producer.prompt_name != producer.prompt_name
-        or runtime.producer.prompt_version != producer.prompt_version
-        or runtime.producer.prompt_hash != producer.prompt_hash
-        or runtime.parameters_hash != producer.parameters_hash
-        or runtime.producer.parameters_hash != producer.parameters_hash
-        or runtime.input_hash != candidate.input_hash
-        or runtime.output_hash != version.content_hash
-        or runtime.status != "completed"
-        or version.producer != runtime.producer
+        isinstance(candidate, LiteratureRelationsCandidate)
+        and version.producer.name == RELATION_ADJUDICATION_PRODUCER_NAME
     ):
-        raise _schema_problem(
-            "LITERATURE_CLAIMS_SCHEMA_INVALID"
-            if candidate.kind == "literature_claims"
-            else "LITERATURE_RELATIONS_SCHEMA_INVALID"
-        )
-    if producer.run_id is not None and producer.run_id != version.created_by_run_id:
-        raise _schema_problem(
-            "LITERATURE_CLAIMS_SCHEMA_INVALID"
-            if candidate.kind == "literature_claims"
-            else "LITERATURE_RELATIONS_SCHEMA_INVALID"
-        )
+        if (
+            runtime.run_id != version.created_by_run_id
+            or runtime.producer.type != "algorithm"
+            or runtime.producer.name != RELATION_ADJUDICATION_PRODUCER_NAME
+            or runtime.output_hash != version.content_hash
+            or runtime.status != "completed"
+            or version.producer != runtime.producer
+            or version.supersedes_version_id is None
+        ):
+            raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
+        if read_version is not None:
+            predecessor = read_version(version.supersedes_version_id)
+            if (
+                predecessor.id != version.supersedes_version_id
+                or predecessor.artifact_id != version.artifact_id
+                or predecessor.producer.type != "model"
+            ):
+                raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
+            claim_versions = candidate.input_versions.claim_artifact_versions
+            adjudications = tuple(
+                relation.adjudication
+                for relation in candidate.relations
+                if relation.adjudication is not None
+            )
+            if (
+                len(claim_versions) != 1
+                or not adjudications
+                or any(
+                    str(item.baseline_relation_artifact_version_id)
+                    != str(version.supersedes_version_id)
+                    for item in adjudications
+                )
+            ):
+                raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
+            expected_input_hash = compute_literature_relation_adjudication_input_hash(
+                baseline_relation_artifact_version_id=str(version.supersedes_version_id),
+                baseline_relation_content_hash=predecessor.content_hash,
+                literature_claim_artifact_version_id=str(
+                    claim_versions[0].artifact_version_id
+                ),
+                adjudications=adjudications,
+            )
+            if runtime.input_hash != expected_input_hash:
+                raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
+            try:
+                predecessor_candidate = LiteratureRelationsCandidate.model_validate(
+                    predecessor.content
+                )
+            except Exception as exc:
+                raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID") from exc
+            if (
+                candidate.input_versions != predecessor_candidate.input_versions
+                or candidate.claims != predecessor_candidate.claims
+                or candidate.evidence != predecessor_candidate.evidence
+                or candidate.evidence_references != predecessor_candidate.evidence_references
+                or candidate.evidence_ids != predecessor_candidate.evidence_ids
+                or candidate.source_snapshot_ids != predecessor_candidate.source_snapshot_ids
+                or candidate.input_hash != predecessor_candidate.input_hash
+                or candidate.producer != predecessor_candidate.producer
+            ):
+                raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
+            predecessor_relations = {
+                item.relation_id: item for item in predecessor_candidate.relations
+            }
+            current_relations = {item.relation_id: item for item in candidate.relations}
+            if set(predecessor_relations) != set(current_relations):
+                raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
+            for relation_id, before in predecessor_relations.items():
+                after = current_relations[relation_id]
+                if (
+                    before.pair_id != after.pair_id
+                    or before.source_claim_id != after.source_claim_id
+                    or before.target_claim_id != after.target_claim_id
+                    or before.source_claim_artifact_version_id
+                    != after.source_claim_artifact_version_id
+                    or before.target_claim_artifact_version_id
+                    != after.target_claim_artifact_version_id
+                    or before.source_paper_summary_artifact_version_id
+                    != after.source_paper_summary_artifact_version_id
+                    or before.target_paper_summary_artifact_version_id
+                    != after.target_paper_summary_artifact_version_id
+                    or before.relation_type != after.relation_type
+                    or before.direction != after.direction
+                    or before.conditions != after.conditions
+                    or before.condition_conflicts != after.condition_conflicts
+                    or before.condition_uncertainties
+                    != after.condition_uncertainties
+                    or before.comparability != after.comparability
+                    or before.evidence_ids != after.evidence_ids
+                    or before.source_snapshot_ids != after.source_snapshot_ids
+                    or before.reasoning_trace_id != after.reasoning_trace_id
+                    or before.fingerprint != after.fingerprint
+                    or before.confidence != after.confidence
+                ):
+                    raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
+                if before.adjudication is not None:
+                    raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
+                if after.adjudication is None:
+                    if (
+                        before.status != after.status
+                        or before.review_reason != after.review_reason
+                    ):
+                        raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
+                else:
+                    if before.status != "candidate" or before.review_reason not in (
+                        "literature_relation.review.confidence_not_evaluable",
+                        "literature_relation.review.confidence_below_threshold",
+                    ):
+                        raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
+                    if after.status not in ("accepted", "rejected") or after.review_reason is not None:
+                        raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
+                    if after.adjudication.decision != after.status:
+                        raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
+            predecessor_traces = {
+                item.trace_id: item for item in predecessor_candidate.reasoning_traces
+            }
+            current_traces = {item.trace_id: item for item in candidate.reasoning_traces}
+            if set(predecessor_traces) != set(current_traces):
+                raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
+            for trace_id, before in predecessor_traces.items():
+                after = current_traces[trace_id]
+                if (
+                    before.premise_claim_ids != after.premise_claim_ids
+                    or before.steps != after.steps
+                    or before.conditions != after.conditions
+                    or before.limitations != after.limitations
+                    or before.conflicts != after.conflicts
+                    or before.conclusion != after.conclusion
+                    or before.evidence_ids != after.evidence_ids
+                    or before.trace_protocol_version != after.trace_protocol_version
+                ):
+                    raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
+                relation = current_relations[after.relation_id]
+                if after.relation_status != relation.status:
+                    raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
+        return
 
 
 def _snapshot_projection_map(
