@@ -265,6 +265,22 @@ for (const file of uiSourceFiles) {
   }
 }
 
+const workspaceProductionPresentationFiles = listedFiles.filter(
+  (file) =>
+    file.startsWith("apps/workspace/src/") &&
+    /\.(?:css|ts|tsx)$/u.test(file) &&
+    !/\.(?:test|spec)\.(?:ts|tsx)$/u.test(file),
+);
+
+for (const file of workspaceProductionPresentationFiles) {
+  const content = readFileSync(resolve(root, file), "utf8");
+  if (content.includes("--oh-")) {
+    failures.push(
+      `${file} uses forbidden legacy --oh- tokens; apps/workspace/src production must consume semantic design tokens.`,
+    );
+  }
+}
+
 const uiComponentsConfigPath = resolve(root, "packages/ui/components.json");
 if (!existsSync(uiComponentsConfigPath)) {
   failures.push(

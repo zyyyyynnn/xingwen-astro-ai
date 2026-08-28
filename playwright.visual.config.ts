@@ -1,0 +1,44 @@
+import { defineConfig, devices } from "@playwright/test";
+
+/**
+ * Temporary visual-acceptance harness.
+ * Boots the Workspace in Demo Replay (fixture) mode on an isolated port and
+ * drives every route/component/state for full-page screenshot capture.
+ */
+export default defineConfig({
+  testDir: "./tests/visual-capture",
+  fullyParallel: false,
+  workers: 1,
+  retries: 0,
+  reporter: "list",
+  timeout: 180_000,
+  expect: { timeout: 25_000 },
+  use: {
+    baseURL: "http://127.0.0.1:5199",
+    trace: "off",
+    video: "off",
+    reducedMotion: "reduce",
+    screenshot: "off",
+  },
+  projects: [
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1440, height: 900 },
+      },
+    },
+  ],
+  webServer: [
+    {
+      command:
+        "pnpm --filter @xingwen/workspace exec vite --host 127.0.0.1 --port 5199 --strictPort",
+      url: "http://127.0.0.1:5199/workspace",
+      env: {
+        VITE_FIXTURE_MODE: "true",
+      },
+      reuseExistingServer: true,
+      timeout: 180_000,
+    },
+  ],
+});

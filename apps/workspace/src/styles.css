@@ -2749,6 +2749,93 @@ button:disabled {
   align-self: flex-start;
 }
 
+/* Workspace Product Composition & Layout Frame Layer */
+.xw-artifact-layout-frame {
+  display: flex;
+  flex: 1 1 0%;
+  min-height: 0;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-canvas);
+}
+
+.xw-artifact-layout-frame--reading,
+.xw-artifact-layout-frame--wide {
+  overflow-y: auto;
+}
+
+.xw-reading-column {
+  inline-size: 100%;
+  max-inline-size: var(--workspace-result-reading-max-inline-size, 48rem);
+  margin-inline: auto;
+}
+
+.xw-wide-column {
+  inline-size: 100%;
+  max-inline-size: min(100%, 76rem);
+  margin-inline: auto;
+}
+
+.xw-data-layout {
+  inline-size: 100%;
+  min-height: 0;
+  flex: 1 1 0%;
+}
+
+.xw-graph-layout {
+  inline-size: 100%;
+  min-height: 0;
+  flex: 1 1 0%;
+}
+
+.xw-immersive-layout {
+  inline-size: 100%;
+  min-height: 0;
+  flex: 1 1 0%;
+}
+
+.xw-scientific-dossier {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--motion-fast) var(--ease-standard);
+}
+
+.xw-scientific-dossier[data-status="accepted"] {
+  border-left: 3px solid var(--color-success);
+}
+
+.xw-scientific-dossier[data-status="rejected"] {
+  border-left: 3px solid var(--color-error);
+}
+
+.xw-scientific-dossier[data-status="candidate"] {
+  border-left: 3px solid var(--color-brand);
+}
+
+.xw-fact-grid dt {
+  color: var(--color-ink-secondary);
+}
+
+.xw-fact-grid dd {
+  margin: 0;
+  color: var(--color-ink-primary);
+}
+
+.xw-result-preview {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.xw-result-preview:hover {
+  border-color: color-mix(in srgb, var(--color-brand) 40%, var(--color-border));
+}
+
+.xw-result-index-item:hover {
+  background: var(--color-surface-hover);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reasoning-trace__trigger svg {
     transition: none;

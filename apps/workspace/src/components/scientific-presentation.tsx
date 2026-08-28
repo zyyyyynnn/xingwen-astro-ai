@@ -54,6 +54,8 @@ export function PresentationEvidenceActions({
   );
 }
 
+import { ScientificDossier, ScientificFactGrid } from "./result-layout";
+
 export function PresentationFacts({
   facts,
 }: {
@@ -61,14 +63,12 @@ export function PresentationFacts({
 }) {
   if (facts.length === 0) return null;
   return (
-    <dl className="dossier__facts">
-      {facts.map((fact) => (
-        <div key={fact.label}>
-          <dt>{fact.label}</dt>
-          <dd>{fact.values.join("；")}</dd>
-        </div>
-      ))}
-    </dl>
+    <ScientificFactGrid
+      facts={facts.map((fact) => ({
+        label: fact.label,
+        value: fact.values,
+      }))}
+    />
   );
 }
 
@@ -316,68 +316,86 @@ export function ArtifactPresentationContent({
         </section>
       ))}
       {presentation.entries.length > 0 ? (
-        <ol className="candidate-dossier" aria-label="科学结果档案">
+        <ol className="candidate-dossier space-y-4" aria-label="科学结果档案">
           {presentation.entries.map((entry) => {
             const externalUrl = safeExternalUrl(entry.externalUrl);
             const reasoningTrace = entry.reasoningTrace;
+            const factItems = entry.facts.map((f) => ({
+              label: f.label,
+              value: f.values,
+            }));
+
+            const evidenceNode = (
+              <PresentationEvidenceActions
+                evidenceIds={entry.evidenceIds}
+                onSelectEvidence={onSelectEvidence}
+                evidenceOrdinal={evidenceOrdinal}
+              />
+            );
+
+            const revisionNode =
+              onRequestRevision &&
+              presentation.kind === "literature_relations" ? (
+                <Button
+                  size="small"
+                  variant="ghost"
+                  className="text-xs"
+                  onClick={() =>
+                    onRequestRevision({
+                      kind: "relation_correction",
+                      relationId: entry.key as DomainEntityId,
+                    })
+                  }
+                >
+                  重新分析此关系
+                </Button>
+              ) : null;
+
             return (
               <li key={entry.key}>
-                <article className="dossier__entry" data-status={entry.status}>
-                  <header className="dossier__entry-header">
-                    <div>
-                      {entry.status ? (
-                        <p className="dossier__status">
-                          {reviewStatusLabel(entry.status)}
-                        </p>
-                      ) : null}
-                      <h4>
-                        {externalUrl ? (
-                          <Link href={externalUrl} external>
-                            {entry.title}
-                          </Link>
-                        ) : (
-                          entry.title
-                        )}
-                      </h4>
+                <ScientificDossier
+                  status={entry.status}
+                  statusLabel={
+                    entry.status ? reviewStatusLabel(entry.status) : null
+                  }
+                  category={
+                    entry.assessment
+                      ? presentationAssessment(entry.assessment)
+                      : null
+                  }
+                  title={entry.title}
+                  facts={factItems}
+                  evidenceActions={evidenceNode}
+                  actions={revisionNode}
+                  className="dossier__entry"
+                  testId={`dossier-entry-${entry.key}`}
+                >
+                  {externalUrl ? (
+                    <div className="text-xs">
+                      <Link
+                        href={externalUrl}
+                        external
+                        className="text-primary hover:underline"
+                      >
+                        查看原文链接
+                      </Link>
                     </div>
-                    {entry.assessment ? (
-                      <p className="dossier__assessment">
-                        {presentationAssessment(entry.assessment)}
-                      </p>
-                    ) : null}
-                  </header>
-                  {entry.paragraphs.map((paragraph, index) => (
-                    <p key={`${entry.key}:paragraph:${index}`}>{paragraph}</p>
-                  ))}
-                  <PresentationFacts facts={entry.facts} />
-                  <PresentationEvidenceActions
-                    evidenceIds={entry.evidenceIds}
-                    onSelectEvidence={onSelectEvidence}
-                    evidenceOrdinal={evidenceOrdinal}
-                  />
-                  {onRequestRevision &&
-                  presentation.kind === "literature_relations" ? (
-                    <Button
-                      size="small"
-                      variant="ghost"
-                      className="mt-2"
-                      onClick={() =>
-                        onRequestRevision({
-                          kind: "relation_correction",
-                          relationId: entry.key as DomainEntityId,
-                        })
-                      }
-                    >
-                      重新分析此关系
-                    </Button>
                   ) : null}
+                  {entry.paragraphs.map((paragraph, index) => (
+                    <p
+                      key={`${entry.key}:paragraph:${index}`}
+                      className="text-sm leading-relaxed text-foreground"
+                    >
+                      {paragraph}
+                    </p>
+                  ))}
                   {reasoningTrace ? (
-                    <>
+                    <div className="mt-2 pt-2 border-t border-border/40">
                       {onRequestRevision ? (
                         <Button
                           size="small"
                           variant="ghost"
-                          className="mt-2"
+                          className="mb-2 text-xs"
                           onClick={() =>
                             onRequestRevision({
                               kind: "trace_correction",
@@ -393,9 +411,9 @@ export function ArtifactPresentationContent({
                         onSelectEvidence={onSelectEvidence}
                         evidenceOrdinal={evidenceOrdinal}
                       />
-                    </>
+                    </div>
                   ) : null}
-                </article>
+                </ScientificDossier>
               </li>
             );
           })}

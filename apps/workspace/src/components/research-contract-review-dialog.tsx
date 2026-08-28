@@ -80,25 +80,33 @@ function ContractFacts({
   catalog,
 }: {
   readonly contract: ResearchContractDraftViewModel["contract"];
-  readonly catalog: ResearchPlanningCatalog;
+  readonly catalog: ResearchPlanningCatalog | null;
 }) {
   const targetObjects = contract.targetObjects
-    .map((value) => optionLabel(catalog.targetObjects, value))
+    .map((value) =>
+      catalog ? optionLabel(catalog.targetObjects, value) : value,
+    )
     .join("、");
   const allowedSources = contract.sourceScope.allowedSources
-    .map((value) => optionLabel(catalog.allowedSources, value))
+    .map((value) =>
+      catalog ? optionLabel(catalog.allowedSources, value) : value,
+    )
     .join("、");
   const requestedFields = contract.requestedFields.map((value) =>
-    optionLabel(catalog.requestedFields, value),
+    catalog ? optionLabel(catalog.requestedFields, value) : value,
   );
   const outputRequirements = contract.outputRequirements
-    .map((value) => optionLabel(catalog.outputRequirements, value))
+    .map((value) =>
+      catalog ? optionLabel(catalog.outputRequirements, value) : value,
+    )
     .join("、");
   const minimumCoverage = Math.round(
     contract.evidenceRequirements.minimumCoverage * 100,
   );
   const scientificTaskLabels = contract.scientificTasks.map((task) =>
-    optionLabel(catalog.scientificSkills, task.skillId),
+    catalog
+      ? optionLabel(catalog.scientificSkills, task.skillId)
+      : task.skillId,
   );
 
   return (
@@ -113,17 +121,17 @@ function ContractFacts({
       <div className="research-contract-facts__pair">
         <section className="research-contract-facts__section">
           <FactLabel icon={ListChecks}>目标对象</FactLabel>
-          <p>{targetObjects}</p>
+          <p>{targetObjects || "未指定目标对象"}</p>
         </section>
         <section className="research-contract-facts__section">
           <FactLabel icon={ShieldCheck}>允许来源</FactLabel>
-          <p>{allowedSources}</p>
+          <p>{allowedSources || "未指定来源"}</p>
         </section>
       </div>
 
       <Separator />
 
-      <Collapsible className="research-contract-facts__data">
+      <Collapsible defaultOpen className="research-contract-facts__data">
         <CollapsibleTrigger asChild>
           <Button
             variant="ghost"
@@ -153,7 +161,7 @@ function ContractFacts({
       <div className="research-contract-facts__pair research-contract-facts__closing">
         <section className="research-contract-facts__section">
           <FactLabel icon={PackageCheck}>目标成果</FactLabel>
-          <p>{outputRequirements}</p>
+          <p>{outputRequirements || "全量科研成果"}</p>
         </section>
         <section className="research-contract-facts__section">
           <FactLabel icon={ShieldCheck}>证据覆盖率</FactLabel>
@@ -237,33 +245,41 @@ export function ResearchContractReviewDialog({
             </div>
           </DialogHeader>
 
-          {draft && catalog ? (
-            <div className="research-contract-dialog__body">
-              <ResearchContractForm
-                draft={draft}
-                catalog={catalog}
-                pendingAction={
-                  pendingAction === "save-draft" ||
-                  pendingAction === "confirm-contract"
-                    ? pendingAction
-                    : null
-                }
-                errorMessage={errorMessage}
-                onSaveDraft={onSave}
-                onConfirmAndRun={onConfirmAndRun}
-                onDirtyChange={setDirty}
-              />
+          {draft ? (
+            catalog ? (
+              <div className="research-contract-dialog__body">
+                <ResearchContractForm
+                  draft={draft}
+                  catalog={catalog}
+                  pendingAction={
+                    pendingAction === "save-draft" ||
+                    pendingAction === "confirm-contract"
+                      ? pendingAction
+                      : null
+                  }
+                  errorMessage={errorMessage}
+                  onSaveDraft={onSave}
+                  onConfirmAndRun={onConfirmAndRun}
+                  onDirtyChange={setDirty}
+                />
 
-              {draft.warnings.length ? (
-                <Alert className="research-contract-dialog__notice">
-                  <AlertTitle>需要留意</AlertTitle>
-                  <AlertDescription>
-                    {draft.warnings.join("；")}
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-            </div>
-          ) : review && catalog ? (
+                {draft.warnings.length ? (
+                  <Alert className="research-contract-dialog__notice">
+                    <AlertTitle>需要留意</AlertTitle>
+                    <AlertDescription>
+                      {draft.warnings.join("；")}
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+              </div>
+            ) : (
+              <div className="p-6 space-y-4">
+                <p className="ui-text-body text-muted-foreground">
+                  正在读取研究协议配置项…
+                </p>
+              </div>
+            )
+          ) : review ? (
             <ScrollArea className="research-contract-dialog__scroller">
               <div className="research-contract-dialog__body--confirmed">
                 <ContractFacts contract={review} catalog={catalog} />
@@ -275,7 +291,13 @@ export function ResearchContractReviewDialog({
                 ) : null}
               </div>
             </ScrollArea>
-          ) : null}
+          ) : (
+            <div className="p-6">
+              <Alert>
+                <AlertDescription>当前没有可查看的研究协议。</AlertDescription>
+              </Alert>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       <AlertDialog open={discardPromptOpen} onOpenChange={setDiscardPromptOpen}>

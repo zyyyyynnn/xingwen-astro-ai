@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import type { DomainEntityId } from "@xingwen/domain";
 import type {
   DataArtifactFieldDefinitionViewModel,
@@ -6,8 +7,11 @@ import type {
   FieldDictionaryArtifactReviewViewModel,
   SourceCollectionArtifactReviewViewModel,
 } from "@xingwen/research-adapter";
+import { Badge, Input } from "@xingwen/ui";
+import { Search } from "@xingwen/ui/icons";
 
 import { ScientificTable } from "./scientific-table";
+import { ArtifactMetadataStrip, ArtifactToolbar } from "./result-layout";
 
 export type DataArtifactSurface = "fullscreen";
 
@@ -29,49 +33,6 @@ const SURFACE_LIMITS: Record<
 
 function fieldLabel(field: DataArtifactFieldDefinitionViewModel): string {
   return field.meaningZh || field.labelEn || "未命名字段";
-}
-
-function ArtifactMetadata({
-  review,
-  surface,
-}: {
-  readonly review: DataArtifactReviewViewModel;
-  readonly surface: DataArtifactSurface;
-}) {
-  const retrievedAt = review.sourceSnapshots
-    .map((snapshot) => snapshot.retrievedAt)
-    .sort()
-    .at(-1);
-  return (
-    <dl className="data-artifact__metadata flex flex-wrap gap-4 text-xs text-[var(--color-ink-secondary)] my-2">
-      <div>
-        <dt className="inline font-medium">来源：</dt>
-        <dd className="inline">
-          {review.sourceSnapshots.length > 0
-            ? `已记录 ${review.sourceSnapshots.length} 个来源快照`
-            : "未提供"}
-        </dd>
-      </div>
-      {retrievedAt ? (
-        <div>
-          <dt className="inline font-medium">获取时间：</dt>
-          <dd className="inline">{retrievedAt}</dd>
-        </div>
-      ) : null}
-      <div>
-        <dt className="inline font-medium">质量状态：</dt>
-        <dd className="inline">
-          {review.quality.status === "pass" ? "已校验" : "质量状态未知"}
-        </dd>
-      </div>
-      {surface === "fullscreen" && review.evidenceIds.length > 0 ? (
-        <div>
-          <dt className="inline font-medium">关联证据：</dt>
-          <dd className="inline">{review.evidenceIds.length} 条</dd>
-        </div>
-      ) : null}
-    </dl>
-  );
 }
 
 function DatasetTable({
@@ -122,46 +83,61 @@ function DatasetRenderer({
   surface,
   onSelectEvidence,
   showSummary = true,
-  enhancementOnly = false,
 }: {
   readonly review: DatasetArtifactReviewViewModel;
   readonly title: string;
   readonly surface: DataArtifactSurface;
   readonly onSelectEvidence?: (evidenceIds: readonly DomainEntityId[]) => void;
   readonly showSummary?: boolean;
-  readonly enhancementOnly?: boolean;
 }) {
-  if (enhancementOnly) {
-    return <ArtifactMetadata review={review} surface={surface} />;
-  }
+  const retrievedAt = review.sourceSnapshots
+    .map((snapshot) => snapshot.retrievedAt)
+    .sort()
+    .at(-1);
+
   return (
     <article
-      className="data-artifact data-artifact--dataset"
+      className="data-artifact data-artifact--dataset flex flex-col gap-3 min-h-0 flex-1"
       data-surface={surface}
     >
       {showSummary ? (
-        <header className="data-artifact__header mb-2">
-          <h3 className="text-sm font-semibold text-[var(--color-ink-primary)]">
+        <header className="data-artifact__header">
+          <h3 className="font-serif text-lg font-semibold text-foreground">
             {title}
           </h3>
-          <p className="text-xs text-[var(--color-ink-secondary)] mt-0.5">
-            数据表 · {review.rowCount} 行 · {review.fieldCount} 个字段
-            {review.conflictCount > 0 ? ` · 冲突 ${review.conflictCount}` : ""}
-          </p>
         </header>
       ) : null}
-      <ArtifactMetadata review={review} surface={surface} />
-      {review.rows.length > 0 && review.columns.length > 0 ? (
-        <DatasetTable
-          review={review}
-          surface={surface}
-          onSelectEvidence={onSelectEvidence}
-        />
-      ) : (
-        <p className="text-xs text-[var(--color-ink-secondary)] py-4 text-center">
-          当前版本没有可展示的数据行或字段。
-        </p>
-      )}
+
+      <ArtifactMetadataStrip
+        sourceCount={review.sourceSnapshots.length}
+        retrievedAt={retrievedAt}
+        qualityStatus={review.quality.status}
+        recordCount={review.rowCount}
+        fieldCount={review.fieldCount}
+        evidenceCount={review.evidenceIds.length}
+        statusBadge={
+          review.conflictCount > 0
+            ? {
+                label: `存在 ${review.conflictCount} 处冲突`,
+                variant: "destructive",
+              }
+            : null
+        }
+      />
+
+      <div className="min-h-0 flex-1 overflow-auto">
+        {review.rows.length > 0 && review.columns.length > 0 ? (
+          <DatasetTable
+            review={review}
+            surface={surface}
+            onSelectEvidence={onSelectEvidence}
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center p-12 text-center text-xs text-muted-foreground">
+            当前版本没有可展示的数据行或字段。
+          </div>
+        )}
+      </div>
     </article>
   );
 }
@@ -170,76 +146,6 @@ function fieldSourceLabel(field: DataArtifactFieldDefinitionViewModel): string {
   return field.sourceAliases.length > 0
     ? `已映射 ${field.sourceAliases.length} 个来源字段`
     : "未提供";
-}
-
-function FieldDictionaryTable({
-  review,
-  surface,
-}: {
-  readonly review: FieldDictionaryArtifactReviewViewModel;
-  readonly surface: DataArtifactSurface;
-}) {
-  const fields = review.fieldDefinitions.slice(
-    0,
-    SURFACE_LIMITS[surface].fields,
-  );
-  return (
-    <div className="data-artifact__table-scroll overflow-x-auto my-2 border rounded border-[var(--color-border)]">
-      <table className="ui-text-body w-full text-left border-collapse">
-        <caption className="sr-only">规范字段定义、单位与来源映射</caption>
-        <thead>
-          <tr className="border-b bg-[var(--color-surface-muted)] border-[var(--color-border)]">
-            <th scope="col" className="p-2 font-medium">
-              字段
-            </th>
-            <th scope="col" className="p-2 font-medium">
-              含义
-            </th>
-            <th scope="col" className="p-2 font-medium">
-              类型 / 单位
-            </th>
-            <th scope="col" className="p-2 font-medium">
-              来源映射
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[var(--color-border)]">
-          {fields.map((field) => (
-            <tr
-              key={field.fieldId}
-              className="hover:bg-[var(--color-surface-muted)]"
-            >
-              <th
-                scope="row"
-                className="p-2 font-medium text-[var(--color-ink-primary)]"
-              >
-                {fieldLabel(field)}
-              </th>
-              <td className="p-2 text-[var(--color-ink-secondary)]">
-                {field.description || "未提供字段描述。"}
-              </td>
-              <td className="p-2">
-                {field.dataType}
-                {field.canonicalUnit ? ` · ${field.canonicalUnit}` : ""}
-                <div className="ui-text-label mt-0.5 text-[var(--color-ink-secondary)]">
-                  {field.required ? "必填" : "可选"} ·{" "}
-                  {field.nullable ? "可为空" : "不可为空"}
-                </div>
-              </td>
-              <td className="p-2 text-[var(--color-ink-secondary)]">
-                {fieldSourceLabel(field)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {review.fieldDefinitions.length > fields.length ? (
-        <p className="p-2 text-xs text-[var(--color-ink-secondary)] bg-[var(--color-surface-muted)] border-t border-[var(--color-border)]">
-          当前显示前 {fields.length} / {review.fieldDefinitions.length} 个字段。
-        </p>
-      ) : null}
-    </div>
-  );
 }
 
 function FieldDictionaryRenderer({
@@ -253,92 +159,143 @@ function FieldDictionaryRenderer({
   readonly surface: DataArtifactSurface;
   readonly showSummary?: boolean;
 }) {
+  const [filterQuery, setFilterQuery] = useState("");
+  const retrievedAt = review.sourceSnapshots
+    .map((snapshot) => snapshot.retrievedAt)
+    .sort()
+    .at(-1);
+
+  const filteredFields = useMemo(() => {
+    const query = filterQuery.trim().toLowerCase();
+    if (!query) return review.fieldDefinitions;
+    return review.fieldDefinitions.filter(
+      (field) =>
+        field.labelEn.toLowerCase().includes(query) ||
+        field.meaningZh.toLowerCase().includes(query) ||
+        field.description.toLowerCase().includes(query) ||
+        String(field.fieldId).includes(query),
+    );
+  }, [review.fieldDefinitions, filterQuery]);
+
+  const displayedFields = filteredFields.slice(
+    0,
+    SURFACE_LIMITS[surface].fields,
+  );
+
   return (
     <article
-      className="data-artifact data-artifact--field-dictionary"
+      className="data-artifact data-artifact--field-dictionary flex flex-col gap-3 min-h-0 flex-1"
       data-surface={surface}
     >
       {showSummary ? (
-        <header className="data-artifact__header mb-2">
-          <h3 className="text-sm font-semibold text-[var(--color-ink-primary)]">
+        <header className="data-artifact__header">
+          <h3 className="font-serif text-lg font-semibold text-foreground">
             {title}
           </h3>
-          <p className="text-xs text-[var(--color-ink-secondary)] mt-0.5">
-            字段字典 · {review.fieldDefinitions.length} 个字段
-          </p>
         </header>
       ) : null}
-      <ArtifactMetadata review={review} surface={surface} />
-      {review.fieldDefinitions.length > 0 ? (
-        <FieldDictionaryTable review={review} surface={surface} />
-      ) : (
-        <p className="text-xs text-[var(--color-ink-secondary)] py-4 text-center">
-          当前版本没有可展示的字段定义。
-        </p>
-      )}
-    </article>
-  );
-}
 
-function SourceCollectionTable({
-  review,
-  surface,
-}: {
-  readonly review: SourceCollectionArtifactReviewViewModel;
-  readonly surface: DataArtifactSurface;
-}) {
-  const members = review.members.slice(0, SURFACE_LIMITS[surface].fields);
-  return (
-    <div className="data-artifact__table-scroll overflow-x-auto my-2 border rounded border-[var(--color-border)]">
-      <table className="ui-text-body w-full text-left border-collapse">
-        <caption className="sr-only">数据产物使用的来源与记录数量</caption>
-        <thead>
-          <tr className="border-b bg-[var(--color-surface-muted)] border-[var(--color-border)]">
-            <th scope="col" className="p-2 font-medium">
-              来源
-            </th>
-            <th scope="col" className="p-2 font-medium">
-              数据级别
-            </th>
-            <th scope="col" className="p-2 font-medium">
-              记录数量
-            </th>
-            <th scope="col" className="p-2 font-medium">
-              完成状态
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[var(--color-border)]">
-          {members.map((member) => (
-            <tr
-              key={`${member.sourceSnapshotId}-${member.side}`}
-              className="hover:bg-[var(--color-surface-muted)]"
-            >
-              <th
-                scope="row"
-                className="p-2 font-medium text-[var(--color-ink-primary)]"
-              >
-                {member.sourceId ?? "未提供来源名称"}
+      <ArtifactMetadataStrip
+        sourceCount={review.sourceSnapshots.length}
+        retrievedAt={retrievedAt}
+        qualityStatus={review.quality.status}
+        fieldCount={review.fieldDefinitions.length}
+        evidenceCount={review.evidenceIds.length}
+      />
+
+      <ArtifactToolbar
+        left={
+          <div className="relative min-w-64 max-w-sm">
+            <Search
+              className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              type="search"
+              placeholder="搜索字段名称、含义或标识…"
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              className="h-8 pl-8 text-xs"
+            />
+          </div>
+        }
+        right={
+          <span className="text-xs text-muted-foreground">
+            共 {filteredFields.length} 个字段定义
+          </span>
+        }
+      />
+
+      <div className="min-h-0 flex-1 overflow-x-auto rounded-md border border-border bg-surface">
+        <table className="w-full text-left text-xs border-collapse">
+          <caption className="sr-only">规范字段定义、单位与来源映射</caption>
+          <thead>
+            <tr className="border-b border-border bg-surface-muted">
+              <th scope="col" className="p-2.5 font-medium text-foreground">
+                字段标识 / 名称
               </th>
-              <td className="p-2 text-[var(--color-ink-secondary)]">
-                {member.dataLevel}
-              </td>
-              <td className="p-2">
-                {member.rawRecordCount === null ? "—" : member.rawRecordCount}
-              </td>
-              <td className="p-2 text-[var(--color-ink-secondary)]">
-                {member.completionStatus}
-              </td>
+              <th scope="col" className="p-2.5 font-medium text-foreground">
+                中文含义与描述
+              </th>
+              <th scope="col" className="p-2.5 font-medium text-foreground">
+                类型 / 单位 / 约束
+              </th>
+              <th scope="col" className="p-2.5 font-medium text-foreground">
+                来源字段映射
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      {review.members.length > members.length ? (
-        <p className="p-2 text-xs text-[var(--color-ink-secondary)] bg-[var(--color-surface-muted)] border-t border-[var(--color-border)]">
-          当前显示前 {members.length} / {review.members.length} 个来源成员。
-        </p>
-      ) : null}
-    </div>
+          </thead>
+          <tbody className="divide-y divide-border/60">
+            {displayedFields.map((field) => (
+              <tr
+                key={field.fieldId}
+                className="transition-colors hover:bg-surface-hover/50"
+              >
+                <th
+                  scope="row"
+                  className="p-2.5 font-normal text-foreground align-top"
+                >
+                  <div className="font-medium text-foreground">
+                    {fieldLabel(field)}
+                  </div>
+                  <div className="font-mono text-[11px] text-muted-foreground">
+                    {field.labelEn || field.fieldId}
+                  </div>
+                </th>
+                <td className="p-2.5 text-muted-foreground align-top max-w-xs">
+                  <p className="line-clamp-2">
+                    {field.description || field.meaningZh || "未提供字段描述。"}
+                  </p>
+                </td>
+                <td className="p-2.5 text-foreground align-top">
+                  <div className="font-mono text-xs">
+                    {field.dataType}
+                    {field.canonicalUnit ? ` · ${field.canonicalUnit}` : ""}
+                  </div>
+                  <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <Badge
+                      variant={field.required ? "secondary" : "outline"}
+                      className="h-4 px-1 text-[10px]"
+                    >
+                      {field.required ? "必填" : "可选"}
+                    </Badge>
+                    <span>{field.nullable ? "可空" : "非空"}</span>
+                  </div>
+                </td>
+                <td className="p-2.5 text-muted-foreground align-top font-mono text-[11px]">
+                  {fieldSourceLabel(field)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filteredFields.length === 0 ? (
+          <div className="p-8 text-center text-xs text-muted-foreground">
+            没有匹配的字段定义。
+          </div>
+        ) : null}
+      </div>
+    </article>
   );
 }
 
@@ -353,41 +310,104 @@ function SourceCollectionRenderer({
   readonly surface: DataArtifactSurface;
   readonly showSummary?: boolean;
 }) {
+  const retrievedAt = review.sourceSnapshots
+    .map((snapshot) => snapshot.retrievedAt)
+    .sort()
+    .at(-1);
+
+  const members = review.members.slice(0, SURFACE_LIMITS[surface].fields);
+
   return (
     <article
-      className="data-artifact data-artifact--source-collection"
+      className="data-artifact data-artifact--source-collection flex flex-col gap-3 min-h-0 flex-1"
       data-surface={surface}
     >
       {showSummary ? (
-        <header className="data-artifact__header mb-2">
-          <h3 className="text-sm font-semibold text-[var(--color-ink-primary)]">
+        <header className="data-artifact__header">
+          <h3 className="font-serif text-lg font-semibold text-foreground">
             {title}
           </h3>
-          <p className="text-xs text-[var(--color-ink-secondary)] mt-0.5">
-            来源集合 · {review.members.length} 个来源成员
-          </p>
         </header>
       ) : null}
-      <div
-        className="data-artifact__summary flex flex-wrap gap-3 text-xs text-[var(--color-ink-secondary)] my-1.5 p-2 bg-[var(--color-surface-muted)] rounded"
-        aria-label="来源集合质量摘要"
-      >
-        <span>已对齐 {review.alignedRecordCount} 项</span>
-        {review.conflictRecordCount > 0 ? (
-          <span className="text-[var(--color-error)]">
-            冲突 {review.conflictRecordCount} 项
-          </span>
+
+      <ArtifactMetadataStrip
+        sourceCount={review.members.length}
+        retrievedAt={retrievedAt}
+        qualityStatus={review.quality.status}
+        recordCount={review.alignedRecordCount}
+        evidenceCount={review.evidenceIds.length}
+        statusBadge={
+          review.conflictRecordCount > 0
+            ? {
+                label: `冲突 ${review.conflictRecordCount} 项`,
+                variant: "destructive",
+              }
+            : null
+        }
+      />
+
+      <div className="min-h-0 flex-1 overflow-x-auto rounded-md border border-border bg-surface">
+        <table className="w-full text-left text-xs border-collapse">
+          <caption className="sr-only">数据产物使用的来源与记录数量</caption>
+          <thead>
+            <tr className="border-b border-border bg-surface-muted">
+              <th scope="col" className="p-2.5 font-medium text-foreground">
+                来源名称 / 标识
+              </th>
+              <th scope="col" className="p-2.5 font-medium text-foreground">
+                数据级别
+              </th>
+              <th scope="col" className="p-2.5 font-medium text-foreground">
+                记录数量
+              </th>
+              <th scope="col" className="p-2.5 font-medium text-foreground">
+                处理状态
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/60">
+            {members.map((member) => (
+              <tr
+                key={`${member.sourceSnapshotId}-${member.side}`}
+                className="transition-colors hover:bg-surface-hover/50"
+              >
+                <th scope="row" className="p-2.5 font-medium text-foreground">
+                  {member.sourceId ?? "未提供来源名称"}
+                </th>
+                <td className="p-2.5 text-muted-foreground">
+                  <Badge variant="outline" className="h-4 px-1 text-[10px]">
+                    {member.dataLevel}
+                  </Badge>
+                </td>
+                <td className="p-2.5 font-mono text-foreground">
+                  {member.rawRecordCount === null
+                    ? "—"
+                    : `${member.rawRecordCount} 条`}
+                </td>
+                <td className="p-2.5 text-muted-foreground">
+                  <Badge
+                    variant={
+                      member.completionStatus === "completed"
+                        ? "secondary"
+                        : "outline"
+                    }
+                    className="h-4 px-1 text-[10px]"
+                  >
+                    {member.completionStatus === "completed"
+                      ? "已完成"
+                      : member.completionStatus}
+                  </Badge>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {members.length === 0 ? (
+          <div className="p-8 text-center text-xs text-muted-foreground">
+            当前版本只返回来源快照引用，尚未提供来源成员明细。
+          </div>
         ) : null}
-        <span>待核验 {review.reviewRequiredRecordCount} 项</span>
       </div>
-      <ArtifactMetadata review={review} surface={surface} />
-      {review.members.length > 0 ? (
-        <SourceCollectionTable review={review} surface={surface} />
-      ) : (
-        <p className="text-xs text-[var(--color-ink-secondary)] py-4 text-center">
-          当前版本只返回来源快照引用，尚未提供来源成员明细。
-        </p>
-      )}
     </article>
   );
 }
@@ -398,7 +418,6 @@ export function DataArtifactRenderer({
   surface,
   onSelectEvidence,
   showSummary = true,
-  enhancementOnly = false,
 }: DataArtifactRendererProps) {
   if (review.kind === "dataset") {
     return (
@@ -408,7 +427,6 @@ export function DataArtifactRenderer({
         surface={surface}
         onSelectEvidence={onSelectEvidence}
         showSummary={showSummary}
-        enhancementOnly={enhancementOnly}
       />
     );
   }

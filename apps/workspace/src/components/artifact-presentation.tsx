@@ -1,13 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueries } from "@tanstack/react-query";
 import type { DomainEntityId } from "@xingwen/domain";
 import type { ResearchArtifactViewModel } from "@xingwen/research-adapter";
-import { Alert, AlertDescription, Button } from "@xingwen/ui";
-import { FileCheck2 } from "@xingwen/ui/icons";
+import { Alert, AlertDescription } from "@xingwen/ui";
 import { useMemo, type ReactNode } from "react";
 
 import type { ResearchWorkspaceRuntime } from "../mechanics/root";
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
+import { artifactKindLabel } from "../presentation/artifact-presentation-labels";
 import { ArtifactFullscreenWorkspace } from "./artifact-fullscreen-workspace";
+import { ResultIndexItem } from "./result-layout";
 
 export interface ResearchThreadProjection {
   readonly id: string;
@@ -40,9 +41,13 @@ function ArtifactLoadError({ message }: { readonly message: string }) {
 }
 
 function ArtifactResultIndex({
+  projectId,
+  runtime,
   artifacts,
   onOpen,
 }: {
+  readonly projectId: DomainEntityId;
+  readonly runtime: WorkspaceRuntimeBoundaries;
   readonly artifacts: readonly ResearchArtifactViewModel[];
   readonly onOpen: (artifactVersionId: DomainEntityId) => void;
 }) {
@@ -54,39 +59,47 @@ function ArtifactResultIndex({
     } => artifact.latestVersionId !== null,
   );
 
+  const versionQueries = useQueries({
+    queries: visible.slice(0, 8).map((artifact) => ({
+      ...runtime.application.queries.artifactVersion(
+        projectId,
+        artifact.latestVersionId,
+      ),
+      staleTime: 60_000,
+    })),
+  });
+
   if (visible.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <div className="py-8 text-center text-xs text-muted-foreground">
         研究任务尚未产出正式结果。
-      </p>
+      </div>
     );
   }
 
   return (
-    <ol className="space-y-1" aria-label="研究结果">
-      {visible.map((artifact) => (
-        <li key={artifact.id}>
-          <Button
-            variant="ghost"
-            onClick={() => onOpen(artifact.latestVersionId)}
-            className="flex h-auto w-full items-center justify-between gap-3 px-2 py-2 text-left"
-          >
-            <span className="flex min-w-0 items-center gap-2">
-              <FileCheck2
-                className="size-4 shrink-0 text-muted-foreground"
-                aria-hidden="true"
-              />
-              <span className="truncate text-sm font-medium text-foreground">
-                {artifact.title}
-              </span>
-            </span>
-            <span className="shrink-0 text-xs text-muted-foreground">
-              查看完整结果 →
-            </span>
-          </Button>
-        </li>
-      ))}
-    </ol>
+    <div className="space-y-1" aria-label="研究结果">
+      {visible.map((artifact, index) => {
+        const versionData = versionQueries[index]?.data;
+        const kindLabel = artifactKindLabel(artifact.kind);
+        const evidenceCount = versionData?.provenance.evidenceIds.length ?? 0;
+        const metadataSummary =
+          evidenceCount > 0 ? `证据 ${evidenceCount} 条` : null;
+
+        return (
+          <ResultIndexItem
+            key={artifact.id}
+            artifactId={artifact.id}
+            latestVersionId={artifact.latestVersionId}
+            kind={artifact.kind}
+            kindLabel={kindLabel}
+            title={artifact.title}
+            metadataSummary={metadataSummary}
+            onOpen={onOpen}
+          />
+        );
+      })}
+    </div>
   );
 }
 
@@ -124,11 +137,13 @@ export function useArtifactPresentation({
 
   const artifactList = artifacts.data ?? [];
   const resultPanel = (
-    <div className="artifact-overview p-4">
+    <div className="artifact-overview p-3">
       {artifacts.isError ? (
         <ArtifactLoadError message={publicError(runtime, artifacts.error)} />
       ) : null}
       <ArtifactResultIndex
+        projectId={projectId}
+        runtime={runtime}
         artifacts={artifactList}
         onOpen={onOpenArtifactVersion}
       />

@@ -16,13 +16,7 @@ import {
   AlertDescription,
   Button,
   Dialog,
-  DialogClose,
   DialogContent,
-  DialogTitle,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
   Sheet,
   SheetContent,
   SheetDescription,
@@ -36,7 +30,6 @@ import {
   SelectValue,
   Textarea,
 } from "@xingwen/ui";
-import { ArrowLeft, ChevronDown, Share2 } from "@xingwen/ui/icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
@@ -49,6 +42,7 @@ import {
 } from "../presentation/artifact-renderer-registry";
 import { ArtifactEvidenceSheet } from "./artifact-evidence-sheet";
 import { ArtifactShareDialog } from "./artifact-share-dialog";
+import { ArtifactLayoutFrame, ArtifactWorkspaceHeader } from "./result-layout";
 
 export interface ArtifactFullscreenWorkspaceProps {
   readonly runtime: WorkspaceRuntimeBoundaries;
@@ -108,61 +102,6 @@ export function describeArtifactLineage(
     .filter((value): value is string => value !== null)
     .join("");
   return { description: description || null, predecessor };
-}
-
-function VersionSelector({
-  versions,
-  selectedVersionId,
-  onSelect,
-}: {
-  readonly versions: readonly ArtifactVersionSummary[];
-  readonly selectedVersionId: DomainEntityId;
-  readonly onSelect: (versionId: DomainEntityId) => void;
-}) {
-  const ordered = [...versions].sort(
-    (left, right) => right.versionNumber - left.versionNumber,
-  );
-  const selected =
-    ordered.find((version) => version.id === selectedVersionId) ?? null;
-  if (ordered.length === 0 || selected === null) return null;
-  const isCurrent = ordered[0]?.id === selected.id;
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="small"
-          aria-haspopup="listbox"
-          className="ui-text-label flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
-          data-testid="artifact-version-selector"
-        >
-          <span>{isCurrent ? "当前结果" : "历史结果"}</span>
-          <span>{versionTimestamp(selected.createdAt)}</span>
-          <ChevronDown aria-hidden="true" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-56">
-        {ordered.map((version) => {
-          const current = ordered[0]?.id === version.id;
-          const active = version.id === selected.id;
-          return (
-            <DropdownMenuItem
-              key={version.id}
-              onClick={() => {
-                if (!active) onSelect(version.id);
-              }}
-              className={active ? "font-medium" : undefined}
-            >
-              <span>{current ? "当前结果" : "历史结果"}</span>
-              <span className="ui-text-label ml-auto pl-4 text-muted-foreground">
-                {versionTimestamp(version.createdAt)}
-              </span>
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
 }
 
 function ArtifactDiffSheet({
@@ -714,75 +653,32 @@ export function ArtifactFullscreenWorkspace({
         }}
         showCloseButton={false}
       >
-        <header
-          className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-4 py-2"
-          data-testid="artifact-fullscreen-header"
-        >
-          <div className="artifact-fullscreen-header__identity flex min-w-0 flex-wrap items-center gap-3">
-            <DialogClose asChild>
-              <Button
-                variant="ghost"
-                size="small"
-                className="ui-text-label flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
-              >
-                <ArrowLeft aria-hidden="true" />
-                <span>返回研究</span>
-              </Button>
-            </DialogClose>
-            <div className="h-4 w-px bg-border" />
-            <DialogTitle className="min-w-0 max-w-md truncate font-serif text-[length:var(--font-size-ui-heading)] font-semibold leading-[var(--line-height-ui-heading)] text-foreground">
-              {artifact?.title ?? "研究结果"}
-            </DialogTitle>
-            {artifactId !== null && versions.length > 1 ? (
-              <VersionSelector
-                versions={versions}
-                selectedVersionId={artifactVersionId}
-                onSelect={(nextVersionId) =>
-                  onOpenArtifactVersion?.(nextVersionId)
-                }
-              />
-            ) : null}
-          </div>
-          <div className="artifact-fullscreen-header__actions flex flex-wrap items-center justify-end gap-2">
-            {descriptor?.capabilities.evidence && evidenceIds.length > 0 ? (
-              <Button
-                size="small"
-                variant="ghost"
-                onClick={() => setSelectedEvidenceId(evidenceIds[0] ?? null)}
-              >
-                证据
-              </Button>
-            ) : null}
-            {descriptor?.capabilities.compare && versions.length > 1 ? (
-              <Button
-                size="small"
-                variant="ghost"
-                onClick={() => setDiffOpen(true)}
-              >
-                比较结果
-              </Button>
-            ) : null}
-            {descriptor?.capability === "supported" && artifact && version ? (
-              <Button
-                size="small"
-                variant="ghost"
-                onClick={() => setShareOpen(true)}
-              >
-                <Share2 aria-hidden="true" />
-                分享
-              </Button>
-            ) : null}
-            {descriptor?.capabilities.revision &&
-            version &&
-            parentRunQuery.data ? (
-              <Button size="small" variant="ghost" onClick={openRevisionSheet}>
-                基于此结果重新分析
-              </Button>
-            ) : null}
-          </div>
-        </header>
+        <ArtifactWorkspaceHeader
+          title={artifact?.title ?? "研究结果"}
+          artifactVersionId={artifactVersionId}
+          versions={versions}
+          onSelectVersion={(nextVersionId) =>
+            onOpenArtifactVersion?.(nextVersionId)
+          }
+          hasEvidence={Boolean(
+            descriptor?.capabilities.evidence && evidenceIds.length > 0,
+          )}
+          onOpenEvidence={() => setSelectedEvidenceId(evidenceIds[0] ?? null)}
+          canCompare={Boolean(
+            descriptor?.capabilities.compare && versions.length > 1,
+          )}
+          onOpenCompare={() => setDiffOpen(true)}
+          canShare={Boolean(
+            descriptor?.capability === "supported" && artifact && version,
+          )}
+          onOpenShare={() => setShareOpen(true)}
+          canRevise={Boolean(
+            descriptor?.capabilities.revision && version && parentRunQuery.data,
+          )}
+          onOpenRevision={openRevisionSheet}
+        />
 
-        <main className="min-h-0 flex-1 overflow-hidden">
+        <main className="min-h-0 flex-1 overflow-hidden flex flex-col">
           {isLoading ? (
             <div className="flex h-full flex-col items-center justify-center p-8">
               <Skeleton className="mb-4 h-8 w-1/3" />
@@ -799,18 +695,20 @@ export function ArtifactFullscreenWorkspace({
               </Alert>
             </div>
           ) : null}
-          {!isLoading && !error && artifact && version ? (
+          {!isLoading && !error && artifact && version && descriptor ? (
             FullscreenRenderer ? (
-              <FullscreenRenderer
-                key={version.id}
-                runtime={runtime}
-                projectId={projectId}
-                artifact={artifact}
-                version={version}
-                onSelectEvidence={setSelectedEvidenceId}
-                onRequestRevision={handleObjectRevision}
-                paperPageRequest={paperPageRequest}
-              />
+              <ArtifactLayoutFrame mode={descriptor.layoutMode}>
+                <FullscreenRenderer
+                  key={version.id}
+                  runtime={runtime}
+                  projectId={projectId}
+                  artifact={artifact}
+                  version={version}
+                  onSelectEvidence={setSelectedEvidenceId}
+                  onRequestRevision={handleObjectRevision}
+                  paperPageRequest={paperPageRequest}
+                />
+              </ArtifactLayoutFrame>
             ) : (
               <Alert className="m-6">
                 <AlertDescription>当前结果类型暂时无法显示。</AlertDescription>

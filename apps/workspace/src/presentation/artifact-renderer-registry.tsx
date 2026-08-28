@@ -31,7 +31,6 @@ import {
   SelectValue,
   Skeleton,
 } from "@xingwen/ui";
-import { ArrowRight } from "@xingwen/ui/icons";
 import { useMemo, useState, type ComponentType, type ReactNode } from "react";
 
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
@@ -62,6 +61,8 @@ import {
   type ScientificDiffSnapshot,
 } from "./scientific-diff";
 
+import { ResultPreview } from "../components/result-layout/result-preview";
+
 export type ArtifactContentFamily =
   | "data"
   | "paper_summary"
@@ -69,7 +70,8 @@ export type ArtifactContentFamily =
   | "literature"
   | "graph"
   | "scientific";
-export type ArtifactLayoutMode = "reading" | "wide" | "immersive";
+export type ArtifactLayoutMode =
+  "reading" | "wide" | "data" | "graph" | "immersive";
 
 export interface ArtifactRendererCapabilities {
   readonly evidence: boolean;
@@ -193,37 +195,18 @@ function ThreadResultBlock({
   summary,
   onOpen,
 }: ArtifactThreadRendererProps) {
+  const isReviewAction = artifact.kind === "literature_relations";
   return (
-    <div
-      className="xw-result-block my-2 rounded-lg border border-border/70 bg-background p-4"
-      data-testid={`artifact-result-${versionId}`}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 items-start gap-3">
-          <div className="min-w-0">
-            <h3 className="truncate text-sm font-medium text-foreground">
-              {artifact.title}
-            </h3>
-            {summary ? (
-              <p className="ui-text-label mt-1 line-clamp-2 text-muted-foreground">
-                {summary}
-              </p>
-            ) : null}
-          </div>
-        </div>
-        {onOpen ? (
-          <Button
-            size="small"
-            variant="ghost"
-            className="shrink-0 gap-1.5 text-xs"
-            onClick={onOpen}
-          >
-            查看完整结果
-            <ArrowRight className="size-3.5" aria-hidden="true" />
-          </Button>
-        ) : null}
-      </div>
-    </div>
+    <ResultPreview
+      artifactId={artifact.id}
+      versionId={versionId}
+      kind={artifact.kind}
+      kindLabel={artifactKindLabel(artifact.kind)}
+      title={artifact.title}
+      summary={summary}
+      actionLabel={isReviewAction ? "审查结果" : "查看完整结果"}
+      onOpen={onOpen}
+    />
   );
 }
 
@@ -517,12 +500,16 @@ const commonCapabilities: ArtifactRendererCapabilities = {
   compare: true,
 };
 
-function data(kind: DataArtifactKind, displayPriority: number) {
+function data(
+  kind: DataArtifactKind,
+  displayPriority: number,
+  layoutMode: ArtifactLayoutMode = "wide",
+) {
   return defineRenderer({
     kind,
     contentFamily: "data",
     displayPriority,
-    layoutMode: "wide",
+    layoutMode,
     capabilities: { ...commonCapabilities, download: true },
     load: ({ runtime, projectId, version }) =>
       runtime.application.queries.dataArtifact(projectId, version.id, kind),
@@ -761,12 +748,16 @@ const paperCollection = defineRenderer({
 
 type LiteratureKind = "literature_claims" | "literature_relations";
 
-function literature(kind: LiteratureKind, displayPriority: number) {
+function literature(
+  kind: LiteratureKind,
+  displayPriority: number,
+  layoutMode: ArtifactLayoutMode = "wide",
+) {
   return defineRenderer({
     kind,
     contentFamily: "literature",
     displayPriority,
-    layoutMode: "wide",
+    layoutMode,
     capabilities: commonCapabilities,
     load: ({ runtime, projectId, version }) =>
       runtime.application.queries.literatureArtifact(
@@ -801,12 +792,12 @@ const graph = defineRenderer({
   kind: "graph",
   contentFamily: "graph",
   displayPriority: 60,
-  layoutMode: "wide",
+  layoutMode: "graph",
   capabilities: commonCapabilities,
   load: ({ runtime, projectId, version }) =>
     runtime.application.queries.graphArtifact(projectId, version.id),
   fullscreen: ({ viewModel, artifact, version, onSelectEvidence }) => (
-    <div className="scientific-result-fullscreen">
+    <div className="scientific-result-fullscreen h-full">
       <ScientificArtifactRenderer
         review={viewModel}
         presentation={version.presentation}
@@ -931,17 +922,17 @@ function scientific(
 const ARTIFACT_RENDERER_DESCRIPTORS = [
   paperSummary,
   paperCollection,
-  data("dataset", 30),
-  data("field_dictionary", 40),
-  data("source_collection", 50),
+  data("dataset", 30, "data"),
+  data("field_dictionary", 40, "wide"),
+  data("source_collection", 50, "wide"),
   scientific("analysis_report", 52, "reading"),
   scientific("visualization", 54, "wide"),
   scientific("spectrum", 56, "wide"),
   scientific("light_curve", 58, "wide"),
   scientific("model_evaluation", 62, "wide"),
   scientific("model_artifact", 64, "reading"),
-  literature("literature_claims", 70),
-  literature("literature_relations", 80),
+  literature("literature_claims", 70, "reading"),
+  literature("literature_relations", 80, "wide"),
   graph,
   exportUnsupported,
 ] satisfies readonly ArtifactRendererDescriptor[];

@@ -24,7 +24,7 @@
   --workspace-result-graph-block-size: min(42rem, 66dvh);
   --workspace-result-inspector-inline-size: 22rem;
   --workspace-result-navigation-inline-size: 14rem;
-  --workspace-result-sheet-inline-size: min(32rem, 92vw);
+  --workspace-result-sheet-inline-size: min(24rem, 85vw);
   --workspace-result-public-max-inline-size: 72rem;
   --workspace-result-node-inline-size: 14rem;
   --workspace-result-node-block-size: 4.5rem;
