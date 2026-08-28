@@ -1,0 +1,83 @@
+{
+  "manifest": "xingwen-astro-ai.handoff",
+  "schema_version": "1.0.0",
+  "package": "星文智析 AI 科研工具",
+  "license": "MIT",
+  "generated_at": "2026-08-28T15:52:00Z",
+  "source_pin": {
+    "policy": "exact_source_commit",
+    "verification": {
+      "command": "pnpm release-candidate",
+      "required_environment": [
+        "RELEASE_CANDIDATE_SOURCE_COMMIT",
+        "RELEASE_CANDIDATE_E2E"
+      ],
+      "notes": "门禁要求工作区干净且 HEAD 与 RELEASE_CANDIDATE_SOURCE_COMMIT 完全一致；通过后在 .artifacts/release-candidate-qwen-evidence.json 记录 source_commit 与 generated_at。历史模型报告与录制响应不构成当前来源钉定的合格证据。"
+    }
+  },
+  "entrypoints": {
+    "compose": "docker compose up --build --wait",
+    "brand_site": "http://127.0.0.1:4321",
+    "workspace": "http://127.0.0.1:5173",
+    "api_docs": "http://127.0.0.1:8000/api/docs",
+    "windows_dev_script": "start-dev.bat"
+  },
+  "data_levels": [
+    "fixture",
+    "recorded",
+    "benchmark",
+    "cached",
+    "live",
+    "revision",
+    "real_model_execution"
+  ],
+  "evidence_assets": [
+    {
+      "path": "services/scientific_document/evidence/",
+      "level": "recorded+real_history_report",
+      "scope": "PaddleOCR-VL hybrid / paired 文档解析机器报告"
+    },
+    {
+      "path": "services/data_pipeline/benchmarks/",
+      "level": "benchmark",
+      "scope": "Scientific Data Integration 与 Crossmatch 冻结评测语料与指标"
+    },
+    {
+      "path": "tests/fixtures/scientific-documents/papers/",
+      "level": "fixture+recorded",
+      "scope": "开放许可科研论文、页面图像与录制响应及邻接许可元数据"
+    },
+    {
+      "path": "tests/e2e-integration/",
+      "level": "live_integration",
+      "scope": "真实 Compose、浏览器、版本、Evidence、Revision、Share 与 NFR 纵向验证"
+    },
+    {
+      "path": ".artifacts/scientific-data-integration-report.json",
+      "level": "benchmark_machine_report",
+      "scope": "CI competition-machine-evidence artifact 中的正式机器报告与可读摘要"
+    }
+  ],
+  "unverified_items": [
+    {
+      "id": "qwen-release-candidate-live",
+      "statement": "合格 Qwen Release Candidate 调用证明与 ProducerExecution 闭环",
+      "condition": "需在钉定来源上以真实 provider 调用执行 `pnpm release-candidate`；未执行时保持未验证，不以 Fixture、Recorded、Benchmark 或 Cached 结果替代"
+    },
+    {
+      "id": "desktop-visual-user-confirmation",
+      "statement": "1440×900、1280×800、1024×768、200% 文本缩放与长内容场景的最终人工视觉确认",
+      "condition": "自动化 NFR 断言与截图已覆盖；正式视觉验收以用户实际确认为准，确认前相关结论保持未验证"
+    },
+    {
+      "id": "worker-restart-and-runtime-budgets",
+      "statement": "worker 重启恢复、长时运行内存与轮询预算的运行时观察",
+      "condition": "需要受控运行时压测证据；当前无自动化覆盖，保持未验证"
+    }
+  ],
+  "known_limitations": [
+    "产品聚焦科学数据查找、解析与整合；不承诺任意天文方向、任意 PDF 全文高精度解析、任意图表全自动处理或无边界科学发现",
+    "视觉文档解析依赖本地验证的 PaddleOCR-VL 运行时捆绑；缺失该运行时时扫描页降级为明确的 partial/unsupported，不冒充已解析内容",
+    "第三方模型结果只作为明确标注的 non-qualifying benchmark/reference，不构成合格主案例证据"
+  ]
+}

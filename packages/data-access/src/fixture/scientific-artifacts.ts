@@ -523,7 +523,7 @@ function generateLightCurvePoints(count: number, period = 3.7952) {
     const time = 2458680.0 + i * step;
     const phaseRaw = ((time - t0) % period) / period;
     const phase = phaseRaw < 0 ? phaseRaw + 1 : phaseRaw;
-    const phaseNorm = phase > 0.5 ? phase - 1 : phase;
+    const phaseNorm = phase - (phase > 0.5 ? 1 : 0);
     const dt = Math.abs(phaseNorm * period);
 
     let dip = 0;

@@ -62,6 +62,16 @@ Fullscreen Result Workspace 是正式结果工作区；右侧结果栏只承担�
 
 这些资产只证明其明确声明的层级。Recorded 响应不等于 Live，真实模型历史报告也不能替代当前 Release 对 exact source commit 的 qualifying Qwen 验证。
 
+## 交接清单与未验证项
+
+机器可读交接清单见 [handoff-manifest.json](handoff-manifest.json)：运行入口、数据等级、证据资产、已知限制与未验证项均以该文件为准。
+
+- 来源钉定：合格证据必须钉定精确来源提交。在干净工作区上以 `RELEASE_CANDIDATE_SOURCE_COMMIT` 与 `RELEASE_CANDIDATE_E2E=1` 执行 `pnpm release-candidate`，门禁会校验 HEAD 一致并生成 `.artifacts/release-candidate-qwen-evidence.json`。
+- 未验证项（未通过即保持未验证，不以其他层级替代）：
+  - 合格 Qwen Release Candidate 调用证明与 ProducerExecution 闭环：需在钉定来源上以真实 provider 调用执行门禁；
+  - 桌面分辨率、200% 文本缩放与长内容场景的最终人工视觉确认：自动化 NFR 断言与截图已覆盖，正式视觉验收以用户实际确认为准；
+  - worker 重启恢复与长时运行内存/轮询预算：需要受控运行时压测证据，当前无自动化覆盖。
+
 ## 快速开始
 
 ### Docker Compose

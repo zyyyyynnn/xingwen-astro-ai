@@ -289,7 +289,7 @@ function PhaseFoldedPlot({
     const innerH = height - margin.top - margin.bottom;
 
     const getX = (ph: number) =>
-      margin.left + ((ph - (-0.2)) / (0.2 - (-0.2))) * innerW;
+      margin.left + ((ph - -0.2) / (0.2 - -0.2)) * innerW;
     const getY = (f: number) =>
       margin.top + (1 - (f - 0.985) / (1.01 - 0.985)) * innerH;
 
@@ -351,7 +351,14 @@ function PhaseFoldedPlot({
             fill="var(--color-primary)"
             opacity={0.7}
             className="cursor-pointer transition-transform hover:scale-150"
-            onMouseEnter={() => setHoveredPoint(pt)}
+            onMouseEnter={() =>
+              setHoveredPoint({
+                x: pt.x,
+                y: pt.y,
+                phase: pt.orbitalPhase,
+                flux: pt.flux,
+              })
+            }
             onMouseLeave={() => setHoveredPoint(null)}
           />
         ))}

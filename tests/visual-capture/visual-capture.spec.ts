@@ -227,3 +227,66 @@ test.describe("responsive viewports", () => {
     await shot(page, "62_viewport-1024x768");
   });
 });
+
+test.describe("desktop accessibility NFR", () => {
+  test("workspace stays operable at 200% text scaling", async ({ page }) => {
+    await openProject(page);
+
+    await page.evaluate(() => {
+      document.documentElement.style.zoom = "2";
+    });
+    await settle(page, 800);
+    await expect(page.getByTestId("root-layout")).toBeVisible();
+    await expect(page.getByRole("tab", { name: "研究结果" })).toBeVisible();
+    const composer = page.getByRole("textbox", { name: "输入研究消息" });
+    await expect(composer).toBeVisible();
+    await expect(composer).toHaveAttribute("contenteditable", "true");
+    await expect(page.getByTestId("agent-message-stream")).toBeVisible();
+    await shot(page, "70_text-scaling-200");
+
+    await page.evaluate(() => {
+      document.documentElement.style.zoom = "";
+    });
+    await settle(page, 400);
+  });
+
+  test("long fullscreen dossier content is scroll-reachable", async ({
+    page,
+  }) => {
+    await page.goto(`${PROJECT_A}?artifactVersionId=artv_claims_01`);
+    await expect(
+      page.getByTestId("artifact-fullscreen-workspace"),
+    ).toBeVisible();
+    await settle(page, 1500);
+
+    const scrollState = await page.evaluate(() => {
+      const dialog = document.querySelector(
+        '[data-testid="artifact-fullscreen-workspace"]',
+      );
+      if (!dialog) return { hasScroller: false, reachedBottom: false };
+      let scroller: HTMLElement | null = null;
+      dialog.querySelectorAll<HTMLElement>("*").forEach((el) => {
+        if (scroller) return;
+        const overflowY = window.getComputedStyle(el).overflowY;
+        if (
+          (overflowY === "auto" || overflowY === "scroll") &&
+          el.scrollHeight > el.clientHeight + 1
+        ) {
+          scroller = el;
+        }
+      });
+      if (!scroller) return { hasScroller: false, reachedBottom: false };
+      scroller.scrollTop = scroller.scrollHeight;
+      return {
+        hasScroller: true,
+        reachedBottom:
+          scroller.scrollTop + scroller.clientHeight >=
+          scroller.scrollHeight - 2,
+      };
+    });
+    expect(scrollState.hasScroller).toBe(true);
+    expect(scrollState.reachedBottom).toBe(true);
+    await settle(page, 400);
+    await shot(page, "71_long-content-scrolled-bottom");
+  });
+});

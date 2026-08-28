@@ -879,7 +879,7 @@ test("real worker exposes Literature dossiers, public reasoning, and interactive
 
   await page
     .getByTestId(`artifact-result-${result.literature_relations}`)
-    .getByRole("button", { name: "查看完整结果" })
+    .getByRole("button", { name: "审查结果" })
     .click();
   const relationDossier = fullscreen.getByRole("list", {
     name: "科学结果档案",
