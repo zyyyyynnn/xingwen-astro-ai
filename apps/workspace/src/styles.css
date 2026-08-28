@@ -272,7 +272,7 @@ button:disabled {
 .research-contract-form__output-group-title {
   margin: 0;
   font-size: var(--font-size-ui-body);
-  font-weight: 650;
+  font-weight: var(--font-weight-ui-strong);
   line-height: var(--line-height-ui-body);
 }
 
@@ -318,7 +318,7 @@ button:disabled {
   margin-inline-start: calc(-1 * var(--space-2));
   padding-inline: 0;
   font-size: var(--font-size-ui-body);
-  font-weight: 650;
+  font-weight: var(--font-weight-ui-strong);
 }
 
 .research-contract-form__advanced-trigger:hover:not(:disabled) {
@@ -549,7 +549,7 @@ button:disabled {
   margin: 0;
   color: var(--color-ink-primary);
   font-size: var(--font-size-ui-body);
-  font-weight: 600;
+  font-weight: var(--font-weight-ui-emphasis);
   line-height: var(--line-height-ui-body);
 }
 
@@ -752,7 +752,7 @@ button:disabled {
   color: var(--color-ink-primary);
   font-family: var(--xw-font-serif);
   font-size: var(--font-size-ui-heading);
-  font-weight: 600;
+  font-weight: var(--font-weight-ui-emphasis);
   line-height: var(--line-height-ui-heading);
 }
 
@@ -760,7 +760,7 @@ button:disabled {
   margin: 0;
   color: var(--color-ink-secondary);
   font-size: var(--font-size-ui-label);
-  font-weight: 650;
+  font-weight: var(--font-weight-ui-strong);
 }
 
 .paper-summary__byline {
@@ -779,7 +779,7 @@ button:disabled {
   margin: 0;
   color: var(--color-ink-primary);
   font-size: var(--font-size-ui-body);
-  font-weight: 600;
+  font-weight: var(--font-weight-ui-emphasis);
 }
 
 .paper-summary__statements {
@@ -910,7 +910,7 @@ button:disabled {
 .scientific-repair__title {
   margin: 0;
   font-size: var(--font-size-ui-heading);
-  font-weight: 650;
+  font-weight: var(--font-weight-ui-strong);
 }
 
 .scientific-repair__description {
@@ -946,7 +946,7 @@ button:disabled {
 
 .scientific-repair__defect-heading {
   font-size: var(--font-size-ui-body);
-  font-weight: 650;
+  font-weight: var(--font-weight-ui-strong);
 }
 
 .scientific-repair__defect-heading span:last-child,
@@ -1220,7 +1220,7 @@ button:disabled {
 
 .research-plan__label {
   color: var(--color-ink-primary);
-  font-weight: 600;
+  font-weight: var(--font-weight-ui-emphasis);
 }
 
 .research-plan__detail,
@@ -1458,7 +1458,7 @@ button:disabled {
   gap: var(--space-2);
   color: var(--color-ink-secondary);
   font-size: var(--font-size-ui-label);
-  font-weight: 650;
+  font-weight: var(--font-weight-ui-strong);
   line-height: var(--line-height-ui-label);
 }
 
@@ -1575,7 +1575,7 @@ button:disabled {
 .research-contract-facts__coverage {
   color: var(--color-brand);
   font-size: 1rem !important;
-  font-weight: 650;
+  font-weight: var(--font-weight-ui-strong);
 }
 
 .research-contract-dialog__footer {

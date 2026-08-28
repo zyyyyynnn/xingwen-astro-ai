@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import asyncio
 
-from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.enums import (
     PaperDataLevel,
     PaperSourceExecutionStatus,
@@ -19,18 +17,17 @@ from app.schemas.paper_summary import (
     PaperSummaryPaperMetadata,
     PaperSummarySourceSnapshotReference,
 )
-from app.schemas.scientific_document import DocumentParseInput, DocumentParseQuality
+from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.scientific_document import DocumentParseQuality
 from app.services.artifacts import ArtifactReadService
-from app.services.content_storage import ContentStorage
 from app.services.paper_collections import PaperCollectionReadService
-from app.services.document_parse_store import (
-    DocumentParseService,
-    PersistDocumentParseRequest,
-)
 from app.services.document_summary import ExecuteDocumentSummaryRequest
 from app.services.document_summary_chunks import ChunkedDocumentSummaryService
 from app.services.paper_candidate_inputs import PaperCandidateInputReadService
-from app.services.scientific_document.ports import DocumentParserPort
+from app.workflow.document_parse_execution import (
+    DocumentInputSource,
+    DocumentParseExecutionService,
+)
 from app.workflow.publisher import admit_artifact_candidate
 from app.workflow.step_publication import (
     PreparedStep,
@@ -100,7 +97,7 @@ def _selected_candidate(
 def _evidence_candidates(
     candidate: PaperCollectionCandidate,
 ) -> tuple[PaperSummaryEvidenceCandidate, ...]:
-    """Anchor summary Evidence on the candidate's real bibliographic record."""
+    """Anchor summary Evidence on the candidate's acquired source record."""
 
     if candidate.raw.url is None:
         raise ValueError("paper summary candidate must carry a source url")
@@ -123,6 +120,22 @@ def _evidence_candidates(
             **anchor,
         )
     ]
+    if candidate.raw.abstract is not None:
+        quote = candidate.raw.abstract[:4000]
+        items.append(
+            PaperSummaryEvidenceCandidate(
+                evidence_id="ev.abstract",
+                locator=PaperSummaryEvidenceLocator(
+                    kind="paper_text",
+                    source_url=candidate.raw.url,
+                    section="abstract",
+                    text_range=f"0:{len(quote)}",
+                ),
+                quote_or_value=quote,
+                accessible_excerpt=candidate.raw.abstract,
+                **anchor,
+            )
+        )
     if candidate.raw.year is not None:
         items.append(
             PaperSummaryEvidenceCandidate(
@@ -161,16 +174,12 @@ class PaperStepService:
         publications: StepPublicationFactory,
         collection_runner: LivePaperCollectionRunner | None = None,
         paper_inputs: PaperCandidateInputReadService | None = None,
-        content_storage: ContentStorage | None = None,
-        document_parser: DocumentParserPort | None = None,
-        document_parses: DocumentParseService | None = None,
+        document_parse_execution: DocumentParseExecutionService | None = None,
     ) -> None:
         self._publications = publications
         self._collection_runner = collection_runner or LivePaperCollectionRunner()
         self._paper_inputs = paper_inputs
-        self._content_storage = content_storage
-        self._document_parser = document_parser
-        self._document_parses = document_parses
+        self._document_parse_execution = document_parse_execution
 
     def search(
         self,
@@ -450,82 +459,22 @@ class PaperStepService:
         candidate: PaperCollectionCandidate,
         research_input: object,
     ) -> PreparedStep:
-        if (
-            self._content_storage is None
-            or self._document_parser is None
-            or self._document_parses is None
-        ):
+        if self._document_parse_execution is None:
             raise ValueError("全文论文总结需要生产文档解析运行时")
-        content_hash = str(getattr(research_input, "content_hash"))
-        content = asyncio.run(self._content_storage.retrieve(content_hash))
-        if content is None:
-            raise ValueError("已绑定论文全文的不可变内容不存在")
-        parse_input = DocumentParseInput(
-            research_input_id=str(getattr(research_input, "id")),
-            content_hash=content_hash,
-            source_type=str(getattr(research_input, "source_type")),
-            mime_type=str(getattr(research_input, "mime_type") or "application/pdf"),
-            filename=getattr(research_input, "filename"),
-            input_bytes=content,
-        )
-        profile = self._document_parser.profile
-        parse_input_hash = compute_canonical_payload_hash(
-            {
-                "input": parse_input.model_dump(
-                    mode="json", exclude_none=True, exclude={"input_bytes"}
-                ),
-                "profile": profile.model_dump(mode="json"),
-            }
-        )
-        parse_execution = self._publications.start_producer(
+        parsed = self._document_parse_execution.execute(
             context,
             step_key=step_key,
-            operation_key=f"document_parse:{candidate.canonical_paper_id}",
-            producer_type="algorithm",
-            producer_name="scientific-document-parser",
-            producer_version=profile.parser_profile_version,
-            input_hash=parse_input_hash,
-            parameters={
-                "parser_profile_id": profile.parser_profile_id,
-                "routing_policy_id": profile.routing_policy_id,
-            },
-            parameters_hash=profile.configuration_hash,
             attempt=attempt,
             lease=lease,
+            source=DocumentInputSource.from_record(research_input),
+            operation_key=f"document_parse:paper:{candidate.canonical_paper_id}",
         )
-        try:
-            document = self._document_parser.parse_document(parse_input)
-        except Exception:
-            self._publications.finish_producer(
-                parse_execution.id,
-                status="failed",
-                error_code="DOCUMENT_PARSE_FAILED",
-            )
-            raise
-        self._publications.finish_producer(
-            parse_execution.id,
-            status="completed",
-            output_hash=document.canonical_output_hash,
-        )
-        parse_record = asyncio.run(
-            self._document_parses.persist(
-                PersistDocumentParseRequest(
-                    project_id=context.project_id,
-                    run_id=context.run_id,
-                    run_step_id=attempt.run_step_id,
-                    producer_execution_id=parse_execution.id,
-                    parse_input_hash=parse_input_hash,
-                    candidate=document,
-                )
-            )
-        )
+        document = parsed.candidate
+        parse_record = parsed.record
         if document.overall_quality is DocumentParseQuality.unsupported:
             raise ValueError("当前解析器无法可靠读取所选论文全文")
 
-        snapshot = self._document_parses.source_snapshot(
-            project_id=context.project_id,
-            document_parse_id=parse_record.id,
-        )
+        snapshot = parsed.source_snapshot
         snapshot_reference = PaperSummarySourceSnapshotReference(
             source_snapshot_id=str(snapshot.id),
             source_id=snapshot.source_id,
@@ -650,13 +599,11 @@ class PaperStepService:
             locator = evidence.locator.document_locator
             if locator is None:
                 continue
-            asyncio.run(
-                self._document_parses.persist_locator(
-                    project_id=context.project_id,
-                    document_parse_id=parse_record.id,
-                    source_snapshot_id=snapshot.id,
-                    locator=locator,
-                )
+            self._document_parse_execution.persist_locator(
+                project_id=context.project_id,
+                document_parse_id=parse_record.id,
+                source_snapshot_id=snapshot.id,
+                locator=locator,
             )
         publication = self._publications.publication(
             context,

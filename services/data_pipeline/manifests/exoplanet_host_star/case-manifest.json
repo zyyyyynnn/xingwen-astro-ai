@@ -3,7 +3,7 @@
   "name": "系外行星候选体与宿主恒星参数整合",
   "description": "Fixed research case for integrating TESS exoplanet candidate and host-star parameters with reproducible field and provenance declarations.",
   "schema_version": "3.0.0",
-  "manifest_version": "3.0.0",
+  "manifest_version": "3.1.0",
   "created_at": "2026-07-18",
   "maintained_by": {
     "module": "data_pipeline",
@@ -64,8 +64,8 @@
   ],
   "field_manifest": {
     "manifest_id": "exoplanet_host_star.fields",
-    "manifest_version": "3.0.0",
-    "content_hash": "sha256:a922748dee1a51f616e256d1fe71a7e2b94596bcdfa465906046734bbf90118d"
+    "manifest_version": "4.0.0",
+    "content_hash": "sha256:9e4bbfa8e3e094c373c36ead0d18ebe68f64e78d0a79dde7fb36285f8336b9d0"
   },
   "minimum_evidence_locator_components": [
     "source_snapshot_id",
@@ -76,5 +76,5 @@
   "document_source_classes": [
     "document_research_input"
   ],
-  "content_hash": "sha256:7bccb7f4bc447afecdffb968f2c85f4e3c5a5f1a3f2f051090a460a66093aeaa"
+  "content_hash": "sha256:b54798cae527ce55dd1904c8d171d6226f9f298996d71995b561e724204127d8"
 }

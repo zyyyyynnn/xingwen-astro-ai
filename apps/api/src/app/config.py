@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -78,10 +79,10 @@ class Settings(BaseSettings):
     # For Qwen, a floating alias must never carry a fabricated revision.
     DASHSCOPE_API_KEY: SecretStr | None = None
     DASHSCOPE_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    DASHSCOPE_MODEL: str = "qwen3.8-max"
+    DASHSCOPE_MODEL: str = "qwen3.7-max-2026-06-08"
     DASHSCOPE_EXPLICIT_MODEL_REVISION: str | None = None
-    DASHSCOPE_TIMEOUT_SECONDS: float = Field(default=45.0, gt=0)
-    DASHSCOPE_MAX_RETRIES: int = Field(default=2, ge=0, le=4)
+    DASHSCOPE_TIMEOUT_SECONDS: float = Field(default=300.0, gt=0)
+    DASHSCOPE_MAX_RETRIES: int = Field(default=0, ge=0, le=4)
     MODEL_EXECUTION_LEASE_GRACE_SECONDS: float = Field(default=30.0, gt=0)
     MODEL_PROVIDER_CONFIG_KEY: SecretStr | None = None
     MODEL_PROVIDER_ALLOWED_HOSTS: tuple[str, ...] | str | None = None
@@ -252,7 +253,9 @@ class Settings(BaseSettings):
         errors: list[str] = []
         database_url = self._secret_value(self.DATABASE_URL)
         postgres_password = self._secret_value(self.POSTGRES_PASSWORD)
-        cors_origins = {origin.strip() for origin in self.CORS_ORIGINS.split(",")}
+        cors_origins = tuple(
+            origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()
+        )
 
         if self.DEBUG:
             errors.append("DEBUG must be false in production")
@@ -262,8 +265,22 @@ class Settings(BaseSettings):
             errors.append("DATABASE_URL must not use the local default credentials")
         if postgres_password == "postgres":
             errors.append("POSTGRES_PASSWORD must not use the local default")
-        if "*" in cors_origins:
+        if not cors_origins:
+            errors.append("CORS_ORIGINS must not be empty in production")
+        elif "*" in cors_origins:
             errors.append("CORS_ORIGINS must not contain '*' in production")
+        for origin in cors_origins:
+            parsed_origin = urlsplit(origin)
+            if parsed_origin.scheme != "https" or not parsed_origin.netloc:
+                errors.append("CORS_ORIGINS must use explicit HTTPS origins in production")
+                break
+            if (parsed_origin.hostname or "").lower() in {
+                "localhost",
+                "127.0.0.1",
+                "::1",
+            }:
+                errors.append("CORS_ORIGINS must not use loopback hosts in production")
+                break
         if not self.SESSION_COOKIE_SECURE:
             errors.append("SESSION_COOKIE_SECURE must be true in production")
         cursor_signing_key = self._secret_value(self.CURSOR_SIGNING_KEY)
@@ -273,6 +290,10 @@ class Settings(BaseSettings):
             "replace_me_replace_me_replace_me_replace_me",
         }:
             errors.append("CURSOR_SIGNING_KEY must be changed in production")
+        if not self.DASHSCOPE_BASE_URL.startswith("https://"):
+            errors.append("DASHSCOPE_BASE_URL must use HTTPS in production")
+        if paddle_url and not paddle_url.startswith("https://"):
+            errors.append("PADDLEOCR_VL_BASE_URL must use HTTPS in production")
 
         allowed_protocols = {
             protocol.strip().lower() for protocol in self.URL_FETCH_ALLOWED_PROTOCOLS

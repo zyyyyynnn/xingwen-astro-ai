@@ -38,6 +38,7 @@ from app.workflow.data_artifact_publication import (
     DataArtifactPublicationConfig,
     DataArtifactPublicationService,
 )
+from app.workflow.document_parse_execution import DocumentParseExecutionService
 from app.workflow.step_publication import (
     PreparedStep,
     RunStepContext,
@@ -91,11 +92,13 @@ class DataStepService:
         store: PersistentWorkflowStore,
         build_inputs: DataArtifactBuildInputRepository,
         document_admission: DocumentDataAdmissionService | None = None,
+        document_parse_execution: DocumentParseExecutionService | None = None,
     ) -> None:
         self._manifests = manifests
         self._publications = publications
         self._store = store
         self._document_admission = document_admission
+        self._document_parse_execution = document_parse_execution
         self._data_artifacts = DataArtifactPublicationService(
             publications,
             build_inputs,
@@ -114,6 +117,13 @@ class DataStepService:
 
         if self._document_admission is None:
             return None
+        if self._document_parse_execution is not None:
+            self._document_parse_execution.parse_bound_inputs(
+                context,
+                step_key=step_key,
+                attempt=attempt,
+                lease=lease,
+            )
         plan = asyncio.run(
             self._document_admission.prepare(
                 project_id=context.project_id,

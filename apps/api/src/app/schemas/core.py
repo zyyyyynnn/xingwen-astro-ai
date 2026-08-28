@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Annotated, Any, ClassVar, Generic, Literal, Self, TypeVar
 from uuid import UUID
@@ -51,9 +51,9 @@ PublicAnalysis = Annotated[
 
 
 def _require_utc(value: datetime) -> datetime:
-    if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+    if value.utcoffset() != timedelta(0):
+        raise ValueError("datetime must use UTC")
+    return value
 
 
 UtcDateTime = Annotated[AwareDatetime, AfterValidator(_require_utc)]

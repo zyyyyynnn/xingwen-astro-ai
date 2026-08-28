@@ -14,6 +14,7 @@
     "test": "turbo test",
     "test:e2e": "playwright test",
     "test:e2e:integration": "playwright test --config playwright.integration.config.ts",
+    "release-candidate": "node scripts/run-release-candidate.mjs",
     "format": "prettier --write \"apps/{site,workspace}/**/*.{astro,css,html,json,ts,tsx}\" \"packages/{design-tokens,ui,domain,contracts,data-access,workspace-core,research-adapter,testing}/**/*.{css,json,ts,tsx}\" \"tests/{e2e,e2e-integration}/**/*.ts\" \"scripts/*.mjs\" \"*.{json,mjs,yaml,yml}\" \".github/**/*.yml\" && node scripts/format-agent-upstream-modifications.mjs --write",
     "format:check": "prettier --check \"apps/{site,workspace}/**/*.{astro,css,html,json,ts,tsx}\" \"packages/{design-tokens,ui,domain,contracts,data-access,workspace-core,research-adapter,testing}/**/*.{css,json,ts,tsx}\" \"tests/{e2e,e2e-integration}/**/*.ts\" \"scripts/*.mjs\" \"*.{json,mjs,yaml,yml}\" \".github/**/*.yml\" && node scripts/format-agent-upstream-modifications.mjs",
     "check:docs": "node scripts/check-docs.mjs",

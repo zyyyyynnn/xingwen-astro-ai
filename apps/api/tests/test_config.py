@@ -28,9 +28,10 @@ def test_dashscope_credentials_use_the_platform_environment_name() -> None:
 
     assert settings.DASHSCOPE_API_KEY is not None
     assert settings.DASHSCOPE_API_KEY.get_secret_value() == "test-key"
-    assert settings.DASHSCOPE_MODEL == "qwen3.8-max"
+    assert settings.DASHSCOPE_MODEL == "qwen3.7-max-2026-06-08"
     assert settings.DASHSCOPE_EXPLICIT_MODEL_REVISION is None
-    assert settings.DASHSCOPE_MAX_RETRIES == 2
+    assert settings.DASHSCOPE_TIMEOUT_SECONDS == 300.0
+    assert settings.DASHSCOPE_MAX_RETRIES == 0
     assert settings.MODEL_EXECUTION_LEASE_GRACE_SECONDS == 30.0
 
 
@@ -94,6 +95,49 @@ def test_production_rejects_local_defaults_and_wildcard_cors() -> None:
     assert "DATABASE_URL must not use the local default credentials" in message
     assert "POSTGRES_PASSWORD must not use the local default" in message
     assert "CORS_ORIGINS must not contain '*'" in message
+
+
+@pytest.mark.parametrize(
+    ("cors_origins", "expected_error"),
+    (
+        ("", "CORS_ORIGINS must not be empty"),
+        ("http://astro.example", "CORS_ORIGINS must use explicit HTTPS origins"),
+        ("https://localhost", "CORS_ORIGINS must not use loopback hosts"),
+    ),
+)
+def test_production_rejects_insecure_cors_origins(
+    cors_origins: str, expected_error: str
+) -> None:
+    with pytest.raises(ValidationError, match=expected_error):
+        Settings(
+            _env_file=None,
+            APP_ENV="production",
+            DEBUG=False,
+            DATABASE_URL="postgresql+psycopg://app:secret@db.example/xingwen",
+            CORS_ORIGINS=cors_origins,
+            SESSION_COOKIE_SECURE=True,
+            CURSOR_SIGNING_KEY="production-cursor-signing-key-with-high-entropy",
+        )
+
+
+def test_production_rejects_insecure_remote_model_backends() -> None:
+    with pytest.raises(ValidationError) as captured:
+        Settings(
+            _env_file=None,
+            APP_ENV="production",
+            DEBUG=False,
+            DATABASE_URL="postgresql+psycopg://app:secret@db.example/xingwen",
+            CORS_ORIGINS="https://astro.example",
+            SESSION_COOKIE_SECURE=True,
+            CURSOR_SIGNING_KEY="production-cursor-signing-key-with-high-entropy",
+            DASHSCOPE_BASE_URL="http://dashscope.example/v1",
+            PADDLEOCR_VL_BASE_URL="http://paddle.example",
+            PADDLEOCR_VL_MODEL_REVISION="paddle-revision",
+        )
+
+    message = str(captured.value)
+    assert "DASHSCOPE_BASE_URL must use HTTPS in production" in message
+    assert "PADDLEOCR_VL_BASE_URL must use HTTPS in production" in message
 
 
 def test_production_requires_database_url() -> None:

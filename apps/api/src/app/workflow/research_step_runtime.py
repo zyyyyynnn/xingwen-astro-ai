@@ -27,6 +27,7 @@ from app.services.paper_summaries import PaperSummaryReadService
 from app.services.research_input_store import PersistentResearchInputStore
 from app.services.scientific_document.ports import DocumentParserPort
 from app.workflow.agent_runtime import AgentActivity, ResearchStepAgent, StepTool
+from app.workflow.document_parse_execution import DocumentParseExecutionService
 from app.workflow.step_publication import (
     PreparedStep,
     RunStepContext,
@@ -116,20 +117,32 @@ class ResearchStepRuntime:
             if content_storage is not None
             else None
         )
+        document_parse_execution = (
+            DocumentParseExecutionService(
+                factory=factory,
+                content_storage=content_storage,
+                parser=document_parser,
+                document_parses=document_parses,
+                publications=self._publications,
+            )
+            if content_storage is not None
+            and document_parser is not None
+            and document_parses is not None
+            else None
+        )
         self._data_steps = DataStepService(
             manifests=manifests,
             publications=self._publications,
             store=store,
             document_admission=document_admission,
+            document_parse_execution=document_parse_execution,
             build_inputs=build_inputs,
         )
         self._paper_steps = PaperStepService(
             publications=self._publications,
             collection_runner=paper_collection_runner,
             paper_inputs=paper_inputs,
-            content_storage=content_storage,
-            document_parser=document_parser,
-            document_parses=document_parses,
+            document_parse_execution=document_parse_execution,
         )
         summary_reader = PaperSummaryReadService(
             ArtifactReadService(factory),

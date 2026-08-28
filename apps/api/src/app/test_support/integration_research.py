@@ -205,7 +205,7 @@ def bootstrap_fixture_research_results(
         executor=PersistentWorkflowExecutor(workflow_store),
         manifests=manifests,
         model_port=model,
-        requested_model="qwen3.8-max",
+        requested_model="qwen3.7-max",
         explicit_revision=None,
         paper_collection_runner=LivePaperCollectionRunner(
             adapter=_IntegrationPaperSource(),

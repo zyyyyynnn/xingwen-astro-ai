@@ -29,8 +29,8 @@ Copy-Item .env.example .env
 
 真实研究助手使用千问 AI 平台的 OpenAI 兼容接口。根目录 `.env` 或 Windows 用户
 环境变量使用平台官方名称 `DASHSCOPE_API_KEY`。`DASHSCOPE_MODEL` 指定 Qwen 模型身份
-（默认 `qwen3.8-max`）；`DASHSCOPE_EXPLICIT_MODEL_REVISION` 仅在显式日期快照时填写，
-浮动别名必须留空，不得伪造 revision。这些变量只由 API 读取，不得使用
+（默认 `qwen3.7-max-2026-06-08`）；`DASHSCOPE_EXPLICIT_MODEL_REVISION` 固定为同一
+显式日期模型 identity。浮动别名必须留空 revision，不得伪造。这些变量只由 API 读取，不得使用
 `PUBLIC_*` 或 `VITE_*` 前缀。双击 `start-dev.bat` 时，健康门禁要求研究助手状态为
 `ready`；未配置凭据会明确停止启动，不会用 fixture 或模板回答伪装真实 Agent。
 
@@ -50,17 +50,38 @@ PostgreSQL override，保存前会调用 `/chat/completions`
 | `SHARE_RETENTION_SECONDS`          | `2592000`                             | 过期/撤销 ShareSnapshot 保留期                              |
 | `CURSOR_SIGNING_KEY`               | `development-only-cursor-signing-key` | 不透明分页 cursor HMAC 密钥                                 |
 | `DATABASE_URL`                     | Docker Compose PostgreSQL URL         | ResearchRun、Artifact、Evidence 与 ResearchInput 的权威存储 |
+| `DASHSCOPE_TIMEOUT_SECONDS`        | `300`                                 | Qwen 单次长结构化生成的超时秒数                            |
+| `DASHSCOPE_MAX_RETRIES`            | `0`                                   | Provider SDK 不内嵌重试；恢复由 ResearchRun Step 负责      |
 | `RESEARCH_INPUT_UPLOAD_DIR`        | `.data/research-inputs`               | ResearchInput 内容寻址存储目录                              |
 | `URL_FETCH_ALLOWED_HOSTS`          | 空                                    | URL ResearchInput host allowlist；空值 fail closed          |
 | `MODEL_PROVIDER_CONFIG_KEY`        | 空                                    | 实例级模型凭据加密根密钥；空值回退稳定 `CURSOR_SIGNING_KEY` |
 | `MODEL_PROVIDER_ALLOWED_HOSTS`     | 空                                    | custom OpenAI-compatible 远程 host allowlist                |
 | `MODEL_PROVIDER_CONFIG_RATE_LIMIT` | `10`                                  | 每 Session 模型配置写限流                                   |
+| `PADDLEOCR_VL_BASE_URL`            | 空                                    | 远程 PaddleOCR-VL HTTP 服务 origin                          |
+| `PADDLEOCR_VL_MODEL_REVISION`      | 空                                    | 远程模型的明确 revision；必须与 Base URL 成对配置           |
+| `PADDLEOCR_VL_LOCAL_BUNDLE`        | 空                                    | 已验证本地模型 bundle 路径                                  |
+| `PADDLEOCR_VL_TIMEOUT_SECONDS`     | `60`                                  | 单页远程视觉解析超时                                        |
+
+PaddleOCR-VL 远程配置与本地 bundle 严格互斥：远程模式必须同时设置 Base URL 与
+model revision；本地模式只设置 bundle。两者同时设置会在 Settings 校验阶段直接失败，
+两者均未设置时 native 解析仍可运行，但请求 hybrid/paired 视觉执行会 fail closed。
 
 ## 3. Docker Compose 启动
 
 ```powershell
 docker compose up --build --wait
 ```
+
+需要使用仓库根目录下已验证、未纳入 Git 的 `models/` 本地 PaddleOCR-VL bundle 时，
+选择带视觉依赖的 API target 并只读挂载模型：
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.paddle-local.yml up --build --wait
+```
+
+该覆盖层仍启动同一个 API、`HybridScientificDocumentParser` 和 Publisher，只改变视觉
+backend 的部署依赖；模型权重不会复制进镜像。远程 Paddle 服务不需要覆盖层，只需在
+`.env` 配置 `PADDLEOCR_VL_BASE_URL` 与 `PADDLEOCR_VL_MODEL_REVISION`。
 
 ### Windows 一键启动
 
@@ -118,6 +139,14 @@ uv run pytest
 uv run uvicorn app.main:app --reload
 ```
 
+本机使用已验证的 PaddleOCR-VL bundle 时安装同一项目的可选视觉依赖组：
+
+```powershell
+uv sync --frozen --group visual
+$env:PADDLEOCR_VL_LOCAL_BUNDLE = (Resolve-Path (Join-Path (Get-Location) "..\..\models"))
+uv run uvicorn app.main:app --reload
+```
+
 数据库 Schema：
 
 ```powershell
@@ -133,7 +162,30 @@ Schema 导出：
 uv run python ../../scripts/export_schemas.py --output ../../.artifacts/schemas
 ```
 
-## 6. 常见问题
+## 6. Release Candidate 门禁
+
+真实 Qwen 闭环的最终验证在隔离的 Release Candidate Compose 栈中运行
+`tests/e2e-integration/release-candidate-live.spec.ts`，不复用开发栈、不触碰既有数据卷。
+
+前置条件：
+
+- 工作区干净，`HEAD` 即待验证的精确 source commit；
+- 根目录存在 `.env`，且已配置 `DASHSCOPE_API_KEY`、`DASHSCOPE_MODEL` 与
+  `DASHSCOPE_EXPLICIT_MODEL_REVISION`（后两者必须指向同一合格 Qwen 显式 revision）。
+
+运行（PowerShell）：
+
+```powershell
+$env:RELEASE_CANDIDATE_SOURCE_COMMIT = "<完整 40 位 SHA>"
+pnpm release-candidate
+```
+
+脚本先校验 `HEAD` 与 `RELEASE_CANDIDATE_SOURCE_COMMIT` 完全一致且工作区干净，随后以唯一
+Compose project（`xingwen-rc-<sha8>-<pid>`）`up --build --wait`，安装 Chromium 并执行 live
+门禁；结束后 `down --volumes --remove-orphans` 清理该隔离项目自身的容器与临时卷。API Key、
+原始 provider 响应与私有 reasoning 不写入门禁产物。
+
+## 7. 常见问题
 
 | 问题                | 处理方式                                                                 |
 | ------------------- | ------------------------------------------------------------------------ |

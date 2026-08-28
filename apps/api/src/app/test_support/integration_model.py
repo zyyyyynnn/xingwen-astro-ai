@@ -21,10 +21,6 @@ from app.schemas.core import (
     ResearchContractInput,
     SourceScope,
 )
-from app.schemas.enums import LiteratureRelationType
-from app.schemas.literature_relation import (
-    build_literature_relation_confidence_subject,
-)
 from app.security import canonical_request_hash
 from app.services.model_execution import (
     ModelExecutionRequest,
@@ -227,21 +223,6 @@ class DeterministicIntegrationModelExecutionPort:
         source_id = claims[0]["claim_id"]
         target_id = claims[1]["claim_id"]
         evidence_ids = claims[0].get("evidence_ids") or [_PAPER_EVIDENCE_ID]
-        version_ids = request.input_payload.get(
-            "literature_claim_artifact_version_ids", ()
-        )
-        if not isinstance(version_ids, (list, tuple)) or not version_ids:
-            raise RuntimeError(
-                "integration relation fixture is missing the claims version"
-            )
-        subject = build_literature_relation_confidence_subject(
-            source_claim_artifact_version_id=str(version_ids[0]),
-            source_claim_id=source_id,
-            target_claim_artifact_version_id=str(version_ids[0]),
-            target_claim_id=target_id,
-            relation_type=LiteratureRelationType.compares_method,
-        )
-        assessment_id = f"assessment.live_scope.{subject.fingerprint[7:31]}"
         operations = (
             "identify_premises",
             "compare_objects",
@@ -270,7 +251,6 @@ class DeterministicIntegrationModelExecutionPort:
                 "unit_basis": "Neither claim declares a unit.",
             },
             "evidence_ids": evidence_ids,
-            "confidence_assessment_id": assessment_id,
             "trace": {
                 "premise_claim_ids": [source_id, target_id],
                 "steps": [

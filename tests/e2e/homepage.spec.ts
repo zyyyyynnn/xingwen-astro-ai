@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
 
 const HERO_TITLE = /让每一颗系外行星候选体\s*都可溯源/;
 
-test("homepage renders the ASCII video element from the public visual dir", async ({
+test("homepage renders a decorative autoplay video without media controls", async ({
   page,
 }) => {
   await page.goto("http://127.0.0.1:14321/");
@@ -22,6 +22,33 @@ test("homepage renders the ASCII video element from the public visual dir", asyn
   await expect(video).toHaveAttribute("muted", "");
   await expect(video).toHaveAttribute("loop", "");
   await expect(video).toHaveAttribute("playsinline", "");
+  await expect(video).toHaveAttribute("preload", "metadata");
+  await expect(video).toHaveAttribute("disablepictureinpicture", "");
+  await expect(video).toHaveAttribute("disableremoteplayback", "");
+  await expect(video).toHaveAttribute(
+    "controlslist",
+    "nodownload nofullscreen noremoteplayback noplaybackrate",
+  );
+  await expect(video).toHaveAttribute("tabindex", "-1");
+  await expect(video).toHaveAttribute("aria-hidden", "true");
+  await expect(video).not.toHaveAttribute("controls", "");
+  expect(
+    await video.evaluate((element: HTMLVideoElement) => ({
+      controls: element.controls,
+      disablePictureInPicture: element.disablePictureInPicture,
+      disableRemotePlayback: element.disableRemotePlayback,
+      tabIndex: element.tabIndex,
+    })),
+  ).toEqual({
+    controls: false,
+    disablePictureInPicture: true,
+    disableRemotePlayback: true,
+    tabIndex: -1,
+  });
+  await expect(page.getByRole("button")).toHaveCount(0);
+  await expect(
+    page.locator("astro-dev-toolbar, vite-error-overlay"),
+  ).toHaveCount(0);
 });
 
 test("homepage keeps title, notes and single CTA when video fails to load", async ({

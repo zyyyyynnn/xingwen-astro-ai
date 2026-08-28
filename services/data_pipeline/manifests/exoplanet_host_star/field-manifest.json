@@ -3,8 +3,8 @@
   "case_id": "exoplanet_host_star",
   "name": "Exoplanet candidate and host-star field manifest",
   "description": "Canonical fields for the fixed TESS exoplanet candidate and host-star research case.",
-  "schema_version": "3.0.0",
-  "manifest_version": "3.0.0",
+  "schema_version": "4.0.0",
+  "manifest_version": "4.0.0",
   "sources": [
     {
       "source_id": "esa_gaia_dr3.gaiadr3.gaia_source",
@@ -259,67 +259,86 @@
       "unit_id": "none",
       "label": "No physical unit",
       "symbol": "",
-      "quantity_kind": "none"
+      "quantity_kind": "none",
+      "document_aliases": []
     },
     {
       "unit_id": "degree",
       "label": "Degree",
       "symbol": "deg",
-      "quantity_kind": "angle"
+      "quantity_kind": "angle",
+      "document_aliases": [
+        "°"
+      ]
     },
     {
       "unit_id": "day",
       "label": "Day",
       "symbol": "d",
-      "quantity_kind": "time"
+      "quantity_kind": "time",
+      "document_aliases": [
+        "days"
+      ]
     },
     {
       "unit_id": "earth_radius",
       "label": "Earth radius",
       "symbol": "R_earth",
-      "quantity_kind": "length"
+      "quantity_kind": "length",
+      "document_aliases": [
+        "R⊕"
+      ]
     },
     {
       "unit_id": "jupiter_radius",
       "label": "Jupiter radius",
       "symbol": "R_jupiter",
-      "quantity_kind": "length"
+      "quantity_kind": "length",
+      "document_aliases": []
     },
     {
       "unit_id": "earth_mass",
       "label": "Earth mass",
       "symbol": "M_earth",
-      "quantity_kind": "mass"
+      "quantity_kind": "mass",
+      "document_aliases": [
+        "M⊕"
+      ]
     },
     {
       "unit_id": "jupiter_mass",
       "label": "Jupiter mass",
       "symbol": "M_jupiter",
-      "quantity_kind": "mass"
+      "quantity_kind": "mass",
+      "document_aliases": []
     },
     {
       "unit_id": "kelvin",
       "label": "Kelvin",
       "symbol": "K",
-      "quantity_kind": "temperature"
+      "quantity_kind": "temperature",
+      "document_aliases": []
     },
     {
       "unit_id": "dex",
       "label": "Dex",
       "symbol": "dex",
-      "quantity_kind": "logarithmic_abundance"
+      "quantity_kind": "logarithmic_abundance",
+      "document_aliases": []
     },
     {
       "unit_id": "solar_radius",
       "label": "Solar radius",
       "symbol": "R_sun",
-      "quantity_kind": "length"
+      "quantity_kind": "length",
+      "document_aliases": []
     },
     {
       "unit_id": "solar_mass",
       "label": "Solar mass",
       "symbol": "M_sun",
-      "quantity_kind": "mass"
+      "quantity_kind": "mass",
+      "document_aliases": []
     }
   ],
   "conversion_rules": [
@@ -1103,6 +1122,11 @@
       "document_aliases": [
         {
           "source_class": "document_research_input",
+          "alias": "P",
+          "priority": 1
+        },
+        {
+          "source_class": "document_research_input",
           "alias": "Period",
           "priority": 1
         }
@@ -1264,6 +1288,11 @@
       "document_aliases": [
         {
           "source_class": "document_research_input",
+          "alias": "R_p",
+          "priority": 1
+        },
+        {
+          "source_class": "document_research_input",
           "alias": "Radius",
           "priority": 1
         }
@@ -1404,6 +1433,11 @@
         "evidence_coverage"
       ],
       "document_aliases": [
+        {
+          "source_class": "document_research_input",
+          "alias": "M_p",
+          "priority": 1
+        },
         {
           "source_class": "document_research_input",
           "alias": "Mass",
@@ -1863,5 +1897,5 @@
     "module": "data_pipeline",
     "role": "data_pipeline"
   },
-  "content_hash": "sha256:a922748dee1a51f616e256d1fe71a7e2b94596bcdfa465906046734bbf90118d"
+  "content_hash": "sha256:9e4bbfa8e3e094c373c36ead0d18ebe68f64e78d0a79dde7fb36285f8336b9d0"
 }

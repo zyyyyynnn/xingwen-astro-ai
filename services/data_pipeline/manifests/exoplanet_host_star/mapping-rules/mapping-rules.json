@@ -1,13 +1,13 @@
 {
   "rule_set_id": "exoplanet_host_star.mapping_rules",
   "schema_version": "1.0.0",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "case_manifest_id": "exoplanet_host_star",
-  "case_manifest_version": "3.0.0",
-  "case_manifest_content_hash": "sha256:7bccb7f4bc447afecdffb968f2c85f4e3c5a5f1a3f2f051090a460a66093aeaa",
+  "case_manifest_version": "3.1.0",
+  "case_manifest_content_hash": "sha256:b54798cae527ce55dd1904c8d171d6226f9f298996d71995b561e724204127d8",
   "field_manifest_id": "exoplanet_host_star.fields",
-  "field_manifest_version": "3.0.0",
-  "field_manifest_content_hash": "sha256:a922748dee1a51f616e256d1fe71a7e2b94596bcdfa465906046734bbf90118d",
+  "field_manifest_version": "4.0.0",
+  "field_manifest_content_hash": "sha256:9e4bbfa8e3e094c373c36ead0d18ebe68f64e78d0a79dde7fb36285f8336b9d0",
   "producer_name": "xingwen.data_artifacts",
   "producer_version": "2.0.0",
   "source_selection_policy_version": "1.0.0",
@@ -64,5 +64,5 @@
   },
   "created_at": "2026-08-02",
   "maintained_by": "data pipeline maintainers",
-  "content_hash": "sha256:7b3e7334d9f2bdf83aa3fa99770a59970a8efab4945c25c0540a9b9a41fd038e"
+  "content_hash": "sha256:cb407eed4aaebb9ce9e82b4d7e6983c648beb947c7cf9da36ce1eb40b304f95c"
 }

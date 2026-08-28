@@ -293,6 +293,22 @@ jobs:
           --include ProblemDetails
           --check
 
+      - name: Upload competition machine evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: competition-machine-evidence
+          if-no-files-found: error
+          include-hidden-files: true
+          path: |
+            .artifacts/literature-claim-benchmark-report.json
+            .artifacts/literature-relation-benchmark-cases.json
+            .artifacts/literature-relation-benchmark-report.json
+            .artifacts/evidence-graph-benchmark-cases.json
+            .artifacts/evidence-graph-benchmark-report.json
+            .artifacts/scientific_document-native-benchmark-report.json
+            .artifacts/scientific-data-integration-report.json
+            .artifacts/scientific-data-integration-summary.md
+
   frontend:
     name: Frontend quality
     runs-on: ubuntu-latest

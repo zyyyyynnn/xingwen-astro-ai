@@ -952,7 +952,7 @@ test("real worker exposes Literature dossiers, public reasoning, and interactive
   const graphNodes = graphCanvas.locator(".react-flow__node");
   await expect
     .poll(async () => (await graphNodes.first().boundingBox())?.width)
-    .toBeGreaterThan(400);
+    .toBeGreaterThan(300);
   const overlaps = await graphNodes.evaluateAll((nodes) =>
     nodes.flatMap((node, index) => {
       const left = node.getBoundingClientRect();

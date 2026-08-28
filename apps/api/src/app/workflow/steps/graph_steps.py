@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from sqlalchemy.orm import Session
 
-from app.schemas.enums import GraphNodeType
+from app.schemas.enums import GraphEdgeType, GraphNodeType
+from app.schemas.literature_claim import LiteratureClaimStatus
 from app.schemas.literature_relation import (
     LiteratureRelationStatus,
     LiteratureRelationsCandidate,
@@ -18,6 +19,7 @@ from app.schemas.graph_artifact import (
     GraphIntegrityStatus,
     GraphLayoutHint,
     GraphPolicySet,
+    GraphStructuralEdgeRequest,
 )
 from app.security import canonical_request_hash
 from app.services.artifacts import ArtifactReadService
@@ -76,8 +78,30 @@ class GraphStepService:
         if relations_version_id is None or relations is None:
             raise ValueError("literature_relations must be published before graph build")
 
-        claim_ids = tuple(sorted(item.claim_id for item in relations.claims))
-        paper_ids = tuple(sorted({item.paper_id for item in relations.evidence_references}))
+        accepted_claim_ids = {
+            item.claim_id
+            for item in relations.claims
+            if item.status is LiteratureClaimStatus.accepted
+        }
+        structural_pairs = tuple(
+            sorted(
+                {
+                    (item.paper_id, item.claim_id)
+                    for item in relations.evidence_references
+                    if item.claim_id in accepted_claim_ids
+                }
+            )
+        )
+        claim_ids = tuple(sorted(accepted_claim_ids))
+        paper_ids = tuple(sorted({paper_id for paper_id, _claim_id in structural_pairs}))
+        structural_edges = tuple(
+            GraphStructuralEdgeRequest(
+                edge_type=GraphEdgeType.supports_finding,
+                source_paper_id=paper_id,
+                target_claim_id=claim_id,
+            )
+            for paper_id, claim_id in structural_pairs
+        )
         relation_ids = tuple(
             sorted(
                 item.relation_id
@@ -85,14 +109,11 @@ class GraphStepService:
                 if item.status is LiteratureRelationStatus.accepted
             )
         )
-        if not relation_ids:
-            raise ValueError("evidence graph requires at least one accepted Relation")
-
         scope = GraphBuildScope(
             literature_paper_ids=paper_ids,
             literature_claim_ids=claim_ids,
             accepted_relation_ids=relation_ids,
-            structural_edges=(),
+            structural_edges=structural_edges,
             include_data=False,
         )
         progressive = build_complete_progressive_input(
