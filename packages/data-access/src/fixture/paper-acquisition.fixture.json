@@ -313,11 +313,7 @@
             "source_record_id": "crossref:10.3847/1538-3881/aad050",
             "source_snapshot_id": "snapshot.crossref.afb7bb833771264a51aeeef7",
             "title": "The TESS Input Catalog and Candidate Target List",
-            "authors": [
-              "Michelle Kunimoto",
-              "Tansu Daylan",
-              "Joshua Pepper"
-            ],
+            "authors": ["Michelle Kunimoto", "Tansu Daylan", "Joshua Pepper"],
             "year": 2018,
             "doi": "10.3847/1538-3881/aad050",
             "arxiv_id": "1706.00495",
@@ -1595,11 +1591,7 @@
             "source_record_id": "crossref:10.3847/1538-3881/aad050",
             "source_snapshot_id": "snapshot.crossref.afb7bb833771264a51aeeef7",
             "title": "The TESS Input Catalog and Candidate Target List",
-            "authors": [
-              "Michelle Kunimoto",
-              "Tansu Daylan",
-              "Joshua Pepper"
-            ],
+            "authors": ["Michelle Kunimoto", "Tansu Daylan", "Joshua Pepper"],
             "year": 2018,
             "doi": "10.3847/1538-3881/aad050",
             "arxiv_id": "1706.00495",

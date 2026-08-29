@@ -10,8 +10,10 @@ it("paper summary evidence carries real PDF page locators", async () => {
   const method = await repos.artifacts.getEvidence("evd_papsum_04" as never);
   expect(method).not.toBeNull();
   expect(method!.locator?.kind).toBe("paper_text");
-  expect(method!.locator && "page" in method!.locator
-    ? (method!.locator as { page: number | null }).page
-    : null).toBe(1);
+  expect(
+    method!.locator && "page" in method!.locator
+      ? (method!.locator as { page: number | null }).page
+      : null,
+  ).toBe(1);
   expect(method!.quoteOrValue).toContain("In this paper, we describe");
 });

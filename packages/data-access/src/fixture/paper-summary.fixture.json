@@ -22,11 +22,7 @@
     "paper": {
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
       "title": "The TESS Faint Star Search: 1,617 TOIs from the TESS Primary Mission",
-      "authors": [
-        "Michelle Kunimoto",
-        "Tansu Daylan",
-        "Natalia Guerrero"
-      ],
+      "authors": ["Michelle Kunimoto", "Tansu Daylan", "Natalia Guerrero"],
       "year": 2022
     },
     "summary": {
@@ -61,9 +57,7 @@
         {
           "statement_id": "stmt.research_goal",
           "text": "The paper presents the detection of 1,617 new transiting planet candidates identified in TESS full-frame images from the Primary Mission.",
-          "evidence_ids": [
-            "ev.goal_title"
-          ],
+          "evidence_ids": ["ev.goal_title"],
           "status": "supported",
           "validation_code": "evidence.supported"
         }
@@ -72,9 +66,7 @@
         {
           "statement_id": "stmt.method",
           "text": "An independent vetting pipeline applies automated vetting tests and manual inspection to QLP transit search results around fainter stars.",
-          "evidence_ids": [
-            "ev.method_text"
-          ],
+          "evidence_ids": ["ev.method_text"],
           "status": "supported",
           "validation_code": "evidence.supported"
         }
@@ -83,9 +75,7 @@
         {
           "statement_id": "stmt.dataset",
           "text": "The search extracts FFIs for all stars brighter than TESS magnitude T = 13.5 mag in each sector.",
-          "evidence_ids": [
-            "ev.dataset_year"
-          ],
+          "evidence_ids": ["ev.dataset_year"],
           "status": "supported",
           "validation_code": "evidence.supported"
         }
@@ -94,9 +84,7 @@
         {
           "statement_id": "stmt.finding_doi",
           "text": "The published catalog is registered under DOI 10.3847/1538-4365/ac5688.",
-          "evidence_ids": [
-            "ev.finding_doi"
-          ],
+          "evidence_ids": ["ev.finding_doi"],
           "status": "supported",
           "validation_code": "evidence.supported"
         }
@@ -452,9 +440,7 @@
         {
           "statement_id": "stmt.research_goal",
           "text": "The paper presents the detection of 1,617 new transiting planet candidates identified in TESS full-frame images from the Primary Mission.",
-          "evidence_ids": [
-            "ev.goal_title"
-          ],
+          "evidence_ids": ["ev.goal_title"],
           "status": "supported",
           "validation_code": "evidence.supported"
         }
@@ -463,9 +449,7 @@
         {
           "statement_id": "stmt.method",
           "text": "An independent vetting pipeline applies automated vetting tests and manual inspection to QLP transit search results around fainter stars.",
-          "evidence_ids": [
-            "ev.method_text"
-          ],
+          "evidence_ids": ["ev.method_text"],
           "status": "supported",
           "validation_code": "evidence.supported"
         }
@@ -474,9 +458,7 @@
         {
           "statement_id": "stmt.dataset",
           "text": "The search extracts FFIs for all stars brighter than TESS magnitude T = 13.5 mag in each sector.",
-          "evidence_ids": [
-            "ev.dataset_year"
-          ],
+          "evidence_ids": ["ev.dataset_year"],
           "status": "supported",
           "validation_code": "evidence.supported"
         }
@@ -485,9 +467,7 @@
         {
           "statement_id": "stmt.finding_doi",
           "text": "The published catalog is registered under DOI 10.3847/1538-4365/ac5688.",
-          "evidence_ids": [
-            "ev.finding_doi"
-          ],
+          "evidence_ids": ["ev.finding_doi"],
           "status": "supported",
           "validation_code": "evidence.supported"
         }
@@ -672,9 +652,7 @@
       "prompt_hash": "sha256:758c9277003b9597514721ce359738219b7ba154ab0a924cb5b9600cef0b6323",
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2"
     },
-    "source_snapshot_ids": [
-      "snap_papsum_crossref_01"
-    ],
+    "source_snapshot_ids": ["snap_papsum_crossref_01"],
     "evidence_ids": [
       "evd_papsum_01",
       "evd_papsum_02",
@@ -694,9 +672,7 @@
             {
               "text": "The paper presents the detection of 1,617 new transiting planet candidates identified in TESS full-frame images from the Primary Mission.",
               "status": "supported",
-              "evidence_ids": [
-                "evd_papsum_03"
-              ]
+              "evidence_ids": ["evd_papsum_03"]
             }
           ]
         },
@@ -706,9 +682,7 @@
             {
               "text": "An independent vetting pipeline applies automated vetting tests and manual inspection to QLP transit search results around fainter stars.",
               "status": "unverifiable",
-              "evidence_ids": [
-                "evd_papsum_04"
-              ]
+              "evidence_ids": ["evd_papsum_04"]
             }
           ]
         },
@@ -718,9 +692,7 @@
             {
               "text": "The search extracts FFIs for all stars brighter than TESS magnitude T = 13.5 mag in each sector.",
               "status": "supported",
-              "evidence_ids": [
-                "evd_papsum_01"
-              ]
+              "evidence_ids": ["evd_papsum_01"]
             }
           ]
         },
@@ -730,9 +702,7 @@
             {
               "text": "The published catalog is registered under DOI 10.3847/1538-4365/ac5688.",
               "status": "supported",
-              "evidence_ids": [
-                "evd_papsum_02"
-              ]
+              "evidence_ids": ["evd_papsum_02"]
             }
           ]
         },
