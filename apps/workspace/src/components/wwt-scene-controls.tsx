@@ -10,6 +10,8 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuTrigger,
+  Field,
+  FieldLabel,
   Input,
   Popover,
   PopoverContent,
@@ -374,38 +376,55 @@ export function WwtSceneControls({
   return (
     <div className="wwt-scene-controls">
       <div className="wwt-scene-controls__group" aria-label="视角控制">
-        <Input
-          aria-label="中心赤经（小时）"
-          placeholder="RA 小时"
-          value={raInput}
-          onChange={(event) => setRaInput(event.target.value)}
-        />
-        <Input
-          aria-label="中心赤纬（度）"
-          placeholder="Dec 度"
-          value={decInput}
-          onChange={(event) => setDecInput(event.target.value)}
-        />
-        <Input
-          aria-label="视场（度）"
-          placeholder="视场度"
-          value={fovInput}
-          onChange={(event) => setFovInput(event.target.value)}
-        />
-        <Input
-          aria-label="相机滚转（度）"
-          placeholder="滚转度"
-          value={rollInput}
-          onChange={(event) => setRollInput(event.target.value)}
-        />
-        <Button
-          type="button"
-          variant="secondary"
-          size="small"
-          onClick={gotoCoordinates}
-        >
-          前往坐标
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="secondary" size="small">
+              定位与视角
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="wwt-scene-controls__coordinate-panel">
+            <Field>
+              <FieldLabel htmlFor="wwt-ra">中心赤经（小时）</FieldLabel>
+              <Input
+                id="wwt-ra"
+                value={raInput}
+                onChange={(event) => setRaInput(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="wwt-dec">中心赤纬（度）</FieldLabel>
+              <Input
+                id="wwt-dec"
+                value={decInput}
+                onChange={(event) => setDecInput(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="wwt-fov">视场（度）</FieldLabel>
+              <Input
+                id="wwt-fov"
+                value={fovInput}
+                onChange={(event) => setFovInput(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="wwt-roll">相机滚转（度）</FieldLabel>
+              <Input
+                id="wwt-roll"
+                value={rollInput}
+                onChange={(event) => setRollInput(event.target.value)}
+              />
+            </Field>
+            <Button
+              type="button"
+              variant="primary"
+              size="small"
+              onClick={gotoCoordinates}
+            >
+              前往坐标
+            </Button>
+          </PopoverContent>
+        </Popover>
         <Select
           value={trackedTarget}
           onValueChange={(value) =>
@@ -621,47 +640,63 @@ export function WwtSceneControls({
         ) : null}
       </div>
       <div className="wwt-scene-controls__group" aria-label="时间控制">
-        <Select
-          value={base.time.mode}
-          onValueChange={(value) => setTimeMode(value)}
-        >
-          <SelectTrigger
-            aria-label="时间模式"
-            className="wwt-scene-controls__select"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(TIME_MODE_LABELS).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {base.time.mode === "playback" ? (
-          <Input
-            aria-label="时间倍率"
-            placeholder="倍率"
-            value={rateInput}
-            onChange={(event) => setRateInput(event.target.value)}
-            onBlur={() => setTimeMode("playback")}
-          />
-        ) : null}
-        <Input
-          type="datetime-local"
-          aria-label="观测时间（UTC）"
-          value={observedAtInput || (base.time.observedAt?.slice(0, 16) ?? "")}
-          onChange={(event) => setObservedAtInput(event.target.value)}
-        />
-        <Button
-          type="button"
-          variant="secondary"
-          size="small"
-          onClick={applyObservedAt}
-        >
-          固定观测时间（UTC）
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="secondary" size="small">
+              时间设置
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="wwt-scene-controls__time-panel">
+            <Field>
+              <FieldLabel>时间模式</FieldLabel>
+              <Select
+                value={base.time.mode}
+                onValueChange={(value) => setTimeMode(value)}
+              >
+                <SelectTrigger aria-label="时间模式">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(TIME_MODE_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            {base.time.mode === "playback" ? (
+              <Field>
+                <FieldLabel htmlFor="wwt-time-rate">时间倍率</FieldLabel>
+                <Input
+                  id="wwt-time-rate"
+                  value={rateInput}
+                  onChange={(event) => setRateInput(event.target.value)}
+                  onBlur={() => setTimeMode("playback")}
+                />
+              </Field>
+            ) : null}
+            <Field>
+              <FieldLabel htmlFor="wwt-observed-at">观测时间（UTC）</FieldLabel>
+              <Input
+                id="wwt-observed-at"
+                type="datetime-local"
+                value={
+                  observedAtInput || (base.time.observedAt?.slice(0, 16) ?? "")
+                }
+                onChange={(event) => setObservedAtInput(event.target.value)}
+              />
+            </Field>
+            <Button
+              type="button"
+              variant="primary"
+              size="small"
+              onClick={applyObservedAt}
+            >
+              固定观测时间
+            </Button>
+          </PopoverContent>
+        </Popover>
         <Button type="button" variant="ghost" size="small" onClick={resetScene}>
           恢复发布场景
         </Button>

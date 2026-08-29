@@ -72,10 +72,14 @@ function axisEncoding(
  * Raw or user-provided Vega specs are never accepted; no expressions are
  * emitted, so the renderer cannot evaluate arbitrary code.
  */
-function buildVegaLiteSpec(chart: ChartVisualizationReview): TopLevelSpec {
+function buildVegaLiteSpec(
+  chart: ChartVisualizationReview,
+  containerWidth: number,
+): TopLevelSpec {
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v6.json",
-    width: "container",
+    autosize: { type: "fit", contains: "padding", resize: true },
+    width: Math.max(240, Math.floor(containerWidth)),
     height: 320,
     background: "transparent",
     layer: chart.series.map((series) => ({
@@ -119,20 +123,25 @@ export function ScientificChart({
     if (!container) return;
     let finalized: { finalize: () => void } | null = null;
     let active = true;
+    let renderRevision = 0;
+    let animationFrame = 0;
     setState("loading");
-    void (async () => {
+
+    const render = async (containerWidth: number) => {
+      const revision = ++renderRevision;
       try {
         const [{ default: embed }, spec] = await Promise.all([
           import("vega-embed"),
-          Promise.resolve(buildVegaLiteSpec(chart)),
+          Promise.resolve(buildVegaLiteSpec(chart, containerWidth)),
         ]);
-        if (!active) return;
-        container.textContent = "";
+        if (!active || revision !== renderRevision) return;
+        finalized?.finalize();
+        container.replaceChildren();
         const result = await embed(container, spec, {
           actions: false,
           renderer: "svg",
         });
-        if (!active) {
+        if (!active || revision !== renderRevision) {
           result.finalize();
           return;
         }
@@ -143,9 +152,26 @@ export function ScientificChart({
         setState("error");
         setMessage(error instanceof Error ? error.message : "科学图表渲染失败");
       }
-    })();
+    };
+
+    const scheduleRender = () => {
+      cancelAnimationFrame(animationFrame);
+      animationFrame = requestAnimationFrame(() => {
+        const width = container.getBoundingClientRect().width;
+        if (width <= 0) return;
+        setState("loading");
+        setMessage("正在渲染科学图表");
+        void render(width);
+      });
+    };
+
+    const observer = new ResizeObserver(scheduleRender);
+    observer.observe(container);
+    scheduleRender();
     return () => {
       active = false;
+      observer.disconnect();
+      cancelAnimationFrame(animationFrame);
       finalized?.finalize();
     };
   }, [chart]);
@@ -156,13 +182,32 @@ export function ScientificChart({
   );
   return (
     <figure className="scientific-chart" aria-label={title}>
+      <ul className="scientific-chart__legend" aria-label="图例">
+        {chart.series.map((series) => (
+          <li key={series.seriesId}>
+            <span
+              className="scientific-chart__legend-swatch"
+              data-mark={series.mark}
+              style={{ color: `var(${TOKEN_VARIABLES[series.colorToken]})` }}
+              aria-hidden="true"
+            />
+            <span>{series.label}</span>
+          </li>
+        ))}
+      </ul>
       <div
         ref={containerRef}
         className="scientific-chart__canvas"
+        data-state={state}
         role="img"
         aria-label={`${title}：${chart.series.length} 条序列，共 ${totalPoints} 个数据点`}
         aria-busy={state === "loading"}
       />
+      {state === "loading" ? (
+        <figcaption className="scientific-chart__status" role="status">
+          {message}
+        </figcaption>
+      ) : null}
       {state === "error" ? (
         <figcaption role="alert">
           {message}，请查看下方表格替代视图。

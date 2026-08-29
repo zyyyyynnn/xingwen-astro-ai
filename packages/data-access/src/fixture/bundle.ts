@@ -30,7 +30,7 @@ import type {
   ResearchRunDto,
   RunEventDto,
 } from "@xingwen/contracts";
-import type { Evidence } from "@xingwen/domain";
+import type { Evidence, ResearchThreadEntry } from "@xingwen/domain";
 
 type DataArtifactRead =
   | DatasetArtifactRead
@@ -57,6 +57,8 @@ export interface FixturePaperSummary {
 
 export interface FixtureBundleData {
   readonly projects: readonly ResearchProjectDto[];
+  /** Public research conversation entries shown on the primary thread path. */
+  readonly threadEntries: readonly ResearchThreadEntry[];
   readonly contractDrafts: readonly ResearchContractDraftDto[];
   readonly contracts: readonly ResearchContractDto[];
   readonly runs: readonly ResearchRunDto[];

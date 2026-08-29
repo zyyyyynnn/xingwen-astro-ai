@@ -37,9 +37,9 @@ import {
 
 const STATUS_DOT_CLASS: Record<ResearchNavigationStatus, string> = {
   idle: "bg-muted-foreground/40",
-  running: "bg-blue-500 animate-pulse",
-  waiting: "bg-amber-500",
-  error: "bg-red-500",
+  running: "bg-[var(--color-info)] animate-pulse",
+  waiting: "bg-[var(--color-warning)]",
+  error: "bg-[var(--color-error)]",
 };
 
 const STATUS_LABEL: Record<ResearchNavigationStatus, string> = {

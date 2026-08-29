@@ -411,7 +411,9 @@ export function createFixtureRepositories(
   const drafts = new MemoryStore(
     bundle.data.contractDrafts.map((dto) => mapResearchContractDraft(dto)),
   );
-  const threadEntries = new MemoryStore<ResearchThreadEntry>([]);
+  const threadEntries = new MemoryStore<ResearchThreadEntry>(
+    bundle.data.threadEntries,
+  );
   const runs = new MemoryStore(
     bundle.data.runs.map((dto) => mapResearchRun(dto)),
   );
@@ -688,10 +690,10 @@ export function createFixtureRepositories(
     type: "pdf",
     sourceType: "upload",
     contentHash:
-      "sha256:4f8a1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
-    filename: "1903.07652.pdf",
+      "sha256:17c896c9401e3d0efe68a3157422cd2f1c83952405587b0dc0ebd7df975df4bd",
+    filename: "kunimoto-2022-tess-faint-star-search.pdf",
     mimeType: "application/pdf",
-    sizeBytes: 1048576,
+    sizeBytes: 1222983,
     createdAt: bundle.generatedAt,
     sourceSnapshotId: null,
     status: "accepted",
@@ -703,12 +705,9 @@ export function createFixtureRepositories(
       asEntityId(bundle.data.projects[0].id),
     );
   }
-  const dummyPdfBytes = new TextEncoder().encode(
-    "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000052 00000 n \n0000000101 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF\n",
-  );
-  researchInputContent.set(
-    seededResearchInputId,
-    new Blob([dummyPdfBytes], { type: "application/pdf" }),
+
+  const scientificBinaryStore = buildScientificBinaryStore(
+    bundle.data.scientificArtifactReads ?? [],
   );
 
   return {
@@ -1481,7 +1480,9 @@ export function createFixtureRepositories(
         return ref;
       },
       getContentUrl: (inputId: DomainEntityId) =>
-        `/api/research-inputs/${inputId}/content`,
+        inputId === seededResearchInputId
+          ? "/fixture-papers/kunimoto-2022-tess-faint-star-search.pdf"
+          : `/api/research-inputs/${inputId}/content`,
       getContent: async (inputId: DomainEntityId) =>
         researchInputContent.get(inputId) ?? new Blob([""]),
     },
@@ -1626,10 +1627,14 @@ export function createFixtureRepositories(
             "SCIENTIFIC_ARTIFACT_NOT_FOUND",
           );
         }
-        const sampleBytes = new TextEncoder().encode(
-          `# FITS / WWT / Binary Fixture Content for ${artifactVersionId}:${contentHash}\nSIMPLE = T\nBITPIX = 16\nNAXIS = 2\nNAXIS1 = 11\nNAXIS2 = 11\nEND\n`,
-        );
-        return sampleBytes.buffer;
+        const bytes = scientificBinaryStore.get(contentHash);
+        if (!bytes) {
+          throw new NotFoundError(
+            `No immutable fixture binary registered for ${artifactVersionId}:${contentHash}`,
+            "SCIENTIFIC_CONTENT_NOT_FOUND",
+          );
+        }
+        return bytes;
       },
     },
     artifactExports: fixtureArtifactExports,
@@ -1851,4 +1856,101 @@ export function createFixtureRepositories(
       ),
     },
   };
+}
+
+const FITS_BLOCK = 2880;
+
+function fitsCard(keyword: string, value: string): string {
+  return `${keyword.padEnd(8)}= ${value.padStart(20)} `.padEnd(80);
+}
+
+/** Minimal but structurally valid FITS image: padded header + BITPIX=16 data. */
+function buildFitsBytes(seed: string): ArrayBuffer {
+  const width = 64;
+  const height = 64;
+  const cards = [
+    fitsCard("SIMPLE", "T"),
+    fitsCard("BITPIX", "16"),
+    fitsCard("NAXIS", "2"),
+    fitsCard("NAXIS1", String(width)),
+    fitsCard("NAXIS2", String(height)),
+    fitsCard("CTYPE1", "'RA---TAN'"),
+    fitsCard("CTYPE2", "'DEC--TAN'"),
+    fitsCard("CRVAL1", "186.615"),
+    fitsCard("CRVAL2", "-51.365"),
+    fitsCard("CRPIX1", "32.5"),
+    fitsCard("CRPIX2", "32.5"),
+    fitsCard("CDELT1", "-0.001"),
+    fitsCard("CDELT2", "0.001"),
+    fitsCard("RADESYS", "'ICRS'"),
+    fitsCard("ORIGIN", "'xingwen-fixture'"),
+    fitsCard("OBJECT", `'${seed.slice(0, 16)}'`),
+    "END".padEnd(80),
+  ];
+  let header = cards.join("");
+  header = header.padEnd(Math.ceil(header.length / FITS_BLOCK) * FITS_BLOCK);
+
+  const dataBytes = width * height * 2;
+  const dataPadded = Math.ceil(dataBytes / FITS_BLOCK) * FITS_BLOCK;
+  const buffer = new ArrayBuffer(header.length + dataPadded);
+  const view = new DataView(buffer);
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < header.length; i++) bytes[i] = header.charCodeAt(i);
+
+  let offset = header.length;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const radial = Math.sqrt((x - 32) ** 2 + (y - 32) ** 2);
+      const value = Math.max(
+        0,
+        Math.min(32767, Math.round(4000 * Math.exp(-radial / 9))),
+      );
+      view.setInt16(offset, value, false);
+      offset += 2;
+    }
+  }
+  return buffer;
+}
+
+function buildCsvBytes(seed: string): ArrayBuffer {
+  const lines = ["ra,dec,phot_g_mean_mag"];
+  for (let i = 0; i < 40; i++) {
+    const ra = (71.855 + Math.sin(i * 12.9898 + seed.length) * 0.25).toFixed(5);
+    const dec = (-17.251 + Math.cos(i * 78.233 + seed.length) * 0.25).toFixed(
+      5,
+    );
+    const mag = (8 + ((i * 37) % 60) / 10).toFixed(2);
+    lines.push(`${ra},${dec},${mag}`);
+  }
+  return new TextEncoder().encode(`${lines.join("\r\n")}\r\n`).buffer;
+}
+
+interface ScientificBinarySpecLike {
+  readonly mode?: string;
+  readonly content_hash?: string;
+  readonly fits_layers?: readonly { readonly content_hash: string }[];
+  readonly table_layers?: readonly { readonly content_hash: string }[];
+}
+
+function buildScientificBinaryStore(
+  reads: readonly unknown[],
+): Map<string, ArrayBuffer> {
+  const store = new Map<string, ArrayBuffer>();
+  for (const item of reads) {
+    const read = item as { readonly content?: { readonly spec?: unknown } };
+    const spec = read.content?.spec as ScientificBinarySpecLike | undefined;
+    if (!spec) continue;
+    if (spec.mode === "fits_image" && spec.content_hash) {
+      store.set(spec.content_hash, buildFitsBytes(spec.content_hash));
+    }
+    if (spec.mode === "wwt_scene") {
+      for (const layer of spec.fits_layers ?? []) {
+        store.set(layer.content_hash, buildFitsBytes(layer.content_hash));
+      }
+      for (const layer of spec.table_layers ?? []) {
+        store.set(layer.content_hash, buildCsvBytes(layer.content_hash));
+      }
+    }
+  }
+  return store;
 }

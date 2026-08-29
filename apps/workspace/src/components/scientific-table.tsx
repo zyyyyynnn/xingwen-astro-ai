@@ -15,6 +15,8 @@ export interface ScientificTableColumn {
   readonly key: string;
   readonly label: string;
   readonly unit?: string | null;
+  /** Layout intent drives the column's minimum width; defaults to "numeric" heuristics on value type. */
+  readonly variant?: "identity" | "numeric" | "descriptive";
 }
 
 export interface ScientificTableCell {
@@ -37,6 +39,49 @@ function displayValue(value: ScientificTableScalar): string {
   return String(value);
 }
 
+const COLUMN_MIN_WIDTH: Record<
+  NonNullable<ScientificTableColumn["variant"]>,
+  string
+> = {
+  identity: "scientific-table__column--identity",
+  numeric: "scientific-table__column--numeric",
+  descriptive: "scientific-table__column--descriptive",
+};
+
+const UNIT_LABELS: Readonly<Record<string, string>> = {
+  dimensionless: "",
+  r_earth: "R⊕",
+  m_earth: "M⊕",
+  r_sun: "R☉",
+  m_sun: "M☉",
+  k: "K",
+  kelvin: "K",
+  day: "天",
+  days: "天",
+  dex: "dex",
+  degree: "°",
+  degrees: "°",
+};
+
+export function formatScientificUnit(unit: string | null | undefined): string {
+  if (!unit) return "";
+  const normalized = unit.trim().replace(/^_+/u, "").toLowerCase();
+  return UNIT_LABELS[normalized] ?? unit.replace(/^_+/u, "");
+}
+
+function columnMinWidthClass(
+  column: ScientificTableColumn,
+  sampleValues: readonly ScientificTableScalar[],
+): string {
+  if (column.variant) {
+    return COLUMN_MIN_WIDTH[column.variant];
+  }
+  const numeric = sampleValues.some(
+    (value) => typeof value === "number" || typeof value === "boolean",
+  );
+  return numeric ? COLUMN_MIN_WIDTH.numeric : COLUMN_MIN_WIDTH.identity;
+}
+
 function Cell({ cell }: { readonly cell: ScientificTableCell | undefined }) {
   if (!cell) return <>—</>;
   if (cell.status === "missing") return <>—</>;
@@ -52,13 +97,14 @@ function Cell({ cell }: { readonly cell: ScientificTableCell | undefined }) {
       </span>
     );
   }
+  const unit = formatScientificUnit(cell.unit);
   return (
     <span>
       {displayValue(cell.value)}
-      {cell.unit ? (
+      {unit ? (
         <small className="ui-text-label text-[var(--color-ink-secondary)]">
           {" "}
-          {cell.unit}
+          {unit}
         </small>
       ) : null}
     </span>
@@ -126,9 +172,23 @@ export function ScientificTable({
     });
   };
 
+  // Column layout intent comes from what the data actually holds, not a
+  // uniform 1fr squeeze that forces vertical CJK headers.
+  const columnWidthClass = new Map<string, string>();
+  for (const column of allColumns) {
+    const samples = suppliedRows
+      .slice(0, 8)
+      .map((row) => row.cells[column.key]?.value ?? null);
+    columnWidthClass.set(column.key, columnMinWidthClass(column, samples));
+  }
+  const identityWidthClass = COLUMN_MIN_WIDTH.identity;
+
   return (
     <div className="scientific-table overflow-x-auto my-2 border rounded border-[var(--color-border)]">
-      <div className="flex justify-end border-b border-[var(--color-border)] bg-[var(--color-surface-muted)] p-2">
+      <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface-muted)] p-2">
+        <span className="scientific-table__scroll-hint">
+          {columns.length > 5 ? "可横向滚动查看更多字段" : "数据字段"}
+        </span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="small" variant="ghost">
@@ -143,23 +203,32 @@ export function ScientificTable({
                 onCheckedChange={() => toggleColumn(column.key)}
               >
                 {column.label}
-                {column.unit ? ` (${column.unit})` : ""}
+                {formatScientificUnit(column.unit)
+                  ? ` (${formatScientificUnit(column.unit)})`
+                  : ""}
               </DropdownMenuCheckboxItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <table className="ui-text-body w-full text-left border-collapse">
+      <table className="ui-text-body w-full min-w-max text-left border-collapse">
         <caption className="sr-only">{caption}</caption>
-        <thead>
+        <thead className="scientific-table__head sticky top-0">
           <tr className="border-b bg-[var(--color-surface-muted)] border-[var(--color-border)]">
             {showIdentity ? (
-              <th scope="col" className="p-2 font-medium">
+              <th
+                scope="col"
+                className={`p-2 font-medium ${identityWidthClass}`}
+              >
                 标识 / 主体
               </th>
             ) : null}
             {columns.map((column) => (
-              <th scope="col" key={column.key} className="p-2 font-medium">
+              <th
+                scope="col"
+                key={column.key}
+                className={`p-2 font-medium whitespace-nowrap ${columnWidthClass.get(column.key) ?? ""}`}
+              >
                 <Button
                   variant="ghost"
                   size="small"
@@ -167,7 +236,9 @@ export function ScientificTable({
                   onClick={() => toggleSort(column.key)}
                 >
                   {column.label}
-                  {column.unit ? ` (${column.unit})` : ""}
+                  {formatScientificUnit(column.unit)
+                    ? ` (${formatScientificUnit(column.unit)})`
+                    : ""}
                   {sort?.key === column.key
                     ? sort.direction === "asc"
                       ? " ↑"
@@ -184,7 +255,7 @@ export function ScientificTable({
               {showIdentity ? (
                 <th
                   scope="row"
-                  className="p-2 font-normal text-[var(--color-ink-secondary)]"
+                  className="p-2 font-normal whitespace-nowrap text-[var(--color-ink-secondary)]"
                 >
                   {row.identity || "未命名记录"}
                 </th>
@@ -192,13 +263,19 @@ export function ScientificTable({
               {columns.map((column) => {
                 const cell = row.cells[column.key];
                 const evidenceIds = cell?.evidenceIds ?? [];
+                const numericCell =
+                  typeof cell?.value === "number" ||
+                  typeof cell?.value === "boolean";
                 return (
-                  <td key={column.key} className="p-2">
+                  <td
+                    key={column.key}
+                    className={`p-2 ${numericCell ? "tabular-nums" : ""}`}
+                  >
                     {evidenceIds.length > 0 && onSelectEvidence ? (
                       <Button
                         variant="ghost"
                         size="small"
-                        className="ui-text-body h-auto p-0 text-inherit"
+                        className="ui-text-body h-auto p-0 text-inherit underline-offset-2 hover:underline focus-visible:underline"
                         title="查看该数值的证据"
                         onClick={() => onSelectEvidence(evidenceIds)}
                       >

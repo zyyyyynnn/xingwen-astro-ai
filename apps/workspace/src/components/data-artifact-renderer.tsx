@@ -10,7 +10,7 @@ import type {
 import { Badge, Input } from "@xingwen/ui";
 import { Search } from "@xingwen/ui/icons";
 
-import { ScientificTable } from "./scientific-table";
+import { formatScientificUnit, ScientificTable } from "./scientific-table";
 import { ArtifactMetadataStrip, ArtifactToolbar } from "./result-layout";
 
 export type DataArtifactSurface = "fullscreen";
@@ -35,6 +35,46 @@ function fieldLabel(field: DataArtifactFieldDefinitionViewModel): string {
   return field.meaningZh || field.labelEn || "未命名字段";
 }
 
+function recordIdentity(value: string): string {
+  const separator = value.lastIndexOf("=");
+  return separator >= 0 ? value.slice(separator + 1).trim() : value;
+}
+
+const SOURCE_LABELS: Readonly<Record<string, string>> = {
+  "nasa_exoplanet_archive.toi": "NASA Exoplanet Archive · TOI 目录",
+  "nasa_exoplanet_archive.ps": "NASA Exoplanet Archive · 行星系统目录",
+  gaia_dr3: "Gaia DR3",
+  simbad: "SIMBAD 天体数据库",
+};
+
+function sourceLabel(sourceId: string | null): string {
+  if (!sourceId) return "未提供来源名称";
+  return SOURCE_LABELS[sourceId] ?? sourceId.replaceAll("_", " ");
+}
+
+const DATA_LEVEL_LABELS: Readonly<Record<string, string>> = {
+  fixture: "演示数据",
+  live: "实时来源",
+  cached: "缓存来源",
+  recorded: "录制来源",
+};
+
+const COMPLETION_LABELS: Readonly<Record<string, string>> = {
+  completed: "已完成",
+  partial: "部分完成",
+  pending: "待处理",
+  failed: "处理失败",
+  skipped: "已跳过",
+};
+
+const DATA_TYPE_LABELS: Readonly<Record<string, string>> = {
+  string: "文本",
+  number: "数值",
+  integer: "整数",
+  boolean: "布尔值",
+  datetime: "日期时间",
+};
+
 function DatasetTable({
   review,
   surface,
@@ -52,10 +92,16 @@ function DatasetTable({
         key: String(column.fieldId),
         label: fieldLabel(column),
         unit: column.canonicalUnit || null,
+        variant: column.canonicalUnit
+          ? ("numeric" as const)
+          : column.fieldId === "star_name" ||
+              column.fieldId === "host_star_name"
+            ? ("identity" as const)
+            : undefined,
       }))}
       rows={review.rows.map((row) => ({
         id: String(row.rowId),
-        identity: row.identity,
+        identity: recordIdentity(row.identity),
         cells: Object.fromEntries(
           row.cells.map((cell) => [
             String(cell.canonicalFieldId),
@@ -258,7 +304,7 @@ function FieldDictionaryRenderer({
                   <div className="font-medium text-foreground">
                     {fieldLabel(field)}
                   </div>
-                  <div className="font-mono text-[11px] text-muted-foreground">
+                  <div className="font-mono text-[length:var(--font-size-00)] text-muted-foreground">
                     {field.labelEn || field.fieldId}
                   </div>
                 </th>
@@ -269,20 +315,22 @@ function FieldDictionaryRenderer({
                 </td>
                 <td className="p-2.5 text-foreground align-top">
                   <div className="font-mono text-xs">
-                    {field.dataType}
-                    {field.canonicalUnit ? ` · ${field.canonicalUnit}` : ""}
+                    {DATA_TYPE_LABELS[field.dataType] ?? field.dataType}
+                    {formatScientificUnit(field.canonicalUnit)
+                      ? ` · ${formatScientificUnit(field.canonicalUnit)}`
+                      : ""}
                   </div>
-                  <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <div className="mt-1 flex items-center gap-1.5 text-[length:var(--font-size-00)] text-muted-foreground">
                     <Badge
                       variant={field.required ? "secondary" : "outline"}
-                      className="h-4 px-1 text-[10px]"
+                      className="h-4 px-1 text-[length:var(--font-size-00)]"
                     >
                       {field.required ? "必填" : "可选"}
                     </Badge>
                     <span>{field.nullable ? "可空" : "非空"}</span>
                   </div>
                 </td>
-                <td className="p-2.5 text-muted-foreground align-top font-mono text-[11px]">
+                <td className="p-2.5 text-muted-foreground align-top font-mono text-[length:var(--font-size-00)]">
                   {fieldSourceLabel(field)}
                 </td>
               </tr>
@@ -372,11 +420,16 @@ function SourceCollectionRenderer({
                 className="transition-colors hover:bg-surface-hover/50"
               >
                 <th scope="row" className="p-2.5 font-medium text-foreground">
-                  {member.sourceId ?? "未提供来源名称"}
+                  {sourceLabel(member.sourceId)}
                 </th>
                 <td className="p-2.5 text-muted-foreground">
-                  <Badge variant="outline" className="h-4 px-1 text-[10px]">
-                    {member.dataLevel}
+                  <Badge
+                    variant="outline"
+                    className="h-4 px-1 text-[length:var(--font-size-00)]"
+                  >
+                    {member.dataLevel
+                      ? (DATA_LEVEL_LABELS[member.dataLevel] ?? "来源数据")
+                      : "来源数据"}
                   </Badge>
                 </td>
                 <td className="p-2.5 font-mono text-foreground">
@@ -391,11 +444,12 @@ function SourceCollectionRenderer({
                         ? "secondary"
                         : "outline"
                     }
-                    className="h-4 px-1 text-[10px]"
+                    className="h-4 px-1 text-[length:var(--font-size-00)]"
                   >
-                    {member.completionStatus === "completed"
-                      ? "已完成"
-                      : member.completionStatus}
+                    {member.completionStatus
+                      ? (COMPLETION_LABELS[member.completionStatus] ??
+                        "状态未知")
+                      : "状态未知"}
                   </Badge>
                 </td>
               </tr>

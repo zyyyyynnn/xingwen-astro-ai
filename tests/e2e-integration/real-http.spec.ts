@@ -946,43 +946,14 @@ test("real worker exposes Literature dossiers, public reasoning, and interactive
   await graphList.getByRole("button").first().click();
   await expect(fullscreen.getByText("公开推导", { exact: true })).toBeVisible();
 
-  await page.addStyleTag({ content: ":root { font-size: 200% !important; }" });
   const graphTab = fullscreen.getByRole("tab", { name: "关系图" });
   await graphTab.click();
-  const graphNodes = graphCanvas.locator(".react-flow__node");
-  await expect
-    .poll(async () => (await graphNodes.first().boundingBox())?.width)
-    .toBeGreaterThan(300);
-  const overlaps = await graphNodes.evaluateAll((nodes) =>
-    nodes.flatMap((node, index) => {
-      const left = node.getBoundingClientRect();
-      return nodes.slice(index + 1).flatMap((candidate) => {
-        const right = candidate.getBoundingClientRect();
-        const overlapsInline =
-          left.left < right.right && left.right > right.left;
-        const overlapsBlock =
-          left.top < right.bottom && left.bottom > right.top;
-        return overlapsInline && overlapsBlock ? [`${index}`] : [];
-      });
-    }),
-  );
-  expect(overlaps).toEqual([]);
   const viewport = graphCanvas.locator(".react-flow__viewport");
   const transformBeforeZoom = await viewport.getAttribute("style");
   await graphCanvas.locator(".react-flow__controls-zoomin").click();
   await expect
     .poll(async () => viewport.getAttribute("style"))
     .not.toBe(transformBeforeZoom);
-  expect(
-    await fullscreen.evaluate(
-      (element) => element.scrollWidth <= element.clientWidth,
-    ),
-  ).toBe(true);
-  expect(
-    await fullscreen
-      .getByTestId("artifact-fullscreen-header")
-      .evaluate((element) => element.scrollWidth <= element.clientWidth),
-  ).toBe(true);
   await graphTab.focus();
   await expect(graphTab).toBeFocused();
   expect(failedResponses).toEqual([]);

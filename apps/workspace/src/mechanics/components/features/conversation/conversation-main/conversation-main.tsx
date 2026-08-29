@@ -252,9 +252,9 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
         >
           <SheetContent
             side="right"
-            className="flex w-[380px] max-w-full flex-col p-0"
+            className="flex w-[var(--workspace-result-sheet-narrow-inline-size)] max-w-full flex-col p-0"
           >
-            <SheetHeader className="flex h-[var(--workspace-header-block-size)] shrink-0 items-center justify-between border-b border-[var(--color-border)] px-[var(--space-5)]">
+            <SheetHeader className="flex h-[var(--workspace-header-block-size)] shrink-0 items-center justify-between border-b border-[var(--color-border)] ps-[var(--space-5)] pe-[var(--workspace-header-control-reserve-inline)]">
               {inspectorToolbar ?? (
                 <SheetTitle className="min-w-0 truncate text-[length:var(--font-size-ui-body)] font-medium text-[var(--color-ink-primary)]">
                   {inspectorHeading}

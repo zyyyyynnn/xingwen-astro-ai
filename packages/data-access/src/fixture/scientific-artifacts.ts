@@ -552,6 +552,166 @@ function generateLightCurvePoints(count: number, period = 3.7952) {
   return points;
 }
 
+// ---------------------------------------------------------------------------
+// 3b. Project C — L 98-59 (TOI-175) dedicated scientific identity
+// ---------------------------------------------------------------------------
+const sourceSnapshotL9859: SourceSnapshotDetail = {
+  id: "snap_l9859_tess",
+  source_id: "mast.tess",
+  source_type: "catalog",
+  retrieved_at: "2026-07-21T08:20:00Z",
+  query: { target: "L 98-59", mission: "TESS", fixture: true },
+  query_hash: hash("q_l9859"),
+  content_hash: hash("c_l9859"),
+  request_metadata: { adapter: "demo_replay" },
+  source_version_or_etag: "tess-dr5-2026",
+  license_note: "Public domain NASA / MAST TESS observation archive data.",
+};
+
+const l9859FitsSpec: FitsImageVisualizationSpec = {
+  mode: "fits_image",
+  source_snapshot_id: sourceSnapshotL9859.id,
+  content_ref: "/api/fixture/fits/l9859_tess_slice.fits",
+  content_hash: hash("fits_binary_l9859"),
+  stretch: "sqrt",
+  color_map: "viridis",
+};
+
+export const l9859FitsVisualizationContent: VisualizationArtifactContent = {
+  kind: "visualization",
+  schema_version: "1.0.0",
+  visualization_id: "vis_fits_l9859_slice",
+  title: "L 98-59 TESS 图像切片 (Target Pixel Slice)",
+  description:
+    "TESS 像素切片目标图，叠加测光孔径与背景掩模，用于 L 98-59 凌星测光提取。",
+  spec: l9859FitsSpec,
+  skill_executions: [skillExecution],
+  source_snapshot_ids: [sourceSnapshotL9859.id],
+  evidence_ids: ["ev_sci_01"],
+  input_hash: hash("i_vis_fits_l9859"),
+  output_hash: hash("o_vis_fits_l9859"),
+};
+
+const l9859WwtSpec: WwtSceneVisualizationSpec = {
+  mode: "wwt_scene",
+  view: {
+    field_of_view_degrees: 2.5,
+    roll_degrees: 0,
+    transition_seconds: 1.5,
+    center: {
+      ra_hours: 4.7902,
+      dec_degrees: -17.251,
+    },
+  },
+  time: {
+    mode: "system_clock",
+    observed_at: "2026-07-21T08:00:00Z",
+    rate: 1,
+  },
+  background: "digitized_sky_survey",
+  coordinate_grids: [{ system: "equatorial", labels: true }],
+  constellations: {
+    boundaries: true,
+    figures: true,
+    pictures: false,
+    labels: true,
+  },
+  fits_layers: [
+    {
+      layer_id: "fits_layer_l9859_slice",
+      source_snapshot_id: sourceSnapshotL9859.id,
+      content_ref: "/api/fixture/fits/l9859_tess_slice.fits",
+      content_hash: hash("fits_layer_l9859"),
+      opacity: 0.85,
+      stretch: "sqrt",
+      color_map: "magma",
+    },
+  ],
+  table_layers: [
+    {
+      layer_id: "tbl_gaia_l9859",
+      source_snapshot_id: sourceSnapshotL9859.id,
+      content_ref: "/api/fixture/tables/gaia_l9859_field.csv",
+      content_hash: hash("tbl_layer_l9859"),
+      media_type: "text/csv",
+      coordinates: {
+        frame: "sky",
+        longitude_field: "ra",
+        latitude_field: "dec",
+        longitude_unit: "degrees",
+      },
+      size_field: "phot_g_mean_mag",
+      size_scale: 1.2,
+      color_token: "brand",
+      marker_scale: "screen",
+      opacity: 0.9,
+    },
+  ],
+  annotations: [
+    {
+      annotation_id: "ann_l9859_marker",
+      kind: "circle",
+      points: [{ ra_hours: 4.7902, dec_degrees: -17.251 }],
+      label: "L 98-59 (TOI-175)",
+      color_token: "warning",
+      radius_degrees: 0.08,
+      line_width: 2,
+      fill: false,
+    },
+  ],
+  readbacks: ["center_coordinates", "field_of_view", "current_time"],
+  text_alternative:
+    "WWT 天文全景观测场景：以 L 98-59 为中心的赤道坐标系星空视野，包含 TESS 观测切片图层与 Gaia DR3 临近恒星分布。",
+};
+
+export const l9859WwtVisualizationContent: VisualizationArtifactContent = {
+  kind: "visualization",
+  schema_version: "1.0.0",
+  visualization_id: "vis_wwt_l9859_scene",
+  title: "L 98-59 天文全景观测场景 (WorldWide Telescope Scene)",
+  description:
+    "交互式 WWT 虚拟天文台视口，展示 L 98-59 天区、赤道坐标网格、星座连线及 TESS/Gaia 多源图层叠加。",
+  spec: l9859WwtSpec,
+  skill_executions: [skillExecution],
+  source_snapshot_ids: [sourceSnapshotL9859.id],
+  evidence_ids: ["ev_sci_01"],
+  input_hash: hash("i_vis_wwt_l9859"),
+  output_hash: hash("o_vis_wwt_l9859"),
+};
+
+export const l9859SpectrumContent: SpectrumArtifactContent = {
+  ...spectrumContent,
+  spectrum_id: "spec_l9859_harps",
+  title: "L 98-59 高分辨率恒星光谱 (HARPS Spectrograph)",
+  object_name: "L 98-59 (TOI-175)",
+  source_snapshot_ids: [sourceSnapshotL9859.id],
+  input_hash: hash("i_spec_l9859"),
+  output_hash: hash("o_spec_l9859"),
+};
+
+export const l9859AnalysisReportContent: AnalysisReportArtifactContent = {
+  ...analysisReportContent,
+  report_id: "rpt_l9859_spectroscopy",
+  title: "L 98-59 (TOI-175) 光谱学与测光综合分析报告",
+  summary:
+    "基于 HARPS 高分辨率光谱与 TESS 测光切片，完成 L 98-59 系统的恒星参数测量与凌星候选证认。光谱吸收线分析约束有效温度与金属丰度，TESS 切片测光确认多行星凌星信号。",
+  findings: [
+    {
+      finding_id: "fnd_l9859_01",
+      title: "L 98-59 光谱吸收线证认",
+      statement:
+        "Hα、Na I D 与 Ca II K/H 吸收线轮廓与 M 型矮星分类一致，支持 L 98-59 为低质量宿主星。",
+      status: "supported",
+      evidence_ids: ["ev_sci_01"],
+      metric_ids: ["met_snr"],
+    },
+  ],
+  related_artifact_version_ids: ["artv_c_spec_01", "artv_c_fits_01"],
+  source_snapshot_ids: [sourceSnapshotL9859.id],
+  input_hash: hash("i_rpt_l9859"),
+  output_hash: hash("o_rpt_l9859"),
+};
+
 export const lightCurveContent: LightCurveArtifactContent = {
   kind: "light_curve",
   schema_version: "1.0.0",
@@ -625,14 +785,14 @@ const modelMetrics: [ScientificMetric, ...ScientificMetric[]] = [
 
 const baselineMetrics: ScientificMetric[] = [
   {
-    metric_id: "met_base_acc",
+    metric_id: "met_acc",
     label: "基线准确率 (Random Forest)",
     value: 0.885,
     unit: null,
     evidence_ids: [],
   },
   {
-    metric_id: "met_base_f1",
+    metric_id: "met_f1",
     label: "基准 F1 分数",
     value: 0.842,
     unit: null,
@@ -765,8 +925,11 @@ const makeScientificRead = (
     {
       id: `ev_${artifactVersionId}_01`,
       artifact_version_id: artifactVersionId,
-      target_type: content.kind ?? "scientific",
-      target_id: artifactVersionId,
+      // The provenance trail of a scientific artifact points at the data
+      // source snapshot it was computed from — `source` is the domain's
+      // vocabulary for that target; artifact kinds are not target types.
+      target_type: "source",
+      target_id: sourceSnapshot.id,
       evidence_type: "database_query",
       source_snapshot_id: sourceSnapshot.id,
       extraction_method: "fixture.pipeline",
@@ -782,64 +945,6 @@ const makeScientificRead = (
 
 export const scientificArtifactReadsFixture: readonly ScientificArtifactRead[] =
   [
-    // Project A
-    makeScientificRead(
-      "art_analysis_01",
-      "artv_analysis_01",
-      "proj_01JEXAMPLE",
-      1,
-      analysisReportContent,
-    ),
-    makeScientificRead(
-      "art_vis_chart_01",
-      "artv_vis_chart_01",
-      "proj_01JEXAMPLE",
-      1,
-      chartVisualizationContent,
-    ),
-    makeScientificRead(
-      "art_vis_fits_01",
-      "artv_vis_fits_01",
-      "proj_01JEXAMPLE",
-      1,
-      fitsVisualizationContent,
-    ),
-    makeScientificRead(
-      "art_vis_wwt_01",
-      "artv_vis_wwt_01",
-      "proj_01JEXAMPLE",
-      1,
-      wwtVisualizationContent,
-    ),
-    makeScientificRead(
-      "art_spec_01",
-      "artv_spec_01",
-      "proj_01JEXAMPLE",
-      1,
-      spectrumContent,
-    ),
-    makeScientificRead(
-      "art_lc_01",
-      "artv_lc_01",
-      "proj_01JEXAMPLE",
-      1,
-      lightCurveContent,
-    ),
-    makeScientificRead(
-      "art_modeval_01",
-      "artv_modeval_01",
-      "proj_01JEXAMPLE",
-      1,
-      modelEvaluationContent,
-    ),
-    makeScientificRead(
-      "art_model_01",
-      "artv_model_01",
-      "proj_01JEXAMPLE",
-      1,
-      modelArtifactContent,
-    ),
-
     // Project B (TOI Transit)
     makeScientificRead(
       "art_b_analysis_01",
@@ -883,27 +988,27 @@ export const scientificArtifactReadsFixture: readonly ScientificArtifactRead[] =
       "artv_c_spec_01",
       "proj_l9859_spectroscopy",
       1,
-      spectrumContent,
+      l9859SpectrumContent,
     ),
     makeScientificRead(
       "art_c_fits_01",
       "artv_c_fits_01",
       "proj_l9859_spectroscopy",
       1,
-      fitsVisualizationContent,
+      l9859FitsVisualizationContent,
     ),
     makeScientificRead(
       "art_c_wwt_01",
       "artv_c_wwt_01",
       "proj_l9859_spectroscopy",
       1,
-      wwtVisualizationContent,
+      l9859WwtVisualizationContent,
     ),
     makeScientificRead(
       "art_c_analysis_01",
       "artv_c_analysis_01",
       "proj_l9859_spectroscopy",
       1,
-      analysisReportContent,
+      l9859AnalysisReportContent,
     ),
   ];

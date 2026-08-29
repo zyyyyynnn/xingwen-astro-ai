@@ -181,7 +181,11 @@ export function PublicShareView({
               {formatDate(snapshot.expiresAt)}
             </p>
           </div>
-          <Button variant="secondary" onClick={() => void copyShareLink()}>
+          <Button
+            variant="secondary"
+            className="shrink-0 whitespace-nowrap"
+            onClick={() => void copyShareLink()}
+          >
             <Share2 aria-hidden="true" />
             复制链接
           </Button>

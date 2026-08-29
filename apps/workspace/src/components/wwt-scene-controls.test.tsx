@@ -169,6 +169,14 @@ function renderControls() {
   );
 }
 
+function openPositionControls() {
+  fireEvent.click(screen.getByRole("button", { name: "定位与视角" }));
+}
+
+function openTimeControls() {
+  fireEvent.click(screen.getByRole("button", { name: "时间设置" }));
+}
+
 describe("WwtSceneControls", () => {
   it("normalizes track-object transitions into a backend-valid solar scene", () => {
     const tracked = transitionToTrackedObject(
@@ -222,6 +230,7 @@ describe("WwtSceneControls", () => {
 
   it("initializes control drafts from the published coordinates spec", () => {
     renderControls();
+    openPositionControls();
     expect(screen.getByLabelText("中心赤经（小时）")).toHaveValue("6");
     expect(screen.getByLabelText("中心赤纬（度）")).toHaveValue("24");
     expect(screen.getByLabelText("视场（度）")).toHaveValue("1.5");
@@ -232,10 +241,12 @@ describe("WwtSceneControls", () => {
     render(
       <WwtSceneControls spec={trackedObjectSpec} loadContent={loadContent} />,
     );
+    openPositionControls();
     expect(screen.getByLabelText("中心赤经（小时）")).toHaveValue("");
     expect(screen.getByLabelText("中心赤纬（度）")).toHaveValue("");
     expect(screen.getByLabelText("视场（度）")).toHaveValue("2.5");
     expect(screen.getByLabelText("相机滚转（度）")).toHaveValue("15");
+    openTimeControls();
     expect(screen.getByLabelText("时间倍率")).toHaveValue("42");
     expect(screen.getByLabelText("观测时间（UTC）")).toHaveValue(
       "2026-08-19T03:04",
@@ -247,6 +258,7 @@ describe("WwtSceneControls", () => {
 
   it("keeps every control on the fullscreen presentation state only", () => {
     renderControls();
+    openPositionControls();
     fireEvent.change(screen.getByLabelText("中心赤经（小时）"), {
       target: { value: "5.6" },
     });
@@ -268,6 +280,7 @@ describe("WwtSceneControls", () => {
 
   it("ignores invalid coordinate input without moving the scene", () => {
     renderControls();
+    openPositionControls();
     fireEvent.change(screen.getByLabelText("中心赤经（小时）"), {
       target: { value: "99" },
     });
@@ -333,6 +346,7 @@ describe("WwtSceneControls", () => {
 
   it("switches time mode into bounded playback", async () => {
     renderControls();
+    openTimeControls();
     fireEvent.click(screen.getByRole("combobox", { name: "时间模式" }));
     fireEvent.click(await screen.findByRole("option", { name: "时间回放" }));
 
@@ -350,6 +364,7 @@ describe("WwtSceneControls", () => {
     fireEvent.click(await screen.findByRole("option", { name: "Gaia DR3" }));
     await waitFor(() => expect(lastViewportSpec().background).toBe("gaia"));
 
+    openPositionControls();
     fireEvent.change(screen.getByLabelText("中心赤经（小时）"), {
       target: { value: "5.6" },
     });
@@ -415,6 +430,7 @@ describe("WwtSceneControls", () => {
 
   it("applies an explicit camera roll and keeps it across navigation", async () => {
     renderControls();
+    openPositionControls();
     fireEvent.change(screen.getByLabelText("中心赤经（小时）"), {
       target: { value: "5.6" },
     });
@@ -447,6 +463,7 @@ describe("WwtSceneControls", () => {
 
   it("rejects an out-of-range camera roll with a visible error", async () => {
     renderControls();
+    openPositionControls();
     fireEvent.change(screen.getByLabelText("中心赤经（小时）"), {
       target: { value: "5.6" },
     });
@@ -518,12 +535,11 @@ describe("WwtSceneControls", () => {
 
   it("fixes the observation time as explicit UTC", async () => {
     renderControls();
+    openTimeControls();
     fireEvent.change(screen.getByLabelText("观测时间（UTC）"), {
       target: { value: "2026-08-19T03:04" },
     });
-    fireEvent.click(
-      screen.getByRole("button", { name: "固定观测时间（UTC）" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "固定观测时间" }));
 
     await waitFor(() => {
       const time = lastViewportSpec().time;

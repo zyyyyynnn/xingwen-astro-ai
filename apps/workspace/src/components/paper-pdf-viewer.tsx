@@ -11,6 +11,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
+import PdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import {
   useCallback,
   useEffect,
@@ -20,10 +21,9 @@ import {
   type Ref,
 } from "react";
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url,
-).toString();
+pdfjs.GlobalWorkerOptions.workerSrc = PdfjsWorkerUrl;
+
+const PDF_LOAD_OPTIONS = { withCredentials: true };
 
 export interface PaperPdfViewerHandle {
   /** Jump to an exact PDF page. `pageIndex` is 0-based. */
@@ -158,6 +158,7 @@ export function PaperPdfViewer({
     <section
       className={`xw-pdf-viewer-container flex h-full min-h-0 w-full flex-col bg-background ${className}`}
       data-testid="paper-pdf-viewer"
+      data-num-pages={numPages}
       aria-label="论文原文"
     >
       <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-border px-2 py-2">
@@ -264,7 +265,7 @@ export function PaperPdfViewer({
       >
         <Document
           file={src}
-          options={{ withCredentials: true }}
+          options={PDF_LOAD_OPTIONS}
           onLoadSuccess={onLoadSuccess}
           onLoadError={() => setLoadError("论文原文载入失败，请稍后重试。")}
           loading={
@@ -279,15 +280,17 @@ export function PaperPdfViewer({
             </div>
           }
         >
-          <Page
-            pageNumber={pageNumber}
-            width={pageWidth}
-            height={pageHeight}
-            scale={fitMode === null ? scale : undefined}
-            renderTextLayer
-            renderAnnotationLayer
-            className="mx-auto shadow-sm"
-          />
+          <div data-testid="paper-pdf-page">
+            <Page
+              pageNumber={pageNumber}
+              width={pageWidth}
+              height={pageHeight}
+              scale={fitMode === null ? scale : undefined}
+              renderTextLayer
+              renderAnnotationLayer
+              className="mx-auto shadow-sm"
+            />
+          </div>
         </Document>
       </div>
     </section>

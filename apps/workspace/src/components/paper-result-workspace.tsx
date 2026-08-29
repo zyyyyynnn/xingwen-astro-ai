@@ -11,7 +11,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@xingwen/ui";
-import { FileText, Info } from "@xingwen/ui/icons";
+import { Info } from "@xingwen/ui/icons";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PaperPdfViewer, type PaperPdfViewerHandle } from "./paper-pdf-viewer";
 import { ArtifactPresentationContent } from "./scientific-presentation";
@@ -26,6 +26,11 @@ export interface PaperResultWorkspaceProps {
     readonly pageIndex: number;
     readonly nonce: number;
   } | null;
+  readonly paperMeta?: {
+    readonly title?: string;
+    readonly authors?: readonly string[];
+    readonly year?: number | null;
+  } | null;
   readonly toolbar?: ReactNode;
   readonly className?: string;
 }
@@ -39,6 +44,7 @@ export function PaperResultWorkspace({
   documentUrl = null,
   documentKind = null,
   requestedPage = null,
+  paperMeta = null,
   toolbar = null,
   className = "",
 }: PaperResultWorkspaceProps) {
@@ -67,13 +73,32 @@ export function PaperResultWorkspace({
   }, [requestedPageIndex, requestedPageNonce]);
 
   const report = (
-    <ArtifactPresentationContent
-      title={artifact.title}
-      presentation={version.presentation}
-      surface="fullscreen"
-      onSelectEvidence={onSelectEvidence}
-      showHeader={false}
-    />
+    <div className="xw-paper-report flex h-full flex-col">
+      <header className="mb-4 border-b border-border/80 pb-4">
+        <div className="text-[length:var(--font-size-00)] uppercase tracking-wider text-muted-foreground">
+          文献研读报告
+        </div>
+        <h2 className="mt-1 font-serif text-2xl font-bold tracking-tight text-foreground">
+          {paperMeta?.title ?? artifact.title}
+        </h2>
+        {paperMeta?.authors?.length ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {paperMeta.authors.join("，")}
+            {paperMeta.year ? ` · ${paperMeta.year}` : ""}
+          </p>
+        ) : null}
+        <p className="mt-1 text-xs text-muted-foreground">
+          {hasDocument ? "全文文档已关联 · 可与报告同屏核对" : "全文文档未关联"}
+        </p>
+      </header>
+      <ArtifactPresentationContent
+        title={artifact.title}
+        presentation={version.presentation}
+        surface="fullscreen"
+        onSelectEvidence={onSelectEvidence}
+        showHeader={false}
+      />
+    </div>
   );
 
   return (
@@ -109,19 +134,7 @@ export function PaperResultWorkspace({
 
       {!hasDocument ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-[48rem] px-6 py-8">
-            <div className="mb-6 flex items-center justify-between gap-4 border-b border-border/80 pb-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <FileText className="size-3.5" aria-hidden="true" />
-                  <span>文献研读报告</span>
-                </div>
-                <h2 className="font-serif text-2xl font-bold tracking-tight text-foreground">
-                  {artifact.title}
-                </h2>
-              </div>
-            </div>
-
+          <div className="mx-auto w-full max-w-[var(--workspace-result-reading-max-inline-size)] px-6 py-8">
             <div className="mb-6 rounded-md border border-border/60 bg-surface-muted/40 p-3 text-xs text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Info
@@ -147,7 +160,7 @@ export function PaperResultWorkspace({
             >
               <ResizablePanel
                 id="report"
-                defaultSize="50%"
+                defaultSize="58%"
                 minSize="30%"
                 className="h-full overflow-y-auto p-6"
               >
@@ -160,7 +173,7 @@ export function PaperResultWorkspace({
               />
               <ResizablePanel
                 id="paper"
-                defaultSize="50%"
+                defaultSize="42%"
                 minSize="25%"
                 className="h-full overflow-hidden border-l border-border bg-muted/10"
               >

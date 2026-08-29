@@ -18,11 +18,11 @@ export function ArtifactLayoutFrame({
       data-layout-mode={mode}
     >
       {mode === "reading" ? (
-        <div className="xw-reading-column mx-auto w-full max-w-[48rem] px-6 py-6">
+        <div className="xw-reading-column mx-auto w-full max-w-[var(--workspace-result-reading-max-inline-size)] px-6 py-6">
           {children}
         </div>
       ) : mode === "wide" ? (
-        <div className="xw-wide-column mx-auto w-full max-w-[76rem] px-6 py-6">
+        <div className="xw-wide-column mx-auto w-full max-w-[var(--workspace-result-wide-max-inline-size)] px-6 py-6">
           {children}
         </div>
       ) : mode === "data" ? (

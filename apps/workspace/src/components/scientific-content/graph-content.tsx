@@ -551,95 +551,123 @@ export function GraphContent({
           ) : null}
         </div>
         <TabsContent value="canvas" className="graph-workspace__canvas-panel">
-          {graphGeometry === null ? (
-            <p className="graph-workspace__empty" aria-busy="true">
-              正在适配关系图布局…
-            </p>
-          ) : elements.nodes.length > 0 ? (
-            <ReactFlow<ScientificGraphNode, ScientificGraphEdge>
-              nodes={elements.nodes.map((node) => ({
-                ...node,
-                selected: node.id === selectedNodeId,
-              }))}
-              edges={elements.edges.map((edge) => ({
-                ...edge,
-                selected: edge.id === selectedEdgeId,
-              }))}
-              nodeTypes={nodeTypes}
-              onInit={setInstance}
-              onNodeClick={(_event, node) => {
-                setSelectedNodeId(node.id as DomainEntityId);
-                setSelectedEdgeId(null);
-              }}
-              onEdgeClick={(_event, edge) => {
-                setSelectedEdgeId(edge.id as DomainEntityId);
-                setSelectedNodeId(null);
-              }}
-              onNodesChange={(changes) => {
-                const selection = changes.find(
-                  (change) => change.type === "select" && change.selected,
-                );
-                if (selection?.type === "select") {
-                  setSelectedNodeId(selection.id as DomainEntityId);
-                  setSelectedEdgeId(null);
-                } else if (
-                  changes.some(
-                    (change) =>
-                      change.type === "select" &&
-                      change.id === selectedNodeId &&
-                      !change.selected,
-                  )
-                ) {
-                  setSelectedNodeId(null);
-                }
-              }}
-              onEdgesChange={(changes) => {
-                const selection = changes.find(
-                  (change) => change.type === "select" && change.selected,
-                );
-                if (selection?.type === "select") {
-                  setSelectedEdgeId(selection.id as DomainEntityId);
-                  setSelectedNodeId(null);
-                } else if (
-                  changes.some(
-                    (change) =>
-                      change.type === "select" &&
-                      change.id === selectedEdgeId &&
-                      !change.selected,
-                  )
-                ) {
-                  setSelectedEdgeId(null);
-                }
-              }}
-              onPaneClick={() => {
-                setSelectedNodeId(null);
-                setSelectedEdgeId(null);
-              }}
-              nodesDraggable={false}
-              nodesConnectable={false}
-              elementsSelectable
-              nodesFocusable
-              edgesFocusable
-              disableKeyboardA11y={false}
-              deleteKeyCode={null}
-              fitView
-              aria-label="可交互科学关系图"
-              ariaLabelConfig={{
-                "node.a11yDescription.default":
-                  "按回车或空格选择研究对象，按 Escape 取消选择。",
-                "edge.a11yDescription.default":
-                  "按回车或空格选择关系，按 Escape 取消选择。",
-                "controls.ariaLabel": "关系图视图控制",
-              }}
-            >
-              <Background />
-              <Controls showInteractive={false} />
-            </ReactFlow>
-          ) : (
-            <p className="graph-workspace__empty">
-              当前筛选下没有可展示的研究对象。
-            </p>
-          )}
+          <div className="graph-workspace__canvas-inspector-split">
+            <div className="graph-workspace__canvas-holder">
+              {graphGeometry === null ? (
+                <p className="graph-workspace__empty" aria-busy="true">
+                  正在适配关系图布局…
+                </p>
+              ) : elements.nodes.length > 0 ? (
+                <ReactFlow<ScientificGraphNode, ScientificGraphEdge>
+                  nodes={elements.nodes.map((node) => ({
+                    ...node,
+                    selected: node.id === selectedNodeId,
+                  }))}
+                  edges={elements.edges.map((edge) => ({
+                    ...edge,
+                    selected: edge.id === selectedEdgeId,
+                  }))}
+                  nodeTypes={nodeTypes}
+                  onInit={setInstance}
+                  onNodeClick={(_event, node) => {
+                    setSelectedNodeId(node.id as DomainEntityId);
+                    setSelectedEdgeId(null);
+                  }}
+                  onEdgeClick={(_event, edge) => {
+                    setSelectedEdgeId(edge.id as DomainEntityId);
+                    setSelectedNodeId(null);
+                  }}
+                  onNodesChange={(changes) => {
+                    const selection = changes.find(
+                      (change) => change.type === "select" && change.selected,
+                    );
+                    if (selection?.type === "select") {
+                      setSelectedNodeId(selection.id as DomainEntityId);
+                      setSelectedEdgeId(null);
+                    } else if (
+                      changes.some(
+                        (change) =>
+                          change.type === "select" &&
+                          change.id === selectedNodeId &&
+                          !change.selected,
+                      )
+                    ) {
+                      setSelectedNodeId(null);
+                    }
+                  }}
+                  onEdgesChange={(changes) => {
+                    const selection = changes.find(
+                      (change) => change.type === "select" && change.selected,
+                    );
+                    if (selection?.type === "select") {
+                      setSelectedEdgeId(selection.id as DomainEntityId);
+                      setSelectedNodeId(null);
+                    } else if (
+                      changes.some(
+                        (change) =>
+                          change.type === "select" &&
+                          change.id === selectedEdgeId &&
+                          !change.selected,
+                      )
+                    ) {
+                      setSelectedEdgeId(null);
+                    }
+                  }}
+                  onPaneClick={() => {
+                    setSelectedNodeId(null);
+                    setSelectedEdgeId(null);
+                  }}
+                  nodesDraggable={false}
+                  nodesConnectable={false}
+                  elementsSelectable
+                  nodesFocusable
+                  edgesFocusable
+                  disableKeyboardA11y={false}
+                  deleteKeyCode={null}
+                  fitView
+                  aria-label="可交互科学关系图"
+                  ariaLabelConfig={{
+                    "node.a11yDescription.default":
+                      "按回车或空格选择研究对象，按 Escape 取消选择。",
+                    "edge.a11yDescription.default":
+                      "按回车或空格选择关系，按 Escape 取消选择。",
+                    "controls.ariaLabel": "关系图视图控制",
+                  }}
+                >
+                  <Background />
+                  <Controls showInteractive={false} />
+                </ReactFlow>
+              ) : (
+                <p className="graph-workspace__empty">
+                  当前筛选下没有可展示的研究对象。
+                </p>
+              )}
+            </div>
+            <div className="graph-workspace__side-inspector">
+              {selectedEdge ? (
+                <EdgeDetails
+                  edge={selectedEdge}
+                  nodeLabelById={nodeLabelById}
+                  onSelectEvidence={onSelectEvidence}
+                />
+              ) : selectedNode ? (
+                <aside
+                  className="graph-workspace__selection"
+                  aria-live="polite"
+                >
+                  <header>
+                    <p>{taxonomyLabel(selectedNode.nodeType)}</p>
+                    <h4>{selectedNode.label || "未命名研究对象"}</h4>
+                  </header>
+                  <p>选择与此对象连接的关系，可继续查看公开推导与来源证据。</p>
+                </aside>
+              ) : (
+                <p className="graph-workspace__selection-hint">
+                  点击节点或关系查看其科学内容、公开推导与证据。
+                </p>
+              )}
+            </div>
+          </div>
         </TabsContent>
         <TabsContent value="list">
           {presentationEdges.length > 0 ? (
@@ -667,21 +695,6 @@ export function GraphContent({
         >
           显示更多研究对象
         </Button>
-      ) : null}
-      {selectedEdge ? (
-        <EdgeDetails
-          edge={selectedEdge}
-          nodeLabelById={nodeLabelById}
-          onSelectEvidence={onSelectEvidence}
-        />
-      ) : selectedNode ? (
-        <aside className="graph-workspace__selection" aria-live="polite">
-          <header>
-            <p>{taxonomyLabel(selectedNode.nodeType)}</p>
-            <h4>{selectedNode.label || "未命名研究对象"}</h4>
-          </header>
-          <p>选择与此对象连接的关系，可继续查看公开推导与来源证据。</p>
-        </aside>
       ) : null}
     </article>
   );

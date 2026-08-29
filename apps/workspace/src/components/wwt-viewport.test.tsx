@@ -107,6 +107,29 @@ describe("WwtViewport", () => {
     expect(close).toHaveBeenCalledTimes(2);
   });
 
+  it("reuses the active lease when scene controls update the spec", async () => {
+    const close = vi.fn();
+    const renderScene = vi.fn(async () => null);
+    openSession.mockReturnValue({ render: renderScene, close });
+
+    const view = render(
+      <WwtViewport spec={sceneSpec} loadContent={loadContent} />,
+    );
+    await screen.findByText(/交互场景已加载/);
+
+    const nextSpec: WwtSceneVisualizationReview = {
+      ...sceneSpec,
+      coordinateGrids: [],
+    };
+    view.rerender(<WwtViewport spec={nextSpec} loadContent={loadContent} />);
+    await waitFor(() => expect(renderScene).toHaveBeenCalledTimes(2));
+
+    expect(openSession).toHaveBeenCalledTimes(1);
+    expect(close).not.toHaveBeenCalled();
+    view.unmount();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
   it("offers retry after a scene initialization failure", async () => {
     let attempt = 0;
     openSession.mockImplementation(() => ({

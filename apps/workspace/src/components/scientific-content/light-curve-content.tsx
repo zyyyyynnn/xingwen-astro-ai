@@ -1,6 +1,14 @@
 import { useMemo, useState, useRef, type MouseEvent } from "react";
 import type { LightCurveArtifactReviewContent } from "@xingwen/domain";
-import { Tabs, TabsList, TabsTrigger } from "@xingwen/ui";
+import { ChevronRight } from "@xingwen/ui/icons";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@xingwen/ui";
 
 import {
   formatNumber,
@@ -13,11 +21,6 @@ const VALUE_KIND_LABELS: Record<string, string> = {
   relative_flux: "相对流量",
   flux: "流量",
   magnitude: "星等",
-};
-
-const NORMALIZATION_LABELS: Record<string, string> = {
-  median_division: "中值归一化",
-  median_subtraction: "中值相减",
 };
 
 interface LightCurvePoint {
@@ -260,10 +263,8 @@ function TimeSeriesPlot({
 /** Phase Folded Light Curve Plot */
 function PhaseFoldedPlot({
   points,
-  period = 3.7952,
 }: {
   readonly points: readonly LightCurvePoint[];
-  readonly period?: number;
 }) {
   const [hoveredPoint, setHoveredPoint] = useState<{
     x: number;
@@ -272,14 +273,15 @@ function PhaseFoldedPlot({
     flux: number;
   } | null>(null);
 
-  const { foldedPoints, transitModelPath } = useMemo(() => {
-    // Fold points across normalized orbital cycle
-    const folded = points
-      .map((p) => {
-        let ph = (p.time % period) / period;
-        if (ph > 0.5) ph -= 1.0;
-        return { orbitalPhase: ph, flux: p.value };
-      })
+  // The artifact carries the authoritative orbital phase per point; the plot
+  // only projects existing values, it never re-derives or fits them.
+  const { foldedPoints } = useMemo(() => {
+    const withPhase = points
+      .filter((p) => typeof p.phase === "number")
+      .map((p) => ({
+        orbitalPhase: p.phase as number,
+        flux: p.normalizedValue ?? p.value,
+      }))
       .sort((a, b) => a.orbitalPhase - b.orbitalPhase);
 
     const width = 800;
@@ -288,60 +290,34 @@ function PhaseFoldedPlot({
     const innerW = width - margin.left - margin.right;
     const innerH = height - margin.top - margin.bottom;
 
+    const minPhase = -0.5;
+    const maxPhase = 0.5;
+    const fMin =
+      withPhase.length > 0 ? Math.min(...withPhase.map((p) => p.flux)) : 0;
+    const fMax =
+      withPhase.length > 0 ? Math.max(...withPhase.map((p) => p.flux)) : 1;
+    const fPad = (fMax - fMin) * 0.08 || 0.01;
+    const lo = fMin - fPad;
+    const hi = fMax + fPad;
+
     const getX = (ph: number) =>
-      margin.left + ((ph - -0.2) / (0.2 - -0.2)) * innerW;
+      margin.left + ((ph - minPhase) / (maxPhase - minPhase)) * innerW;
     const getY = (f: number) =>
-      margin.top + (1 - (f - 0.985) / (1.01 - 0.985)) * innerH;
+      margin.top + (1 - (f - lo) / (hi - lo)) * innerH;
 
-    // Filter to transit window
-    const inWindow = folded
-      .filter((p) => p.orbitalPhase >= -0.2 && p.orbitalPhase <= 0.2)
-      .map((p) => ({
-        ...p,
-        x: getX(p.orbitalPhase),
-        y: getY(p.flux),
-      }));
+    const projected = withPhase.map((p) => ({
+      ...p,
+      x: getX(p.orbitalPhase),
+      y: getY(p.flux),
+    }));
 
-    // Analytical Mandel-Agol transit fit curve
-    const modelSteps: { x: number; y: number }[] = [];
-    for (let ph = -0.2; ph <= 0.2001; ph += 0.005) {
-      const transitDepth = 0.0085; // ~850 ppm
-      const transitDuration = 0.035; // orbital duration
-      let modelFlux = 1.0;
-      if (Math.abs(ph) < transitDuration) {
-        // Limb darkened U-shape dip
-        const progress = Math.abs(ph) / transitDuration;
-        modelFlux = 1.0 - transitDepth * (1 - Math.pow(progress, 2) * 0.3);
-      }
-      modelSteps.push({ x: getX(ph), y: getY(modelFlux) });
-    }
-
-    const modelD = modelSteps.reduce(
-      (acc, pt, idx) =>
-        idx === 0
-          ? `M ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`
-          : `${acc} L ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`,
-      "",
-    );
-
-    return { foldedPoints: inWindow, transitModelPath: modelD };
-  }, [points, period]);
+    return { foldedPoints: projected };
+  }, [points]);
 
   return (
     <div className="relative w-full overflow-hidden">
       <svg viewBox="0 0 800 280" className="w-full select-none">
-        {/* Baseline */}
-        <line
-          x1={60}
-          y1={108}
-          x2={776}
-          y2={108}
-          stroke="currentColor"
-          strokeOpacity="0.25"
-          strokeDasharray="4 4"
-        />
-
-        {/* Phase Folded Points */}
+        {/* Phase Folded Points — authoritative per-point phase */}
         {foldedPoints.map((pt, idx) => (
           <circle
             key={idx}
@@ -362,17 +338,6 @@ function PhaseFoldedPlot({
             onMouseLeave={() => setHoveredPoint(null)}
           />
         ))}
-
-        {/* Fitted Transit Model Line */}
-        {transitModelPath ? (
-          <path
-            d={transitModelPath}
-            fill="none"
-            stroke="var(--color-destructive)"
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
-        ) : null}
 
         {/* Axes */}
         <line
@@ -400,7 +365,7 @@ function PhaseFoldedPlot({
           fill="currentColor"
           opacity="0.7"
         >
-          轨道相位 Orbital Phase (P = {period.toFixed(4)} d)
+          轨道相位 Orbital Phase
         </text>
         <text
           x={-130}
@@ -435,17 +400,20 @@ function PhaseFoldedPlot({
   );
 }
 
-/** Lomb-Scargle Periodogram Plot */
+/** Periodogram Peak Plot — authoritative peaks only, no simulated spectrum */
 function PeriodogramPlot({
   peaks,
   timeUnit,
+  falseAlarmProbability,
 }: {
   readonly peaks: readonly PeriodPeak[];
   readonly timeUnit: string;
+  readonly falseAlarmProbability: number | null;
 }) {
-  const { curveD } = useMemo(() => {
-    if (peaks.length === 0) return { curveD: "" };
-    const dominant = [...peaks].sort((a, b) => b.power - a.power)[0] ?? null;
+  const { projected, maxPower } = useMemo(() => {
+    if (peaks.length === 0) {
+      return { projected: [], minP: 0, maxP: 1, maxPower: 1 };
+    }
 
     const width = 800;
     const height = 280;
@@ -453,106 +421,91 @@ function PeriodogramPlot({
     const innerW = width - margin.left - margin.right;
     const innerH = height - margin.top - margin.bottom;
 
-    const minP = 0.5;
-    const maxP = 20.0;
-    const maxPower = Math.max(...peaks.map((p) => p.power), 1.0) * 1.1;
+    const lo = Math.min(...peaks.map((p) => p.period));
+    const hi = Math.max(...peaks.map((p) => p.period));
+    const span = hi - lo || 1;
+    const pad = span * 0.15;
+    const pMin = Math.max(0, lo - pad);
+    const pMax = hi + pad;
+    const powerMax = Math.max(...peaks.map((p) => p.power)) * 1.15 || 1;
 
     const getX = (p: number) =>
-      margin.left + ((p - minP) / (maxP - minP)) * innerW;
-    const getY = (pow: number) => margin.top + (1 - pow / maxPower) * innerH;
+      margin.left + ((p - pMin) / (pMax - pMin)) * innerW;
+    const getY = (pow: number) => margin.top + (1 - pow / powerMax) * innerH;
 
-    // Generate smooth spectrum simulation curve around the peaks
-    const curvePoints: { x: number; y: number }[] = [];
-    for (let p = minP; p <= maxP; p += 0.05) {
-      let pow = 0.05 + (Math.sin(p * 12.3) * 0.015 + 0.015); // background noise
-      for (const pk of peaks) {
-        const dist = Math.abs(p - pk.period);
-        if (dist < 1.0) {
-          pow += pk.power * Math.exp(-Math.pow(dist / 0.15, 2));
-        }
-      }
-      curvePoints.push({ x: getX(p), y: getY(pow) });
-    }
-
-    const d = curvePoints.reduce(
-      (acc, pt, idx) =>
-        idx === 0
-          ? `M ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`
-          : `${acc} L ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`,
-      "",
-    );
-
-    return { curveD: d, dominantPeak: dominant };
+    return {
+      projected: peaks.map((pk) => ({
+        ...pk,
+        x: getX(pk.period),
+        y: getY(pk.power),
+      })),
+      maxPower: powerMax,
+    };
   }, [peaks]);
+
+  const fapY =
+    falseAlarmProbability !== null && maxPower > 0
+      ? 20 + (1 - falseAlarmProbability / maxPower) * 220
+      : null;
 
   return (
     <div className="relative w-full overflow-hidden">
       <svg viewBox="0 0 800 280" className="w-full select-none">
-        {/* FAP 0.1% Threshold Line */}
-        <line
-          x1={60}
-          y1={70}
-          x2={776}
-          y2={70}
-          stroke="var(--color-warning)"
-          strokeOpacity="0.6"
-          strokeDasharray="4 4"
-        />
-        <text
-          x={770}
-          y={64}
-          fontSize="9"
-          textAnchor="end"
-          fill="var(--color-warning)"
-        >
-          FAP = 10⁻¹² 检出阈值
-        </text>
-
-        {/* Periodogram Curve */}
-        {curveD ? (
-          <path
-            d={curveD}
-            fill="none"
-            stroke="var(--color-primary)"
-            strokeWidth="1.5"
-          />
+        {/* Authoritative FAP threshold, only when the artifact states one */}
+        {fapY !== null ? (
+          <>
+            <line
+              x1={60}
+              y1={fapY}
+              x2={776}
+              y2={fapY}
+              stroke="var(--color-warning)"
+              strokeOpacity="0.6"
+              strokeDasharray="4 4"
+            />
+            <text
+              x={770}
+              y={fapY - 5}
+              fontSize="9"
+              textAnchor="end"
+              fill="var(--color-warning)"
+            >
+              FAP 检出阈值
+            </text>
+          </>
         ) : null}
 
-        {/* Peak Pins */}
-        {peaks.map((pk, idx) => {
-          const x = 60 + ((pk.period - 0.5) / (20.0 - 0.5)) * 716;
-          const y = 20 + (1 - pk.power / 1.0) * 220;
-          return (
-            <g key={idx}>
-              <line
-                x1={x}
-                y1={240}
-                x2={x}
-                y2={y}
-                stroke="var(--color-destructive)"
-                strokeWidth="1.5"
-              />
-              <circle
-                cx={x}
-                cy={y}
-                r={4}
-                fill="var(--color-destructive)"
-                stroke="var(--color-background)"
-                strokeWidth="1"
-              />
-              <text
-                x={x}
-                y={y - 8}
-                fontSize="9"
-                fontWeight="600"
-                textAnchor="middle"
-                fill="currentColor"
-              >
-                P = {pk.period.toFixed(3)} {timeUnit}
-              </text>
-            </g>
-          );
-        })}
+        {/* Peak Pins — the artifact's periodogram output */}
+        {projected.map((pk, idx) => (
+          <g key={idx}>
+            <line
+              x1={pk.x}
+              y1={240}
+              x2={pk.x}
+              y2={pk.y}
+              stroke="var(--color-destructive)"
+              strokeWidth="1.5"
+            />
+            <circle
+              cx={pk.x}
+              cy={pk.y}
+              r={4}
+              fill="var(--color-destructive)"
+              stroke="var(--color-background)"
+              strokeWidth="1"
+            />
+            <text
+              x={pk.x}
+              y={pk.y - 8}
+              fontSize="9"
+              fontWeight="600"
+              textAnchor="middle"
+              fill="currentColor"
+            >
+              P = {pk.period.toFixed(3)} {timeUnit}
+            </text>
+          </g>
+        ))}
 
         {/* Axes */}
         <line
@@ -615,7 +568,7 @@ export function LightCurveContent({
     "timeseries" | "folded" | "periodogram"
   >("timeseries");
 
-  const bestPeriod = content.periodPeaks[0]?.period ?? 3.7952;
+  const bestPeriod = content.bestPeriod;
 
   return (
     <article
@@ -629,48 +582,63 @@ export function LightCurveContent({
             subtitle={`光变测光曲线 · 目标天体: ${content.objectName}`}
           />
 
-          <div
-            className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
-            aria-label="光变参数摘要"
+          <dl
+            className="flex flex-wrap items-baseline gap-x-6 gap-y-1 border-b border-border/70 pb-3 text-sm"
+            aria-label="光变测量摘要"
           >
-            <div className="rounded-md border border-border bg-card p-3">
-              <div className="text-xs text-muted-foreground">采样点数</div>
-              <div className="mt-1 text-base font-semibold text-foreground">
-                {content.points.length} 点
-              </div>
+            <div className="flex items-baseline gap-1.5">
+              <dt className="text-xs text-muted-foreground">采样</dt>
+              <dd className="font-semibold tabular-nums text-foreground">
+                {content.sampleCount}
+              </dd>
             </div>
-            <div className="rounded-md border border-border bg-card p-3">
-              <div className="text-xs text-muted-foreground">主周期</div>
-              <div className="mt-1 text-base font-semibold text-foreground">
+            <div className="flex items-baseline gap-1.5">
+              <dt className="text-xs text-muted-foreground">已接受</dt>
+              <dd className="font-semibold tabular-nums text-foreground">
+                {content.acceptedSampleCount}
+              </dd>
+            </div>
+            {content.rejectedSampleCount > 0 ? (
+              <div className="flex items-baseline gap-1.5">
+                <dt className="text-xs text-muted-foreground">已剔除</dt>
+                <dd className="font-semibold tabular-nums text-foreground">
+                  {content.rejectedSampleCount}
+                </dd>
+              </div>
+            ) : null}
+            <div className="flex items-baseline gap-1.5">
+              <dt className="text-xs text-muted-foreground">主周期</dt>
+              <dd className="font-semibold tabular-nums text-foreground">
                 {bestPeriod.toFixed(4)} {content.timeUnit}
-              </div>
+              </dd>
             </div>
-            <div className="rounded-md border border-border bg-card p-3">
-              <div className="text-xs text-muted-foreground">测量类型</div>
-              <div className="mt-1 text-base font-semibold text-foreground">
+            {content.falseAlarmProbability !== null ? (
+              <div className="flex items-baseline gap-1.5">
+                <dt className="text-xs text-muted-foreground">FAP</dt>
+                <dd className="font-semibold tabular-nums text-foreground">
+                  {formatNumber(content.falseAlarmProbability, 6)}
+                </dd>
+              </div>
+            ) : null}
+            <div className="flex items-baseline gap-1.5">
+              <dt className="text-xs text-muted-foreground">中位采样间隔</dt>
+              <dd className="font-semibold tabular-nums text-foreground">
+                {formatNumber(content.medianCadence, 2)} {content.timeUnit}
+              </dd>
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <dt className="text-xs text-muted-foreground">测量</dt>
+              <dd className="font-semibold text-foreground">
                 {VALUE_KIND_LABELS[content.valueKind] ?? content.valueKind}
-              </div>
+              </dd>
             </div>
-            <div className="rounded-md border border-border bg-card p-3">
-              <div className="text-xs text-muted-foreground">归一化方法</div>
-              <div className="mt-1 text-base font-semibold text-foreground">
-                {NORMALIZATION_LABELS[content.normalization] ??
-                  content.normalization}
-              </div>
-            </div>
-            <div className="rounded-md border border-border bg-card p-3">
-              <div className="text-xs text-muted-foreground">检出峰值</div>
-              <div className="mt-1 text-base font-semibold text-foreground">
-                {content.periodPeaks.length} 个
-              </div>
-            </div>
-            <div className="rounded-md border border-border bg-card p-3">
-              <div className="text-xs text-muted-foreground">数据源模式</div>
-              <div className="mt-1 text-base font-semibold text-foreground">
+            <div className="flex items-baseline gap-1.5">
+              <dt className="text-xs text-muted-foreground">数据等级</dt>
+              <dd className="font-semibold text-foreground">
                 {sourceModeLabel(sourceMode)}
-              </div>
+              </dd>
             </div>
-          </div>
+          </dl>
         </>
       ) : null}
 
@@ -698,19 +666,13 @@ export function LightCurveContent({
 
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             {activeTab === "folded" ? (
-              <>
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block size-2 rounded-full bg-primary" />{" "}
-                  观测折叠点
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block h-0.5 w-4 bg-destructive" />{" "}
-                  拟合凌星模型 (Mandel-Agol)
-                </span>
-              </>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block size-2 rounded-full bg-primary" />{" "}
+                观测折叠点（按结果记录的轨道相位）
+              </span>
             ) : activeTab === "periodogram" ? (
               <span className="flex items-center gap-1.5">
-                <span className="inline-block h-0.5 w-4 border-b border-dashed border-amber-500" />{" "}
+                <span className="inline-block h-0.5 w-4 border-b border-dashed border-[var(--color-warning)]" />{" "}
                 FAP 显著性阈值
               </span>
             ) : (
@@ -730,48 +692,63 @@ export function LightCurveContent({
           />
         )}
 
-        {activeTab === "folded" && (
-          <PhaseFoldedPlot points={content.points} period={bestPeriod} />
-        )}
+        {activeTab === "folded" && <PhaseFoldedPlot points={content.points} />}
 
         {activeTab === "periodogram" && (
           <PeriodogramPlot
             peaks={content.periodPeaks}
             timeUnit={content.timeUnit}
+            falseAlarmProbability={content.falseAlarmProbability}
           />
         )}
       </div>
 
-      {/* Tables */}
-      <section className="scientific-artifact__section">
-        <h4 className="mb-2 font-medium text-foreground">周期图谱峰值候选</h4>
-        {content.periodPeaks.length > 0 ? (
-          <div className="scientific-artifact__table-scroll">
-            <table className="scientific-artifact__table">
-              <thead>
-                <tr>
-                  <th>周期 ({content.timeUnit})</th>
-                  <th>谱功率 Power</th>
-                  <th>虚警概率 (FAP)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {content.periodPeaks.map((peak, idx) => (
-                  <tr key={idx}>
-                    <td className="font-semibold">
-                      {formatNumber(peak.period, 4)}
-                    </td>
-                    <td>{formatNumber(peak.power, 4)}</td>
-                    <td>{"< 1.00e-12"}</td>
+      {/* Tables — secondary detail, collapsed by default (spec §48) */}
+      <Collapsible defaultOpen={false}>
+        <CollapsibleTrigger className="group flex w-full items-center gap-1.5 py-2 text-sm text-muted-foreground hover:text-foreground">
+          <ChevronRight
+            className="size-3.5 transition-transform group-data-[state=open]:rotate-90"
+            aria-hidden="true"
+          />
+          <span className="font-medium">
+            周期图谱峰值候选（{content.periodPeaks.length} 个）
+          </span>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          {content.periodPeaks.length > 0 ? (
+            <div className="scientific-artifact__table-scroll mt-1">
+              <table className="scientific-artifact__table">
+                <thead>
+                  <tr>
+                    <th>周期 ({content.timeUnit})</th>
+                    <th>谱功率 Power</th>
+                    <th>虚警概率 (FAP)</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">未检出周期峰值。</p>
-        )}
-      </section>
+                </thead>
+                <tbody>
+                  {content.periodPeaks.map((peak, idx) => (
+                    <tr key={idx}>
+                      <td className="font-semibold">
+                        {formatNumber(peak.period, 4)}
+                      </td>
+                      <td>{formatNumber(peak.power, 4)}</td>
+                      <td>
+                        {content.falseAlarmProbability === null
+                          ? "—"
+                          : formatNumber(content.falseAlarmProbability, 6)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="py-2 text-sm text-muted-foreground">
+              未检出周期峰值。
+            </p>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
     </article>
   );
 }

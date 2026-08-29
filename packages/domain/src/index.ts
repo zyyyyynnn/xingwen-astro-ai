@@ -259,6 +259,7 @@ export type {
   PublicPresentationGraphNode,
   PublicPresentationParagraph,
   PublicPresentationSection,
+  PublicPresentationTable,
   PublicPresentationTrace,
 } from "./share-snapshot";
 

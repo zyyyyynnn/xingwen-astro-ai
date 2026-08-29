@@ -1,5 +1,11 @@
+import { useEffect } from "react";
+
 import { CommandMenu } from "../components/features/command-menu/command-menu";
 import { Sidebar } from "../components/features/sidebar/sidebar";
+import {
+  subscribeSidebarViewport,
+  useSidebarStore,
+} from "../stores/sidebar-store";
 import type { ResearchWorkspaceRuntime } from "../root";
 
 import { ConversationView } from "./conversation";
@@ -9,6 +15,12 @@ interface MainAppProps {
 }
 
 export default function MainApp({ runtime }: MainAppProps) {
+  const setAutoCollapsed = useSidebarStore((state) => state.setAutoCollapsed);
+  useEffect(
+    () => subscribeSidebarViewport(setAutoCollapsed),
+    [setAutoCollapsed],
+  );
+
   return (
     <div
       data-testid="root-layout"
@@ -26,7 +38,10 @@ export default function MainApp({ runtime }: MainAppProps) {
       <main id="main-content" tabIndex={-1} className="min-w-0 flex-1">
         <ConversationView runtime={runtime} />
       </main>
-      <CommandMenu />
+      <CommandMenu
+        projects={runtime.navigation.projects}
+        onOpenProject={runtime.navigation.onOpenProject}
+      />
     </div>
   );
 }

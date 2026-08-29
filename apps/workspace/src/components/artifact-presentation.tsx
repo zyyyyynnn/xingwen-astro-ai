@@ -7,6 +7,7 @@ import { useMemo, type ReactNode } from "react";
 import type { ResearchWorkspaceRuntime } from "../mechanics/root";
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
 import { artifactKindLabel } from "../presentation/artifact-presentation-labels";
+import { artifactResultSummary } from "../presentation/artifact-result-summary";
 import { ArtifactFullscreenWorkspace } from "./artifact-fullscreen-workspace";
 import { ResultIndexItem } from "./result-layout";
 
@@ -83,8 +84,12 @@ function ArtifactResultIndex({
         const versionData = versionQueries[index]?.data;
         const kindLabel = artifactKindLabel(artifact.kind);
         const evidenceCount = versionData?.provenance.evidenceIds.length ?? 0;
+        const scientificSummary = versionData
+          ? artifactResultSummary(versionData.presentation)
+          : null;
         const metadataSummary =
-          evidenceCount > 0 ? `证据 ${evidenceCount} 条` : null;
+          scientificSummary ??
+          (evidenceCount > 0 ? `证据 ${evidenceCount} 条` : null);
 
         return (
           <ResultIndexItem

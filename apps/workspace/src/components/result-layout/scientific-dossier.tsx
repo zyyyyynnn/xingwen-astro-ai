@@ -16,6 +16,7 @@ export interface ScientificDossierProps {
   readonly evidenceActions?: ReactNode;
   readonly actions?: ReactNode;
   readonly children?: ReactNode;
+  readonly aside?: ReactNode;
   readonly className?: string;
   readonly testId?: string;
 }
@@ -35,6 +36,11 @@ function statusBadgeVariant(
   }
 }
 
+/**
+ * One scientific entry in a separator-divided dossier list. Accepted entries
+ * stay typographic; only candidate review gets a light surface and rejected
+ * entries mute. No per-entry card chrome.
+ */
 export function ScientificDossier({
   status,
   statusLabel,
@@ -45,6 +51,7 @@ export function ScientificDossier({
   evidenceActions = null,
   actions = null,
   children = null,
+  aside = null,
   className = "",
   testId,
 }: ScientificDossierProps) {
@@ -64,17 +71,13 @@ export function ScientificDossier({
   const isRejected = status === "rejected";
 
   const surfaceClass = isCandidate
-    ? "bg-surface-muted/40 border-border/80"
+    ? "bg-surface-muted/40 rounded-md"
     : isRejected
-      ? "bg-background border-border/40 opacity-75"
-      : "bg-background border-border/60";
+      ? "opacity-70"
+      : "";
 
-  return (
-    <article
-      className={`xw-scientific-dossier flex flex-col gap-3 rounded-md border p-4 transition-colors hover:border-border ${surfaceClass} ${className}`}
-      data-status={status ?? undefined}
-      data-testid={testId}
-    >
+  const main = (
+    <div className="flex min-w-0 flex-1 flex-col gap-2.5">
       <header className="flex flex-col gap-1.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -113,10 +116,27 @@ export function ScientificDossier({
       {children}
 
       {evidenceActions ? (
-        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/40">
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           {evidenceActions}
         </div>
       ) : null}
+    </div>
+  );
+
+  return (
+    <article
+      className={`xw-scientific-dossier border-b border-border/70 px-1 py-4 last:border-b-0 ${surfaceClass} ${className}`}
+      data-status={status ?? undefined}
+      data-testid={testId}
+    >
+      {aside ? (
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+          {main}
+          {aside}
+        </div>
+      ) : (
+        main
+      )}
     </article>
   );
 }

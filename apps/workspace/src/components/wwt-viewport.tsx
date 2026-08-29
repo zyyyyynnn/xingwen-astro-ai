@@ -39,6 +39,7 @@ export function WwtViewport(props: WwtViewportProps) {
   const { spec, loadContent } = props;
   const hostRef = useRef<HTMLDivElement>(null);
   const loadContentRef = useRef(loadContent);
+  const sessionRef = useRef<ReturnType<typeof openWwtSession> | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [message, setMessage] = useState("正在初始化 WorldWide Telescope");
   const [readback, setReadback] = useState<WwtSceneReadback | null>(null);
@@ -59,8 +60,19 @@ export function WwtViewport(props: WwtViewportProps) {
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    let active = true;
     const session = openWwtSession(host);
+    sessionRef.current = session;
+    return () => {
+      if (sessionRef.current === session) sessionRef.current = null;
+      session.close();
+    };
+  }, [attempt]);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    const session = sessionRef.current;
+    if (!host || !session) return;
+    let active = true;
     setState("loading");
     setReadback(null);
     setCaptureState("idle");
@@ -99,7 +111,6 @@ export function WwtViewport(props: WwtViewportProps) {
       });
     return () => {
       active = false;
-      session.close();
     };
   }, [attempt, label, spec]);
 
@@ -131,7 +142,12 @@ export function WwtViewport(props: WwtViewportProps) {
   };
 
   return (
-    <figure className="wwt-viewport" aria-busy={state === "loading"}>
+    <figure
+      className="wwt-viewport"
+      data-testid="wwt-viewport"
+      data-state={state}
+      aria-busy={state === "loading"}
+    >
       <div
         ref={hostRef}
         className="wwt-viewport__canvas"

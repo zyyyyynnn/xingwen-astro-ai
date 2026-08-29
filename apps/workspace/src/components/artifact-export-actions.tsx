@@ -4,7 +4,7 @@ import type {
   ArtifactKind,
   DomainEntityId,
 } from "@xingwen/domain";
-import { Alert, AlertDescription, Button } from "@xingwen/ui";
+import { Button } from "@xingwen/ui";
 import { Download } from "@xingwen/ui/icons";
 
 import { downloadBytes } from "../presentation/browser-download";
@@ -82,53 +82,48 @@ export function ArtifactExportActions({
     onSuccess: ({ download }) => downloadBytes(download),
   });
 
+  const exportError =
+    exportMutation.error instanceof Error
+      ? runtime.researchAdapter.toPublicApplicationError(exportMutation.error)
+          .safeMessage
+      : exportMutation.error
+        ? "数据导出失败"
+        : null;
+
   return (
-    <section
-      className="artifact-export p-3 bg-[var(--color-surface-muted)] rounded-lg border border-[var(--color-border)] my-3"
+    <div
+      className="artifact-export flex flex-wrap items-center gap-1.5"
       aria-label="数据导出"
     >
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="text-xs font-medium text-[var(--color-ink-primary)]">
-          数据导出
+      {exportFormats(artifactKind).map(({ format, label }) => (
+        <Button
+          key={format}
+          type="button"
+          variant="ghost"
+          size="small"
+          disabled={exportMutation.isPending}
+          onClick={() => exportMutation.mutate(format)}
+          aria-label={`导出 ${label}`}
+        >
+          <Download data-icon="inline-start" aria-hidden="true" />
+          {exportMutation.isPending && exportMutation.variables === format
+            ? `生成中…`
+            : label}
+        </Button>
+      ))}
+      {exportError ? (
+        <span className="ui-text-label text-[var(--color-error)]" role="alert">
+          {exportError}
         </span>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {exportFormats(artifactKind).map(({ format, label }) => (
-          <Button
-            key={format}
-            type="button"
-            variant="secondary"
-            size="small"
-            disabled={exportMutation.isPending}
-            onClick={() => exportMutation.mutate(format)}
-          >
-            <Download data-icon="inline-start" aria-hidden="true" />
-            {exportMutation.isPending && exportMutation.variables === format
-              ? `正在生成 ${label}`
-              : `导出 ${label}`}
-          </Button>
-        ))}
-      </div>
-      {exportMutation.isError ? (
-        <Alert variant="destructive" className="mt-2">
-          <AlertDescription>
-            {exportMutation.error instanceof Error
-              ? runtime.researchAdapter.toPublicApplicationError(
-                  exportMutation.error,
-                ).safeMessage
-              : "数据导出失败"}
-          </AlertDescription>
-        </Alert>
       ) : null}
       {exportMutation.isSuccess ? (
-        <p
-          className="text-xs text-[var(--color-ink-secondary)] mt-2"
+        <span
+          className="ui-text-label text-[var(--color-ink-secondary)]"
           role="status"
         >
-          已成功导出 {exportMutation.data.record.format.toUpperCase()}{" "}
-          格式数据。
-        </p>
+          已导出 {exportMutation.data.record.format.toUpperCase()}
+        </span>
       ) : null}
-    </section>
+    </div>
   );
 }

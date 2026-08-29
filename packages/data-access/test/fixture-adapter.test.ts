@@ -86,6 +86,50 @@ describe("Fixture adapter — reads map DTO to domain", () => {
     expect(evidence!.evidenceType).toBe("database_query");
   });
 
+  it("serves a TAN-projected FITS fixture that the WWT renderer can open", async () => {
+    const artifactVersionId = "artv_c_fits_01" as never;
+    const review = await repos.scientificArtifacts.getReview(artifactVersionId);
+    expect("content" in review).toBe(true);
+    if (!("content" in review) || review.content.kind !== "visualization") {
+      throw new Error("Expected the FITS fixture to be a visualization read");
+    }
+    if (review.content.spec.mode !== "fits_image") {
+      throw new Error("Expected the FITS fixture to use fits_image mode");
+    }
+    const bytes = await repos.scientificArtifacts.getContent(
+      artifactVersionId,
+      review.content.spec.contentHash,
+    );
+    const header = new TextDecoder("ascii").decode(bytes.slice(0, 2880));
+    expect(header).toContain("CTYPE1");
+    expect(header).toContain("'RA---TAN'");
+    expect(header).toContain("CTYPE2");
+    expect(header).toContain("'DEC--TAN'");
+  });
+
+  it("serves WWT table fixtures as CRLF-delimited CSV", async () => {
+    const artifactVersionId = "artv_c_wwt_01" as never;
+    const review = await repos.scientificArtifacts.getReview(artifactVersionId);
+    if (!("content" in review) || review.content.kind !== "visualization") {
+      throw new Error("Expected the WWT fixture to be a visualization read");
+    }
+    if (review.content.spec.mode !== "wwt_scene") {
+      throw new Error("Expected the WWT fixture to use wwt_scene mode");
+    }
+    const tableLayer = review.content.spec.tableLayers[0];
+    expect(tableLayer).toBeDefined();
+    const bytes = await repos.scientificArtifacts.getContent(
+      artifactVersionId,
+      tableLayer!.contentHash,
+    );
+    const csv = new TextDecoder().decode(bytes);
+    const rows = csv.split("\r\n");
+    expect(rows[0]).toBe("ra,dec,phot_g_mean_mag");
+    expect(rows).toHaveLength(42);
+    expect(rows.at(-1)).toBe("");
+    expect(csv.replaceAll("\r\n", "")).not.toContain("\n");
+  });
+
   it("reads paper collection version metadata from its rich immutable version", async () => {
     const acquisition = exoplanetHostStarFixture.data.paperAcquisitions[0]!;
     expect(acquisition.version.content).toEqual(

@@ -1,4 +1,5 @@
 import {
+  parseEntityId,
   safeExternalUrl,
   type DomainEntityId,
   type PublicArtifactPresentation,
@@ -246,6 +247,12 @@ export type PresentationRevisionIntent =
   | {
       readonly kind: "trace_correction";
       readonly traceId: DomainEntityId;
+    }
+  | {
+      /** Candidate adjudication intent with the review decision preselected. */
+      readonly kind: "relation_adjudication";
+      readonly relationId: DomainEntityId;
+      readonly decision: "accepted" | "rejected";
     };
 
 export function ArtifactPresentationContent({
@@ -270,6 +277,18 @@ export function ArtifactPresentationContent({
     presentation.graphNodes.length ||
     presentation.sections.length ||
     presentation.facts.length;
+  const entries =
+    presentation.kind === "literature_relations"
+      ? [...presentation.entries].sort((left, right) => {
+          const priority = (status: string | null): number => {
+            if (status === "candidate") return 0;
+            if (status === "accepted") return 1;
+            if (status === "rejected") return 2;
+            return 3;
+          };
+          return priority(left.status) - priority(right.status);
+        })
+      : presentation.entries;
   return (
     <article
       className={`scientific-artifact scientific-artifact--${presentation.kind}`}
@@ -315,9 +334,12 @@ export function ArtifactPresentationContent({
           ))}
         </section>
       ))}
-      {presentation.entries.length > 0 ? (
-        <ol className="candidate-dossier space-y-4" aria-label="科学结果档案">
-          {presentation.entries.map((entry) => {
+      {entries.length > 0 ? (
+        <ol
+          className={`candidate-dossier${presentation.kind === "literature_relations" ? " candidate-dossier--relations" : ""}`}
+          aria-label="科学结果档案"
+        >
+          {entries.map((entry) => {
             const externalUrl = safeExternalUrl(entry.externalUrl);
             const reasoningTrace = entry.reasoningTrace;
             const factItems = entry.facts.map((f) => ({
@@ -333,9 +355,47 @@ export function ArtifactPresentationContent({
               />
             );
 
+            const isRelationsReview =
+              presentation.kind === "literature_relations";
+            const isCandidate = entry.status === "candidate";
+            const relationId = isRelationsReview
+              ? parseEntityId(entry.key)
+              : null;
+
+            const adjudicateNode =
+              onRequestRevision && relationId && isCandidate ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Button
+                    size="small"
+                    variant="primary"
+                    onClick={() =>
+                      onRequestRevision({
+                        kind: "relation_adjudication",
+                        relationId,
+                        decision: "accepted",
+                      })
+                    }
+                  >
+                    接受并进入图谱
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="secondary"
+                    onClick={() =>
+                      onRequestRevision({
+                        kind: "relation_adjudication",
+                        relationId,
+                        decision: "rejected",
+                      })
+                    }
+                  >
+                    拒绝
+                  </Button>
+                </div>
+              ) : null;
+
             const revisionNode =
-              onRequestRevision &&
-              presentation.kind === "literature_relations" ? (
+              onRequestRevision && relationId && entry.status === "rejected" ? (
                 <Button
                   size="small"
                   variant="ghost"
@@ -343,12 +403,83 @@ export function ArtifactPresentationContent({
                   onClick={() =>
                     onRequestRevision({
                       kind: "relation_correction",
-                      relationId: entry.key as DomainEntityId,
+                      relationId,
                     })
                   }
                 >
                   重新分析此关系
                 </Button>
+              ) : null;
+
+            const actionsNode = adjudicateNode ?? revisionNode;
+
+            const bodyNode = (
+              <>
+                {externalUrl ? (
+                  <div className="text-xs">
+                    <Link
+                      href={externalUrl}
+                      external
+                      className="text-primary hover:underline"
+                    >
+                      查看原文链接
+                    </Link>
+                  </div>
+                ) : null}
+                {entry.paragraphs.map((paragraph, index) => (
+                  <p
+                    key={`${entry.key}:paragraph:${index}`}
+                    className="text-sm leading-relaxed text-foreground"
+                  >
+                    {paragraph}
+                  </p>
+                ))}
+                {reasoningTrace ? (
+                  <div className="mt-2 pt-2 border-t border-border/40">
+                    {onRequestRevision ? (
+                      <Button
+                        size="small"
+                        variant="ghost"
+                        className="mb-2 text-xs"
+                        onClick={() =>
+                          onRequestRevision({
+                            kind: "trace_correction",
+                            traceId: reasoningTrace.traceId,
+                          })
+                        }
+                      >
+                        重新分析此推导
+                      </Button>
+                    ) : null}
+                    <PresentationTrace
+                      trace={reasoningTrace}
+                      onSelectEvidence={onSelectEvidence}
+                      evidenceOrdinal={evidenceOrdinal}
+                    />
+                  </div>
+                ) : null}
+              </>
+            );
+
+            const reviewRailNode =
+              isRelationsReview && (evidenceNode || actionsNode) ? (
+                <div className="relation-review__rail">
+                  <div>
+                    <h5 className="ui-text-label mb-1.5 font-medium uppercase tracking-wider text-muted-foreground">
+                      审定信息
+                    </h5>
+                    <ScientificFactGrid facts={factItems} />
+                  </div>
+                  {actionsNode ? <div>{actionsNode}</div> : null}
+                  {evidenceNode ? (
+                    <div>
+                      <h5 className="ui-text-label mb-1.5 font-medium uppercase tracking-wider text-muted-foreground">
+                        证据
+                      </h5>
+                      {evidenceNode}
+                    </div>
+                  ) : null}
+                </div>
               ) : null;
 
             return (
@@ -364,55 +495,14 @@ export function ArtifactPresentationContent({
                       : null
                   }
                   title={entry.title}
-                  facts={factItems}
-                  evidenceActions={evidenceNode}
-                  actions={revisionNode}
+                  facts={isRelationsReview && reviewRailNode ? [] : factItems}
+                  evidenceActions={reviewRailNode ? null : evidenceNode}
+                  actions={reviewRailNode ? null : revisionNode}
+                  aside={reviewRailNode}
                   className="dossier__entry"
                   testId={`dossier-entry-${entry.key}`}
                 >
-                  {externalUrl ? (
-                    <div className="text-xs">
-                      <Link
-                        href={externalUrl}
-                        external
-                        className="text-primary hover:underline"
-                      >
-                        查看原文链接
-                      </Link>
-                    </div>
-                  ) : null}
-                  {entry.paragraphs.map((paragraph, index) => (
-                    <p
-                      key={`${entry.key}:paragraph:${index}`}
-                      className="text-sm leading-relaxed text-foreground"
-                    >
-                      {paragraph}
-                    </p>
-                  ))}
-                  {reasoningTrace ? (
-                    <div className="mt-2 pt-2 border-t border-border/40">
-                      {onRequestRevision ? (
-                        <Button
-                          size="small"
-                          variant="ghost"
-                          className="mb-2 text-xs"
-                          onClick={() =>
-                            onRequestRevision({
-                              kind: "trace_correction",
-                              traceId: reasoningTrace.traceId,
-                            })
-                          }
-                        >
-                          重新分析此推导
-                        </Button>
-                      ) : null}
-                      <PresentationTrace
-                        trace={reasoningTrace}
-                        onSelectEvidence={onSelectEvidence}
-                        evidenceOrdinal={evidenceOrdinal}
-                      />
-                    </div>
-                  ) : null}
+                  {bodyNode}
                 </ScientificDossier>
               </li>
             );

@@ -29,7 +29,13 @@ function matchesQuery(item: CommandMenuItemDefinition, query: string) {
   return terms.every((term) => searchable.includes(term));
 }
 
-export function CommandMenu() {
+export function CommandMenu({
+  projects,
+  onOpenProject,
+}: {
+  readonly projects: readonly import("../../../root").ResearchNavigationItem[];
+  readonly onOpenProject: (projectId: string) => void;
+}) {
   const isOpen = useCommandMenuStore((state) => state.isOpen);
   const open = useCommandMenuStore((state) => state.open);
   const close = useCommandMenuStore((state) => state.close);
@@ -76,9 +82,11 @@ export function CommandMenu() {
   const items = React.useMemo(
     () =>
       createCommandMenuItems({
+        projects,
+        onOpenProject,
         toggleSidebar: () => useSidebarStore.getState().toggleCollapsed(),
       }),
-    [],
+    [projects, onOpenProject],
   );
   const filteredItems = React.useMemo(
     () => items.filter((item) => matchesQuery(item, query)),
@@ -248,7 +256,7 @@ export function CommandMenu() {
                         >
                           {item.icon}
                         </span>
-                        <span className="min-w-0">
+                        <span className="min-w-0 flex-1">
                           <span className="block font-medium">
                             {item.title}
                           </span>
@@ -256,6 +264,20 @@ export function CommandMenu() {
                             {item.description}
                           </span>
                         </span>
+                        {item.status ? (
+                          <span
+                            className={`shrink-0 inline-block size-1.5 rounded-full ${
+                              item.status === "running"
+                                ? "bg-[var(--color-info)] animate-pulse"
+                                : item.status === "waiting"
+                                  ? "bg-[var(--color-warning)]"
+                                  : item.status === "error"
+                                    ? "bg-[var(--color-error)]"
+                                    : "bg-muted-foreground/40"
+                            }`}
+                            aria-hidden="true"
+                          />
+                        ) : null}
                       </button>
                     );
                   })}

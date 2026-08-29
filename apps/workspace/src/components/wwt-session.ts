@@ -341,11 +341,55 @@ function configureObserver(
   settings: import("@wwtelescope/engine").Settings,
   observer: WwtSceneVisualizationReview["observer"],
 ) {
-  if (observer === null) return;
+  if (observer === null || observer === undefined) {
+    settings.set_locationLat(0);
+    settings.set_locationLng(0);
+    settings.set_locationAltitude(0);
+    settings.set_localHorizonMode(false);
+    return;
+  }
   settings.set_locationLat(observer.latitudeDegrees);
   settings.set_locationLng(observer.longitudeDegrees);
   settings.set_locationAltitude(observer.elevationMeters);
   settings.set_localHorizonMode(observer.localHorizonMode);
+}
+
+function configureSceneAppearance(
+  session: EngineSession,
+  spec: WwtSceneVisualizationReview,
+) {
+  configureTime(session, spec.time);
+  configureObserver(session.instance.si.settings, spec.observer);
+  configureGrid(session.instance.si.settings, spec.coordinateGrids);
+  configureOverlays(session.instance.si.settings, spec);
+  session.instance.setBackgroundImageByName(IMAGE_SET_NAMES[spec.background]);
+  if (spec.foreground === null) {
+    session.instance.setForegroundOpacity(0);
+  } else {
+    session.instance.setForegroundImageByName(
+      IMAGE_SET_NAMES[spec.foreground.imageSet],
+    );
+    session.instance.setForegroundOpacity(spec.foreground.opacity * 100);
+  }
+}
+
+function canUpdateSceneInPlace(
+  previous: WwtSpec | null,
+  next: WwtSceneVisualizationReview,
+): previous is WwtSceneVisualizationReview {
+  return (
+    previous?.mode === "wwt_scene" &&
+    !previous.tourAutoplay &&
+    !next.tourAutoplay &&
+    previous.fitsLayers.length === next.fitsLayers.length &&
+    previous.fitsLayers.every(
+      (layer, index) => layer === next.fitsLayers[index],
+    ) &&
+    previous.tableLayers.length === next.tableLayers.length &&
+    previous.tableLayers.every(
+      (layer, index) => layer === next.tableLayers[index],
+    )
+  );
 }
 
 function configureOverlays(
@@ -606,10 +650,11 @@ async function renderScene(
   spec: WwtSpec,
   options: WwtSceneOptions,
   signal: AbortSignal,
+  previousSpec: WwtSpec | null,
 ): Promise<WwtSceneReadback | null> {
   assertLease(token);
-  resetScene(session);
   if (spec.mode === "fits_image") {
+    resetScene(session);
     options.onProgress("正在载入 FITS 图像");
     const data = await options.loadContent(spec.contentHash);
     await addFitsLayer(session, token, data, {
@@ -621,20 +666,26 @@ async function renderScene(
     });
     return null;
   }
-  configureTime(session, spec.time);
-  configureObserver(session.instance.si.settings, spec.observer);
-  configureGrid(session.instance.si.settings, spec.coordinateGrids);
-  configureOverlays(session.instance.si.settings, spec);
-  session.instance.setBackgroundImageByName(IMAGE_SET_NAMES[spec.background]);
-  if (spec.foreground !== null) {
-    session.instance.setForegroundImageByName(
-      IMAGE_SET_NAMES[spec.foreground.imageSet],
+
+  if (canUpdateSceneInPlace(previousSpec, spec)) {
+    configureSceneAppearance(session, spec);
+    if (previousSpec.view !== spec.view) {
+      await gotoView(session, token, spec.view);
+    }
+    session.instance.si.clearAnnotations();
+    spec.annotations.forEach((annotation) =>
+      configureAnnotation(annotation, session, spec.view.fieldOfViewDegrees),
     );
-    session.instance.setForegroundOpacity(spec.foreground.opacity * 100);
+    return sceneReadback(session, spec);
   }
+
+  resetScene(session);
+  configureSceneAppearance(session, spec);
   await gotoView(session, token, spec.view);
-  for (const fitsLayer of spec.fitsLayers) {
-    options.onProgress(`正在载入 FITS 图层 ${fitsLayer.layerId}`);
+  for (const [index, fitsLayer] of spec.fitsLayers.entries()) {
+    options.onProgress(
+      `正在载入 FITS 图层 ${index + 1}/${spec.fitsLayers.length}`,
+    );
     const data = await options.loadContent(fitsLayer.contentHash);
     await addFitsLayer(session, token, data, {
       name: fitsLayer.layerId,
@@ -646,8 +697,10 @@ async function renderScene(
       vmax: fitsLayer.vmax,
     });
   }
-  for (const tableLayer of spec.tableLayers) {
-    options.onProgress(`正在载入表格图层 ${tableLayer.layerId}`);
+  for (const [index, tableLayer] of spec.tableLayers.entries()) {
+    options.onProgress(
+      `正在载入表格图层 ${index + 1}/${spec.tableLayers.length}`,
+    );
     const data = await options.loadContent(tableLayer.contentHash);
     await addTableLayer(session, token, data, tableLayer);
   }
@@ -667,6 +720,7 @@ async function renderScene(
 export function openWwtSession(host: HTMLElement): WwtSessionLease {
   const token = Symbol("wwt-session-lease");
   const abortController = new AbortController();
+  let previousSpec: WwtSpec | null = null;
   activeLease = token;
   const sessionPromise = getEngineSession(host);
   void sessionPromise
@@ -684,16 +738,22 @@ export function openWwtSession(host: HTMLElement): WwtSessionLease {
         assertLease(token);
         if (session.canvas.parentElement !== host) host.append(session.canvas);
         try {
-          return await renderScene(
+          const readback = await renderScene(
             session,
             token,
             spec,
             options,
             abortController.signal,
+            previousSpec,
           );
+          previousSpec = spec;
+          return readback;
         } catch (error) {
           if (error instanceof SupersededWwtLeaseError) return null;
-          if (activeLease === token) resetScene(session);
+          if (activeLease === token) {
+            previousSpec = null;
+            resetScene(session);
+          }
           throw error;
         }
       }),
@@ -701,6 +761,7 @@ export function openWwtSession(host: HTMLElement): WwtSessionLease {
       if (activeLease !== token) return;
       abortController.abort();
       activeLease = null;
+      previousSpec = null;
       void queue(async () => {
         const session = await sessionPromise;
         if (activeLease !== null) return;

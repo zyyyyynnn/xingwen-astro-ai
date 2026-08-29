@@ -36,7 +36,7 @@ export const artifactPresentations = {
         title: "研究背景",
         paragraphs: [
           {
-            text: "The Revised TESS Input Catalog and Candidate Target List prioritize targets for TESS space transit searches.",
+            text: "The TESS Faint Star Search presents 1,617 new transiting planet candidates identified in TESS full-frame images from the Primary Mission.",
             evidence_ids: ["evd_papsum_03"],
           },
         ],
@@ -45,7 +45,7 @@ export const artifactPresentations = {
         title: "研究方法",
         paragraphs: [
           {
-            text: "The catalog compiles stellar parameters from high-precision multi-band photometric catalogs and Gaia parallax measurements.",
+            text: "An independent vetting pipeline applies automated vetting tests and manual inspection to QLP transit search results around fainter stars.",
             evidence_ids: ["evd_papsum_04"],
           },
         ],
@@ -54,7 +54,7 @@ export const artifactPresentations = {
         title: "数据集",
         paragraphs: [
           {
-            text: "The catalog release analyzed here covers full-sky TIC-8 targets with vetted stellar parameters.",
+            text: "The search extracts FFIs for all stars brighter than TESS magnitude T = 13.5 mag in each sector.",
             evidence_ids: ["evd_papsum_01"],
           },
         ],
@@ -63,7 +63,7 @@ export const artifactPresentations = {
         title: "实验与结果",
         paragraphs: [
           {
-            text: "The published catalog is registered under DOI 10.3847/1538-3881/ab3467, providing precise Teff, log(g), and radii.",
+            text: "The paper reports 686,242 transit candidates identified after AstroNet vetting of QLP threshold crossing events.",
             evidence_ids: ["evd_papsum_02"],
           },
         ],
@@ -72,7 +72,7 @@ export const artifactPresentations = {
         title: "局限性",
         paragraphs: [
           {
-            text: "Uncertainties for faint stars (Tmag > 16) rely predominantly on color-temperature relations without spectroscopic verification.",
+            text: "QLP heavily relies on manual inspection for the identification of planet candidates, leaving millions of potential transit signals un-vetted.",
           },
         ],
       },
@@ -472,14 +472,6 @@ export const artifactPresentations = {
       },
     ],
   },
-  artv_analysis_01: {
-    kind: "analysis_report",
-    facts: [
-      { label: "研究对象", values: ["TOI-1233 (HD 108236)"] },
-      { label: "凌星信噪比", values: ["38.4"] },
-      { label: "关键发现", values: ["3 项 (2 确认 · 1 动力学共振候选)"] },
-    ],
-  },
   artv_b_analysis_01: {
     kind: "analysis_report",
     facts: [
@@ -494,60 +486,23 @@ export const artifactPresentations = {
       { label: "高精度光谱分析", values: ["HARPS/ESPRESSO 联合分析"] },
     ],
   },
-  artv_vis_chart_01: {
-    kind: "visualization",
-    facts: [
-      { label: "可视化类型", values: ["周期-半径分布散点与演化折线图"] },
-      { label: "数据系列", values: ["3 组系列 (已确认 · 候选体 · 半径谷)"] },
-    ],
-  },
   artv_b_chart_01: {
     kind: "visualization",
     facts: [{ label: "类型", values: ["散点分布图"] }],
-  },
-  artv_vis_fits_01: {
-    kind: "visualization",
-    facts: [
-      { label: "图像类型", values: ["TESS Target Pixel File (TPF) 图像"] },
-      { label: "色彩映射", values: ["Viridis (开方拉伸)"] },
-    ],
   },
   artv_c_fits_01: {
     kind: "visualization",
     facts: [{ label: "图像类型", values: ["FITS 图像切片"] }],
   },
-  artv_vis_wwt_01: {
-    kind: "visualization",
-    facts: [
-      { label: "场景模式", values: ["WorldWide Telescope 交互全景场景"] },
-      { label: "图层配置", values: ["TESS FITS 叠加图层 + Gaia 恒星星表图层"] },
-    ],
-  },
   artv_c_wwt_01: {
     kind: "visualization",
     facts: [{ label: "场景模式", values: ["WWT 天球视口场景"] }],
-  },
-  artv_spec_01: {
-    kind: "spectrum",
-    facts: [
-      { label: "光谱范围", values: ["3800 - 6800 Å (512 采样点)"] },
-      { label: "信噪比 (S/N)", values: ["145.2"] },
-      { label: "检测谱线", values: ["5 条 (Ca II K/H, Hβ, Na I D2, Hα)"] },
-    ],
   },
   artv_c_spec_01: {
     kind: "spectrum",
     facts: [
       { label: "光谱范围", values: ["3800 - 6800 Å"] },
       { label: "信噪比", values: ["145.2"] },
-    ],
-  },
-  artv_lc_01: {
-    kind: "light_curve",
-    facts: [
-      { label: "测光点数", values: ["720 点 (27.4 天连续观测)"] },
-      { label: "最佳周期", values: ["3.7952 天 (PDC-SAP 相对光通量)"] },
-      { label: "虚警概率 (FAP)", values: ["1.0e-12"] },
     ],
   },
   artv_b_lc_01: {
@@ -557,32 +512,11 @@ export const artifactPresentations = {
       { label: "周期", values: ["3.7952 d"] },
     ],
   },
-  artv_modeval_01: {
-    kind: "model_evaluation",
-    facts: [
-      { label: "模型架构", values: ["ResNet-1D-TransitClassifier v2.4.0"] },
-      {
-        label: "综合指标",
-        values: ["准确率 94.2% · F1 0.918 · ROC-AUC 0.965"],
-      },
-    ],
-  },
   artv_b_modeval_01: {
     kind: "model_evaluation",
     facts: [
       { label: "模型", values: ["ResNet-1D 凌星分类器"] },
       { label: "F1 分数", values: ["0.918"] },
-    ],
-  },
-  artv_model_01: {
-    kind: "model_artifact",
-    facts: [
-      { label: "模型包格式", values: ["ONNX opset 17 (application/onnx)"] },
-      { label: "输入张量", values: ["[-1, 720, 1]"] },
-      {
-        label: "输出接口",
-        values: ["transit_probability, feature_embeddings"],
-      },
     ],
   },
   artv_b_model_01: {

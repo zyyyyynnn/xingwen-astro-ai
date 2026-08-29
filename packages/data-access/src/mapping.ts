@@ -1061,9 +1061,16 @@ function mapEvidenceLocator(raw: unknown): EvidenceLocator | null {
       return {
         kind: "paper_text",
         section: readString(record, "section"),
-        page: readNumberOrNull(record, "page"),
+        page:
+          readNumberOrNull(record, "page_index") ??
+          readNumberOrNull(record, "page"),
         paragraph: readNumberOrNull(record, "paragraph"),
-        range: typeof record.range === "string" ? record.range : null,
+        range:
+          typeof record.text_range === "string"
+            ? record.text_range
+            : typeof record.range === "string"
+              ? record.range
+              : null,
       };
     case "model_extraction":
       return {

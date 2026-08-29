@@ -15,6 +15,24 @@ beforeAll(() => {
     fillRect: () => undefined,
     getImageData: () => ({ data: [1, 2, 3, 255] }),
   } as never);
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+    width: 640,
+    height: 320,
+    top: 0,
+    right: 640,
+    bottom: 320,
+    left: 0,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  });
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
 });
 
 afterEach(() => {
@@ -67,10 +85,17 @@ describe("ScientificChart", () => {
     // Safety boundary: no raw expressions may reach the renderer.
     expect(serialized).not.toContain('"expr"');
     expect(serialized).not.toContain("javascript:");
-    const built = spec as { layer: readonly { mark: { type: string } }[] };
+    const built = spec as {
+      width: number;
+      layer: readonly { mark: { type: string } }[];
+    };
+    expect(built.width).toBe(640);
     expect(built.layer).toHaveLength(1);
     expect(built.layer[0]?.mark.type).toBe("point");
 
+    expect(screen.getByRole("list", { name: "图例" })).toHaveTextContent(
+      "候选样本",
+    );
     expect(await screen.findByText("5800")).toBeInTheDocument();
   });
 

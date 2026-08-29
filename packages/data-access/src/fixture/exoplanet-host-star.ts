@@ -20,7 +20,11 @@ import type {
   ResearchRunDto,
   RunEventDto,
 } from "@xingwen/contracts";
-import type { Evidence } from "@xingwen/domain";
+import {
+  asEntityId,
+  type Evidence,
+  type ResearchThreadEntry,
+} from "@xingwen/domain";
 
 import { mapEvidenceDetail, mapEvidenceRead } from "../mapping";
 import type { FixtureBundle } from "./bundle";
@@ -56,6 +60,130 @@ const T6 = "2026-07-21T08:21:00Z";
 const T7 = "2026-07-21T08:25:00Z";
 const T8 = "2026-07-21T08:28:00Z";
 const T9 = "2026-07-21T08:30:00Z";
+
+function userThreadEntry(
+  id: string,
+  projectId: string,
+  sequence: number,
+  publicContent: string,
+  createdAt: string,
+): ResearchThreadEntry {
+  return {
+    id: asEntityId(id),
+    projectId: asEntityId(projectId),
+    sequence,
+    kind: "user_message",
+    actor: "user",
+    publicContent,
+    structuredPayload: { answerToQuestionId: null },
+    modelExecutionId: null,
+    createdAt,
+  };
+}
+
+function assistantThreadEntry(
+  id: string,
+  projectId: string,
+  sequence: number,
+  publicContent: string,
+  createdAt: string,
+  draftId: string | null = null,
+): ResearchThreadEntry {
+  return {
+    id: asEntityId(id),
+    projectId: asEntityId(projectId),
+    sequence,
+    kind: "assistant_message",
+    actor: "assistant",
+    publicContent,
+    structuredPayload: {
+      outcome: draftId ? "draft_ready" : "partial",
+      warnings: [],
+      draftId: draftId ? asEntityId(draftId) : null,
+      missingInformation: [],
+      reason: null,
+      errorCode: null,
+    },
+    modelExecutionId: null,
+    createdAt,
+  };
+}
+
+const threadEntries: readonly ResearchThreadEntry[] = [
+  userThreadEntry(
+    "thread_a_user_01",
+    "proj_01JEXAMPLE",
+    1,
+    "整合系外行星候选体与宿主星参数，并为数据、文献主张和关系保留可核验证据。",
+    T0,
+  ),
+  assistantThreadEntry(
+    "thread_a_assistant_01",
+    "proj_01JEXAMPLE",
+    2,
+    "我已整理研究目标与来源范围。请先核对研究协议，确认后将按冻结口径生成数据集、文献报告与证据图谱。",
+    T1,
+    "rcd_01JEXAMPLE",
+  ),
+  assistantThreadEntry(
+    "thread_a_assistant_02",
+    "proj_01JEXAMPLE",
+    3,
+    "演示研究已完成。结果索引包含规范数据集、字段词典、来源集合、论文阅读报告、主张关系与证据图谱。",
+    T9,
+  ),
+  userThreadEntry(
+    "thread_b_user_01",
+    "proj_toi_transit",
+    1,
+    "分析 TOI-1233 的 TESS 凌星光变，给出周期特征、拟合结果与独立模型评估。",
+    T0,
+  ),
+  assistantThreadEntry(
+    "thread_b_assistant_01",
+    "proj_toi_transit",
+    2,
+    "研究协议已准备：使用冻结的 TESS 演示数据，分别生成分析报告、科学图表、光变诊断和模型评估。",
+    T1,
+    "rcd_toi_transit",
+  ),
+  assistantThreadEntry(
+    "thread_b_assistant_02",
+    "proj_toi_transit",
+    3,
+    "TOI-1233 的演示分析结果已发布，可从结果索引逐项进入全屏工作区核对图表、相位折叠、峰值表与模型基线。",
+    T9,
+  ),
+  userThreadEntry(
+    "thread_c_user_01",
+    "proj_l9859_spectroscopy",
+    1,
+    "测量 L 98-59 的高分辨率光谱，并将 TESS 图像与天球位置组织成可交互场景。",
+    T0,
+  ),
+  assistantThreadEntry(
+    "thread_c_assistant_01",
+    "proj_l9859_spectroscopy",
+    2,
+    "研究协议已准备：光谱、FITS 图像和天球场景将使用同一冻结来源链，并分别提供表格或文本替代视图。",
+    T1,
+    "rcd_l9859",
+  ),
+  assistantThreadEntry(
+    "thread_c_assistant_02",
+    "proj_l9859_spectroscopy",
+    3,
+    "L 98-59 的演示结果已发布。可从结果索引进入光谱、FITS 与天球场景，并在交互视图就绪后调整网格和图层。",
+    T9,
+  ),
+  assistantThreadEntry(
+    "thread_failed_assistant_01",
+    "proj_failed_demo",
+    1,
+    "数据源连接超时，当前演示运行已停止。请检查来源可用性后重试。",
+    T1,
+  ),
+];
 
 function hash(seed: string): string {
   const encoded = Array.from(seed)
@@ -218,6 +346,116 @@ const contract: ResearchContractDto = {
     "sha256:82d51bd3fb5739b5ab1afeefa59c270de416bb20d6e780f39dca3c66c90d479a",
 };
 
+const contractInputB: ResearchContractInputDto = {
+  research_goal: "TOI-1233 凌星光变曲线拟合、周期图谱分析与凌星分类模型评估",
+  target_objects: ["transiting_exoplanet", "host_star"],
+  data_requirements: {
+    unit_policy: "canonical",
+    document_source_policy: "disabled",
+  },
+  requested_fields: ["time.bjd", "flux.normalized", "planet.period"],
+  source_scope: { allowed_sources: ["mast.tess"] },
+  paper_search_scope: {
+    keywords: ["TOI-1233", "transit photometry"],
+    year_from: 2019,
+    year_to: 2026,
+    source_ids: ["mast.tess"],
+    max_candidates: 3,
+  },
+  output_requirements: [
+    "analysis_report",
+    "visualization",
+    "light_curve",
+    "model_evaluation",
+    "model_artifact",
+  ],
+  evidence_requirements: {
+    require_locator: true,
+    require_source_snapshot: true,
+    minimum_coverage: 1,
+  },
+  quality_constraints: {
+    source_completeness_min: 1,
+    unit_consistency_min: 1,
+  },
+};
+
+const contractInputC: ResearchContractInputDto = {
+  research_goal: "L 98-59 高分辨率光谱测量、TESS 图像切片与空间场景合成",
+  target_objects: ["dwarf_star", "tess_field"],
+  data_requirements: {
+    unit_policy: "canonical",
+    document_source_policy: "disabled",
+  },
+  requested_fields: ["spectrum.wavelength", "spectrum.flux", "target.ra_dec"],
+  source_scope: { allowed_sources: ["mast.tess", "eso.harps"] },
+  paper_search_scope: {
+    keywords: ["L 98-59", "TOI-175", "high-resolution spectroscopy"],
+    year_from: 2019,
+    year_to: 2026,
+    source_ids: ["mast.tess"],
+    max_candidates: 3,
+  },
+  output_requirements: ["analysis_report", "spectrum", "visualization"],
+  evidence_requirements: {
+    require_locator: true,
+    require_source_snapshot: true,
+    minimum_coverage: 1,
+  },
+  quality_constraints: {
+    source_completeness_min: 1,
+    unit_consistency_min: 1,
+  },
+};
+
+const draftB: ResearchContractDraftDto = {
+  id: "rcd_toi_transit",
+  session_id: "sess_toi_transit",
+  project_id: "proj_toi_transit",
+  version: 1,
+  intent: "Fit and characterize the TOI-1233 TESS transit light curve",
+  status: "confirmed",
+  contract: { ...contractInputB },
+  warnings: [],
+  created_at: T1,
+  updated_at: T2,
+  expires_at: "2026-07-21T09:05:00Z",
+};
+
+const draftC: ResearchContractDraftDto = {
+  id: "rcd_l9859",
+  session_id: "sess_l9859",
+  project_id: "proj_l9859_spectroscopy",
+  version: 1,
+  intent: "Measure L 98-59 spectra and synthesize its TESS sky scene",
+  status: "confirmed",
+  contract: { ...contractInputC },
+  warnings: [],
+  created_at: T1,
+  updated_at: T2,
+  expires_at: "2026-07-21T09:05:00Z",
+};
+
+const contractB: ResearchContractDto = {
+  ...contractInputB,
+  id: "rc_toi_transit",
+  project_id: "proj_toi_transit",
+  version: 1,
+  created_from_draft_id: "rcd_toi_transit",
+  created_at: T2,
+  content_hash: hash("rc_toi_transit"),
+};
+
+const contractC: ResearchContractDto = {
+  ...contractInputC,
+  id: "rc_l9859",
+  project_id: "proj_l9859_spectroscopy",
+  version: 1,
+  created_from_draft_id: "rcd_l9859",
+  created_at: T2,
+  content_hash: hash("rc_l9859"),
+};
+
 const run: ResearchRunDto = {
   id: "run_01JEXAMPLE",
   project_id: "proj_01JEXAMPLE",
@@ -241,7 +479,7 @@ const run: ResearchRunDto = {
 const runB: ResearchRunDto = {
   id: "run_toi_transit",
   project_id: "proj_toi_transit",
-  contract_id: "rc_01JEXAMPLE",
+  contract_id: "rc_toi_transit",
   execution_mode: "demo_replay",
   status: "completed",
   progress: 100,
@@ -261,7 +499,7 @@ const runB: ResearchRunDto = {
 const runC: ResearchRunDto = {
   id: "run_l9859",
   project_id: "proj_l9859_spectroscopy",
-  contract_id: "rc_01JEXAMPLE",
+  contract_id: "rc_l9859",
   execution_mode: "demo_replay",
   status: "completed",
   progress: 100,
@@ -428,6 +666,103 @@ const runEvents: readonly RunEventDto[] = [
     artifact_version_ids: [],
     occurred_at: T9,
   },
+  {
+    run_id: "run_toi_transit",
+    sequence: 1,
+    activity_id: "run:run_toi_transit",
+    activity_kind: "status",
+    activity_phase: "queued",
+    activity_name: "研究任务",
+    step_key: null,
+    progress: 0,
+    content: "研究任务已进入执行队列。",
+    details: {},
+    artifact_version_ids: [],
+    occurred_at: T4,
+  },
+  {
+    run_id: "run_toi_transit",
+    sequence: 2,
+    activity_id: "fixture:transit-analysis",
+    activity_kind: "tool",
+    activity_phase: "completed",
+    activity_name: "凌星测光分析",
+    step_key: "transit_analysis",
+    progress: 55,
+    content:
+      "已完成 TOI-1233 凌星光变曲线拟合与周期图谱分析，并评估凌星分类模型。",
+    details: { tool_kind: "artifact_generation" },
+    artifact_version_ids: [
+      "artv_b_analysis_01",
+      "artv_b_chart_01",
+      "artv_b_lc_01",
+      "artv_b_modeval_01",
+      "artv_b_model_01",
+    ],
+    occurred_at: T8,
+  },
+  {
+    run_id: "run_toi_transit",
+    sequence: 3,
+    activity_id: "run:run_toi_transit",
+    activity_kind: "completion",
+    activity_phase: "completed",
+    activity_name: "研究任务",
+    step_key: null,
+    progress: 100,
+    content: "凌星特征化分析任务已完成。",
+    details: {},
+    artifact_version_ids: [],
+    occurred_at: T9,
+  },
+  {
+    run_id: "run_l9859",
+    sequence: 1,
+    activity_id: "run:run_l9859",
+    activity_kind: "status",
+    activity_phase: "queued",
+    activity_name: "研究任务",
+    step_key: null,
+    progress: 0,
+    content: "研究任务已进入执行队列。",
+    details: {},
+    artifact_version_ids: [],
+    occurred_at: T4,
+  },
+  {
+    run_id: "run_l9859",
+    sequence: 2,
+    activity_id: "fixture:l9859-observation",
+    activity_kind: "tool",
+    activity_phase: "completed",
+    activity_name: "观测数据解析与场景合成",
+    step_key: "observation_analysis",
+    progress: 55,
+    content:
+      "已完成 L 98-59 高分辨率光谱解析、TESS 图像切片处理与 WWT 空间场景合成。",
+    details: { tool_kind: "artifact_generation" },
+    artifact_version_ids: [
+      "artv_c_analysis_01",
+      "artv_c_spec_01",
+      "artv_c_fits_01",
+      "artv_c_wwt_01",
+    ],
+    occurred_at: T8,
+  },
+  {
+    run_id: "run_l9859",
+    sequence: 3,
+    activity_id: "run:run_l9859",
+    activity_kind: "completion",
+    activity_phase: "completed",
+    activity_name: "研究任务",
+    step_key: null,
+    progress: 100,
+    content: "观测研究任务已完成。",
+    details: {},
+    artifact_version_ids: [],
+    occurred_at: T9,
+  },
 ];
 
 const makeArtifact = (
@@ -513,80 +848,8 @@ const artifacts: readonly ResearchArtifactDto[] = [
     "graph.primary",
     "artv_graph_01",
   ),
-  makeArtifact(
-    "art_analysis_01",
-    "proj_01JEXAMPLE",
-    "analysis_report",
-    "TOI-1233 凌星拟合与动力学综合分析报告",
-    "analysis_report.primary",
-    "artv_analysis_01",
-  ),
-  makeArtifact(
-    "art_vis_chart_01",
-    "proj_01JEXAMPLE",
-    "visualization",
-    "系外行星周期-半径分布图",
-    "visualization.chart",
-    "artv_vis_chart_01",
-  ),
-  makeArtifact(
-    "art_vis_fits_01",
-    "proj_01JEXAMPLE",
-    "visualization",
-    "TOI-1233 TESS 目标像素图像",
-    "visualization.fits",
-    "artv_vis_fits_01",
-  ),
-  makeArtifact(
-    "art_vis_wwt_01",
-    "proj_01JEXAMPLE",
-    "visualization",
-    "TOI-1233 天文全景视口场景",
-    "visualization.wwt",
-    "artv_vis_wwt_01",
-  ),
-  makeArtifact(
-    "art_spec_01",
-    "proj_01JEXAMPLE",
-    "spectrum",
-    "TOI-1233 高分辨率恒星光谱",
-    "spectrum.primary",
-    "artv_spec_01",
-  ),
-  makeArtifact(
-    "art_lc_01",
-    "proj_01JEXAMPLE",
-    "light_curve",
-    "TOI-1233 TESS 测光光变曲线与相位折叠",
-    "light_curve.primary",
-    "artv_lc_01",
-  ),
-  makeArtifact(
-    "art_modeval_01",
-    "proj_01JEXAMPLE",
-    "model_evaluation",
-    "ResNet-1D 凌星分类模型评估",
-    "model_evaluation.primary",
-    "artv_modeval_01",
-  ),
-  makeArtifact(
-    "art_model_01",
-    "proj_01JEXAMPLE",
-    "model_artifact",
-    "ResNet-1D 凌星分类 ONNX 模型包",
-    "model_artifact.primary",
-    "artv_model_01",
-  ),
 
   // Project B
-  makeArtifact(
-    "art_b_dataset_01",
-    "proj_toi_transit",
-    "dataset",
-    "TOI 凌星光变分析数据集",
-    "dataset.b",
-    "artv_dataset_01",
-  ),
   makeArtifact(
     "art_b_analysis_01",
     "proj_toi_transit",
@@ -745,70 +1008,6 @@ const artifactVersions: readonly ArtifactVersionDto[] = [
     "graph",
     ["evd_03"],
     "run_01JEXAMPLE",
-  ),
-  makeVersion(
-    "artv_analysis_01",
-    "art_analysis_01",
-    "proj_01JEXAMPLE",
-    "analysis_report",
-    [],
-    "run_01JEXAMPLE_sci",
-  ),
-  makeVersion(
-    "artv_vis_chart_01",
-    "art_vis_chart_01",
-    "proj_01JEXAMPLE",
-    "visualization",
-    [],
-    "run_01JEXAMPLE_sci",
-  ),
-  makeVersion(
-    "artv_vis_fits_01",
-    "art_vis_fits_01",
-    "proj_01JEXAMPLE",
-    "visualization",
-    [],
-    "run_01JEXAMPLE_sci",
-  ),
-  makeVersion(
-    "artv_vis_wwt_01",
-    "art_vis_wwt_01",
-    "proj_01JEXAMPLE",
-    "visualization",
-    [],
-    "run_01JEXAMPLE_sci",
-  ),
-  makeVersion(
-    "artv_spec_01",
-    "art_spec_01",
-    "proj_01JEXAMPLE",
-    "spectrum",
-    [],
-    "run_01JEXAMPLE_sci",
-  ),
-  makeVersion(
-    "artv_lc_01",
-    "art_lc_01",
-    "proj_01JEXAMPLE",
-    "light_curve",
-    [],
-    "run_01JEXAMPLE_sci",
-  ),
-  makeVersion(
-    "artv_modeval_01",
-    "art_modeval_01",
-    "proj_01JEXAMPLE",
-    "model_evaluation",
-    [],
-    "run_01JEXAMPLE_sci",
-  ),
-  makeVersion(
-    "artv_model_01",
-    "art_model_01",
-    "proj_01JEXAMPLE",
-    "model_artifact",
-    [],
-    "run_01JEXAMPLE_sci",
   ),
 
   // Project B versions
@@ -978,8 +1177,9 @@ export const exoplanetHostStarFixture: FixtureBundle = {
   generatedAt: T0,
   data: {
     projects: [project, projectB, projectC, projectWaiting, projectFailed],
-    contractDrafts: [draft, editableDraft],
-    contracts: [contract],
+    threadEntries,
+    contractDrafts: [draft, editableDraft, draftB, draftC],
+    contracts: [contract, contractB, contractC],
     runs: [run, runB, runC],
     runEvents,
     artifacts,

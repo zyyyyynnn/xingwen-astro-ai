@@ -112,14 +112,19 @@ export function ArtifactShareDialog({
         {shareUrl ? (
           <Field>
             <FieldLabel htmlFor="artifact-share-url">分享链接</FieldLabel>
-            <div className="flex gap-2">
+            <div className="flex min-w-0 gap-2">
               <Input
                 id="artifact-share-url"
                 value={shareUrl}
                 readOnly
                 onFocus={(event) => event.currentTarget.select()}
+                className="min-w-0 flex-1"
               />
-              <Button type="button" onClick={() => void copyLink()}>
+              <Button
+                type="button"
+                className="shrink-0 whitespace-nowrap"
+                onClick={() => void copyLink()}
+              >
                 复制链接
               </Button>
             </div>

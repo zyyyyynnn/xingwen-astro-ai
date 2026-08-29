@@ -569,6 +569,8 @@ describe("ScientificArtifactRenderer scientific content", () => {
       />,
     );
     expect(screen.getByText("TDB")).toBeInTheDocument();
+    // The peak table is collapsed by default (spec §48) — expand first.
+    fireEvent.click(screen.getByRole("button", { name: /周期图谱峰值候选/ }));
     expect(
       screen.getByRole("columnheader", { name: "周期 (d)" }),
     ).toBeInTheDocument();

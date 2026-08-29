@@ -21,10 +21,12 @@
 
   /* Scientific result workspace geometry. */
   --workspace-result-reading-max-inline-size: 72ch;
+  --workspace-result-wide-max-inline-size: 76rem;
   --workspace-result-graph-block-size: min(42rem, 66dvh);
   --workspace-result-inspector-inline-size: 22rem;
   --workspace-result-navigation-inline-size: 14rem;
   --workspace-result-sheet-inline-size: min(24rem, 85vw);
+  --workspace-result-sheet-narrow-inline-size: min(20rem, 92vw);
   --workspace-result-public-max-inline-size: 72rem;
   --workspace-result-node-inline-size: 14rem;
   --workspace-result-node-block-size: 4.5rem;
@@ -36,6 +38,11 @@
   --workspace-result-chart-min-block-size: 22rem;
   --workspace-result-sky-min-block-size: 28rem;
   --workspace-result-control-inline-size: 12rem;
+  --workspace-result-settings-popover-inline-size: 22rem;
+  --workspace-result-table-identity-inline-size: 10rem;
+  --workspace-result-table-numeric-inline-size: 7rem;
+  --workspace-result-table-descriptive-inline-size: 12rem;
+  --workspace-layer-sticky: 1;
 
   --workspace-composer-max-block-size: 15rem;
   --workspace-composer-input-min-block-size: 1.25rem;

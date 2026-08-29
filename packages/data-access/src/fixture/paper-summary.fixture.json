@@ -21,9 +21,13 @@
     "created_at": "2026-07-21T08:25:00Z",
     "paper": {
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
-      "title": "The Revised TESS Input Catalog and Candidate Target List",
-      "authors": ["Keivan G. Stassun", "Ryan J. Oelkers", "Martin Paegert"],
-      "year": 2019
+      "title": "The TESS Faint Star Search: 1,617 TOIs from the TESS Primary Mission",
+      "authors": [
+        "Michelle Kunimoto",
+        "Tansu Daylan",
+        "Natalia Guerrero"
+      ],
+      "year": 2022
     },
     "summary": {
       "kind": "paper_summary",
@@ -56,8 +60,10 @@
       "background": [
         {
           "statement_id": "stmt.research_goal",
-          "text": "The paper delivers The Revised TESS Input Catalog and Candidate Target List to prioritize TESS targets.",
-          "evidence_ids": ["ev.goal_title"],
+          "text": "The paper presents the detection of 1,617 new transiting planet candidates identified in TESS full-frame images from the Primary Mission.",
+          "evidence_ids": [
+            "ev.goal_title"
+          ],
           "status": "supported",
           "validation_code": "evidence.supported"
         }
@@ -65,17 +71,21 @@
       "methodology": [
         {
           "statement_id": "stmt.method",
-          "text": "The catalog compiles stellar parameters from photometric catalogs and parallax measurements.",
-          "evidence_ids": ["ev.method_text"],
-          "status": "unverifiable",
-          "validation_code": "evidence.unverifiable"
+          "text": "An independent vetting pipeline applies automated vetting tests and manual inspection to QLP transit search results around fainter stars.",
+          "evidence_ids": [
+            "ev.method_text"
+          ],
+          "status": "supported",
+          "validation_code": "evidence.supported"
         }
       ],
       "dataset": [
         {
           "statement_id": "stmt.dataset",
-          "text": "The catalog release analyzed here dates to 2019.",
-          "evidence_ids": ["ev.dataset_year"],
+          "text": "The search extracts FFIs for all stars brighter than TESS magnitude T = 13.5 mag in each sector.",
+          "evidence_ids": [
+            "ev.dataset_year"
+          ],
           "status": "supported",
           "validation_code": "evidence.supported"
         }
@@ -83,8 +93,10 @@
       "experiments": [
         {
           "statement_id": "stmt.finding_doi",
-          "text": "The published catalog is registered under DOI 10.3847/1538-3881/ab3467.",
-          "evidence_ids": ["ev.finding_doi"],
+          "text": "The published catalog is registered under DOI 10.3847/1538-4365/ac5688.",
+          "evidence_ids": [
+            "ev.finding_doi"
+          ],
           "status": "supported",
           "validation_code": "evidence.supported"
         }
@@ -93,7 +105,7 @@
       "limitations": [
         {
           "statement_id": "stmt.limitation_unsupported",
-          "text": "The catalog is claimed to be complete for all dwarf stars, without any cited evidence.",
+          "text": "The faint-star search is claimed to vet every signal below T = 13.5 mag, without any cited evidence.",
           "evidence_ids": [],
           "status": "unsupported",
           "validation_code": "evidence.not_provided"
@@ -112,13 +124,13 @@
           "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
           "candidate_id": "candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488",
           "source_id": "crossref",
-          "source_record_id": "crossref:10.3847/1538-3881/ab3467",
+          "source_record_id": "crossref:10.3847/1538-4365/ac5688",
           "source_snapshot_id": "snapshot.crossref.afb7bb833771264a51aeeef7",
           "source_snapshot_version": "sha256:1af8bfd3e44be3b853354e96a271daa0d91a09e2afb7bb833771264a51aeeef7",
           "source_snapshot_content_hash": "sha256:1af8bfd3e44be3b853354e96a271daa0d91a09e2afb7bb833771264a51aeeef7",
           "locator": {
             "kind": "paper_metadata",
-            "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
+            "source_url": "https://doi.org/10.3847/1538-4365/ac5688",
             "section": null,
             "paragraph": null,
             "text_range": null,
@@ -137,13 +149,13 @@
           "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
           "candidate_id": "candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488",
           "source_id": "crossref",
-          "source_record_id": "crossref:10.3847/1538-3881/ab3467",
+          "source_record_id": "crossref:10.3847/1538-4365/ac5688",
           "source_snapshot_id": "snapshot.crossref.afb7bb833771264a51aeeef7",
           "source_snapshot_version": "sha256:1af8bfd3e44be3b853354e96a271daa0d91a09e2afb7bb833771264a51aeeef7",
           "source_snapshot_content_hash": "sha256:1af8bfd3e44be3b853354e96a271daa0d91a09e2afb7bb833771264a51aeeef7",
           "locator": {
             "kind": "paper_metadata",
-            "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
+            "source_url": "https://doi.org/10.3847/1538-4365/ac5688",
             "section": null,
             "paragraph": null,
             "text_range": null,
@@ -153,7 +165,7 @@
             "document_locator": null,
             "page_index": null
           },
-          "quote_or_value": "10.3847/1538-3881/ab3467",
+          "quote_or_value": "10.3847/1538-4365/ac5688",
           "status": "supported",
           "validation_code": "evidence.supported"
         },
@@ -162,13 +174,13 @@
           "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
           "candidate_id": "candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488",
           "source_id": "crossref",
-          "source_record_id": "crossref:10.3847/1538-3881/ab3467",
+          "source_record_id": "crossref:10.3847/1538-4365/ac5688",
           "source_snapshot_id": "snapshot.crossref.afb7bb833771264a51aeeef7",
           "source_snapshot_version": "sha256:1af8bfd3e44be3b853354e96a271daa0d91a09e2afb7bb833771264a51aeeef7",
           "source_snapshot_content_hash": "sha256:1af8bfd3e44be3b853354e96a271daa0d91a09e2afb7bb833771264a51aeeef7",
           "locator": {
             "kind": "paper_metadata",
-            "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
+            "source_url": "https://doi.org/10.3847/1538-4365/ac5688",
             "section": null,
             "paragraph": null,
             "text_range": null,
@@ -178,7 +190,7 @@
             "document_locator": null,
             "page_index": null
           },
-          "quote_or_value": "The Revised TESS Input Catalog and Candidate Target List",
+          "quote_or_value": "The TESS Faint Star Search: 1,617 TOIs from the TESS Primary Mission",
           "status": "supported",
           "validation_code": "evidence.supported"
         },
@@ -187,25 +199,25 @@
           "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
           "candidate_id": "candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488",
           "source_id": "crossref",
-          "source_record_id": "crossref:10.3847/1538-3881/ab3467",
+          "source_record_id": "crossref:10.3847/1538-4365/ac5688",
           "source_snapshot_id": "snapshot.crossref.afb7bb833771264a51aeeef7",
           "source_snapshot_version": "sha256:1af8bfd3e44be3b853354e96a271daa0d91a09e2afb7bb833771264a51aeeef7",
           "source_snapshot_content_hash": "sha256:1af8bfd3e44be3b853354e96a271daa0d91a09e2afb7bb833771264a51aeeef7",
           "locator": {
             "kind": "paper_text",
-            "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
-            "section": "Methods",
-            "paragraph": null,
-            "text_range": "paragraph 2, sentences 1-3",
+            "source_url": "https://doi.org/10.3847/1538-4365/ac5688",
+            "section": "Introduction",
+            "paragraph": 3,
+            "text_range": "column 1, sentence 1",
             "metadata_field": null,
-            "document_parse_id": null,
-            "document_parse_output_hash": null,
+            "document_parse_id": "dp_kunimoto_2022",
+            "document_parse_output_hash": "sha256:17c896c9401e3d0efe68a3157422cd2f1c83952405587b0dc0ebd7df975df4bd",
             "document_locator": null,
-            "page_index": null
+            "page_index": 1
           },
-          "quote_or_value": "Stellar parameters are compiled from all-sky photometric catalogs and parallax measurements.",
-          "status": "unverifiable",
-          "validation_code": "evidence.source_text_unavailable"
+          "quote_or_value": "In this paper, we describe our application of an additional, automated vetting pipeline following triage by AstroNet for vetting these QLP threshold crossing events obtained on fainter stars.",
+          "status": "supported",
+          "validation_code": "evidence.supported"
         }
       ],
       "source_conflicts": [],
@@ -319,13 +331,16 @@
         "locator": {
           "kind": "paper_metadata",
           "summary_evidence_id": "ev.dataset_year",
-          "source_record_id": "crossref:10.3847/1538-3881/ab3467",
-          "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
-          "metadata_field": "year"
+          "source_record_id": "crossref:10.3847/1538-4365/ac5688",
+          "source_url": "https://doi.org/10.3847/1538-4365/ac5688",
+          "metadata_field": "year",
+          "page_index": 0,
+          "paragraph": null,
+          "section": "Abstract"
         },
-        "quote_or_value": "2019",
+        "quote_or_value": "These candidates were initially detected by the Quick-Look Pipeline (QLP), which extracts FFI lightcurves for and searches all stars brighter than TESS magnitude T = 13.5 mag in each sector.",
         "extraction_method": "paper_summary",
-        "confidence": 1.0,
+        "confidence": 1,
         "created_at": "2026-07-21T08:25:00Z"
       },
       {
@@ -339,13 +354,16 @@
         "locator": {
           "kind": "paper_metadata",
           "summary_evidence_id": "ev.finding_doi",
-          "source_record_id": "crossref:10.3847/1538-3881/ab3467",
-          "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
-          "metadata_field": "doi"
+          "source_record_id": "crossref:10.3847/1538-4365/ac5688",
+          "source_url": "https://doi.org/10.3847/1538-4365/ac5688",
+          "metadata_field": "doi",
+          "page_index": 1,
+          "paragraph": null,
+          "section": "Introduction"
         },
-        "quote_or_value": "10.3847/1538-3881/ab3467",
+        "quote_or_value": "After running AstroNet, we identified 686,242 transit candidates that would nominally have needed manual inspection had the vetting magnitude limit been T = 13.5 mag.",
         "extraction_method": "paper_summary",
-        "confidence": 1.0,
+        "confidence": 1,
         "created_at": "2026-07-21T08:25:00Z"
       },
       {
@@ -359,13 +377,16 @@
         "locator": {
           "kind": "paper_metadata",
           "summary_evidence_id": "ev.goal_title",
-          "source_record_id": "crossref:10.3847/1538-3881/ab3467",
-          "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
-          "metadata_field": "title"
+          "source_record_id": "crossref:10.3847/1538-4365/ac5688",
+          "source_url": "https://doi.org/10.3847/1538-4365/ac5688",
+          "metadata_field": "title",
+          "page_index": 0,
+          "paragraph": null,
+          "section": "Abstract"
         },
-        "quote_or_value": "The Revised TESS Input Catalog and Candidate Target List",
+        "quote_or_value": "We present the detection of 1,617 new transiting planet candidates, identified in the Transiting Exoplanet Survey Satellite (TESS) full-frame images (FFIs) observed during the Primary Mission (Sectors 1-26).",
         "extraction_method": "paper_summary",
-        "confidence": 1.0,
+        "confidence": 1,
         "created_at": "2026-07-21T08:25:00Z"
       },
       {
@@ -379,14 +400,15 @@
         "locator": {
           "kind": "paper_text",
           "summary_evidence_id": "ev.method_text",
-          "source_record_id": "crossref:10.3847/1538-3881/ab3467",
-          "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
-          "section": "Methods",
-          "range": "paragraph 2, sentences 1-3"
+          "source_record_id": "crossref:10.3847/1538-4365/ac5688",
+          "source_url": "https://doi.org/10.3847/1538-4365/ac5688",
+          "section": "Introduction",
+          "page_index": 1,
+          "paragraph": null
         },
-        "quote_or_value": "Stellar parameters are compiled from all-sky photometric catalogs and parallax measurements.",
+        "quote_or_value": "In this paper, we describe our application of an additional, automated vetting pipeline following triage by AstroNet for vetting these QLP threshold crossing events obtained on fainter stars.",
         "extraction_method": "paper_summary",
-        "confidence": 1.0,
+        "confidence": 1,
         "created_at": "2026-07-21T08:25:00Z"
       }
     ]
@@ -429,8 +451,10 @@
       "background": [
         {
           "statement_id": "stmt.research_goal",
-          "text": "The paper delivers The Revised TESS Input Catalog and Candidate Target List to prioritize TESS targets.",
-          "evidence_ids": ["ev.goal_title"],
+          "text": "The paper presents the detection of 1,617 new transiting planet candidates identified in TESS full-frame images from the Primary Mission.",
+          "evidence_ids": [
+            "ev.goal_title"
+          ],
           "status": "supported",
           "validation_code": "evidence.supported"
         }
@@ -438,17 +462,21 @@
       "methodology": [
         {
           "statement_id": "stmt.method",
-          "text": "The catalog compiles stellar parameters from photometric catalogs and parallax measurements.",
-          "evidence_ids": ["ev.method_text"],
-          "status": "unverifiable",
-          "validation_code": "evidence.unverifiable"
+          "text": "An independent vetting pipeline applies automated vetting tests and manual inspection to QLP transit search results around fainter stars.",
+          "evidence_ids": [
+            "ev.method_text"
+          ],
+          "status": "supported",
+          "validation_code": "evidence.supported"
         }
       ],
       "dataset": [
         {
           "statement_id": "stmt.dataset",
-          "text": "The catalog release analyzed here dates to 2019.",
-          "evidence_ids": ["ev.dataset_year"],
+          "text": "The search extracts FFIs for all stars brighter than TESS magnitude T = 13.5 mag in each sector.",
+          "evidence_ids": [
+            "ev.dataset_year"
+          ],
           "status": "supported",
           "validation_code": "evidence.supported"
         }
@@ -456,8 +484,10 @@
       "experiments": [
         {
           "statement_id": "stmt.finding_doi",
-          "text": "The published catalog is registered under DOI 10.3847/1538-3881/ab3467.",
-          "evidence_ids": ["ev.finding_doi"],
+          "text": "The published catalog is registered under DOI 10.3847/1538-4365/ac5688.",
+          "evidence_ids": [
+            "ev.finding_doi"
+          ],
           "status": "supported",
           "validation_code": "evidence.supported"
         }
@@ -466,7 +496,7 @@
       "limitations": [
         {
           "statement_id": "stmt.limitation_unsupported",
-          "text": "The catalog is claimed to be complete for all dwarf stars, without any cited evidence.",
+          "text": "The faint-star search is claimed to vet every signal below T = 13.5 mag, without any cited evidence.",
           "evidence_ids": [],
           "status": "unsupported",
           "validation_code": "evidence.not_provided"
@@ -485,13 +515,13 @@
           "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
           "candidate_id": "candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488",
           "source_id": "crossref",
-          "source_record_id": "crossref:10.3847/1538-3881/ab3467",
+          "source_record_id": "crossref:10.3847/1538-4365/ac5688",
           "source_snapshot_id": "snapshot.crossref.afb7bb833771264a51aeeef7",
           "source_snapshot_version": "sha256:1af8bfd3e44be3b853354e96a271daa0d91a09e2afb7bb833771264a51aeeef7",
           "source_snapshot_content_hash": "sha256:1af8bfd3e44be3b853354e96a271daa0d91a09e2afb7bb833771264a51aeeef7",
           "locator": {
             "kind": "paper_metadata",
-            "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
+            "source_url": "https://doi.org/10.3847/1538-4365/ac5688",
             "section": null,
             "paragraph": null,
             "text_range": null,
@@ -510,13 +540,13 @@
           "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
           "candidate_id": "candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488",
           "source_id": "crossref",
-          "source_record_id": "crossref:10.3847/1538-3881/ab3467",
+          "source_record_id": "crossref:10.3847/1538-4365/ac5688",
           "source_snapshot_id": "snapshot.crossref.afb7bb833771264a51aeeef7",
           "source_snapshot_version": "sha256:1af8bfd3e44be3b853354e96a271daa0d91a09e2afb7bb833771264a51aeeef7",
           "source_snapshot_content_hash": "sha256:1af8bfd3e44be3b853354e96a271daa0d91a09e2afb7bb833771264a51aeeef7",
           "locator": {
             "kind": "paper_metadata",
-            "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
+            "source_url": "https://doi.org/10.3847/1538-4365/ac5688",
             "section": null,
             "paragraph": null,
             "text_range": null,
@@ -526,7 +556,7 @@
             "document_locator": null,
             "page_index": null
           },
-          "quote_or_value": "10.3847/1538-3881/ab3467",
+          "quote_or_value": "10.3847/1538-4365/ac5688",
           "status": "supported",
           "validation_code": "evidence.supported"
         },
@@ -535,13 +565,13 @@
           "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
           "candidate_id": "candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488",
           "source_id": "crossref",
-          "source_record_id": "crossref:10.3847/1538-3881/ab3467",
+          "source_record_id": "crossref:10.3847/1538-4365/ac5688",
           "source_snapshot_id": "snapshot.crossref.afb7bb833771264a51aeeef7",
           "source_snapshot_version": "sha256:1af8bfd3e44be3b853354e96a271daa0d91a09e2afb7bb833771264a51aeeef7",
           "source_snapshot_content_hash": "sha256:1af8bfd3e44be3b853354e96a271daa0d91a09e2afb7bb833771264a51aeeef7",
           "locator": {
             "kind": "paper_metadata",
-            "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
+            "source_url": "https://doi.org/10.3847/1538-4365/ac5688",
             "section": null,
             "paragraph": null,
             "text_range": null,
@@ -551,7 +581,7 @@
             "document_locator": null,
             "page_index": null
           },
-          "quote_or_value": "The Revised TESS Input Catalog and Candidate Target List",
+          "quote_or_value": "The TESS Faint Star Search: 1,617 TOIs from the TESS Primary Mission",
           "status": "supported",
           "validation_code": "evidence.supported"
         },
@@ -560,25 +590,25 @@
           "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
           "candidate_id": "candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488",
           "source_id": "crossref",
-          "source_record_id": "crossref:10.3847/1538-3881/ab3467",
+          "source_record_id": "crossref:10.3847/1538-4365/ac5688",
           "source_snapshot_id": "snapshot.crossref.afb7bb833771264a51aeeef7",
           "source_snapshot_version": "sha256:1af8bfd3e44be3b853354e96a271daa0d91a09e2afb7bb833771264a51aeeef7",
           "source_snapshot_content_hash": "sha256:1af8bfd3e44be3b853354e96a271daa0d91a09e2afb7bb833771264a51aeeef7",
           "locator": {
             "kind": "paper_text",
-            "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
-            "section": "Methods",
-            "paragraph": null,
-            "text_range": "paragraph 2, sentences 1-3",
+            "source_url": "https://doi.org/10.3847/1538-4365/ac5688",
+            "section": "Introduction",
+            "paragraph": 3,
+            "text_range": "column 1, sentence 1",
             "metadata_field": null,
-            "document_parse_id": null,
-            "document_parse_output_hash": null,
+            "document_parse_id": "dp_kunimoto_2022",
+            "document_parse_output_hash": "sha256:17c896c9401e3d0efe68a3157422cd2f1c83952405587b0dc0ebd7df975df4bd",
             "document_locator": null,
-            "page_index": null
+            "page_index": 1
           },
-          "quote_or_value": "Stellar parameters are compiled from all-sky photometric catalogs and parallax measurements.",
-          "status": "unverifiable",
-          "validation_code": "evidence.source_text_unavailable"
+          "quote_or_value": "In this paper, we describe our application of an additional, automated vetting pipeline following triage by AstroNet for vetting these QLP threshold crossing events obtained on fainter stars.",
+          "status": "supported",
+          "validation_code": "evidence.supported"
         }
       ],
       "source_conflicts": [],
@@ -642,7 +672,9 @@
       "prompt_hash": "sha256:758c9277003b9597514721ce359738219b7ba154ab0a924cb5b9600cef0b6323",
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2"
     },
-    "source_snapshot_ids": ["snap_papsum_crossref_01"],
+    "source_snapshot_ids": [
+      "snap_papsum_crossref_01"
+    ],
     "evidence_ids": [
       "evd_papsum_01",
       "evd_papsum_02",
@@ -660,9 +692,11 @@
           "title": "研究背景",
           "paragraphs": [
             {
-              "text": "The paper delivers The Revised TESS Input Catalog and Candidate Target List to prioritize TESS targets.",
+              "text": "The paper presents the detection of 1,617 new transiting planet candidates identified in TESS full-frame images from the Primary Mission.",
               "status": "supported",
-              "evidence_ids": ["evd_papsum_03"]
+              "evidence_ids": [
+                "evd_papsum_03"
+              ]
             }
           ]
         },
@@ -670,9 +704,11 @@
           "title": "研究方法",
           "paragraphs": [
             {
-              "text": "The catalog compiles stellar parameters from photometric catalogs and parallax measurements.",
+              "text": "An independent vetting pipeline applies automated vetting tests and manual inspection to QLP transit search results around fainter stars.",
               "status": "unverifiable",
-              "evidence_ids": ["evd_papsum_04"]
+              "evidence_ids": [
+                "evd_papsum_04"
+              ]
             }
           ]
         },
@@ -680,9 +716,11 @@
           "title": "数据集",
           "paragraphs": [
             {
-              "text": "The catalog release analyzed here dates to 2019.",
+              "text": "The search extracts FFIs for all stars brighter than TESS magnitude T = 13.5 mag in each sector.",
               "status": "supported",
-              "evidence_ids": ["evd_papsum_01"]
+              "evidence_ids": [
+                "evd_papsum_01"
+              ]
             }
           ]
         },
@@ -690,9 +728,11 @@
           "title": "实验与结果",
           "paragraphs": [
             {
-              "text": "The published catalog is registered under DOI 10.3847/1538-3881/ab3467.",
+              "text": "The published catalog is registered under DOI 10.3847/1538-4365/ac5688.",
               "status": "supported",
-              "evidence_ids": ["evd_papsum_02"]
+              "evidence_ids": [
+                "evd_papsum_02"
+              ]
             }
           ]
         },
@@ -700,7 +740,7 @@
           "title": "局限性",
           "paragraphs": [
             {
-              "text": "The catalog is claimed to be complete for all dwarf stars, without any cited evidence.",
+              "text": "The faint-star search is claimed to vet every signal below T = 13.5 mag, without any cited evidence.",
               "status": "unsupported",
               "evidence_ids": []
             }
@@ -777,13 +817,16 @@
         "locator": {
           "kind": "paper_metadata",
           "summary_evidence_id": "ev.dataset_year",
-          "source_record_id": "crossref:10.3847/1538-3881/ab3467",
-          "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
-          "metadata_field": "year"
+          "source_record_id": "crossref:10.3847/1538-4365/ac5688",
+          "source_url": "https://doi.org/10.3847/1538-4365/ac5688",
+          "metadata_field": "year",
+          "page_index": 0,
+          "paragraph": null,
+          "section": "Abstract"
         },
-        "quote_or_value": "2019",
+        "quote_or_value": "These candidates were initially detected by the Quick-Look Pipeline (QLP), which extracts FFI lightcurves for and searches all stars brighter than TESS magnitude T = 13.5 mag in each sector.",
         "extraction_method": "paper_summary",
-        "confidence": 1.0,
+        "confidence": 1,
         "created_at": "2026-07-21T08:25:00Z"
       },
       {
@@ -797,13 +840,16 @@
         "locator": {
           "kind": "paper_metadata",
           "summary_evidence_id": "ev.finding_doi",
-          "source_record_id": "crossref:10.3847/1538-3881/ab3467",
-          "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
-          "metadata_field": "doi"
+          "source_record_id": "crossref:10.3847/1538-4365/ac5688",
+          "source_url": "https://doi.org/10.3847/1538-4365/ac5688",
+          "metadata_field": "doi",
+          "page_index": 1,
+          "paragraph": null,
+          "section": "Introduction"
         },
-        "quote_or_value": "10.3847/1538-3881/ab3467",
+        "quote_or_value": "After running AstroNet, we identified 686,242 transit candidates that would nominally have needed manual inspection had the vetting magnitude limit been T = 13.5 mag.",
         "extraction_method": "paper_summary",
-        "confidence": 1.0,
+        "confidence": 1,
         "created_at": "2026-07-21T08:25:00Z"
       },
       {
@@ -817,13 +863,16 @@
         "locator": {
           "kind": "paper_metadata",
           "summary_evidence_id": "ev.goal_title",
-          "source_record_id": "crossref:10.3847/1538-3881/ab3467",
-          "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
-          "metadata_field": "title"
+          "source_record_id": "crossref:10.3847/1538-4365/ac5688",
+          "source_url": "https://doi.org/10.3847/1538-4365/ac5688",
+          "metadata_field": "title",
+          "page_index": 0,
+          "paragraph": null,
+          "section": "Abstract"
         },
-        "quote_or_value": "The Revised TESS Input Catalog and Candidate Target List",
+        "quote_or_value": "We present the detection of 1,617 new transiting planet candidates, identified in the Transiting Exoplanet Survey Satellite (TESS) full-frame images (FFIs) observed during the Primary Mission (Sectors 1-26).",
         "extraction_method": "paper_summary",
-        "confidence": 1.0,
+        "confidence": 1,
         "created_at": "2026-07-21T08:25:00Z"
       },
       {
@@ -837,14 +886,15 @@
         "locator": {
           "kind": "paper_text",
           "summary_evidence_id": "ev.method_text",
-          "source_record_id": "crossref:10.3847/1538-3881/ab3467",
-          "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
-          "section": "Methods",
-          "range": "paragraph 2, sentences 1-3"
+          "source_record_id": "crossref:10.3847/1538-4365/ac5688",
+          "source_url": "https://doi.org/10.3847/1538-4365/ac5688",
+          "section": "Introduction",
+          "page_index": 1,
+          "paragraph": null
         },
-        "quote_or_value": "Stellar parameters are compiled from all-sky photometric catalogs and parallax measurements.",
+        "quote_or_value": "In this paper, we describe our application of an additional, automated vetting pipeline following triage by AstroNet for vetting these QLP threshold crossing events obtained on fainter stars.",
         "extraction_method": "paper_summary",
-        "confidence": 1.0,
+        "confidence": 1,
         "created_at": "2026-07-21T08:25:00Z"
       }
     ]

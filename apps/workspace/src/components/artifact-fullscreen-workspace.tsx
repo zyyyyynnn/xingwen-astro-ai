@@ -253,7 +253,12 @@ function revisionImpact(plan: RevisionPlan): {
 
 export type RevisionMode =
   | { readonly kind: "artifact_correction" }
-  | { readonly kind: "relation_adjudication" }
+  | {
+      readonly kind: "relation_adjudication";
+      /** Entry-level primary actions preselect the relation and decision. */
+      readonly prefillRelationId?: DomainEntityId;
+      readonly prefillDecision?: RelationAdjudicationDecision;
+    }
   | {
       readonly kind: "relation_correction";
       readonly relationId: DomainEntityId;
@@ -354,11 +359,15 @@ function RevisionSheet({
   const [selectedRelationId, setSelectedRelationId] =
     useState<DomainEntityId | null>(
       mode.kind === "relation_adjudication"
-        ? (candidateRelations[0]?.relationId ?? null)
+        ? (mode.prefillRelationId ?? candidateRelations[0]?.relationId ?? null)
         : null,
     );
   const [selectedDecision, setSelectedDecision] =
-    useState<RelationAdjudicationDecision>("accepted");
+    useState<RelationAdjudicationDecision>(
+      mode.kind === "relation_adjudication" && mode.prefillDecision
+        ? mode.prefillDecision
+        : "accepted",
+    );
   const [plan, setPlan] = useState<RevisionPlan | null>(null);
   const feedbackMutation = useMutation(
     runtime.application.mutations.revisionFeedbackCreate(),

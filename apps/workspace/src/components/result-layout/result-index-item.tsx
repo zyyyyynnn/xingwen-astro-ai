@@ -77,11 +77,14 @@ export function ResultIndexItem({
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            <span className="text-[length:var(--font-size-00)] font-medium uppercase tracking-wider text-muted-foreground">
               {kindLabel}
             </span>
             {statusLabel ? (
-              <Badge variant={statusVariant} className="h-3.5 px-1 text-[9px]">
+              <Badge
+                variant={statusVariant}
+                className="h-4 px-1 text-[length:var(--font-size-00)]"
+              >
                 {statusLabel}
               </Badge>
             ) : null}
