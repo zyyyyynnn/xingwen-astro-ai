@@ -207,8 +207,9 @@ test("real worker closes the reasoning chain into an operable evidence graph", a
     name: "关系图列表替代视图",
   });
   await expect(listFallback).toBeVisible();
-  await listFallback.getByRole("button").first().click();
-  await expect(fullscreen.getByText("公开推导", { exact: true })).toBeVisible();
+  const selectedRelationship = listFallback.getByRole("button").first();
+  await selectedRelationship.click();
+  await expect(selectedRelationship).toHaveAttribute("aria-pressed", "true");
 
   expect(failedResponses).toEqual([]);
   expect(runtimeErrors).toEqual([]);

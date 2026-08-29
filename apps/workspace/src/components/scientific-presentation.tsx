@@ -218,6 +218,7 @@ export function PresentationGraphRelationships({
             {onSelectRelationship ? (
               <Button
                 variant={selectedKey === edge.key ? "secondary" : "ghost"}
+                aria-pressed={selectedKey === edge.key}
                 onClick={() => onSelectRelationship(edge.key)}
               >
                 {content}

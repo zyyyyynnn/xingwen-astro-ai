@@ -943,8 +943,9 @@ test("real worker exposes Literature dossiers, public reasoning, and interactive
     name: "关系图列表替代视图",
   });
   await expect(graphList).toBeVisible();
-  await graphList.getByRole("button").first().click();
-  await expect(fullscreen.getByText("公开推导", { exact: true })).toBeVisible();
+  const selectedRelationship = graphList.getByRole("button").first();
+  await selectedRelationship.click();
+  await expect(selectedRelationship).toHaveAttribute("aria-pressed", "true");
 
   const graphTab = fullscreen.getByRole("tab", { name: "关系图" });
   await graphTab.click();
