@@ -1,0 +1,13 @@
+{
+  "title": "The Revised TESS Input Catalog and Candidate Target List",
+  "authors": "Keivan G. Stassun et al.",
+  "journal_citation": "The Astronomical Journal, 158:138 (2019)",
+  "doi": "10.3847/1538-3881/ab3467",
+  "arxiv_id": "1905.10694",
+  "source_url": "https://arxiv.org/pdf/1905.10694",
+  "record_url": "https://arxiv.org/abs/1905.10694",
+  "retrieved_on": "2026-08-30",
+  "fixture_file": "stassun-2019-revised-tic.pdf",
+  "sha256": "5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100",
+  "purpose": "Demo Replay paper-reading fixture aligned with the generated PaperSummary identity and evidence locators."
+}

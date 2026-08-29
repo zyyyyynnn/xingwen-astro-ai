@@ -229,9 +229,7 @@ test.describe("fullscreen formal artifact workspaces", () => {
         await expect(
           candidate.getByRole("button", { name: "接受并进入图谱" }),
         ).toBeVisible();
-        await candidate
-          .getByRole("button", { name: "接受并进入图谱" })
-          .click();
+        await candidate.getByRole("button", { name: "接受并进入图谱" }).click();
         const adjudicationSheet = page.getByRole("dialog", {
           name: "审定候选关系",
         });
@@ -278,7 +276,7 @@ test.describe("paper summary reading workspace", () => {
 
     await expect(
       page.getByRole("heading", {
-        name: "The TESS Faint Star Search: 1,617 TOIs from the TESS Primary Mission",
+        name: "The Revised TESS Input Catalog and Candidate Target List",
       }),
     ).toBeVisible();
     // 24a captures the reading report immediately, before the PDF pane
@@ -303,7 +301,7 @@ test.describe("paper summary reading workspace", () => {
       .nth(1)
       .click();
     await page.getByRole("button", { name: "在论文中查看" }).click();
-    await expect(viewer).toContainText("2 /");
+    await expect(viewer).toContainText("5 /");
     await settle(page, 600);
     await shot(page, "24c_paper-evidence-jump");
   });

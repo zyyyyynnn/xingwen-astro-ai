@@ -690,10 +690,10 @@ export function createFixtureRepositories(
     type: "pdf",
     sourceType: "upload",
     contentHash:
-      "sha256:17c896c9401e3d0efe68a3157422cd2f1c83952405587b0dc0ebd7df975df4bd",
-    filename: "kunimoto-2022-tess-faint-star-search.pdf",
+      "sha256:5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100",
+    filename: "stassun-2019-revised-tic.pdf",
     mimeType: "application/pdf",
-    sizeBytes: 1222983,
+    sizeBytes: 4349822,
     createdAt: bundle.generatedAt,
     sourceSnapshotId: null,
     status: "accepted",
@@ -1481,7 +1481,7 @@ export function createFixtureRepositories(
       },
       getContentUrl: (inputId: DomainEntityId) =>
         inputId === seededResearchInputId
-          ? "/fixture-papers/kunimoto-2022-tess-faint-star-search.pdf"
+          ? "/fixture-papers/stassun-2019-revised-tic.pdf"
           : `/api/research-inputs/${inputId}/content`,
       getContent: async (inputId: DomainEntityId) =>
         researchInputContent.get(inputId) ?? new Blob([""]),

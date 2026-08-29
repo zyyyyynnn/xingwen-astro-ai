@@ -36,7 +36,7 @@ export const artifactPresentations = {
         title: "研究背景",
         paragraphs: [
           {
-            text: "The TESS Faint Star Search presents 1,617 new transiting planet candidates identified in TESS full-frame images from the Primary Mission.",
+            text: "The paper describes the catalogs and algorithms used to build the revised TESS Input Catalog.",
             evidence_ids: ["evd_papsum_03"],
           },
         ],
@@ -45,7 +45,7 @@ export const artifactPresentations = {
         title: "研究方法",
         paragraphs: [
           {
-            text: "An independent vetting pipeline applies automated vetting tests and manual inspection to QLP transit search results around fainter stars.",
+            text: "The paper documents the algorithms used to calculate stellar parameters for the revised catalog.",
             evidence_ids: ["evd_papsum_04"],
           },
         ],
@@ -54,7 +54,7 @@ export const artifactPresentations = {
         title: "数据集",
         paragraphs: [
           {
-            text: "The search extracts FFIs for all stars brighter than TESS magnitude T = 13.5 mag in each sector.",
+            text: "The catalog release analyzed here dates to 2019.",
             evidence_ids: ["evd_papsum_01"],
           },
         ],
@@ -63,7 +63,7 @@ export const artifactPresentations = {
         title: "实验与结果",
         paragraphs: [
           {
-            text: "The paper reports 686,242 transit candidates identified after AstroNet vetting of QLP threshold crossing events.",
+            text: "The published catalog is registered under DOI 10.3847/1538-3881/ab3467.",
             evidence_ids: ["evd_papsum_02"],
           },
         ],
@@ -72,7 +72,7 @@ export const artifactPresentations = {
         title: "局限性",
         paragraphs: [
           {
-            text: "QLP heavily relies on manual inspection for the identification of planet candidates, leaving millions of potential transit signals un-vetted.",
+            text: "The catalog is claimed to be complete for all dwarf stars, without any cited evidence.",
           },
         ],
       },

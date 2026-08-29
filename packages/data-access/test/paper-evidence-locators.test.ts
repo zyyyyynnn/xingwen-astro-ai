@@ -14,6 +14,8 @@ it("paper summary evidence carries real PDF page locators", async () => {
     method!.locator && "page" in method!.locator
       ? (method!.locator as { page: number | null }).page
       : null,
-  ).toBe(1);
-  expect(method!.quoteOrValue).toContain("In this paper, we describe");
+  ).toBe(4);
+  expect(method!.quoteOrValue).toContain(
+    "algorithmic procedures we adopted for calculating",
+  );
 });

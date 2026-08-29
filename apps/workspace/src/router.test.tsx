@@ -139,7 +139,7 @@ describe("Workspace routes", () => {
     );
     await waitFor(() =>
       expect(fullscreenReport).toHaveTextContent(
-        "The TESS Faint Star Search: 1,617 TOIs from the TESS Primary Mission",
+        "The Revised TESS Input Catalog and Candidate Target List",
       ),
     );
     expect(
