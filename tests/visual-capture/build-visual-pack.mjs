@@ -25,7 +25,7 @@ const repoRoot = execSync("git rev-parse --show-toplevel", {
   encoding: "utf8",
 }).trim();
 const worktreeStatus = execSync(
-  "git status --porcelain=v1 --untracked-files=all",
+  "git status --porcelain --untracked-files=all",
   { cwd: repoRoot, encoding: "utf8" },
 ).trim();
 if (worktreeStatus) {
