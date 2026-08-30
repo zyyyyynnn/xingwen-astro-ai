@@ -128,13 +128,7 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
                   </p>
                 </div>
 
-                <section aria-labelledby="research-starters-heading">
-                  <h2
-                    id="research-starters-heading"
-                    className="mb-[var(--space-2)] text-[length:var(--font-size-ui-label)] font-medium text-[var(--color-ink-secondary)]"
-                  >
-                    选择研究起点，或直接描述你的目标
-                  </h2>
+                <section aria-label="研究起点">
                   <div className="workspace-research-starters">
                     {RESEARCH_STARTERS.map((starter) => {
                       const Icon = starter.icon;

@@ -245,9 +245,9 @@ export function PaperCollectionWorkspace({
               ? "检索完成"
               : "部分结果"}
           </Badge>
-          <span>
+          <Badge variant="outline">
             {review.sourceMode === "fixture" ? "演示数据" : "研究数据"}
-          </span>
+          </Badge>
         </div>
       </header>
 

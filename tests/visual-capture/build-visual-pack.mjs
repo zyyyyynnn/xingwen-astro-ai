@@ -38,6 +38,7 @@ const shotsDir = resolve(
   process.argv[2] ?? ".artifacts/visual-acceptance/shots",
 );
 const packDir = join(shotsDir, "..");
+const shotsDirectoryName = basename(shotsDir);
 const actualHead = execSync("git rev-parse HEAD", {
   cwd: repoRoot,
   encoding: "utf8",
@@ -389,7 +390,7 @@ figure{margin:0;overflow:hidden;border:1px solid #38404a;background:#1b1f24}
 img{display:block;width:100%;min-height:120px;background:#0c0f12}
 figcaption{padding:8px;color:#b8c0ca;word-break:break-word}
 </style><h1>PR #258 视觉验收 · HEAD ${actualHead.slice(0, 10)} · ${entries.length} shots</h1>
-<div class="grid">${entries.map((entry) => `<figure><img src="shots/${entry.file}"><figcaption>${entry.name}<br>${entry.entry_method} · ${entry.viewport}</figcaption></figure>`).join("\n")}</div></html>`;
+<div class="grid">${entries.map((entry) => `<figure><img src="${shotsDirectoryName}/${entry.file}"><figcaption>${entry.name}<br>${entry.entry_method} · ${entry.viewport}</figcaption></figure>`).join("\n")}</div></html>`;
 const contactHtml = join(packDir, "contact-sheet.html");
 writeFileSync(contactHtml, html, "utf8");
 
@@ -423,7 +424,7 @@ copyFileSync(
   join(packDir, "contact-sheet.png"),
   join(staging, "contact-sheet.png"),
 );
-cpSync(shotsDir, join(staging, "shots"), { recursive: true });
+cpSync(shotsDir, join(staging, shotsDirectoryName), { recursive: true });
 const quotePowerShell = (value) => `'${value.replaceAll("'", "''")}'`;
 execFileSync(
   "powershell.exe",

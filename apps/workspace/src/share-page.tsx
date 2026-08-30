@@ -263,19 +263,30 @@ export function PublicShareView({
             {renderer.capability === "supported" &&
             selectedVersion.kind === "dataset" &&
             onDownloadDatasetCsv ? (
-              <div className="public-share-result__toolbar">
-                <Button
-                  size="small"
-                  variant="secondary"
-                  disabled={downloadState === "pending"}
-                  onClick={() => void downloadDatasetCsv()}
-                >
-                  <Download data-icon="inline-start" aria-hidden="true" />
-                  {downloadState === "pending" ? "正在下载" : "下载 CSV"}
-                </Button>
-                {downloadState === "error" ? (
-                  <p role="alert">下载失败，请重试。</p>
+              <div
+                className="public-share-result__header"
+                data-mode={showSelectedResultHeader ? "actions" : "summary"}
+              >
+                {!showSelectedResultHeader ? (
+                  <div>
+                    <p>共享数据集</p>
+                    <h2>数据概览</h2>
+                  </div>
                 ) : null}
+                <div className="public-share-result__toolbar">
+                  <Button
+                    size="small"
+                    variant="secondary"
+                    disabled={downloadState === "pending"}
+                    onClick={() => void downloadDatasetCsv()}
+                  >
+                    <Download data-icon="inline-start" aria-hidden="true" />
+                    {downloadState === "pending" ? "正在下载" : "下载 CSV"}
+                  </Button>
+                  {downloadState === "error" ? (
+                    <p role="alert">下载失败，请重试。</p>
+                  ) : null}
+                </div>
               </div>
             ) : null}
             {renderer.capability === "unsupported" ? (

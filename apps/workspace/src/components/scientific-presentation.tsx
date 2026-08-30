@@ -200,43 +200,55 @@ export function PresentationGraphRelationships({
   const labels = new Map(nodes.map((node) => [node.key, node.label]));
   const interactive = onSelectRelationship !== undefined;
   return (
-    <ol
-      className={interactive ? "graph-workspace__list" : "graph-fallback-list"}
-      aria-label={interactive ? "关系图列表替代视图" : "证据关系列表"}
-    >
-      {edges.map((edge) => {
-        const content = (
-          <>
-            <span>{labels.get(edge.sourceKey) ?? "起点未公开"}</span>
-            <span aria-hidden="true">→</span>
-            <span>{labels.get(edge.targetKey) ?? "终点未公开"}</span>
-            <small>{taxonomyLabel(edge.kind)}</small>
-          </>
-        );
-        return (
-          <li key={edge.key}>
-            {onSelectRelationship ? (
-              <Button
-                variant={selectedKey === edge.key ? "secondary" : "ghost"}
-                aria-pressed={selectedKey === edge.key}
-                onClick={() => onSelectRelationship(edge.key)}
-              >
-                {content}
-              </Button>
-            ) : (
-              <p>{content}</p>
-            )}
-            {!interactive ? (
-              <PresentationEvidenceActions
-                evidenceIds={edge.evidenceIds}
-                onSelectEvidence={onSelectEvidence}
-                evidenceOrdinal={evidenceOrdinal}
-              />
-            ) : null}
-          </li>
-        );
-      })}
-    </ol>
+    <div className={interactive ? "graph-workspace__list-view" : undefined}>
+      {interactive ? (
+        <div className="graph-workspace__list-header" aria-hidden="true">
+          <span>起点</span>
+          <span />
+          <span>终点</span>
+          <span>关系类型</span>
+        </div>
+      ) : null}
+      <ol
+        className={
+          interactive ? "graph-workspace__list" : "graph-fallback-list"
+        }
+        aria-label={interactive ? "关系图列表替代视图" : "证据关系列表"}
+      >
+        {edges.map((edge) => {
+          const content = (
+            <>
+              <span>{labels.get(edge.sourceKey) ?? "起点未公开"}</span>
+              <span aria-hidden="true">→</span>
+              <span>{labels.get(edge.targetKey) ?? "终点未公开"}</span>
+              <small>{taxonomyLabel(edge.kind)}</small>
+            </>
+          );
+          return (
+            <li key={edge.key}>
+              {onSelectRelationship ? (
+                <Button
+                  variant={selectedKey === edge.key ? "secondary" : "ghost"}
+                  aria-pressed={selectedKey === edge.key}
+                  onClick={() => onSelectRelationship(edge.key)}
+                >
+                  {content}
+                </Button>
+              ) : (
+                <p>{content}</p>
+              )}
+              {!interactive ? (
+                <PresentationEvidenceActions
+                  evidenceIds={edge.evidenceIds}
+                  onSelectEvidence={onSelectEvidence}
+                  evidenceOrdinal={evidenceOrdinal}
+                />
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 
