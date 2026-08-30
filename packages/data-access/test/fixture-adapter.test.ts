@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { exoplanetHostStarFixture } from "../src/fixture/exoplanet-host-star";
 import type { FixtureBundle } from "../src/fixture/bundle";
+import { dataArtifactReads } from "../src/fixture/formal-artifacts";
 import { createFixtureRepositories } from "../src/fixture-adapter";
+import { createFixtureDataArtifactRepository } from "../src/data-artifact-repository";
 import { FixtureSemanticError, FixtureValidationError } from "../src/errors";
 import { ConflictError, NotFoundError } from "../src/errors";
 
@@ -23,6 +25,75 @@ const EXPECTED_CONTRACT_HASH =
 const ALL_ZERO_HASH = "sha256:" + "0".repeat(64);
 
 describe("Fixture adapter — provenance and semantics", () => {
+  it("maps Dataset cell pipeline Evidence references to persisted Evidence ids", async () => {
+    const source = dataArtifactReads[0]!;
+    const sourceRow = source.dataset.rows[0]!;
+    const pipelineEvidenceId = "evidence.transformation.fixture-cell";
+    const persistedEvidenceId = source.evidence[0]!.id;
+    const read = {
+      ...source,
+      dataset: {
+        ...source.dataset,
+        evidence_ids: [pipelineEvidenceId],
+        rows: [
+          {
+            ...sourceRow,
+            fields: sourceRow.fields.map((field, index) =>
+              index === 0
+                ? {
+                    ...field,
+                    transformation_evidence_ids: [pipelineEvidenceId],
+                  }
+                : field,
+            ),
+          },
+          ...source.dataset.rows.slice(1),
+        ],
+      },
+    };
+    const repository = createFixtureDataArtifactRepository([read]);
+
+    const dataset = await repository.getDataset(
+      source.artifact_version_id as never,
+    );
+
+    expect(dataset.rows[0]!.cells[0]!.evidenceIds).toEqual([
+      persistedEvidenceId,
+    ]);
+  });
+
+  it("rejects a Dataset cell Evidence reference without a persisted binding", async () => {
+    const source = dataArtifactReads[0]!;
+    const sourceRow = source.dataset.rows[0]!;
+    const read = {
+      ...source,
+      dataset: {
+        ...source.dataset,
+        rows: [
+          {
+            ...sourceRow,
+            fields: sourceRow.fields.map((field, index) =>
+              index === 0
+                ? {
+                    ...field,
+                    transformation_evidence_ids: [
+                      "evidence.transformation.unbound",
+                    ],
+                  }
+                : field,
+            ),
+          },
+          ...source.dataset.rows.slice(1),
+        ],
+      },
+    };
+    const repository = createFixtureDataArtifactRepository([read]);
+
+    await expect(
+      repository.getDataset(source.artifact_version_id as never),
+    ).rejects.toMatchObject({ code: "SCHEMA_VALIDATION_FAILED" });
+  });
+
   it("reports demo_replay execution mode and fixture source mode", () => {
     const { state } = repos.provenance;
     expect(state.executionMode).toBe("demo_replay");

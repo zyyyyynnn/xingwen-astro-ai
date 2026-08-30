@@ -873,10 +873,12 @@ test("real worker exposes Literature dossiers, public reasoning, and interactive
   await expect(
     claimsWorkspace.getByText("声明核验工作区", { exact: true }),
   ).toBeVisible();
+  const claimTitle = "Confirmed transiting planets orbit nearby host stars.";
+  await claimsWorkspace
+    .getByRole("button", { name: `选择${claimTitle}` })
+    .click();
   await expect(
-    claimsWorkspace.getByRole("heading", {
-      name: "Confirmed transiting planets orbit nearby host stars.",
-    }),
+    claimsWorkspace.getByRole("heading", { name: claimTitle }),
   ).toBeVisible();
   await claimsWorkspace.getByRole("button", { name: "证据 1" }).first().click();
   await expect(page.getByRole("heading", { name: "研究证据" })).toBeVisible();

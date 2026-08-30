@@ -1060,6 +1060,25 @@ def test_gaia_scientific_admission_publishes_uuid_cell_evidence_end_to_end(
             evidence.authority.authority_kind == "source_table"
             for evidence in dataset_read.dataset.transformation_evidence
         )
+        persisted_by_pipeline_id = dict(
+            zip(
+                dataset_read.dataset.evidence_ids,
+                dataset_read.evidence,
+                strict=True,
+            )
+        )
+        cell_pipeline_evidence_ids = tuple(
+            evidence_id
+            for row in dataset_read.dataset.rows
+            for field in row.fields
+            for evidence_id in field.transformation_evidence_ids
+        )
+        assert cell_pipeline_evidence_ids
+        assert all(
+            str(UUID(persisted_by_pipeline_id[evidence_id].id))
+            in dataset_version.evidence_ids
+            for evidence_id in cell_pipeline_evidence_ids
+        )
         replay_repository = DataArtifactBuildInputRepository(factory)
         for run_id in run_ids:
             data_versions = tuple(
