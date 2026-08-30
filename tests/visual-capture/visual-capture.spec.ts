@@ -74,13 +74,14 @@ test.describe("workspace shell & navigation", () => {
     const removeProvider = page.getByRole("button", {
       name: "移除工作台配置",
     });
-    if (await removeProvider.isVisible()) {
-      await removeProvider.click();
-      await expect(page.getByRole("alertdialog")).toBeVisible();
-      await shot(page, "04b_model-provider-remove-confirm");
-      await page.keyboard.press("Escape");
-      await settle(page, 300);
-    }
+    await expect(removeProvider).toBeVisible();
+    await removeProvider.click();
+    await expect(
+      page.getByRole("alertdialog", { name: "移除工作台模型配置？" }),
+    ).toBeVisible();
+    await shot(page, "04b_model-provider-remove-confirm");
+    await page.keyboard.press("Escape");
+    await settle(page, 300);
     await page.keyboard.press("Escape");
     await settle(page, 300);
   });

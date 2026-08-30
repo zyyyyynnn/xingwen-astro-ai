@@ -490,16 +490,16 @@ export function createFixtureRepositories(
   const shareByToken = new Map<string, DomainEntityId>();
   const fixtureModelProvider: ModelProviderConfigurationStatus = {
     status: "ready",
-    revision: 0,
-    source: "deployment",
-    preset: null,
+    revision: 1,
+    source: "workspace",
+    preset: "dashscope",
     baseUrl: null,
     dashscopeBaseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    model: "演示回放",
-    apiKeyHint: null,
+    model: "演示回放（不执行模型调用）",
+    apiKeyHint: "Demo Replay",
     verifiedAt: null,
     updatedAt: null,
-    editable: false,
+    editable: true,
   };
   const fixtureArtifactExports = createFixtureArtifactExportRepository(
     bundle.data.projects[0]?.id
