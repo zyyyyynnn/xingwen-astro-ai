@@ -1,4 +1,17 @@
 import React from "react";
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
+} from "@xingwen/ui";
+import {
+  BrainCircuit,
+  Database,
+  FileSearch,
+  type LucideIcon,
+} from "@xingwen/ui/icons";
 
 import type { ResearchWorkspaceRuntime } from "../../../root";
 import { useScrollToBottom } from "../../../hooks/use-scroll-to-bottom";
@@ -8,6 +21,32 @@ import { InteractiveChatBox } from "./interactive-chat-box";
 interface ChatInterfaceProps {
   readonly runtime: ResearchWorkspaceRuntime;
 }
+
+const RESEARCH_STARTERS: ReadonlyArray<{
+  readonly title: string;
+  readonly description: string;
+  readonly prompt: string;
+  readonly icon: LucideIcon;
+}> = [
+  {
+    title: "构建证据综述",
+    description: "汇总文献、论点关系与可追溯证据",
+    prompt: "围绕我的研究问题构建一份可追溯证据的文献综述，并标出关键争议与证据缺口。",
+    icon: FileSearch,
+  },
+  {
+    title: "分析观测数据",
+    description: "检查数据质量、信号特征与异常来源",
+    prompt: "分析我提供的观测数据，先核对数据质量与来源，再识别显著信号和可能的异常。",
+    icon: Database,
+  },
+  {
+    title: "比较科研模型",
+    description: "建立基线、评估差异并解释限制",
+    prompt: "为当前科研问题设计模型比较方案，给出基线、评估指标、证据依据与主要限制。",
+    icon: BrainCircuit,
+  },
+];
 
 export function ChatInterface({ runtime }: ChatInterfaceProps) {
   const composer = runtime.composer;
@@ -72,14 +111,58 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
             data-testid="chat-composer-gutter"
           >
             {!hasStartedConversation ? (
-              <div className="mx-auto mb-6 flex w-full max-w-[var(--workspace-content-max-inline-size)] flex-col items-center text-center">
-                <h1
-                  className="workspace-font-serif text-2xl font-medium tracking-tight text-[var(--color-ink-primary)]"
-                  role="heading"
-                  aria-level={1}
-                >
-                  开始你的研究
-                </h1>
+              <div className="mx-auto mb-[var(--space-6)] flex w-full max-w-[var(--workspace-content-max-inline-size)] flex-col gap-[var(--space-6)]">
+                <div className="mx-auto flex max-w-[var(--workspace-result-reading-max-inline-size)] flex-col items-center text-center">
+                  <p className="mb-[var(--space-2)] text-[length:var(--font-size-ui-label)] font-semibold text-[var(--color-brand)]">
+                    科研智能工作台
+                  </p>
+                  <h1
+                    className="workspace-font-serif text-3xl font-medium tracking-tight text-[var(--color-ink-primary)]"
+                    role="heading"
+                    aria-level={1}
+                  >
+                    开始你的研究
+                  </h1>
+                  <p className="mt-[var(--space-3)] text-[length:var(--font-size-ui-body)] leading-[var(--line-height-ui-body)] text-[var(--color-ink-secondary)]">
+                    从问题或数据出发，把文献、分析、证据和版本化成果组织在同一条研究链路中。
+                  </p>
+                </div>
+
+                <section aria-labelledby="research-starters-heading">
+                  <h2
+                    id="research-starters-heading"
+                    className="mb-[var(--space-2)] text-[length:var(--font-size-ui-label)] font-medium text-[var(--color-ink-secondary)]"
+                  >
+                    选择研究起点，或直接描述你的目标
+                  </h2>
+                  <div className="grid gap-[var(--space-2)] md:grid-cols-3">
+                    {RESEARCH_STARTERS.map((starter) => {
+                      const Icon = starter.icon;
+                      return (
+                        <Item
+                          key={starter.title}
+                          asChild
+                          variant="muted"
+                          size="sm"
+                          className="min-h-[var(--workspace-entry-starter-block-size)] cursor-pointer items-start bg-[var(--color-surface-muted)] text-left shadow-[var(--shadow-float)] hover:bg-[var(--color-surface-hover)]"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => composer?.onValueChange(starter.prompt)}
+                          >
+                            <ItemMedia className="mt-[var(--space-1)] text-[var(--color-brand)]">
+                              <Icon className="size-[var(--icon-size-md)]" aria-hidden="true" />
+                            </ItemMedia>
+                            <ItemContent>
+                              <ItemTitle>{starter.title}</ItemTitle>
+                              <ItemDescription>{starter.description}</ItemDescription>
+                            </ItemContent>
+                          </button>
+                        </Item>
+                      );
+                    })}
+                  </div>
+                </section>
               </div>
             ) : null}
             <div className="relative mx-auto flex w-full max-w-[var(--workspace-content-max-inline-size)] flex-col gap-[var(--space-2)]">

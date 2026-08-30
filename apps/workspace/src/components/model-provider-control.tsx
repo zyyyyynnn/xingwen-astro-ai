@@ -25,8 +25,14 @@ import {
   FieldGroup,
   FieldLabel,
   Input,
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -191,22 +197,51 @@ export function ModelProviderControl({
               </Button>
             </Alert>
           ) : isDeploymentManaged ? (
-            <Alert>
-              <ShieldCheck aria-hidden="true" />
-              <AlertTitle>部署环境已配置</AlertTitle>
-              <AlertDescription>
-                {current?.model ?? "模型服务"} ·{" "}
-                {current?.baseUrl ?? current?.dashscopeBaseUrl} · 工作台只读
-              </AlertDescription>
-            </Alert>
+            <Item
+              variant="muted"
+              className="model-provider-summary"
+              role="status"
+            >
+              <ItemMedia className="model-provider-summary__media">
+                <ShieldCheck aria-hidden="true" />
+              </ItemMedia>
+              <ItemContent>
+                <ItemTitle>部署环境已配置</ItemTitle>
+                <ItemDescription>
+                  {current?.model ?? "模型服务"}
+                </ItemDescription>
+                <dl className="model-provider-summary__facts">
+                  <div>
+                    <dt>服务端点</dt>
+                    <dd>{current?.baseUrl ?? current?.dashscopeBaseUrl}</dd>
+                  </div>
+                  <div>
+                    <dt>配置权限</dt>
+                    <dd>工作台只读</dd>
+                  </div>
+                </dl>
+              </ItemContent>
+            </Item>
           ) : isReady ? (
-            <Alert>
-              <CheckCircle2 aria-hidden="true" />
-              <AlertTitle>已连接</AlertTitle>
-              <AlertDescription>
-                {current?.model} · {current?.apiKeyHint}
-              </AlertDescription>
-            </Alert>
+            <Item
+              variant="muted"
+              className="model-provider-summary"
+              role="status"
+            >
+              <ItemMedia className="model-provider-summary__media">
+                <CheckCircle2 aria-hidden="true" />
+              </ItemMedia>
+              <ItemContent>
+                <ItemTitle>已连接</ItemTitle>
+                <ItemDescription>{current?.model}</ItemDescription>
+                <dl className="model-provider-summary__facts">
+                  <div>
+                    <dt>凭据</dt>
+                    <dd>{current?.apiKeyHint}</dd>
+                  </div>
+                </dl>
+              </ItemContent>
+            </Item>
           ) : !editable ? (
             <Alert>
               <ShieldCheck aria-hidden="true" />
@@ -235,11 +270,13 @@ export function ModelProviderControl({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {PRESET_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
+                      <SelectGroup>
+                        {PRESET_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                   {preset === "custom" ? (

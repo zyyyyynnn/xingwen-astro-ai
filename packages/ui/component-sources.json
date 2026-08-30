@@ -386,6 +386,88 @@
       "production_consumers": [
         "apps/workspace/src/components/wwt-scene-controls.tsx"
       ]
+    },
+    {
+      "name": "Accordion",
+      "local_path": "packages/ui/src/accordion.tsx",
+      "source": "@shadcn/accordion",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "accordion",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains Radix disclosure, keyboard and multiple-open mechanics with clsx composition, the shared icon gateway and Xingwen semantic surfaces.",
+      "production_consumers": [
+        "apps/workspace/src/components/data-artifact-renderer.tsx",
+        "apps/workspace/src/components/literature-review-workspace.tsx",
+        "apps/workspace/src/components/paper-collection-workspace.tsx"
+      ]
+    },
+    {
+      "name": "Empty",
+      "local_path": "packages/ui/src/empty.tsx",
+      "source": "@shadcn/empty",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "empty",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains the registry empty-state composition with clsx composition while mapping media, spacing and typography to semantic product states.",
+      "production_consumers": [
+        "apps/workspace/src/components/data-artifact-renderer.tsx",
+        "apps/workspace/src/components/paper-collection-workspace.tsx",
+        "apps/workspace/src/components/research-inspector.tsx"
+      ]
+    },
+    {
+      "name": "Item",
+      "local_path": "packages/ui/src/item.tsx",
+      "source": "@shadcn/item",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "item",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains Slot-based item composition with clsx composition and semantic media, content and action slots for research lists without card-wall chrome.",
+      "production_consumers": [
+        "apps/workspace/src/components/result-layout/result-index-item.tsx",
+        "apps/workspace/src/components/paper-collection-workspace.tsx",
+        "apps/workspace/src/mechanics/components/features/chat/chat-interface.tsx"
+      ]
+    },
+    {
+      "name": "Toggle",
+      "local_path": "packages/ui/src/toggle.tsx",
+      "source": "@shadcn/toggle",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "toggle",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Provides clsx composition and the shared semantic pressed-state variant contract consumed by the governed ToggleGroup component.",
+      "production_consumers": [
+        "packages/ui/src/toggle-group.tsx"
+      ]
+    },
+    {
+      "name": "ToggleGroup",
+      "local_path": "packages/ui/src/toggle-group.tsx",
+      "source": "@shadcn/toggle-group",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "toggle-group",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains Radix single and multiple selection, roving focus and shared Toggle variants with clsx composition for compact research filters.",
+      "production_consumers": [
+        "apps/workspace/src/components/literature-review-workspace.tsx",
+        "apps/workspace/src/components/paper-collection-workspace.tsx"
+      ]
     }
   ]
 }

@@ -8,6 +8,7 @@ import type {
   ResearchContractViewModel,
   WorkspaceStreamItem,
 } from "@xingwen/research-adapter";
+import type { WorkspaceRuntimeBoundaries } from "../boundaries";
 
 import { ChatMessage, CollapsibleThinking, Messages } from "../mechanics/root";
 import { ClarificationPrompt } from "./clarification-prompt";
@@ -16,6 +17,8 @@ import { ScientificRepairPrompt } from "./scientific-repair-prompt";
 import { resolveArtifactRenderer } from "../presentation/artifact-renderer-registry";
 
 interface ResearchMessageStreamProps {
+  readonly runtime?: WorkspaceRuntimeBoundaries;
+  readonly projectId?: DomainEntityId;
   readonly items: readonly WorkspaceStreamItem[];
   readonly onOpenArtifactVersion?: (artifactVersionId: DomainEntityId) => void;
   readonly onConfirmProtocol?: () => Promise<void> | void;
@@ -96,6 +99,8 @@ function groupToolEvents(
 
 /** Product seam between research view models and current Workspace mechanics. */
 export const ResearchMessageStream = memo(function ResearchMessageStream({
+  runtime,
+  projectId,
   items,
   onOpenArtifactVersion,
   onConfirmProtocol,
@@ -283,6 +288,8 @@ export const ResearchMessageStream = memo(function ResearchMessageStream({
           return (
             <ThreadRenderer
               key={item.id}
+              runtime={runtime}
+              projectId={projectId}
               artifact={item.artifact}
               versionId={item.versionId}
               summary={item.summary}

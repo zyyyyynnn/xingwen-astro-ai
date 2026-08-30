@@ -471,17 +471,22 @@ function ResearchComposerLeadingActions({
   readonly onOpenProtocolEditor: () => void;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-[var(--space-2)]">
+    <div className="research-composer-leading-actions flex min-w-0 items-center gap-[var(--space-2)]">
       {attachmentAction}
-      <Button
-        variant="ghost"
-        size="small"
-        disabled={protocolDisabled}
-        onClick={onOpenProtocolEditor}
-        className="gap-1 text-xs text-[var(--color-ink-secondary)]"
-      >
-        {protocolLabel}
-      </Button>
+      {protocolDisabled ? (
+        <span className="text-[length:var(--font-size-ui-label)] text-[var(--color-ink-tertiary)]">
+          提交后生成{protocolLabel}
+        </span>
+      ) : (
+        <Button
+          variant="ghost"
+          size="small"
+          onClick={onOpenProtocolEditor}
+          className="gap-1 text-xs text-[var(--color-ink-secondary)]"
+        >
+          {protocolLabel}
+        </Button>
+      )}
     </div>
   );
 }
@@ -934,6 +939,8 @@ export function WorkspaceHost({
         }}
       />
       <ResearchMessageStream
+        runtime={runtime}
+        projectId={projectId}
         items={streamItems}
         onOpenArtifactVersion={onOpenArtifactVersion}
         onConfirmProtocol={confirmAndRun}

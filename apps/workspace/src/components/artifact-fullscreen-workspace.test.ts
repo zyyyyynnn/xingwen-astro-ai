@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   describeArtifactLineage,
-  selectRevisionMode,
+  selectGlobalRevisionMode,
   toCandidateRelationOptions,
 } from "./artifact-fullscreen-workspace";
 
@@ -106,15 +106,9 @@ describe("Object revision candidate gating", () => {
     expect(toCandidateRelationOptions(undefined)).toEqual([]);
   });
 
-  it("selects relation adjudication only when an adjudicable candidate exists", () => {
-    expect(selectRevisionMode([])).toEqual({ kind: "artifact_correction" });
-    expect(
-      selectRevisionMode([
-        {
-          relationId: "adjudicable" as DomainEntityId,
-          title: "可审定关系",
-        },
-      ]),
-    ).toEqual({ kind: "relation_adjudication" });
+  it("keeps the fullscreen global revision action as artifact correction", () => {
+    expect(selectGlobalRevisionMode()).toEqual({
+      kind: "artifact_correction",
+    });
   });
 });

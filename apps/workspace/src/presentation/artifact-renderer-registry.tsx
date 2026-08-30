@@ -1,5 +1,4 @@
 import {
-  useMutation,
   useQuery,
   useQueries,
   type UseQueryOptions,
@@ -20,28 +19,14 @@ import type {
   PaperAcquisitionReviewViewModel,
   ResearchArtifactViewModel,
 } from "@xingwen/research-adapter";
-import {
-  Alert,
-  AlertDescription,
-  Badge,
-  Button,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Skeleton,
-} from "@xingwen/ui";
-import { useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { Alert, AlertDescription, Skeleton } from "@xingwen/ui";
+import type { ComponentType, ReactNode } from "react";
 
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
 import { ArtifactExportActions } from "../components/artifact-export-actions";
-import {
-  ArtifactPresentationContent,
-  type PresentationRevisionIntent,
-} from "../components/scientific-presentation";
+import type { PresentationRevisionIntent } from "../components/scientific-presentation";
 import { DataArtifactRenderer } from "../components/data-artifact-renderer";
+import { PaperCollectionWorkspace } from "../components/paper-collection-workspace";
 import { PaperResultWorkspace } from "../components/paper-result-workspace";
 import { PaperSummaryExportActions } from "../components/paper-summary-export-actions";
 import { ScientificArtifactRenderer } from "../components/scientific-artifact-renderer";
@@ -94,10 +79,20 @@ export interface ArtifactDiffRendererProps {
 }
 
 export interface ArtifactThreadRendererProps {
+  readonly runtime?: WorkspaceRuntimeBoundaries;
+  readonly projectId?: DomainEntityId;
   readonly artifact: ResearchArtifactViewModel;
   readonly versionId: DomainEntityId;
   readonly summary: string | null;
   readonly onOpen: (() => void) | null;
+}
+
+export interface ArtifactSummaryRendererProps {
+  readonly runtime: WorkspaceRuntimeBoundaries;
+  readonly projectId: DomainEntityId;
+  readonly artifact: ResearchArtifactViewModel;
+  readonly versionId: DomainEntityId;
+  readonly children: (summary: string | null) => ReactNode;
 }
 
 export type RevisionIntent = PresentationRevisionIntent;
@@ -138,6 +133,7 @@ interface TypedRendererDefinition<
   ) => UseQueryOptions<ViewModel, Error, ViewModel, QueryKey>;
   readonly fullscreen: (props: LoadedRendererProps<ViewModel>) => ReactNode;
   readonly textFallback: (viewModel: ViewModel) => string;
+  readonly threadSummary?: (viewModel: ViewModel) => string | null;
   readonly buildDiffSnapshot: (viewModel: ViewModel) => ScientificDiffSnapshot;
   readonly accepts?: (viewModel: ViewModel) => boolean;
 }
@@ -155,6 +151,7 @@ export interface ArtifactRendererDescriptor {
   readonly layoutMode: ArtifactLayoutMode;
   readonly capabilities: ArtifactRendererCapabilities;
   readonly ThreadRenderer: ComponentType<ArtifactThreadRendererProps>;
+  readonly SummaryRenderer: ComponentType<ArtifactSummaryRendererProps>;
   readonly FullscreenRenderer: ComponentType<ArtifactFullscreenRendererProps>;
   readonly TextFallback: ComponentType<ArtifactFullscreenRendererProps>;
   readonly DiffRenderer: ComponentType<ArtifactDiffRendererProps>;
@@ -207,7 +204,7 @@ function ThreadResultBlock({
       kindLabel={artifactKindLabel(artifact.kind)}
       title={artifact.title}
       summary={summary}
-      actionLabel={isReviewAction ? "审查结果" : "查看完整结果"}
+      actionLabel={isReviewAction ? "审查结果" : "打开"}
       onOpen={onOpen}
     />
   );
@@ -263,6 +260,65 @@ function defineRenderer<
         {...props}
         artifact={{ ...props.artifact, kind: definition.kind }}
       />
+    );
+  }
+
+  function LoadedSummary(
+    props: ArtifactSummaryRendererProps & {
+      readonly artifact: ResearchArtifactViewModel & { readonly kind: Kind };
+      readonly version: ArtifactVersionMetadataViewModel;
+    },
+  ) {
+    const query = useQuery(
+      definition.load({
+        runtime: props.runtime,
+        projectId: props.projectId,
+        artifact: props.artifact,
+        version: props.version,
+        onSelectEvidence: () => undefined,
+      }),
+    );
+    if (!query.data) return props.children(null);
+    return props.children(
+      definition.threadSummary?.(query.data) ??
+        definition.textFallback(query.data),
+    );
+  }
+
+  function SummaryRenderer(props: ArtifactSummaryRendererProps) {
+    const versionQuery = useQuery(
+      props.runtime.application.queries.artifactVersion(
+        props.projectId,
+        props.versionId,
+      ),
+    );
+    if (props.artifact.kind !== definition.kind || !versionQuery.data) {
+      return props.children(null);
+    }
+    return (
+      <LoadedSummary
+        {...props}
+        artifact={{ ...props.artifact, kind: definition.kind }}
+        version={versionQuery.data}
+      />
+    );
+  }
+
+  function ThreadRenderer(props: ArtifactThreadRendererProps) {
+    if (!props.runtime || !props.projectId) {
+      return <ThreadResultBlock {...props} />;
+    }
+    return (
+      <SummaryRenderer
+        runtime={props.runtime}
+        projectId={props.projectId}
+        artifact={props.artifact}
+        versionId={props.versionId}
+      >
+        {(summary) => (
+          <ThreadResultBlock {...props} summary={summary ?? props.summary} />
+        )}
+      </SummaryRenderer>
     );
   }
 
@@ -487,7 +543,8 @@ function defineRenderer<
     displayPriority: definition.displayPriority,
     layoutMode: definition.layoutMode,
     capabilities: definition.capabilities,
-    ThreadRenderer: ThreadResultBlock,
+    ThreadRenderer,
+    SummaryRenderer,
     FullscreenRenderer,
     TextFallback,
     DiffRenderer,
@@ -536,32 +593,31 @@ function data(
             />
           }
         />
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="space-y-4">
-            <ArtifactPresentationContent
-              presentation={version.presentation}
-              title={artifact.title}
-              surface="fullscreen"
-              onSelectEvidence={onSelectEvidence}
-              showHeader={false}
-            />
-            <DataArtifactRenderer
-              review={viewModel}
-              title={artifact.title}
-              surface="fullscreen"
-              onSelectEvidence={(ids) => {
-                const first = ids[0];
-                if (first) onSelectEvidence(first);
-              }}
-              showSummary={false}
-              enhancementOnly={kind === "dataset"}
-            />
-          </div>
+        <div className="min-h-0 flex-1 overflow-y-auto pt-4">
+          <DataArtifactRenderer
+            review={viewModel}
+            title={artifact.title}
+            surface="fullscreen"
+            showSummary={false}
+            onSelectEvidence={(ids) => {
+              const first = ids[0];
+              if (first) onSelectEvidence(first);
+            }}
+          />
         </div>
       </div>
     ),
     textFallback: (viewModel: DataArtifactReviewViewModel) =>
       `${artifactKindLabel(kind)}，证据 ${viewModel.evidenceIds.length} 条。`,
+    threadSummary: (viewModel: DataArtifactReviewViewModel) => {
+      if (viewModel.kind === "dataset") {
+        return `${viewModel.rowCount} 行 · ${viewModel.fieldCount} 个字段 · ${viewModel.sourceSnapshots.length} 个来源`;
+      }
+      if (viewModel.kind === "field_dictionary") {
+        return `${viewModel.fieldDefinitions.length} 个字段定义`;
+      }
+      return `${viewModel.members.length} 个来源 · ${viewModel.alignedRecordCount} 条对齐记录`;
+    },
     buildDiffSnapshot: buildDataArtifactDiffSnapshot,
   });
 }
@@ -621,316 +677,19 @@ const paperSummary = defineRenderer({
   fullscreen: (props) => <PaperSummaryFullscreen {...props} />,
   textFallback: (viewModel: PaperSummaryReview) =>
     `${viewModel.paper.title}，包含结构化论文摘要章节。`,
+  threadSummary: (viewModel: PaperSummaryReview) => {
+    const sections = [
+      viewModel.background,
+      viewModel.methodology,
+      viewModel.dataset,
+      viewModel.experiments,
+      viewModel.discussion,
+      viewModel.limitations,
+    ].filter((section) => section.length > 0).length;
+    return `${sections} 个章节 · 可对照原文`;
+  },
   buildDiffSnapshot: buildPaperSummaryDiffSnapshot,
 });
-
-function PaperCollectionFullscreen({
-  runtime,
-  projectId,
-  artifact,
-  version,
-  viewModel,
-  onSelectEvidence,
-}: LoadedRendererProps<PaperAcquisitionReviewViewModel>) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterMode, setFilterMode] = useState<
-    "all" | "selected" | "candidate"
-  >("all");
-  const [selectedInputId, setSelectedInputId] = useState<DomainEntityId | null>(
-    null,
-  );
-  const [targetCandidateId, setTargetCandidateId] = useState<string | null>(
-    null,
-  );
-
-  const inputs = useQuery(
-    runtime.application.queries.researchInputs(projectId),
-  );
-  const documentInputs = useMemo(
-    () =>
-      (inputs.data ?? []).filter(
-        (input) =>
-          input.type === "pdf" ||
-          input.type === "image" ||
-          input.mimeType === "application/pdf" ||
-          ["image/jpeg", "image/png", "image/tiff", "image/webp"].includes(
-            input.mimeType ?? "",
-          ),
-      ),
-    [inputs.data],
-  );
-
-  const binding = useMutation({
-    mutationFn: async ({
-      candidateId,
-      canonicalPaperId,
-      evidenceUrl,
-      researchInputId,
-    }: {
-      candidateId: DomainEntityId;
-      canonicalPaperId: DomainEntityId;
-      evidenceUrl: string;
-      researchInputId: DomainEntityId;
-    }) => {
-      const input = documentInputs.find((item) => item.id === researchInputId);
-      if (!input || !evidenceUrl) {
-        throw new Error("缺少可绑定的科研文档或论文来源地址");
-      }
-      await runtime.repositories.paperAcquisition.bindResearchInput({
-        artifactVersionId: version.id,
-        candidateId,
-        canonicalPaperId,
-        researchInputId: input.id,
-        researchInputContentHash: input.contentHash,
-        evidenceUrl,
-        idempotencyKey: globalThis.crypto.randomUUID(),
-      });
-    },
-  });
-
-  const allCandidates = viewModel.candidates;
-  const selectedCandidates = useMemo(
-    () => allCandidates.filter((c) => c.selection.kind === "selected"),
-    [allCandidates],
-  );
-
-  const filteredCandidates = useMemo(() => {
-    return allCandidates.filter((c) => {
-      if (filterMode === "selected" && c.selection.kind !== "selected")
-        return false;
-      if (filterMode === "candidate" && c.selection.kind === "selected")
-        return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchTitle = c.title.toLowerCase().includes(q);
-        const matchAuthors = c.authors.some((a) => a.toLowerCase().includes(q));
-        const matchYear = String(c.year).includes(q);
-        const matchDoi = c.doi ? c.doi.toLowerCase().includes(q) : false;
-        if (!matchTitle && !matchAuthors && !matchYear && !matchDoi)
-          return false;
-      }
-      return true;
-    });
-  }, [allCandidates, filterMode, searchQuery]);
-
-  return (
-    <div className="flex flex-col gap-0">
-      {/* Search / filter bar */}
-      <div className="sticky top-0 z-[1] flex flex-wrap items-center gap-2 border-b border-border bg-background/95 px-1 py-3">
-        <Input
-          type="text"
-          className="max-w-[var(--workspace-result-control-inline-size)]"
-          placeholder="搜索论文标题、作者、年份或 DOI…"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant={filterMode === "all" ? "secondary" : "ghost"}
-            size="small"
-            onClick={() => setFilterMode("all")}
-          >
-            全部 {allCandidates.length}
-          </Button>
-          <Button
-            type="button"
-            variant={filterMode === "selected" ? "secondary" : "ghost"}
-            size="small"
-            onClick={() => setFilterMode("selected")}
-          >
-            已选 {selectedCandidates.length}
-          </Button>
-          <Button
-            type="button"
-            variant={filterMode === "candidate" ? "secondary" : "ghost"}
-            size="small"
-            onClick={() => setFilterMode("candidate")}
-          >
-            备选 {allCandidates.length - selectedCandidates.length}
-          </Button>
-        </div>
-      </div>
-
-      {/* Candidate list — row per paper, separators not card walls */}
-      <div>
-        {filteredCandidates.map((candidate, idx) => {
-          const isSelected = candidate.selection.kind === "selected";
-          const isTargetBinding = targetCandidateId === candidate.candidateId;
-
-          return (
-            <div
-              key={candidate.candidateId}
-              className={`border-b border-border/70 px-1 py-3 transition-colors hover:bg-surface-hover/40 ${isSelected ? "bg-surface-muted/50" : ""}`}
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[length:var(--font-size-00)] font-medium tabular-nums text-muted-foreground">
-                      #{idx + 1}
-                    </span>
-                    {isSelected ? (
-                      <Badge>已选用于研读</Badge>
-                    ) : (
-                      <Badge variant="secondary">备选</Badge>
-                    )}
-                    {candidate.year ? (
-                      <span className="text-[length:var(--font-size-00)] text-muted-foreground">
-                        {candidate.year} 年
-                      </span>
-                    ) : null}
-                    <span className="text-[length:var(--font-size-00)] text-muted-foreground/80">
-                      {candidate.sourceSnapshot.sourceId}
-                    </span>
-                  </div>
-
-                  <h4 className="mt-1 text-sm font-semibold leading-snug text-foreground">
-                    {candidate.url ? (
-                      <a
-                        href={candidate.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="hover:underline"
-                      >
-                        {candidate.title}
-                      </a>
-                    ) : (
-                      candidate.title
-                    )}
-                  </h4>
-
-                  <div className="mt-0.5 text-xs text-muted-foreground">
-                    {candidate.authors.join("，")}
-                    {candidate.doi ? ` · DOI: ${candidate.doi}` : ""}
-                  </div>
-                </div>
-
-                {isSelected ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="small"
-                    className="shrink-0"
-                    onClick={() =>
-                      setTargetCandidateId(
-                        isTargetBinding ? null : candidate.candidateId,
-                      )
-                    }
-                  >
-                    {isTargetBinding ? "收起绑定" : "绑定全文 PDF"}
-                  </Button>
-                ) : null}
-              </div>
-
-              {/* Contextual Binding Tool inside the selected paper row */}
-              {isTargetBinding && isSelected ? (
-                <div className="mt-3 rounded-md border border-border/80 bg-surface-muted/60 p-3">
-                  <div className="text-xs font-medium text-foreground">
-                    绑定已上传全文 PDF 到《{candidate.title}》
-                  </div>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    绑定后，系统将基于固定的全文 PDF
-                    为本篇论文生成页码/段落级高精度 Evidence Locator。
-                  </p>
-
-                  {documentInputs.length > 0 ? (
-                    <div className="mt-3 flex flex-wrap items-end gap-2">
-                      <div className="grid min-w-0 flex-1 gap-1">
-                        <span className="text-xs text-muted-foreground">
-                          选择已上传科研文档
-                        </span>
-                        <Select
-                          value={selectedInputId ?? ""}
-                          onValueChange={(val) =>
-                            setSelectedInputId(val as DomainEntityId)
-                          }
-                        >
-                          <SelectTrigger aria-label="选择科研文档">
-                            <SelectValue placeholder="选择一份已上传 PDF" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {documentInputs.map((doc) => (
-                              <SelectItem key={doc.id} value={doc.id}>
-                                {doc.filename ?? "未命名文档"}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <Button
-                        type="button"
-                        size="small"
-                        disabled={selectedInputId === null || binding.isPending}
-                        onClick={() => {
-                          if (selectedInputId && candidate.url) {
-                            binding.mutate({
-                              candidateId: candidate.candidateId,
-                              canonicalPaperId: candidate.canonicalPaperId,
-                              evidenceUrl: candidate.url,
-                              researchInputId: selectedInputId,
-                            });
-                          }
-                        }}
-                      >
-                        {binding.isPending ? "正在绑定…" : "确认绑定全文"}
-                      </Button>
-                    </div>
-                  ) : (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      当前项目尚未上传受支持的 PDF
-                      文档。请先在左侧科研输入区上传 PDF。
-                    </p>
-                  )}
-
-                  {binding.isSuccess ? (
-                    <p
-                      className="mt-2 text-xs font-medium text-[var(--color-success)]"
-                      role="status"
-                    >
-                      ✓ 全文绑定已成功建立，可通过修订运行生成页码级定位证据。
-                    </p>
-                  ) : null}
-
-                  {binding.isError ? (
-                    <Alert className="mt-2" variant="destructive">
-                      <AlertDescription>
-                        {
-                          runtime.researchAdapter.toPublicApplicationError(
-                            binding.error,
-                          ).safeMessage
-                        }
-                      </AlertDescription>
-                    </Alert>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
-        {filteredCandidates.length === 0 ? (
-          <div className="px-1 py-10 text-center text-xs text-muted-foreground">
-            没有符合当前筛选条件的文献。
-          </div>
-        ) : null}
-      </div>
-
-      {/* Structured Presentation Overview below candidates */}
-      <div className="border-t border-border/70 pt-4">
-        <h4 className="mb-3 text-sm font-semibold text-foreground">
-          文献集合结构化概览与事实
-        </h4>
-        <ArtifactPresentationContent
-          presentation={version.presentation}
-          title={artifact.title}
-          surface="fullscreen"
-          onSelectEvidence={onSelectEvidence}
-          showHeader={false}
-        />
-      </div>
-    </div>
-  );
-}
 
 const paperCollection = defineRenderer({
   kind: "paper_collection",
@@ -940,9 +699,18 @@ const paperCollection = defineRenderer({
   capabilities: commonCapabilities,
   load: ({ runtime, projectId, version }) =>
     runtime.application.queries.paperAcquisition(projectId, version.id),
-  fullscreen: (props) => <PaperCollectionFullscreen {...props} />,
+  fullscreen: ({ runtime, projectId, version, viewModel }) => (
+    <PaperCollectionWorkspace
+      runtime={runtime}
+      projectId={projectId}
+      version={version}
+      review={viewModel}
+    />
+  ),
   textFallback: (viewModel: PaperAcquisitionReviewViewModel) =>
     `论文集合，候选 ${viewModel.candidates.length} 篇。`,
+  threadSummary: (viewModel: PaperAcquisitionReviewViewModel) =>
+    `${viewModel.metrics.candidateCount} 篇候选 · ${viewModel.metrics.selectedCount} 篇已选`,
   buildDiffSnapshot: buildPaperCollectionDiffSnapshot,
 });
 
@@ -984,6 +752,18 @@ function literature(
       </div>
     ),
     textFallback: () => `${artifactKindLabel(kind)}。`,
+    threadSummary: (viewModel) => {
+      if (viewModel.kind === "literature_claims") {
+        const accepted = viewModel.claims.filter(
+          (claim) => claim.status === "accepted",
+        ).length;
+        return `${viewModel.claims.length} 条论断 · ${accepted} 条已接受`;
+      }
+      const candidates = viewModel.relations.filter(
+        (relation) => relation.status === "candidate",
+      ).length;
+      return `${viewModel.relations.length} 条关系 · ${candidates} 条待审定`;
+    },
     buildDiffSnapshot: buildLiteratureDiffSnapshot,
   });
 }
@@ -1009,6 +789,8 @@ const graph = defineRenderer({
   ),
   textFallback: (viewModel: GraphArtifactReviewViewModel) =>
     `证据关系，${viewModel.nodeCount} 个节点，${viewModel.edgeCount} 条关系。`,
+  threadSummary: (viewModel: GraphArtifactReviewViewModel) =>
+    `${viewModel.nodeCount} 个节点 · ${viewModel.edgeCount} 条边`,
   buildDiffSnapshot: buildGraphDiffSnapshot,
 });
 
@@ -1034,6 +816,7 @@ const exportUnsupported: ArtifactRendererDescriptor = {
     compare: false,
   },
   ThreadRenderer: ThreadResultBlock,
+  SummaryRenderer: ({ children }) => <>{children(null)}</>,
   FullscreenRenderer: () => (
     <UnsupportedArtifactPresentation descriptor={exportUnsupported} />
   ),
@@ -1064,6 +847,31 @@ function scientificTextFallback(viewModel: ScientificArtifactReview): string {
       return `${content.title}，算法 ${content.algorithm}。`;
     case "model_artifact":
       return `${content.title}，ONNX 模型，算法 ${content.algorithm}。`;
+  }
+}
+
+function scientificThreadSummary(viewModel: ScientificArtifactReview): string {
+  const content = viewModel.content;
+  switch (content.kind) {
+    case "analysis_report":
+      return `${content.findings.length} 项发现 · ${content.metrics.length} 项指标`;
+    case "visualization":
+      return content.description || "科学可视化";
+    case "spectrum":
+      return `${content.sampleCount} 个采样点 · ${content.detectedLines.length} 条检出谱线`;
+    case "light_curve":
+      return `${content.sampleCount} 个采样点 · 最佳周期 ${content.bestPeriod} ${content.timeUnit}`;
+    case "model_evaluation": {
+      const primaryMetrics = content.metrics
+        .slice(0, 2)
+        .map(
+          (metric) =>
+            `${metric.label} ${metric.value}${metric.unit ? ` ${metric.unit}` : ""}`,
+        );
+      return primaryMetrics.join(" · ") || content.algorithm;
+    }
+    case "model_artifact":
+      return `${content.algorithm} ${content.algorithmVersion} · ONNX 模型`;
   }
 }
 
@@ -1115,6 +923,7 @@ function scientific(
       </div>
     ),
     textFallback: scientificTextFallback,
+    threadSummary: scientificThreadSummary,
     buildDiffSnapshot: buildScientificArtifactDiffSnapshot,
   });
 }
@@ -1130,8 +939,8 @@ const ARTIFACT_RENDERER_DESCRIPTORS = [
   scientific("spectrum", 56, "wide"),
   scientific("light_curve", 58, "wide"),
   scientific("model_evaluation", 62, "wide"),
-  scientific("model_artifact", 64, "reading"),
-  literature("literature_claims", 70, "reading"),
+  scientific("model_artifact", 64, "wide"),
+  literature("literature_claims", 70, "wide"),
   literature("literature_relations", 80, "wide"),
   graph,
   exportUnsupported,

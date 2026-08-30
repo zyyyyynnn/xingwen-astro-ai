@@ -212,7 +212,7 @@ describe("ModelProviderControl", () => {
     );
 
     expect(await screen.findByText("部署环境已配置")).toBeInTheDocument();
-    expect(screen.getByRole("alert")).toHaveTextContent(
+    expect(screen.getByRole("status")).toHaveTextContent(
       "https://dashscope.aliyuncs.com/compatible-mode/v1",
     );
     expect(screen.queryByLabelText("API 密钥")).not.toBeInTheDocument();

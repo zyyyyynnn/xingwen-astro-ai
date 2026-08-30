@@ -97,11 +97,27 @@ export function ModelEvaluationContent({
               </div>
             </div>
             <div className="model-report__fact">
+              <div className="text-xs text-muted-foreground">训练输入</div>
+              <div className="mt-1 text-sm font-semibold text-foreground">
+                {content.trainingInput.kind === "dataset_artifact_version"
+                  ? "研究数据集"
+                  : "来源快照"}
+              </div>
+            </div>
+            <div className="model-report__fact">
               <div className="text-xs text-muted-foreground">划分策略</div>
               <div className="mt-1 text-sm font-semibold text-foreground">
                 {SPLIT_STRATEGY_LABELS[content.split.strategy]}
               </div>
             </div>
+            {content.split.field ? (
+              <div className="model-report__fact">
+                <div className="text-xs text-muted-foreground">划分字段</div>
+                <div className="mt-1 text-sm font-semibold text-foreground font-mono">
+                  {content.split.field}
+                </div>
+              </div>
+            ) : null}
             <div className="model-report__fact">
               <div className="text-xs text-muted-foreground">交叉验证</div>
               <div className="mt-1 text-sm font-semibold text-foreground">
@@ -203,7 +219,7 @@ export function ModelEvaluationContent({
                     </div>
                   )}
                   {metric.evidenceIds.length > 0 && onSelectEvidence ? (
-                    <div className="mt-2 border-t border-border/50 pt-2">
+                    <div className="mt-2">
                       <EvidenceLinks
                         evidenceIds={metric.evidenceIds}
                         onSelectEvidence={onSelectEvidence}
@@ -348,7 +364,7 @@ export function ModelArtifactContent({
       ) : null}
 
       <section className="model-report__section model-report__contract">
-        <div className="mb-3 flex items-center justify-between border-b border-border/70 pb-2">
+        <div className="mb-3 flex items-center justify-between">
           <h4 className="text-sm font-semibold text-foreground">
             推理张量契约规范 (ONNX I/O Signature)
           </h4>
@@ -404,7 +420,7 @@ export function ModelArtifactContent({
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md bg-surface-muted/60 px-3 py-2">
           <Popover>
             <PopoverTrigger asChild>
               <Button type="button" variant="ghost" size="small">

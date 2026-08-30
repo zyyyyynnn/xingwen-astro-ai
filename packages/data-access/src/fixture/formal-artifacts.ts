@@ -1255,7 +1255,7 @@ const crossmatchAuthority: CrossmatchArtifactAuthority = {
   ],
   evidence: [],
   evidence_ids: [],
-  alignment_record_keys: [hash("b")],
+  alignment_record_keys: datasetRows.map((row) => row.content_hash),
   conflict_record_keys: [],
   inconclusive_record_keys: [],
   review_required_record_keys: [],

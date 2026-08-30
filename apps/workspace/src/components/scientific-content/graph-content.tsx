@@ -19,10 +19,12 @@ import type {
 import { workspaceGraphGeometry } from "@xingwen/design-tokens";
 import type { GraphArtifactReviewViewModel } from "@xingwen/research-adapter";
 import {
+  Badge,
   Button,
   Input,
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -270,12 +272,14 @@ function GraphFilters({
           <SelectValue placeholder="全部对象类别" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">全部对象类别</SelectItem>
-          {availableNodeTypes.map((value) => (
-            <SelectItem key={value} value={value}>
-              {taxonomyLabel(value)}
-            </SelectItem>
-          ))}
+          <SelectGroup>
+            <SelectItem value="all">全部对象类别</SelectItem>
+            {availableNodeTypes.map((value) => (
+              <SelectItem key={value} value={value}>
+                {taxonomyLabel(value)}
+              </SelectItem>
+            ))}
+          </SelectGroup>
         </SelectContent>
       </Select>
       <Select value={edgeType} onValueChange={onEdgeTypeChange}>
@@ -283,12 +287,14 @@ function GraphFilters({
           <SelectValue placeholder="全部关系类别" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">全部关系类别</SelectItem>
-          {availableEdgeTypes.map((value) => (
-            <SelectItem key={value} value={value}>
-              {taxonomyLabel(value)}
-            </SelectItem>
-          ))}
+          <SelectGroup>
+            <SelectItem value="all">全部关系类别</SelectItem>
+            {availableEdgeTypes.map((value) => (
+              <SelectItem key={value} value={value}>
+                {taxonomyLabel(value)}
+              </SelectItem>
+            ))}
+          </SelectGroup>
         </SelectContent>
       </Select>
     </div>
@@ -480,6 +486,14 @@ export function GraphContent({
     presentableEdges.find((edge) => edge.edgeId === selectedEdgeId) ?? null;
   const selectedNode =
     review.nodes.find((node) => node.nodeId === selectedNodeId) ?? null;
+  const selectedNodeConnectionCount = selectedNode
+    ? presentableEdges.filter(
+        (edge) =>
+          edge.sourceNodeId === selectedNode.nodeId ||
+          edge.targetNodeId === selectedNode.nodeId,
+      ).length
+    : 0;
+  const hasSelection = selectedEdge !== null || selectedNode !== null;
   const hiddenUnsafeEdgeCount = review.edges.length - presentableEdges.length;
   const visibleNodeKeys = new Set(
     visibleNodes.map((node) => String(node.nodeId)),
@@ -522,36 +536,50 @@ export function GraphContent({
         title={title}
         subtitle={`可核验证据关系，${presentableEdges.length} 条`}
       />
-      {hiddenUnsafeEdgeCount > 0 ? (
-        <p className="graph-workspace__notice">
-          有 {hiddenUnsafeEdgeCount} 条关系因证据或公开推导不完整而未显示。
-        </p>
-      ) : null}
-      <GraphFilters
-        query={query}
-        onQueryChange={setQuery}
-        nodeType={nodeType}
-        onNodeTypeChange={setNodeType}
-        edgeType={edgeType}
-        onEdgeTypeChange={setEdgeType}
-        nodeTypes={unique(review.nodes.map((node) => node.nodeType)).sort()}
-        edgeTypes={unique(presentableEdges.map((edge) => edge.edgeType)).sort()}
-      />
+      <div className="graph-workspace__summary" aria-label="图谱摘要">
+        <Badge variant="secondary">{review.nodes.length} 个研究对象</Badge>
+        <Badge variant="secondary">{presentableEdges.length} 条公开关系</Badge>
+        <Badge variant="outline">
+          {review.integrity.findings.length === 0
+            ? "完整性校验通过"
+            : `${review.integrity.findings.length} 项完整性提示`}
+        </Badge>
+        {hiddenUnsafeEdgeCount > 0 ? (
+          <span className="graph-workspace__notice">
+            {hiddenUnsafeEdgeCount} 条关系因证据或公开推导不完整而隐藏
+          </span>
+        ) : null}
+      </div>
       <Tabs defaultValue="canvas" className="graph-workspace">
         <div className="graph-workspace__toolbar">
           <TabsList aria-label="关系图展示方式">
             <TabsTrigger value="canvas">关系图</TabsTrigger>
             <TabsTrigger value="list">列表</TabsTrigger>
           </TabsList>
-          {selectedEdgeId || selectedNodeId ? (
-            <Button size="small" variant="ghost" onClick={focusSelection}>
-              <Target aria-hidden="true" />
+          <GraphFilters
+            query={query}
+            onQueryChange={setQuery}
+            nodeType={nodeType}
+            onNodeTypeChange={setNodeType}
+            edgeType={edgeType}
+            onEdgeTypeChange={setEdgeType}
+            nodeTypes={unique(review.nodes.map((node) => node.nodeType)).sort()}
+            edgeTypes={unique(
+              presentableEdges.map((edge) => edge.edgeType),
+            ).sort()}
+          />
+          {hasSelection ? (
+            <Button size="small" variant="secondary" onClick={focusSelection}>
+              <Target data-icon="inline-start" aria-hidden="true" />
               聚焦选择
             </Button>
           ) : null}
         </div>
         <TabsContent value="canvas" className="graph-workspace__canvas-panel">
-          <div className="graph-workspace__canvas-inspector-split">
+          <div
+            className="graph-workspace__canvas-inspector-split"
+            data-has-selection={hasSelection || undefined}
+          >
             <div className="graph-workspace__canvas-holder">
               {graphGeometry === null ? (
                 <p className="graph-workspace__empty" aria-busy="true">
@@ -625,6 +653,11 @@ export function GraphContent({
                   disableKeyboardA11y={false}
                   deleteKeyCode={null}
                   fitView
+                  fitViewOptions={{
+                    padding: 0.08,
+                    minZoom: 0.8,
+                    maxZoom: 1.25,
+                  }}
                   aria-label="可交互科学关系图"
                   ariaLabelConfig={{
                     "node.a11yDescription.default":
@@ -642,31 +675,48 @@ export function GraphContent({
                   当前筛选下没有可展示的研究对象。
                 </p>
               )}
-            </div>
-            <div className="graph-workspace__side-inspector">
-              {selectedEdge ? (
-                <EdgeDetails
-                  edge={selectedEdge}
-                  nodeLabelById={nodeLabelById}
-                  onSelectEvidence={onSelectEvidence}
-                />
-              ) : selectedNode ? (
-                <aside
-                  className="graph-workspace__selection"
-                  aria-live="polite"
-                >
-                  <header>
-                    <p>{taxonomyLabel(selectedNode.nodeType)}</p>
-                    <h4>{selectedNode.label || "未命名研究对象"}</h4>
-                  </header>
-                  <p>选择与此对象连接的关系，可继续查看公开推导与来源证据。</p>
-                </aside>
-              ) : (
-                <p className="graph-workspace__selection-hint">
-                  点击节点或关系查看其科学内容、公开推导与证据。
+              {!hasSelection ? (
+                <p className="graph-workspace__canvas-hint">
+                  选择节点或关系，查看科学内容、公开推导与证据
                 </p>
-              )}
+              ) : null}
             </div>
+            {hasSelection ? (
+              <div className="graph-workspace__side-inspector">
+                {selectedEdge ? (
+                  <EdgeDetails
+                    edge={selectedEdge}
+                    nodeLabelById={nodeLabelById}
+                    onSelectEvidence={onSelectEvidence}
+                  />
+                ) : selectedNode ? (
+                  <aside
+                    className="graph-workspace__selection"
+                    aria-live="polite"
+                  >
+                    <header>
+                      <Badge variant="secondary">
+                        {taxonomyLabel(selectedNode.nodeType)}
+                      </Badge>
+                      <h4>{selectedNode.label || "未命名研究对象"}</h4>
+                    </header>
+                    <dl>
+                      <div>
+                        <dt>可核验关系</dt>
+                        <dd>{selectedNodeConnectionCount} 条</dd>
+                      </div>
+                      <div>
+                        <dt>冻结结果版本</dt>
+                        <dd>{selectedNode.versionBindings.length} 个</dd>
+                      </div>
+                    </dl>
+                    <p>
+                      选择与此对象连接的关系，可继续查看公开推导与来源证据。
+                    </p>
+                  </aside>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </TabsContent>
         <TabsContent value="list">

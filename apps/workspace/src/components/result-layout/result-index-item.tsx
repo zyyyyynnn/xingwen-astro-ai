@@ -1,5 +1,13 @@
 import type { DomainEntityId } from "@xingwen/domain";
-import { Badge, Button } from "@xingwen/ui";
+import {
+  Badge,
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
+} from "@xingwen/ui";
 import {
   Activity,
   ArrowRight,
@@ -65,55 +73,31 @@ export function ResultIndexItem({
   onOpen,
 }: ResultIndexItemProps) {
   return (
-    <div className="xw-result-index-item group flex items-center justify-between gap-3 rounded-md border border-transparent p-2 transition-colors hover:border-border/60 hover:bg-surface-hover/50">
-      <Button
-        variant="ghost"
-        className="flex h-auto min-w-0 flex-1 items-start gap-2.5 p-0 text-left hover:bg-transparent"
-        onClick={() => onOpen(latestVersionId)}
-      >
-        <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded border border-border/60 bg-surface-muted text-muted-foreground group-hover:text-foreground">
-          <ResultKindIcon kind={kind} className="size-3.5" />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[length:var(--font-size-00)] font-medium uppercase tracking-wider text-muted-foreground">
-              {kindLabel}
-            </span>
-            {statusLabel ? (
-              <Badge
-                variant={statusVariant}
-                className="h-4 px-1 text-[length:var(--font-size-00)]"
-              >
-                {statusLabel}
-              </Badge>
-            ) : null}
-          </div>
-
-          <p className="truncate text-xs font-medium text-foreground">
-            {title}
-          </p>
-
-          {metadataSummary ? (
-            <p className="ui-text-label mt-0.5 truncate text-muted-foreground/80">
-              {metadataSummary}
-            </p>
-          ) : null}
-        </div>
-      </Button>
-
-      <Button
-        size="icon"
-        variant="ghost"
-        className="size-6 shrink-0 opacity-0 group-hover:opacity-100"
+    <Item className="xw-result-index-item" size="sm" asChild>
+      <button
+        type="button"
         onClick={() => onOpen(latestVersionId)}
         aria-label={`查看 ${title} 完整结果`}
       >
-        <ArrowRight
-          className="size-3 text-muted-foreground"
-          aria-hidden="true"
-        />
-      </Button>
-    </div>
+        <ItemMedia className="xw-result-index-item__icon">
+          <ResultKindIcon kind={kind} />
+        </ItemMedia>
+        <ItemContent>
+          <div className="xw-result-index-item__meta">
+            <span>{kindLabel}</span>
+            {statusLabel ? (
+              <Badge variant={statusVariant}>{statusLabel}</Badge>
+            ) : null}
+          </div>
+          <ItemTitle>{title}</ItemTitle>
+          {metadataSummary ? (
+            <ItemDescription>{metadataSummary}</ItemDescription>
+          ) : null}
+        </ItemContent>
+        <ItemActions>
+          <ArrowRight data-icon="inline-end" aria-hidden="true" />
+        </ItemActions>
+      </button>
+    </Item>
   );
 }

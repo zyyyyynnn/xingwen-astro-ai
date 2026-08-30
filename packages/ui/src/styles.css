@@ -1,13 +1,14 @@
 .xw-button,
 .xw-link--button {
   display: inline-flex;
+  flex: 0 0 auto;
   min-block-size: var(--control-size-lg);
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   padding-inline: var(--space-4);
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -20,13 +21,18 @@
   transition:
     background-color var(--motion-fast) var(--ease-standard),
     border-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard);
+    box-shadow var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+  white-space: nowrap;
 }
 
 .xw-button:focus-visible,
 .xw-link:focus-visible {
-  outline: var(--focus-ring-width) solid var(--color-focus);
-  outline-offset: var(--focus-ring-offset);
+  border-color: var(--color-focus);
+  outline: none;
+  box-shadow: 0 0 0 var(--focus-ring-width)
+    color-mix(in srgb, var(--color-focus) 28%, transparent);
 }
 
 .xw-button:disabled {
@@ -55,13 +61,23 @@
   color: var(--color-brand-on);
 }
 
+.xw-button--outline {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-float);
+  color: var(--color-ink-primary);
+}
+
+.xw-button--outline:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+
 .xw-button--destructive:hover:not(:disabled) {
   background: var(--color-error-hover);
 }
 
 .xw-button--secondary {
-  border-color: var(--color-border-strong);
-  background: var(--color-surface);
+  background: var(--color-surface-muted);
   color: var(--color-ink-primary);
 }
 
@@ -78,6 +94,25 @@
   color: var(--color-ink-primary);
 }
 
+.xw-button--link {
+  min-block-size: auto;
+  padding-inline: 0;
+  color: var(--color-brand);
+  text-underline-offset: var(--space-1);
+}
+
+.xw-button--link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.xw-button--xsmall {
+  min-block-size: var(--control-size-xs);
+  gap: var(--space-1);
+  padding-inline: var(--space-2);
+  font-size: var(--font-size-ui-label);
+  line-height: var(--line-height-ui-label);
+}
+
 .xw-button--small {
   min-block-size: var(--control-size-sm);
   padding-inline: var(--space-3);
@@ -85,7 +120,19 @@
   line-height: var(--line-height-ui-label);
 }
 
+.xw-button--large {
+  min-block-size: var(--control-size-lg);
+  padding-inline: var(--space-6);
+}
+
 .xw-button--icon {
+  min-block-size: var(--control-size-lg);
+  inline-size: var(--control-size-lg);
+  flex: 0 0 auto;
+  padding: 0;
+}
+
+.xw-button--icon-small {
   min-block-size: var(--control-size-sm);
   inline-size: var(--control-size-sm);
   flex: 0 0 auto;
@@ -526,6 +573,10 @@
   font-weight: 650;
   line-height: var(--line-height-ui-label);
   white-space: nowrap;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 
 .xw-badge[data-variant="secondary"] {
@@ -540,6 +591,11 @@
 
 .xw-badge[data-variant="outline"] {
   border-color: var(--color-border-strong);
+  background: transparent;
+  color: var(--color-ink-secondary);
+}
+
+.xw-badge[data-variant="ghost"] {
   background: transparent;
   color: var(--color-ink-secondary);
 }
@@ -847,10 +903,17 @@
   display: flex;
   flex: 0 0 auto;
   gap: var(--space-1);
+  inline-size: fit-content;
+  padding: var(--space-1);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
 }
 
 .xw-tabs__list[data-variant="line"] {
+  padding: 0;
   border-block-end: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
 }
 
 .xw-tabs[data-orientation="vertical"] > .xw-tabs__list {
@@ -873,6 +936,10 @@
   font-size: var(--font-size-ui-body);
   text-align: start;
   cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 
 .xw-tabs__trigger > svg {
@@ -914,7 +981,13 @@
 }
 
 .xw-tabs__trigger[data-state="active"] {
+  background: var(--color-surface);
+  box-shadow: var(--shadow-float);
   font-weight: 650;
+}
+
+.xw-tabs__list[data-variant="line"] .xw-tabs__trigger[data-state="active"] {
+  box-shadow: none;
 }
 
 .xw-tabs__trigger:focus-visible {

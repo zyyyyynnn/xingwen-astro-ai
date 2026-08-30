@@ -161,7 +161,7 @@ export function PaperPdfViewer({
       data-num-pages={numPages}
       aria-label="论文原文"
     >
-      <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-border px-2 py-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-border/40 px-2 py-2">
         <Button
           variant="ghost"
           size="icon"

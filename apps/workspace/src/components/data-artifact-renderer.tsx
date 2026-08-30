@@ -7,8 +7,26 @@ import type {
   FieldDictionaryArtifactReviewViewModel,
   SourceCollectionArtifactReviewViewModel,
 } from "@xingwen/research-adapter";
-import { Badge, Input } from "@xingwen/ui";
-import { Search } from "@xingwen/ui/icons";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+  Badge,
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  Input,
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "@xingwen/ui";
+import { Database, Search, ShieldCheck } from "@xingwen/ui/icons";
 
 import { formatScientificUnit, ScientificTable } from "./scientific-table";
 import { ArtifactMetadataStrip, ArtifactToolbar } from "./result-layout";
@@ -60,6 +78,7 @@ const DATA_LEVEL_LABELS: Readonly<Record<string, string>> = {
 };
 
 const COMPLETION_LABELS: Readonly<Record<string, string>> = {
+  complete: "已完成",
   completed: "已完成",
   partial: "部分完成",
   pending: "待处理",
@@ -194,6 +213,15 @@ function fieldSourceLabel(field: DataArtifactFieldDefinitionViewModel): string {
     : "未提供";
 }
 
+function fieldRoleLabels(
+  field: DataArtifactFieldDefinitionViewModel,
+): readonly string[] {
+  return [
+    ...(field.objectIdentityKey ? ["对象标识"] : []),
+    ...(field.crossmatchKey ? ["交叉匹配键"] : []),
+  ];
+}
+
 function FieldDictionaryRenderer({
   review,
   title,
@@ -251,9 +279,10 @@ function FieldDictionaryRenderer({
 
       <ArtifactToolbar
         left={
-          <div className="relative min-w-64 max-w-sm">
+          <div className="field-dictionary__search relative min-w-64 max-w-sm">
             <Search
-              className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground"
+              className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+              data-testid="field-dictionary-search-icon"
               aria-hidden="true"
             />
             <Input
@@ -261,7 +290,7 @@ function FieldDictionaryRenderer({
               placeholder="搜索字段名称、含义或标识…"
               value={filterQuery}
               onChange={(e) => setFilterQuery(e.target.value)}
-              className="h-8 pl-8 text-xs"
+              className="field-dictionary__search-input h-8 text-xs"
             />
           </div>
         }
@@ -272,76 +301,100 @@ function FieldDictionaryRenderer({
         }
       />
 
-      <div className="min-h-0 flex-1 overflow-x-auto rounded-md border border-border bg-surface">
-        <table className="w-full text-left text-xs border-collapse">
-          <caption className="sr-only">规范字段定义、单位与来源映射</caption>
-          <thead>
-            <tr className="border-b border-border bg-surface-muted">
-              <th scope="col" className="p-2.5 font-medium text-foreground">
-                字段标识 / 名称
-              </th>
-              <th scope="col" className="p-2.5 font-medium text-foreground">
-                中文含义与描述
-              </th>
-              <th scope="col" className="p-2.5 font-medium text-foreground">
-                类型 / 单位 / 约束
-              </th>
-              <th scope="col" className="p-2.5 font-medium text-foreground">
-                来源字段映射
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/60">
-            {displayedFields.map((field) => (
-              <tr
-                key={field.fieldId}
-                className="transition-colors hover:bg-surface-hover/50"
-              >
-                <th
-                  scope="row"
-                  className="p-2.5 font-normal text-foreground align-top"
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {displayedFields.length > 0 ? (
+          <Accordion
+            type="multiple"
+            defaultValue={
+              displayedFields[0] ? [String(displayedFields[0].fieldId)] : []
+            }
+            className="field-dictionary__list"
+          >
+            {displayedFields.map((field) => {
+              const unit = formatScientificUnit(field.canonicalUnit);
+              const roles = fieldRoleLabels(field);
+              return (
+                <AccordionItem
+                  key={field.fieldId}
+                  value={String(field.fieldId)}
+                  className="field-dictionary__item"
                 >
-                  <div className="font-medium text-foreground">
-                    {fieldLabel(field)}
-                  </div>
-                  <div className="font-mono text-[length:var(--font-size-00)] text-muted-foreground">
-                    {field.labelEn || field.fieldId}
-                  </div>
-                </th>
-                <td className="p-2.5 text-muted-foreground align-top max-w-xs">
-                  <p className="line-clamp-2">
-                    {field.description || field.meaningZh || "未提供字段描述。"}
-                  </p>
-                </td>
-                <td className="p-2.5 text-foreground align-top">
-                  <div className="font-mono text-xs">
-                    {DATA_TYPE_LABELS[field.dataType] ?? field.dataType}
-                    {formatScientificUnit(field.canonicalUnit)
-                      ? ` · ${formatScientificUnit(field.canonicalUnit)}`
-                      : ""}
-                  </div>
-                  <div className="mt-1 flex items-center gap-1.5 text-[length:var(--font-size-00)] text-muted-foreground">
-                    <Badge
-                      variant={field.required ? "secondary" : "outline"}
-                      className="h-4 px-1 text-[length:var(--font-size-00)]"
+                  <AccordionTrigger className="field-dictionary__trigger">
+                    <span className="field-dictionary__identity">
+                      <span className="field-dictionary__name">
+                        {fieldLabel(field)}
+                      </span>
+                      <span className="field-dictionary__english">
+                        {field.labelEn || "标准字段"}
+                      </span>
+                    </span>
+                    <span
+                      className="field-dictionary__badges"
+                      aria-hidden="true"
                     >
-                      {field.required ? "必填" : "可选"}
-                    </Badge>
-                    <span>{field.nullable ? "可空" : "非空"}</span>
-                  </div>
-                </td>
-                <td className="p-2.5 text-muted-foreground align-top font-mono text-[length:var(--font-size-00)]">
-                  {fieldSourceLabel(field)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {filteredFields.length === 0 ? (
-          <div className="p-8 text-center text-xs text-muted-foreground">
-            没有匹配的字段定义。
-          </div>
-        ) : null}
+                      {roles.map((role) => (
+                        <Badge key={role} variant="default">
+                          {role}
+                        </Badge>
+                      ))}
+                      <Badge variant="secondary">
+                        {DATA_TYPE_LABELS[field.dataType] ?? field.dataType}
+                        {unit ? ` · ${unit}` : ""}
+                      </Badge>
+                      <Badge variant={field.required ? "secondary" : "outline"}>
+                        {field.required ? "必填" : "可选"}
+                      </Badge>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="field-dictionary__content">
+                    <p className="field-dictionary__description">
+                      {field.description ||
+                        field.meaningZh ||
+                        "未提供字段描述。"}
+                    </p>
+                    <dl className="field-dictionary__facts">
+                      <div>
+                        <dt>空值约束</dt>
+                        <dd>{field.nullable ? "允许空值" : "必须提供值"}</dd>
+                      </div>
+                      <div>
+                        <dt>来源映射</dt>
+                        <dd>{fieldSourceLabel(field)}</dd>
+                      </div>
+                      <div>
+                        <dt>适用对象</dt>
+                        <dd>{field.objectType.replaceAll("_", " ")}</dd>
+                      </div>
+                    </dl>
+                    {field.sourceAliases.length > 0 ? (
+                      <div className="field-dictionary__aliases">
+                        {field.sourceAliases.map((alias) => (
+                          <span
+                            key={`${alias.sourceId}:${alias.sourceTable}:${alias.rawField}`}
+                          >
+                            {sourceLabel(alias.sourceId)} · {alias.rawField}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
+        ) : (
+          <Empty className="border-0 bg-surface-muted/50 py-12">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Search aria-hidden="true" />
+              </EmptyMedia>
+              <EmptyTitle>没有匹配的字段</EmptyTitle>
+              <EmptyDescription>
+                尝试搜索中文含义、英文名称或标准字段标识。
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        )}
       </div>
     </article>
   );
@@ -394,73 +447,101 @@ function SourceCollectionRenderer({
         }
       />
 
-      <div className="min-h-0 flex-1 overflow-x-auto rounded-md border border-border bg-surface">
-        <table className="w-full text-left text-xs border-collapse">
-          <caption className="sr-only">数据产物使用的来源与记录数量</caption>
-          <thead>
-            <tr className="border-b border-border bg-surface-muted">
-              <th scope="col" className="p-2.5 font-medium text-foreground">
-                来源名称 / 标识
-              </th>
-              <th scope="col" className="p-2.5 font-medium text-foreground">
-                数据级别
-              </th>
-              <th scope="col" className="p-2.5 font-medium text-foreground">
-                记录数量
-              </th>
-              <th scope="col" className="p-2.5 font-medium text-foreground">
-                处理状态
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/60">
-            {members.map((member) => (
-              <tr
-                key={`${member.sourceSnapshotId}-${member.side}`}
-                className="transition-colors hover:bg-surface-hover/50"
-              >
-                <th scope="row" className="p-2.5 font-medium text-foreground">
-                  {sourceLabel(member.sourceId)}
-                </th>
-                <td className="p-2.5 text-muted-foreground">
-                  <Badge
-                    variant="outline"
-                    className="h-4 px-1 text-[length:var(--font-size-00)]"
-                  >
-                    {member.dataLevel
-                      ? (DATA_LEVEL_LABELS[member.dataLevel] ?? "来源数据")
-                      : "来源数据"}
-                  </Badge>
-                </td>
-                <td className="p-2.5 font-mono text-foreground">
-                  {member.rawRecordCount === null
-                    ? "—"
-                    : `${member.rawRecordCount} 条`}
-                </td>
-                <td className="p-2.5 text-muted-foreground">
-                  <Badge
-                    variant={
-                      member.completionStatus === "completed"
-                        ? "secondary"
-                        : "outline"
-                    }
-                    className="h-4 px-1 text-[length:var(--font-size-00)]"
-                  >
-                    {member.completionStatus
-                      ? (COMPLETION_LABELS[member.completionStatus] ??
-                        "状态未知")
-                      : "状态未知"}
-                  </Badge>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {members.length === 0 ? (
-          <div className="p-8 text-center text-xs text-muted-foreground">
-            当前版本只返回来源快照引用，尚未提供来源成员明细。
-          </div>
-        ) : null}
+      <dl className="source-collection__metrics">
+        <div>
+          <dt>已对齐记录</dt>
+          <dd>{review.alignedRecordCount}</dd>
+        </div>
+        <div>
+          <dt>待人工审查</dt>
+          <dd>{review.reviewRequiredRecordCount}</dd>
+        </div>
+        <div>
+          <dt>不确定匹配</dt>
+          <dd>{review.inconclusiveRecordCount}</dd>
+        </div>
+        <div
+          data-state={review.conflictRecordCount > 0 ? "attention" : "clear"}
+        >
+          <dt>来源冲突</dt>
+          <dd>{review.conflictRecordCount}</dd>
+        </div>
+      </dl>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {members.length > 0 ? (
+          <ItemGroup className="source-collection__grid">
+            {members.map((member) => {
+              const complete = ["complete", "completed"].includes(
+                member.completionStatus ?? "",
+              );
+              const role =
+                member.side === "left"
+                  ? "主目录"
+                  : member.side === "right"
+                    ? "交叉核验"
+                    : "研究来源";
+              return (
+                <Item
+                  key={`${member.sourceSnapshotId}-${member.side}`}
+                  variant="muted"
+                  className="source-collection__item"
+                >
+                  <ItemMedia className="source-collection__item-icon">
+                    <Database aria-hidden="true" />
+                  </ItemMedia>
+                  <ItemContent>
+                    <div className="source-collection__item-meta">
+                      <span>{role}</span>
+                      <Badge variant={complete ? "secondary" : "outline"}>
+                        {member.completionStatus
+                          ? (COMPLETION_LABELS[member.completionStatus] ??
+                            "状态未知")
+                          : "状态未知"}
+                      </Badge>
+                    </div>
+                    <ItemTitle>{sourceLabel(member.sourceId)}</ItemTitle>
+                    <ItemDescription>
+                      {member.licenseNote || "来源许可信息未提供。"}
+                    </ItemDescription>
+                    <div className="source-collection__item-facts">
+                      <span>
+                        {member.rawRecordCount === null
+                          ? "记录数未提供"
+                          : `${member.rawRecordCount} 条原始记录`}
+                      </span>
+                      <span>
+                        {member.dataLevel
+                          ? (DATA_LEVEL_LABELS[member.dataLevel] ?? "来源数据")
+                          : "来源数据"}
+                      </span>
+                    </div>
+                  </ItemContent>
+                </Item>
+              );
+            })}
+          </ItemGroup>
+        ) : (
+          <Empty className="border-0 bg-surface-muted/50 py-12">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Database aria-hidden="true" />
+              </EmptyMedia>
+              <EmptyTitle>来源成员尚未展开</EmptyTitle>
+              <EmptyDescription>
+                当前版本只返回来源快照引用，尚未提供来源成员明细。
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        )}
+      </div>
+
+      <div className="source-collection__assurance">
+        <ShieldCheck aria-hidden="true" />
+        <div>
+          <strong>版本化来源闭包已建立</strong>
+          <span>每个目录都绑定到本次研究使用的不可变来源快照。</span>
+        </div>
       </div>
     </article>
   );

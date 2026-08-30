@@ -1,4 +1,5 @@
 import React, { type ReactNode } from "react";
+import { MessageSquareText } from "@xingwen/ui/icons";
 
 import { cn } from "../../../utils/utils";
 import { UserMessageBody } from "./user-message-body";
@@ -48,12 +49,13 @@ export function ChatMessage({
   return (
     <article
       data-testid={`${type}-message`}
+      data-message-type={type}
       className={cn(
-        "relative flex w-fit max-w-[min(42rem,88%)] flex-col rounded-[var(--radius-lg)]",
+        "chat-message relative flex w-fit max-w-[min(42rem,88%)] flex-col rounded-[var(--radius-lg)]",
         children && "gap-2",
         type === "user" &&
-          "mt-6 self-end bg-[var(--color-surface-muted)] px-4 py-2.5",
-        type === "agent" && "mt-6 w-full bg-transparent",
+          "chat-message--user mt-6 self-end bg-[var(--color-surface-muted)] px-4 py-2.5",
+        type === "agent" && "chat-message--agent mt-6 w-full bg-transparent",
         pendingStatus === "sending" && "opacity-70",
         pendingStatus === "error" && "border border-[var(--color-error)]/40",
         interactive &&
@@ -62,6 +64,12 @@ export function ChatMessage({
         "last:mb-4",
       )}
     >
+      {type === "agent" && message ? (
+        <div className="chat-message__agent-label">
+          <MessageSquareText aria-hidden="true" />
+          <span>星文分析</span>
+        </div>
+      ) : null}
       {type === "user" && pendingStatus === undefined ? (
         <UserMessageBody
           message={message}
@@ -69,7 +77,7 @@ export function ChatMessage({
           onTruncatableChange={handleTruncatableChange}
         />
       ) : (
-        <div className="min-w-0 whitespace-pre-wrap text-sm leading-6 [word-break:break-word]">
+        <div className="chat-message__body min-w-0 whitespace-pre-wrap [word-break:break-word]">
           {message}
         </div>
       )}

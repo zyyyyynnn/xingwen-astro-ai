@@ -64,134 +64,67 @@ function ScientificArtifactContent({
     const { content, sourceMode } = review;
     if (content.kind === "analysis_report") {
       return (
-        <>
-          <ArtifactPresentationContent
-            presentation={presentation}
-            title={title}
-            surface={surface}
-            onSelectEvidence={onSelectEvidence}
-            showHeader={false}
-          />
-          <AnalysisReportContent
-            content={content}
-            title={title}
-            sourceMode={sourceMode}
-            surface={surface}
-            onSelectEvidence={onSelectEvidence}
-            enhancementOnly
-          />
-        </>
+        <AnalysisReportContent
+          content={content}
+          title={title}
+          sourceMode={sourceMode}
+          surface={surface}
+          onSelectEvidence={onSelectEvidence}
+        />
       );
     }
     if (content.kind === "model_evaluation") {
       return (
-        <>
-          <ArtifactPresentationContent
-            presentation={presentation}
-            title={title}
-            surface={surface}
-            onSelectEvidence={onSelectEvidence}
-            showHeader={false}
-          />
-          <ModelEvaluationContent
-            content={content}
-            title={title}
-            sourceMode={sourceMode}
-            surface={surface}
-            onSelectEvidence={onSelectEvidence}
-            enhancementOnly
-          />
-        </>
+        <ModelEvaluationContent
+          content={content}
+          title={title}
+          sourceMode={sourceMode}
+          surface={surface}
+          onSelectEvidence={onSelectEvidence}
+        />
       );
     }
     if (content.kind === "model_artifact") {
-      if (!loadContent) {
-        return (
-          <p className="scientific-artifact__empty">
-            当前界面未接入模型二进制读取通道。
-          </p>
-        );
-      }
       return (
-        <>
-          <ArtifactPresentationContent
-            presentation={presentation}
-            title={title}
-            surface={surface}
-            onSelectEvidence={onSelectEvidence}
-            showHeader={false}
-          />
-          <ModelArtifactContent
-            content={content}
-            title={title}
-            sourceMode={sourceMode}
-            surface={surface}
-            loadContent={loadContent}
-            enhancementOnly
-          />
-        </>
+        <ModelArtifactContent
+          content={content}
+          title={title}
+          sourceMode={sourceMode}
+          surface={surface}
+          loadContent={loadContent}
+        />
       );
     }
     if (content.kind === "visualization") {
       return (
-        <>
-          <ArtifactPresentationContent
-            presentation={presentation}
-            title={title}
-            surface={surface}
-            onSelectEvidence={onSelectEvidence}
-            showHeader={false}
-          />
-          <VisualizationContent
-            content={content}
-            title={title}
-            sourceMode={sourceMode}
-            surface={surface}
-            versionNumber={review.versionNumber}
-            loadContent={loadContent}
-            enhancementOnly
-          />
-        </>
+        <VisualizationContent
+          content={content}
+          title={title}
+          sourceMode={sourceMode}
+          surface={surface}
+          versionNumber={review.versionNumber}
+          loadContent={loadContent}
+        />
       );
     }
     if (content.kind === "spectrum") {
       return (
-        <>
-          <ArtifactPresentationContent
-            presentation={presentation}
-            title={title}
-            surface={surface}
-            onSelectEvidence={onSelectEvidence}
-            showHeader={false}
-          />
-          <SpectrumContent
-            content={content}
-            title={title}
-            sourceMode={sourceMode}
-            surface={surface}
-            enhancementOnly
-          />
-        </>
+        <SpectrumContent
+          content={content}
+          title={title}
+          sourceMode={sourceMode}
+          surface={surface}
+        />
       );
     }
     if (content.kind === "light_curve") {
       return (
-        <>
-          <ArtifactPresentationContent
-            presentation={presentation}
-            title={title}
-            surface={surface}
-            onSelectEvidence={onSelectEvidence}
-            showHeader={false}
-          />
-          <LightCurveContent
-            content={content}
-            title={title}
-            sourceMode={sourceMode}
-            surface={surface}
-            enhancementOnly
-          />
-        </>
+        <LightCurveContent
+          content={content}
+          title={title}
+          sourceMode={sourceMode}
+          surface={surface}
+        />
       );
     }
     return null;

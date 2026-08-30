@@ -727,7 +727,7 @@ export const lightCurveContent: LightCurveArtifactContent = {
   accepted_sample_count: 712,
   rejected_sample_count: 8,
   duration: 27.4,
-  median_cadence: 120, // 2-min cadence
+  median_cadence: 120 / 86_400, // 2-minute cadence, expressed in days
   best_period: 3.7952,
   best_power: 0.884,
   false_alarm_probability: 1e-12,

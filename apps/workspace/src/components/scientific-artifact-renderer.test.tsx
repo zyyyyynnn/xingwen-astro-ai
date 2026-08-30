@@ -294,7 +294,7 @@ describe("ScientificArtifactRenderer scientific content", () => {
       />,
     );
 
-    expect(screen.getByText("信噪比")).toBeInTheDocument();
+    expect(screen.getByText("信噪比 (S/N)")).toBeInTheDocument();
     expect(screen.getByText("42.5")).toBeInTheDocument();
     expect(screen.getByText("500.5000")).toBeInTheDocument();
     expect(screen.getByText("吸收")).toBeInTheDocument();
@@ -355,22 +355,36 @@ describe("ScientificArtifactRenderer scientific content", () => {
       outputHash: "sha256:output",
     };
     render(
-      <ScientificArtifactRenderer
+      <ScientificArtifactRendererImpl
         review={makeReview(content)}
         title="分析报告"
         surface="fullscreen"
+        presentation={{
+          ...emptyPresentation("analysis_report"),
+          summary: text("通用摘要不应覆盖领域报告。"),
+          facts: [
+            {
+              label: text("通用指标"),
+              values: [text("不应显示")],
+            },
+          ],
+        }}
       />,
     );
 
+    expect(screen.getByText("系外行星宿主恒星分析")).toBeInTheDocument();
+    expect(screen.getByText("分析报告 · 实时数据")).toBeInTheDocument();
     expect(
       screen.getByText("对候选恒星样本完成统计画像。"),
     ).toBeInTheDocument();
     expect(screen.getByText("样本数")).toBeInTheDocument();
     expect(screen.getByText("金属丰度偏高")).toBeInTheDocument();
     expect(screen.getByText("样本量有限")).toBeInTheDocument();
-    expect(screen.getByText("待人工确认")).toBeInTheDocument();
+    expect(screen.getByText("需要人工确认")).toBeInTheDocument();
     expect(screen.getByText("请人工核对光谱分类")).toBeInTheDocument();
     expect(screen.getAllByText("对候选恒星样本完成统计画像。")).toHaveLength(1);
+    expect(screen.queryByText("通用摘要不应覆盖领域报告。")).toBeNull();
+    expect(screen.queryByText("通用指标")).toBeNull();
   });
 
   it("renders astronomy source rows as a bounded sortable table with units and evidence", () => {
@@ -540,10 +554,10 @@ describe("ScientificArtifactRenderer scientific content", () => {
       acceptedSampleCount: 1,
       rejectedSampleCount: 0,
       duration: 3.2,
-      medianCadence: 0.02,
+      medianCadence: 120 / 86_400,
       bestPeriod: 1.09,
       bestPower: 88.4,
-      falseAlarmProbability: 0.001,
+      falseAlarmProbability: 1e-12,
       periodPeaks: [{ period: 1.09, power: 88.4 }],
       points: [
         {
@@ -569,11 +583,16 @@ describe("ScientificArtifactRenderer scientific content", () => {
       />,
     );
     expect(screen.getByText("TDB")).toBeInTheDocument();
+    expect(screen.getByText("1.00e-12")).toBeInTheDocument();
+    expect(screen.getByText("2.00 min")).toBeInTheDocument();
     // The peak table is collapsed by default (spec §48) — expand first.
     fireEvent.click(screen.getByRole("button", { name: /周期图谱峰值候选/ }));
     expect(
       screen.getByRole("columnheader", { name: "周期 (d)" }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: /FAP/ }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("1.0900")).toBeInTheDocument();
   });
 
@@ -690,9 +709,10 @@ describe("ScientificArtifactRenderer scientific content", () => {
       fireEvent.click(screen.getByRole("button", { name: "下载 ONNX 模型" }));
     });
     expect(loadContent).toHaveBeenCalledWith("sha256:model");
-    expect(screen.getByText("random_forest")).toBeVisible();
+    expect(
+      screen.getByText("ONNX 模型交付产物包 · random_forest v1.6.1"),
+    ).toBeVisible();
     expect(screen.queryByText("active")).not.toBeInTheDocument();
-    expect(screen.queryByText("1.6.1")).not.toBeInTheDocument();
     expect(screen.queryByText("scikit-learn 1.6.1")).not.toBeInTheDocument();
     expect(downloadBytes).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -756,14 +776,16 @@ describe("ScientificArtifactRenderer scientific content", () => {
       />,
     );
 
-    expect(screen.getByText("实体隔离划分")).toBeInTheDocument();
+    expect(
+      screen.getByText("实体隔离划分 (Target Entity Split)"),
+    ).toBeInTheDocument();
     expect(screen.getByText("object_id")).toBeInTheDocument();
     expect(screen.getByText("random_forest")).toBeInTheDocument();
     expect(screen.getByText("研究数据集")).toBeInTheDocument();
     expect(screen.queryByText("算法版本")).not.toBeInTheDocument();
     expect(screen.queryByText("随机种子")).not.toBeInTheDocument();
     expect(screen.queryByText("42")).not.toBeInTheDocument();
-    expect(screen.getByText("5 折")).toBeInTheDocument();
+    expect(screen.getByText("5 折 CV")).toBeInTheDocument();
     expect(
       screen.getByText("同一实体不会跨越训练与测试边界"),
     ).toBeInTheDocument();

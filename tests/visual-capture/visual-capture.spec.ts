@@ -34,7 +34,7 @@ async function openArtifactFromThread(
 ): Promise<void> {
   const result = page.getByTestId(`artifact-result-${versionId}`);
   await expect(result).toBeVisible();
-  await result.getByRole("button", { name: /查看完整结果|审查结果/ }).click();
+  await result.getByRole("button", { name: /打开|审查结果/ }).click();
   await expect(page.getByTestId("artifact-fullscreen-workspace")).toBeVisible();
 }
 
@@ -206,6 +206,27 @@ test.describe("fullscreen formal artifact workspaces", () => {
       await openArtifactFromThread(page, versionId);
       await settle(page, name.includes("graph") ? 2500 : 900);
       await assertNoFatalError(page);
+
+      if (versionId === "artv_fdict_01") {
+        const searchInput = page.getByPlaceholder(
+          "搜索字段名称、含义或标识…",
+        );
+        const searchIcon = page.getByTestId("field-dictionary-search-icon");
+        const [inputBox, iconBox, paddingStart] = await Promise.all([
+          searchInput.boundingBox(),
+          searchIcon.boundingBox(),
+          searchInput.evaluate((element) =>
+            Number.parseFloat(getComputedStyle(element).paddingInlineStart),
+          ),
+        ]);
+        if (!inputBox || !iconBox) {
+          throw new Error("字段字典搜索控件未形成可测量布局。");
+        }
+        expect(paddingStart).toBeGreaterThanOrEqual(32);
+        expect(inputBox.x + paddingStart).toBeGreaterThanOrEqual(
+          iconBox.x + iconBox.width + 4,
+        );
+      }
       await shot(page, name);
 
       if (versionId === "artv_dataset_01") {
@@ -224,12 +245,16 @@ test.describe("fullscreen formal artifact workspaces", () => {
       }
 
       if (versionId === "artv_rels_01") {
-        const candidate = page.getByTestId("dossier-entry-rel_03");
+        const candidate = page.getByTestId("literature-entry-rel_03");
         await candidate.scrollIntoViewIfNeeded();
+        await candidate.click();
+        const reviewContext = page.locator(".literature-review__context");
         await expect(
-          candidate.getByRole("button", { name: "接受并进入图谱" }),
+          reviewContext.getByRole("button", { name: "接受并进入图谱" }),
         ).toBeVisible();
-        await candidate.getByRole("button", { name: "接受并进入图谱" }).click();
+        await reviewContext
+          .getByRole("button", { name: "接受并进入图谱" })
+          .click();
         const adjudicationSheet = page.getByRole("dialog", {
           name: "审定候选关系",
         });
@@ -243,18 +268,21 @@ test.describe("fullscreen formal artifact workspaces", () => {
         await page.keyboard.press("Escape");
         await expect(adjudicationSheet).toBeHidden();
 
-        const accepted = page.getByTestId("dossier-entry-rel_01");
+        const accepted = page.getByTestId("literature-entry-rel_01");
         await accepted.scrollIntoViewIfNeeded();
+        await accepted.click();
         await expect(
-          accepted.getByText("已纳入结论", { exact: false }).first(),
+          reviewContext.getByText("已纳入结论", { exact: false }).first(),
         ).toBeVisible();
         await expect(
-          accepted.getByRole("button", { name: "接受并进入图谱" }),
+          reviewContext.getByRole("button", { name: "接受并进入图谱" }),
         ).toHaveCount(0);
         await shot(page, "33_relation-accepted");
-        await accepted.getByRole("button", { name: /相同的 TIC 标识/ }).click();
+        await reviewContext
+          .getByRole("button", { name: "公开推导与限制" })
+          .click();
         await expect(
-          accepted.getByText("比对行星母星标识", { exact: false }),
+          reviewContext.getByText("比对行星母星标识", { exact: false }),
         ).toBeVisible();
         await shot(page, "34_relation-reasoning-trace");
       }
@@ -267,10 +295,7 @@ test.describe("fullscreen formal artifact workspaces", () => {
 test.describe("paper summary reading workspace", () => {
   test("normal path: report, real PDF, evidence jump", async ({ page }) => {
     await openProject(page, PROJECT_A);
-    await page
-      .getByTestId("artifact-result-artv_papsum_01")
-      .getByRole("button", { name: "查看完整结果" })
-      .click();
+    await openArtifactFromThread(page, "artv_papsum_01");
     const fullscreen = page.getByTestId("artifact-fullscreen-workspace");
     await expect(fullscreen).toBeVisible();
 
@@ -409,6 +434,12 @@ test.describe("fullscreen scientific artifact workspaces", () => {
     await expect(
       page.getByRole("columnheader", { name: /周期/ }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("columnheader", { name: /FAP/ }),
+    ).toHaveCount(0);
+    const peakTable = page.getByRole("table").last();
+    await peakTable.scrollIntoViewIfNeeded();
+    await expect(peakTable.getByText("3.7952")).toBeVisible();
     await shot(page, "55b_light-curve-peaks-expanded");
     await returnToResearch(page);
 

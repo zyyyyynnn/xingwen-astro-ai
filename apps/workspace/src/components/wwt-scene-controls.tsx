@@ -4,6 +4,7 @@ import type {
   WwtTrackedObjectViewReview,
 } from "@xingwen/domain";
 import {
+  Badge,
   Button,
   Checkbox,
   DropdownMenu,
@@ -18,6 +19,7 @@ import {
   PopoverTrigger,
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -129,6 +131,13 @@ export function WwtSceneControls({
   const [base, setBase] = useState(spec);
   const [hiddenLayers, setHiddenLayers] = useState<readonly string[]>([]);
   const [annotationsHidden, setAnnotationsHidden] = useState(false);
+  const [operations, setOperations] = useState<readonly string[]>([
+    "已载入发布场景",
+  ]);
+
+  const recordOperation = (label: string) => {
+    setOperations((current) => [label, ...current].slice(0, 4));
+  };
 
   const effective = useMemo<WwtSceneVisualizationReview>(() => {
     if (hiddenLayers.length === 0 && !annotationsHidden) {
@@ -221,11 +230,13 @@ export function WwtSceneControls({
         transitionSeconds: 1,
       },
     });
+    recordOperation("已更新中心坐标与视场");
   };
 
   const trackObject = () => {
     setControlError(null);
     setBase((current) => transitionToTrackedObject(current, trackedTarget));
+    recordOperation(`已开始跟踪 ${trackedTarget}`);
   };
 
   const applyObserver = () => {
@@ -266,6 +277,7 @@ export function WwtSceneControls({
         localHorizonMode,
       },
     });
+    recordOperation("已应用观测点参数");
   };
 
   const applyObservedAt = () => {
@@ -285,6 +297,7 @@ export function WwtSceneControls({
       ...base,
       time: { mode: "paused", observedAt: parsed.toISOString(), rate: null },
     });
+    recordOperation("已固定观测时间");
   };
 
   const toggleGrid = (system: (typeof GRID_SYSTEMS)[number]["system"]) => {
@@ -294,6 +307,9 @@ export function WwtSceneControls({
       ? base.coordinateGrids.filter((grid) => grid.system !== system)
       : [...base.coordinateGrids, { system, labels: true }];
     setBase({ ...base, coordinateGrids });
+    recordOperation(
+      `${current ? "已隐藏" : "已显示"}${GRID_SYSTEMS.find((grid) => grid.system === system)?.label ?? "坐标网格"}`,
+    );
   };
 
   const toggleConstellation = (
@@ -306,14 +322,19 @@ export function WwtSceneControls({
         [key]: !base.constellations[key],
       },
     });
+    recordOperation(
+      `${base.constellations[key] ? "已隐藏" : "已显示"}${CONSTELLATION_OPTIONS.find((option) => option.key === key)?.label ?? "星座叠加"}`,
+    );
   };
 
   const toggleLayer = (layerId: string) => {
+    const willHide = !hiddenLayers.includes(layerId);
     setHiddenLayers((current) =>
       current.includes(layerId)
         ? current.filter((item) => item !== layerId)
         : [...current, layerId],
     );
+    recordOperation(willHide ? "已隐藏一个数据图层" : "已显示一个数据图层");
   };
 
   const setTimeMode = (mode: string) => {
@@ -323,6 +344,7 @@ export function WwtSceneControls({
         ...base,
         time: { mode: "system_clock", observedAt: null, rate: null },
       });
+      recordOperation("时间已跟随系统时钟");
       return;
     }
     const observedAt = base.time.observedAt ?? new Date().toISOString();
@@ -331,6 +353,7 @@ export function WwtSceneControls({
         ...base,
         time: { mode: "paused", observedAt, rate: null },
       });
+      recordOperation("时间已暂停");
       return;
     }
     const rate = parseNumber(rateInput) ?? base.time.rate ?? 10;
@@ -338,10 +361,12 @@ export function WwtSceneControls({
       ...base,
       time: { mode: "playback", observedAt, rate: rate === 0 ? 10 : rate },
     });
+    recordOperation("已开始时间回放");
   };
 
   const toggleTour = () => {
     setBase({ ...base, tourAutoplay: !base.tourAutoplay });
+    recordOperation(base.tourAutoplay ? "已停止场景巡览" : "已开始场景巡览");
   };
 
   // “恢复发布场景” must return both the rendered WWT scene and every control
@@ -371,337 +396,473 @@ export function WwtSceneControls({
     setElevationInput(spec.observer?.elevationMeters.toString() ?? "0");
     setLocalHorizonMode(spec.observer?.localHorizonMode ?? false);
     setObservedAtInput(spec.time.observedAt?.slice(0, 16) ?? "");
+    setOperations(["已恢复发布场景"]);
   };
 
   return (
-    <div className="wwt-scene-controls">
-      <div className="wwt-scene-controls__group" aria-label="视角控制">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button type="button" variant="secondary" size="small">
-              定位与视角
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="wwt-scene-controls__coordinate-panel">
-            <Field>
-              <FieldLabel htmlFor="wwt-ra">中心赤经（小时）</FieldLabel>
-              <Input
-                id="wwt-ra"
-                value={raInput}
-                onChange={(event) => setRaInput(event.target.value)}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="wwt-dec">中心赤纬（度）</FieldLabel>
-              <Input
-                id="wwt-dec"
-                value={decInput}
-                onChange={(event) => setDecInput(event.target.value)}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="wwt-fov">视场（度）</FieldLabel>
-              <Input
-                id="wwt-fov"
-                value={fovInput}
-                onChange={(event) => setFovInput(event.target.value)}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="wwt-roll">相机滚转（度）</FieldLabel>
-              <Input
-                id="wwt-roll"
-                value={rollInput}
-                onChange={(event) => setRollInput(event.target.value)}
-              />
-            </Field>
-            <Button
-              type="button"
-              variant="primary"
-              size="small"
-              onClick={gotoCoordinates}
-            >
-              前往坐标
-            </Button>
-          </PopoverContent>
-        </Popover>
-        <Select
-          value={trackedTarget}
-          onValueChange={(value) =>
-            setTrackedTarget(value as WwtTrackedObjectViewReview["target"])
-          }
-        >
-          <SelectTrigger
-            aria-label="跟踪天体"
-            className="wwt-scene-controls__select"
+    <div className="wwt-scene-controls observation-workspace">
+      <div className="observation-workspace__toolbar">
+        <div className="wwt-scene-controls__group" aria-label="视角控制">
+          <span className="wwt-scene-controls__group-label">定位</span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button type="button" variant="secondary" size="small">
+                定位与视角
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="wwt-scene-controls__coordinate-panel">
+              <Field>
+                <FieldLabel htmlFor="wwt-ra">中心赤经（小时）</FieldLabel>
+                <Input
+                  id="wwt-ra"
+                  value={raInput}
+                  onChange={(event) => setRaInput(event.target.value)}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="wwt-dec">中心赤纬（度）</FieldLabel>
+                <Input
+                  id="wwt-dec"
+                  value={decInput}
+                  onChange={(event) => setDecInput(event.target.value)}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="wwt-fov">视场（度）</FieldLabel>
+                <Input
+                  id="wwt-fov"
+                  value={fovInput}
+                  onChange={(event) => setFovInput(event.target.value)}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="wwt-roll">相机滚转（度）</FieldLabel>
+                <Input
+                  id="wwt-roll"
+                  value={rollInput}
+                  onChange={(event) => setRollInput(event.target.value)}
+                />
+              </Field>
+              <Button
+                type="button"
+                variant="primary"
+                size="small"
+                onClick={gotoCoordinates}
+              >
+                前往坐标
+              </Button>
+            </PopoverContent>
+          </Popover>
+          <Select
+            value={trackedTarget}
+            onValueChange={(value) =>
+              setTrackedTarget(value as WwtTrackedObjectViewReview["target"])
+            }
           >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {TRACKED_TARGETS.map((target) => (
-              <SelectItem key={target.value} value={target.value}>
-                {target.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button
-          type="button"
-          variant="secondary"
-          size="small"
-          onClick={trackObject}
-        >
-          跟踪天体
-        </Button>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button type="button" variant="secondary" size="small">
-              观测点
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="wwt-scene-controls__observer">
-            <Input
-              aria-label="观测点纬度（度）"
-              placeholder="纬度度"
-              value={latitudeInput}
-              onChange={(event) => setLatitudeInput(event.target.value)}
-            />
-            <Input
-              aria-label="观测点经度（度）"
-              placeholder="经度度"
-              value={longitudeInput}
-              onChange={(event) => setLongitudeInput(event.target.value)}
-            />
-            <Input
-              aria-label="观测点海拔（米）"
-              placeholder="海拔米"
-              value={elevationInput}
-              onChange={(event) => setElevationInput(event.target.value)}
-            />
-            <label className="wwt-scene-controls__observer-horizon">
-              <Checkbox
-                checked={localHorizonMode}
-                onCheckedChange={(value) => setLocalHorizonMode(value === true)}
-              />
-              <span>使用本地地平坐标系</span>
-            </label>
-            <Button
-              type="button"
-              variant="secondary"
-              size="small"
-              onClick={applyObserver}
+            <SelectTrigger
+              aria-label="跟踪天体"
+              className="wwt-scene-controls__select"
             >
-              应用观测点
-            </Button>
-          </PopoverContent>
-        </Popover>
-      </div>
-      {controlError ? (
-        <p className="wwt-scene-controls__error" role="alert">
-          {controlError}
-        </p>
-      ) : null}
-      <div className="wwt-scene-controls__group" aria-label="场景设置">
-        <Select
-          value={base.background}
-          onValueChange={(value) => {
-            setControlError(null);
-            setBase((current) =>
-              transitionSceneBackground(
-                current,
-                value as WwtSceneVisualizationReview["background"],
-              ),
-            );
-          }}
-        >
-          <SelectTrigger
-            aria-label="背景天图"
-            className="wwt-scene-controls__select"
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {TRACKED_TARGETS.map((target) => (
+                  <SelectItem key={target.value} value={target.value}>
+                    {target.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            variant="secondary"
+            size="small"
+            onClick={trackObject}
           >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {BACKGROUND_OPTIONS.map((option) => (
-              <SelectItem
-                key={option.value}
-                value={option.value}
-                disabled={
-                  base.view.kind === "tracked_object" &&
-                  option.value !== "solar_system"
-                }
+            跟踪天体
+          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button type="button" variant="secondary" size="small">
+                观测点
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="wwt-scene-controls__observer">
+              <Input
+                aria-label="观测点纬度（度）"
+                placeholder="纬度度"
+                value={latitudeInput}
+                onChange={(event) => setLatitudeInput(event.target.value)}
+              />
+              <Input
+                aria-label="观测点经度（度）"
+                placeholder="经度度"
+                value={longitudeInput}
+                onChange={(event) => setLongitudeInput(event.target.value)}
+              />
+              <Input
+                aria-label="观测点海拔（米）"
+                placeholder="海拔米"
+                value={elevationInput}
+                onChange={(event) => setElevationInput(event.target.value)}
+              />
+              <label className="wwt-scene-controls__observer-horizon">
+                <Checkbox
+                  checked={localHorizonMode}
+                  onCheckedChange={(value) =>
+                    setLocalHorizonMode(value === true)
+                  }
+                />
+                <span>使用本地地平坐标系</span>
+              </label>
+              <Button
+                type="button"
+                variant="secondary"
+                size="small"
+                onClick={applyObserver}
               >
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button type="button" variant="secondary" size="small">
-              坐标网格
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            {GRID_SYSTEMS.map((grid) => (
-              <DropdownMenuCheckboxItem
-                key={grid.system}
-                disabled={grid.system === "altaz" && base.observer === null}
-                checked={base.coordinateGrids.some(
-                  (item) => item.system === grid.system,
-                )}
-                onCheckedChange={() => toggleGrid(grid.system)}
-              >
-                {grid.system === "altaz" && base.observer === null
-                  ? `${grid.label}（需先设置观测点）`
-                  : grid.label}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button type="button" variant="secondary" size="small">
-              星座叠加
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            {CONSTELLATION_OPTIONS.map((option) => (
-              <DropdownMenuCheckboxItem
-                key={option.key}
-                disabled={base.background === "solar_system"}
-                checked={base.constellations[option.key]}
-                onCheckedChange={() => toggleConstellation(option.key)}
-              >
-                {option.label}
-              </DropdownMenuCheckboxItem>
-            ))}
-            <DropdownMenuCheckboxItem
-              disabled={base.background === "solar_system"}
-              checked={base.precessionChart}
-              onCheckedChange={() =>
-                setBase({
-                  ...base,
-                  precessionChart: !base.precessionChart,
-                })
-              }
+                应用观测点
+              </Button>
+            </PopoverContent>
+          </Popover>
+        </div>
+        {controlError ? (
+          <p className="wwt-scene-controls__error" role="alert">
+            {controlError}
+          </p>
+        ) : null}
+        <div className="wwt-scene-controls__group" aria-label="场景设置">
+          <span className="wwt-scene-controls__group-label">图层</span>
+          <Select
+            value={base.background}
+            onValueChange={(value) => {
+              setControlError(null);
+              setBase((current) =>
+                transitionSceneBackground(
+                  current,
+                  value as WwtSceneVisualizationReview["background"],
+                ),
+              );
+              recordOperation(
+                `背景已切换为 ${BACKGROUND_OPTIONS.find((option) => option.value === value)?.label ?? "所选天图"}`,
+              );
+            }}
+          >
+            <SelectTrigger
+              aria-label="背景天图"
+              className="wwt-scene-controls__select"
             >
-              岁差图
-            </DropdownMenuCheckboxItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        {base.fitsLayers.length > 0 || base.tableLayers.length > 0 ? (
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {BACKGROUND_OPTIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    disabled={
+                      base.view.kind === "tracked_object" &&
+                      option.value !== "solar_system"
+                    }
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button type="button" variant="secondary" size="small">
-                图层
+                坐标网格
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              {base.fitsLayers.map((layer, index) => (
+              {GRID_SYSTEMS.map((grid) => (
                 <DropdownMenuCheckboxItem
-                  key={layer.layerId}
-                  checked={!hiddenLayers.includes(layer.layerId)}
-                  onCheckedChange={() => toggleLayer(layer.layerId)}
+                  key={grid.system}
+                  disabled={grid.system === "altaz" && base.observer === null}
+                  checked={base.coordinateGrids.some(
+                    (item) => item.system === grid.system,
+                  )}
+                  onCheckedChange={() => toggleGrid(grid.system)}
                 >
-                  {`FITS 图层 ${index + 1}`}
-                </DropdownMenuCheckboxItem>
-              ))}
-              {base.tableLayers.map((layer, index) => (
-                <DropdownMenuCheckboxItem
-                  key={layer.layerId}
-                  checked={!hiddenLayers.includes(layer.layerId)}
-                  onCheckedChange={() => toggleLayer(layer.layerId)}
-                >
-                  {`表格图层 ${index + 1}`}
+                  {grid.system === "altaz" && base.observer === null
+                    ? `${grid.label}（需先设置观测点）`
+                    : grid.label}
                 </DropdownMenuCheckboxItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : null}
-        {base.annotations.length > 0 ? (
-          <Button
-            type="button"
-            variant="secondary"
-            size="small"
-            onClick={() => setAnnotationsHidden((value) => !value)}
-          >
-            {annotationsHidden ? "显示标注" : "隐藏标注"}
-          </Button>
-        ) : null}
-        {base.tourSteps.length > 0 ? (
-          <Button
-            type="button"
-            variant="secondary"
-            size="small"
-            onClick={toggleTour}
-          >
-            {base.tourAutoplay ? "停止巡览" : "播放巡览"}
-          </Button>
-        ) : null}
-      </div>
-      <div className="wwt-scene-controls__group" aria-label="时间控制">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button type="button" variant="secondary" size="small">
-              时间设置
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="wwt-scene-controls__time-panel">
-            <Field>
-              <FieldLabel>时间模式</FieldLabel>
-              <Select
-                value={base.time.mode}
-                onValueChange={(value) => setTimeMode(value)}
-              >
-                <SelectTrigger aria-label="时间模式">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(TIME_MODE_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            {base.time.mode === "playback" ? (
-              <Field>
-                <FieldLabel htmlFor="wwt-time-rate">时间倍率</FieldLabel>
-                <Input
-                  id="wwt-time-rate"
-                  value={rateInput}
-                  onChange={(event) => setRateInput(event.target.value)}
-                  onBlur={() => setTimeMode("playback")}
-                />
-              </Field>
-            ) : null}
-            <Field>
-              <FieldLabel htmlFor="wwt-observed-at">观测时间（UTC）</FieldLabel>
-              <Input
-                id="wwt-observed-at"
-                type="datetime-local"
-                value={
-                  observedAtInput || (base.time.observedAt?.slice(0, 16) ?? "")
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="secondary" size="small">
+                星座叠加
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {CONSTELLATION_OPTIONS.map((option) => (
+                <DropdownMenuCheckboxItem
+                  key={option.key}
+                  disabled={base.background === "solar_system"}
+                  checked={base.constellations[option.key]}
+                  onCheckedChange={() => toggleConstellation(option.key)}
+                >
+                  {option.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+              <DropdownMenuCheckboxItem
+                disabled={base.background === "solar_system"}
+                checked={base.precessionChart}
+                onCheckedChange={() =>
+                  setBase({
+                    ...base,
+                    precessionChart: !base.precessionChart,
+                  })
                 }
-                onChange={(event) => setObservedAtInput(event.target.value)}
-              />
-            </Field>
+              >
+                岁差图
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {base.fitsLayers.length > 0 || base.tableLayers.length > 0 ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="secondary" size="small">
+                  图层
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {base.fitsLayers.map((layer, index) => (
+                  <DropdownMenuCheckboxItem
+                    key={layer.layerId}
+                    checked={!hiddenLayers.includes(layer.layerId)}
+                    onCheckedChange={() => toggleLayer(layer.layerId)}
+                  >
+                    {`FITS 图层 ${index + 1}`}
+                  </DropdownMenuCheckboxItem>
+                ))}
+                {base.tableLayers.map((layer, index) => (
+                  <DropdownMenuCheckboxItem
+                    key={layer.layerId}
+                    checked={!hiddenLayers.includes(layer.layerId)}
+                    onCheckedChange={() => toggleLayer(layer.layerId)}
+                  >
+                    {`表格图层 ${index + 1}`}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+          {base.annotations.length > 0 ? (
             <Button
               type="button"
-              variant="primary"
+              variant="secondary"
               size="small"
-              onClick={applyObservedAt}
+              onClick={() => {
+                setAnnotationsHidden((value) => !value);
+                recordOperation(
+                  annotationsHidden ? "已显示场景标注" : "已隐藏场景标注",
+                );
+              }}
             >
-              固定观测时间
+              {annotationsHidden ? "显示标注" : "隐藏标注"}
             </Button>
-          </PopoverContent>
-        </Popover>
-        <Button type="button" variant="ghost" size="small" onClick={resetScene}>
-          恢复发布场景
-        </Button>
+          ) : null}
+          {base.tourSteps.length > 0 ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="small"
+              onClick={toggleTour}
+            >
+              {base.tourAutoplay ? "停止巡览" : "播放巡览"}
+            </Button>
+          ) : null}
+        </div>
+        <div className="wwt-scene-controls__group" aria-label="时间控制">
+          <span className="wwt-scene-controls__group-label">时间</span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button type="button" variant="secondary" size="small">
+                时间设置
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="wwt-scene-controls__time-panel">
+              <Field>
+                <FieldLabel>时间模式</FieldLabel>
+                <Select
+                  value={base.time.mode}
+                  onValueChange={(value) => setTimeMode(value)}
+                >
+                  <SelectTrigger aria-label="时间模式">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {Object.entries(TIME_MODE_LABELS).map(
+                        ([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ),
+                      )}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              {base.time.mode === "playback" ? (
+                <Field>
+                  <FieldLabel htmlFor="wwt-time-rate">时间倍率</FieldLabel>
+                  <Input
+                    id="wwt-time-rate"
+                    value={rateInput}
+                    onChange={(event) => setRateInput(event.target.value)}
+                    onBlur={() => setTimeMode("playback")}
+                  />
+                </Field>
+              ) : null}
+              <Field>
+                <FieldLabel htmlFor="wwt-observed-at">
+                  观测时间（UTC）
+                </FieldLabel>
+                <Input
+                  id="wwt-observed-at"
+                  type="datetime-local"
+                  value={
+                    observedAtInput ||
+                    (base.time.observedAt?.slice(0, 16) ?? "")
+                  }
+                  onChange={(event) => setObservedAtInput(event.target.value)}
+                />
+              </Field>
+              <Button
+                type="button"
+                variant="primary"
+                size="small"
+                onClick={applyObservedAt}
+              >
+                固定观测时间
+              </Button>
+            </PopoverContent>
+          </Popover>
+          <Button
+            type="button"
+            variant="secondary"
+            size="small"
+            onClick={resetScene}
+          >
+            恢复发布场景
+          </Button>
+        </div>
       </div>
-      <WwtViewport spec={effective} loadContent={loadContent} />
+      <div className="observation-workspace__body">
+        <div className="observation-workspace__canvas">
+          <WwtViewport spec={effective} loadContent={loadContent} />
+        </div>
+        <aside
+          className="observation-workspace__inspector"
+          aria-label="当前观测状态"
+        >
+          <header className="observation-workspace__inspector-header">
+            <div>
+              <span>观测状态</span>
+              <h3>当前天球场景</h3>
+            </div>
+            <Badge variant="secondary">已同步</Badge>
+          </header>
+
+          <section>
+            <h4>视场</h4>
+            <dl className="observation-workspace__facts">
+              <div>
+                <dt>中心</dt>
+                <dd>
+                  {base.view.kind === "coordinates"
+                    ? `RA ${base.view.center.raHours.toFixed(4)}h · Dec ${base.view.center.decDegrees.toFixed(4)}°`
+                    : `跟踪 ${base.view.target}`}
+                </dd>
+              </div>
+              <div>
+                <dt>视场角</dt>
+                <dd>{base.view.fieldOfViewDegrees.toFixed(3)}°</dd>
+              </div>
+              <div>
+                <dt>相机滚转</dt>
+                <dd>{base.view.rollDegrees.toFixed(2)}°</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section>
+            <h4>显示与图层</h4>
+            <dl className="observation-workspace__facts">
+              <div>
+                <dt>背景天图</dt>
+                <dd>
+                  {BACKGROUND_OPTIONS.find(
+                    (option) => option.value === base.background,
+                  )?.label ?? "自定义天图"}
+                </dd>
+              </div>
+              <div>
+                <dt>可见数据层</dt>
+                <dd>
+                  {base.fitsLayers.length +
+                    base.tableLayers.length -
+                    hiddenLayers.length}
+                  /{base.fitsLayers.length + base.tableLayers.length}
+                </dd>
+              </div>
+              <div>
+                <dt>坐标网格</dt>
+                <dd>
+                  {base.coordinateGrids.length > 0
+                    ? base.coordinateGrids
+                        .map(
+                          (grid) =>
+                            GRID_SYSTEMS.find(
+                              (candidate) => candidate.system === grid.system,
+                            )?.label ?? grid.system,
+                        )
+                        .join("、")
+                    : "未显示"}
+                </dd>
+              </div>
+            </dl>
+          </section>
+
+          <section>
+            <h4>时间</h4>
+            <dl className="observation-workspace__facts">
+              <div>
+                <dt>模式</dt>
+                <dd>{TIME_MODE_LABELS[base.time.mode] ?? base.time.mode}</dd>
+              </div>
+              <div>
+                <dt>观测时刻</dt>
+                <dd>
+                  {base.time.observedAt
+                    ? base.time.observedAt.slice(0, 19).replace("T", " ") +
+                      " UTC"
+                    : "使用当前系统时间"}
+                </dd>
+              </div>
+            </dl>
+          </section>
+
+          <section>
+            <h4>最近操作</h4>
+            <ol className="observation-workspace__history">
+              {operations.map((operation, index) => (
+                <li key={`${operation}:${index}`}>{operation}</li>
+              ))}
+            </ol>
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }

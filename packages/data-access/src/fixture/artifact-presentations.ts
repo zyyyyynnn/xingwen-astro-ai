@@ -178,6 +178,7 @@ export const artifactPresentations = {
         key: "rel_01",
         title: "TOI-1233.01 亚海王星 ↔ 宿主星有效温度 5720 K (描述同一系统)",
         status: "accepted",
+        can_adjudicate: false,
         assessment: "describes_same_system",
         facts: [
           { label: "关联类型", values: ["同系统宿主-行星基准关联"] },
@@ -202,6 +203,7 @@ export const artifactPresentations = {
         key: "rel_02",
         title: "TOI-1233.01 (b) ↔ TOI-1233.02 (c) (多行星系统架构一致)",
         status: "accepted",
+        can_adjudicate: false,
         assessment: "consistent_with",
         facts: [{ label: "关联类型", values: ["多行星轨道排列一致性"] }],
         evidence_ids: ["evd_03"],
@@ -210,29 +212,74 @@ export const artifactPresentations = {
         key: "rel_03",
         title: "TOI-1233.01 周期 ↔ TTV 近共振动力学预测 (待审定)",
         status: "candidate",
+        can_adjudicate: true,
         assessment: "predicts",
         facts: [
           { label: "待审原因", values: ["需人工审定近共振区动力学稳定性质询"] },
+          {
+            label: "成立条件",
+            values: ["两项主张均基于对同一恒星系统 TIC-260647166 的多波段观测"],
+          },
+          {
+            label: "限制",
+            values: ["结论受限于当前测光精度的置信区间"],
+          },
         ],
         evidence_ids: ["evd_03"],
+        reasoning_trace: {
+          trace_id: "trace_rel_03",
+          conclusion:
+            "精确公转周期为 TTV 共振动力学推导提供了基础先验，仍需人工确认动力学积分拟合优度。",
+          steps: ["交叉比对目标恒星标识、行星编号与轨道周期口径。"],
+          facts: [
+            {
+              label: "审查边界",
+              values: ["尚未将近共振预测作为已接受图谱关系"],
+            },
+          ],
+          evidence_ids: ["evd_03"],
+        },
       },
       {
         key: "rel_04",
         title: "TOI-1233.01 凌星 ↔ HARPS 视向速度质量约束 (待审定)",
         status: "candidate",
+        can_adjudicate: true,
         assessment: "refines_parameter",
         facts: [
           {
             label: "待审原因",
             values: ["需人工审定 HARPS 径向速度仪器的系统误差先验"],
           },
+          {
+            label: "成立条件",
+            values: ["凌星与径向速度测量指向同一恒星系统"],
+          },
+          {
+            label: "限制",
+            values: ["质量约束依赖仪器系统误差先验"],
+          },
         ],
         evidence_ids: ["evd_03"],
+        reasoning_trace: {
+          trace_id: "trace_rel_04",
+          conclusion:
+            "视向速度质量上限可细化凌星行星的密度与大气流失约束，但仪器系统误差仍需审定。",
+          steps: ["核对目标标识、观测仪器与质量约束口径的一致性。"],
+          facts: [
+            {
+              label: "审查边界",
+              values: ["系统误差先验未确认前不进入证据图谱"],
+            },
+          ],
+          evidence_ids: ["evd_03"],
+        },
       },
       {
         key: "rel_05",
         title: "主序 G 型有效温度 ↔ T Tauri 年轻恒星假设 (已驳回冲突)",
         status: "rejected",
+        can_adjudicate: false,
         assessment: "contradicts",
         facts: [
           {

@@ -170,7 +170,7 @@ function SpectrumPlot({
   }, [minF, maxF]);
 
   return (
-    <div className="spectrum-plot-wrapper space-y-3 rounded-lg border border-border bg-card p-4 shadow-sm">
+    <div className="spectrum-plot-wrapper space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-3">
         <div>
           <h4 className="text-sm font-semibold text-foreground">
@@ -272,7 +272,7 @@ function SpectrumPlot({
             <path
               d={pathD}
               fill="none"
-              stroke="var(--color-primary)"
+              stroke="var(--color-brand)"
               strokeWidth="1.6"
               strokeLinejoin="round"
             />
@@ -303,9 +303,7 @@ function SpectrumPlot({
                   x2={x}
                   y2={y}
                   stroke={
-                    isSelected
-                      ? "var(--color-destructive)"
-                      : "var(--color-warning)"
+                    isSelected ? "var(--color-error)" : "var(--color-warning)"
                   }
                   strokeWidth={isSelected ? "1.8" : "1.2"}
                   strokeDasharray={isSelected ? "none" : "3 3"}
@@ -317,11 +315,9 @@ function SpectrumPlot({
                   cy={y}
                   r={isSelected ? 4.5 : 3.5}
                   fill={
-                    isSelected
-                      ? "var(--color-destructive)"
-                      : "var(--color-warning)"
+                    isSelected ? "var(--color-error)" : "var(--color-warning)"
                   }
-                  stroke="var(--color-background)"
+                  stroke="var(--color-surface)"
                   strokeWidth="1"
                 />
                 {/* Label on top */}
@@ -332,13 +328,9 @@ function SpectrumPlot({
                   height={14}
                   rx={3}
                   fill={
-                    isSelected
-                      ? "var(--color-destructive)"
-                      : "var(--color-card)"
+                    isSelected ? "var(--color-error)" : "var(--color-surface)"
                   }
-                  stroke={
-                    isSelected ? "var(--color-destructive)" : "currentColor"
-                  }
+                  stroke={isSelected ? "var(--color-error)" : "currentColor"}
                   strokeOpacity={isSelected ? "1" : "0.2"}
                 />
                 <text
@@ -347,7 +339,7 @@ function SpectrumPlot({
                   fontSize="9"
                   fontWeight="600"
                   textAnchor="middle"
-                  fill={isSelected ? "var(--color-card)" : "currentColor"}
+                  fill={isSelected ? "var(--color-brand-on)" : "currentColor"}
                 >
                   {formatNumber(line.observedWavelength, 1)}
                 </text>
@@ -371,8 +363,8 @@ function SpectrumPlot({
                 cx={hoveredPoint.x}
                 cy={hoveredPoint.y}
                 r={4}
-                fill="var(--color-primary)"
-                stroke="var(--color-background)"
+                fill="var(--color-brand)"
+                stroke="var(--color-surface)"
                 strokeWidth="1.5"
               />
             </g>
@@ -568,48 +560,38 @@ export function SpectrumContent({
             subtitle={`高分辨率光谱 · 目标天体: ${content.objectName}`}
           />
 
-          <div
-            className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6"
+          <dl
+            className="spectrum-summary grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6"
             aria-label="光谱特征参数"
           >
-            <div className="rounded-md border border-border bg-card p-3">
-              <div className="text-xs text-muted-foreground">采样点数</div>
-              <div className="mt-1 text-base font-semibold text-foreground">
-                {content.sampleCount} 点
-              </div>
+            <div>
+              <dt>采样点数</dt>
+              <dd>{content.sampleCount} 点</dd>
             </div>
-            <div className="rounded-md border border-border bg-card p-3">
-              <div className="text-xs text-muted-foreground">信噪比 (S/N)</div>
-              <div className="mt-1 text-base font-semibold text-foreground">
-                {formatNumber(content.signalToNoise, 1)}
-              </div>
+            <div>
+              <dt>信噪比 (S/N)</dt>
+              <dd>{formatNumber(content.signalToNoise, 1)}</dd>
             </div>
-            <div className="rounded-md border border-border bg-card p-3">
-              <div className="text-xs text-muted-foreground">检出谱线</div>
-              <div className="mt-1 text-base font-semibold text-foreground">
-                {content.detectedLines.length} 条
-              </div>
+            <div>
+              <dt>检出谱线</dt>
+              <dd>{content.detectedLines.length} 条</dd>
             </div>
-            <div className="rounded-md border border-border bg-card p-3">
-              <div className="text-xs text-muted-foreground">静止参考波长</div>
-              <div className="mt-1 text-base font-semibold text-foreground">
+            <div>
+              <dt>静止参考波长</dt>
+              <dd>
                 {formatNumber(content.restWavelength, 1)}{" "}
                 {content.wavelengthUnit}
-              </div>
+              </dd>
             </div>
-            <div className="rounded-md border border-border bg-card p-3">
-              <div className="text-xs text-muted-foreground">视向速度</div>
-              <div className="mt-1 text-base font-semibold text-foreground">
-                {formatNumber(content.radialVelocityKmS, 2)} km/s
-              </div>
+            <div>
+              <dt>视向速度</dt>
+              <dd>{formatNumber(content.radialVelocityKmS, 2)} km/s</dd>
             </div>
-            <div className="rounded-md border border-border bg-card p-3">
-              <div className="text-xs text-muted-foreground">数据源模式</div>
-              <div className="mt-1 text-base font-semibold text-foreground">
-                {sourceModeLabel(sourceMode)}
-              </div>
+            <div>
+              <dt>数据源模式</dt>
+              <dd>{sourceModeLabel(sourceMode)}</dd>
             </div>
-          </div>
+          </dl>
         </>
       ) : null}
 

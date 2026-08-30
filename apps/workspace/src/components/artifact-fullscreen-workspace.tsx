@@ -25,6 +25,7 @@ import {
   Skeleton,
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -180,11 +181,13 @@ function ArtifactDiffSheet({
                   <SelectValue placeholder="选择历史结果" />
                 </SelectTrigger>
                 <SelectContent>
-                  {candidates.map((candidate) => (
-                    <SelectItem key={candidate.id} value={candidate.id}>
-                      历史结果 · {versionTimestamp(candidate.createdAt)}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {candidates.map((candidate) => (
+                      <SelectItem key={candidate.id} value={candidate.id}>
+                        历史结果 · {versionTimestamp(candidate.createdAt)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </label>
@@ -284,12 +287,8 @@ export function toCandidateRelationOptions(
     }));
 }
 
-export function selectRevisionMode(
-  candidateRelations: readonly CandidateRelationOption[],
-): RevisionMode {
-  return candidateRelations.length > 0
-    ? { kind: "relation_adjudication" }
-    : { kind: "artifact_correction" };
+export function selectGlobalRevisionMode(): RevisionMode {
+  return { kind: "artifact_correction" };
 }
 
 function revisionModeCopy(mode: RevisionMode): {
@@ -477,14 +476,16 @@ function RevisionSheet({
                         <SelectValue placeholder="选择候选关系" />
                       </SelectTrigger>
                       <SelectContent>
-                        {candidateRelations.map((candidate) => (
-                          <SelectItem
-                            key={candidate.relationId}
-                            value={candidate.relationId}
-                          >
-                            {candidate.title}
-                          </SelectItem>
-                        ))}
+                        <SelectGroup>
+                          {candidateRelations.map((candidate) => (
+                            <SelectItem
+                              key={candidate.relationId}
+                              value={candidate.relationId}
+                            >
+                              {candidate.title}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
                       </SelectContent>
                     </Select>
                   </label>
@@ -502,10 +503,14 @@ function RevisionSheet({
                         <SelectValue placeholder="选择审定结论" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="accepted">接受并进入图谱</SelectItem>
-                        <SelectItem value="rejected">
-                          拒绝且不进入图谱
-                        </SelectItem>
+                        <SelectGroup>
+                          <SelectItem value="accepted">
+                            接受并进入图谱
+                          </SelectItem>
+                          <SelectItem value="rejected">
+                            拒绝且不进入图谱
+                          </SelectItem>
+                        </SelectGroup>
                       </SelectContent>
                     </Select>
                   </label>
@@ -631,7 +636,7 @@ export function ArtifactFullscreenWorkspace({
   );
 
   const openRevisionSheet = () => {
-    setRevisionMode(selectRevisionMode(candidateRelations));
+    setRevisionMode(selectGlobalRevisionMode());
     setRevisionOpenNonce((nonce) => nonce + 1);
   };
 
@@ -706,7 +711,11 @@ export function ArtifactFullscreenWorkspace({
           ) : null}
           {!isLoading && !error && artifact && version && descriptor ? (
             FullscreenRenderer ? (
-              <ArtifactLayoutFrame mode={descriptor.layoutMode}>
+              <ArtifactLayoutFrame
+                key={String(artifactVersionId)}
+                mode={descriptor.layoutMode}
+                scrollKey={String(artifactVersionId)}
+              >
                 <FullscreenRenderer
                   key={version.id}
                   runtime={runtime}

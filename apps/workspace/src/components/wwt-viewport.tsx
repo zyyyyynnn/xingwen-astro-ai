@@ -155,6 +155,31 @@ export function WwtViewport(props: WwtViewportProps) {
         aria-label={label}
         tabIndex={0}
       />
+      {state === "ready" && readback !== null ? (
+        <dl className="wwt-viewport__readback" aria-label="WWT 实际状态读取">
+          {readback.centerCoordinates === null ? null : (
+            <div>
+              <dt>实际中心</dt>
+              <dd>
+                RA {readback.centerCoordinates.raHours.toFixed(4)}h · Dec{" "}
+                {readback.centerCoordinates.decDegrees.toFixed(4)}°
+              </dd>
+            </div>
+          )}
+          {readback.fieldOfViewDegrees === null ? null : (
+            <div>
+              <dt>实际视场</dt>
+              <dd>{readback.fieldOfViewDegrees.toFixed(3)}°</dd>
+            </div>
+          )}
+          {readback.currentTime === null ? null : (
+            <div>
+              <dt>实际时间</dt>
+              <dd>{readback.currentTime.slice(0, 19).replace("T", " ")} UTC</dd>
+            </div>
+          )}
+        </dl>
+      ) : null}
       {state === "loading" ? (
         <figcaption data-state={state}>
           <Spinner aria-hidden="true" />
@@ -278,37 +303,6 @@ export function WwtViewport(props: WwtViewportProps) {
                 </dd>
               </div>
             </dl>
-            {readback !== null ? (
-              <dl aria-label="WWT 实际状态读取">
-                {readback.centerCoordinates === null ? null : (
-                  <div>
-                    <dt>实际中心</dt>
-                    <dd>
-                      RA {readback.centerCoordinates.raHours.toFixed(4)}h · Dec{" "}
-                      {readback.centerCoordinates.decDegrees.toFixed(4)}°
-                    </dd>
-                  </div>
-                )}
-                {readback.fieldOfViewDegrees === null ? null : (
-                  <div>
-                    <dt>实际视场</dt>
-                    <dd>{readback.fieldOfViewDegrees.toFixed(4)}°</dd>
-                  </div>
-                )}
-                {readback.cameraRollDegrees === null ? null : (
-                  <div>
-                    <dt>实际滚转</dt>
-                    <dd>{readback.cameraRollDegrees.toFixed(4)}°</dd>
-                  </div>
-                )}
-                {readback.currentTime === null ? null : (
-                  <div>
-                    <dt>实际时间</dt>
-                    <dd>{readback.currentTime}</dd>
-                  </div>
-                )}
-              </dl>
-            ) : null}
             {spec.fitsLayers.length > 0 ? (
               <table>
                 <caption>WWT FITS 图层</caption>

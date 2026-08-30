@@ -6,7 +6,9 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuTrigger,
+  Input,
 } from "@xingwen/ui";
+import { Search } from "@xingwen/ui/icons";
 import { useMemo, useState } from "react";
 
 export type ScientificTableScalar = string | number | boolean | null;
@@ -140,9 +142,21 @@ export function ScientificTable({
     key: string;
     direction: "asc" | "desc";
   } | null>(null);
+  const [query, setQuery] = useState("");
   const columns = allColumns.filter((column) => !hiddenFields.has(column.key));
   const rows = useMemo(() => {
-    const bounded = suppliedRows.slice(0, maxRows);
+    const normalizedQuery = query.trim().toLocaleLowerCase("zh-Hans");
+    const filtered = normalizedQuery
+      ? suppliedRows.filter((row) =>
+          [
+            row.identity ?? "",
+            ...Object.values(row.cells).map((cell) => displayValue(cell.value)),
+          ].some((value) =>
+            value.toLocaleLowerCase("zh-Hans").includes(normalizedQuery),
+          ),
+        )
+      : suppliedRows;
+    const bounded = filtered.slice(0, maxRows);
     if (sort === null) return bounded;
     return [...bounded].sort((left, right) => {
       const a = left.cells[sort.key]?.value ?? "";
@@ -154,7 +168,7 @@ export function ScientificTable({
           : numeric;
       return sort.direction === "asc" ? comparison : -comparison;
     });
-  }, [maxRows, sort, suppliedRows]);
+  }, [maxRows, query, sort, suppliedRows]);
 
   const toggleSort = (key: string) => {
     setSort((current) => {
@@ -184,32 +198,49 @@ export function ScientificTable({
   const identityWidthClass = COLUMN_MIN_WIDTH.identity;
 
   return (
-    <div className="scientific-table overflow-x-auto my-2 border rounded border-[var(--color-border)]">
-      <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface-muted)] p-2">
-        <span className="scientific-table__scroll-hint">
-          {columns.length > 5 ? "可横向滚动查看更多字段" : "数据字段"}
-        </span>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="small" variant="ghost">
-              选择列
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="max-h-72 overflow-y-auto">
-            {allColumns.map((column) => (
-              <DropdownMenuCheckboxItem
-                key={column.key}
-                checked={!hiddenFields.has(column.key)}
-                onCheckedChange={() => toggleColumn(column.key)}
-              >
-                {column.label}
-                {formatScientificUnit(column.unit)
-                  ? ` (${formatScientificUnit(column.unit)})`
-                  : ""}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+    <div className="scientific-table my-2 overflow-x-auto rounded-lg bg-[var(--color-surface)] shadow-[var(--shadow-float)]">
+      <div className="scientific-table__toolbar">
+        <div className="scientific-table__search">
+          <Search aria-hidden="true" />
+          <Input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索当前数据…"
+            aria-label="搜索当前数据"
+          />
+        </div>
+        <div className="scientific-table__toolbar-actions">
+          <span className="scientific-table__scroll-hint">
+            {query
+              ? `${rows.length} 条匹配`
+              : `${totalRowCount} 行 · ${columns.length} 列`}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="small" variant="secondary">
+                选择列
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="max-h-72 overflow-y-auto"
+            >
+              {allColumns.map((column) => (
+                <DropdownMenuCheckboxItem
+                  key={column.key}
+                  checked={!hiddenFields.has(column.key)}
+                  onCheckedChange={() => toggleColumn(column.key)}
+                >
+                  {column.label}
+                  {formatScientificUnit(column.unit)
+                    ? ` (${formatScientificUnit(column.unit)})`
+                    : ""}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
       <table className="ui-text-body w-full min-w-max text-left border-collapse">
         <caption className="sr-only">{caption}</caption>
@@ -218,7 +249,7 @@ export function ScientificTable({
             {showIdentity ? (
               <th
                 scope="col"
-                className={`p-2 font-medium ${identityWidthClass}`}
+                className={`scientific-table__identity p-2 font-medium ${identityWidthClass}`}
               >
                 标识 / 主体
               </th>
@@ -233,12 +264,17 @@ export function ScientificTable({
                   variant="ghost"
                   size="small"
                   className="ui-text-body h-auto p-0 font-medium text-inherit"
+                  aria-label={
+                    formatScientificUnit(column.unit)
+                      ? `${column.label} (${formatScientificUnit(column.unit)})`
+                      : column.label
+                  }
                   onClick={() => toggleSort(column.key)}
                 >
-                  {column.label}
-                  {formatScientificUnit(column.unit)
-                    ? ` (${formatScientificUnit(column.unit)})`
-                    : ""}
+                  <span>{column.label}</span>
+                  {formatScientificUnit(column.unit) ? (
+                    <small>{formatScientificUnit(column.unit)}</small>
+                  ) : null}
                   {sort?.key === column.key
                     ? sort.direction === "asc"
                       ? " ↑"
@@ -255,7 +291,7 @@ export function ScientificTable({
               {showIdentity ? (
                 <th
                   scope="row"
-                  className="p-2 font-normal whitespace-nowrap text-[var(--color-ink-secondary)]"
+                  className="scientific-table__identity p-2 font-normal whitespace-nowrap text-[var(--color-ink-secondary)]"
                 >
                   {row.identity || "未命名记录"}
                 </th>

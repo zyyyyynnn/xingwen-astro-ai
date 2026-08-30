@@ -1,5 +1,4 @@
 import {
-  parseEntityId,
   safeExternalUrl,
   type DomainEntityId,
   type PublicArtifactPresentation,
@@ -21,6 +20,7 @@ import {
   taxonomyLabel,
   type ScientificContentSurface,
 } from "./scientific-content/shared";
+import { LiteratureReviewWorkspace } from "./literature-review-workspace";
 import { ScientificTable } from "./scientific-table";
 
 export function PresentationEvidenceActions({
@@ -273,23 +273,28 @@ export function ArtifactPresentationContent({
   readonly showHeader?: boolean;
   readonly onRequestRevision?: (intent: PresentationRevisionIntent) => void;
 }) {
+  if (
+    presentation.kind === "literature_claims" ||
+    presentation.kind === "literature_relations"
+  ) {
+    return (
+      <LiteratureReviewWorkspace
+        title={title}
+        presentation={presentation}
+        showTitle={showHeader}
+        onSelectEvidence={onSelectEvidence}
+        evidenceOrdinal={evidenceOrdinal}
+        onRequestRevision={onRequestRevision}
+      />
+    );
+  }
+
   const count =
     presentation.entries.length ||
     presentation.graphNodes.length ||
     presentation.sections.length ||
     presentation.facts.length;
-  const entries =
-    presentation.kind === "literature_relations"
-      ? [...presentation.entries].sort((left, right) => {
-          const priority = (status: string | null): number => {
-            if (status === "candidate") return 0;
-            if (status === "accepted") return 1;
-            if (status === "rejected") return 2;
-            return 3;
-          };
-          return priority(left.status) - priority(right.status);
-        })
-      : presentation.entries;
+  const entries = presentation.entries;
   return (
     <article
       className={`scientific-artifact scientific-artifact--${presentation.kind}`}
@@ -336,10 +341,7 @@ export function ArtifactPresentationContent({
         </section>
       ))}
       {entries.length > 0 ? (
-        <ol
-          className={`candidate-dossier${presentation.kind === "literature_relations" ? " candidate-dossier--relations" : ""}`}
-          aria-label="科学结果档案"
-        >
+        <ol className="candidate-dossier" aria-label="科学结果档案">
           {entries.map((entry) => {
             const externalUrl = safeExternalUrl(entry.externalUrl);
             const reasoningTrace = entry.reasoningTrace;
@@ -355,64 +357,6 @@ export function ArtifactPresentationContent({
                 evidenceOrdinal={evidenceOrdinal}
               />
             );
-
-            const isRelationsReview =
-              presentation.kind === "literature_relations";
-            const isCandidate = entry.status === "candidate";
-            const relationId = isRelationsReview
-              ? parseEntityId(entry.key)
-              : null;
-
-            const adjudicateNode =
-              onRequestRevision && relationId && isCandidate ? (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <Button
-                    size="small"
-                    variant="primary"
-                    onClick={() =>
-                      onRequestRevision({
-                        kind: "relation_adjudication",
-                        relationId,
-                        decision: "accepted",
-                      })
-                    }
-                  >
-                    接受并进入图谱
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="secondary"
-                    onClick={() =>
-                      onRequestRevision({
-                        kind: "relation_adjudication",
-                        relationId,
-                        decision: "rejected",
-                      })
-                    }
-                  >
-                    拒绝
-                  </Button>
-                </div>
-              ) : null;
-
-            const revisionNode =
-              onRequestRevision && relationId && entry.status === "rejected" ? (
-                <Button
-                  size="small"
-                  variant="ghost"
-                  className="text-xs"
-                  onClick={() =>
-                    onRequestRevision({
-                      kind: "relation_correction",
-                      relationId,
-                    })
-                  }
-                >
-                  重新分析此关系
-                </Button>
-              ) : null;
-
-            const actionsNode = adjudicateNode ?? revisionNode;
 
             const bodyNode = (
               <>
@@ -462,27 +406,6 @@ export function ArtifactPresentationContent({
               </>
             );
 
-            const reviewRailNode =
-              isRelationsReview && (evidenceNode || actionsNode) ? (
-                <div className="relation-review__rail">
-                  <div>
-                    <h5 className="ui-text-label mb-1.5 font-medium uppercase tracking-wider text-muted-foreground">
-                      审定信息
-                    </h5>
-                    <ScientificFactGrid facts={factItems} />
-                  </div>
-                  {actionsNode ? <div>{actionsNode}</div> : null}
-                  {evidenceNode ? (
-                    <div>
-                      <h5 className="ui-text-label mb-1.5 font-medium uppercase tracking-wider text-muted-foreground">
-                        证据
-                      </h5>
-                      {evidenceNode}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null;
-
             return (
               <li key={entry.key}>
                 <ScientificDossier
@@ -496,10 +419,8 @@ export function ArtifactPresentationContent({
                       : null
                   }
                   title={entry.title}
-                  facts={isRelationsReview && reviewRailNode ? [] : factItems}
-                  evidenceActions={reviewRailNode ? null : evidenceNode}
-                  actions={reviewRailNode ? null : revisionNode}
-                  aside={reviewRailNode}
+                  facts={factItems}
+                  evidenceActions={evidenceNode}
                   className="dossier__entry"
                   testId={`dossier-entry-${entry.key}`}
                 >

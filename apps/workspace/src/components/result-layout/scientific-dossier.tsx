@@ -125,7 +125,7 @@ export function ScientificDossier({
 
   return (
     <article
-      className={`xw-scientific-dossier border-b border-border/70 px-1 py-4 last:border-b-0 ${surfaceClass} ${className}`}
+      className={`xw-scientific-dossier border-b border-border/40 px-1 py-4 last:border-b-0 ${surfaceClass} ${className}`}
       data-status={status ?? undefined}
       data-testid={testId}
     >

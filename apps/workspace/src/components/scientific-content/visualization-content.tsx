@@ -1,4 +1,5 @@
 import type { ContentHash, VisualizationReviewContent } from "@xingwen/domain";
+import { Badge } from "@xingwen/ui";
 
 import { ScientificChart } from "../scientific-chart";
 import { WwtSceneControls } from "../wwt-scene-controls";
@@ -94,7 +95,72 @@ function FitsImageSummary({
       </>
     );
   }
-  return <WwtViewport spec={spec} loadContent={loadContent} />;
+  return (
+    <div className="observation-workspace observation-workspace--fits">
+      <div className="observation-workspace__body">
+        <div className="observation-workspace__canvas">
+          <WwtViewport spec={spec} loadContent={loadContent} />
+        </div>
+        <aside
+          className="observation-workspace__inspector"
+          aria-label="FITS 观测状态"
+        >
+          <header className="observation-workspace__inspector-header">
+            <div>
+              <span>观测产品</span>
+              <h3>FITS 图像切片</h3>
+            </div>
+            <Badge variant="secondary">可复现</Badge>
+          </header>
+
+          <section>
+            <h4>显示参数</h4>
+            <dl className="observation-workspace__facts">
+              <div>
+                <dt>像素拉伸</dt>
+                <dd>{STRETCH_LABELS[spec.stretch]}</dd>
+              </div>
+              <div>
+                <dt>色表</dt>
+                <dd>{spec.colorMap}</dd>
+              </div>
+              <div>
+                <dt>交互引擎</dt>
+                <dd>WorldWide Telescope</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section>
+            <h4>研究上下文</h4>
+            <p>{content.description || "当前结果未提供图像说明。"}</p>
+            <dl className="observation-workspace__facts">
+              <div>
+                <dt>来源快照</dt>
+                <dd>{content.sourceSnapshotIds.length} 个</dd>
+              </div>
+              <div>
+                <dt>核验依据</dt>
+                <dd>{content.evidenceIds.length} 条</dd>
+              </div>
+              <div>
+                <dt>科学处理</dt>
+                <dd>{content.skillExecutions.length} 个步骤</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section className="observation-workspace__note">
+            <h4>版本固定</h4>
+            <p>
+              画布加载的是当前结果版本绑定的 FITS 内容；下载 PNG
+              只导出当前视图，不会改写科研结果。
+            </p>
+          </section>
+        </aside>
+      </div>
+    </div>
+  );
 }
 
 function WwtSceneSummary({

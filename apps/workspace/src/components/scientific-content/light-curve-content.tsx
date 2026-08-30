@@ -35,7 +35,19 @@ interface LightCurvePoint {
 interface PeriodPeak {
   readonly period: number;
   readonly power: number;
-  readonly falseAlarmProbability?: number | null;
+}
+
+function formatProbability(value: number): string {
+  return Math.abs(value) < 0.001 && value !== 0
+    ? value.toExponential(2)
+    : formatNumber(value, 6);
+}
+
+function formatCadence(value: number, timeUnit: string): string {
+  if (["d", "day", "days"].includes(timeUnit.toLowerCase()) && value < 1) {
+    return `${formatNumber(value * 24 * 60, 2)} min`;
+  }
+  return `${formatNumber(value, 2)} ${timeUnit}`;
 }
 
 /** Time Series Plot (Flux vs Time) */
@@ -160,7 +172,7 @@ function TimeSeriesPlot({
           <path
             d={pathD}
             fill="none"
-            stroke="var(--color-primary)"
+            stroke="var(--color-brand)"
             strokeWidth="1.2"
             strokeOpacity="0.85"
           />
@@ -172,7 +184,7 @@ function TimeSeriesPlot({
             cx={pt.x}
             cy={pt.y}
             r={1.5}
-            fill="var(--color-primary)"
+            fill="var(--color-brand)"
             opacity={0.6}
           />
         ))}
@@ -192,8 +204,8 @@ function TimeSeriesPlot({
               cx={hoveredPoint.x}
               cy={hoveredPoint.y}
               r={4.5}
-              fill="var(--color-primary)"
-              stroke="var(--color-background)"
+              fill="var(--color-brand)"
+              stroke="var(--color-surface)"
               strokeWidth="1.5"
             />
           </g>
@@ -324,7 +336,7 @@ function PhaseFoldedPlot({
             cx={pt.x}
             cy={pt.y}
             r={2}
-            fill="var(--color-primary)"
+            fill="var(--color-brand)"
             opacity={0.7}
             className="cursor-pointer transition-transform hover:scale-150"
             onMouseEnter={() =>
@@ -404,15 +416,13 @@ function PhaseFoldedPlot({
 function PeriodogramPlot({
   peaks,
   timeUnit,
-  falseAlarmProbability,
 }: {
   readonly peaks: readonly PeriodPeak[];
   readonly timeUnit: string;
-  readonly falseAlarmProbability: number | null;
 }) {
-  const { projected, maxPower } = useMemo(() => {
+  const projected = useMemo(() => {
     if (peaks.length === 0) {
-      return { projected: [], minP: 0, maxP: 1, maxPower: 1 };
+      return [];
     }
 
     const width = 800;
@@ -433,48 +443,16 @@ function PeriodogramPlot({
       margin.left + ((p - pMin) / (pMax - pMin)) * innerW;
     const getY = (pow: number) => margin.top + (1 - pow / powerMax) * innerH;
 
-    return {
-      projected: peaks.map((pk) => ({
-        ...pk,
-        x: getX(pk.period),
-        y: getY(pk.power),
-      })),
-      maxPower: powerMax,
-    };
+    return peaks.map((pk) => ({
+      ...pk,
+      x: getX(pk.period),
+      y: getY(pk.power),
+    }));
   }, [peaks]);
-
-  const fapY =
-    falseAlarmProbability !== null && maxPower > 0
-      ? 20 + (1 - falseAlarmProbability / maxPower) * 220
-      : null;
 
   return (
     <div className="relative w-full overflow-hidden">
       <svg viewBox="0 0 800 280" className="w-full select-none">
-        {/* Authoritative FAP threshold, only when the artifact states one */}
-        {fapY !== null ? (
-          <>
-            <line
-              x1={60}
-              y1={fapY}
-              x2={776}
-              y2={fapY}
-              stroke="var(--color-warning)"
-              strokeOpacity="0.6"
-              strokeDasharray="4 4"
-            />
-            <text
-              x={770}
-              y={fapY - 5}
-              fontSize="9"
-              textAnchor="end"
-              fill="var(--color-warning)"
-            >
-              FAP 检出阈值
-            </text>
-          </>
-        ) : null}
-
         {/* Peak Pins — the artifact's periodogram output */}
         {projected.map((pk, idx) => (
           <g key={idx}>
@@ -483,15 +461,15 @@ function PeriodogramPlot({
               y1={240}
               x2={pk.x}
               y2={pk.y}
-              stroke="var(--color-destructive)"
+              stroke="var(--color-error)"
               strokeWidth="1.5"
             />
             <circle
               cx={pk.x}
               cy={pk.y}
               r={4}
-              fill="var(--color-destructive)"
-              stroke="var(--color-background)"
+              fill="var(--color-error)"
+              stroke="var(--color-surface)"
               strokeWidth="1"
             />
             <text
@@ -583,7 +561,7 @@ export function LightCurveContent({
           />
 
           <dl
-            className="flex flex-wrap items-baseline gap-x-6 gap-y-1 border-b border-border/70 pb-3 text-sm"
+            className="flex flex-wrap items-baseline gap-x-6 gap-y-1 rounded-md bg-surface-muted/60 px-3 py-2 text-sm"
             aria-label="光变测量摘要"
           >
             <div className="flex items-baseline gap-1.5">
@@ -614,22 +592,28 @@ export function LightCurveContent({
             </div>
             {content.falseAlarmProbability !== null ? (
               <div className="flex items-baseline gap-1.5">
-                <dt className="text-xs text-muted-foreground">FAP</dt>
+                <dt className="text-xs text-muted-foreground">全局 FAP</dt>
                 <dd className="font-semibold tabular-nums text-foreground">
-                  {formatNumber(content.falseAlarmProbability, 6)}
+                  {formatProbability(content.falseAlarmProbability)}
                 </dd>
               </div>
             ) : null}
             <div className="flex items-baseline gap-1.5">
               <dt className="text-xs text-muted-foreground">中位采样间隔</dt>
               <dd className="font-semibold tabular-nums text-foreground">
-                {formatNumber(content.medianCadence, 2)} {content.timeUnit}
+                {formatCadence(content.medianCadence, content.timeUnit)}
               </dd>
             </div>
             <div className="flex items-baseline gap-1.5">
               <dt className="text-xs text-muted-foreground">测量</dt>
               <dd className="font-semibold text-foreground">
                 {VALUE_KIND_LABELS[content.valueKind] ?? content.valueKind}
+              </dd>
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <dt className="text-xs text-muted-foreground">时间基准</dt>
+              <dd className="font-semibold text-foreground">
+                {content.timeScale.toUpperCase()}
               </dd>
             </div>
             <div className="flex items-baseline gap-1.5">
@@ -643,15 +627,15 @@ export function LightCurveContent({
       ) : null}
 
       {/* Multi-view Tabs */}
-      <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3">
+      <div className="light-curve-workspace">
+        <div className="light-curve-workspace__toolbar">
           <Tabs
             value={activeTab}
             onValueChange={(val) =>
               setActiveTab(val as "timeseries" | "folded" | "periodogram")
             }
           >
-            <TabsList>
+            <TabsList variant="line">
               <TabsTrigger value="timeseries">
                 连续光变序列 (Time Series)
               </TabsTrigger>
@@ -672,8 +656,8 @@ export function LightCurveContent({
               </span>
             ) : activeTab === "periodogram" ? (
               <span className="flex items-center gap-1.5">
-                <span className="inline-block h-0.5 w-4 border-b border-dashed border-[var(--color-warning)]" />{" "}
-                FAP 显著性阈值
+                <span className="inline-block size-2 rounded-full bg-destructive" />{" "}
+                权威周期峰值
               </span>
             ) : (
               <span className="flex items-center gap-1.5">
@@ -684,23 +668,26 @@ export function LightCurveContent({
           </div>
         </div>
 
-        {activeTab === "timeseries" && (
-          <TimeSeriesPlot
-            points={content.points}
-            timeUnit={content.timeUnit}
-            valueUnit={content.valueUnit}
-          />
-        )}
+        <div className="light-curve-workspace__plot">
+          {activeTab === "timeseries" && (
+            <TimeSeriesPlot
+              points={content.points}
+              timeUnit={content.timeUnit}
+              valueUnit={content.valueUnit}
+            />
+          )}
 
-        {activeTab === "folded" && <PhaseFoldedPlot points={content.points} />}
+          {activeTab === "folded" && (
+            <PhaseFoldedPlot points={content.points} />
+          )}
 
-        {activeTab === "periodogram" && (
-          <PeriodogramPlot
-            peaks={content.periodPeaks}
-            timeUnit={content.timeUnit}
-            falseAlarmProbability={content.falseAlarmProbability}
-          />
-        )}
+          {activeTab === "periodogram" && (
+            <PeriodogramPlot
+              peaks={content.periodPeaks}
+              timeUnit={content.timeUnit}
+            />
+          )}
+        </div>
       </div>
 
       {/* Tables — secondary detail, collapsed by default (spec §48) */}
@@ -722,7 +709,6 @@ export function LightCurveContent({
                   <tr>
                     <th>周期 ({content.timeUnit})</th>
                     <th>谱功率 Power</th>
-                    <th>虚警概率 (FAP)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -732,11 +718,6 @@ export function LightCurveContent({
                         {formatNumber(peak.period, 4)}
                       </td>
                       <td>{formatNumber(peak.power, 4)}</td>
-                      <td>
-                        {content.falseAlarmProbability === null
-                          ? "—"
-                          : formatNumber(content.falseAlarmProbability, 6)}
-                      </td>
                     </tr>
                   ))}
                 </tbody>

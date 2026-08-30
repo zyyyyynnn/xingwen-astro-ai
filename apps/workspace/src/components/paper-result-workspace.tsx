@@ -74,7 +74,7 @@ export function PaperResultWorkspace({
 
   const report = (
     <div className="xw-paper-report flex h-full flex-col">
-      <header className="mb-4 border-b border-border/80 pb-4">
+      <header className="mb-6">
         <div className="text-[length:var(--font-size-00)] uppercase tracking-wider text-muted-foreground">
           文献研读报告
         </div>
@@ -108,7 +108,7 @@ export function PaperResultWorkspace({
       data-artifact-version-id={version.id}
     >
       {hasDocument ? (
-        <div className="flex border-b border-border bg-muted/40 p-1 xl:hidden">
+        <div className="flex bg-muted/40 p-1 xl:hidden">
           <Tabs
             value={activePane}
             onValueChange={(value) => setActivePane(value as PaperResultPane)}
@@ -127,7 +127,7 @@ export function PaperResultWorkspace({
       ) : null}
 
       {toolbar ? (
-        <div className="shrink-0 border-b border-border bg-background px-4 py-2">
+        <div className="shrink-0 bg-surface-muted/50 px-4 py-2">
           {toolbar}
         </div>
       ) : null}
@@ -135,7 +135,7 @@ export function PaperResultWorkspace({
       {!hasDocument ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-[var(--workspace-result-reading-max-inline-size)] px-6 py-8">
-            <div className="mb-6 rounded-md border border-border/60 bg-surface-muted/40 p-3 text-xs text-muted-foreground">
+            <div className="mb-6 rounded-md bg-surface-muted/60 p-3 text-xs text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Info
                   className="size-4 shrink-0 text-muted-foreground"
@@ -169,13 +169,13 @@ export function PaperResultWorkspace({
               <ResizableHandle
                 id="report-paper-divider"
                 aria-label="调整研究报告与论文原文的宽度"
-                className="xw-resize-handle relative flex w-2 items-center justify-center bg-border/40 transition-colors hover:bg-primary/20 focus-visible:bg-primary/20"
+                className="xw-resize-handle relative flex w-2 items-center justify-center transition-colors hover:bg-primary/10 focus-visible:bg-primary/10"
               />
               <ResizablePanel
                 id="paper"
                 defaultSize="42%"
                 minSize="25%"
-                className="h-full overflow-hidden border-l border-border bg-muted/10"
+                className="h-full overflow-hidden bg-muted/10"
               >
                 {documentKind === "image" && documentUrl ? (
                   <img

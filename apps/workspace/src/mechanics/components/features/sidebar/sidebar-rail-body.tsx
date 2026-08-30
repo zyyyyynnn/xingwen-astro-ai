@@ -104,7 +104,12 @@ export function SidebarRailBody({
   ].filter((group) => group.projects.length > 0);
   return (
     <div className="flex h-full min-h-0 flex-col pb-[var(--space-3)]">
-      <header className="relative flex h-[var(--workspace-header-block-size)] shrink-0 items-center border-b border-[var(--color-border)] px-[var(--workspace-header-inline-padding)]">
+      <header
+        className={cn(
+          "relative flex h-[var(--workspace-header-block-size)] shrink-0 items-center px-[var(--workspace-header-inline-padding)]",
+          !collapsed && "border-b border-[var(--color-border)]",
+        )}
+      >
         <span
           className={cn(
             "min-w-0 overflow-hidden whitespace-nowrap",

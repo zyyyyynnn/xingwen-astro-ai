@@ -15,7 +15,7 @@ export function ArtifactToolbar({
 }: ArtifactToolbarProps) {
   return (
     <div
-      className={`xw-artifact-toolbar flex flex-wrap items-center justify-between gap-2 border-b border-border bg-surface-muted/50 px-3 py-2 ${className}`}
+      className={`xw-artifact-toolbar flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface-muted/70 px-3 py-2 ${className}`}
       role="toolbar"
       aria-label="结果操作栏"
     >

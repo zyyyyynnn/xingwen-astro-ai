@@ -8,6 +8,7 @@ import type { ResearchWorkspaceRuntime } from "../mechanics/root";
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
 import { artifactKindLabel } from "../presentation/artifact-presentation-labels";
 import { artifactResultSummary } from "../presentation/artifact-result-summary";
+import { resolveArtifactRenderer } from "../presentation/artifact-renderer-registry";
 import { ArtifactFullscreenWorkspace } from "./artifact-fullscreen-workspace";
 import { ResultIndexItem } from "./result-layout";
 
@@ -78,32 +79,88 @@ function ArtifactResultIndex({
     );
   }
 
-  return (
-    <div className="space-y-1" aria-label="研究结果">
-      {visible.map((artifact, index) => {
-        const versionData = versionQueries[index]?.data;
-        const kindLabel = artifactKindLabel(artifact.kind);
-        const evidenceCount = versionData?.provenance.evidenceIds.length ?? 0;
-        const scientificSummary = versionData
-          ? artifactResultSummary(versionData.presentation)
-          : null;
-        const metadataSummary =
-          scientificSummary ??
-          (evidenceCount > 0 ? `证据 ${evidenceCount} 条` : null);
+  const indexed = visible.map((artifact, index) => ({
+    artifact,
+    versionData: versionQueries[index]?.data,
+  }));
+  const reviewItems = indexed.filter(({ artifact, versionData }) => {
+    if (artifact.kind !== "literature_relations") return false;
+    return Boolean(
+      versionData?.presentation.entries?.some(
+        (entry) => entry.status === "candidate",
+      ),
+    );
+  });
+  const ordinaryItems = indexed.filter((item) => !reviewItems.includes(item));
 
-        return (
-          <ResultIndexItem
-            key={artifact.id}
-            artifactId={artifact.id}
-            latestVersionId={artifact.latestVersionId}
-            kind={artifact.kind}
-            kindLabel={kindLabel}
-            title={artifact.title}
-            metadataSummary={metadataSummary}
-            onOpen={onOpen}
-          />
-        );
-      })}
+  const renderItem = ({ artifact, versionData }: (typeof indexed)[number]) => {
+    const kindLabel = artifactKindLabel(artifact.kind);
+    const evidenceCount = versionData?.provenance.evidenceIds.length ?? 0;
+    const fallbackSummary = versionData
+      ? artifactResultSummary(versionData.presentation)
+      : evidenceCount > 0
+        ? `证据 ${evidenceCount} 条`
+        : null;
+    const descriptor = resolveArtifactRenderer(artifact.kind);
+    const reviewCount =
+      artifact.kind === "literature_relations"
+        ? (versionData?.presentation.entries?.filter(
+            (entry) => entry.status === "candidate",
+          ).length ?? 0)
+        : 0;
+
+    const row = (metadataSummary: string | null) => (
+      <ResultIndexItem
+        key={artifact.id}
+        artifactId={artifact.id}
+        latestVersionId={artifact.latestVersionId}
+        kind={artifact.kind}
+        kindLabel={kindLabel}
+        title={artifact.title}
+        metadataSummary={metadataSummary}
+        statusLabel={reviewCount > 0 ? `${reviewCount} 待审` : null}
+        statusVariant={reviewCount > 0 ? "outline" : undefined}
+        onOpen={onOpen}
+      />
+    );
+
+    if (!descriptor) return row(fallbackSummary);
+    const SummaryRenderer = descriptor.SummaryRenderer;
+    return (
+      <SummaryRenderer
+        key={artifact.id}
+        runtime={runtime}
+        projectId={projectId}
+        artifact={artifact}
+        versionId={artifact.latestVersionId}
+      >
+        {(summary) => row(summary ?? fallbackSummary)}
+      </SummaryRenderer>
+    );
+  };
+
+  return (
+    <div className="space-y-4" aria-label="研究结果">
+      {reviewItems.length > 0 ? (
+        <section aria-labelledby="review-results-title">
+          <h3
+            id="review-results-title"
+            className="ui-text-label mb-1 font-medium text-foreground"
+          >
+            需要处理 · {reviewItems.length}
+          </h3>
+          <div>{reviewItems.map(renderItem)}</div>
+        </section>
+      ) : null}
+      <section aria-labelledby="all-results-title">
+        <h3
+          id="all-results-title"
+          className="ui-text-label mb-1 font-medium text-muted-foreground"
+        >
+          研究结果 · {ordinaryItems.length}
+        </h3>
+        <div>{ordinaryItems.map(renderItem)}</div>
+      </section>
     </div>
   );
 }
