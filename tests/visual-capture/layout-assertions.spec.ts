@@ -92,6 +92,31 @@ test.describe("dataset table headers stay single-line", () => {
           .evaluate((element) => window.getComputedStyle(element).whiteSpace),
       ).toBe("nowrap");
     }
+
+    const tableScroller = page.locator(".scientific-table").first();
+    await tableScroller.evaluate((element) => {
+      element.scrollLeft = element.scrollWidth;
+    });
+    const stickyIdentityCells = page.locator(
+      "[data-testid='artifact-fullscreen-workspace'] .scientific-table__identity",
+    );
+    expect(await stickyIdentityCells.count()).toBeGreaterThan(1);
+    for (const index of [0, 1]) {
+      const ownsStickyEdge = await stickyIdentityCells
+        .nth(index)
+        .evaluate((element) => {
+          const rect = element.getBoundingClientRect();
+          const hit = document.elementFromPoint(
+            rect.right - 2,
+            rect.top + rect.height / 2,
+          );
+          return hit === element || (hit !== null && element.contains(hit));
+        });
+      expect(
+        ownsStickyEdge,
+        `sticky identity cell ${index} is painted below a scrolling cell`,
+      ).toBe(true);
+    }
   });
 });
 

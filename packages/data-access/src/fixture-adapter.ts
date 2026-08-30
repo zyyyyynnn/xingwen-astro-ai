@@ -998,7 +998,7 @@ export function createFixtureRepositories(
             {
               value: "tabular_machine_learning",
               label: "科学推导与可比性审查",
-              description: "主张关系推导与冲突判别",
+              description: "科学关系推导与冲突判别",
               group: "advanced",
             },
           ],
@@ -1035,7 +1035,7 @@ export function createFixtureRepositories(
             },
             {
               value: "literature_relations",
-              label: "主张关系与推导",
+              label: "科学关系与公开推导",
               description: "5 条主张间关系",
               group: "common",
             },

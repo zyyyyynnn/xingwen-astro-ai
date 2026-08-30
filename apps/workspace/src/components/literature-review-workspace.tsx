@@ -91,7 +91,7 @@ function EvidenceActions({
           <Button
             key={evidenceId}
             type="button"
-            variant="secondary"
+            variant="ghost"
             size="xsmall"
             onClick={() => onSelectEvidence(evidenceId)}
           >
@@ -131,9 +131,6 @@ function EntryContext({
   return (
     <aside className="literature-review__context" aria-live="polite">
       <header className="literature-review__context-header">
-        <p className="ui-text-label text-muted-foreground">
-          {isRelations ? "审定上下文" : "声明上下文"}
-        </p>
         <h3>{entry.title}</h3>
         {assessment ? (
           <p className="ui-text-label text-muted-foreground">{assessment}</p>
@@ -339,14 +336,11 @@ export function LiteratureReviewWorkspace({
       className="literature-review"
       data-kind={isRelations ? "relations" : "claims"}
     >
-      <header className="literature-review__header">
-        <div>
-          <p className="literature-review__eyebrow ui-text-label text-muted-foreground">
-            {isRelations ? "关系审定工作区" : "声明核验工作区"}
-          </p>
-          {showTitle ? <h2>{title}</h2> : null}
-        </div>
-      </header>
+      {showTitle ? (
+        <header className="literature-review__header">
+          <h2>{title}</h2>
+        </header>
+      ) : null}
 
       {presentation.sections.length > 0 ? (
         <Accordion

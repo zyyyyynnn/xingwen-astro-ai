@@ -298,6 +298,17 @@ export function selectGlobalRevisionMode(): RevisionMode {
   return { kind: "artifact_correction" };
 }
 
+export function revisionModeFromIntent(intent: RevisionIntent): RevisionMode {
+  if (intent.kind === "relation_adjudication") {
+    return {
+      kind: "relation_adjudication",
+      prefillRelationId: intent.relationId,
+      prefillDecision: intent.decision,
+    };
+  }
+  return intent;
+}
+
 function revisionModeCopy(mode: RevisionMode): {
   readonly title: string;
   readonly description: string;
@@ -375,6 +386,9 @@ function RevisionSheet({
         : "accepted",
     );
   const [plan, setPlan] = useState<RevisionPlan | null>(null);
+  const selectedCandidate = candidateRelations.find(
+    (candidate) => candidate.relationId === selectedRelationId,
+  );
   const feedbackMutation = useMutation(
     runtime.application.mutations.revisionFeedbackCreate(),
   );
@@ -472,34 +486,44 @@ function RevisionSheet({
               {mode.kind === "relation_adjudication" ? (
                 <>
                   <Field>
-                    <FieldLabel htmlFor="revision-relation">
-                      选择候选关系
-                    </FieldLabel>
-                    <Select
-                      value={selectedRelationId ?? undefined}
-                      onValueChange={(value) =>
-                        setSelectedRelationId(value as DomainEntityId)
+                    <FieldLabel
+                      htmlFor={
+                        mode.prefillRelationId ? undefined : "revision-relation"
                       }
                     >
-                      <SelectTrigger
-                        id="revision-relation"
-                        className="result-sheet-control"
+                      候选关系
+                    </FieldLabel>
+                    {mode.prefillRelationId && selectedCandidate ? (
+                      <div className="revision-relation-summary">
+                        <strong>{selectedCandidate.title}</strong>
+                      </div>
+                    ) : (
+                      <Select
+                        value={selectedRelationId ?? undefined}
+                        onValueChange={(value) =>
+                          setSelectedRelationId(value as DomainEntityId)
+                        }
                       >
-                        <SelectValue placeholder="选择候选关系" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {candidateRelations.map((candidate) => (
-                            <SelectItem
-                              key={candidate.relationId}
-                              value={candidate.relationId}
-                            >
-                              {candidate.title}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
+                        <SelectTrigger
+                          id="revision-relation"
+                          className="result-sheet-control"
+                        >
+                          <SelectValue placeholder="选择候选关系" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {candidateRelations.map((candidate) => (
+                              <SelectItem
+                                key={candidate.relationId}
+                                value={candidate.relationId}
+                              >
+                                {candidate.title}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    )}
                   </Field>
                   <Field>
                     <FieldLabel>审定结论</FieldLabel>
@@ -680,7 +704,7 @@ export function ArtifactFullscreenWorkspace({
   };
 
   const handleObjectRevision = (intent: RevisionIntent) => {
-    setRevisionMode(intent);
+    setRevisionMode(revisionModeFromIntent(intent));
     setRevisionOpenNonce((nonce) => nonce + 1);
   };
 

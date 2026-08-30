@@ -50,6 +50,12 @@ async function openThreadArtifact(
 async function selectEntryWithReasoningTrace(
   workspace: Locator,
 ): Promise<void> {
+  if (
+    (await workspace.getByRole("button", { name: "公开推导与限制" }).count()) >
+    0
+  ) {
+    return;
+  }
   const entries = workspace.locator('[data-testid^="literature-entry-"]');
   for (let index = 0; index < (await entries.count()); index += 1) {
     await entries.nth(index).click();
@@ -904,9 +910,6 @@ test("real worker exposes Literature dossiers, public reasoning, and interactive
   const fullscreen = page.getByTestId("artifact-fullscreen-workspace");
   await openThreadArtifact(page, result.literature_claims);
   const claimsWorkspace = fullscreen.locator("article.literature-review");
-  await expect(
-    claimsWorkspace.getByText("声明核验工作区", { exact: true }),
-  ).toBeVisible();
   const claimTitle = "Confirmed transiting planets orbit nearby host stars.";
   await claimsWorkspace
     .getByRole("button", { name: `选择${claimTitle}` })
@@ -921,9 +924,6 @@ test("real worker exposes Literature dossiers, public reasoning, and interactive
 
   await openThreadArtifact(page, result.literature_relations, "审查结果");
   const relationWorkspace = fullscreen.locator("article.literature-review");
-  await expect(
-    relationWorkspace.getByText("关系审定工作区", { exact: true }),
-  ).toBeVisible();
   const traceConclusion =
     "The two claims compare methods over the same objects.";
   await selectEntryWithReasoningTrace(relationWorkspace);
@@ -944,9 +944,6 @@ test("real worker exposes Literature dossiers, public reasoning, and interactive
   const relationShareUrl = await relationShareLink.inputValue();
   await page.goto(relationShareUrl);
   const publicWorkspace = page.locator("article.literature-review");
-  await expect(
-    publicWorkspace.getByText("关系审定工作区", { exact: true }),
-  ).toBeVisible();
   await selectEntryWithReasoningTrace(publicWorkspace);
   await publicWorkspace.getByRole("button", { name: "公开推导与限制" }).click();
   await expect(

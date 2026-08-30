@@ -228,9 +228,7 @@ describe("PublicShareView", () => {
     );
 
     const dossier = screen.getByRole("list", { name: "科学结果档案" });
-    fireEvent.click(
-      within(dossier).getByRole("button", { name: "查看证据 2" }),
-    );
+    fireEvent.click(within(dossier).getByRole("button", { name: "证据 2" }));
 
     expect(screen.getByRole("heading", { name: "证据 2" })).toBeVisible();
     expect(screen.getByText("Second frozen evidence.")).toBeVisible();

@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   describeArtifactLineage,
+  revisionModeFromIntent,
   selectGlobalRevisionMode,
   toCandidateRelationOptions,
 } from "./artifact-fullscreen-workspace";
@@ -109,6 +110,20 @@ describe("Object revision candidate gating", () => {
   it("keeps the fullscreen global revision action as artifact correction", () => {
     expect(selectGlobalRevisionMode()).toEqual({
       kind: "artifact_correction",
+    });
+  });
+
+  it("carries an entry adjudication target and decision into the sheet", () => {
+    expect(
+      revisionModeFromIntent({
+        kind: "relation_adjudication",
+        relationId: "rel_03" as DomainEntityId,
+        decision: "rejected",
+      }),
+    ).toEqual({
+      kind: "relation_adjudication",
+      prefillRelationId: "rel_03",
+      prefillDecision: "rejected",
     });
   });
 });

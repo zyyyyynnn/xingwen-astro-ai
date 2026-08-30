@@ -62,9 +62,8 @@
 }
 
 .xw-button--outline {
-  border-color: var(--color-border-strong);
+  border-color: var(--color-border);
   background: var(--color-surface);
-  box-shadow: var(--shadow-float);
   color: var(--color-ink-primary);
 }
 

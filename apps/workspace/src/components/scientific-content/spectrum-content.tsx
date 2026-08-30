@@ -398,7 +398,7 @@ function SpectrumPlot({
         {/* Hover Tooltip Overlay */}
         {hoveredPoint ? (
           <div
-            className="pointer-events-none absolute top-2 rounded border border-border bg-popover/95 px-2.5 py-1.5 text-xs shadow-md backdrop-blur-sm"
+            className="pointer-events-none absolute top-2 rounded border border-border bg-popover px-2.5 py-1.5 text-xs shadow-md"
             style={{
               left: `${Math.min(Math.max((hoveredPoint.x / 800) * 100, 10), 85)}%`,
               transform: "translateX(-50%)",

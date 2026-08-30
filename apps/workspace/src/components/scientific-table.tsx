@@ -8,7 +8,12 @@ import {
   DropdownMenuTrigger,
   Input,
 } from "@xingwen/ui";
-import { Search } from "@xingwen/ui/icons";
+import {
+  ChevronDown,
+  ChevronUp,
+  Search,
+  TableProperties,
+} from "@xingwen/ui/icons";
 import { useMemo, useState } from "react";
 
 export type ScientificTableScalar = string | number | boolean | null;
@@ -198,7 +203,7 @@ export function ScientificTable({
   const identityWidthClass = COLUMN_MIN_WIDTH.identity;
 
   return (
-    <div className="scientific-table my-2 overflow-x-auto rounded-lg bg-[var(--color-surface)] shadow-[var(--shadow-float)]">
+    <div className="scientific-table my-2 overflow-x-auto bg-[var(--color-surface)]">
       <div className="scientific-table__toolbar">
         <div className="scientific-table__search">
           <Search aria-hidden="true" />
@@ -219,6 +224,7 @@ export function ScientificTable({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="small" variant="secondary">
+                <TableProperties aria-hidden="true" />
                 选择列
               </Button>
             </DropdownMenuTrigger>
@@ -275,11 +281,13 @@ export function ScientificTable({
                   {formatScientificUnit(column.unit) ? (
                     <small>{formatScientificUnit(column.unit)}</small>
                   ) : null}
-                  {sort?.key === column.key
-                    ? sort.direction === "asc"
-                      ? " ↑"
-                      : " ↓"
-                    : ""}
+                  {sort?.key === column.key ? (
+                    sort.direction === "asc" ? (
+                      <ChevronUp aria-hidden="true" />
+                    ) : (
+                      <ChevronDown aria-hidden="true" />
+                    )
+                  ) : null}
                 </Button>
               </th>
             ))}
@@ -291,7 +299,7 @@ export function ScientificTable({
               {showIdentity ? (
                 <th
                   scope="row"
-                  className="scientific-table__identity p-2 whitespace-nowrap"
+                  className={`scientific-table__identity p-2 whitespace-nowrap ${identityWidthClass}`}
                 >
                   {row.identity || "未命名记录"}
                 </th>

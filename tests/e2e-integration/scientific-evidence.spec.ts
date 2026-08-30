@@ -183,9 +183,6 @@ test("real worker closes the reasoning chain into an operable evidence graph", a
   // Claims dossier renders human statements with verifiable evidence actions.
   await openThreadArtifact(page, artifactVersionIds.literature_claims);
   const claimsWorkspace = fullscreen.locator("article.literature-review");
-  await expect(
-    claimsWorkspace.getByText("声明核验工作区", { exact: true }),
-  ).toBeVisible();
   await claimsWorkspace.getByRole("button", { name: "证据 1" }).first().click();
   await expect(page.getByRole("heading", { name: "研究证据" })).toBeVisible();
   await expect(page.getByText("来源内容", { exact: true })).toBeVisible();

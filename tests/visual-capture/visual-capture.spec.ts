@@ -289,14 +289,23 @@ test.describe("fullscreen formal artifact workspaces", () => {
       if (versionId === "artv_dataset_01") {
         const scroller = page.locator(".scientific-table").first();
         await scroller.evaluate((element) => {
-          element.scrollLeft = element.scrollWidth;
+          const identity = element.querySelector<HTMLElement>(
+            "thead .scientific-table__identity",
+          );
+          const headers = [
+            ...element.querySelectorAll<HTMLElement>(
+              "thead th:not(.scientific-table__identity)",
+            ),
+          ];
+          const identityWidth = identity?.getBoundingClientRect().width ?? 0;
+          const maxScroll = element.scrollWidth - element.clientWidth;
+          const alignedStops = headers
+            .map((header) => header.offsetLeft - identityWidth)
+            .filter((offset) => offset > 0 && offset <= maxScroll);
+          element.scrollLeft = alignedStops.at(-1) ?? maxScroll;
         });
         expect(
-          await scroller.evaluate(
-            (element) =>
-              element.scrollLeft + element.clientWidth >=
-              element.scrollWidth - 2,
-          ),
+          await scroller.evaluate((element) => element.scrollLeft > 0),
         ).toBe(true);
         await shot(page, "21_artifact-dataset-horizontal-scroll");
       }
@@ -415,7 +424,8 @@ test.describe("paper summary reading workspace", () => {
     await shot(page, "24b_paper-summary-with-pdf");
 
     await fullscreen
-      .getByRole("button", { name: /查看证据/ })
+      .locator(".xw-paper-report:visible")
+      .getByRole("button", { name: /证据/ })
       .nth(1)
       .click();
     await page.getByRole("button", { name: "在论文中查看" }).click();
@@ -726,6 +736,7 @@ test.describe("desktop accessibility NFR", () => {
   test("long fullscreen dossier content is scroll-reachable", async ({
     page,
   }) => {
+    await page.setViewportSize({ width: 1440, height: 600 });
     await page.goto(`${PROJECT_A}?artifactVersionId=artv_claims_01`);
     await expect(
       page.getByTestId("artifact-fullscreen-workspace"),

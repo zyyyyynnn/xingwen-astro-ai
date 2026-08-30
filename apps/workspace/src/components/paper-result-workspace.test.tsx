@@ -22,8 +22,13 @@ vi.mock("./scientific-presentation", () => ({
   ),
 }));
 
-const artifact = {} as never;
-const version = {} as never;
+const artifact = { title: "Transit timing review" } as never;
+const version = {
+  id: "artv_paper_test",
+  presentation: {
+    sections: [{ title: "研究结论" }, { title: "局限性" }],
+  },
+} as never;
 const onSelectEvidence = vi.fn();
 
 describe("PaperResultWorkspace narrow reading state", () => {
@@ -39,6 +44,28 @@ describe("PaperResultWorkspace narrow reading state", () => {
     }
     return element;
   }
+
+  it("exposes paper metadata and working section locators", () => {
+    render(
+      <PaperResultWorkspace
+        artifact={artifact}
+        version={version}
+        onSelectEvidence={onSelectEvidence}
+        paperMeta={{ authors: ["A. Researcher"], year: 2024 }}
+      />,
+    );
+
+    expect(screen.getByText("A. Researcher")).toBeInTheDocument();
+    expect(screen.getByText("2024")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "研究结论" })).toHaveAttribute(
+      "href",
+      "#paper-report-1",
+    );
+    expect(screen.getByRole("link", { name: "局限性" })).toHaveAttribute(
+      "href",
+      "#paper-report-2",
+    );
+  });
 
   it("keeps report and document panes mounted while switching tabs", () => {
     render(

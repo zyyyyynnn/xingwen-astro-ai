@@ -26,7 +26,13 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@xingwen/ui";
-import { Database, Search, ShieldCheck } from "@xingwen/ui/icons";
+import {
+  Database,
+  Library,
+  Search,
+  SearchCheck,
+  ShieldCheck,
+} from "@xingwen/ui/icons";
 
 import { formatScientificUnit, ScientificTable } from "./scientific-table";
 import { ArtifactMetadataStrip, ArtifactToolbar } from "./result-layout";
@@ -345,22 +351,12 @@ function FieldDictionaryRenderer({
                         {field.labelEn || "标准字段"}
                       </span>
                     </span>
-                    <span
-                      className="field-dictionary__badges"
-                      aria-hidden="true"
-                    >
-                      {roles.map((role) => (
-                        <Badge key={role} variant="default">
-                          {role}
-                        </Badge>
-                      ))}
-                      <Badge variant="secondary">
-                        {DATA_TYPE_LABELS[field.dataType] ?? field.dataType}
-                        {unit ? ` · ${unit}` : ""}
-                      </Badge>
-                      <Badge variant={field.required ? "secondary" : "outline"}>
-                        {field.required ? "必填" : "可选"}
-                      </Badge>
+                    <span className="field-dictionary__traits">
+                      {[
+                        ...roles,
+                        `${DATA_TYPE_LABELS[field.dataType] ?? field.dataType}${unit ? ` · ${unit}` : ""}`,
+                        field.required ? "必填" : "可选",
+                      ].join(" · ")}
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="field-dictionary__content">
@@ -508,14 +504,23 @@ function SourceCollectionRenderer({
                   : member.side === "right"
                     ? "交叉核验"
                     : "研究来源";
+              const SourceIcon =
+                member.side === "left"
+                  ? Database
+                  : member.side === "right"
+                    ? SearchCheck
+                    : Library;
               return (
                 <Item
                   key={`${member.sourceSnapshotId}-${member.side}`}
-                  variant="muted"
+                  variant="default"
                   className="source-collection__item"
                 >
-                  <ItemMedia className="source-collection__item-icon">
-                    <Database aria-hidden="true" />
+                  <ItemMedia
+                    className="source-collection__item-icon"
+                    data-role={member.side ?? "source"}
+                  >
+                    <SourceIcon aria-hidden="true" />
                   </ItemMedia>
                   <ItemContent>
                     <div className="source-collection__item-meta">

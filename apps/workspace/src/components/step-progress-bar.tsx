@@ -21,7 +21,7 @@ export function StepProgressBar({
 
   return (
     <div
-      className="my-3 flex w-full items-center justify-between rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-hover)] px-3.5 py-2 text-xs text-[var(--color-ink-primary)] shadow-[var(--shadow-float)]"
+      className="my-3 flex w-full items-center justify-between border-y border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3.5 py-2 text-xs text-[var(--color-ink-primary)]"
       data-testid="step-progress-bar"
       role="status"
     >

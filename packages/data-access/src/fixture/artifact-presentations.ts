@@ -175,7 +175,7 @@ export const artifactPresentations = {
     kind: "literature_relations",
     facts: [
       {
-        label: "主张关系",
+        label: "关系审定",
         values: ["5 条 (2 已接受 · 2 候选待审 · 1 已驳回)"],
       },
     ],

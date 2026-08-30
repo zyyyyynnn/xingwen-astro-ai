@@ -5,13 +5,7 @@ import type {
   ModelArtifactReviewContent,
   ModelEvaluationReviewContent,
 } from "@xingwen/domain";
-import {
-  Badge,
-  Button,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@xingwen/ui";
+import { Button, Popover, PopoverContent, PopoverTrigger } from "@xingwen/ui";
 import { Download, Info } from "@xingwen/ui/icons";
 
 import { downloadBytes } from "../../presentation/browser-download";
@@ -249,17 +243,13 @@ export function ModelEvaluationContent({
             <h4 className="mb-2 text-sm font-semibold text-foreground">
               输入特征字段 (Feature Input Fields)
             </h4>
-            <div className="flex flex-wrap gap-1.5">
+            <ul className="model-report__feature-list">
               {content.featureFields.map((f) => (
-                <Badge
-                  key={f}
-                  variant="secondary"
-                  className="font-mono text-xs"
-                >
-                  {f}
-                </Badge>
+                <li key={f}>
+                  <code>{f}</code>
+                </li>
               ))}
-            </div>
+            </ul>
           </section>
         ) : null}
 

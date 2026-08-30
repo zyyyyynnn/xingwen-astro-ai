@@ -224,14 +224,9 @@ export function PaperCollectionWorkspace({
   );
 
   return (
-    <section
-      className="paper-collection-workspace"
-      aria-labelledby="paper-collection-title"
-    >
+    <section className="paper-collection-workspace" aria-label="文献候选审查">
       <header className="paper-collection-workspace__header">
         <div>
-          <p className="ui-text-label text-muted-foreground">文献检索审查</p>
-          <h2 id="paper-collection-title">候选筛选与全文绑定</h2>
           <p>
             {review.query.yearFrom}–{review.query.yearTo} ·{" "}
             {review.query.sourceIds.map(sourceLabel).join("、")} ·{" "}

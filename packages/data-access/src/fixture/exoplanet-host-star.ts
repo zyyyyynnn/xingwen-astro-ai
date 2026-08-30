@@ -816,7 +816,7 @@ const runEvents: readonly RunEventDto[] = [
     activity_name: "分析并验证文献证据",
     step_key: "reasoning_literature",
     progress: 70,
-    content: "已抽取 6 条科学主张与 5 条主张关系，完成可比性推导与审定分析。",
+    content: "已抽取 6 条科学主张与 5 条科学关系，完成可比性推导与审定分析。",
     details: {
       tool_kind: "evidence_validation",
       quote:
@@ -1106,7 +1106,7 @@ const artifacts: readonly ResearchArtifactDto[] = [
     "art_rels_01",
     "proj_01JEXAMPLE",
     "literature_relations",
-    "科学主张关系与推导",
+    "科学关系与公开推导",
     "literature_relations.primary",
     "artv_rels_01",
   ),

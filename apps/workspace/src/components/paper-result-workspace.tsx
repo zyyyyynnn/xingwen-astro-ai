@@ -65,6 +65,7 @@ export function PaperResultWorkspace({
 
   const widePdfRef = useRef<PaperPdfViewerHandle>(null);
   const narrowPdfRef = useRef<PaperPdfViewerHandle>(null);
+  const reportSections = version.presentation?.sections ?? [];
 
   useEffect(() => {
     if (requestedPageIndex === null || requestedPageNonce === null) return;
@@ -72,24 +73,49 @@ export function PaperResultWorkspace({
     narrowPdfRef.current?.jumpToPage(requestedPageIndex);
   }, [requestedPageIndex, requestedPageNonce]);
 
-  const report = (
+  const renderReport = (sectionIdPrefix: string) => (
     <div className="xw-paper-report flex h-full flex-col">
-      <header className="mb-6">
-        <div className="text-[length:var(--font-size-00)] uppercase tracking-wider text-muted-foreground">
-          文献研读报告
-        </div>
-        <h2 className="mt-1 font-serif text-2xl font-bold tracking-tight text-foreground">
+      <header className="paper-report__header">
+        <h2 className="font-serif text-2xl font-bold tracking-tight text-foreground">
           {paperMeta?.title ?? artifact.title}
         </h2>
-        {paperMeta?.authors?.length ? (
-          <p className="mt-1 text-xs text-muted-foreground">
-            {paperMeta.authors.join("，")}
-            {paperMeta.year ? ` · ${paperMeta.year}` : ""}
-          </p>
+        <dl className="paper-report__metadata">
+          {paperMeta?.authors?.length ? (
+            <div>
+              <dt>作者</dt>
+              <dd>{paperMeta.authors.join("，")}</dd>
+            </div>
+          ) : null}
+          {paperMeta?.year ? (
+            <div>
+              <dt>年份</dt>
+              <dd>{paperMeta.year}</dd>
+            </div>
+          ) : null}
+          <div>
+            <dt>章节</dt>
+            <dd>{reportSections.length}</dd>
+          </div>
+          <div>
+            <dt>原文</dt>
+            <dd>{hasDocument ? "已关联，可同屏核对" : "未关联"}</dd>
+          </div>
+        </dl>
+        {reportSections.length > 1 ? (
+          <nav className="paper-report__section-nav" aria-label="报告章节">
+            <span>快速定位</span>
+            <div>
+              {reportSections.map((section, index) => (
+                <a
+                  key={section.title}
+                  href={`#${sectionIdPrefix}-${index + 1}`}
+                >
+                  {section.title}
+                </a>
+              ))}
+            </div>
+          </nav>
         ) : null}
-        <p className="mt-1 text-xs text-muted-foreground">
-          {hasDocument ? "全文文档已关联 · 可与报告同屏核对" : "全文文档未关联"}
-        </p>
       </header>
       <ArtifactPresentationContent
         title={artifact.title}
@@ -97,6 +123,7 @@ export function PaperResultWorkspace({
         surface="fullscreen"
         onSelectEvidence={onSelectEvidence}
         showHeader={false}
+        sectionIdPrefix={sectionIdPrefix}
       />
     </div>
   );
@@ -133,7 +160,7 @@ export function PaperResultWorkspace({
       {!hasDocument ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-[var(--workspace-result-reading-max-inline-size)] px-6 py-8">
-            <div className="mb-6 rounded-md bg-surface-muted/60 p-3 text-xs text-muted-foreground">
+            <div className="paper-report__notice">
               <div className="flex items-center gap-2">
                 <Info
                   className="size-[var(--icon-size-md)] shrink-0 text-muted-foreground"
@@ -146,7 +173,7 @@ export function PaperResultWorkspace({
               </div>
             </div>
 
-            {report}
+            {renderReport("paper-report")}
           </div>
         </div>
       ) : (
@@ -162,7 +189,7 @@ export function PaperResultWorkspace({
                 minSize="30%"
                 className="h-full overflow-y-auto p-6"
               >
-                {report}
+                {renderReport("paper-report-wide")}
               </ResizablePanel>
               <ResizableHandle
                 id="report-paper-divider"
@@ -198,7 +225,7 @@ export function PaperResultWorkspace({
               hidden={activePane !== "report"}
               aria-label="研究报告"
             >
-              {report}
+              {renderReport("paper-report-narrow")}
             </section>
             <section
               className="h-full overflow-hidden"

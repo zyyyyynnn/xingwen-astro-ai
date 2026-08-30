@@ -48,7 +48,7 @@ export function PresentationEvidenceActions({
           onClick={() => onSelectEvidence(evidenceId)}
         >
           <Quote aria-hidden="true" />
-          查看证据 {ordinal}
+          证据 {ordinal}
         </Button>
       ))}
     </div>
@@ -264,6 +264,7 @@ export function ArtifactPresentationContent({
   evidenceOrdinal,
   showHeader = true,
   onRequestRevision,
+  sectionIdPrefix = "presentation-section",
 }: {
   readonly title: string;
   readonly presentation: PublicArtifactPresentation;
@@ -272,6 +273,7 @@ export function ArtifactPresentationContent({
   readonly evidenceOrdinal?: (evidenceId: DomainEntityId) => number | null;
   readonly showHeader?: boolean;
   readonly onRequestRevision?: (intent: PresentationRevisionIntent) => void;
+  readonly sectionIdPrefix?: string;
 }) {
   if (
     presentation.kind === "literature_claims" ||
@@ -314,8 +316,12 @@ export function ArtifactPresentationContent({
         presentation={presentation}
         onSelectEvidence={onSelectEvidence}
       />
-      {presentation.sections.map((section) => (
-        <section className="scientific-artifact__section" key={section.title}>
+      {presentation.sections.map((section, sectionIndex) => (
+        <section
+          className="scientific-artifact__section"
+          id={`${sectionIdPrefix}-${sectionIndex + 1}`}
+          key={section.title}
+        >
           <h3>{section.title}</h3>
           {section.paragraphs.map((paragraph, index) => (
             <div

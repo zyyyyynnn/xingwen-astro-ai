@@ -116,9 +116,6 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
             {!hasStartedConversation ? (
               <div className="mx-auto mb-[var(--space-6)] flex w-full max-w-[var(--workspace-content-max-inline-size)] flex-col gap-[var(--space-6)]">
                 <div className="mx-auto flex max-w-[var(--workspace-result-reading-max-inline-size)] flex-col items-center text-center">
-                  <p className="mb-[var(--space-2)] text-[length:var(--font-size-ui-label)] font-semibold text-[var(--color-brand)]">
-                    科研智能工作台
-                  </p>
                   <h1
                     className="workspace-font-serif text-3xl font-medium tracking-tight text-[var(--color-ink-primary)]"
                     role="heading"
@@ -138,16 +135,16 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
                   >
                     选择研究起点，或直接描述你的目标
                   </h2>
-                  <div className="grid gap-[var(--space-2)] md:grid-cols-3">
+                  <div className="workspace-research-starters">
                     {RESEARCH_STARTERS.map((starter) => {
                       const Icon = starter.icon;
                       return (
                         <Item
                           key={starter.title}
                           asChild
-                          variant="muted"
+                          variant="default"
                           size="sm"
-                          className="min-h-[var(--workspace-entry-starter-block-size)] cursor-pointer items-start bg-[var(--color-surface-muted)] text-left shadow-[var(--shadow-float)] hover:bg-[var(--color-surface-hover)]"
+                          className="workspace-research-starter min-h-[var(--workspace-entry-starter-block-size)] cursor-pointer items-start text-left hover:bg-[var(--color-surface-hover)]"
                         >
                           <button
                             type="button"
