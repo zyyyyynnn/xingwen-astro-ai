@@ -163,6 +163,9 @@ export function ScientificArtifactRenderer({
       : "evidenceIds" in props.review
         ? props.review.evidenceIds
         : [];
+  const hasInlineEvidence =
+    props.presentation.kind === "literature_claims" ||
+    props.presentation.kind === "literature_relations";
   return (
     <>
       <ScientificArtifactContent
@@ -170,11 +173,13 @@ export function ScientificArtifactRenderer({
         onSelectEvidence={onSelectEvidence}
         onRequestRevision={onRequestRevision}
       />
-      <EvidenceLinks
-        evidenceIds={evidenceIds}
-        label={`${props.title}的证据`}
-        onSelectEvidence={onSelectEvidence}
-      />
+      {hasInlineEvidence ? null : (
+        <EvidenceLinks
+          evidenceIds={evidenceIds}
+          label={`${props.title}的证据`}
+          onSelectEvidence={onSelectEvidence}
+        />
+      )}
     </>
   );
 }

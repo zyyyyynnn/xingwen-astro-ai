@@ -383,7 +383,7 @@ describe("WwtSceneControls", () => {
 
   it("toggles layer visibility without touching the published spec", async () => {
     renderControls();
-    fireEvent.pointerDown(screen.getByRole("button", { name: "图层" }));
+    fireEvent.pointerDown(screen.getByRole("button", { name: "数据图层" }));
     fireEvent.click(
       await screen.findByRole("menuitemcheckbox", { name: "FITS 图层 1" }),
     );
@@ -391,7 +391,7 @@ describe("WwtSceneControls", () => {
       expect(lastViewportSpec().fitsLayers[0]?.opacity).toBe(0),
     );
 
-    fireEvent.pointerDown(screen.getByRole("button", { name: "图层" }));
+    fireEvent.pointerDown(screen.getByRole("button", { name: "数据图层" }));
     fireEvent.click(
       await screen.findByRole("menuitemcheckbox", { name: "表格图层 1" }),
     );
@@ -399,7 +399,7 @@ describe("WwtSceneControls", () => {
       expect(lastViewportSpec().tableLayers[0]?.opacity).toBe(0),
     );
 
-    fireEvent.pointerDown(screen.getByRole("button", { name: "图层" }));
+    fireEvent.pointerDown(screen.getByRole("button", { name: "数据图层" }));
     fireEvent.click(
       await screen.findByRole("menuitemcheckbox", { name: "FITS 图层 1" }),
     );

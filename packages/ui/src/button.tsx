@@ -12,7 +12,13 @@ import { cn } from "#utils";
 export type ButtonVariant =
   "primary" | "secondary" | "outline" | "ghost" | "destructive" | "link";
 export type ButtonSize =
-  "default" | "xsmall" | "small" | "large" | "icon" | "icon-small";
+  | "default"
+  | "xsmall"
+  | "small"
+  | "large"
+  | "icon"
+  | "icon-small"
+  | "icon-xsmall";
 
 type NativeButtonProps = Omit<
   ButtonHTMLAttributes<HTMLButtonElement>,
@@ -21,13 +27,13 @@ type NativeButtonProps = Omit<
 
 interface TextButtonProps extends NativeButtonProps {
   variant?: ButtonVariant;
-  size?: Exclude<ButtonSize, "icon" | "icon-small">;
+  size?: Exclude<ButtonSize, "icon" | "icon-small" | "icon-xsmall">;
   "aria-label"?: string;
 }
 
 interface IconButtonProps extends NativeButtonProps {
   variant?: ButtonVariant;
-  size: "icon" | "icon-small";
+  size: "icon" | "icon-small" | "icon-xsmall";
   "aria-label": string;
 }
 

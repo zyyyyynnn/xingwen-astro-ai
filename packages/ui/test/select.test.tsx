@@ -16,6 +16,21 @@ beforeAll(() => {
 });
 
 describe("Select", () => {
+  it("exposes the compact trigger size to the shared visual system", () => {
+    render(
+      <Select defaultValue="dss">
+        <SelectTrigger aria-label="背景天图" size="sm">
+          <SelectValue />
+        </SelectTrigger>
+      </Select>,
+    );
+
+    expect(screen.getByRole("combobox", { name: "背景天图" })).toHaveAttribute(
+      "data-size",
+      "sm",
+    );
+  });
+
   it("keeps the listbox closed until the trigger is activated", () => {
     render(
       <Select defaultValue="dss">

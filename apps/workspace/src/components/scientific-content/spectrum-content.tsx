@@ -174,7 +174,7 @@ function SpectrumPlot({
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-3">
         <div>
           <h4 className="text-sm font-semibold text-foreground">
-            高分辨率恒星光谱图 (Observed Spectrum & Fitted Continuum)
+            高分辨率恒星光谱显示 (Spectrum Display)
           </h4>
           <p className="text-xs text-muted-foreground">
             波长范围 {formatNumber(minW, 1)} – {formatNumber(maxW, 1)}{" "}
@@ -183,7 +183,8 @@ function SpectrumPlot({
         </div>
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="inline-block h-0.5 w-4 bg-primary" /> 观测光谱通量
+            <span className="inline-block h-0.5 w-4 bg-primary" />{" "}
+            光谱通量显示序列
           </span>
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="inline-block h-0.5 w-4 border-b border-dashed border-muted-foreground" />{" "}
@@ -579,13 +580,18 @@ export function SpectrumContent({
             <div>
               <dt>静止参考波长</dt>
               <dd>
-                {formatNumber(content.restWavelength, 1)}{" "}
-                {content.wavelengthUnit}
+                {content.restWavelength === null
+                  ? "未提供"
+                  : `${formatNumber(content.restWavelength, 1)} ${content.wavelengthUnit}`}
               </dd>
             </div>
             <div>
               <dt>视向速度</dt>
-              <dd>{formatNumber(content.radialVelocityKmS, 2)} km/s</dd>
+              <dd>
+                {content.radialVelocityKmS === null
+                  ? "未提供"
+                  : `${formatNumber(content.radialVelocityKmS, 2)} km/s`}
+              </dd>
             </div>
             <div>
               <dt>数据源模式</dt>

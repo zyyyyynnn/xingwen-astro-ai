@@ -11,7 +11,7 @@ export const artifactPresentations = {
     facts: [
       { label: "记录", values: ["40 条"] },
       { label: "字段", values: ["14 个"] },
-      { label: "数据源", values: ["3 个"] },
+      { label: "录制响应", values: ["2 份"] },
     ],
   },
   artv_fdict_01: {
@@ -20,7 +20,7 @@ export const artifactPresentations = {
   },
   artv_srccol_01: {
     kind: "source_collection",
-    facts: [{ label: "观测来源", values: ["3 个 (TOI, PS, Gaia DR3)"] }],
+    facts: [{ label: "目录来源", values: ["3 个 (TOI, PS, Gaia DR3)"] }],
   },
   "11111111-1111-4111-8111-111111111111": {
     kind: "paper_collection",
@@ -36,7 +36,7 @@ export const artifactPresentations = {
         title: "研究背景",
         paragraphs: [
           {
-            text: "The paper describes the catalogs and algorithms used to build the revised TESS Input Catalog.",
+            text: "论文说明了修订版 TESS Input Catalog 及候选目标列表的构建目标与数据组织方式。",
             evidence_ids: ["evd_papsum_03"],
           },
         ],
@@ -45,7 +45,7 @@ export const artifactPresentations = {
         title: "研究方法",
         paragraphs: [
           {
-            text: "The paper documents the algorithms used to calculate stellar parameters for the revised catalog.",
+            text: "恒星参数由目录输入、测光与天体测量信息及文中记录的计算关系共同生成。",
             evidence_ids: ["evd_papsum_04"],
           },
         ],
@@ -54,16 +54,16 @@ export const artifactPresentations = {
         title: "数据集",
         paragraphs: [
           {
-            text: "The catalog release analyzed here dates to 2019.",
+            text: "当前研读对象是 2019 年发布的修订版 TESS Input Catalog 论文与其固定全文。",
             evidence_ids: ["evd_papsum_01"],
           },
         ],
       },
       {
-        title: "实验与结果",
+        title: "发布信息",
         paragraphs: [
           {
-            text: "The published catalog is registered under DOI 10.3847/1538-3881/ab3467.",
+            text: "论文的 DOI 为 10.3847/1538-3881/ab3467，可用于核验书目身份与固定全文。",
             evidence_ids: ["evd_papsum_02"],
           },
         ],
@@ -72,7 +72,7 @@ export const artifactPresentations = {
         title: "局限性",
         paragraphs: [
           {
-            text: "The catalog is claimed to be complete for all dwarf stars, without any cited evidence.",
+            text: "当前摘要没有提取到可定位的局限性原文；使用目录参数时仍需回到来源字段、质量标记与版本记录核验。",
           },
         ],
       },
@@ -87,15 +87,18 @@ export const artifactPresentations = {
       {
         key: "claim_01",
         title:
-          "TOI-1233.01 (HD 108236 b) 是一颗短周期亚海王星，轨道周期为 3.795 天，围绕亮 G 型恒星 TIC-260647166 运行。",
+          "NASA Exoplanet Archive TOI 表将 TOI-1233.04 关联到 TIC-260647166，并记录轨道周期 3.79589 天、半径 1.553135 R_Earth。",
         status: "accepted",
         assessment: "finding · positive",
         facts: [
-          { label: "研究对象", values: ["TOI-1233.01", "TIC-260647166"] },
-          { label: "物理参数", values: ["P = 3.795 d", "Rp = 2.06 R_Earth"] },
+          { label: "研究对象", values: ["TOI-1233.04", "TIC-260647166"] },
+          {
+            label: "目录参数",
+            values: ["P = 3.79589 d", "Rp = 1.553135 R_Earth"],
+          },
           {
             label: "成立条件",
-            values: ["TESS 凌星模型与 Gaia DR3 等时线拟合"],
+            values: ["仅陈述冻结 TOI 目录字段，不外推物理解释"],
           },
         ],
         evidence_ids: ["evd_02"],
@@ -103,62 +106,65 @@ export const artifactPresentations = {
       {
         key: "claim_02",
         title:
-          "宿主恒星 TIC-260647166 (HD 108236) 的有效表面温度为 5720 ± 60 K，金属丰度 [Fe/H] 为 -0.05 dex。",
+          "同一冻结 TOI 响应记录 TIC-260647166 的有效温度 5723.87 K、log g 4.438、恒星半径 0.864173 R_Sun。",
         status: "accepted",
         assessment: "finding · positive",
         facts: [
           { label: "研究对象", values: ["TIC-260647166"] },
-          { label: "有效温度", values: ["5720 ± 60 K"] },
-          { label: "金属丰度", values: ["-0.05 dex"] },
+          { label: "有效温度", values: ["5723.87 K"] },
+          { label: "表面重力", values: ["log g = 4.438"] },
         ],
         evidence_ids: ["evd_02"],
       },
       {
         key: "claim_03",
         title:
-          "TOI-1233.02 (HD 108236 c) 的拟合物理半径为 2.06 R_Earth，与富含挥发分气态包层的行星内部结构模型一致。",
+          "冻结 TOI 表记录 TOI-1233.03 的轨道周期为 6.2036219 天、行星半径为 2.056748 R_Earth。",
         status: "accepted",
         assessment: "finding · positive",
         facts: [
-          { label: "研究对象", values: ["TOI-1233.02"] },
-          { label: "行星半径", values: ["2.06 R_Earth"] },
+          { label: "研究对象", values: ["TOI-1233.03"] },
+          {
+            label: "目录参数",
+            values: ["P = 6.2036219 d", "Rp = 2.056748 R_Earth"],
+          },
         ],
         evidence_ids: ["evd_02"],
       },
       {
         key: "claim_04",
         title:
-          "TOI-1233.01 与外层伴星 TOI-1233.02 的凌星时刻变分 (TTV) 反演预示两者处于接近 5:3 的近平均运动共振区域。",
+          "候选审查：TOI-1233.03 与 TOI-1233.04 的目录周期可用于后续计算周期比，但当前响应不足以支持共振或 TTV 结论。",
         status: "candidate",
         assessment: "hypothesis · review_required",
         facts: [
-          { label: "动力学特征", values: ["5:3 近平动共振 (MMR)"] },
-          { label: "审定状态", values: ["待审定动力学稳定性"] },
+          { label: "已知输入", values: ["6.2036219 d", "3.79589 d"] },
+          { label: "审定状态", values: ["需要真实时序与动力学模型"] },
         ],
         evidence_ids: ["evd_02"],
       },
       {
         key: "claim_05",
         title:
-          "HARPS 高精度视向速度测量为 TOI-1233.01 的动力学质量确定了 4.8 ± 0.9 M_Earth 的强约束上限。",
+          "候选审查：TOI 编号与已确认行星名称的交叉映射需要独立来源，当前 TOI 目录响应不能单独完成别名认定。",
         status: "candidate",
         assessment: "finding · review_required",
         facts: [
-          { label: "质量上限", values: ["4.8 ± 0.9 M_Earth"] },
-          { label: "测量仪器", values: ["HARPS 光谱仪"] },
+          { label: "待核对字段", values: ["TOI 编号", "确认行星名称"] },
+          { label: "所需来源", values: ["PS/PSCompPars 别名与发现表"] },
         ],
         evidence_ids: ["evd_02"],
       },
       {
         key: "claim_06",
         title:
-          "TIC-260647166 为极年轻的金牛座 T Tauri 型恒星，具有强烈的色球活动与耀斑爆发特征。",
+          "已驳回：将 TOI-1233.01 的目录周期写成 3.79589 天，与同一冻结响应中的 14.1758947 天直接冲突。",
         status: "rejected",
         assessment: "contradiction · rejected",
         facts: [
           {
             label: "驳回依据",
-            values: ["与 Gaia DR3 演化等时线及 HARPS 光谱特征直接冲突"],
+            values: ["冻结 TOI 响应中的行号与周期字段不一致"],
           },
         ],
         evidence_ids: ["evd_02"],
@@ -176,7 +182,7 @@ export const artifactPresentations = {
     entries: [
       {
         key: "rel_01",
-        title: "TOI-1233.01 亚海王星 ↔ 宿主星有效温度 5720 K (描述同一系统)",
+        title: "TOI-1233.04 目录记录 ↔ TIC-260647166 恒星参数（同一目录系统）",
         status: "accepted",
         can_adjudicate: false,
         assessment: "describes_same_system",
@@ -188,12 +194,12 @@ export const artifactPresentations = {
         reasoning_trace: {
           trace_id: "trace_rel_01",
           conclusion:
-            "主张 1 的候选行星与主张 2 的宿主恒星具有相同的 TIC 标识 (TIC-260647166)，构成系统物理基准。",
-          steps: ["比对行星母星标识与恒星光谱参数的一致性。"],
+            "主张 1 与主张 2 在同一冻结 TOI 行中共享 TIC-260647166，可建立目录级同系统关系。",
+          steps: ["比对冻结响应中的 TIC 标识与同一行恒星字段。"],
           facts: [
             {
               label: "成立条件",
-              values: ["两项主张均基于对同一恒星系统 TIC-260647166 的观测。"],
+              values: ["仅表达目录级关联，不扩展为新的天体物理结论。"],
             },
           ],
           evidence_ids: ["evd_03"],
@@ -201,36 +207,36 @@ export const artifactPresentations = {
       },
       {
         key: "rel_02",
-        title: "TOI-1233.01 (b) ↔ TOI-1233.02 (c) (多行星系统架构一致)",
+        title: "TOI-1233.04 ↔ TOI-1233.03（共享 TIC-260647166）",
         status: "accepted",
         can_adjudicate: false,
         assessment: "consistent_with",
-        facts: [{ label: "关联类型", values: ["多行星轨道排列一致性"] }],
+        facts: [{ label: "关联类型", values: ["冻结目录中的同宿主记录"] }],
         evidence_ids: ["evd_03"],
       },
       {
         key: "rel_03",
-        title: "TOI-1233.01 周期 ↔ TTV 近共振动力学预测 (待审定)",
+        title: "TOI-1233.03 周期 ↔ TOI-1233.04 周期比解释（待审定）",
         status: "candidate",
         can_adjudicate: true,
         assessment: "predicts",
         facts: [
-          { label: "待审原因", values: ["需人工审定近共振区动力学稳定性质询"] },
+          { label: "待审原因", values: ["目录周期不足以证明共振或 TTV"] },
           {
             label: "成立条件",
-            values: ["两项主张均基于对同一恒星系统 TIC-260647166 的多波段观测"],
+            values: ["两项记录共享 TIC-260647166"],
           },
           {
             label: "限制",
-            values: ["结论受限于当前测光精度的置信区间"],
+            values: ["缺少真实时序、误差与动力学模型"],
           },
         ],
         evidence_ids: ["evd_03"],
         reasoning_trace: {
           trace_id: "trace_rel_03",
           conclusion:
-            "精确公转周期为 TTV 共振动力学推导提供了基础先验，仍需人工确认动力学积分拟合优度。",
-          steps: ["交叉比对目标恒星标识、行星编号与轨道周期口径。"],
+            "冻结目录周期只能作为后续动力学分析输入；当前不得把周期比解释为已证实关系。",
+          steps: ["核对目标恒星标识、TOI 编号与目录周期字段。"],
           facts: [
             {
               label: "审查边界",
@@ -242,34 +248,34 @@ export const artifactPresentations = {
       },
       {
         key: "rel_04",
-        title: "TOI-1233.01 凌星 ↔ HARPS 视向速度质量约束 (待审定)",
+        title: "TOI 编号 ↔ 已确认行星名称交叉映射（待审定）",
         status: "candidate",
         can_adjudicate: true,
         assessment: "refines_parameter",
         facts: [
           {
             label: "待审原因",
-            values: ["需人工审定 HARPS 径向速度仪器的系统误差先验"],
+            values: ["当前证据只包含 TOI 表，缺少独立别名来源"],
           },
           {
             label: "成立条件",
-            values: ["凌星与径向速度测量指向同一恒星系统"],
+            values: ["必须由独立 PS/PSCompPars 记录匹配同一 TIC/宿主"],
           },
           {
             label: "限制",
-            values: ["质量约束依赖仪器系统误差先验"],
+            values: ["不能仅凭编号顺序推断行星字母别名"],
           },
         ],
         evidence_ids: ["evd_03"],
         reasoning_trace: {
           trace_id: "trace_rel_04",
           conclusion:
-            "视向速度质量上限可细化凌星行星的密度与大气流失约束，但仪器系统误差仍需审定。",
-          steps: ["核对目标标识、观测仪器与质量约束口径的一致性。"],
+            "TOI 与确认行星名称的映射属于跨表实体解析，需要独立来源快照和明确匹配规则。",
+          steps: ["核对 TIC、宿主名、周期与正式行星名的一致性。"],
           facts: [
             {
               label: "审查边界",
-              values: ["系统误差先验未确认前不进入证据图谱"],
+              values: ["独立来源未绑定前不进入证据图谱"],
             },
           ],
           evidence_ids: ["evd_03"],
@@ -277,14 +283,14 @@ export const artifactPresentations = {
       },
       {
         key: "rel_05",
-        title: "主序 G 型有效温度 ↔ T Tauri 年轻恒星假设 (已驳回冲突)",
+        title: "TOI-1233.01 ↔ 3.79589 天周期（已驳回字段错配）",
         status: "rejected",
         can_adjudicate: false,
         assessment: "contradicts",
         facts: [
           {
             label: "驳回理由",
-            values: ["主序有效温度与年轻 T Tauri 假设直接冲突"],
+            values: ["同一冻结响应记录 TOI-1233.01 的周期为 14.1758947 天"],
           },
         ],
         evidence_ids: ["evd_03"],
@@ -295,8 +301,8 @@ export const artifactPresentations = {
     kind: "graph",
     facts: [
       { label: "拓扑节点", values: ["16 个"] },
-      { label: "关系连边", values: ["20 条"] },
-      { label: "关系衍生边", values: ["3 条 (消费已接受关系)"] },
+      { label: "关系连边", values: ["19 条"] },
+      { label: "关系衍生边", values: ["2 条（仅消费已接受关系）"] },
     ],
     graph_nodes: [
       {
@@ -338,37 +344,37 @@ export const artifactPresentations = {
       {
         key: "node_planet_toi1233_01",
         kind: "entity",
-        label: "行星 TOI-1233.01 (b)",
+        label: "TOI 目录记录 1233.04",
       },
       {
         key: "node_planet_toi1233_02",
         kind: "entity",
-        label: "行星 TOI-1233.02 (c)",
+        label: "TOI 目录记录 1233.03",
       },
       {
         key: "node_claim_01",
         kind: "claim",
-        label: "主张 1: TOI-1233.01 短周期亚海王星",
+        label: "主张 1：TOI-1233.04 冻结目录参数",
       },
       {
         key: "node_claim_02",
         kind: "claim",
-        label: "主张 2: 宿主星有效温度 5720 K",
+        label: "主张 2：TIC-260647166 冻结恒星参数",
       },
       {
         key: "node_claim_03",
         kind: "claim",
-        label: "主张 3: TOI-1233.02 挥发分气态包层",
+        label: "主张 3：TOI-1233.03 冻结目录参数",
       },
       {
         key: "node_claim_04",
         kind: "claim",
-        label: "主张 4: 近共振动力学 TTV 预期",
+        label: "主张 4：周期比解释待审",
       },
       {
         key: "node_claim_05",
         kind: "claim",
-        label: "主张 5: HARPS 视向速度质量上限",
+        label: "主张 5：跨表别名映射待审",
       },
       {
         key: "node_fdict_01",
@@ -510,60 +516,68 @@ export const artifactPresentations = {
         target_key: "node_claim_03",
         evidence_ids: ["evd_03"],
       },
-      {
-        key: "edge_20_rel_03",
-        kind: "predicts",
-        source_key: "node_claim_01",
-        target_key: "node_claim_04",
-        evidence_ids: ["evd_03"],
-      },
     ],
   },
   artv_b_analysis_01: {
     kind: "analysis_report",
     facts: [
-      { label: "研究对象", values: ["TOI-1233"] },
-      { label: "信噪比", values: ["38.4"] },
+      { label: "冻结记录", values: ["TOI-1233.04 · TIC 260647166"] },
+      { label: "数据边界", values: ["公开目录参数；非原始光变"] },
     ],
   },
   artv_c_analysis_01: {
     kind: "analysis_report",
     facts: [
       { label: "研究对象", values: ["L 98-59 (TOI-175)"] },
-      { label: "高精度光谱分析", values: ["HARPS/ESPRESSO 联合分析"] },
+      {
+        label: "公开数据产品",
+        values: ["ESO HARPS ADP.2024-03-10T01:01:18.295"],
+      },
+      { label: "结论边界", values: ["未自动执行谱线证认"] },
     ],
   },
   artv_b_chart_01: {
     kind: "visualization",
-    facts: [{ label: "类型", values: ["散点分布图"] }],
+    facts: [
+      { label: "类型", values: ["周期-半径散点图"] },
+      { label: "真实记录", values: ["TOI-1233 冻结目录 4 行"] },
+      { label: "其余点", values: ["容量边界样例"] },
+    ],
   },
   artv_c_fits_01: {
     kind: "visualization",
-    facts: [{ label: "图像类型", values: ["FITS 图像切片"] }],
+    facts: [
+      { label: "图像类型", values: ["FITS 交互界面样例"] },
+      { label: "数据边界", values: ["非归档观测产品"] },
+    ],
   },
   artv_c_wwt_01: {
     kind: "visualization",
-    facts: [{ label: "场景模式", values: ["WWT 天球视口场景"] }],
+    facts: [
+      { label: "场景模式", values: ["WWT 天球视口场景"] },
+      { label: "数据边界", values: ["图层仅用于交互覆盖"] },
+    ],
   },
   artv_c_spec_01: {
     kind: "spectrum",
     facts: [
-      { label: "光谱范围", values: ["3800 - 6800 Å"] },
-      { label: "信噪比", values: ["145.2"] },
+      { label: "显示投影范围", values: ["4000 - 6800 Å"] },
+      { label: "归档产品 S/N", values: ["8.0"] },
     ],
   },
   artv_b_lc_01: {
     kind: "light_curve",
     facts: [
-      { label: "采样点", values: ["720 点"] },
-      { label: "周期", values: ["3.7952 d"] },
+      { label: "界面样例", values: ["720 点确定性生成"] },
+      { label: "目录周期", values: ["3.79589 d"] },
+      { label: "观测边界", values: ["非原始 TESS 光度序列"] },
     ],
   },
   artv_b_modeval_01: {
     kind: "model_evaluation",
     facts: [
-      { label: "模型", values: ["ResNet-1D 凌星分类器"] },
-      { label: "F1 分数", values: ["0.918"] },
+      { label: "用途", values: ["指标与基线布局样例"] },
+      { label: "科研边界", values: ["未绑定训练集或真实执行"] },
     ],
   },
   artv_b_model_01: {
@@ -571,6 +585,16 @@ export const artifactPresentations = {
     facts: [
       { label: "格式", values: ["ONNX"] },
       { label: "任务", values: ["分类"] },
+      { label: "交付边界", values: ["fixture 引用；不可部署"] },
+    ],
+  },
+  artv_export_01: {
+    kind: "export",
+    summary:
+      "冻结的数据、文献与证据图谱版本引用；当前工作区明确展示不支持预览状态。",
+    facts: [
+      { label: "格式", values: ["来源与证据报告"] },
+      { label: "引用版本", values: ["3 个"] },
     ],
   },
 } satisfies Readonly<Record<string, PublicArtifactPresentation>>;

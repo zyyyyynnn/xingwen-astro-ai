@@ -10,13 +10,22 @@ import {
   ItemTitle,
 } from "@xingwen/ui";
 import {
-  Activity,
+  AudioWaveform,
   ArrowRight,
-  BrainCircuit,
+  BookOpen,
+  ChartSpline,
+  Cpu,
   Database,
   FileCheck2,
   FileText,
-  ListChecks,
+  Gauge,
+  Library,
+  Microscope,
+  Network,
+  Quote,
+  ScatterChart,
+  TableProperties,
+  Waypoints,
 } from "@xingwen/ui/icons";
 
 export interface ResultIndexItemProps {
@@ -40,24 +49,33 @@ function ResultKindIcon({
 }) {
   switch (kind) {
     case "dataset":
+      return <TableProperties className={className} aria-hidden="true" />;
     case "field_dictionary":
+      return <BookOpen className={className} aria-hidden="true" />;
     case "source_collection":
       return <Database className={className} aria-hidden="true" />;
-    case "paper_summary":
     case "paper_collection":
+      return <Library className={className} aria-hidden="true" />;
+    case "paper_summary":
       return <FileText className={className} aria-hidden="true" />;
     case "literature_claims":
+      return <Quote className={className} aria-hidden="true" />;
     case "literature_relations":
-      return <ListChecks className={className} aria-hidden="true" />;
+      return <Waypoints className={className} aria-hidden="true" />;
     case "graph":
-      return <BrainCircuit className={className} aria-hidden="true" />;
+      return <Network className={className} aria-hidden="true" />;
     case "analysis_report":
+      return <Microscope className={className} aria-hidden="true" />;
     case "visualization":
+      return <ScatterChart className={className} aria-hidden="true" />;
     case "model_evaluation":
+      return <Gauge className={className} aria-hidden="true" />;
     case "model_artifact":
+      return <Cpu className={className} aria-hidden="true" />;
     case "spectrum":
+      return <AudioWaveform className={className} aria-hidden="true" />;
     case "light_curve":
-      return <Activity className={className} aria-hidden="true" />;
+      return <ChartSpline className={className} aria-hidden="true" />;
     default:
       return <FileCheck2 className={className} aria-hidden="true" />;
   }
@@ -80,7 +98,7 @@ export function ResultIndexItem({
         onClick={() => onOpen(latestVersionId)}
         aria-label={`查看 ${title} 完整结果`}
       >
-        <ItemMedia className="xw-result-index-item__icon">
+        <ItemMedia variant="icon" className="xw-result-index-item__icon">
           <ResultKindIcon kind={kind} />
         </ItemMedia>
         <ItemContent>

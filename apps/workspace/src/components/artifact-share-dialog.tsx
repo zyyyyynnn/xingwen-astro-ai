@@ -11,6 +11,9 @@ import {
   DialogHeader,
   DialogTitle,
   Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
   FieldLabel,
   Input,
   Select,
@@ -113,7 +116,7 @@ export function ArtifactShareDialog({
         {shareUrl ? (
           <Field>
             <FieldLabel htmlFor="artifact-share-url">分享链接</FieldLabel>
-            <div className="flex min-w-0 gap-2">
+            <FieldContent className="flex-row gap-2">
               <Input
                 id="artifact-share-url"
                 value={shareUrl}
@@ -128,7 +131,7 @@ export function ArtifactShareDialog({
               >
                 复制链接
               </Button>
-            </div>
+            </FieldContent>
             {copyState === "copied" ? (
               <p className="ui-text-label text-muted-foreground" role="status">
                 已复制
@@ -140,23 +143,28 @@ export function ArtifactShareDialog({
             ) : null}
           </Field>
         ) : (
-          <Field>
-            <FieldLabel htmlFor="artifact-share-expiry">有效期</FieldLabel>
-            <Select value={expiryDays} onValueChange={setExpiryDays}>
-              <SelectTrigger id="artifact-share-expiry">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {EXPIRY_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </Field>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="artifact-share-expiry">有效期</FieldLabel>
+              <Select value={expiryDays} onValueChange={setExpiryDays}>
+                <SelectTrigger id="artifact-share-expiry">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {EXPIRY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              <FieldDescription>
+                到期后链接自动失效，原研究与结果版本不受影响。
+              </FieldDescription>
+            </Field>
+          </FieldGroup>
         )}
 
         {create.isError ? (

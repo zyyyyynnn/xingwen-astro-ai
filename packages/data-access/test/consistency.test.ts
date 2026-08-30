@@ -42,7 +42,7 @@ const ARTIFACT_ID = "art_graph_01" as never;
 const VERSION_ID = "artv_graph_01" as never;
 const PAPER_SUMMARY_VERSION_ID = "artv_papsum_01" as never;
 const EVIDENCE_ID = "evd_01" as never;
-const SOURCE_SNAPSHOT_ID = "snap_01" as never;
+const SOURCE_SNAPSHOT_ID = "snap_host_star_toi_recorded" as never;
 
 it("projects.getById returns the same domain entity", async () => {
   const httpRepos = setupHttpRepos();

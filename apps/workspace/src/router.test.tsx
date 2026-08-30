@@ -366,7 +366,7 @@ describe("Workspace routes", () => {
 
     expect(
       await screen.findByTestId("missing-project-notice"),
-    ).toHaveTextContent("这个研究已不存在。");
+    ).toHaveTextContent("这个研究不存在");
     expect(history.location.pathname).toBe("/workspace");
     expect(
       screen.queryByRole("heading", { name: "页面载入失败" }),

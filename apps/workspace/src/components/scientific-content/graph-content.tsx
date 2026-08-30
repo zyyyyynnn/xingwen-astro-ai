@@ -415,7 +415,6 @@ function EdgeDetails({
 export function GraphContent({
   review,
   presentation,
-  title,
   surface,
   onSelectEvidence,
 }: {
@@ -533,17 +532,17 @@ export function GraphContent({
         aria-hidden="true"
       />
       <ScientificContentHeader
-        title={title}
-        subtitle={`可核验证据关系，${presentableEdges.length} 条`}
+        title="证据关系网络"
+        subtitle="选择研究对象或关系，核验公开推导与来源证据。"
       />
       <div className="graph-workspace__summary" aria-label="图谱摘要">
-        <Badge variant="secondary">{review.nodes.length} 个研究对象</Badge>
-        <Badge variant="secondary">{presentableEdges.length} 条公开关系</Badge>
-        <Badge variant="outline">
+        <span>{review.nodes.length} 个研究对象</span>
+        <span>{presentableEdges.length} 条公开关系</span>
+        <span>
           {review.integrity.findings.length === 0
             ? "完整性校验通过"
             : `${review.integrity.findings.length} 项完整性提示`}
-        </Badge>
+        </span>
         {hiddenUnsafeEdgeCount > 0 ? (
           <span className="graph-workspace__notice">
             {hiddenUnsafeEdgeCount} 条关系因证据或公开推导不完整而隐藏

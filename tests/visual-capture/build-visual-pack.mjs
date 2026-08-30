@@ -52,6 +52,8 @@ if (requestedHead !== actualHead) {
 const PROJECT_A = "proj_01JEXAMPLE";
 const PROJECT_B = "proj_toi_transit";
 const PROJECT_C = "proj_l9859_spectroscopy";
+const PROJECT_WAITING = "proj_waiting_demo";
+const PROJECT_FAILED = "proj_failed_demo";
 
 const artifactShots = new Map([
   [
@@ -87,6 +89,19 @@ const artifactShots = new Map([
     [PROJECT_A, "artv_papsum_01", ["证据跳转到目标页"]],
   ],
   [
+    "25_dataset-column-chooser",
+    [PROJECT_A, "artv_dataset_01", ["列选择菜单可见"]],
+  ],
+  ["26_evidence-sheet", [PROJECT_A, "artv_dataset_01", ["证据侧边面板可见"]]],
+  [
+    "27_revision-sheet",
+    [PROJECT_A, "artv_dataset_01", ["重新分析侧边面板可见"]],
+  ],
+  [
+    "28_export-unsupported",
+    [PROJECT_A, "artv_export_01", ["导出结果不支持预览空状态可见"]],
+  ],
+  [
     "30_artifact-literature-claims",
     [PROJECT_A, "artv_claims_01", ["科学主张可读"]],
   ],
@@ -112,6 +127,11 @@ const artifactShots = new Map([
     "38_graph-selected-relation",
     [PROJECT_A, "artv_graph_01", ["关系边选中 inspector 可见"]],
   ],
+  ["39_graph-list-view", [PROJECT_A, "artv_graph_01", ["关系图列表视图可见"]]],
+  [
+    "39b_graph-empty-filter",
+    [PROJECT_A, "artv_graph_01", ["关系图筛选空状态可见"]],
+  ],
   [
     "49_l9859-analysis-report",
     [PROJECT_C, "artv_c_analysis_01", ["L 98-59 分析报告无致命错误"]],
@@ -127,33 +147,51 @@ const artifactShots = new Map([
   ["52_spectrum", [PROJECT_C, "artv_c_spec_01", ["L 98-59 光谱可见"]]],
   [
     "53_light-curve-time-series",
-    [PROJECT_B, "artv_b_lc_01", ["时间序列视图可见"]],
+    [PROJECT_B, "artv_b_lc_01", ["确定性演示序列可见", "标明非观测序列"]],
   ],
   [
     "54_light-curve-phase-folded",
-    [PROJECT_B, "artv_b_lc_01", ["相位折叠视图可见"]],
+    [PROJECT_B, "artv_b_lc_01", ["相位展示可见", "标明非观测拟合"]],
   ],
   [
     "55_light-curve-periodogram",
-    [PROJECT_B, "artv_b_lc_01", ["周期图谱视图可见"]],
+    [PROJECT_B, "artv_b_lc_01", ["目录周期标记可见", "标明非功率谱推断"]],
   ],
   [
     "55b_light-curve-peaks-expanded",
-    [PROJECT_B, "artv_b_lc_01", ["峰值候选表已展开"]],
+    [PROJECT_B, "artv_b_lc_01", ["目录周期记录已展开", "不展示虚构 FAP"]],
   ],
   [
     "56_model-evaluation",
-    [PROJECT_B, "artv_b_modeval_01", ["基线对比可见", "无卡片墙"]],
+    [
+      PROJECT_B,
+      "artv_b_modeval_01",
+      ["指标样例与基线差值可见", "明确非模型结果"],
+    ],
   ],
   [
     "57_model-artifact",
     [PROJECT_B, "artv_b_model_01", ["ONNX 契约可见", "默认无校验哈希"]],
+  ],
+  [
+    "57b_model-artifact-technical-popover",
+    [PROJECT_B, "artv_b_model_01", ["模型技术校验信息按需展开"]],
   ],
   ["58_fits-ready", [PROJECT_C, "artv_c_fits_01", ["FITS viewport ready"]]],
   ["59_wwt-ready", [PROJECT_C, "artv_c_wwt_01", ["WWT viewport ready"]]],
   [
     "60_wwt-grid-interaction",
     [PROJECT_C, "artv_c_wwt_01", ["坐标网格交互后再次 ready"]],
+  ],
+  [
+    "61_wwt-coordinate-popover",
+    [PROJECT_C, "artv_c_wwt_01", ["定位与视角表单可见"]],
+  ],
+  ["62_wwt-observer-popover", [PROJECT_C, "artv_c_wwt_01", ["观测点表单可见"]]],
+  ["63_wwt-time-popover", [PROJECT_C, "artv_c_wwt_01", ["时间设置表单可见"]]],
+  [
+    "64_wwt-data-layers-menu",
+    [PROJECT_C, "artv_c_wwt_01", ["数据图层菜单可见"]],
   ],
   [
     "71_long-content-scrolled-bottom",
@@ -172,6 +210,11 @@ const projectShots = new Map([
   ["11c_message-stream-bottom", [PROJECT_A, ["线程底部可达"]]],
   ["12_inspector-results", [PROJECT_A, ["右侧结果索引可见"]]],
   ["13_protocol-review-dialog", [PROJECT_A, ["研究协议可见"]]],
+  [
+    "14_project-waiting-state",
+    [PROJECT_WAITING, ["待回答问题与研究范围选项可见"]],
+  ],
+  ["15_project-failed-state", [PROJECT_FAILED, ["失败与恢复操作可见"]]],
   ["80_viewport-1440x900", [PROJECT_A, ["1440 桌面布局"]]],
   ["81_viewport-1280x800", [PROJECT_A, ["1280 桌面布局"]]],
   ["82_viewport-1024x768", [PROJECT_A, ["1024 图标侧栏", "主线程可读"]]],
@@ -182,6 +225,16 @@ const shellShots = new Map([
   ["02_sidebar-collapsed", ["/workspace", ["侧栏收起状态可见"]]],
   ["03_command-menu", ["/workspace", ["项目导航命令可见"]]],
   ["04_model-provider-dialog", ["/workspace", ["模型服务对话框可见"]]],
+  [
+    "04b_model-provider-remove-confirm",
+    ["/workspace", ["移除模型配置确认态可见"]],
+  ],
+  ["05_project-context-menu", ["/workspace", ["项目操作菜单可见"]]],
+  ["06_project-rename-dialog", ["/workspace", ["重命名项目对话框可见"]]],
+  [
+    "16_project-not-found",
+    ["/workspace/project-does-not-exist", ["未知项目错误态可见"]],
+  ],
 ]);
 
 function metadataFor(name) {

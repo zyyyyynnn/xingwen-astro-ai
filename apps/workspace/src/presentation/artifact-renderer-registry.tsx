@@ -19,7 +19,18 @@ import type {
   PaperAcquisitionReviewViewModel,
   ResearchArtifactViewModel,
 } from "@xingwen/research-adapter";
-import { Alert, AlertDescription, Skeleton } from "@xingwen/ui";
+import {
+  Alert,
+  AlertDescription,
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  Skeleton,
+} from "@xingwen/ui";
+import { PackageCheck } from "@xingwen/ui/icons";
 import type { ComponentType, ReactNode } from "react";
 
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
@@ -164,12 +175,24 @@ export function UnsupportedArtifactPresentation({
 }) {
   if (descriptor.unsupportedPresentation === null) return null;
   return (
-    <Alert>
-      <AlertDescription>
-        <strong>{descriptor.unsupportedPresentation.title}</strong>
-        <p>{descriptor.unsupportedPresentation.description}</p>
-      </AlertDescription>
-    </Alert>
+    <div className="flex min-h-0 flex-1 items-center justify-center px-6 py-10">
+      <Empty className="min-h-72 w-full max-w-3xl border-0 bg-card/80 shadow-sm">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <PackageCheck aria-hidden="true" />
+          </EmptyMedia>
+          <EmptyTitle>{descriptor.unsupportedPresentation.title}</EmptyTitle>
+          <EmptyDescription>
+            {descriptor.unsupportedPresentation.description}
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <p className="text-muted-foreground">
+            结果版本与引用关系已保留；可返回研究结果选择结构化数据或证据报告的下载入口。
+          </p>
+        </EmptyContent>
+      </Empty>
+    </div>
   );
 }
 

@@ -24,6 +24,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@xingwen/ui";
+import {
+  Eye,
+  EyeOff,
+  History,
+  Home,
+  Layers3,
+  Play,
+  RotateCcw,
+  ScanSearch,
+  ScatterChart,
+  Square,
+  TableProperties,
+  Target,
+} from "@xingwen/ui/icons";
 import { useMemo, useState } from "react";
 
 import { WwtViewport } from "./wwt-viewport";
@@ -407,42 +421,45 @@ export function WwtSceneControls({
           <Popover>
             <PopoverTrigger asChild>
               <Button type="button" variant="secondary" size="small">
+                <Target aria-hidden="true" />
                 定位与视角
               </Button>
             </PopoverTrigger>
             <PopoverContent className="wwt-scene-controls__coordinate-panel">
-              <Field>
-                <FieldLabel htmlFor="wwt-ra">中心赤经（小时）</FieldLabel>
-                <Input
-                  id="wwt-ra"
-                  value={raInput}
-                  onChange={(event) => setRaInput(event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="wwt-dec">中心赤纬（度）</FieldLabel>
-                <Input
-                  id="wwt-dec"
-                  value={decInput}
-                  onChange={(event) => setDecInput(event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="wwt-fov">视场（度）</FieldLabel>
-                <Input
-                  id="wwt-fov"
-                  value={fovInput}
-                  onChange={(event) => setFovInput(event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="wwt-roll">相机滚转（度）</FieldLabel>
-                <Input
-                  id="wwt-roll"
-                  value={rollInput}
-                  onChange={(event) => setRollInput(event.target.value)}
-                />
-              </Field>
+              <div className="wwt-scene-controls__form-grid">
+                <Field>
+                  <FieldLabel htmlFor="wwt-ra">中心赤经（小时）</FieldLabel>
+                  <Input
+                    id="wwt-ra"
+                    value={raInput}
+                    onChange={(event) => setRaInput(event.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="wwt-dec">中心赤纬（度）</FieldLabel>
+                  <Input
+                    id="wwt-dec"
+                    value={decInput}
+                    onChange={(event) => setDecInput(event.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="wwt-fov">视场（度）</FieldLabel>
+                  <Input
+                    id="wwt-fov"
+                    value={fovInput}
+                    onChange={(event) => setFovInput(event.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="wwt-roll">相机滚转（度）</FieldLabel>
+                  <Input
+                    id="wwt-roll"
+                    value={rollInput}
+                    onChange={(event) => setRollInput(event.target.value)}
+                  />
+                </Field>
+              </div>
               <Button
                 type="button"
                 variant="primary"
@@ -461,6 +478,7 @@ export function WwtSceneControls({
           >
             <SelectTrigger
               aria-label="跟踪天体"
+              size="sm"
               className="wwt-scene-controls__select"
             >
               <SelectValue />
@@ -481,33 +499,52 @@ export function WwtSceneControls({
             size="small"
             onClick={trackObject}
           >
+            <ScanSearch aria-hidden="true" />
             跟踪天体
           </Button>
           <Popover>
             <PopoverTrigger asChild>
               <Button type="button" variant="secondary" size="small">
+                <Home aria-hidden="true" />
                 观测点
               </Button>
             </PopoverTrigger>
             <PopoverContent className="wwt-scene-controls__observer">
-              <Input
-                aria-label="观测点纬度（度）"
-                placeholder="纬度度"
-                value={latitudeInput}
-                onChange={(event) => setLatitudeInput(event.target.value)}
-              />
-              <Input
-                aria-label="观测点经度（度）"
-                placeholder="经度度"
-                value={longitudeInput}
-                onChange={(event) => setLongitudeInput(event.target.value)}
-              />
-              <Input
-                aria-label="观测点海拔（米）"
-                placeholder="海拔米"
-                value={elevationInput}
-                onChange={(event) => setElevationInput(event.target.value)}
-              />
+              <div className="wwt-scene-controls__form-grid">
+                <Field>
+                  <FieldLabel htmlFor="wwt-observer-latitude">
+                    纬度（度）
+                  </FieldLabel>
+                  <Input
+                    id="wwt-observer-latitude"
+                    aria-label="观测点纬度（度）"
+                    value={latitudeInput}
+                    onChange={(event) => setLatitudeInput(event.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="wwt-observer-longitude">
+                    经度（度）
+                  </FieldLabel>
+                  <Input
+                    id="wwt-observer-longitude"
+                    aria-label="观测点经度（度）"
+                    value={longitudeInput}
+                    onChange={(event) => setLongitudeInput(event.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="wwt-observer-elevation">
+                    海拔（米）
+                  </FieldLabel>
+                  <Input
+                    id="wwt-observer-elevation"
+                    aria-label="观测点海拔（米）"
+                    value={elevationInput}
+                    onChange={(event) => setElevationInput(event.target.value)}
+                  />
+                </Field>
+              </div>
               <label className="wwt-scene-controls__observer-horizon">
                 <Checkbox
                   checked={localHorizonMode}
@@ -519,7 +556,7 @@ export function WwtSceneControls({
               </label>
               <Button
                 type="button"
-                variant="secondary"
+                variant="primary"
                 size="small"
                 onClick={applyObserver}
               >
@@ -552,6 +589,7 @@ export function WwtSceneControls({
           >
             <SelectTrigger
               aria-label="背景天图"
+              size="sm"
               className="wwt-scene-controls__select"
             >
               <SelectValue />
@@ -576,6 +614,7 @@ export function WwtSceneControls({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button type="button" variant="secondary" size="small">
+                <TableProperties aria-hidden="true" />
                 坐标网格
               </Button>
             </DropdownMenuTrigger>
@@ -599,6 +638,7 @@ export function WwtSceneControls({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button type="button" variant="secondary" size="small">
+                <ScatterChart aria-hidden="true" />
                 星座叠加
               </Button>
             </DropdownMenuTrigger>
@@ -631,7 +671,8 @@ export function WwtSceneControls({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button type="button" variant="secondary" size="small">
-                  图层
+                  <Layers3 aria-hidden="true" />
+                  数据图层
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
@@ -668,6 +709,11 @@ export function WwtSceneControls({
                 );
               }}
             >
+              {annotationsHidden ? (
+                <Eye aria-hidden="true" />
+              ) : (
+                <EyeOff aria-hidden="true" />
+              )}
               {annotationsHidden ? "显示标注" : "隐藏标注"}
             </Button>
           ) : null}
@@ -678,6 +724,11 @@ export function WwtSceneControls({
               size="small"
               onClick={toggleTour}
             >
+              {base.tourAutoplay ? (
+                <Square aria-hidden="true" />
+              ) : (
+                <Play aria-hidden="true" />
+              )}
               {base.tourAutoplay ? "停止巡览" : "播放巡览"}
             </Button>
           ) : null}
@@ -687,6 +738,7 @@ export function WwtSceneControls({
           <Popover>
             <PopoverTrigger asChild>
               <Button type="button" variant="secondary" size="small">
+                <History aria-hidden="true" />
                 时间设置
               </Button>
             </PopoverTrigger>
@@ -754,6 +806,7 @@ export function WwtSceneControls({
             size="small"
             onClick={resetScene}
           >
+            <RotateCcw aria-hidden="true" />
             恢复发布场景
           </Button>
         </div>

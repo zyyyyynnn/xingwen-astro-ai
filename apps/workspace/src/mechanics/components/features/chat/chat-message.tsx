@@ -51,7 +51,7 @@ export function ChatMessage({
       data-testid={`${type}-message`}
       data-message-type={type}
       className={cn(
-        "chat-message relative flex w-fit max-w-[min(42rem,88%)] flex-col rounded-[var(--radius-lg)]",
+        "chat-message relative flex w-fit max-w-[var(--workspace-chat-message-max-inline-size)] flex-col rounded-[var(--radius-lg)]",
         children && "gap-2",
         type === "user" &&
           "chat-message--user mt-6 self-end bg-[var(--color-surface-muted)] px-4 py-2.5",

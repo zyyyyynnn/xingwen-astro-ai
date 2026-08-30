@@ -78,7 +78,7 @@ export function ProtocolDraftCard({
                 onClick={onConfirm}
                 className="gap-1 font-medium"
               >
-                <Play className="size-3.5" aria-hidden="true" />
+                <Play aria-hidden="true" />
                 {isConfirming ? "正在确认并启动…" : "确认协议并开始研究"}
               </Button>
               {onOpenEditor ? (
@@ -88,7 +88,7 @@ export function ProtocolDraftCard({
                   onClick={onOpenEditor}
                   className="gap-1"
                 >
-                  <Settings2 className="size-3.5" aria-hidden="true" />
+                  <Settings2 aria-hidden="true" />
                   调整
                 </Button>
               ) : null}

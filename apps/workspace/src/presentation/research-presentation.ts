@@ -163,10 +163,25 @@ function statusLabel(state: ResearchPresentationState): string {
 
 function preparationItems(
   state: ResearchPresentationState,
+  run: ResearchRunViewModel | null | undefined,
 ): readonly ResearchPlanItem[] {
   const hasRun = RUN_STATES.has(state) || state === "run_recorded";
   const hasContract = hasRun || state === "contract_confirmed";
   const hasDraft = hasContract || state === "draft_ready";
+  const runItemStatus: ResearchPlanItemStatus =
+    state === "failed"
+      ? "failed"
+      : state === "cancelled"
+        ? "cancelled"
+        : state === "completed" || state === "run_recorded"
+          ? "completed"
+          : state === "waiting_for_input"
+            ? "waiting"
+            : hasRun
+              ? "running"
+              : hasContract
+                ? "current"
+                : "pending";
   return [
     {
       id: "prepare-boundary",
@@ -188,8 +203,12 @@ function preparationItems(
     },
     {
       id: "start-run",
-      label: "开始研究",
-      status: hasRun ? "completed" : hasContract ? "current" : "pending",
+      label: hasRun ? "执行研究" : "开始研究",
+      status: runItemStatus,
+      detail:
+        state === "failed"
+          ? run?.failure?.summary?.trim() || "运行失败，可从失败步骤重试。"
+          : undefined,
     },
   ];
 }
@@ -218,6 +237,8 @@ export function deriveResearchPresentation(
   facts: ResearchPresentationFacts,
 ): ResearchPresentation {
   const state = deriveState(facts);
+  const steps = runStepItems(facts.steps ?? []);
+  const preparation = preparationItems(state, facts.run);
   return {
     state,
     statusLabel: statusLabel(state),
@@ -231,6 +252,9 @@ export function deriveResearchPresentation(
             : facts.project.activeDraftId !== null
               ? "草稿待确认"
               : "待完善",
-    planItems: [...preparationItems(state), ...runStepItems(facts.steps ?? [])],
+    planItems: [
+      ...(steps.length > 0 ? preparation.slice(0, 2) : preparation),
+      ...steps,
+    ],
   };
 }

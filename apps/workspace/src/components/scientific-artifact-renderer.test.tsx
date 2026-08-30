@@ -299,7 +299,7 @@ describe("ScientificArtifactRenderer scientific content", () => {
     expect(screen.getByText("500.5000")).toBeInTheDocument();
     expect(screen.getByText("吸收")).toBeInTheDocument();
 
-    const links = screen.getAllByRole("button", { name: "证据 1" });
+    const links = screen.getAllByRole("button", { name: "查看证据 1" });
     expect(links.length).toBeGreaterThan(0);
     const firstLink = links[0];
     if (!firstLink) throw new Error("Evidence link is not rendered.");
@@ -315,7 +315,7 @@ describe("ScientificArtifactRenderer scientific content", () => {
         surface="fullscreen"
       />,
     );
-    expect(screen.queryByRole("button", { name: "证据 1" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "查看证据 1" })).toBeNull();
   });
 
   it("renders analysis report findings, metrics and human review warnings", () => {

@@ -59,6 +59,10 @@ export function PaperPdfViewer({
   );
   const [pageNumber, setPageNumber] = useState(1);
   const [numPages, setNumPages] = useState(0);
+  const [renderedPage, setRenderedPage] = useState<{
+    readonly src: string;
+    readonly pageNumber: number;
+  } | null>(null);
   const [scale, setScale] = useState(1);
   const [fitMode, setFitMode] = useState<FitMode>("width");
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
@@ -98,6 +102,7 @@ export function PaperPdfViewer({
   const onLoadSuccess = (pdf: PDFDocumentProxy) => {
     setDocumentProxy(pdf);
     setNumPages(pdf.numPages);
+    setRenderedPage(null);
     setLoadError(null);
     const pending = pendingPageRef.current;
     if (pending !== null) {
@@ -159,9 +164,14 @@ export function PaperPdfViewer({
       className={`xw-pdf-viewer-container flex h-full min-h-0 w-full flex-col bg-background ${className}`}
       data-testid="paper-pdf-viewer"
       data-num-pages={numPages}
+      data-rendered-page={
+        renderedPage?.src === src && renderedPage.pageNumber === pageNumber
+          ? pageNumber
+          : ""
+      }
       aria-label="论文原文"
     >
-      <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-border/40 px-2 py-2">
+      <div className="xw-pdf-toolbar">
         <Button
           variant="ghost"
           size="icon"
@@ -169,7 +179,7 @@ export function PaperPdfViewer({
           disabled={pageNumber <= 1}
           onClick={() => setPageNumber((current) => Math.max(1, current - 1))}
         >
-          <ChevronLeft className="size-4" aria-hidden="true" />
+          <ChevronLeft aria-hidden="true" />
         </Button>
         <span className="min-w-20 text-center text-xs text-muted-foreground">
           {numPages > 0 ? `${pageNumber} / ${numPages}` : "— / —"}
@@ -183,9 +193,9 @@ export function PaperPdfViewer({
             setPageNumber((current) => Math.min(numPages, current + 1))
           }
         >
-          <ChevronRight className="size-4" aria-hidden="true" />
+          <ChevronRight aria-hidden="true" />
         </Button>
-        <span className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
+        <span className="xw-pdf-toolbar__divider" aria-hidden="true" />
         <Button
           variant="ghost"
           size="icon"
@@ -195,7 +205,7 @@ export function PaperPdfViewer({
             setScale((current) => Math.max(0.5, current - 0.1));
           }}
         >
-          <ZoomOut className="size-4" aria-hidden="true" />
+          <ZoomOut aria-hidden="true" />
         </Button>
         <Button
           variant="ghost"
@@ -206,7 +216,7 @@ export function PaperPdfViewer({
             setScale((current) => Math.min(3, current + 0.1));
           }}
         >
-          <ZoomIn className="size-4" aria-hidden="true" />
+          <ZoomIn aria-hidden="true" />
         </Button>
         <Button
           variant={fitMode === "width" ? "secondary" : "ghost"}
@@ -222,7 +232,8 @@ export function PaperPdfViewer({
         >
           适合页面
         </Button>
-        <div className="ml-auto flex min-w-56 items-center gap-1.5">
+        <div className="xw-pdf-toolbar__search">
+          <Search aria-hidden="true" />
           <Input
             value={query}
             onChange={(event) => setQuery(event.currentTarget.value)}
@@ -233,21 +244,24 @@ export function PaperPdfViewer({
             aria-label="搜索论文全文"
           />
           <Button
-            variant="ghost"
+            variant="secondary"
             size="icon"
             aria-label="搜索"
             disabled={searching || !query.trim()}
             onClick={() => void runSearch()}
           >
-            <Search className="size-4" aria-hidden="true" />
+            <Search aria-hidden="true" />
           </Button>
           <a
             href={src}
             download
-            className={buttonClassName({ variant: "ghost", size: "icon" })}
+            className={buttonClassName({
+              variant: "secondary",
+              size: "icon",
+            })}
             aria-label="下载论文原文"
           >
-            <Download className="size-4" aria-hidden="true" />
+            <Download aria-hidden="true" />
           </a>
         </div>
       </div>
@@ -271,7 +285,7 @@ export function PaperPdfViewer({
           loading={
             <div className="mx-auto max-w-3xl" aria-busy="true">
               <Skeleton className="h-12 w-3/4 mb-2" />
-              <Skeleton className="h-[60vh] w-full" />
+              <Skeleton className="h-[var(--workspace-result-pdf-loading-block-size)] w-full" />
             </div>
           }
           error={
@@ -288,6 +302,7 @@ export function PaperPdfViewer({
               scale={fitMode === null ? scale : undefined}
               renderTextLayer
               renderAnnotationLayer
+              onRenderSuccess={() => setRenderedPage({ src, pageNumber })}
               className="mx-auto shadow-sm"
             />
           </div>

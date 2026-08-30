@@ -14,6 +14,7 @@ import {
   EmptyTitle,
   Item,
   ItemContent,
+  ItemDescription,
   ItemMedia,
   ItemTitle,
   Tabs,
@@ -142,6 +143,9 @@ export function DockedWorkspacePanel({
                       </ItemMedia>
                       <ItemContent>
                         <ItemTitle>{item.label}</ItemTitle>
+                        {item.detail ? (
+                          <ItemDescription>{item.detail}</ItemDescription>
+                        ) : null}
                       </ItemContent>
                     </Item>
                   </li>

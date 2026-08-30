@@ -18,4 +18,10 @@ describe("shared UI style invariants", () => {
     expect(styles).not.toMatch(/--(?:oh|raw|workspace)-/u);
     expect(styles).not.toMatch(/#[\da-f]{3,8}\b/iu);
   });
+
+  it("keeps shared component geometry and typography token-driven", () => {
+    expect(styles).not.toMatch(/font-weight:\s*\d+/u);
+    expect(styles).not.toMatch(/\d+(?:\.\d+)?rem\b/u);
+    expect(styles).not.toMatch(/\b1px\b/u);
+  });
 });

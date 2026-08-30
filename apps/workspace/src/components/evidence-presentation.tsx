@@ -1,7 +1,7 @@
 import { safeExternalUrl, type PublicEvidence } from "@xingwen/domain";
 import type { EvidenceViewModel } from "@xingwen/research-adapter";
 import { Button, Link } from "@xingwen/ui";
-import { ExternalLink } from "@xingwen/ui/icons";
+import { Database, ExternalLink, Quote, Target } from "@xingwen/ui/icons";
 
 const SOURCE_TYPE_LABELS: Readonly<Record<string, string>> = {
   benchmark: "基准数据",
@@ -127,13 +127,19 @@ export function EvidencePresentationContent({
 }) {
   return (
     <div className="evidence-presentation">
-      <section>
-        <h3>来源内容</h3>
+      <section className="evidence-presentation__section evidence-presentation__quote">
+        <header className="evidence-presentation__section-header">
+          <Quote aria-hidden="true" />
+          <h3>来源内容</h3>
+        </header>
         <blockquote>{presentation.quote}</blockquote>
       </section>
       {presentation.locatorFacts.length > 0 ? (
-        <section>
-          <h3>定位</h3>
+        <section className="evidence-presentation__section">
+          <header className="evidence-presentation__section-header">
+            <Target aria-hidden="true" />
+            <h3>证据定位</h3>
+          </header>
           <dl>
             {presentation.locatorFacts.map((fact) => (
               <div key={fact.label}>
@@ -153,8 +159,11 @@ export function EvidencePresentationContent({
           ) : null}
         </section>
       ) : null}
-      <section>
-        <h3>来源</h3>
+      <section className="evidence-presentation__section">
+        <header className="evidence-presentation__section-header">
+          <Database aria-hidden="true" />
+          <h3>来源记录</h3>
+        </header>
         <p>
           {presentation.sourceType}
           {presentation.retrievedAt

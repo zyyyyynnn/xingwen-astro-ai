@@ -56,7 +56,7 @@ export function EvidencePanel({
               {item.quoteOrValue && (
                 <div className="mb-2 flex items-start gap-2 text-foreground">
                   <Quote
-                    className="size-3.5 shrink-0 text-muted-foreground mt-0.5"
+                    className="mt-0.5 size-[var(--icon-size-sm)] shrink-0 text-muted-foreground"
                     aria-hidden="true"
                   />
                   <blockquote className="italic font-serif leading-relaxed">
@@ -74,7 +74,10 @@ export function EvidencePanel({
                     className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
                   >
                     <span>查看原文依据</span>
-                    <ExternalLink className="size-3" aria-hidden="true" />
+                    <ExternalLink
+                      className="size-[var(--icon-size-xs)]"
+                      aria-hidden="true"
+                    />
                   </Link>
                 )}
               </div>

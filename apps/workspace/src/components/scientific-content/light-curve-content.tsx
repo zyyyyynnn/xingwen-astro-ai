@@ -412,13 +412,14 @@ function PhaseFoldedPlot({
   );
 }
 
-/** Periodogram Peak Plot — authoritative peaks only, no simulated spectrum */
 function PeriodogramPlot({
   peaks,
   timeUnit,
+  fixtureMode,
 }: {
   readonly peaks: readonly PeriodPeak[];
   readonly timeUnit: string;
+  readonly fixtureMode: boolean;
 }) {
   const projected = useMemo(() => {
     if (peaks.length === 0) {
@@ -522,7 +523,7 @@ function PeriodogramPlot({
           opacity="0.7"
           transform="rotate(-90)"
         >
-          谱功率 Spectral Power
+          {fixtureMode ? "展示权重 Display Weight" : "谱功率 Spectral Power"}
         </text>
       </svg>
     </div>
@@ -547,6 +548,7 @@ export function LightCurveContent({
   >("timeseries");
 
   const bestPeriod = content.bestPeriod;
+  const fixtureMode = sourceMode === "fixture";
 
   return (
     <article
@@ -557,7 +559,7 @@ export function LightCurveContent({
         <>
           <ScientificContentHeader
             title={content.title || title}
-            subtitle={`光变测光曲线 · 目标天体: ${content.objectName}`}
+            subtitle={`${fixtureMode ? "光变交互界面样例" : "光变测光曲线"} · 目标天体: ${content.objectName}`}
           />
 
           <dl
@@ -585,7 +587,9 @@ export function LightCurveContent({
               </div>
             ) : null}
             <div className="flex items-baseline gap-1.5">
-              <dt className="text-xs text-muted-foreground">主周期</dt>
+              <dt className="text-xs text-muted-foreground">
+                {fixtureMode ? "目录参考周期" : "主周期"}
+              </dt>
               <dd className="font-semibold tabular-nums text-foreground">
                 {bestPeriod.toFixed(4)} {content.timeUnit}
               </dd>
@@ -607,13 +611,16 @@ export function LightCurveContent({
             <div className="flex items-baseline gap-1.5">
               <dt className="text-xs text-muted-foreground">测量</dt>
               <dd className="font-semibold text-foreground">
-                {VALUE_KIND_LABELS[content.valueKind] ?? content.valueKind}
+                {fixtureMode
+                  ? "确定性演示相对流量"
+                  : (VALUE_KIND_LABELS[content.valueKind] ?? content.valueKind)}
               </dd>
             </div>
             <div className="flex items-baseline gap-1.5">
               <dt className="text-xs text-muted-foreground">时间基准</dt>
               <dd className="font-semibold text-foreground">
                 {content.timeScale.toUpperCase()}
+                {fixtureMode ? " 坐标约定（演示）" : ""}
               </dd>
             </div>
             <div className="flex items-baseline gap-1.5">
@@ -637,13 +644,19 @@ export function LightCurveContent({
           >
             <TabsList variant="line">
               <TabsTrigger value="timeseries">
-                连续光变序列 (Time Series)
+                {fixtureMode
+                  ? "确定性演示序列 (UI Sequence)"
+                  : "连续光变序列 (Time Series)"}
               </TabsTrigger>
               <TabsTrigger value="folded">
-                相位折叠曲线 (Phase Folded)
+                {fixtureMode
+                  ? "相位展示 (Phase View)"
+                  : "相位折叠曲线 (Phase Folded)"}
               </TabsTrigger>
               <TabsTrigger value="periodogram">
-                周期图谱 (Periodogram)
+                {fixtureMode
+                  ? "目录周期标记 (Catalog Periods)"
+                  : "周期图谱 (Periodogram)"}
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -652,17 +665,19 @@ export function LightCurveContent({
             {activeTab === "folded" ? (
               <span className="flex items-center gap-1.5">
                 <span className="inline-block size-2 rounded-full bg-primary" />{" "}
-                观测折叠点（按结果记录的轨道相位）
+                {fixtureMode
+                  ? "演示序列折叠点（非观测拟合）"
+                  : "观测折叠点（按结果记录的轨道相位）"}
               </span>
             ) : activeTab === "periodogram" ? (
               <span className="flex items-center gap-1.5">
                 <span className="inline-block size-2 rounded-full bg-destructive" />{" "}
-                权威周期峰值
+                {fixtureMode ? "目录周期标记（非功率谱推断）" : "周期峰值"}
               </span>
             ) : (
               <span className="flex items-center gap-1.5">
                 <span className="inline-block size-2 rounded-full bg-primary" />{" "}
-                PDC-SAP 归一化测光点
+                {fixtureMode ? "目录参数驱动的确定性界面序列" : "归一化测光点"}
               </span>
             )}
           </div>
@@ -685,6 +700,7 @@ export function LightCurveContent({
             <PeriodogramPlot
               peaks={content.periodPeaks}
               timeUnit={content.timeUnit}
+              fixtureMode={fixtureMode}
             />
           )}
         </div>
@@ -694,11 +710,12 @@ export function LightCurveContent({
       <Collapsible defaultOpen={false}>
         <CollapsibleTrigger className="group flex w-full items-center gap-1.5 py-2 text-sm text-muted-foreground hover:text-foreground">
           <ChevronRight
-            className="size-3.5 transition-transform group-data-[state=open]:rotate-90"
+            className="size-[var(--icon-size-sm)] transition-transform group-data-[state=open]:rotate-90"
             aria-hidden="true"
           />
           <span className="font-medium">
-            周期图谱峰值候选（{content.periodPeaks.length} 个）
+            {fixtureMode ? "目录周期记录" : "周期图谱峰值候选"}（
+            {content.periodPeaks.length} 个）
           </span>
         </CollapsibleTrigger>
         <CollapsibleContent>
@@ -708,7 +725,7 @@ export function LightCurveContent({
                 <thead>
                   <tr>
                     <th>周期 ({content.timeUnit})</th>
-                    <th>谱功率 Power</th>
+                    <th>{fixtureMode ? "展示权重" : "谱功率 Power"}</th>
                   </tr>
                 </thead>
                 <tbody>

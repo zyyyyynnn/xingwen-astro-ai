@@ -72,13 +72,16 @@ function ChartSummary({
 
 function FitsImageSummary({
   content,
+  sourceMode,
   loadContent,
 }: {
   readonly content: VisualizationReviewContent;
+  readonly sourceMode: string;
   readonly loadContent?: (contentHash: ContentHash) => Promise<ArrayBuffer>;
 }) {
   if (content.spec.mode !== "fits_image") return null;
   const { spec } = content;
+  const fixtureMode = sourceMode === "fixture";
   if (!loadContent) {
     return (
       <>
@@ -103,14 +106,16 @@ function FitsImageSummary({
         </div>
         <aside
           className="observation-workspace__inspector"
-          aria-label="FITS 观测状态"
+          aria-label={fixtureMode ? "FITS 交互样例状态" : "FITS 观测状态"}
         >
           <header className="observation-workspace__inspector-header">
             <div>
-              <span>观测产品</span>
-              <h3>FITS 图像切片</h3>
+              <span>{fixtureMode ? "交互界面样例" : "观测产品"}</span>
+              <h3>{fixtureMode ? "FITS 图像状态覆盖" : "FITS 图像切片"}</h3>
             </div>
-            <Badge variant="secondary">可复现</Badge>
+            <Badge variant="secondary">
+              {fixtureMode ? "非归档观测" : "可复现"}
+            </Badge>
           </header>
 
           <section>
@@ -262,7 +267,11 @@ export function VisualizationContent({
         <p className="artifact-view__lead">{content.description}</p>
       ) : null}
       <ChartSummary content={content} />
-      <FitsImageSummary content={content} loadContent={loadContent} />
+      <FitsImageSummary
+        content={content}
+        sourceMode={sourceMode}
+        loadContent={loadContent}
+      />
       <WwtSceneSummary
         content={content}
         versionNumber={versionNumber}

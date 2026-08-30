@@ -136,7 +136,7 @@ export function PaperResultWorkspace({
             <div className="mb-6 rounded-md bg-surface-muted/60 p-3 text-xs text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Info
-                  className="size-4 shrink-0 text-muted-foreground"
+                  className="size-[var(--icon-size-md)] shrink-0 text-muted-foreground"
                   aria-hidden="true"
                 />
                 <span>

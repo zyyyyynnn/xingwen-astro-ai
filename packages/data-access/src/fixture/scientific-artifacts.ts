@@ -28,6 +28,20 @@ import type {
   WwtSceneVisualizationSpec,
 } from "@xingwen/contracts";
 
+import {
+  L9859_HARPS_DATASET_ID,
+  L9859_HARPS_FILE_SHA256,
+  L9859_HARPS_OBSERVED_AT,
+  l9859HarpsRecordedPoints,
+} from "./recorded-l9859-harps";
+import {
+  TOI_1233_CATALOG_ROWS,
+  TOI_1233_RECORDED_AT,
+  TOI_1233_RESPONSE_SHA256,
+  TOI_1233_SHORT_PERIOD_ROW,
+  TOI_1233_TAP_QUERY,
+} from "./recorded-toi-1233-catalog";
+
 function hash(seed: string): string {
   const encoded = Array.from(seed)
     .map((c) => c.codePointAt(0)!.toString(16))
@@ -39,47 +53,68 @@ const T_CREATED = "2026-07-21T08:28:00Z";
 
 const sourceSnapshot: SourceSnapshotDetail = {
   id: "snap_sci_01",
-  source_id: "mast.tess",
+  source_id: "nasa_exoplanet_archive.toi",
   source_type: "catalog",
-  retrieved_at: "2026-07-21T08:20:00Z",
-  query: { target: "TOI-1233", mission: "TESS", fixture: true },
-  query_hash: hash("q_sci_01"),
-  content_hash: hash("c_sci_01"),
-  request_metadata: { adapter: "demo_replay" },
-  source_version_or_etag: "tess-dr5-2026",
-  license_note: "Public domain NASA / MAST TESS observation archive data.",
-};
-
-const producerExecution: ProducerExecutionDetail = {
-  id: "exec_sci_pipeline_01",
-  run_id: "run_01JEXAMPLE",
-  step_key: "scientific_inference",
-  step_attempt_id: "attempt_sci_01",
-  status: "completed",
-  started_at: "2026-07-21T08:20:00Z",
-  finished_at: T_CREATED,
-  input_hash: hash("i_sci"),
-  output_hash: hash("o_sci"),
-  parameters: { pipeline: "autoastro_mavis_synthesis" },
-  parameters_hash: hash("p_sci"),
-  latency_ms: 120,
-  error_code: null,
-  producer: {
-    type: "pipeline",
-    name: "xingwen-scientific-runtime",
-    version: "2.1.0",
+  retrieved_at: TOI_1233_RECORDED_AT,
+  query: {
+    service: "TAP",
+    table: "toi",
+    adql: TOI_1233_TAP_QUERY,
+    replay_scope: "recorded_catalog_response",
   },
+  query_hash:
+    "sha256:bfa32ab3a02c1f78bb1ec7f584811077c966caa9a83c634fcf4949f96546e7d7",
+  content_hash: TOI_1233_RESPONSE_SHA256,
+  request_metadata: {
+    adapter: "demo_replay",
+    endpoint: "https://exoplanetarchive.ipac.caltech.edu/TAP/sync",
+  },
+  source_version_or_etag: null,
+  license_note: "NASA Exoplanet Archive public catalog response.",
 };
 
-const skillExecution: ScientificSkillExecution = {
-  execution_id: "exec_skill_01",
-  skill_id: "light_curve_analysis",
+const makeSkillExecution = (
+  executionId: string,
+  skillId: ScientificSkillExecution["skill_id"],
+): ScientificSkillExecution => ({
+  execution_id: executionId,
+  skill_id: skillId,
   skill_revision: "1.0.0",
   status: "completed",
-  input_hash: hash("i_skill"),
-  output_hash: hash("o_skill"),
+  input_hash: hash(`i_${executionId}`),
+  output_hash: hash(`o_${executionId}`),
   duration_ms: 450,
   warnings: [],
+});
+
+const analysisSkillExecution = makeSkillExecution(
+  "exec_skill_analysis_01",
+  "light_curve_analysis",
+);
+const chartSkillExecution = makeSkillExecution(
+  "exec_skill_chart_01",
+  "chart_visualization",
+);
+const fitsSkillExecution = makeSkillExecution(
+  "exec_skill_fits_01",
+  "skyview_fits",
+);
+const wwtSkillExecution = makeSkillExecution("exec_skill_wwt_01", "wwt_scene");
+const spectrumSkillExecution = makeSkillExecution(
+  "exec_skill_spectrum_01",
+  "spectrum_acquisition",
+);
+const lightCurveSkillExecution: ScientificSkillExecution = {
+  ...makeSkillExecution("exec_skill_light_curve_01", "light_curve_analysis"),
+  warnings: [
+    "Demo Replay UI sequence generation only; no archived light curve was analyzed.",
+  ],
+};
+const modelSkillExecution: ScientificSkillExecution = {
+  ...makeSkillExecution("exec_skill_model_01", "time_series_classification"),
+  warnings: [
+    "Demo Replay metadata projection only; no model training or evaluation run occurred.",
+  ],
 };
 
 // ---------------------------------------------------------------------------
@@ -87,32 +122,32 @@ const skillExecution: ScientificSkillExecution = {
 // ---------------------------------------------------------------------------
 const analysisMetrics: ScientificMetric[] = [
   {
-    metric_id: "met_snr",
-    label: "凌星信噪比 (S/N)",
-    value: 38.4,
-    unit: null,
-    evidence_ids: ["ev_sci_01"],
+    metric_id: "met_period",
+    label: "TOI 目录轨道周期",
+    value: TOI_1233_SHORT_PERIOD_ROW.orbitalPeriodDays,
+    unit: "d",
+    evidence_ids: ["ev_b_analysis_tess"],
   },
   {
-    metric_id: "met_period",
-    label: "最佳轨道周期",
-    value: 3.7952,
-    unit: "d",
-    evidence_ids: ["ev_sci_01"],
+    metric_id: "met_radius",
+    label: "TOI 目录行星半径",
+    value: TOI_1233_SHORT_PERIOD_ROW.planetRadiusEarth,
+    unit: "R_Earth",
+    evidence_ids: ["ev_b_analysis_catalog"],
   },
   {
     metric_id: "met_depth",
-    label: "凌星深度 (Transit Depth)",
-    value: 684.2,
+    label: "TOI 目录凌星深度",
+    value: TOI_1233_SHORT_PERIOD_ROW.transitDepthPpm,
     unit: "ppm",
-    evidence_ids: ["ev_sci_02"],
+    evidence_ids: ["ev_b_analysis_catalog"],
   },
   {
-    metric_id: "met_rp_rs",
-    label: "行星-恒星半径比 Rp/R*",
-    value: 0.02616,
-    unit: null,
-    evidence_ids: ["ev_sci_02"],
+    metric_id: "met_duration",
+    label: "TOI 目录凌星持续时间",
+    value: TOI_1233_SHORT_PERIOD_ROW.transitDurationHours,
+    unit: "h",
+    evidence_ids: ["ev_b_analysis_catalog"],
   },
 ];
 
@@ -121,24 +156,21 @@ const analysisResultBlocks: [
   ...ScientificResultBlock[],
 ] = [
   {
-    block_id: "blk_mcmc_summary",
-    label: "MCMC 后验参数拟合结果",
+    block_id: "blk_recorded_catalog_summary",
+    label: "冻结目录记录",
     representation: "record",
     payload: {
-      sampler: "emcee",
-      n_walkers: 64,
-      n_steps: 10000,
-      burn_in: 2000,
-      r_hat_max: 1.01,
-      parameters: {
-        orbital_period_days: "3.795231 +/- 0.000018",
-        transit_epoch_bjd: "2458682.4128 +/- 0.0012",
-        impact_parameter_b: "0.24 +/- 0.08",
-        scaled_semimajor_axis: "11.42 +/- 0.35",
-      },
+      source: "NASA Exoplanet Archive TOI table",
+      toi: TOI_1233_SHORT_PERIOD_ROW.toi,
+      tic_id: TOI_1233_SHORT_PERIOD_ROW.ticId,
+      disposition: TOI_1233_SHORT_PERIOD_ROW.disposition,
+      orbital_period_days: TOI_1233_SHORT_PERIOD_ROW.orbitalPeriodDays,
+      transit_depth_ppm: TOI_1233_SHORT_PERIOD_ROW.transitDepthPpm,
+      transit_duration_hours: TOI_1233_SHORT_PERIOD_ROW.transitDurationHours,
+      catalog_row_updated_at: TOI_1233_SHORT_PERIOD_ROW.rowUpdatedAt,
     },
-    content_hash: hash("blk_01"),
-    evidence_ids: ["ev_sci_01"],
+    content_hash: TOI_1233_RESPONSE_SHA256,
+    evidence_ids: ["ev_b_analysis_tess"],
   },
 ];
 
@@ -146,51 +178,49 @@ export const analysisReportContent: AnalysisReportArtifactContent = {
   kind: "analysis_report",
   schema_version: "1.0.0",
   report_id: "rpt_toi_1233_transit",
-  title: "TOI-1233 (HD 108236) 凌星拟合与动力学综合分析报告",
+  title: "TOI-1233.04 公开目录参数核验与界面能力样例",
   summary:
-    "基于 TESS Sector 10/11 光变曲线与高精度 RV 观测数据，完成 TOI-1233 系统的多行星凌星模型联合拟合。确认 TOI-1233.01 (b) 为短周期亚海王星，凌星信噪比达到 38.4，轨道周期 3.7952 天，半径 2.06 R_Earth。未发现显著 TTV 信号，但限制了外层行星的质量上限。",
-  skill_executions: [skillExecution],
+    "本 Demo Replay 核对 NASA Exoplanet Archive TOI 表中 TOI-1233.04 的冻结目录参数，并用确定性样例覆盖分析报告、图表、光变和模型界面。它不包含原始 TESS 光度序列、MCMC 拟合、TTV 或视向速度结论。",
+  skill_executions: [analysisSkillExecution],
   result_blocks: analysisResultBlocks,
   metrics: analysisMetrics,
   findings: [
     {
       finding_id: "fnd_01",
-      title: "确认 TOI-1233.01 凌星特征为高质量行星候选体",
-      statement:
-        "TESS 光变曲线呈现高对称性 U 型凌星轮廓，拟合半径比 Rp/R* = 0.02616，无显著食双星二次掩食特征。",
+      title: "冻结目录记录可复核",
+      statement: `TOI 表记录 ${TOI_1233_SHORT_PERIOD_ROW.toi} 关联 TIC ${TOI_1233_SHORT_PERIOD_ROW.ticId}，处置状态为 ${TOI_1233_SHORT_PERIOD_ROW.disposition}，轨道周期为 ${TOI_1233_SHORT_PERIOD_ROW.orbitalPeriodDays} 天。`,
       status: "supported",
-      evidence_ids: ["ev_sci_01"],
-      metric_ids: ["met_snr", "met_depth"],
+      evidence_ids: ["ev_b_analysis_tess"],
+      metric_ids: ["met_period", "met_depth"],
     },
     {
       finding_id: "fnd_02",
-      title: "宿主星参数约束下的行星物理半径",
-      statement:
-        "结合 Gaia DR3 距离与光谱有效温度 (5720 K)，推导行星物理半径为 2.06 ± 0.08 R_Earth，位于挥发分包层过渡区。",
-      status: "supported",
-      evidence_ids: ["ev_sci_02"],
-      metric_ids: ["met_rp_rs"],
+      title: "目录参数不等同于重新拟合",
+      statement: `目录给出的行星半径为 ${TOI_1233_SHORT_PERIOD_ROW.planetRadiusEarth} R_Earth；本回放未从光变或恒星参数重新推导该数值。`,
+      status: "partial",
+      evidence_ids: ["ev_b_analysis_catalog"],
+      metric_ids: ["met_radius"],
     },
     {
       finding_id: "fnd_03",
-      title: "凌星时刻变分 (TTV) 动力学分析",
+      title: "原始观测分析尚未执行",
       statement:
-        "在 18 个连续观测周期内，凌星中心时刻残差在 2.1 分钟以内，未检测到超过 3-sigma 的周期性 TTV 扰动。",
+        "当前 fixture 没有原始 TESS 光度序列，因此不能报告信噪比、周期图显著性、TTV、污染率或模型科学性能。",
       status: "partial",
-      evidence_ids: ["ev_sci_01"],
-      metric_ids: ["met_period"],
+      evidence_ids: ["ev_b_analysis_tess"],
+      metric_ids: [],
     },
   ],
   limitations: [
-    "当前单波段 TESS 测光无法完全排除临近暗星污染率低于 1.2% 的背景共混可能性。",
-    "需要高精度红外光谱 (如 JWST NIRSpec) 进一步约束大气水分子吸收带。",
+    "光变点、周期图功率和模型指标是确定性的 UI 边界样例，不是从公开观测重新计算的科研结果。",
+    "目录参数来自冻结 TAP 响应；若需要当前值，应重新执行 Live 查询并发布新版本。",
   ],
   human_required: [
-    "需人工审定 TTV 动力学反演参数与外部 HARPS 视向速度数据的置信区间匹配度。",
+    "需要在绑定真实 TESS 数据产品、质量位与算法版本后，才能发布任何光变拟合或模型性能结论。",
   ],
-  related_artifact_version_ids: ["artv_lc_01", "artv_spec_01"],
+  related_artifact_version_ids: ["artv_b_lc_01", "artv_b_modeval_01"],
   source_snapshot_ids: [sourceSnapshot.id],
-  evidence_ids: ["ev_sci_01", "ev_sci_02"],
+  evidence_ids: ["ev_b_analysis_tess", "ev_b_analysis_catalog"],
   input_hash: hash("i_rpt"),
   output_hash: hash("o_rpt"),
 };
@@ -217,29 +247,19 @@ const chartSpec: ChartVisualizationSpec = {
   series: [
     {
       series_id: "ser_confirmed",
-      label: "已确认系外行星 (Confirmed)",
+      label: "TOI-1233 冻结目录记录",
       x_field: "period",
       y_field: "radius",
       mark: "point",
       color_token: "brand",
-      points: [
-        { x: 0.78, y: 1.12 },
-        { x: 1.42, y: 1.45 },
-        { x: 2.15, y: 1.88 },
-        { x: 3.79, y: 2.06 },
-        { x: 4.82, y: 2.35 },
-        { x: 6.21, y: 2.72 },
-        { x: 9.55, y: 3.12 },
-        { x: 12.3, y: 3.48 },
-        { x: 15.6, y: 2.18 },
-        { x: 19.8, y: 2.65 },
-        { x: 24.1, y: 3.89 },
-        { x: 31.5, y: 4.12 },
-      ],
+      points: TOI_1233_CATALOG_ROWS.map((row) => ({
+        x: row.orbitalPeriodDays,
+        y: row.planetRadiusEarth,
+      })) as [{ x: number; y: number }, ...{ x: number; y: number }[]],
     },
     {
       series_id: "ser_candidates",
-      label: "TOI 候选体 (Candidates)",
+      label: "容量边界样例（非目录记录）",
       x_field: "period",
       y_field: "radius",
       mark: "point",
@@ -257,7 +277,7 @@ const chartSpec: ChartVisualizationSpec = {
     },
     {
       series_id: "ser_trend",
-      label: "半径谷演化拟合线 (Radius Valley)",
+      label: "视觉引导线（非科学拟合）",
       x_field: "period",
       y_field: "radius",
       mark: "line",
@@ -277,13 +297,13 @@ export const chartVisualizationContent: VisualizationArtifactContent = {
   kind: "visualization",
   schema_version: "1.0.0",
   visualization_id: "vis_period_radius_diagram",
-  title: "系外行星周期-半径分布图 (Period-Radius Diagram)",
+  title: "TOI-1233 冻结目录周期-半径图与容量边界样例",
   description:
-    "展示系外行星样本在轨道周期与半径维度的分布格局，清晰揭示 Fulton 半径谷 (Fulton gap) 及亚海王星与超级地球的分界特征。",
+    "品牌色点来自冻结的 NASA Exoplanet Archive TOI 目录响应；橙色点与引导线仅用于覆盖高密度图例、缩放和提示交互，不参与科研解释。",
   spec: chartSpec,
-  skill_executions: [skillExecution],
+  skill_executions: [chartSkillExecution],
   source_snapshot_ids: [sourceSnapshot.id],
-  evidence_ids: ["ev_sci_01"],
+  evidence_ids: ["ev_b_chart_source"],
   input_hash: hash("i_vis_chart"),
   output_hash: hash("o_vis_chart"),
 };
@@ -305,9 +325,9 @@ export const fitsVisualizationContent: VisualizationArtifactContent = {
   description:
     "TESS 11×11 像素切片目标像素图，叠加最优测光孔径 (Optimal Photometric Aperture) 及邻近背景减除掩模。",
   spec: fitsSpec,
-  skill_executions: [skillExecution],
+  skill_executions: [fitsSkillExecution],
   source_snapshot_ids: [sourceSnapshot.id],
-  evidence_ids: ["ev_sci_01"],
+  evidence_ids: ["ev_b_fits_source"],
   input_hash: hash("i_vis_fits"),
   output_hash: hash("o_vis_fits"),
 };
@@ -381,143 +401,37 @@ const wwtSpec: WwtSceneVisualizationSpec = {
   ],
   readbacks: ["center_coordinates", "field_of_view", "current_time"],
   text_alternative:
-    "WWT 天文全景观测场景：以 TOI-1233 为中心的赤道坐标系星空视野，包含 TESS 观测切片图层与 Gaia DR3 临近恒星分布。",
+    "WWT 天文全景交互场景：以 TOI-1233 为中心的赤道坐标系星空视野，包含明确标注为 Demo Replay 的 TESS 图层样例与 Gaia DR3 临近恒星分布。",
 };
 
 export const wwtVisualizationContent: VisualizationArtifactContent = {
   kind: "visualization",
   schema_version: "1.0.0",
   visualization_id: "vis_wwt_toi_1233_scene",
-  title: "TOI-1233 天文全景观测场景 (WorldWide Telescope Scene)",
+  title: "TOI-1233 天文全景交互场景 (WorldWide Telescope Scene)",
   description:
     "交互式 WWT 虚拟天文台视口，展示目标天体天区、赤道坐标网格、星座连线及空间多波段多源星表图层叠加。",
   spec: wwtSpec,
-  skill_executions: [skillExecution],
+  skill_executions: [wwtSkillExecution],
   source_snapshot_ids: [sourceSnapshot.id],
-  evidence_ids: ["ev_sci_01"],
+  evidence_ids: ["ev_b_wwt_source"],
   input_hash: hash("i_vis_wwt"),
   output_hash: hash("o_vis_wwt"),
 };
 
 // ---------------------------------------------------------------------------
-// 3. Spectrum
-// ---------------------------------------------------------------------------
-function generateSpectrumPoints(count: number) {
-  const points = [];
-  const startWl = 3800;
-  const endWl = 6800;
-  const step = (endWl - startWl) / (count - 1);
-  for (let i = 0; i < count; i++) {
-    const wl = startWl + i * step;
-    // Base blackbody-like curve around 5700K
-    const x = (wl - 3800) / 3000;
-    const continuum = 0.5 + 0.5 * Math.sin(x * Math.PI * 0.85);
-    // Absorption lines
-    let absorption = 0;
-    // Ca II K & H (3933.7, 3968.5)
-    if (Math.abs(wl - 3933.7) < 25)
-      absorption += 0.45 * Math.exp(-Math.pow((wl - 3933.7) / 6, 2));
-    if (Math.abs(wl - 3968.5) < 25)
-      absorption += 0.38 * Math.exp(-Math.pow((wl - 3968.5) / 6, 2));
-    // H-beta (4861.3)
-    if (Math.abs(wl - 4861.3) < 20)
-      absorption += 0.32 * Math.exp(-Math.pow((wl - 4861.3) / 5, 2));
-    // Na I D (5890.0, 5896.0)
-    if (Math.abs(wl - 5890.0) < 18)
-      absorption += 0.42 * Math.exp(-Math.pow((wl - 5890.0) / 4, 2));
-    if (Math.abs(wl - 5896.0) < 18)
-      absorption += 0.35 * Math.exp(-Math.pow((wl - 5896.0) / 4, 2));
-    // H-alpha (6562.8)
-    if (Math.abs(wl - 6562.8) < 25)
-      absorption += 0.5 * Math.exp(-Math.pow((wl - 6562.8) / 5, 2));
-
-    const noise = Math.sin(i * 12.3) * 0.02 + Math.cos(i * 7.1) * 0.015;
-    const normalizedFlux = Math.max(0.05, 1.0 - absorption + noise);
-    const flux = continuum * normalizedFlux;
-    points.push({
-      wavelength: Number(wl.toFixed(2)),
-      flux: Number(flux.toFixed(4)),
-      continuum: Number(continuum.toFixed(4)),
-      normalized_flux: Number(normalizedFlux.toFixed(4)),
-      uncertainty: 0.008,
-    });
-  }
-  return points;
-}
-
-export const spectrumContent: SpectrumArtifactContent = {
-  kind: "spectrum",
-  schema_version: "1.0.0",
-  spectrum_id: "spec_toi_1233_harps",
-  title: "TOI-1233 高分辨率恒星光谱 (HARPS Spectrograph)",
-  object_name: "TOI-1233 (HD 108236)",
-  wavelength_unit: "angstrom",
-  flux_unit: "normalized_continuum",
-  sample_count: 512,
-  points: generateSpectrumPoints(
-    512,
-  ) as unknown as SpectrumArtifactContent["points"],
-  signal_to_noise: 145.2,
-  detected_lines: [
-    {
-      line_id: "line_ca_ii_k",
-      kind: "absorption",
-      observed_wavelength: 3933.68,
-      normalized_flux: 0.55,
-      significance_sigma: 18.4,
-      equivalent_width: 1.42,
-    },
-    {
-      line_id: "line_ca_ii_h",
-      kind: "absorption",
-      observed_wavelength: 3968.49,
-      normalized_flux: 0.62,
-      significance_sigma: 15.8,
-      equivalent_width: 1.18,
-    },
-    {
-      line_id: "line_h_beta",
-      kind: "absorption",
-      observed_wavelength: 4861.32,
-      normalized_flux: 0.68,
-      significance_sigma: 14.2,
-      equivalent_width: 0.95,
-    },
-    {
-      line_id: "line_na_i_d2",
-      kind: "absorption",
-      observed_wavelength: 5889.95,
-      normalized_flux: 0.58,
-      significance_sigma: 22.1,
-      equivalent_width: 1.05,
-    },
-    {
-      line_id: "line_h_alpha",
-      kind: "absorption",
-      observed_wavelength: 6562.81,
-      normalized_flux: 0.5,
-      significance_sigma: 26.8,
-      equivalent_width: 1.65,
-    },
-  ],
-  rest_wavelength: null,
-  radial_velocity_km_s: 18.42,
-  skill_executions: [skillExecution],
-  source_snapshot_ids: [sourceSnapshot.id],
-  evidence_ids: ["ev_sci_01"],
-  input_hash: hash("i_spec"),
-  output_hash: hash("o_spec"),
-};
-
-// ---------------------------------------------------------------------------
 // 4. Light Curve
 // ---------------------------------------------------------------------------
-function generateLightCurvePoints(count: number, period = 3.7952) {
+function generateLightCurvePoints(
+  count: number,
+  period = TOI_1233_SHORT_PERIOD_ROW.orbitalPeriodDays,
+  transitDepthPpm = TOI_1233_SHORT_PERIOD_ROW.transitDepthPpm,
+) {
   const points = [];
   const durationDays = 27.4; // 1 TESS sector
   const step = durationDays / (count - 1);
   const t0 = 2458682.4128;
-  const transitDuration = 0.12; // ~2.8 hours
+  const transitDuration = TOI_1233_SHORT_PERIOD_ROW.transitDurationHours / 24;
 
   for (let i = 0; i < count; i++) {
     const time = 2458680.0 + i * step;
@@ -530,7 +444,7 @@ function generateLightCurvePoints(count: number, period = 3.7952) {
     if (dt < transitDuration / 2) {
       // Limb-darkened transit profile approximation
       const z = dt / (transitDuration / 2);
-      dip = 0.000684 * Math.sqrt(Math.max(0, 1 - z * z));
+      dip = (transitDepthPpm / 1_000_000) * Math.sqrt(Math.max(0, 1 - z * z));
     }
 
     const noise =
@@ -557,15 +471,44 @@ function generateLightCurvePoints(count: number, period = 3.7952) {
 // ---------------------------------------------------------------------------
 const sourceSnapshotL9859: SourceSnapshotDetail = {
   id: "snap_l9859_tess",
-  source_id: "mast.tess",
+  source_id: "fixture.l9859_scene",
   source_type: "catalog",
   retrieved_at: "2026-07-21T08:20:00Z",
-  query: { target: "L 98-59", mission: "TESS", fixture: true },
+  query: {
+    target: "L 98-59",
+    fixture: true,
+    purpose: "FITS and WWT interaction state coverage",
+  },
   query_hash: hash("q_l9859"),
   content_hash: hash("c_l9859"),
   request_metadata: { adapter: "demo_replay" },
-  source_version_or_etag: "tess-dr5-2026",
-  license_note: "Public domain NASA / MAST TESS observation archive data.",
+  source_version_or_etag: null,
+  license_note:
+    "Demo Replay scene input; it is not an archived TESS data product.",
+};
+
+const sourceSnapshotL9859Harps: SourceSnapshotDetail = {
+  id: "snap_l9859_harps_20240309",
+  source_id: "eso.harps",
+  source_type: "spectrum",
+  retrieved_at: "2026-07-21T08:20:00Z",
+  query: {
+    dataset_id: L9859_HARPS_DATASET_ID,
+    target: "L98-59",
+    service: "ivoa.ObsCore",
+    fixture: true,
+  },
+  query_hash:
+    "sha256:f48ef1af93bd1d699550a5a48660aceba9e651a376450356792ec152d07c679f",
+  content_hash: L9859_HARPS_FILE_SHA256,
+  request_metadata: {
+    adapter: "demo_replay",
+    archive: "ESO Science Archive",
+    projection:
+      "512 median wavelength bins with local 90th-percentile continuum normalization",
+  },
+  source_version_or_etag: L9859_HARPS_DATASET_ID,
+  license_note: "Public ESO Science Archive data product.",
 };
 
 const l9859FitsSpec: FitsImageVisualizationSpec = {
@@ -581,13 +524,13 @@ export const l9859FitsVisualizationContent: VisualizationArtifactContent = {
   kind: "visualization",
   schema_version: "1.0.0",
   visualization_id: "vis_fits_l9859_slice",
-  title: "L 98-59 TESS 图像切片 (Target Pixel Slice)",
+  title: "L 98-59 FITS 图像交互界面样例",
   description:
-    "TESS 像素切片目标图，叠加测光孔径与背景掩模，用于 L 98-59 凌星测光提取。",
+    "确定性 Demo Replay 像素矩阵用于覆盖拉伸、色图、坐标和空值状态；它不是归档 TESS 图像，也不用于测光提取。",
   spec: l9859FitsSpec,
-  skill_executions: [skillExecution],
+  skill_executions: [fitsSkillExecution],
   source_snapshot_ids: [sourceSnapshotL9859.id],
-  evidence_ids: ["ev_sci_01"],
+  evidence_ids: ["ev_c_fits_source"],
   input_hash: hash("i_vis_fits_l9859"),
   output_hash: hash("o_vis_fits_l9859"),
 };
@@ -661,30 +604,41 @@ const l9859WwtSpec: WwtSceneVisualizationSpec = {
   ],
   readbacks: ["center_coordinates", "field_of_view", "current_time"],
   text_alternative:
-    "WWT 天文全景观测场景：以 L 98-59 为中心的赤道坐标系星空视野，包含 TESS 观测切片图层与 Gaia DR3 临近恒星分布。",
+    "WWT 界面能力样例：以 L 98-59 为中心的赤道坐标系星空视野，图层用于覆盖开关、定位与 readback 交互，不代表真实 TESS 或 Gaia 联合观测。",
 };
 
 export const l9859WwtVisualizationContent: VisualizationArtifactContent = {
   kind: "visualization",
   schema_version: "1.0.0",
   visualization_id: "vis_wwt_l9859_scene",
-  title: "L 98-59 天文全景观测场景 (WorldWide Telescope Scene)",
+  title: "L 98-59 天文全景交互场景 (WorldWide Telescope Scene)",
   description:
-    "交互式 WWT 虚拟天文台视口，展示 L 98-59 天区、赤道坐标网格、星座连线及 TESS/Gaia 多源图层叠加。",
+    "交互式 WWT Demo Replay 视口，覆盖 L 98-59 定位、赤道网格、星座连线与图层控制；场景图层不是科研观测产品。",
   spec: l9859WwtSpec,
-  skill_executions: [skillExecution],
+  skill_executions: [wwtSkillExecution],
   source_snapshot_ids: [sourceSnapshotL9859.id],
-  evidence_ids: ["ev_sci_01"],
+  evidence_ids: ["ev_c_wwt_source"],
   input_hash: hash("i_vis_wwt_l9859"),
   output_hash: hash("o_vis_wwt_l9859"),
 };
 
 export const l9859SpectrumContent: SpectrumArtifactContent = {
-  ...spectrumContent,
+  kind: "spectrum",
+  schema_version: "1.0.0",
   spectrum_id: "spec_l9859_harps",
-  title: "L 98-59 高分辨率恒星光谱 (HARPS Spectrograph)",
+  title: "L 98-59 公开 HARPS 一维光谱记录",
   object_name: "L 98-59 (TOI-175)",
-  source_snapshot_ids: [sourceSnapshotL9859.id],
+  wavelength_unit: "angstrom",
+  flux_unit: "continuum_normalized",
+  sample_count: l9859HarpsRecordedPoints.length,
+  points: l9859HarpsRecordedPoints,
+  signal_to_noise: 8,
+  detected_lines: [],
+  rest_wavelength: null,
+  radial_velocity_km_s: null,
+  skill_executions: [spectrumSkillExecution],
+  source_snapshot_ids: [sourceSnapshotL9859Harps.id],
+  evidence_ids: ["ev_c_spec_source"],
   input_hash: hash("i_spec_l9859"),
   output_hash: hash("o_spec_l9859"),
 };
@@ -692,22 +646,61 @@ export const l9859SpectrumContent: SpectrumArtifactContent = {
 export const l9859AnalysisReportContent: AnalysisReportArtifactContent = {
   ...analysisReportContent,
   report_id: "rpt_l9859_spectroscopy",
-  title: "L 98-59 (TOI-175) 光谱学与测光综合分析报告",
+  title: "L 98-59 (TOI-175) 公开观测数据核验报告",
   summary:
-    "基于 HARPS 高分辨率光谱与 TESS 测光切片，完成 L 98-59 系统的恒星参数测量与凌星候选证认。光谱吸收线分析约束有效温度与金属丰度，TESS 切片测光确认多行星凌星信号。",
+    "核验 ESO Science Archive 中 L 98-59 的公开 HARPS 一维光谱产品，并与 TESS 场景输入分别保留来源快照。当前 Demo Replay 仅展示记录投影，不自动给出谱线证认或恒星参数结论。",
+  metrics: [
+    {
+      metric_id: "met_l9859_archive_snr",
+      label: "归档产品 S/N",
+      value: 8,
+      unit: null,
+      evidence_ids: ["ev_c_analysis_source"],
+    },
+    {
+      metric_id: "met_l9859_display_samples",
+      label: "显示投影采样点",
+      value: l9859HarpsRecordedPoints.length,
+      unit: null,
+      evidence_ids: ["ev_c_analysis_source"],
+    },
+  ],
   findings: [
     {
       finding_id: "fnd_l9859_01",
-      title: "L 98-59 光谱吸收线证认",
-      statement:
-        "Hα、Na I D 与 Ca II K/H 吸收线轮廓与 M 型矮星分类一致，支持 L 98-59 为低质量宿主星。",
+      title: "公开光谱产品与目标坐标匹配",
+      statement: `ESO 数据产品 ${L9859_HARPS_DATASET_ID} 的目标名为 L98-59，观测时间为 ${L9859_HARPS_OBSERVED_AT}；本次仅作连续谱归一化显示投影，未生成新的天体物理结论。`,
       status: "supported",
-      evidence_ids: ["ev_sci_01"],
-      metric_ids: ["met_snr"],
+      evidence_ids: ["ev_c_analysis_source"],
+      metric_ids: ["met_l9859_archive_snr"],
     },
   ],
+  result_blocks: [
+    {
+      block_id: "blk_l9859_archive_record",
+      label: "归档记录",
+      representation: "record",
+      payload: {
+        dataset_id: L9859_HARPS_DATASET_ID,
+        observed_at: L9859_HARPS_OBSERVED_AT,
+        wavelength_range_angstrom: "4000-6800",
+        display_sample_count: l9859HarpsRecordedPoints.length,
+      },
+      content_hash: L9859_HARPS_FILE_SHA256,
+      evidence_ids: ["ev_c_analysis_source"],
+    },
+  ],
+  skill_executions: [spectrumSkillExecution],
   related_artifact_version_ids: ["artv_c_spec_01", "artv_c_fits_01"],
-  source_snapshot_ids: [sourceSnapshotL9859.id],
+  source_snapshot_ids: [sourceSnapshotL9859Harps.id, sourceSnapshotL9859.id],
+  evidence_ids: ["ev_c_analysis_source"],
+  limitations: [
+    "光谱显示投影经过等宽分箱与局部连续谱归一化，不替代原始逐像元、逐阶数据分析。",
+    "归档产品未提供可用的逐点 ERR 数组，因此界面不展示采样点误差条。",
+  ],
+  human_required: [
+    "如需谱线证认、径向速度或恒星参数结论，应在绑定相应算法版本和质量门后另行发布新版本。",
+  ],
   input_hash: hash("i_rpt_l9859"),
   output_hash: hash("o_rpt_l9859"),
 };
@@ -716,8 +709,8 @@ export const lightCurveContent: LightCurveArtifactContent = {
   kind: "light_curve",
   schema_version: "1.0.0",
   light_curve_id: "lc_toi_1233_sector10",
-  title: "TOI-1233 (HD 108236) TESS 测光光变曲线与相位折叠",
-  object_name: "TOI-1233",
+  title: "TOI-1233.04 目录参数驱动的光变界面样例",
+  object_name: "TOI-1233.04 (TIC 260647166)",
   time_scale: "tdb",
   time_unit: "days",
   value_unit: "relative_flux",
@@ -728,23 +721,26 @@ export const lightCurveContent: LightCurveArtifactContent = {
   rejected_sample_count: 8,
   duration: 27.4,
   median_cadence: 120 / 86_400, // 2-minute cadence, expressed in days
-  best_period: 3.7952,
+  best_period: TOI_1233_SHORT_PERIOD_ROW.orbitalPeriodDays,
   best_power: 0.884,
-  false_alarm_probability: 1e-12,
+  false_alarm_probability: null,
   period_peaks: [
-    { period: 3.7952, power: 0.884 },
-    { period: 6.2037, power: 0.652 },
-    { period: 1.8976, power: 0.412 },
-    { period: 14.175, power: 0.325 },
-    { period: 19.592, power: 0.285 },
+    {
+      period: TOI_1233_SHORT_PERIOD_ROW.orbitalPeriodDays,
+      power: 0.884,
+    },
+    { period: TOI_1233_CATALOG_ROWS[2]!.orbitalPeriodDays, power: 0.652 },
+    { period: TOI_1233_CATALOG_ROWS[0]!.orbitalPeriodDays, power: 0.412 },
+    { period: TOI_1233_CATALOG_ROWS[1]!.orbitalPeriodDays, power: 0.325 },
   ],
   points: generateLightCurvePoints(
     720,
-    3.7952,
+    TOI_1233_SHORT_PERIOD_ROW.orbitalPeriodDays,
+    TOI_1233_SHORT_PERIOD_ROW.transitDepthPpm,
   ) as unknown as LightCurveArtifactContent["points"],
-  skill_executions: [skillExecution],
+  skill_executions: [lightCurveSkillExecution],
   source_snapshot_ids: [sourceSnapshot.id],
-  evidence_ids: ["ev_sci_01", "ev_sci_02"],
+  evidence_ids: ["ev_b_lightcurve_source", "ev_b_lightcurve_period"],
   input_hash: hash("i_lc"),
   output_hash: hash("o_lc"),
 };
@@ -758,28 +754,28 @@ const modelMetrics: [ScientificMetric, ...ScientificMetric[]] = [
     label: "准确率 (Accuracy)",
     value: 0.942,
     unit: null,
-    evidence_ids: ["ev_sci_01"],
+    evidence_ids: ["ev_b_modeval_source"],
   },
   {
     metric_id: "met_f1",
     label: "F1 分数 (Macro F1)",
     value: 0.918,
     unit: null,
-    evidence_ids: ["ev_sci_01"],
+    evidence_ids: ["ev_b_modeval_source"],
   },
   {
     metric_id: "met_roc_auc",
     label: "ROC-AUC",
     value: 0.965,
     unit: null,
-    evidence_ids: ["ev_sci_01"],
+    evidence_ids: ["ev_b_modeval_source"],
   },
   {
     metric_id: "met_pr_auc",
     label: "PR-AUC",
     value: 0.934,
     unit: null,
-    evidence_ids: ["ev_sci_01"],
+    evidence_ids: ["ev_b_modeval_source"],
   },
 ];
 
@@ -804,7 +800,7 @@ export const modelEvaluationContent: ModelEvaluationArtifactContent = {
   kind: "model_evaluation",
   schema_version: "1.0.0",
   evaluation_id: "modeval_transit_classifier_01",
-  title: "TESS 凌星信号深度残差网络 (ResNet-Transit) 模型评估",
+  title: "Demo Replay 凌星分类器界面能力评估样例",
   task_kind: "classification",
   algorithm: "ResNet-1D-TransitClassifier",
   algorithm_version: "2.4.0",
@@ -833,7 +829,7 @@ export const modelEvaluationContent: ModelEvaluationArtifactContent = {
   },
   metrics: modelMetrics,
   baseline_metrics: baselineMetrics,
-  skill_execution: skillExecution,
+  skill_execution: modelSkillExecution,
   model_binary: {
     content_ref: "/api/fixture/models/transit_classifier_resnet.onnx",
     content_hash: hash("onnx_model_binary_01"),
@@ -841,11 +837,11 @@ export const modelEvaluationContent: ModelEvaluationArtifactContent = {
   },
   diagnostic_visualization_ids: ["vis_period_radius_diagram"],
   limitations: [
-    "模型在超短周期 (< 0.5 d) 及浅凌星 (< 100 ppm) 样本上的真阳性率有所下降。",
-    "对于含有强烈脉动变光的宿主星样本需先行应用高通滤波预处理。",
+    "全部指标用于覆盖指标卡、基线差异和诊断布局，不代表公开数据集上的科研基准结果。",
+    "fixture 未绑定训练集、验证集或真实模型运行，因此不能用于算法优劣判断。",
   ],
   source_snapshot_ids: [sourceSnapshot.id],
-  evidence_ids: ["ev_sci_01"],
+  evidence_ids: ["ev_b_modeval_source"],
   input_hash: hash("i_modeval"),
   output_hash: hash("o_modeval"),
 };
@@ -857,8 +853,8 @@ export const modelArtifactContent: ModelArtifactContent = {
   kind: "model_artifact",
   schema_version: "1.0.0",
   model_id: "model_transit_classifier_onnx",
-  title: "ResNet-1D 系外行星凌星信号分类 ONNX 模型包",
-  status: "active",
+  title: "Demo Replay ResNet-1D ONNX 交互样例",
+  status: "deprecated",
   task_kind: "classification",
   algorithm: "ResNet-1D-TransitClassifier",
   algorithm_version: "2.4.0",
@@ -890,12 +886,13 @@ export const modelArtifactContent: ModelArtifactContent = {
     "onnxruntime==1.18.0",
     "numpy==1.26.4",
   ],
-  skill_execution: skillExecution,
+  skill_execution: modelSkillExecution,
   limitations: [
-    "输入光变曲线必须经过统一标准化 (Median=1.0) 并按 720 维度等距重采样。",
+    "该二进制引用仅覆盖工件元数据与不可下载状态，不是经过训练、验证或可部署的 ONNX 模型。",
+    "content_ref 不对应可执行生产文件；只有绑定真实二进制、依赖和评估记录的新版本才可部署。",
   ],
   source_snapshot_ids: [sourceSnapshot.id],
-  evidence_ids: ["ev_sci_01"],
+  evidence_ids: ["ev_b_model_source"],
   input_hash: hash("i_model_art"),
   output_hash: hash("o_model_art"),
 };
@@ -903,44 +900,112 @@ export const modelArtifactContent: ModelArtifactContent = {
 // ---------------------------------------------------------------------------
 // Unified Scientific Artifact Reads Array
 // ---------------------------------------------------------------------------
+interface FixtureEvidenceBinding {
+  readonly id: string;
+  readonly sourceSnapshotId: string;
+  readonly extractionMethod: string;
+  readonly quoteOrValue: string;
+}
+
+interface ScientificReadFixtureOptions {
+  readonly runId: string;
+  readonly sourceMode?: ScientificArtifactRead["source_mode"];
+  readonly sourceSnapshots: readonly SourceSnapshotDetail[];
+  readonly evidence: readonly FixtureEvidenceBinding[];
+}
+
+const makeProducerExecution = (
+  artifactVersionId: string,
+  runId: string,
+  kind: ScientificArtifactRead["content"]["kind"],
+): ProducerExecutionDetail => ({
+  id: `exec_${artifactVersionId}`,
+  run_id: runId,
+  step_key: `publish_${kind}`,
+  step_attempt_id: `attempt_${artifactVersionId}`,
+  status: "completed",
+  started_at: "2026-07-21T08:20:00Z",
+  finished_at: T_CREATED,
+  input_hash: hash(`in_${artifactVersionId}`),
+  output_hash: hash(artifactVersionId),
+  parameters: { execution_mode: "demo_replay", artifact_kind: kind },
+  parameters_hash: hash(`params_${artifactVersionId}`),
+  latency_ms: 120,
+  error_code: null,
+  producer: {
+    type: "pipeline",
+    name: "xingwen-scientific-runtime",
+    version: "2.1.0",
+  },
+});
+
 const makeScientificRead = (
   artifactId: string,
   artifactVersionId: string,
   projectId: string,
   versionNumber: number,
   content: ScientificArtifactRead["content"],
+  options: ScientificReadFixtureOptions,
 ): ScientificArtifactRead => ({
   artifact_id: artifactId,
   artifact_version_id: artifactVersionId,
   project_id: projectId,
   version_number: versionNumber,
-  source_mode: "fixture",
+  source_mode: options.sourceMode ?? "fixture",
   content_hash: hash(artifactVersionId),
   input_hash: hash(`in_${artifactVersionId}`),
   created_at: T_CREATED,
   supersedes_version_id: null,
-  producer_execution: producerExecution,
-  source_snapshots: [sourceSnapshot],
-  evidence: [
-    {
-      id: `ev_${artifactVersionId}_01`,
-      artifact_version_id: artifactVersionId,
-      // The provenance trail of a scientific artifact points at the data
-      // source snapshot it was computed from — `source` is the domain's
-      // vocabulary for that target; artifact kinds are not target types.
-      target_type: "source",
-      target_id: sourceSnapshot.id,
-      evidence_type: "database_query",
-      source_snapshot_id: sourceSnapshot.id,
-      extraction_method: "fixture.pipeline",
-      confidence: 1,
-      locator: { kind: "fixture_record", key: artifactVersionId },
-      quote_or_value: "Deterministic scientific pipeline output.",
-      paper_id: null,
-      created_at: T_CREATED,
-    },
-  ],
+  producer_execution: makeProducerExecution(
+    artifactVersionId,
+    options.runId,
+    content.kind,
+  ),
+  source_snapshots: [...options.sourceSnapshots],
+  evidence: options.evidence.map((binding) => ({
+    id: binding.id,
+    artifact_version_id: artifactVersionId,
+    target_type: "source",
+    target_id: binding.sourceSnapshotId,
+    evidence_type: "database_query",
+    source_snapshot_id: binding.sourceSnapshotId,
+    extraction_method: binding.extractionMethod,
+    confidence: 1,
+    locator: { kind: "fixture_record", key: binding.sourceSnapshotId },
+    quote_or_value: binding.quoteOrValue,
+    paper_id: null,
+    created_at: T_CREATED,
+  })),
   content,
+});
+
+const catalogReplayOptions = (
+  runId: string,
+  target: string,
+  evidenceIds: readonly string[],
+): ScientificReadFixtureOptions => ({
+  runId,
+  sourceSnapshots: [sourceSnapshot],
+  evidence: evidenceIds.map((id) => ({
+    id,
+    sourceSnapshotId: sourceSnapshot.id,
+    extractionMethod: "recorded.nasa_exoplanet_archive_toi",
+    quoteOrValue: `Recorded NASA Exoplanet Archive TOI catalog response for ${target}; generated UI samples are not observed flux or model results.`,
+  })),
+});
+
+const l9859TessReplayOptions = (
+  evidenceIds: readonly string[],
+): ScientificReadFixtureOptions => ({
+  runId: "run_l9859",
+  sourceSnapshots: [sourceSnapshotL9859],
+  evidence: evidenceIds.map((id) => ({
+    id,
+    sourceSnapshotId: sourceSnapshotL9859.id,
+    extractionMethod: "fixture.demo_replay",
+    quoteOrValue:
+      "Demo Replay-only scene input for L 98-59 FITS and WWT interaction coverage; not an archived observation.",
+  })),
 });
 
 export const scientificArtifactReadsFixture: readonly ScientificArtifactRead[] =
@@ -952,6 +1017,10 @@ export const scientificArtifactReadsFixture: readonly ScientificArtifactRead[] =
       "proj_toi_transit",
       1,
       analysisReportContent,
+      catalogReplayOptions("run_toi_transit", "TOI-1233", [
+        "ev_b_analysis_tess",
+        "ev_b_analysis_catalog",
+      ]),
     ),
     makeScientificRead(
       "art_b_chart_01",
@@ -959,6 +1028,9 @@ export const scientificArtifactReadsFixture: readonly ScientificArtifactRead[] =
       "proj_toi_transit",
       1,
       chartVisualizationContent,
+      catalogReplayOptions("run_toi_transit", "TOI-1233", [
+        "ev_b_chart_source",
+      ]),
     ),
     makeScientificRead(
       "art_b_lc_01",
@@ -966,6 +1038,10 @@ export const scientificArtifactReadsFixture: readonly ScientificArtifactRead[] =
       "proj_toi_transit",
       1,
       lightCurveContent,
+      catalogReplayOptions("run_toi_transit", "TOI-1233", [
+        "ev_b_lightcurve_source",
+        "ev_b_lightcurve_period",
+      ]),
     ),
     makeScientificRead(
       "art_b_modeval_01",
@@ -973,6 +1049,9 @@ export const scientificArtifactReadsFixture: readonly ScientificArtifactRead[] =
       "proj_toi_transit",
       1,
       modelEvaluationContent,
+      catalogReplayOptions("run_toi_transit", "TOI-1233", [
+        "ev_b_modeval_source",
+      ]),
     ),
     makeScientificRead(
       "art_b_model_01",
@@ -980,6 +1059,9 @@ export const scientificArtifactReadsFixture: readonly ScientificArtifactRead[] =
       "proj_toi_transit",
       1,
       modelArtifactContent,
+      catalogReplayOptions("run_toi_transit", "TOI-1233", [
+        "ev_b_model_source",
+      ]),
     ),
 
     // Project C (L 98-59 Spectroscopy & WWT Scene)
@@ -989,6 +1071,19 @@ export const scientificArtifactReadsFixture: readonly ScientificArtifactRead[] =
       "proj_l9859_spectroscopy",
       1,
       l9859SpectrumContent,
+      {
+        runId: "run_l9859",
+        sourceMode: "recorded",
+        sourceSnapshots: [sourceSnapshotL9859Harps],
+        evidence: [
+          {
+            id: "ev_c_spec_source",
+            sourceSnapshotId: sourceSnapshotL9859Harps.id,
+            extractionMethod: "recorded.eso_harps_projection",
+            quoteOrValue: `Public ESO HARPS spectrum ${L9859_HARPS_DATASET_ID} observed at ${L9859_HARPS_OBSERVED_AT}.`,
+          },
+        ],
+      },
     ),
     makeScientificRead(
       "art_c_fits_01",
@@ -996,6 +1091,7 @@ export const scientificArtifactReadsFixture: readonly ScientificArtifactRead[] =
       "proj_l9859_spectroscopy",
       1,
       l9859FitsVisualizationContent,
+      l9859TessReplayOptions(["ev_c_fits_source"]),
     ),
     makeScientificRead(
       "art_c_wwt_01",
@@ -1003,6 +1099,7 @@ export const scientificArtifactReadsFixture: readonly ScientificArtifactRead[] =
       "proj_l9859_spectroscopy",
       1,
       l9859WwtVisualizationContent,
+      l9859TessReplayOptions(["ev_c_wwt_source"]),
     ),
     makeScientificRead(
       "art_c_analysis_01",
@@ -1010,5 +1107,18 @@ export const scientificArtifactReadsFixture: readonly ScientificArtifactRead[] =
       "proj_l9859_spectroscopy",
       1,
       l9859AnalysisReportContent,
+      {
+        runId: "run_l9859",
+        sourceMode: "recorded",
+        sourceSnapshots: [sourceSnapshotL9859Harps, sourceSnapshotL9859],
+        evidence: [
+          {
+            id: "ev_c_analysis_source",
+            sourceSnapshotId: sourceSnapshotL9859Harps.id,
+            extractionMethod: "recorded.eso_harps_projection",
+            quoteOrValue: `Public ESO HARPS spectrum ${L9859_HARPS_DATASET_ID} observed at ${L9859_HARPS_OBSERVED_AT}.`,
+          },
+        ],
+      },
     ),
   ];

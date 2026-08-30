@@ -12,7 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@xingwen/ui";
-import { Download } from "@xingwen/ui/icons";
+import { Download, Info } from "@xingwen/ui/icons";
 
 import { downloadBytes } from "../../presentation/browser-download";
 import { EvidenceLinks } from "../evidence-links";
@@ -64,6 +64,7 @@ export function ModelEvaluationContent({
   const trainPct = (content.split.trainFraction * 100).toFixed(0);
   const valPct = (content.split.validationFraction * 100).toFixed(0);
   const testPct = (content.split.testFraction * 100).toFixed(0);
+  const fixtureMode = sourceMode === "fixture";
 
   return (
     <article
@@ -74,7 +75,7 @@ export function ModelEvaluationContent({
         <>
           <ScientificContentHeader
             title={content.title || title}
-            subtitle={`模型评估报告 · ${content.algorithm} v${content.algorithmVersion}`}
+            subtitle={`${fixtureMode ? "模型评估界面样例" : "模型评估报告"} · ${content.algorithm} v${content.algorithmVersion}`}
           />
 
           <div className="model-report__facts" aria-label="模型属性">
@@ -100,7 +101,9 @@ export function ModelEvaluationContent({
               <div className="text-xs text-muted-foreground">训练输入</div>
               <div className="mt-1 text-sm font-semibold text-foreground">
                 {content.trainingInput.kind === "dataset_artifact_version"
-                  ? "研究数据集"
+                  ? fixtureMode
+                    ? "演示数据集引用"
+                    : "研究数据集"
                   : "来源快照"}
               </div>
             </div>
@@ -139,9 +142,14 @@ export function ModelEvaluationContent({
       <section className="model-report__section model-report__split">
         <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
           <span className="font-semibold text-foreground">
-            数据集划分比例 (Train / Val / Test Split)
+            {fixtureMode ? "样例划分比例" : "数据集划分比例"} (Train / Val /
+            Test Split)
           </span>
-          <span>总计 100% 独立样本划分</span>
+          <span>
+            {fixtureMode
+              ? "界面状态覆盖，非训练运行"
+              : "总计 100% 独立样本划分"}
+          </span>
         </div>
         <div className="model-report__split-bar">
           <div
@@ -170,7 +178,8 @@ export function ModelEvaluationContent({
       {content.metrics.length > 0 ? (
         <section className="model-report__section space-y-3">
           <h4 className="text-sm font-semibold text-foreground">
-            模型性能评价指标 (Evaluation Metrics)
+            {fixtureMode ? "指标卡片样例" : "模型性能评价指标"} (Evaluation
+            Metrics)
           </h4>
           <div className="model-report__metrics">
             {content.metrics.map((metric) => {
@@ -211,11 +220,12 @@ export function ModelEvaluationContent({
                       className={`mt-1 text-xs ${delta >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-error)]"}`}
                     >
                       {delta >= 0 ? "+" : ""}
-                      {formatNumber(delta, 3)} 对比基线
+                      {formatNumber(delta, 3)}{" "}
+                      {fixtureMode ? "演示差值（非模型结果）" : "对比基线"}
                     </div>
                   ) : (
                     <div className="mt-1 text-xs text-muted-foreground">
-                      测试集独立评估
+                      {fixtureMode ? "演示值（非模型结果）" : "测试集独立评估"}
                     </div>
                   )}
                   {metric.evidenceIds.length > 0 && onSelectEvidence ? (
@@ -289,9 +299,19 @@ export function ModelArtifactContent({
   readonly enhancementOnly?: boolean;
 }) {
   const [downloading, setDownloading] = useState(false);
+  const fixtureMode = sourceMode === "fixture";
+  const canDownload =
+    !fixtureMode && content.status === "active" && loadContent !== undefined;
+  const statusLabel = fixtureMode
+    ? "界面样例（不可部署）"
+    : content.status === "active"
+      ? "可用"
+      : content.status === "deprecated"
+        ? "已停用"
+        : "已撤销";
 
   const handleDownload = async () => {
-    if (!loadContent || content.status !== "active") return;
+    if (!canDownload || !loadContent) return;
     try {
       setDownloading(true);
       const binary = await loadContent(content.modelBinary.contentHash);
@@ -317,45 +337,56 @@ export function ModelArtifactContent({
             subtitle={`ONNX 模型交付产物包 · ${content.algorithm} v${content.algorithmVersion}`}
           />
 
-          <div className="model-report__facts" aria-label="产物参数">
+          <div
+            className="model-report__facts model-report__facts--artifact"
+            aria-label="产物参数"
+          >
             <div className="model-report__fact">
               <div className="text-xs text-muted-foreground">产物状态</div>
-              <div className="mt-1 text-sm font-semibold text-foreground">
-                <span className="inline-flex items-center gap-1 text-[var(--color-success)]">
-                  <span className="size-1.5 rounded-full bg-[var(--color-success)]" />
-                  {content.status === "active"
-                    ? "可用 (Active)"
-                    : content.status}
+              <div className="model-report__fact-value model-report__fact-value--status">
+                <span
+                  className={
+                    fixtureMode
+                      ? "inline-flex items-center gap-1 text-[var(--color-warning)]"
+                      : "inline-flex items-center gap-1 text-[var(--color-success)]"
+                  }
+                >
+                  <span
+                    className={
+                      fixtureMode
+                        ? "size-1.5 rounded-full bg-[var(--color-warning)]"
+                        : "size-1.5 rounded-full bg-[var(--color-success)]"
+                    }
+                  />
+                  {statusLabel}
                 </span>
               </div>
             </div>
             <div className="model-report__fact">
               <div className="text-xs text-muted-foreground">模型格式</div>
-              <div className="mt-1 text-sm font-semibold text-foreground">
-                ONNX (Opset 17)
-              </div>
+              <div className="model-report__fact-value">ONNX (Opset 17)</div>
             </div>
             <div className="model-report__fact">
               <div className="text-xs text-muted-foreground">目标字段</div>
-              <div className="mt-1 text-sm font-semibold text-foreground font-mono">
+              <div className="model-report__fact-value font-mono">
                 {content.targetField}
               </div>
             </div>
             <div className="model-report__fact">
               <div className="text-xs text-muted-foreground">输入张量</div>
-              <div className="mt-1 text-sm font-semibold text-foreground font-mono">
+              <div className="model-report__fact-value font-mono">
                 {content.inputName}
               </div>
             </div>
             <div className="model-report__fact">
               <div className="text-xs text-muted-foreground">输出张量</div>
-              <div className="mt-1 text-sm font-semibold text-foreground font-mono">
+              <div className="model-report__fact-value font-mono">
                 {content.outputNames.join(", ")}
               </div>
             </div>
             <div className="model-report__fact">
               <div className="text-xs text-muted-foreground">数据源模式</div>
-              <div className="mt-1 text-sm font-semibold text-foreground">
+              <div className="model-report__fact-value">
                 {sourceModeLabel(sourceMode)}
               </div>
             </div>
@@ -376,19 +407,19 @@ export function ModelArtifactContent({
               输入规格 (Inputs)
             </div>
             <div className="mt-2 space-y-1 text-xs">
-              <div className="flex justify-between">
+              <div className="model-report__signature-row">
                 <span className="text-muted-foreground">张量名称:</span>{" "}
                 <span className="font-mono font-medium">
                   {content.inputName}
                 </span>
               </div>
-              <div className="flex justify-between">
+              <div className="model-report__signature-row">
                 <span className="text-muted-foreground">张量形状:</span>{" "}
                 <span className="font-mono font-medium">
                   [{content.inputShape.map((v) => v ?? "-1").join(", ")}]
                 </span>
               </div>
-              <div className="flex justify-between">
+              <div className="model-report__signature-row">
                 <span className="text-muted-foreground">数据类型:</span>{" "}
                 <span className="font-mono font-medium">Float32</span>
               </div>
@@ -400,19 +431,19 @@ export function ModelArtifactContent({
               输出规格 (Outputs)
             </div>
             <div className="mt-2 space-y-1 text-xs">
-              <div className="flex justify-between">
+              <div className="model-report__signature-row">
                 <span className="text-muted-foreground">张量名称:</span>{" "}
                 <span className="font-mono font-medium">
                   {content.outputNames.join(", ")}
                 </span>
               </div>
-              <div className="flex justify-between">
+              <div className="model-report__signature-row">
                 <span className="text-muted-foreground">输出维度:</span>{" "}
                 <span className="font-mono font-medium">
                   [-1, 2] (Softmax 概率)
                 </span>
               </div>
-              <div className="flex justify-between">
+              <div className="model-report__signature-row">
                 <span className="text-muted-foreground">数据类型:</span>{" "}
                 <span className="font-mono font-medium">Float32</span>
               </div>
@@ -420,10 +451,11 @@ export function ModelArtifactContent({
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md bg-surface-muted/60 px-3 py-2">
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
           <Popover>
             <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="small">
+              <Button type="button" variant="secondary" size="small">
+                <Info aria-hidden="true" />
                 技术校验信息
               </Button>
             </PopoverTrigger>
@@ -447,11 +479,11 @@ export function ModelArtifactContent({
               type="button"
               variant="primary"
               size="small"
-              disabled={content.status !== "active" || downloading}
+              disabled={!canDownload || downloading}
               onClick={handleDownload}
             >
               <Download data-icon="inline-start" aria-hidden="true" />
-              下载 ONNX 模型
+              {fixtureMode ? "演示工件不可下载" : "下载 ONNX 模型"}
             </Button>
           ) : null}
         </div>

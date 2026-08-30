@@ -1,7 +1,7 @@
 /**
  * Formal read-contract fixtures for data, literature and graph ports.
  *
- * 1. Dataset: 40 realistic TOI records across 14 fields and 3 sources
+ * 1. Dataset: 40 recorded NASA catalog joins across 14 fields and 2 responses
  * 2. Field Dictionary: 14 rich domain field definitions
  * 3. Source Collection: 3 observational and catalog sources (NASA TOI, NASA PS, Gaia DR3)
  * 4. Claims: 6 distinct grounded scientific claims
@@ -15,6 +15,8 @@ import type {
   DatasetRow,
   EvidenceDetail,
   FieldDefinition,
+  FieldConflictRecord,
+  FieldSelectionRecord,
   FieldDictionaryArtifactRead,
   GraphArtifactRead,
   GraphEdgeRead,
@@ -28,8 +30,23 @@ import type {
   ProducerExecutionDetail,
   SourceCollectionArtifactRead,
   SourceSnapshotDetail,
+  SourceValueCandidate,
   StructuredSourceCollectionMember,
 } from "@xingwen/contracts";
+import {
+  HOST_STAR_PS_QUERY,
+  HOST_STAR_PS_RESPONSE_SHA256,
+  HOST_STAR_RECORDED_AT,
+  HOST_STAR_TOI_QUERY,
+  HOST_STAR_TOI_RESPONSE_SHA256,
+  RECORDED_EXOPLANET_HOST_STAR_ROWS,
+  type RecordedExoplanetHostStarRow,
+} from "./recorded-exoplanet-host-star";
+import {
+  TOI_1233_RECORDED_AT,
+  TOI_1233_RESPONSE_SHA256,
+  TOI_1233_TAP_QUERY,
+} from "./recorded-toi-1233-catalog";
 
 const PROJECT_ID = "proj_01JEXAMPLE";
 const DATASET_VERSION_ID = "artv_dataset_01";
@@ -59,7 +76,7 @@ const sourceSnapshot: SourceSnapshotDetail = {
   request_metadata: { adapter: "demo_replay" },
   source_version_or_etag: "fixture-2026-07-21-toi",
   license_note:
-    "Fixture projection of the public NASA Exoplanet Archive TOI schema.",
+    "依据 NASA Exoplanet Archive 公开 TOI 字段结构构造的确定性演示投影；不是实时或录制响应。",
 };
 
 const psSourceSnapshot: SourceSnapshotDetail = {
@@ -73,7 +90,7 @@ const psSourceSnapshot: SourceSnapshotDetail = {
   request_metadata: { adapter: "demo_replay" },
   source_version_or_etag: "fixture-2026-07-21-ps",
   license_note:
-    "Fixture projection of the public NASA Exoplanet Archive PS schema.",
+    "依据 NASA Exoplanet Archive 公开行星系统字段结构构造的确定性演示投影；不是实时或录制响应。",
 };
 
 const gaiaSourceSnapshot: SourceSnapshotDetail = {
@@ -86,7 +103,75 @@ const gaiaSourceSnapshot: SourceSnapshotDetail = {
   content_hash: hash("s_gaia"),
   request_metadata: { adapter: "demo_replay" },
   source_version_or_etag: "fixture-2026-07-21-gaia-dr3",
-  license_note: "European Space Agency (ESA) Gaia Data Release 3 catalog.",
+  license_note:
+    "依据 Gaia DR3 公开字段结构构造的确定性演示投影；不是实时或录制响应。",
+};
+
+const recordedToiDatasetSnapshot: SourceSnapshotDetail = {
+  id: "snap_host_star_toi_recorded",
+  source_id: "nasa_exoplanet_archive.toi",
+  source_type: "catalog",
+  retrieved_at: HOST_STAR_RECORDED_AT,
+  query: {
+    service: "TAP",
+    table: "toi",
+    adql: HOST_STAR_TOI_QUERY,
+    replay_scope: "recorded_catalog_response",
+  },
+  query_hash:
+    "sha256:f643854f2df4662235beb23affab761731d5952643227c7f8076e15a07f66521",
+  content_hash: HOST_STAR_TOI_RESPONSE_SHA256,
+  request_metadata: {
+    adapter: "demo_replay",
+    endpoint: "https://exoplanetarchive.ipac.caltech.edu/TAP/sync",
+  },
+  source_version_or_etag: null,
+  license_note: "NASA Exoplanet Archive TOI 目录录制响应。",
+};
+
+const recordedPsDatasetSnapshot: SourceSnapshotDetail = {
+  id: "snap_host_star_ps_recorded",
+  source_id: "nasa_exoplanet_archive.pscomppars",
+  source_type: "catalog",
+  retrieved_at: HOST_STAR_RECORDED_AT,
+  query: {
+    service: "TAP",
+    table: "pscomppars",
+    adql: HOST_STAR_PS_QUERY,
+    replay_scope: "recorded_catalog_response",
+  },
+  query_hash:
+    "sha256:391bbffef869378ab1b6d8a134007cefc3e9e2862ef9396179cc9647a17726ea",
+  content_hash: HOST_STAR_PS_RESPONSE_SHA256,
+  request_metadata: {
+    adapter: "demo_replay",
+    endpoint: "https://exoplanetarchive.ipac.caltech.edu/TAP/sync",
+  },
+  source_version_or_etag: null,
+  license_note:
+    "NASA Exoplanet Archive Planetary Systems Composite Parameters 录制响应。",
+};
+
+const toi1233RecordedSnapshot: SourceSnapshotDetail = {
+  id: "snap_toi_1233_recorded",
+  source_id: "nasa_exoplanet_archive.toi",
+  source_type: "catalog",
+  retrieved_at: TOI_1233_RECORDED_AT,
+  query: {
+    service: "TAP",
+    table: "toi",
+    adql: TOI_1233_TAP_QUERY,
+    replay_scope: "recorded_catalog_response",
+  },
+  query_hash:
+    "sha256:bfa32ab3a02c1f78bb1ec7f584811077c966caa9a83c634fcf4949f96546e7d7",
+  content_hash: TOI_1233_RESPONSE_SHA256,
+  request_metadata: {
+    adapter: "demo_replay",
+    endpoint: "https://exoplanetarchive.ipac.caltech.edu/TAP/sync",
+  },
+  source_version_or_etag: null,
+  license_note: "NASA Exoplanet Archive public catalog response.",
 };
 
 const producerExecution: ProducerExecutionDetail = {
@@ -115,6 +200,8 @@ function evidence(
   targetType: string,
   targetId: string,
   quoteOrValue: string,
+  snapshot: SourceSnapshotDetail = sourceSnapshot,
+  extractionMethod = "fixture.read_contract",
 ): EvidenceDetail {
   return {
     id: `ev_${artifactVersionId}_${targetId.replaceAll(".", "_")}`,
@@ -122,8 +209,8 @@ function evidence(
     target_type: targetType,
     target_id: targetId,
     evidence_type: "database_query",
-    source_snapshot_id: sourceSnapshot.id,
-    extraction_method: "fixture.read_contract",
+    source_snapshot_id: snapshot.id,
+    extraction_method: extractionMethod,
     confidence: 1,
     locator: { kind: "fixture_record", key: targetId },
     quote_or_value: quoteOrValue,
@@ -138,19 +225,30 @@ function dataBase(
   artifactId: string,
   artifactVersionId: string,
   kind: DataArtifactKind,
+  options: {
+    sourceMode?: "fixture" | "recorded";
+    sourceSnapshots?: SourceSnapshotDetail[];
+    evidence?: EvidenceDetail[];
+  } = {},
 ) {
+  const sourceMode = options.sourceMode ?? "fixture";
+  const sourceSnapshots = options.sourceSnapshots ?? [
+    sourceSnapshot,
+    psSourceSnapshot,
+    gaiaSourceSnapshot,
+  ];
   return {
     artifact_id: artifactId,
     artifact_version_id: artifactVersionId,
     project_id: PROJECT_ID,
     schema_version: "2.0.0",
-    source_mode: "fixture" as const,
+    source_mode: sourceMode,
     content_hash: hash(artifactVersionId.slice(-1)),
     input_hash: hash("d"),
     created_at: CREATED_AT,
     producer_execution: producerExecution,
-    source_snapshots: [sourceSnapshot, psSourceSnapshot, gaiaSourceSnapshot],
-    evidence: [
+    source_snapshots: sourceSnapshots,
+    evidence: options.evidence ?? [
       evidence(artifactVersionId, kind, `${kind}.candidate`, "fixture"),
     ],
     quality_projection: {
@@ -389,7 +487,7 @@ export const fieldDefinitions: FieldDefinition[] = [
     "star.distance",
     "Distance",
     "恒星距离",
-    "Gaia DR3 视差反演测距",
+    "NASA TOI 目录中的宿主星距离字段",
     "number",
     "pc",
     "star",
@@ -410,708 +508,82 @@ export const fieldDefinitions: FieldDefinition[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// 40 Rows Generator
+// 40 recorded API rows
 // ---------------------------------------------------------------------------
-interface SampleExoplanetRecord {
-  toi: string;
-  name: string | null;
-  period: number;
-  radius: number;
-  mass: number | null;
-  teq: number;
-  tic: string;
-  teff: number;
-  srad: number;
-  smass: number;
-  feh: number | null;
-  logg: number;
-  dist: number;
-  year: number;
-  status: "mapped" | "declared_null" | "conflict";
+type SampleExoplanetRecord = RecordedExoplanetHostStarRow;
+
+const rawSampleData: readonly SampleExoplanetRecord[] =
+  RECORDED_EXOPLANET_HOST_STAR_ROWS;
+
+function recordedDatasetEvidenceFor(
+  rec: SampleExoplanetRecord,
+): readonly [EvidenceDetail, EvidenceDetail] {
+  const rowId = `row_${rec.toi.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+  return [
+    {
+      id: `ev_${DATASET_VERSION_ID}_${rowId}_toi`,
+      artifact_version_id: DATASET_VERSION_ID,
+      target_type: "dataset_row",
+      target_id: rowId,
+      evidence_type: "database_query",
+      source_snapshot_id: recordedToiDatasetSnapshot.id,
+      extraction_method: "nasa_exoplanet_archive.recorded_tap_replay",
+      confidence: 1,
+      locator: {
+        kind: "database_cell",
+        query_hash: recordedToiDatasetSnapshot.query_hash,
+        row_key: rec.toi,
+        field: "toi",
+      },
+      quote_or_value: JSON.stringify({
+        toi: rec.toi,
+        tid: rec.tic,
+        pl_orbper: rec.period,
+        pl_rade: rec.radius,
+        pl_eqt: rec.teq,
+        st_teff: rec.teff,
+        st_rad: rec.srad,
+        st_logg: rec.logg,
+        st_dist: rec.dist,
+        rowupdate: rec.toiRowUpdatedAt,
+      }),
+      paper_id: null,
+      created_at: HOST_STAR_RECORDED_AT,
+    },
+    {
+      id: `ev_${DATASET_VERSION_ID}_${rowId}_ps`,
+      artifact_version_id: DATASET_VERSION_ID,
+      target_type: "dataset_row",
+      target_id: rowId,
+      evidence_type: "database_query",
+      source_snapshot_id: recordedPsDatasetSnapshot.id,
+      extraction_method: "nasa_exoplanet_archive.recorded_tap_replay",
+      confidence: 1,
+      locator: {
+        kind: "database_cell",
+        query_hash: recordedPsDatasetSnapshot.query_hash,
+        row_key: `${rec.tic}:${rec.period}`,
+        field: "tic_id",
+      },
+      quote_or_value: JSON.stringify({
+        pl_name: rec.name,
+        tic_id: rec.tic,
+        pl_bmasse: rec.mass,
+        st_mass: rec.smass,
+        st_met: rec.feh,
+        disc_year: rec.year,
+        period_match_relative_delta: rec.periodMatchRelativeDelta,
+        radius_relative_delta: rec.radiusRelativeDelta,
+      }),
+      paper_id: null,
+      created_at: HOST_STAR_RECORDED_AT,
+    },
+  ];
 }
 
-const rawSampleData: SampleExoplanetRecord[] = [
-  {
-    toi: "TOI-1233.01",
-    name: "HD 108236 b",
-    period: 3.7952,
-    radius: 2.06,
-    mass: 4.8,
-    teq: 918,
-    tic: "260647166",
-    teff: 5720,
-    srad: 0.88,
-    smass: 0.87,
-    feh: -0.05,
-    logg: 4.49,
-    dist: 64.6,
-    year: 2020,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-1233.02",
-    name: "HD 108236 c",
-    period: 6.2037,
-    radius: 2.07,
-    mass: 6.2,
-    teq: 780,
-    tic: "260647166",
-    teff: 5720,
-    srad: 0.88,
-    smass: 0.87,
-    feh: -0.05,
-    logg: 4.49,
-    dist: 64.6,
-    year: 2020,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-1233.03",
-    name: "HD 108236 d",
-    period: 14.1756,
-    radius: 2.72,
-    mass: 7.9,
-    teq: 595,
-    tic: "260647166",
-    teff: 5720,
-    srad: 0.88,
-    smass: 0.87,
-    feh: -0.05,
-    logg: 4.49,
-    dist: 64.6,
-    year: 2020,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-1233.04",
-    name: "HD 108236 e",
-    period: 19.5917,
-    radius: 3.12,
-    mass: 9.8,
-    teq: 535,
-    tic: "260647166",
-    teff: 5720,
-    srad: 0.88,
-    smass: 0.87,
-    feh: -0.05,
-    logg: 4.49,
-    dist: 64.6,
-    year: 2021,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-175.01",
-    name: "L 98-59 b",
-    period: 2.2531,
-    radius: 0.85,
-    mass: 0.4,
-    teq: 585,
-    tic: "307210830",
-    teff: 3415,
-    srad: 0.31,
-    smass: 0.31,
-    feh: -0.46,
-    logg: 4.86,
-    dist: 10.6,
-    year: 2019,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-175.02",
-    name: "L 98-59 c",
-    period: 3.6907,
-    radius: 1.39,
-    mass: 2.22,
-    teq: 492,
-    tic: "307210830",
-    teff: 3415,
-    srad: 0.31,
-    smass: 0.31,
-    feh: -0.46,
-    logg: 4.86,
-    dist: 10.6,
-    year: 2019,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-175.03",
-    name: "L 98-59 d",
-    period: 7.4507,
-    radius: 1.52,
-    mass: 1.94,
-    teq: 388,
-    tic: "307210830",
-    teff: 3415,
-    srad: 0.31,
-    smass: 0.31,
-    feh: -0.46,
-    logg: 4.86,
-    dist: 10.6,
-    year: 2019,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-270.01",
-    name: "TOI-270 b",
-    period: 3.3601,
-    radius: 1.25,
-    mass: 1.58,
-    teq: 528,
-    tic: "259377017",
-    teff: 3506,
-    srad: 0.38,
-    smass: 0.39,
-    feh: -0.17,
-    logg: 4.87,
-    dist: 22.5,
-    year: 2019,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-270.02",
-    name: "TOI-270 c",
-    period: 5.6602,
-    radius: 2.42,
-    mass: 6.15,
-    teq: 440,
-    tic: "259377017",
-    teff: 3506,
-    srad: 0.38,
-    smass: 0.39,
-    feh: -0.17,
-    logg: 4.87,
-    dist: 22.5,
-    year: 2019,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-270.03",
-    name: "TOI-270 d",
-    period: 11.3801,
-    radius: 2.13,
-    mass: 4.78,
-    teq: 348,
-    tic: "259377017",
-    teff: 3506,
-    srad: 0.38,
-    smass: 0.39,
-    feh: -0.17,
-    logg: 4.87,
-    dist: 22.5,
-    year: 2019,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-421.01",
-    name: "HD 212657 b",
-    period: 5.1967,
-    radius: 2.68,
-    mass: 7.2,
-    teq: 980,
-    tic: "94986319",
-    teff: 5338,
-    srad: 0.87,
-    smass: 0.85,
-    feh: -0.02,
-    logg: 4.49,
-    dist: 75.2,
-    year: 2020,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-421.02",
-    name: "HD 212657 c",
-    period: 16.0682,
-    radius: 5.09,
-    mass: 16.4,
-    teq: 672,
-    tic: "94986319",
-    teff: 5338,
-    srad: 0.87,
-    smass: 0.85,
-    feh: -0.02,
-    logg: 4.49,
-    dist: 75.2,
-    year: 2020,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-561.01",
-    name: "TOI-561 b",
-    period: 0.4465,
-    radius: 1.42,
-    mass: 1.59,
-    teq: 2320,
-    tic: "377064495",
-    teff: 5455,
-    srad: 0.85,
-    smass: 0.8,
-    feh: -0.4,
-    logg: 4.48,
-    dist: 84.4,
-    year: 2021,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-561.02",
-    name: "TOI-561 c",
-    period: 10.7789,
-    radius: 2.88,
-    mass: 5.4,
-    teq: 840,
-    tic: "377064495",
-    teff: 5455,
-    srad: 0.85,
-    smass: 0.8,
-    feh: -0.4,
-    logg: 4.48,
-    dist: 84.4,
-    year: 2021,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-561.03",
-    name: "TOI-561 d",
-    period: 25.6201,
-    radius: 2.53,
-    mass: 11.9,
-    teq: 630,
-    tic: "377064495",
-    teff: 5455,
-    srad: 0.85,
-    smass: 0.8,
-    feh: -0.4,
-    logg: 4.48,
-    dist: 84.4,
-    year: 2021,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-700.01",
-    name: "TOI-700 d",
-    period: 37.426,
-    radius: 1.14,
-    mass: 1.25,
-    teq: 269,
-    tic: "150428135",
-    teff: 3480,
-    srad: 0.42,
-    smass: 0.42,
-    feh: -0.07,
-    logg: 4.82,
-    dist: 31.1,
-    year: 2020,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-700.02",
-    name: "TOI-700 b",
-    period: 9.977,
-    radius: 1.01,
-    mass: 1.07,
-    teq: 418,
-    tic: "150428135",
-    teff: 3480,
-    srad: 0.42,
-    smass: 0.42,
-    feh: -0.07,
-    logg: 4.82,
-    dist: 31.1,
-    year: 2020,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-700.03",
-    name: "TOI-700 c",
-    period: 16.051,
-    radius: 2.63,
-    mass: 7.48,
-    teq: 350,
-    tic: "150428135",
-    teff: 3480,
-    srad: 0.42,
-    smass: 0.42,
-    feh: -0.07,
-    logg: 4.82,
-    dist: 31.1,
-    year: 2020,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-700.04",
-    name: "TOI-700 e",
-    period: 27.809,
-    radius: 0.95,
-    mass: 0.81,
-    teq: 295,
-    tic: "150428135",
-    teff: 3480,
-    srad: 0.42,
-    smass: 0.42,
-    feh: -0.07,
-    logg: 4.82,
-    dist: 31.1,
-    year: 2023,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-776.01",
-    name: "TOI-776 b",
-    period: 8.2466,
-    radius: 1.85,
-    mass: 4.0,
-    teq: 514,
-    tic: "296503644",
-    teff: 3709,
-    srad: 0.54,
-    smass: 0.54,
-    feh: -0.01,
-    logg: 4.7,
-    dist: 27.2,
-    year: 2021,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-776.02",
-    name: "TOI-776 c",
-    period: 15.6653,
-    radius: 2.02,
-    mass: 5.3,
-    teq: 412,
-    tic: "296503644",
-    teff: 3709,
-    srad: 0.54,
-    smass: 0.54,
-    feh: -0.01,
-    logg: 4.7,
-    dist: 27.2,
-    year: 2021,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-849.01",
-    name: "TOI-849 b",
-    period: 0.7655,
-    radius: 3.44,
-    mass: 39.1,
-    teq: 1800,
-    tic: "33595516",
-    teff: 5370,
-    srad: 0.91,
-    smass: 0.93,
-    feh: 0.2,
-    logg: 4.49,
-    dist: 225.0,
-    year: 2020,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-1064.01",
-    name: "TOI-1064 b",
-    period: 6.4439,
-    radius: 2.59,
-    mass: 13.5,
-    teq: 784,
-    tic: "253755159",
-    teff: 4734,
-    srad: 0.73,
-    smass: 0.75,
-    feh: -0.04,
-    logg: 4.59,
-    dist: 69.8,
-    year: 2022,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-1064.02",
-    name: "TOI-1064 c",
-    period: 12.2281,
-    radius: 2.65,
-    mass: 7.7,
-    teq: 634,
-    tic: "253755159",
-    teff: 4734,
-    srad: 0.73,
-    smass: 0.75,
-    feh: -0.04,
-    logg: 4.59,
-    dist: 69.8,
-    year: 2022,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-1444.01",
-    name: null,
-    period: 0.4703,
-    radius: 1.4,
-    mass: 3.87,
-    teq: 2085,
-    tic: "437651061",
-    teff: 5380,
-    srad: 0.91,
-    smass: 0.93,
-    feh: 0.05,
-    logg: 4.49,
-    dist: 125.4,
-    year: 2021,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-1452.01",
-    name: "TOI-1452 b",
-    period: 11.062,
-    radius: 1.67,
-    mass: 4.82,
-    teq: 326,
-    tic: "420112587",
-    teff: 3185,
-    srad: 0.27,
-    smass: 0.25,
-    feh: -0.12,
-    logg: 4.96,
-    dist: 30.5,
-    year: 2022,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-1695.01",
-    name: "TOI-1695 b",
-    period: 3.1343,
-    radius: 2.03,
-    mass: 5.5,
-    teq: 590,
-    tic: "423249352",
-    teff: 3750,
-    srad: 0.55,
-    smass: 0.54,
-    feh: 0.11,
-    logg: 4.69,
-    dist: 45.1,
-    year: 2022,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-1807.01",
-    name: "BD+45 1521 b",
-    period: 0.5494,
-    radius: 1.38,
-    mass: 2.57,
-    teq: 2100,
-    tic: "180548131",
-    teff: 4757,
-    srad: 0.69,
-    smass: 0.75,
-    feh: -0.03,
-    logg: 4.63,
-    dist: 42.6,
-    year: 2021,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-2076.01",
-    name: "TOI-2076 b",
-    period: 10.355,
-    radius: 2.52,
-    mass: null,
-    teq: 870,
-    tic: "27491137",
-    teff: 5187,
-    srad: 0.77,
-    smass: 0.85,
-    feh: -0.08,
-    logg: 4.6,
-    dist: 41.9,
-    year: 2021,
-    status: "declared_null",
-  },
-  {
-    toi: "TOI-2076.02",
-    name: "TOI-2076 c",
-    period: 21.015,
-    radius: 3.5,
-    mass: null,
-    teq: 685,
-    tic: "27491137",
-    teff: 5187,
-    srad: 0.77,
-    smass: 0.85,
-    feh: -0.08,
-    logg: 4.6,
-    dist: 41.9,
-    year: 2021,
-    status: "declared_null",
-  },
-  {
-    toi: "TOI-2076.03",
-    name: "TOI-2076 d",
-    period: 35.125,
-    radius: 2.36,
-    mass: null,
-    teq: 575,
-    tic: "27491137",
-    teff: 5187,
-    srad: 0.77,
-    smass: 0.85,
-    feh: -0.08,
-    logg: 4.6,
-    dist: 41.9,
-    year: 2021,
-    status: "declared_null",
-  },
-  {
-    toi: "TOI-2136.01",
-    name: "TOI-2136 b",
-    period: 7.8519,
-    radius: 2.2,
-    mass: 6.4,
-    teq: 530,
-    tic: "33617190",
-    teff: 3342,
-    srad: 0.34,
-    smass: 0.34,
-    feh: -0.1,
-    logg: 4.9,
-    dist: 33.3,
-    year: 2022,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-2257.01",
-    name: "TOI-2257 b",
-    period: 35.189,
-    radius: 2.2,
-    mass: 5.7,
-    teq: 256,
-    tic: "198485881",
-    teff: 3430,
-    srad: 0.31,
-    smass: 0.33,
-    feh: -0.27,
-    logg: 4.97,
-    dist: 57.8,
-    year: 2021,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-2285.01",
-    name: "TOI-2285 b",
-    period: 27.269,
-    radius: 1.74,
-    mass: null,
-    teq: 284,
-    tic: "329148988",
-    teff: 3491,
-    srad: 0.46,
-    smass: 0.45,
-    feh: 0.05,
-    logg: 4.77,
-    dist: 42.4,
-    year: 2021,
-    status: "declared_null",
-  },
-  {
-    toi: "TOI-244.01",
-    name: "GJ 1018 b",
-    period: 7.3973,
-    radius: 1.52,
-    mass: 2.68,
-    teq: 458,
-    tic: "118327550",
-    teff: 3450,
-    srad: 0.35,
-    smass: 0.35,
-    feh: -0.08,
-    logg: 4.88,
-    dist: 22.0,
-    year: 2023,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-1268.01",
-    name: "TOI-1268 b",
-    period: 8.1577,
-    radius: 9.2,
-    mass: 96.0,
-    teq: 920,
-    tic: "142394656",
-    teff: 5300,
-    srad: 0.92,
-    smass: 0.94,
-    feh: 0.34,
-    logg: 4.48,
-    dist: 110.2,
-    year: 2022,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-1468.01",
-    name: "LP 791-18 b",
-    period: 1.8805,
-    radius: 1.28,
-    mass: 3.21,
-    teq: 682,
-    tic: "290130953",
-    teff: 3400,
-    srad: 0.34,
-    smass: 0.34,
-    feh: -0.15,
-    logg: 4.9,
-    dist: 24.7,
-    year: 2022,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-1468.02",
-    name: "LP 791-18 c",
-    period: 15.532,
-    radius: 2.16,
-    mass: 6.64,
-    teq: 338,
-    tic: "290130953",
-    teff: 3400,
-    srad: 0.34,
-    smass: 0.34,
-    feh: -0.15,
-    logg: 4.9,
-    dist: 24.7,
-    year: 2022,
-    status: "mapped",
-  },
-  {
-    toi: "TOI-1801.01",
-    name: null,
-    period: 10.643,
-    radius: 2.08,
-    mass: null,
-    teq: 490,
-    tic: "119044341",
-    teff: 3810,
-    srad: 0.58,
-    smass: 0.57,
-    feh: null,
-    logg: 4.67,
-    dist: 30.9,
-    year: 2023,
-    status: "declared_null",
-  },
-  {
-    toi: "TOI-2180.01",
-    name: "HD 238894 b",
-    period: 260.79,
-    radius: 11.3,
-    mass: 890.0,
-    teq: 348,
-    tic: "298663884",
-    teff: 5695,
-    srad: 1.6,
-    smass: 1.05,
-    feh: 0.24,
-    logg: 4.05,
-    dist: 177.6,
-    year: 2022,
-    status: "conflict",
-  },
-];
+const recordedDatasetEvidence = rawSampleData.flatMap((rec) =>
+  recordedDatasetEvidenceFor(rec),
+);
 
 function buildRow(rec: SampleExoplanetRecord, index: number): DatasetRow {
   const rowId = `row_${rec.toi.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
@@ -1144,27 +616,48 @@ function buildRow(rec: SampleExoplanetRecord, index: number): DatasetRow {
     transformation_evidence_ids: [] as string[],
   });
 
+  const radiusSourceValueIds = [`src_rad_toi_${index}`, `src_rad_ps_${index}`];
+  const radiusConflictIds =
+    rec.status === "conflict" ? [`conflict_radius_${index}`] : [];
+  const radiusField = {
+    ...mappedField("planet.radius", "r_earth", String(rec.radius), "rad_toi"),
+    candidate_source_value_ids: radiusSourceValueIds,
+    selected_source_value_id: radiusSourceValueIds[0],
+    conflict_ids: radiusConflictIds,
+  };
+
   const fields = [
     mappedField("planet.toi_id", "dimensionless", rec.toi, "toi"),
     rec.name
       ? mappedField("planet.name", "dimensionless", rec.name, "name")
       : nullField("planet.name", "not_in_source"),
     mappedField("planet.period", "day", String(rec.period), "per"),
-    mappedField("planet.radius", "r_earth", String(rec.radius), "rad"),
+    radiusField,
     rec.mass !== null
       ? mappedField("planet.mass", "m_earth", String(rec.mass), "mass")
       : nullField("planet.mass", "not_measured"),
-    mappedField("planet.equilibrium_temperature", "k", String(rec.teq), "teq"),
+    rec.teq !== null
+      ? mappedField(
+          "planet.equilibrium_temperature",
+          "k",
+          String(rec.teq),
+          "teq",
+        )
+      : nullField("planet.equilibrium_temperature", "not_measured"),
     mappedField("star.tic_id", "dimensionless", rec.tic, "tic"),
     mappedField("star.effective_temperature", "k", String(rec.teff), "teff"),
     mappedField("star.radius", "r_sun", String(rec.srad), "srad"),
-    mappedField("star.mass", "m_sun", String(rec.smass), "smass"),
+    rec.smass !== null
+      ? mappedField("star.mass", "m_sun", String(rec.smass), "smass")
+      : nullField("star.mass", "not_measured"),
     rec.feh !== null
       ? mappedField("star.metallicity", "dex", String(rec.feh), "feh")
       : nullField("star.metallicity", "not_measured"),
     mappedField("star.log_g", "cgs", String(rec.logg), "logg"),
     mappedField("star.distance", "pc", String(rec.dist), "dist"),
-    mappedField("planet.discovery_year", "yr", String(rec.year), "yr"),
+    rec.year !== null
+      ? mappedField("planet.discovery_year", "yr", String(rec.year), "yr")
+      : nullField("planet.discovery_year", "not_in_source"),
   ];
 
   return {
@@ -1177,9 +670,8 @@ function buildRow(rec: SampleExoplanetRecord, index: number): DatasetRow {
       logical_key: hash(rec.toi),
       record_type: "paired",
       source_member_ids: [
-        "nasa_exoplanet_archive.toi",
-        "nasa_exoplanet_archive.ps",
-        "gaia_dr3",
+        recordedToiDatasetSnapshot.source_id,
+        recordedPsDatasetSnapshot.source_id,
       ],
       canonical_row_identity: {
         alignment_status: "accepted",
@@ -1200,29 +692,120 @@ function buildRow(rec: SampleExoplanetRecord, index: number): DatasetRow {
       },
     },
     fields,
-    conflict_ids: rec.status === "conflict" ? [`conflict_${index}`] : [],
+    conflict_ids: radiusConflictIds,
     projected_field_ids: fields.map((f) => f.canonical_field_id),
     projection_policy_version: "1.0.0",
     source_snapshot_ids: [
-      sourceSnapshot.id,
-      psSourceSnapshot.id,
-      gaiaSourceSnapshot.id,
+      recordedToiDatasetSnapshot.id,
+      recordedPsDatasetSnapshot.id,
     ],
-    evidence_ids: [
-      evidence(
-        DATASET_VERSION_ID,
-        "dataset_row",
-        rowId,
-        `${rec.toi} host-star record`,
-      ).id,
-    ],
+    evidence_ids: recordedDatasetEvidenceFor(rec).map((item) => item.id),
   };
 }
 
 const datasetRows: DatasetRow[] = rawSampleData.map(buildRow);
 
+function radiusSourceValue(
+  rec: SampleExoplanetRecord,
+  index: number,
+  side: "toi" | "ps",
+): SourceValueCandidate {
+  const isToi = side === "toi";
+  const snapshot = isToi
+    ? recordedToiDatasetSnapshot
+    : recordedPsDatasetSnapshot;
+  const rawField = "pl_rade";
+  const value = isToi ? rec.radius : rec.psRadius;
+  const rowKey: [unknown, unknown] = isToi
+    ? ["toi", rec.toi]
+    : ["tic_id+pl_orbper", `${rec.tic}:${rec.period}`];
+  const locator = {
+    kind: "database_cell" as const,
+    query_hash: snapshot.query_hash,
+    raw_field: rawField,
+    raw_record_content_hash: hash(`${side}:${rec.toi}:radius`),
+    row_key: [rowKey] as [[unknown, unknown]],
+    source_id: snapshot.source_id,
+    source_role: (isToi ? "left" : "right") as "left" | "right",
+    source_snapshot_content_hash: snapshot.content_hash,
+    source_snapshot_id: snapshot.id,
+  };
+  return {
+    alias_priority: 1,
+    canonical_field_id: "planet.radius",
+    canonical_unit: "r_earth",
+    canonical_value: String(value),
+    content_hash: hash(`${side}:${rec.toi}:${value}`),
+    conversion_rule_id: "identity.r_earth",
+    conversion_rule_version: "1.0.0",
+    evidence_locator: locator,
+    limit: { status: "measured" },
+    null_status: null,
+    origin: {
+      kind: "structured_database",
+      raw_field: rawField,
+      raw_record_content_hash: locator.raw_record_content_hash,
+      raw_record_row_key: [rowKey],
+      source_table: isToi ? "toi" : "pscomppars",
+    },
+    query_hash: snapshot.query_hash,
+    raw_value: value,
+    source_id: snapshot.source_id,
+    source_priority: isToi ? 1 : 2,
+    source_snapshot_content_hash: snapshot.content_hash,
+    source_snapshot_id: snapshot.id,
+    source_unit: "r_earth",
+    source_value_id: `src_rad_${side}_${index}`,
+    transformation_rule_version: "1.0.0",
+    uncertainty: { status: "missing" },
+  };
+}
+
+const datasetSourceValues = rawSampleData.flatMap((rec, index) => [
+  radiusSourceValue(rec, index, "toi"),
+  radiusSourceValue(rec, index, "ps"),
+]);
+
+const datasetSelections: FieldSelectionRecord[] = rawSampleData.map(
+  (rec, index) => ({
+    candidate_source_value_ids: [`src_rad_toi_${index}`, `src_rad_ps_${index}`],
+    canonical_field_id: "planet.radius",
+    content_hash: hash(`selection:${rec.toi}:radius`),
+    dataset_row_id: `row_${rec.toi.toLowerCase().replace(/[^a-z0-9]/g, "_")}`,
+    reason: "TOI 目录值作为展示投影；两侧录制值均完整保留。",
+    selected_source_value_id: `src_rad_toi_${index}`,
+    selection_id: `sel_rad_toi_${index}`,
+    strategy: "prefer_source_priority_preserve_all",
+  }),
+);
+
+const datasetConflicts: FieldConflictRecord[] = rawSampleData.flatMap(
+  (rec, index) => {
+    if (rec.status !== "conflict") return [];
+    return [
+      {
+        absolute_difference: String(Math.abs(rec.radius - rec.psRadius)),
+        canonical_field_id: "planet.radius",
+        comparison_policy_version: "1.0.0",
+        conflict_id: `conflict_radius_${index}`,
+        conflict_scope: "cross_source" as const,
+        content_hash: hash(`conflict:${rec.toi}:radius`),
+        dataset_row_id: `row_${rec.toi.toLowerCase().replace(/[^a-z0-9]/g, "_")}`,
+        reason:
+          "distinct canonical values are retained; source priority selects display only" as const,
+        relative_denominator: String(Math.abs(rec.radius)),
+        relative_difference: String(rec.radiusRelativeDelta),
+        source_value_ids: [`src_rad_toi_${index}`, `src_rad_ps_${index}`] as [
+          string,
+          string,
+        ],
+      },
+    ];
+  },
+);
+
 const producer = {
-  producer_name: "fixture-data-pipeline",
+  producer_name: "demo-replay-projection",
   producer_version: "1.0.0",
   producer_type: "algorithm" as const,
   conversion_catalog_id: "conversion_catalog_01",
@@ -1242,23 +825,32 @@ const manifestPins = {
   field_manifest_content_hash: hash("y"),
 };
 
-const crossmatchAuthority: CrossmatchArtifactAuthority = {
+const datasetCrossmatchAuthority: CrossmatchArtifactAuthority = {
   authority_kind: "crossmatch",
-  result_id: "crossmatch_01",
+  result_id: "crossmatch_recorded_host_star_01",
   input_hash: hash("a"),
   output_hash: hash("b"),
   content_hash: hash("c"),
   source_snapshot_ids: [
-    sourceSnapshot.id,
-    psSourceSnapshot.id,
-    gaiaSourceSnapshot.id,
+    recordedToiDatasetSnapshot.id,
+    recordedPsDatasetSnapshot.id,
   ],
   evidence: [],
   evidence_ids: [],
   alignment_record_keys: datasetRows.map((row) => row.content_hash),
-  conflict_record_keys: [],
+  conflict_record_keys: datasetConflicts.map((item) => item.content_hash),
   inconclusive_record_keys: [],
   review_required_record_keys: [],
+};
+
+const fixtureCrossmatchAuthority: CrossmatchArtifactAuthority = {
+  ...datasetCrossmatchAuthority,
+  result_id: "crossmatch_source_collection_01",
+  source_snapshot_ids: [
+    recordedToiDatasetSnapshot.id,
+    recordedPsDatasetSnapshot.id,
+    gaiaSourceSnapshot.id,
+  ],
 };
 
 const datasetCandidate = {
@@ -1270,18 +862,17 @@ const datasetCandidate = {
   rows: datasetRows,
   row_count: datasetRows.length,
   field_count: fieldDefinitions.length,
-  conflicts: [],
+  conflicts: datasetConflicts,
   evidence_ids: [],
   source_snapshot_ids: [
-    sourceSnapshot.id,
-    psSourceSnapshot.id,
-    gaiaSourceSnapshot.id,
+    recordedToiDatasetSnapshot.id,
+    recordedPsDatasetSnapshot.id,
   ],
   input_hash: hash("d"),
   output_hash: hash("e"),
   canonical_content_hash: hash("c"),
   lineage_hash: hash("l"),
-  authority: crossmatchAuthority,
+  authority: datasetCrossmatchAuthority,
   producer,
   manifest_pins: manifestPins,
   conversion_catalog_id: producer.conversion_catalog_id,
@@ -1291,8 +882,8 @@ const datasetCandidate = {
   mapping_rule_set_version: producer.mapping_rule_set_version,
   mapping_rule_set_content_hash: producer.mapping_rule_set_content_hash,
   quality_metric_input_declarations: ["completeness", "evidence_coverage"],
-  selections: [],
-  source_values: [],
+  selections: datasetSelections,
+  source_values: datasetSourceValues,
   transformation_evidence: [],
 };
 
@@ -1310,7 +901,7 @@ const fieldDictionaryCandidate = {
   ],
   input_hash: hash("d"),
   output_hash: hash("e"),
-  authority: crossmatchAuthority,
+  authority: fixtureCrossmatchAuthority,
   producer,
   manifest_pins: manifestPins,
   conversion_catalog_id: producer.conversion_catalog_id,
@@ -1322,75 +913,75 @@ const fieldDictionaryCandidate = {
 };
 
 const sourceMember: StructuredSourceCollectionMember = {
-  source_id: sourceSnapshot.source_id,
-  source_snapshot_id: sourceSnapshot.id,
-  source_snapshot_content_hash: sourceSnapshot.content_hash,
+  source_id: recordedToiDatasetSnapshot.source_id,
+  source_snapshot_id: recordedToiDatasetSnapshot.id,
+  source_snapshot_content_hash: recordedToiDatasetSnapshot.content_hash,
   source_snapshot: {
-    snapshot_id: sourceSnapshot.id,
-    source_id: sourceSnapshot.source_id,
-    source_type: sourceSnapshot.source_type,
-    retrieved_at: sourceSnapshot.retrieved_at,
-    query: JSON.stringify(sourceSnapshot.query),
-    query_hash: sourceSnapshot.query_hash,
-    content_hash: sourceSnapshot.content_hash,
-    license_note: sourceSnapshot.license_note,
-    request_metadata: sourceSnapshot.request_metadata,
-    source_version_or_etag: sourceSnapshot.source_version_or_etag,
+    snapshot_id: recordedToiDatasetSnapshot.id,
+    source_id: recordedToiDatasetSnapshot.source_id,
+    source_type: recordedToiDatasetSnapshot.source_type,
+    retrieved_at: recordedToiDatasetSnapshot.retrieved_at,
+    query: JSON.stringify(recordedToiDatasetSnapshot.query),
+    query_hash: recordedToiDatasetSnapshot.query_hash,
+    content_hash: recordedToiDatasetSnapshot.content_hash,
+    license_note: recordedToiDatasetSnapshot.license_note,
+    request_metadata: recordedToiDatasetSnapshot.request_metadata,
+    source_version_or_etag: recordedToiDatasetSnapshot.source_version_or_etag,
   },
   side: "left",
-  data_level: "fixture",
-  source_mode: "fixture",
+  data_level: "recorded_response",
+  source_mode: "recorded",
   raw_record_count: 40,
   raw_record_reference_registry_hash: hash("z"),
   raw_record_references: [
     {
-      source_id: sourceSnapshot.source_id,
-      source_snapshot_id: sourceSnapshot.id,
-      source_snapshot_content_hash: sourceSnapshot.content_hash,
-      query_hash: sourceSnapshot.query_hash,
+      source_id: recordedToiDatasetSnapshot.source_id,
+      source_snapshot_id: recordedToiDatasetSnapshot.id,
+      source_snapshot_content_hash: recordedToiDatasetSnapshot.content_hash,
+      query_hash: recordedToiDatasetSnapshot.query_hash,
       raw_record_content_hash: hash("r"),
-      row_key: [["toi", "TOI-1233.01"]],
+      row_key: [["toi", "TOI-1135.01"]],
     },
   ],
-  query_hash: sourceSnapshot.query_hash,
+  query_hash: recordedToiDatasetSnapshot.query_hash,
   completion: { status: "complete", continuation_cursor: null },
-  license_note: sourceSnapshot.license_note,
+  license_note: recordedToiDatasetSnapshot.license_note,
 };
 
 const psSourceMember: StructuredSourceCollectionMember = {
-  source_id: psSourceSnapshot.source_id,
-  source_snapshot_id: psSourceSnapshot.id,
-  source_snapshot_content_hash: psSourceSnapshot.content_hash,
+  source_id: recordedPsDatasetSnapshot.source_id,
+  source_snapshot_id: recordedPsDatasetSnapshot.id,
+  source_snapshot_content_hash: recordedPsDatasetSnapshot.content_hash,
   source_snapshot: {
-    snapshot_id: psSourceSnapshot.id,
-    source_id: psSourceSnapshot.source_id,
-    source_type: psSourceSnapshot.source_type,
-    retrieved_at: psSourceSnapshot.retrieved_at,
-    query: JSON.stringify(psSourceSnapshot.query),
-    query_hash: psSourceSnapshot.query_hash,
-    content_hash: psSourceSnapshot.content_hash,
-    license_note: psSourceSnapshot.license_note,
-    request_metadata: psSourceSnapshot.request_metadata,
-    source_version_or_etag: psSourceSnapshot.source_version_or_etag,
+    snapshot_id: recordedPsDatasetSnapshot.id,
+    source_id: recordedPsDatasetSnapshot.source_id,
+    source_type: recordedPsDatasetSnapshot.source_type,
+    retrieved_at: recordedPsDatasetSnapshot.retrieved_at,
+    query: JSON.stringify(recordedPsDatasetSnapshot.query),
+    query_hash: recordedPsDatasetSnapshot.query_hash,
+    content_hash: recordedPsDatasetSnapshot.content_hash,
+    license_note: recordedPsDatasetSnapshot.license_note,
+    request_metadata: recordedPsDatasetSnapshot.request_metadata,
+    source_version_or_etag: recordedPsDatasetSnapshot.source_version_or_etag,
   },
   side: "right",
-  data_level: "fixture",
-  source_mode: "fixture",
-  raw_record_count: 40,
+  data_level: "recorded_response",
+  source_mode: "recorded",
+  raw_record_count: 48,
   raw_record_reference_registry_hash: hash("v"),
   raw_record_references: [
     {
-      source_id: psSourceSnapshot.source_id,
-      source_snapshot_id: psSourceSnapshot.id,
-      source_snapshot_content_hash: psSourceSnapshot.content_hash,
-      query_hash: psSourceSnapshot.query_hash,
+      source_id: recordedPsDatasetSnapshot.source_id,
+      source_snapshot_id: recordedPsDatasetSnapshot.id,
+      source_snapshot_content_hash: recordedPsDatasetSnapshot.content_hash,
+      query_hash: recordedPsDatasetSnapshot.query_hash,
       raw_record_content_hash: hash("w"),
-      row_key: [["tic_id", "260647166"]],
+      row_key: [["tic_id", "TIC 154872375"]],
     },
   ],
-  query_hash: psSourceSnapshot.query_hash,
+  query_hash: recordedPsDatasetSnapshot.query_hash,
   completion: { status: "complete", continuation_cursor: null },
-  license_note: psSourceSnapshot.license_note,
+  license_note: recordedPsDatasetSnapshot.license_note,
 };
 
 const gaiaSourceMember: StructuredSourceCollectionMember = {
@@ -1435,8 +1026,8 @@ const sourceCollectionCandidate = {
   schema_version: "3.0.0" as const,
   members: [sourceMember, psSourceMember, gaiaSourceMember],
   source_snapshot_ids: [
-    sourceSnapshot.id,
-    psSourceSnapshot.id,
+    recordedToiDatasetSnapshot.id,
+    recordedPsDatasetSnapshot.id,
     gaiaSourceSnapshot.id,
   ],
   source_value_ids: [],
@@ -1451,12 +1042,16 @@ const sourceCollectionCandidate = {
   mapping_rule_set_id: producer.mapping_rule_set_id,
   mapping_rule_set_version: producer.mapping_rule_set_version,
   mapping_rule_set_content_hash: producer.mapping_rule_set_content_hash,
-  authority: crossmatchAuthority,
+  authority: fixtureCrossmatchAuthority,
 };
 
 export const dataArtifactReads: readonly DatasetArtifactRead[] = [
   {
-    ...dataBase("art_dataset_01", DATASET_VERSION_ID, "dataset"),
+    ...dataBase("art_dataset_01", DATASET_VERSION_ID, "dataset", {
+      sourceMode: "recorded",
+      sourceSnapshots: [recordedToiDatasetSnapshot, recordedPsDatasetSnapshot],
+      evidence: recordedDatasetEvidence,
+    }),
     dataset: datasetCandidate,
   },
 ];
@@ -1472,7 +1067,23 @@ export const fieldDictionaryArtifactReads: readonly FieldDictionaryArtifactRead[
 export const sourceCollectionArtifactReads: readonly SourceCollectionArtifactRead[] =
   [
     {
-      ...dataBase("art_srccol_01", SOURCES_VERSION_ID, "source_collection"),
+      ...dataBase("art_srccol_01", SOURCES_VERSION_ID, "source_collection", {
+        sourceSnapshots: [
+          recordedToiDatasetSnapshot,
+          recordedPsDatasetSnapshot,
+          gaiaSourceSnapshot,
+        ],
+        evidence: [
+          evidence(
+            SOURCES_VERSION_ID,
+            "source_collection",
+            "source_collection.candidate",
+            "两份录制目录响应与一份明确标注的 Gaia 字段结构演示投影。",
+            recordedToiDatasetSnapshot,
+            "demo_replay.mixed_source_collection",
+          ),
+        ],
+      }),
       source_collection: sourceCollectionCandidate,
     },
   ];
@@ -1510,8 +1121,17 @@ const makeClaimRead = (
   rejectionReason: LiteratureClaimRejectionReason | null = null,
 ): LiteratureClaimRead => ({
   version: literatureVersion("art_claims_01", CLAIMS_VERSION_ID),
-  source_snapshots: [sourceSnapshot],
-  evidence: [evidence(CLAIMS_VERSION_ID, "claim", claimId, text)],
+  source_snapshots: [toi1233RecordedSnapshot],
+  evidence: [
+    evidence(
+      CLAIMS_VERSION_ID,
+      "claim",
+      claimId,
+      text,
+      toi1233RecordedSnapshot,
+      "recorded.nasa_exoplanet_archive_toi",
+    ),
+  ],
   paper_summary: {
     artifact_version_id: "artv_papsum_01",
     content_hash: hash("u"),
@@ -1534,10 +1154,12 @@ const makeClaimRead = (
     normalization_version: "1.0.0",
     input_hash: hash("i"),
     objects: objects as [string, ...string[]],
-    scope: ["exoplanet host-star system"],
-    conditions: ["TESS photometrical and high-res spectroscopic catalog"],
+    scope: ["recorded NASA Exoplanet Archive TOI catalog response"],
+    conditions: ["Only exact fields in the frozen TOI response are asserted."],
     qualifiers: [],
-    limitations: ["Bounded to the stated observational epoch."],
+    limitations: [
+      "The fixture does not infer light-curve, dynamical, atmospheric, or model-performance conclusions.",
+    ],
     metric,
     unit,
     uncertainty: null,
@@ -1545,7 +1167,7 @@ const makeClaimRead = (
     source_statement_id: `statement_${claimId}`,
     source_summary_id: "psum_01",
     source_paper_summary_artifact_version_id: "artv_papsum_01",
-    source_snapshot_ids: [sourceSnapshot.id],
+    source_snapshot_ids: [toi1233RecordedSnapshot.id],
     evidence_ids: [],
     failure_stage: null,
     rejection_reason: rejectionReason,
@@ -1554,8 +1176,8 @@ const makeClaimRead = (
 
 const claim1 = makeClaimRead(
   "claim_01",
-  "TOI-1233.01 (HD 108236 b) 是一颗短周期亚海王星，轨道周期为 3.795 天，围绕亮 G 型恒星 TIC-260647166 运行。",
-  ["TOI-1233.01", "TIC-260647166"],
+  "NASA Exoplanet Archive TOI 表将 TOI-1233.04 关联到 TIC-260647166，并记录轨道周期 3.79589 天、半径 1.553135 R_Earth。",
+  ["TOI-1233.04", "TIC-260647166"],
   "accepted",
   "orbital_period",
   "days",
@@ -1563,7 +1185,7 @@ const claim1 = makeClaimRead(
 
 const claim2 = makeClaimRead(
   "claim_02",
-  "宿主恒星 TIC-260647166 (HD 108236) 的有效表面温度为 5720 ± 60 K，金属丰度 [Fe/H] 为 -0.05 dex。",
+  "同一冻结 TOI 响应记录 TIC-260647166 的有效温度 5723.87 K、log g 4.438、恒星半径 0.864173 R_Sun。",
   ["TIC-260647166"],
   "accepted",
   "effective_temperature",
@@ -1572,8 +1194,8 @@ const claim2 = makeClaimRead(
 
 const claim3 = makeClaimRead(
   "claim_03",
-  "TOI-1233.02 (HD 108236 c) 的拟合物理半径为 2.06 R_Earth，与富含挥发分气态包层的行星内部结构模型一致。",
-  ["TOI-1233.02"],
+  "冻结 TOI 表记录 TOI-1233.03 的轨道周期为 6.2036219 天、行星半径为 2.056748 R_Earth。",
+  ["TOI-1233.03"],
   "accepted",
   "planet_radius",
   "R_Earth",
@@ -1581,8 +1203,8 @@ const claim3 = makeClaimRead(
 
 const claim4 = makeClaimRead(
   "claim_04",
-  "TOI-1233.01 与外层伴星 TOI-1233.02 的凌星时刻变分 (TTV) 反演预示两者处于接近 5:3 的近平均运动共振区域。",
-  ["TOI-1233.01", "TOI-1233.02"],
+  "候选审查：TOI-1233.03 与 TOI-1233.04 的目录周期可用于后续计算周期比，但当前响应不足以支持共振或 TTV 结论。",
+  ["TOI-1233.03", "TOI-1233.04"],
   "candidate",
   "resonance_period_ratio",
   "dimensionless",
@@ -1590,8 +1212,8 @@ const claim4 = makeClaimRead(
 
 const claim5 = makeClaimRead(
   "claim_05",
-  "HARPS 高精度视向速度测量为 TOI-1233.01 的动力学质量确定了 4.8 ± 0.9 M_Earth 的强约束上限。",
-  ["TOI-1233.01"],
+  "候选审查：TOI 编号与已确认行星名称的交叉映射需要独立来源，当前 TOI 目录响应不能单独完成别名认定。",
+  ["TOI-1233"],
   "candidate",
   "planet_mass",
   "M_Earth",
@@ -1599,8 +1221,8 @@ const claim5 = makeClaimRead(
 
 const claim6 = makeClaimRead(
   "claim_06",
-  "TIC-260647166 为极年轻的金牛座 T Tauri 型恒星，具有强烈的色球活动与耀斑爆发特征。",
-  ["TIC-260647166"],
+  "已驳回：将 TOI-1233.01 的目录周期写成 3.79589 天，与同一冻结响应中的 14.1758947 天直接冲突。",
+  ["TOI-1233.01"],
   "rejected",
   "stellar_activity_index",
   "dimensionless",
@@ -1626,9 +1248,16 @@ const makeRelationRead = (
   reviewReason: LiteratureRelationReviewReason | null = null,
 ): LiteratureRelationRead => ({
   version: literatureVersion("art_rels_01", RELATIONS_VERSION_ID),
-  source_snapshots: [sourceSnapshot],
+  source_snapshots: [toi1233RecordedSnapshot],
   evidence: [
-    evidence(RELATIONS_VERSION_ID, "relation", relationId, conclusion),
+    evidence(
+      RELATIONS_VERSION_ID,
+      "relation",
+      relationId,
+      conclusion,
+      toi1233RecordedSnapshot,
+      "reasoning.catalog_identity_relation",
+    ),
   ],
   graph_eligible: status === "accepted",
   source_claim: sourceClaim,
@@ -1644,13 +1273,13 @@ const makeRelationRead = (
     target_claim_artifact_version_id: CLAIMS_VERSION_ID,
     source_paper_summary_artifact_version_id: "artv_papsum_01",
     target_paper_summary_artifact_version_id: "artv_papsum_01",
-    source_snapshot_ids: [sourceSnapshot.id],
+    source_snapshot_ids: [toi1233RecordedSnapshot.id],
     evidence_ids: [],
-    conditions: ["shared planetary system TIC-260647166"],
+    conditions: ["shared TIC identifier in the frozen catalog response"],
     condition_conflicts: [],
     condition_uncertainties: [],
     comparability: {
-      metric_basis: "stellar and planetary parameters",
+      metric_basis: "frozen catalog fields",
       metric_status: "comparable",
       object_basis: "TIC-260647166",
       object_status: "comparable",
@@ -1658,7 +1287,7 @@ const makeRelationRead = (
       unit_status: "comparable",
     },
     direction: {
-      basis: "astrophysical derivation and consistency",
+      basis: "catalog identity and exact-field consistency",
       source_claim_id: sourceClaim.claim.claim_id,
       target_claim_id: targetClaim.claim.claim_id,
     },
@@ -1681,9 +1310,9 @@ const makeRelationRead = (
     relation_status: status,
     conclusion,
     premise_claim_ids: [sourceClaim.claim.claim_id, targetClaim.claim.claim_id],
-    conditions: ["两项主张均基于对同一恒星系统 TIC-260647166 的多波段观测。"],
+    conditions: ["两项主张均来自同一冻结 TOI 目录响应。"],
     conflicts: [],
-    limitations: ["结论受限于当前测光精度的置信区间。"],
+    limitations: ["不得把目录级关系扩展为动力学或观测结论。"],
     evidence_ids: [`ev_${RELATIONS_VERSION_ID}_relation_${relationId}`],
     input_hash: hash("i"),
     model_response_hash: hash("m"),
@@ -1693,7 +1322,7 @@ const makeRelationRead = (
       {
         order: 1,
         operation: "compare_objects",
-        statement: "交叉比对目标恒星标识与行星编号一致性。",
+        statement: "交叉比对冻结响应中的 TIC、TOI 与精确字段值。",
         claim_ids: [sourceClaim.claim.claim_id, targetClaim.claim.claim_id],
         evidence_ids: [`ev_${RELATIONS_VERSION_ID}_relation_${relationId}`],
       },
@@ -1707,7 +1336,7 @@ const rel1 = makeRelationRead(
   claim2,
   "uses_same_dataset",
   "accepted",
-  "主张 1 的候选行星与主张 2 的宿主恒星具有相同的 TIC 标识 (TIC-260647166)，共同构成系统的宿主-行星基本物理基准。",
+  "主张 1 与主张 2 在同一冻结 TOI 行中共享 TIC-260647166，可建立目录级同系统关系。",
 );
 
 const rel2 = makeRelationRead(
@@ -1716,7 +1345,7 @@ const rel2 = makeRelationRead(
   claim3,
   "supports",
   "accepted",
-  "主张 1 与主张 3 分别确定了同一恒星系统中的 b 星与 c 星，两者轨道排列与半径分布符合典型紧凑多行星系统的架构特征。",
+  "主张 1 与主张 3 的记录共享 TIC-260647166，可建立冻结目录中的同宿主关系。",
 );
 
 const rel3 = makeRelationRead(
@@ -1725,7 +1354,7 @@ const rel3 = makeRelationRead(
   claim4,
   "extends",
   "candidate",
-  "主张 1 的精确公转周期为主张 4 的 TTV 共振动力学推导提供了基础先验，需人工确认动力学积分拟合优度。",
+  "冻结目录周期只能作为后续动力学分析输入；当前不得把周期比解释为已证实关系。",
   "literature_relation.review.conditions_unresolved",
 );
 
@@ -1735,7 +1364,7 @@ const rel4 = makeRelationRead(
   claim5,
   "supports",
   "candidate",
-  "主张 5 的视向速度质量上限进一步约束了主张 1 凌星行星的平均密度与大气流失率。",
+  "TOI 与确认行星名称的映射属于跨表实体解析，需要独立来源快照和明确匹配规则。",
   "literature_relation.review.conditions_unresolved",
 );
 
@@ -1745,7 +1374,7 @@ const rel5 = makeRelationRead(
   claim6,
   "contradicts",
   "rejected",
-  "主张 6 宣称的极年轻 T Tauri 阶段与主张 2 测定的主序 G 型有效温度与宁静色球演化阶段直接冲突，予以驳回。",
+  "主张 6 把 3.79589 天错误归给 TOI-1233.01，与冻结响应中的 14.1758947 天直接冲突。",
 );
 
 export const literatureRelationReads: readonly LiteratureRelationRead[] = [
@@ -1920,12 +1549,12 @@ export const graphNodeReads: readonly GraphNodeRead[] = [
     node: {
       node_id: "node_planet_toi1233_01",
       node_type: "field",
-      label: "行星 TOI-1233.01 (b)",
-      logical_reference: [{ name: "toi_id", value: "TOI-1233.01" }],
+      label: "TOI 目录记录 1233.04",
+      logical_reference: [{ name: "toi_id", value: "TOI-1233.04" }],
       version_bindings: [
         {
           artifact_version_id: FIELDS_VERSION_ID,
-          domain_object_id: "toi_1233_01",
+          domain_object_id: "toi_1233_04",
         },
       ],
     },
@@ -1935,12 +1564,12 @@ export const graphNodeReads: readonly GraphNodeRead[] = [
     node: {
       node_id: "node_planet_toi1233_02",
       node_type: "field",
-      label: "行星 TOI-1233.02 (c)",
-      logical_reference: [{ name: "toi_id", value: "TOI-1233.02" }],
+      label: "TOI 目录记录 1233.03",
+      logical_reference: [{ name: "toi_id", value: "TOI-1233.03" }],
       version_bindings: [
         {
           artifact_version_id: FIELDS_VERSION_ID,
-          domain_object_id: "toi_1233_02",
+          domain_object_id: "toi_1233_03",
         },
       ],
     },
@@ -1950,7 +1579,7 @@ export const graphNodeReads: readonly GraphNodeRead[] = [
     node: {
       node_id: "node_claim_01",
       node_type: "claim",
-      label: "主张 1: TOI-1233.01 短周期亚海王星",
+      label: "主张 1：TOI-1233.04 冻结目录参数",
       logical_reference: [{ name: "claim_id", value: "claim_01" }],
       version_bindings: [
         {
@@ -1965,7 +1594,7 @@ export const graphNodeReads: readonly GraphNodeRead[] = [
     node: {
       node_id: "node_claim_02",
       node_type: "claim",
-      label: "主张 2: 宿主星有效温度 5720 K",
+      label: "主张 2：TIC-260647166 冻结恒星参数",
       logical_reference: [{ name: "claim_id", value: "claim_02" }],
       version_bindings: [
         {
@@ -1980,7 +1609,7 @@ export const graphNodeReads: readonly GraphNodeRead[] = [
     node: {
       node_id: "node_claim_03",
       node_type: "claim",
-      label: "主张 3: TOI-1233.02 挥发分气态包层",
+      label: "主张 3：TOI-1233.03 冻结目录参数",
       logical_reference: [{ name: "claim_id", value: "claim_03" }],
       version_bindings: [
         {
@@ -1995,7 +1624,7 @@ export const graphNodeReads: readonly GraphNodeRead[] = [
     node: {
       node_id: "node_claim_04",
       node_type: "claim",
-      label: "主张 4: 近共振动力学 TTV 预期",
+      label: "主张 4：周期比解释待审",
       logical_reference: [{ name: "claim_id", value: "claim_04" }],
       version_bindings: [
         {
@@ -2010,7 +1639,7 @@ export const graphNodeReads: readonly GraphNodeRead[] = [
     node: {
       node_id: "node_claim_05",
       node_type: "claim",
-      label: "主张 5: HARPS 视向速度质量上限",
+      label: "主张 5：跨表别名映射待审",
       logical_reference: [{ name: "claim_id", value: "claim_05" }],
       version_bindings: [
         {
@@ -2166,13 +1795,6 @@ export const graphEdgeReads: readonly GraphEdgeRead[] = [
     "node_claim_03",
     "rel_02",
   ),
-  makeEdge(
-    "edge_20_rel_03",
-    "extends",
-    "node_claim_01",
-    "node_claim_04",
-    "rel_03",
-  ),
 ];
 
 export const graphArtifactReads: readonly GraphArtifactRead[] = [
@@ -2196,7 +1818,7 @@ export const graphArtifactReads: readonly GraphArtifactRead[] = [
         edge_count: graphEdgeReads.length,
         evidence_use_count: graphEdgeReads.length,
         input_version_count: 1,
-        relation_edge_count: 3,
+        relation_edge_count: 2,
         source_snapshot_count: 3,
       },
       findings: [],

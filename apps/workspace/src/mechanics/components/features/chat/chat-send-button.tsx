@@ -1,3 +1,4 @@
+import { Button } from "@xingwen/ui";
 import { ArrowUp } from "@xingwen/ui/icons";
 
 interface ChatSendButtonProps {
@@ -12,15 +13,15 @@ export function ChatSendButton({
   submitting,
 }: ChatSendButtonProps) {
   return (
-    <button
-      type="button"
-      className="flex size-[var(--control-size-xs)] items-center justify-center rounded-[var(--radius-pill)] border border-[var(--color-brand)] bg-[var(--color-brand)] text-[var(--color-brand-on)] hover:bg-[var(--color-brand-hover)] disabled:border-transparent disabled:bg-[var(--color-surface-muted)] disabled:text-[var(--color-ink-tertiary)]"
+    <Button
+      size="icon-xsmall"
+      className="rounded-[var(--radius-pill)]"
       data-testid="submit-button"
       aria-label={submitting ? "正在发送研究消息" : "发送研究消息"}
       onClick={handleSubmit}
       disabled={disabled}
     >
-      <ArrowUp className="size-[var(--icon-size-sm)]" aria-hidden="true" />
-    </button>
+      <ArrowUp aria-hidden="true" />
+    </Button>
   );
 }

@@ -231,7 +231,7 @@ export function PaperCollectionWorkspace({
       <header className="paper-collection-workspace__header">
         <div>
           <p className="ui-text-label text-muted-foreground">文献检索审查</p>
-          <h2 id="paper-collection-title">论文集合</h2>
+          <h2 id="paper-collection-title">候选筛选与全文绑定</h2>
           <p>
             {review.query.yearFrom}–{review.query.yearTo} ·{" "}
             {review.query.sourceIds.map(sourceLabel).join("、")} ·{" "}
@@ -296,7 +296,7 @@ export function PaperCollectionWorkspace({
         </Field>
         <ToggleGroup
           type="single"
-          variant="default"
+          variant="segmented"
           size="sm"
           value={filterMode}
           onValueChange={(value) => {
@@ -332,6 +332,10 @@ export function PaperCollectionWorkspace({
               const syntheticLabel = syntheticReviewLabel(
                 candidate.rawRecord.syntheticNote,
               );
+              const duplicateLabel =
+                candidate.duplicateGroup.candidateIds.length > 1
+                  ? "同一文献记录"
+                  : syntheticLabel;
               return (
                 <Item
                   key={candidate.candidateId}
@@ -342,12 +346,7 @@ export function PaperCollectionWorkspace({
                     <div className="paper-collection-workspace__row-meta">
                       <Badge variant={status.variant}>{status.label}</Badge>
                       <span>排名 {candidate.stableRank}</span>
-                      {candidate.duplicateGroup.candidateIds.length > 1 ? (
-                        <Badge variant="outline">重复组</Badge>
-                      ) : null}
-                      {syntheticLabel ? (
-                        <Badge variant="ghost">{syntheticLabel}</Badge>
-                      ) : null}
+                      {duplicateLabel ? <span>{duplicateLabel}</span> : null}
                     </div>
                     <ItemTitle>{candidate.title}</ItemTitle>
                     <ItemDescription>

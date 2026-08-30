@@ -8,6 +8,7 @@ import {
 import {
   Alert,
   AlertDescription,
+  AlertTitle,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -17,11 +18,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Button,
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
   Skeleton,
   Toaster,
   toast,
 } from "@xingwen/ui";
 import {
+  FileSearch,
   LoaderCircle,
   RotateCcw,
   Square,
@@ -98,61 +106,59 @@ function RunLifecycleControls({
   };
 
   return (
-    <div
-      className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface-hover)] px-3 py-2 text-xs"
+    <Alert
+      variant={isFailed ? "destructive" : "default"}
+      className="run-lifecycle-alert"
       data-testid="run-lifecycle-controls"
       role="status"
       aria-live="polite"
     >
-      <div className="flex min-w-0 items-center gap-2 text-[var(--color-ink-secondary)]">
+      <div className="run-lifecycle-alert__message">
         {isFailed ? (
-          <TriangleAlert
-            className="size-3.5 text-[var(--color-warning)]"
-            aria-hidden="true"
-          />
+          <TriangleAlert aria-hidden="true" />
         ) : (
           <LoaderCircle
-            className="size-3.5 animate-spin motion-reduce:animate-none"
+            className="animate-spin motion-reduce:animate-none"
             aria-hidden="true"
           />
         )}
-        <span className="truncate">
-          {isFailed ? "研究遇到问题" : statusLabel}
-        </span>
-        {cancelError || retryError ? (
-          <span className="truncate text-[var(--color-warning)]">
-            {cancelError ?? retryError}
-          </span>
-        ) : null}
+        <div>
+          <AlertTitle>{isFailed ? "研究遇到问题" : statusLabel}</AlertTitle>
+          <AlertDescription>
+            {cancelError ??
+              retryError ??
+              (isFailed
+                ? (run.failure?.summary ?? "研究运行未能完成，请检查后重试。")
+                : isWaiting
+                  ? "研究正在等待你的回答。"
+                  : `研究正在执行，当前进度 ${run.progress}%。`)}
+          </AlertDescription>
+        </div>
       </div>
-      <div className="flex shrink-0 items-center gap-1.5">
+      <div className="run-lifecycle-alert__actions">
         {isFailed ? (
           <Button
             variant="secondary"
             size="small"
             disabled={isRetrying}
             onClick={() => void onRetry()}
-            className="gap-1.5"
           >
-            <RotateCcw className="size-3.5" aria-hidden="true" />
+            <RotateCcw aria-hidden="true" />
             {isRetrying ? "正在重试" : "重试研究"}
           </Button>
         ) : (
           <>
             {isWaiting ? (
-              <span className="text-[var(--color-ink-secondary)]">
-                等待你的回答
-              </span>
+              <span className="run-lifecycle-alert__waiting">等待你的回答</span>
             ) : null}
             <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
               <Button
-                variant="ghost"
+                variant="secondary"
                 size="small"
                 disabled={isCancelling}
                 onClick={() => setCancelOpen(true)}
-                className="gap-1.5 text-[var(--color-ink-secondary)] hover:text-foreground"
               >
-                <Square className="size-3.5" aria-hidden="true" />
+                <Square aria-hidden="true" />
                 {isCancelling ? "正在停止" : "停止研究"}
               </Button>
               <AlertDialogContent>
@@ -179,7 +185,7 @@ function RunLifecycleControls({
           </>
         )}
       </div>
-    </div>
+    </Alert>
   );
 }
 
@@ -571,6 +577,48 @@ export function WorkspaceEntry({
     projects: projectList,
     onDeleted: () => undefined,
   });
+  const entryRuntime = runtimeForEntry(
+    entry.composer,
+    runtime,
+    projectList,
+    pinned.pinnedProjects,
+    access.accessLog,
+    onOpenProject,
+    () => void creation.create(),
+    pinned.togglePinned,
+    actions.requestRename,
+    actions.requestDelete,
+  );
+  const presentedEntryRuntime: ResearchWorkspaceRuntime = missingNotice
+    ? {
+        ...entryRuntime,
+        composer: null,
+        threadPanel: (
+          <section
+            className="flex min-h-[calc(100vh-var(--workspace-header-block-size))] items-center justify-center px-6 py-12"
+            data-testid="missing-project-notice"
+            role="status"
+          >
+            <Empty className="max-w-xl border-0 bg-transparent">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <FileSearch aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle>这个研究不存在</EmptyTitle>
+                <EmptyDescription>
+                  它可能已被删除，或当前链接已失效。你可以从左侧打开其他研究，或新建一项研究。
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button type="button" onClick={() => void creation.create()}>
+                  新建研究
+                </Button>
+              </EmptyContent>
+            </Empty>
+          </section>
+        ),
+      }
+    : entryRuntime;
   const content = projects.isError ? (
     <section className="route-content">
       <h1>研究项目载入失败</h1>
@@ -588,33 +636,13 @@ export function WorkspaceEntry({
   ) : (
     <WorkspaceShell
       runtime={{
-        ...runtimeForEntry(
-          entry.composer,
-          runtime,
-          projectList,
-          pinned.pinnedProjects,
-          access.accessLog,
-          onOpenProject,
-          () => void creation.create(),
-          pinned.togglePinned,
-          actions.requestRename,
-          actions.requestDelete,
-        ),
+        ...presentedEntryRuntime,
         headerActions: <ModelProviderControl runtime={runtime} />,
       }}
     />
   );
   return (
     <>
-      {missingNotice ? (
-        <p
-          className="px-4 py-2 text-sm text-[var(--color-ink-secondary)]"
-          data-testid="missing-project-notice"
-          role="status"
-        >
-          这个研究已不存在。
-        </p>
-      ) : null}
       {content}
       {actions.dialog}
     </>

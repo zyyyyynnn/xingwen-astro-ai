@@ -61,6 +61,8 @@ function recordIdentity(value: string): string {
 const SOURCE_LABELS: Readonly<Record<string, string>> = {
   "nasa_exoplanet_archive.toi": "NASA Exoplanet Archive · TOI 目录",
   "nasa_exoplanet_archive.ps": "NASA Exoplanet Archive · 行星系统目录",
+  "nasa_exoplanet_archive.pscomppars":
+    "NASA Exoplanet Archive · 行星系统综合参数",
   gaia_dr3: "Gaia DR3",
   simbad: "SIMBAD 天体数据库",
 };
@@ -72,9 +74,12 @@ function sourceLabel(sourceId: string | null): string {
 
 const DATA_LEVEL_LABELS: Readonly<Record<string, string>> = {
   fixture: "演示数据",
+  seed: "种子数据",
   live: "实时来源",
+  live_result: "实时结果",
   cached: "缓存来源",
   recorded: "录制来源",
+  recorded_response: "录制响应",
 };
 
 const COMPLETION_LABELS: Readonly<Record<string, string>> = {
@@ -104,10 +109,20 @@ function DatasetTable({
   readonly onSelectEvidence?: (evidenceIds: readonly DomainEntityId[]) => void;
 }) {
   const limits = SURFACE_LIMITS[surface];
+  const visibleColumns = review.columns.filter((column) => {
+    if (review.rows.length === 0) return true;
+    return !review.rows.every((row) => {
+      const identity = recordIdentity(row.identity);
+      const cell = row.cells.find(
+        (candidate) => candidate.canonicalFieldId === column.fieldId,
+      );
+      return identity !== "" && String(cell?.value ?? "") === identity;
+    });
+  });
   return (
     <ScientificTable
       caption="研究数据集中的规范化字段与数据行"
-      columns={review.columns.map((column) => ({
+      columns={visibleColumns.map((column) => ({
         key: String(column.fieldId),
         label: fieldLabel(column),
         unit: column.canonicalUnit || null,
@@ -175,6 +190,7 @@ function DatasetRenderer({
 
       <ArtifactMetadataStrip
         sourceCount={review.sourceSnapshots.length}
+        sourceMode={review.sourceMode}
         retrievedAt={retrievedAt}
         qualityStatus={review.quality.status}
         recordCount={review.rowCount}
@@ -271,6 +287,7 @@ function FieldDictionaryRenderer({
 
       <ArtifactMetadataStrip
         sourceCount={review.sourceSnapshots.length}
+        sourceMode={review.sourceMode}
         retrievedAt={retrievedAt}
         qualityStatus={review.quality.status}
         fieldCount={review.fieldDefinitions.length}
@@ -281,7 +298,7 @@ function FieldDictionaryRenderer({
         left={
           <div className="field-dictionary__search relative min-w-64 max-w-sm">
             <Search
-              className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+              className="pointer-events-none absolute left-2.5 top-1/2 size-[var(--icon-size-sm)] -translate-y-1/2 text-muted-foreground"
               data-testid="field-dictionary-search-icon"
               aria-hidden="true"
             />
@@ -417,6 +434,9 @@ function SourceCollectionRenderer({
     .at(-1);
 
   const members = review.members.slice(0, SURFACE_LIMITS[surface].fields);
+  const mixesRecordedAndFixtureSources =
+    review.members.some((member) => member.sourceMode === "recorded") &&
+    review.members.some((member) => member.sourceMode === "fixture");
 
   return (
     <article
@@ -433,6 +453,7 @@ function SourceCollectionRenderer({
 
       <ArtifactMetadataStrip
         sourceCount={review.members.length}
+        sourceMode={review.sourceMode}
         retrievedAt={retrievedAt}
         qualityStatus={review.quality.status}
         recordCount={review.alignedRecordCount}
@@ -467,6 +488,12 @@ function SourceCollectionRenderer({
           <dd>{review.conflictRecordCount}</dd>
         </div>
       </dl>
+
+      {mixesRecordedAndFixtureSources ? (
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          差异统计来自参与对齐的录制响应；标记为演示数据的来源只覆盖接入结构，不计入科研比较。
+        </p>
+      ) : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {members.length > 0 ? (

@@ -91,6 +91,19 @@
   --icon-size-md: 1rem;
   --icon-size-lg: 1.25rem;
 
+  /* Shared component geometry */
+  --component-textarea-min-block-size: 6.5rem;
+  --component-empty-max-inline-size: 28rem;
+  --component-dialog-inline-size: 34rem;
+  --component-dialog-max-block-size: 46rem;
+  --component-alert-dialog-inline-size: 30rem;
+  --component-dropdown-min-inline-size: 10rem;
+  --component-popover-inline-size: 22rem;
+  --component-tabs-vertical-inline-size: 11.5rem;
+  --component-command-list-max-block-size: 18rem;
+  --component-sheet-inline-size: 24rem;
+  --viewport-min-inline-size: 20rem;
+
   /* Visual */
   --color-visual-celestial-ink: var(--raw-bluegray-700);
   --color-visual-celestial-deep: var(--raw-bluegray-900);
@@ -131,6 +144,7 @@
   --font-size-ui-label: var(--font-size-0);
   --font-size-ui-body: 0.875rem;
   --font-size-ui-heading: 1.25rem;
+  --font-weight-ui-regular: 400;
   --font-weight-ui-medium: 500;
   --font-weight-ui-heading: 560;
   --font-weight-ui-emphasis: 600;
@@ -138,6 +152,8 @@
   --line-height-ui-label: 1.5;
   --line-height-ui-body: 1.6;
   --line-height-ui-heading: 1.5;
+  --line-height-ui-display: 1.3;
+  --letter-spacing-ui-display: -0.015em;
 
   /* Radius */
   --radius-xs: 2px;

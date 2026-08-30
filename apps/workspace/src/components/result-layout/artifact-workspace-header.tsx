@@ -10,7 +10,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@xingwen/ui";
-import { ArrowLeft, ChevronDown, Share2 } from "@xingwen/ui/icons";
+import {
+  ArrowLeft,
+  ChevronDown,
+  History,
+  Quote,
+  RotateCcw,
+  Share2,
+} from "@xingwen/ui/icons";
 
 export interface ArtifactWorkspaceHeaderProps {
   readonly title: string;
@@ -76,7 +83,7 @@ export function ArtifactWorkspaceHeader({
             size="small"
             className="ui-text-label flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft className="size-4" aria-hidden="true" />
+            <ArrowLeft aria-hidden="true" />
             <span>返回研究</span>
           </Button>
         </DialogClose>
@@ -97,7 +104,7 @@ export function ArtifactWorkspaceHeader({
                 <span className="text-xs">
                   {versionTimestamp(selectedVersion.createdAt)}
                 </span>
-                <ChevronDown className="size-3.5" aria-hidden="true" />
+                <ChevronDown aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-56">
@@ -128,11 +135,13 @@ export function ArtifactWorkspaceHeader({
         {actions}
         {hasEvidence && onOpenEvidence ? (
           <Button size="small" variant="ghost" onClick={onOpenEvidence}>
+            <Quote aria-hidden="true" />
             证据
           </Button>
         ) : null}
         {canCompare && onOpenCompare ? (
           <Button size="small" variant="ghost" onClick={onOpenCompare}>
+            <History aria-hidden="true" />
             比较结果
           </Button>
         ) : null}
@@ -143,12 +152,13 @@ export function ArtifactWorkspaceHeader({
             className="gap-1.5"
             onClick={onOpenShare}
           >
-            <Share2 className="size-3.5" aria-hidden="true" />
+            <Share2 aria-hidden="true" />
             分享
           </Button>
         ) : null}
         {canRevise && onOpenRevision ? (
           <Button size="small" variant="ghost" onClick={onOpenRevision}>
+            <RotateCcw aria-hidden="true" />
             基于此结果重新分析
           </Button>
         ) : null}

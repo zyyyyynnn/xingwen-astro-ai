@@ -17,11 +17,38 @@
   --workspace-sidebar-row-block-size: var(--control-size-md);
 
   --workspace-content-max-inline-size: 44rem;
+  --workspace-route-content-max-inline-size: 42rem;
+  --workspace-empty-max-inline-size: 26rem;
   --workspace-entry-starter-block-size: 5.25rem;
+  --workspace-loading-skeleton-block-size: 5.5rem;
+  --workspace-context-empty-block-size: 22rem;
+  --workspace-panel-empty-block-size: 16rem;
+  --workspace-result-skeleton-block-size: 8rem;
   --workspace-min-inline-size: 1024px;
+
+  /* Research Contract and reading-dialog geometry. */
+  --workspace-contract-form-max-inline-size: 48rem;
+  --workspace-contract-popover-inline-size: 31rem;
+  --workspace-contract-dialog-inline-size: 54rem;
+  --workspace-contract-editor-inline-size: 60rem;
+  --workspace-contract-editor-block-size: 44rem;
+  --workspace-contract-dialog-max-block-size: 46rem;
+  --workspace-paper-dialog-inline-size: 56rem;
+  --workspace-paper-dialog-block-size: 52rem;
+  --workspace-paper-content-max-inline-size: 52rem;
+  --workspace-inspector-content-max-block-size: 20rem;
+  --workspace-inspector-protocol-max-block-size: 12rem;
+  --workspace-status-indicator-size: var(--space-2);
+  --workspace-metadata-label-inline-size: 5rem;
+  --workspace-evidence-label-inline-size: 3rem;
+  --workspace-repair-label-inline-size: 6rem;
 
   /* Scientific result workspace geometry. */
   --workspace-result-reading-max-inline-size: 72ch;
+  --workspace-chat-message-max-inline-size: min(
+    var(--workspace-result-reading-max-inline-size),
+    88%
+  );
   --workspace-result-wide-max-inline-size: 76rem;
   --workspace-result-graph-block-size: min(42rem, 66dvh);
   --workspace-result-inspector-inline-size: 22rem;
@@ -38,6 +65,7 @@
   --workspace-result-table-max-block-size: 26rem;
   --workspace-result-chart-min-block-size: 22rem;
   --workspace-result-sky-min-block-size: 28rem;
+  --workspace-result-pdf-loading-block-size: 60dvh;
   --workspace-result-control-inline-size: 12rem;
   --workspace-result-settings-popover-inline-size: 22rem;
   --workspace-result-table-identity-inline-size: 10rem;

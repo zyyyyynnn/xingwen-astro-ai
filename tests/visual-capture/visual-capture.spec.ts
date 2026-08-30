@@ -7,6 +7,8 @@ const SHOT_DIR =
 const PROJECT_A = "/workspace/proj_01JEXAMPLE";
 const PROJECT_B = "/workspace/proj_toi_transit";
 const PROJECT_C = "/workspace/proj_l9859_spectroscopy";
+const PROJECT_WAITING = "/workspace/proj_waiting_demo";
+const PROJECT_FAILED = "/workspace/proj_failed_demo";
 
 async function settle(page: Page, ms = 800): Promise<void> {
   await page.waitForLoadState("networkidle").catch(() => undefined);
@@ -69,8 +71,36 @@ test.describe("workspace shell & navigation", () => {
     await expect(page.getByRole("dialog", { name: "模型服务" })).toBeVisible();
     await settle(page, 400);
     await shot(page, "04_model-provider-dialog");
+    const removeProvider = page.getByRole("button", {
+      name: "移除工作台配置",
+    });
+    if (await removeProvider.isVisible()) {
+      await removeProvider.click();
+      await expect(page.getByRole("alertdialog")).toBeVisible();
+      await shot(page, "04b_model-provider-remove-confirm");
+      await page.keyboard.press("Escape");
+      await settle(page, 300);
+    }
     await page.keyboard.press("Escape");
     await settle(page, 300);
+  });
+
+  test("project context menu and rename dialog", async ({ page }) => {
+    await page.goto("/workspace");
+    await expect(page.getByTestId("root-layout")).toBeVisible();
+    await settle(page, 700);
+    await page
+      .getByRole("button", {
+        name: "Exoplanet host-star integration 项目操作",
+      })
+      .click();
+    await expect(page.getByRole("menuitem", { name: "重命名" })).toBeVisible();
+    await shot(page, "05_project-context-menu");
+    await page.getByRole("menuitem", { name: "重命名" }).click();
+    await expect(
+      page.getByRole("dialog", { name: "重命名研究项目" }),
+    ).toBeVisible();
+    await shot(page, "06_project-rename-dialog");
   });
 });
 
@@ -98,9 +128,7 @@ test.describe("project workspace overview and message stream", () => {
     await settle(page, 300);
   });
 
-  test("project B overview lists AutoAstro-derived results", async ({
-    page,
-  }) => {
+  test("project B overview lists catalog replay results", async ({ page }) => {
     await openProject(page, PROJECT_B);
     await shot(page, "11_project-b-overview");
 
@@ -108,14 +136,18 @@ test.describe("project workspace overview and message stream", () => {
     await expect(resultsTab).toBeVisible();
     await resultsTab.click();
     await settle(page, 700);
-    await expect(page.getByText("TOI-1233 凌星分析报告").first()).toBeVisible();
     await expect(
-      page.getByText("TOI-1233 TESS 光变曲线").first(),
+      page.getByText("TOI-1233.04 公开目录参数核验与界面能力样例").first(),
+    ).toBeVisible();
+    await expect(
+      page.getByText("TOI-1233.04 目录参数驱动的光变界面样例").first(),
     ).toBeVisible();
     await shot(page, "11b_project-b-results");
   });
 
-  test("project C overview lists MAVIS-derived results", async ({ page }) => {
+  test("project C overview lists recorded spectroscopy results", async ({
+    page,
+  }) => {
     await openProject(page, PROJECT_C);
     await shot(page, "12_project-c-overview");
 
@@ -124,12 +156,39 @@ test.describe("project workspace overview and message stream", () => {
     await resultsTab.click();
     await settle(page, 700);
     await expect(
-      page.getByText("L 98-59 高分辨率光谱", { exact: true }).first(),
+      page.getByText("L 98-59 公开 HARPS 一维光谱", { exact: true }).first(),
     ).toBeVisible();
     await expect(
-      page.getByText("L 98-59 WWT 天球视口场景", { exact: true }).first(),
+      page.getByText("L 98-59 WWT 天球交互界面样例", { exact: true }).first(),
     ).toBeVisible();
     await shot(page, "12b_project-c-results");
+  });
+
+  test("waiting and failed research states", async ({ page }) => {
+    await openProject(page, PROJECT_WAITING);
+    await expect(
+      page.getByRole("heading", {
+        name: "TIC-307210830 观测协议待确认",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("为了确定观测协议边界", { exact: false }),
+    ).toBeVisible();
+    await shot(page, "14_project-waiting-state");
+
+    await openProject(page, PROJECT_FAILED);
+    await expect(page.getByText("研究遇到问题")).toBeVisible();
+    await expect(page.getByText("执行研究")).toBeVisible();
+    await shot(page, "15_project-failed-state");
+  });
+
+  test("unknown project route fails closed", async ({ page }) => {
+    await page.goto("/workspace/project-does-not-exist");
+    await expect(page.getByTestId("root-layout")).toBeVisible();
+    await expect(
+      page.getByText(/未找到|不存在|无法读取/).first(),
+    ).toBeVisible();
+    await shot(page, "16_project-not-found");
   });
 
   test("message stream scroll anchors", async ({ page }) => {
@@ -208,9 +267,7 @@ test.describe("fullscreen formal artifact workspaces", () => {
       await assertNoFatalError(page);
 
       if (versionId === "artv_fdict_01") {
-        const searchInput = page.getByPlaceholder(
-          "搜索字段名称、含义或标识…",
-        );
+        const searchInput = page.getByPlaceholder("搜索字段名称、含义或标识…");
         const searchIcon = page.getByTestId("field-dictionary-search-icon");
         const [inputBox, iconBox, paddingStart] = await Promise.all([
           searchInput.boundingBox(),
@@ -260,10 +317,10 @@ test.describe("fullscreen formal artifact workspaces", () => {
         });
         await expect(adjudicationSheet).toBeVisible();
         await expect(
-          adjudicationSheet.getByRole("combobox", {
+          adjudicationSheet.getByRole("radiogroup", {
             name: "选择关系审定结论",
           }),
-        ).toHaveText("接受并进入图谱");
+        ).toContainText("接受并进入图谱");
         await shot(page, "32_relation-candidate-actions");
         await page.keyboard.press("Escape");
         await expect(adjudicationSheet).toBeHidden();
@@ -272,7 +329,7 @@ test.describe("fullscreen formal artifact workspaces", () => {
         await accepted.scrollIntoViewIfNeeded();
         await accepted.click();
         await expect(
-          reviewContext.getByText("已纳入结论", { exact: false }).first(),
+          accepted.getByText("已纳入结论", { exact: false }),
         ).toBeVisible();
         await expect(
           reviewContext.getByRole("button", { name: "接受并进入图谱" }),
@@ -282,13 +339,46 @@ test.describe("fullscreen formal artifact workspaces", () => {
           .getByRole("button", { name: "公开推导与限制" })
           .click();
         await expect(
-          reviewContext.getByText("比对行星母星标识", { exact: false }),
+          reviewContext.getByText("比对冻结响应", { exact: false }),
         ).toBeVisible();
         await shot(page, "34_relation-reasoning-trace");
       }
 
       await returnToResearch(page);
     }
+  });
+
+  test("data column chooser, evidence sheet, revision sheet, and export fallback", async ({
+    page,
+  }) => {
+    await page.goto(`${PROJECT_A}?artifactVersionId=artv_dataset_01`);
+    const fullscreen = page.getByTestId("artifact-fullscreen-workspace");
+    await expect(fullscreen).toBeVisible();
+    await settle(page, 700);
+
+    await page.getByRole("button", { name: "选择列" }).click();
+    await expect(page.getByRole("menu")).toBeVisible();
+    await shot(page, "25_dataset-column-chooser");
+    await page.keyboard.press("Escape");
+
+    await fullscreen.getByRole("button", { name: "证据", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: /证据/ })).toBeVisible();
+    await shot(page, "26_evidence-sheet");
+    await page.keyboard.press("Escape");
+
+    await fullscreen
+      .getByRole("button", { name: "基于此结果重新分析" })
+      .click();
+    await expect(
+      page.getByRole("dialog", { name: "基于此结果重新分析" }),
+    ).toBeVisible();
+    await shot(page, "27_revision-sheet");
+    await page.keyboard.press("Escape");
+
+    await returnToResearch(page);
+    await openArtifactFromThread(page, "artv_export_01");
+    await expect(page.getByText("暂不支持预览此类结果")).toBeVisible();
+    await shot(page, "28_export-unsupported");
   });
 });
 
@@ -319,6 +409,9 @@ test.describe("paper summary reading workspace", () => {
     await expect(
       page.getByTestId("paper-pdf-page").first().locator("canvas"),
     ).toBeVisible();
+    await expect(viewer).toHaveAttribute("data-rendered-page", "1", {
+      timeout: 30_000,
+    });
     await shot(page, "24b_paper-summary-with-pdf");
 
     await fullscreen
@@ -327,7 +420,9 @@ test.describe("paper summary reading workspace", () => {
       .click();
     await page.getByRole("button", { name: "在论文中查看" }).click();
     await expect(viewer).toContainText("5 /");
-    await settle(page, 600);
+    await expect(viewer).toHaveAttribute("data-rendered-page", "5", {
+      timeout: 30_000,
+    });
     await shot(page, "24c_paper-evidence-jump");
   });
 });
@@ -391,6 +486,23 @@ test.describe("graph selected-object inspector", () => {
       fullscreen.locator(".graph-workspace__side-inspector"),
     ).toContainText(/关系|可比性|公开推导/);
     await shot(page, "38_graph-selected-relation");
+
+    await fullscreen.getByRole("tab", { name: "列表" }).click();
+    await expect(
+      fullscreen
+        .getByRole("tabpanel")
+        .getByText(/关系|目录|主张/)
+        .first(),
+    ).toBeVisible();
+    await shot(page, "39_graph-list-view");
+
+    await fullscreen
+      .getByRole("searchbox", { name: "按名称筛选研究对象" })
+      .fill("不存在的研究对象");
+    await expect(
+      fullscreen.getByText("当前筛选下没有可核验关系。"),
+    ).toBeVisible();
+    await shot(page, "39b_graph-empty-filter");
   });
 });
 
@@ -420,26 +532,28 @@ test.describe("fullscreen scientific artifact workspaces", () => {
 
     await openArtifactFromThread(page, "artv_b_lc_01");
     await assertNoFatalError(page);
-    await expect(page.getByRole("tab", { name: /连续光变序列/ })).toBeVisible();
+    await expect(
+      page.getByRole("tab", { name: /确定性演示序列/ }),
+    ).toBeVisible();
     await shot(page, "53_light-curve-time-series");
-    await page.getByRole("tab", { name: /相位折叠曲线/ }).click();
+    await page.getByRole("tab", { name: /相位展示/ }).click();
     await expect(page.getByText("轨道相位 Orbital Phase")).toBeVisible();
     await shot(page, "54_light-curve-phase-folded");
-    await page.getByRole("tab", { name: /周期图谱/ }).click();
+    await page.getByRole("tab", { name: /目录周期标记/ }).click();
     await expect(
-      page.getByText("周期图谱峰值", { exact: false }).first(),
+      page.getByText("目录周期标记", { exact: false }).first(),
     ).toBeVisible();
     await shot(page, "55_light-curve-periodogram");
-    await page.getByRole("button", { name: /周期图谱峰值候选/ }).click();
+    await page.getByRole("button", { name: /目录周期记录/ }).click();
     await expect(
       page.getByRole("columnheader", { name: /周期/ }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("columnheader", { name: /FAP/ }),
-    ).toHaveCount(0);
+    await expect(page.getByRole("columnheader", { name: /FAP/ })).toHaveCount(
+      0,
+    );
     const peakTable = page.getByRole("table").last();
     await peakTable.scrollIntoViewIfNeeded();
-    await expect(peakTable.getByText("3.7952")).toBeVisible();
+    await expect(peakTable.getByText("3.7959")).toBeVisible();
     await shot(page, "55b_light-curve-peaks-expanded");
     await returnToResearch(page);
 
@@ -447,6 +561,9 @@ test.describe("fullscreen scientific artifact workspaces", () => {
     await assertNoFatalError(page);
     await expect(
       page.getByText("基线", { exact: false }).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByText("演示值（非模型结果）", { exact: false }).first(),
     ).toBeVisible();
     await shot(page, "56_model-evaluation");
     await returnToResearch(page);
@@ -456,8 +573,13 @@ test.describe("fullscreen scientific artifact workspaces", () => {
     await expect(
       page.getByText("ONNX", { exact: false }).first(),
     ).toBeVisible();
+    await expect(page.getByText("界面样例（不可部署）")).toBeVisible();
     await expect(page.getByText(/sha256:/i)).toHaveCount(0);
     await shot(page, "57_model-artifact");
+    await page.getByRole("button", { name: "技术校验信息" }).click();
+    await expect(page.getByText("内容校验值")).toBeVisible();
+    await shot(page, "57b_model-artifact-technical-popover");
+    await page.keyboard.press("Escape");
   });
 
   test("Scenario C traverses spectrum, FITS and WWT ready/interaction states", async ({
@@ -508,6 +630,28 @@ test.describe("fullscreen scientific artifact workspaces", () => {
     ).toHaveAttribute("aria-checked", "true");
     await settle(page, 600);
     await shot(page, "60_wwt-grid-interaction");
+    await page.keyboard.press("Escape");
+
+    await page.getByRole("button", { name: "定位与视角" }).click();
+    await expect(page.getByLabel("中心赤经（小时）")).toBeVisible();
+    await shot(page, "61_wwt-coordinate-popover");
+    await page.keyboard.press("Escape");
+
+    await page.getByRole("button", { name: "观测点" }).click();
+    await expect(page.getByLabel("观测点纬度（度）")).toBeVisible();
+    await shot(page, "62_wwt-observer-popover");
+    await page.keyboard.press("Escape");
+
+    await page.getByRole("button", { name: "时间设置" }).click();
+    await expect(page.getByLabel("时间模式")).toBeVisible();
+    await shot(page, "63_wwt-time-popover");
+    await page.keyboard.press("Escape");
+
+    await page.getByRole("button", { name: "数据图层" }).click();
+    await expect(
+      page.getByRole("menuitemcheckbox", { name: "FITS 图层 1" }),
+    ).toBeVisible();
+    await shot(page, "64_wwt-data-layers-menu");
   });
 });
 

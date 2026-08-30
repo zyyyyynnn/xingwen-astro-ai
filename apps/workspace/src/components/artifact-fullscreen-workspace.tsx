@@ -17,9 +17,16 @@ import {
   Button,
   Dialog,
   DialogContent,
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  RadioGroup,
+  RadioGroupItem,
   Sheet,
   SheetContent,
   SheetDescription,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
   Skeleton,
@@ -161,7 +168,7 @@ function ArtifactDiffSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="result-side-sheet">
-        <SheetHeader>
+        <SheetHeader className="result-side-sheet__header">
           <SheetTitle>比较研究结果</SheetTitle>
           <SheetDescription>
             查看研究契约、来源集合与科学内容的变化。
@@ -455,24 +462,29 @@ function RevisionSheet({
       }}
     >
       <SheetContent side="right" className="result-side-sheet">
-        <SheetHeader>
+        <SheetHeader className="result-side-sheet__header">
           <SheetTitle>{copy.title}</SheetTitle>
           <SheetDescription>{copy.description}</SheetDescription>
         </SheetHeader>
         <div className="result-sheet-body">
           {plan === null ? (
-            <>
+            <FieldGroup className="result-sheet-form">
               {mode.kind === "relation_adjudication" ? (
                 <>
-                  <label className="result-form-field">
-                    <span>选择候选关系</span>
+                  <Field>
+                    <FieldLabel htmlFor="revision-relation">
+                      选择候选关系
+                    </FieldLabel>
                     <Select
                       value={selectedRelationId ?? undefined}
                       onValueChange={(value) =>
                         setSelectedRelationId(value as DomainEntityId)
                       }
                     >
-                      <SelectTrigger aria-label="选择候选关系">
+                      <SelectTrigger
+                        id="revision-relation"
+                        className="result-sheet-control"
+                      >
                         <SelectValue placeholder="选择候选关系" />
                       </SelectTrigger>
                       <SelectContent>
@@ -488,60 +500,70 @@ function RevisionSheet({
                         </SelectGroup>
                       </SelectContent>
                     </Select>
-                  </label>
-                  <label className="result-form-field">
-                    <span>选择关系审定结论</span>
-                    <Select
+                  </Field>
+                  <Field>
+                    <FieldLabel>审定结论</FieldLabel>
+                    <RadioGroup
+                      aria-label="选择关系审定结论"
                       value={selectedDecision}
                       onValueChange={(value) =>
                         setSelectedDecision(
                           value as RelationAdjudicationDecision,
                         )
                       }
+                      className="revision-decision-options"
                     >
-                      <SelectTrigger aria-label="选择关系审定结论">
-                        <SelectValue placeholder="选择审定结论" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value="accepted">
-                            接受并进入图谱
-                          </SelectItem>
-                          <SelectItem value="rejected">
-                            拒绝且不进入图谱
-                          </SelectItem>
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </label>
+                      <div className="revision-decision-option">
+                        <RadioGroupItem
+                          id="revision-decision-accepted"
+                          value="accepted"
+                        />
+                        <label htmlFor="revision-decision-accepted">
+                          <strong>接受并进入图谱</strong>
+                          <span>
+                            纳入证据图谱，并保留当前核验依据与人工审定记录。
+                          </span>
+                        </label>
+                      </div>
+                      <div className="revision-decision-option">
+                        <RadioGroupItem
+                          id="revision-decision-rejected"
+                          value="rejected"
+                        />
+                        <label htmlFor="revision-decision-rejected">
+                          <strong>拒绝且不进入图谱</strong>
+                          <span>保留审定记录，但不发布为已接受关系。</span>
+                        </label>
+                      </div>
+                    </RadioGroup>
+                  </Field>
                 </>
               ) : null}
-              <label className="result-form-field">
-                <span>希望调整什么？</span>
+              <Field>
+                <FieldLabel htmlFor="revision-request">
+                  {mode.kind === "relation_adjudication"
+                    ? "审定理由"
+                    : "希望调整什么？"}
+                </FieldLabel>
                 <Textarea
+                  id="revision-request"
                   value={requestedChange}
                   onChange={(event) => setRequestedChange(event.target.value)}
                   placeholder={copy.placeholder}
                   maxLength={4000}
+                  className="result-sheet-textarea"
                 />
-              </label>
-              <Button
-                onClick={() => void createPlan()}
-                disabled={
-                  !requestedChange.trim() ||
-                  (mode.kind === "relation_adjudication" &&
-                    selectedRelationId === null) ||
-                  feedbackMutation.isPending ||
-                  planMutation.isPending
-                }
-              >
-                生成修订计划
-              </Button>
-            </>
+                <FieldDescription>
+                  {mode.kind === "relation_adjudication"
+                    ? "填写可公开核验的依据后，才能生成修订计划。"
+                    : "说明需要重算、补充或纠正的具体内容。"}
+                </FieldDescription>
+              </Field>
+            </FieldGroup>
           ) : (
             <section className="revision-plan-impact">
               <div>
-                <h3 className="font-medium">修订计划</h3>
+                <h3>修订计划</h3>
                 {revisionImpact(plan).recompute.length > 0 ? (
                   <p>
                     将重新生成：{revisionImpact(plan).recompute.join("、")}。
@@ -558,12 +580,6 @@ function RevisionSheet({
                   </AlertDescription>
                 </Alert>
               ) : null}
-              <Button
-                onClick={() => void confirmPlan()}
-                disabled={confirmMutation.isPending}
-              >
-                确认并创建派生研究
-              </Button>
             </section>
           )}
           {error ? (
@@ -572,6 +588,29 @@ function RevisionSheet({
             </Alert>
           ) : null}
         </div>
+        <SheetFooter className="result-side-sheet__footer">
+          {plan === null ? (
+            <Button
+              onClick={() => void createPlan()}
+              disabled={
+                !requestedChange.trim() ||
+                (mode.kind === "relation_adjudication" &&
+                  selectedRelationId === null) ||
+                feedbackMutation.isPending ||
+                planMutation.isPending
+              }
+            >
+              生成修订计划
+            </Button>
+          ) : (
+            <Button
+              onClick={() => void confirmPlan()}
+              disabled={plan.conflicts.length > 0 || confirmMutation.isPending}
+            >
+              确认并创建派生研究
+            </Button>
+          )}
+        </SheetFooter>
       </SheetContent>
     </Sheet>
   );

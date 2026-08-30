@@ -146,7 +146,7 @@ export function SidebarRailBody({
         aria-label="研究项目列表"
       >
         <div className="flex flex-col gap-[var(--space-4)]">
-          <div className="flex items-center gap-2 px-[var(--space-2)]">
+          <div className="sidebar-project-search flex items-center gap-2">
             <Search
               className="size-[var(--icon-size-sm)] shrink-0 text-[var(--color-ink-secondary)]"
               aria-hidden="true"

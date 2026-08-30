@@ -91,8 +91,8 @@ function EvidenceActions({
           <Button
             key={evidenceId}
             type="button"
-            variant="ghost"
-            size="small"
+            variant="secondary"
+            size="xsmall"
             onClick={() => onSelectEvidence(evidenceId)}
           >
             <Quote data-icon="inline-start" aria-hidden="true" />
@@ -134,17 +134,7 @@ function EntryContext({
         <p className="ui-text-label text-muted-foreground">
           {isRelations ? "审定上下文" : "声明上下文"}
         </p>
-        <div className="literature-review__context-title-row">
-          <h3>{entry.title}</h3>
-          {entry.status ? (
-            <Badge
-              variant={statusVariant(entry.status)}
-              data-status={entry.status}
-            >
-              {reviewStatusLabel(entry.status)}
-            </Badge>
-          ) : null}
-        </div>
+        <h3>{entry.title}</h3>
         {assessment ? (
           <p className="ui-text-label text-muted-foreground">{assessment}</p>
         ) : null}
@@ -351,38 +341,12 @@ export function LiteratureReviewWorkspace({
     >
       <header className="literature-review__header">
         <div>
-          <p className="ui-text-label text-muted-foreground">
+          <p className="literature-review__eyebrow ui-text-label text-muted-foreground">
             {isRelations ? "关系审定工作区" : "声明核验工作区"}
           </p>
           {showTitle ? <h2>{title}</h2> : null}
-          {presentation.summary ? <p>{presentation.summary}</p> : null}
         </div>
-        <dl className="literature-review__metrics">
-          <div>
-            <dt>总计</dt>
-            <dd>{counts.all}</dd>
-          </div>
-          <div>
-            <dt>待审</dt>
-            <dd>{counts.candidate}</dd>
-          </div>
-          <div>
-            <dt>已纳入</dt>
-            <dd>{counts.accepted}</dd>
-          </div>
-        </dl>
       </header>
-
-      {presentation.facts.length > 0 ? (
-        <dl className="literature-review__overview-facts">
-          {presentation.facts.map((fact) => (
-            <div key={fact.label}>
-              <dt>{fact.label}</dt>
-              <dd>{fact.values.join("、")}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
 
       {presentation.sections.length > 0 ? (
         <Accordion
@@ -409,7 +373,7 @@ export function LiteratureReviewWorkspace({
       <div className="literature-review__toolbar">
         <ToggleGroup
           type="single"
-          variant="default"
+          variant="segmented"
           size="sm"
           value={filter}
           onValueChange={(value) => {
@@ -459,7 +423,6 @@ export function LiteratureReviewWorkspace({
                               {reviewStatusLabel(entry.status)}
                             </Badge>
                           ) : null}
-                          <span>{entry.evidenceIds.length} 条证据</span>
                         </div>
                         <ItemTitle>{entry.title}</ItemTitle>
                         {entry.paragraphs[0] ? (

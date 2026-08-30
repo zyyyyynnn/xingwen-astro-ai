@@ -92,15 +92,15 @@ export function ArtifactExportActions({
 
   return (
     <div
-      className="artifact-export flex flex-wrap items-center gap-1.5"
+      className="artifact-export flex flex-wrap items-center gap-2"
       aria-label="数据导出"
     >
       {exportFormats(artifactKind).map(({ format, label }) => (
         <Button
           key={format}
           type="button"
-          variant="ghost"
-          size="small"
+          variant="secondary"
+          size="xsmall"
           disabled={exportMutation.isPending}
           onClick={() => exportMutation.mutate(format)}
           aria-label={`导出 ${label}`}

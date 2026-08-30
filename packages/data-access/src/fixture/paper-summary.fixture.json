@@ -56,7 +56,7 @@
       "background": [
         {
           "statement_id": "stmt.research_goal",
-          "text": "The paper describes the catalogs and algorithms used to build the revised TESS Input Catalog.",
+          "text": "论文说明了修订版 TESS Input Catalog 及候选目标列表的构建目标与数据组织方式。",
           "evidence_ids": ["ev.goal_title"],
           "status": "supported",
           "validation_code": "evidence.supported"
@@ -65,7 +65,7 @@
       "methodology": [
         {
           "statement_id": "stmt.method",
-          "text": "The paper documents the algorithms used to calculate stellar parameters for the revised catalog.",
+          "text": "恒星参数由目录输入、测光与天体测量信息及文中记录的计算关系共同生成。",
           "evidence_ids": ["ev.method_text"],
           "status": "supported",
           "validation_code": "evidence.supported"
@@ -74,7 +74,7 @@
       "dataset": [
         {
           "statement_id": "stmt.dataset",
-          "text": "The catalog release analyzed here dates to 2019.",
+          "text": "当前研读对象是 2019 年发布的修订版 TESS Input Catalog 论文与其固定全文。",
           "evidence_ids": ["ev.dataset_year"],
           "status": "supported",
           "validation_code": "evidence.supported"
@@ -83,7 +83,7 @@
       "experiments": [
         {
           "statement_id": "stmt.finding_doi",
-          "text": "The published catalog is registered under DOI 10.3847/1538-3881/ab3467.",
+          "text": "论文的 DOI 为 10.3847/1538-3881/ab3467，可用于核验书目身份与固定全文。",
           "evidence_ids": ["ev.finding_doi"],
           "status": "supported",
           "validation_code": "evidence.supported"
@@ -93,7 +93,7 @@
       "limitations": [
         {
           "statement_id": "stmt.limitation_unsupported",
-          "text": "The catalog is claimed to be complete for all dwarf stars, without any cited evidence.",
+          "text": "当前摘要没有提取到可定位的局限性原文；使用目录参数时仍需回到来源字段、质量标记与版本记录核验。",
           "evidence_ids": [],
           "status": "unsupported",
           "validation_code": "evidence.not_provided"
@@ -491,7 +491,7 @@
       "background": [
         {
           "statement_id": "stmt.research_goal",
-          "text": "The paper describes the catalogs and algorithms used to build the revised TESS Input Catalog.",
+          "text": "论文说明了修订版 TESS Input Catalog 及候选目标列表的构建目标与数据组织方式。",
           "evidence_ids": ["ev.goal_title"],
           "status": "supported",
           "validation_code": "evidence.supported"
@@ -500,7 +500,7 @@
       "methodology": [
         {
           "statement_id": "stmt.method",
-          "text": "The paper documents the algorithms used to calculate stellar parameters for the revised catalog.",
+          "text": "恒星参数由目录输入、测光与天体测量信息及文中记录的计算关系共同生成。",
           "evidence_ids": ["ev.method_text"],
           "status": "supported",
           "validation_code": "evidence.supported"
@@ -509,7 +509,7 @@
       "dataset": [
         {
           "statement_id": "stmt.dataset",
-          "text": "The catalog release analyzed here dates to 2019.",
+          "text": "当前研读对象是 2019 年发布的修订版 TESS Input Catalog 论文与其固定全文。",
           "evidence_ids": ["ev.dataset_year"],
           "status": "supported",
           "validation_code": "evidence.supported"
@@ -518,7 +518,7 @@
       "experiments": [
         {
           "statement_id": "stmt.finding_doi",
-          "text": "The published catalog is registered under DOI 10.3847/1538-3881/ab3467.",
+          "text": "论文的 DOI 为 10.3847/1538-3881/ab3467，可用于核验书目身份与固定全文。",
           "evidence_ids": ["ev.finding_doi"],
           "status": "supported",
           "validation_code": "evidence.supported"
@@ -528,7 +528,7 @@
       "limitations": [
         {
           "statement_id": "stmt.limitation_unsupported",
-          "text": "The catalog is claimed to be complete for all dwarf stars, without any cited evidence.",
+          "text": "当前摘要没有提取到可定位的局限性原文；使用目录参数时仍需回到来源字段、质量标记与版本记录核验。",
           "evidence_ids": [],
           "status": "unsupported",
           "validation_code": "evidence.not_provided"
@@ -757,7 +757,7 @@
           "title": "研究背景",
           "paragraphs": [
             {
-              "text": "The paper describes the catalogs and algorithms used to build the revised TESS Input Catalog.",
+              "text": "论文说明了修订版 TESS Input Catalog 及候选目标列表的构建目标与数据组织方式。",
               "status": "supported",
               "evidence_ids": ["evd_papsum_03"]
             }
@@ -767,7 +767,7 @@
           "title": "研究方法",
           "paragraphs": [
             {
-              "text": "The paper documents the algorithms used to calculate stellar parameters for the revised catalog.",
+              "text": "恒星参数由目录输入、测光与天体测量信息及文中记录的计算关系共同生成。",
               "status": "supported",
               "evidence_ids": ["evd_papsum_04"]
             }
@@ -777,17 +777,17 @@
           "title": "数据集",
           "paragraphs": [
             {
-              "text": "The catalog release analyzed here dates to 2019.",
+              "text": "当前研读对象是 2019 年发布的修订版 TESS Input Catalog 论文与其固定全文。",
               "status": "supported",
               "evidence_ids": ["evd_papsum_01"]
             }
           ]
         },
         {
-          "title": "实验与结果",
+          "title": "发布信息",
           "paragraphs": [
             {
-              "text": "The published catalog is registered under DOI 10.3847/1538-3881/ab3467.",
+              "text": "论文的 DOI 为 10.3847/1538-3881/ab3467，可用于核验书目身份与固定全文。",
               "status": "supported",
               "evidence_ids": ["evd_papsum_02"]
             }
@@ -797,7 +797,7 @@
           "title": "局限性",
           "paragraphs": [
             {
-              "text": "The catalog is claimed to be complete for all dwarf stars, without any cited evidence.",
+              "text": "当前摘要没有提取到可定位的局限性原文；使用目录参数时仍需回到来源字段、质量标记与版本记录核验。",
               "status": "unsupported",
               "evidence_ids": []
             }

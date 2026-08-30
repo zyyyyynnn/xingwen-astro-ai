@@ -873,11 +873,11 @@ test("fresh Workspace completes the scientific, literature, and reasoning chains
   );
   await fullscreen.getByRole("button", { name: "基于此结果重新分析" }).click();
   await expect(page.getByLabel("选择候选关系")).toBeVisible();
-  await expect(page.getByLabel("选择关系审定结论")).toContainText(
-    "接受并进入图谱",
-  );
+  await expect(
+    page.getByRole("radiogroup", { name: "选择关系审定结论" }),
+  ).toContainText("接受并进入图谱");
   await page
-    .getByRole("textbox", { name: "希望调整什么？" })
+    .getByRole("textbox", { name: "审定理由" })
     .fill("接受该候选关系，并将其作为经人工审定的关系进入证据图谱。");
   await page.getByRole("button", { name: "生成修订计划" }).click();
   await expect(page.getByRole("heading", { name: "修订计划" })).toBeVisible();

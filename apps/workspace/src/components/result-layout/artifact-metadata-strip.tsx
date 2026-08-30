@@ -3,6 +3,7 @@ import { Badge } from "@xingwen/ui";
 export interface ArtifactMetadataStripProps {
   readonly sourceCount?: number;
   readonly sourceLabel?: string | null;
+  readonly sourceMode?: string | null;
   readonly retrievedAt?: string | null;
   readonly qualityStatus?: "pass" | "warn" | "fail" | "unknown" | string | null;
   readonly evidenceCount?: number;
@@ -31,6 +32,7 @@ function formatTimestamp(value: string): string {
 export function ArtifactMetadataStrip({
   sourceCount,
   sourceLabel,
+  sourceMode,
   retrievedAt,
   qualityStatus,
   evidenceCount,
@@ -63,6 +65,20 @@ export function ArtifactMetadataStrip({
           <span className="font-medium text-foreground/80">来源：</span>
           <span>
             {sourceCount > 0 ? `${sourceCount} 个来源快照` : "未提供"}
+          </span>
+        </span>
+      ) : null}
+
+      {sourceMode ? (
+        <span className="flex items-center gap-1">
+          <span className="font-medium text-foreground/80">模式：</span>
+          <span>
+            {{
+              live: "实时来源",
+              cached: "缓存来源",
+              recorded: "录制响应",
+              fixture: "演示数据",
+            }[sourceMode] ?? sourceMode}
           </span>
         </span>
       ) : null}

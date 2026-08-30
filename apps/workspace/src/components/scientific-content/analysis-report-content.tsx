@@ -300,6 +300,21 @@ function sourceDetails(payload: unknown): readonly [string, string][] {
   );
 }
 
+function recordDetails(payload: unknown): readonly [string, string][] {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload))
+    return [];
+  return Object.entries(payload).flatMap(([key, value]) => {
+    if (!isScalar(value)) return [];
+    const rawValue = value === null ? "—" : String(value);
+    return [
+      [humanColumnLabel(key), PUBLIC_VALUE_LABELS[rawValue] ?? rawValue] as [
+        string,
+        string,
+      ],
+    ];
+  });
+}
+
 export function ResultBlock({
   block,
   onSelectEvidence,
@@ -307,8 +322,10 @@ export function ResultBlock({
   readonly block: ScientificResultBlockReview;
   readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
 }) {
-  const table = tableModel(block);
-  const details = sourceDetails(block.payload);
+  const record =
+    block.representation === "record" ? recordDetails(block.payload) : [];
+  const table = record.length > 0 ? null : tableModel(block);
+  const details = record.length > 0 ? [] : sourceDetails(block.payload);
   return (
     <section className="scientific-result">
       <header>
@@ -324,7 +341,16 @@ export function ResultBlock({
           ))}
         </dl>
       ) : null}
-      {table ? (
+      {record.length > 0 ? (
+        <dl className="scientific-result__record">
+          {record.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : table ? (
         <ScientificTable
           caption={`${block.label}结构化结果`}
           columns={table.columns}

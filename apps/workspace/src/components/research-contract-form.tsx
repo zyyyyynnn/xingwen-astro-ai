@@ -212,7 +212,7 @@ function ProductMultiSelect({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
+                size="icon-xsmall"
                 disabled={disabled}
                 aria-label={`移除${optionLabel(options, value)}`}
                 onClick={() => toggle(value)}
@@ -290,7 +290,7 @@ function TagInput({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
+                size="icon-xsmall"
                 disabled={disabled}
                 aria-label={`移除 ${value}`}
                 onClick={() =>

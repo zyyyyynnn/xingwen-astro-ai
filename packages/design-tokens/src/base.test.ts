@@ -240,6 +240,24 @@ describe("Core semantic geometry tokens", () => {
     expect(css).toContain("--control-size-lg: 2.5rem;");
     expect(css).toContain("--border-width-default: 1px;");
   });
+
+  it("exposes shared overlay and dense-control geometry", () => {
+    for (const token of [
+      "--component-textarea-min-block-size",
+      "--component-empty-max-inline-size",
+      "--component-dialog-inline-size",
+      "--component-dialog-max-block-size",
+      "--component-alert-dialog-inline-size",
+      "--component-dropdown-min-inline-size",
+      "--component-popover-inline-size",
+      "--component-tabs-vertical-inline-size",
+      "--component-command-list-max-block-size",
+      "--component-sheet-inline-size",
+      "--viewport-min-inline-size",
+    ]) {
+      expect(css).toContain(token);
+    }
+  });
 });
 
 describe("workspace semantic geometry tokens", () => {
@@ -257,8 +275,28 @@ describe("workspace semantic geometry tokens", () => {
       "--workspace-sidebar-icon-slot-inline-size",
       "--workspace-sidebar-row-block-size",
       "--workspace-content-max-inline-size",
+      "--workspace-route-content-max-inline-size",
+      "--workspace-empty-max-inline-size",
       "--workspace-entry-starter-block-size",
+      "--workspace-loading-skeleton-block-size",
+      "--workspace-context-empty-block-size",
+      "--workspace-panel-empty-block-size",
+      "--workspace-result-skeleton-block-size",
       "--workspace-min-inline-size",
+      "--workspace-contract-form-max-inline-size",
+      "--workspace-contract-popover-inline-size",
+      "--workspace-contract-dialog-inline-size",
+      "--workspace-contract-editor-inline-size",
+      "--workspace-contract-editor-block-size",
+      "--workspace-contract-dialog-max-block-size",
+      "--workspace-paper-dialog-inline-size",
+      "--workspace-paper-dialog-block-size",
+      "--workspace-paper-content-max-inline-size",
+      "--workspace-inspector-content-max-block-size",
+      "--workspace-inspector-protocol-max-block-size",
+      "--workspace-status-indicator-size",
+      "--workspace-metadata-label-inline-size",
+      "--workspace-repair-label-inline-size",
       "--workspace-result-reading-max-inline-size",
       "--workspace-result-graph-block-size",
       "--workspace-result-inspector-inline-size",

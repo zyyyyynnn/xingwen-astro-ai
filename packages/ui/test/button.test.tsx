@@ -62,6 +62,19 @@ describe("Button", () => {
     );
   });
 
+  it("supports the compact semantic icon control size", () => {
+    render(
+      <Button size="icon-xsmall" variant="ghost" aria-label="移除">
+        <svg aria-hidden="true" />
+      </Button>,
+    );
+
+    expect(screen.getByRole("button", { name: "移除" })).toHaveAttribute(
+      "data-size",
+      "icon-xsmall",
+    );
+  });
+
   it("shares the reviewed button classes with source-adopted mechanics", () => {
     expect(
       buttonClassName({ variant: "ghost", size: "icon", className: "layout" }),

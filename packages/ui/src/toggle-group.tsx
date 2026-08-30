@@ -3,7 +3,7 @@ import { ToggleGroup as ToggleGroupPrimitive } from "radix-ui";
 
 import { cn } from "#utils";
 
-type ToggleVariant = "default" | "outline";
+type ToggleVariant = "default" | "outline" | "segmented";
 type ToggleSize = "default" | "sm" | "lg";
 type ToggleVariantProps = {
   readonly variant?: ToggleVariant | null;
@@ -14,6 +14,7 @@ const TOGGLE_VARIANT_CLASSES: Record<ToggleVariant, string> = {
   default: "bg-transparent",
   outline:
     "border border-input bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground",
+  segmented: "xw-toggle-group__item--segmented",
 };
 
 const TOGGLE_SIZE_CLASSES: Record<ToggleSize, string> = {
@@ -60,7 +61,7 @@ function ToggleGroup({
       data-spacing={spacing}
       style={{ "--gap": spacing } as React.CSSProperties}
       className={cn(
-        "group/toggle-group flex w-fit items-center gap-[--spacing(var(--gap))] rounded-md data-[spacing=default]:data-[variant=outline]:shadow-xs",
+        "xw-toggle-group group/toggle-group flex w-fit items-center gap-[--spacing(var(--gap))]",
         className,
       )}
       {...props}
@@ -93,7 +94,7 @@ function ToggleGroupItem({
           variant: context.variant || variant,
           size: context.size || size,
         }),
-        "w-auto min-w-0 shrink-0 px-3 focus:z-10 focus-visible:z-10",
+        "xw-toggle-group__item w-auto min-w-0 shrink-0 px-3 focus:z-10 focus-visible:z-10",
         "data-[spacing=0]:rounded-none data-[spacing=0]:shadow-none data-[spacing=0]:first:rounded-l-md data-[spacing=0]:last:rounded-r-md data-[spacing=0]:data-[variant=outline]:border-l-0 data-[spacing=0]:data-[variant=outline]:first:border-l",
         className,
       )}

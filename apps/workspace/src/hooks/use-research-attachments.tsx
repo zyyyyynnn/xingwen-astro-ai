@@ -142,13 +142,19 @@ function AttachmentStrip({
           <div className="flex min-w-0 items-center gap-2">
             {item.status === "uploading" ? (
               <Loader2
-                className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none"
+                className="size-[var(--icon-size-sm)] shrink-0 animate-spin motion-reduce:animate-none"
                 aria-hidden="true"
               />
             ) : item.status === "uploaded" ? (
-              <Check className="size-3.5 shrink-0" aria-hidden="true" />
+              <Check
+                className="size-[var(--icon-size-sm)] shrink-0"
+                aria-hidden="true"
+              />
             ) : (
-              <FileText className="size-3.5 shrink-0" aria-hidden="true" />
+              <FileText
+                className="size-[var(--icon-size-sm)] shrink-0"
+                aria-hidden="true"
+              />
             )}
             <span className="min-w-0 truncate" title={item.filename}>
               {item.filename}
@@ -163,20 +169,19 @@ function AttachmentStrip({
                 onClick={() => onRetry(item.id)}
                 className="h-6 gap-1 px-2"
               >
-                <RotateCcw className="size-3.5" aria-hidden="true" />
+                <RotateCcw aria-hidden="true" />
                 重试
               </Button>
             ) : null}
             {item.removable ? (
               <Button
                 variant="ghost"
-                size="icon"
+                size="icon-xsmall"
                 aria-label={`移除 ${item.filename}`}
                 disabled={item.status === "uploading"}
                 onClick={() => onRemove(item.id)}
-                className="size-6"
               >
-                <X className="size-3.5" aria-hidden="true" />
+                <X aria-hidden="true" />
               </Button>
             ) : null}
           </div>
@@ -514,7 +519,7 @@ export function useResearchAttachments({
         aria-label="添加研究资料"
         className="gap-1 text-xs text-[var(--color-ink-secondary)]"
       >
-        <Paperclip className="size-3.5" aria-hidden="true" />
+        <Paperclip aria-hidden="true" />
         附件
       </Button>
     </>

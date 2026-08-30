@@ -249,7 +249,7 @@ export function ScientificTable({
             {showIdentity ? (
               <th
                 scope="col"
-                className={`scientific-table__identity p-2 font-medium ${identityWidthClass}`}
+                className={`scientific-table__identity p-2 ${identityWidthClass}`}
               >
                 标识 / 主体
               </th>
@@ -291,7 +291,7 @@ export function ScientificTable({
               {showIdentity ? (
                 <th
                   scope="row"
-                  className="scientific-table__identity p-2 font-normal whitespace-nowrap text-[var(--color-ink-secondary)]"
+                  className="scientific-table__identity p-2 whitespace-nowrap"
                 >
                   {row.identity || "未命名记录"}
                 </th>

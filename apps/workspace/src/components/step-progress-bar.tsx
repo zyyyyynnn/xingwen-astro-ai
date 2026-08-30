@@ -27,13 +27,13 @@ export function StepProgressBar({
     >
       <div className="flex items-center gap-2 font-medium">
         {isRunning ? (
-          <Loader2 className="size-3.5 animate-spin text-[var(--color-brand)]" />
+          <Loader2 className="size-[var(--icon-size-sm)] animate-spin text-[var(--color-brand)]" />
         ) : isCompleted ? (
-          <CheckCircle2 className="size-3.5 text-[var(--color-success)]" />
+          <CheckCircle2 className="size-[var(--icon-size-sm)] text-[var(--color-success)]" />
         ) : isError ? (
-          <XCircle className="size-3.5 text-[var(--color-error)]" />
+          <XCircle className="size-[var(--icon-size-sm)] text-[var(--color-error)]" />
         ) : (
-          <RotateCcw className="size-3.5 text-[var(--color-ink-secondary)]" />
+          <RotateCcw className="size-[var(--icon-size-sm)] text-[var(--color-ink-secondary)]" />
         )}
         <span>
           第 {currentStep} / {Math.max(totalSteps, currentStep)} 步
