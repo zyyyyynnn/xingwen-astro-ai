@@ -75,20 +75,25 @@ test("real Compose exposes the current empty Research Workspace without provider
   await expect(page.getByRole("button", { name: "新建研究" })).toHaveCount(1);
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  await page.getByRole("button", { name: "配置模型服务" }).click();
-  await expect(page.getByRole("dialog", { name: "模型服务" })).toBeVisible();
-  await expect(page.getByLabel("Base URL")).toHaveValue(
-    "https://dashscope.aliyuncs.com/compatible-mode/v1",
-  );
-  await expect(page.getByLabel("Base URL")).toHaveAttribute("readonly");
-  await page.getByRole("combobox", { name: "连接方式" }).click();
-  await page.getByRole("option", { name: "自定义 OpenAI 兼容接口" }).click();
-  await expect(page.getByLabel("Base URL")).not.toHaveAttribute("readonly");
-  await expect(page.getByText("qwen3.7-max")).toHaveCount(0);
+  await page.getByRole("button", { name: "模型服务已连接" }).click();
+  const modelDialog = page.getByRole("dialog", { name: "模型服务" });
+  await expect(modelDialog).toBeVisible();
   await expect(
-    page.getByRole("textbox", { name: "API 密钥", exact: true }),
-  ).toHaveValue("");
-  await page.getByRole("button", { name: "后续配置" }).click();
+    modelDialog.getByText("部署环境已配置", { exact: true }),
+  ).toBeVisible();
+  await expect(modelDialog.getByText("qwen3.7-max-2026-06-08")).toBeVisible();
+  await expect(
+    modelDialog.getByText("https://dashscope.aliyuncs.com/compatible-mode/v1", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    modelDialog.getByText("工作台只读", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    modelDialog.getByRole("textbox", { name: "API 密钥", exact: true }),
+  ).toHaveCount(0);
+  await modelDialog.getByRole("button", { name: "完成" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
   for (const viewport of [
@@ -381,9 +386,7 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   await expect(fullscreen).toBeVisible();
   await expect(fullscreen).toHaveAttribute("aria-modal", "true");
   await expect(returnButton).toBeFocused();
-  await expect(fullscreen.getByText("演示数据", { exact: true })).toHaveCount(
-    0,
-  );
+  await expect(fullscreen.getByText("演示数据", { exact: true })).toBeVisible();
   await expect(fullscreen.locator("[data-source-mode]")).toHaveCount(0);
 
   await page.setViewportSize({ width: 1024, height: 768 });
@@ -403,7 +406,7 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   await evidenceButton.click();
   await expect(page.getByRole("heading", { name: "研究证据" })).toBeVisible();
   await expect(page.getByText("来源内容", { exact: true })).toBeVisible();
-  await expect(page.getByText("来源", { exact: true })).toBeVisible();
+  await expect(page.getByText("来源记录", { exact: true })).toBeVisible();
   await expect(page.getByText(/获取于/)).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("heading", { name: "研究证据" })).toHaveCount(0);
@@ -892,12 +895,28 @@ test("real worker exposes Literature dossiers, public reasoning, and interactive
   ).toBeVisible();
   const traceConclusion =
     "The two claims compare methods over the same objects.";
-  await relationWorkspace
-    .getByRole("button", { name: `选择${traceConclusion}` })
-    .click();
+  const relationEntries = relationWorkspace.locator(
+    '[data-testid^="literature-entry-"]',
+  );
+  let foundReasoningTrace = false;
+  for (let index = 0; index < (await relationEntries.count()); index += 1) {
+    await relationEntries.nth(index).click();
+    if (
+      (await relationWorkspace
+        .getByRole("button", { name: "公开推导与限制" })
+        .count()) > 0
+    ) {
+      foundReasoningTrace = true;
+      break;
+    }
+  }
+  expect(foundReasoningTrace).toBe(true);
   await relationWorkspace
     .getByRole("button", { name: "公开推导与限制" })
     .click();
+  await expect(
+    relationWorkspace.getByText(traceConclusion, { exact: true }),
+  ).toBeVisible();
   await expect(
     relationWorkspace.getByText("Auditable identify premises step."),
   ).toBeVisible();

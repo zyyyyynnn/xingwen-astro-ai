@@ -16,7 +16,7 @@
     "version_number": 1,
     "supersedes_version_id": null,
     "source_mode": "fixture",
-    "content_hash": "sha256:bb0dc0a9638d1873693da01505afe688568b36dc0e913fdef44a0d82b5a3decc",
+    "content_hash": "sha256:9be9e9ca64d9162f06f767c6d4a1dd01526c5aea261e663b12b28fcb3324c1c9",
     "input_hash": "sha256:ba778f664897751200fd4286ee0f035f9cc34656dcec7cf1c91e85b68f6029c2",
     "created_at": "2026-07-21T08:25:00Z",
     "paper": {
@@ -28,7 +28,7 @@
     "summary": {
       "kind": "paper_summary",
       "schema_version": "2.0.0",
-      "summary_id": "summary.d41b9b81f5896c5e15587d8f",
+      "summary_id": "summary.47f17a3ab623982e713f770c",
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
       "paper": null,
       "benchmark": {
@@ -102,7 +102,7 @@
       "research_questions": [
         {
           "statement_id": "stmt.future_validation",
-          "text": "Whether the revised catalog guarantees complete coverage for every dwarf star remains unverifiable.",
+          "text": "修订目录是否保证所有矮星均完整覆盖，当前证据无法核验。",
           "evidence_ids": ["ev.z_unverifiable"],
           "status": "unverifiable",
           "validation_code": "evidence.unverifiable"
@@ -276,8 +276,8 @@
           ]
         },
         "input_hash": "sha256:ba778f664897751200fd4286ee0f035f9cc34656dcec7cf1c91e85b68f6029c2",
-        "model_response_hash": "sha256:9db84f376877f9db9f5b4e44d500c392116667ecdb937ce22dcc6d2b9834ea4e",
-        "output_hash": "sha256:53dd26dce1d4cd774c7a2a6c739e6f58e1a718c22167b50dbee9a328583a5661",
+        "model_response_hash": "sha256:7200424e4ec89c0d70df0cc86b165a2105ea453a6794c872b1b773bf93e4af0b",
+        "output_hash": "sha256:2164ac1161024da3f3f9214225a04f264dfbc46e7efe31098eed47a8a740944d",
         "status": "completed",
         "started_at": "2026-07-21T08:25:00Z",
         "finished_at": "2026-07-21T08:25:00Z",
@@ -285,7 +285,7 @@
         "error_code": null
       },
       "input_hash": "sha256:ba778f664897751200fd4286ee0f035f9cc34656dcec7cf1c91e85b68f6029c2",
-      "output_hash": "sha256:53dd26dce1d4cd774c7a2a6c739e6f58e1a718c22167b50dbee9a328583a5661"
+      "output_hash": "sha256:2164ac1161024da3f3f9214225a04f264dfbc46e7efe31098eed47a8a740944d"
     },
     "cache_audits": [],
     "producer_execution": {
@@ -312,7 +312,7 @@
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
       "input_hash": "sha256:ba778f664897751200fd4286ee0f035f9cc34656dcec7cf1c91e85b68f6029c2",
-      "output_hash": "sha256:bb0dc0a9638d1873693da01505afe688568b36dc0e913fdef44a0d82b5a3decc",
+      "output_hash": "sha256:9be9e9ca64d9162f06f767c6d4a1dd01526c5aea261e663b12b28fcb3324c1c9",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",
@@ -463,7 +463,7 @@
     "content": {
       "kind": "paper_summary",
       "schema_version": "2.0.0",
-      "summary_id": "summary.d41b9b81f5896c5e15587d8f",
+      "summary_id": "summary.47f17a3ab623982e713f770c",
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
       "paper": null,
       "benchmark": {
@@ -537,7 +537,7 @@
       "research_questions": [
         {
           "statement_id": "stmt.future_validation",
-          "text": "Whether the revised catalog guarantees complete coverage for every dwarf star remains unverifiable.",
+          "text": "修订目录是否保证所有矮星均完整覆盖，当前证据无法核验。",
           "evidence_ids": ["ev.z_unverifiable"],
           "status": "unverifiable",
           "validation_code": "evidence.unverifiable"
@@ -711,8 +711,8 @@
           ]
         },
         "input_hash": "sha256:ba778f664897751200fd4286ee0f035f9cc34656dcec7cf1c91e85b68f6029c2",
-        "model_response_hash": "sha256:9db84f376877f9db9f5b4e44d500c392116667ecdb937ce22dcc6d2b9834ea4e",
-        "output_hash": "sha256:53dd26dce1d4cd774c7a2a6c739e6f58e1a718c22167b50dbee9a328583a5661",
+        "model_response_hash": "sha256:7200424e4ec89c0d70df0cc86b165a2105ea453a6794c872b1b773bf93e4af0b",
+        "output_hash": "sha256:2164ac1161024da3f3f9214225a04f264dfbc46e7efe31098eed47a8a740944d",
         "status": "completed",
         "started_at": "2026-07-21T08:25:00Z",
         "finished_at": "2026-07-21T08:25:00Z",
@@ -720,9 +720,9 @@
         "error_code": null
       },
       "input_hash": "sha256:ba778f664897751200fd4286ee0f035f9cc34656dcec7cf1c91e85b68f6029c2",
-      "output_hash": "sha256:53dd26dce1d4cd774c7a2a6c739e6f58e1a718c22167b50dbee9a328583a5661"
+      "output_hash": "sha256:2164ac1161024da3f3f9214225a04f264dfbc46e7efe31098eed47a8a740944d"
     },
-    "content_hash": "sha256:bb0dc0a9638d1873693da01505afe688568b36dc0e913fdef44a0d82b5a3decc",
+    "content_hash": "sha256:9be9e9ca64d9162f06f767c6d4a1dd01526c5aea261e663b12b28fcb3324c1c9",
     "input_hash": "sha256:ba778f664897751200fd4286ee0f035f9cc34656dcec7cf1c91e85b68f6029c2",
     "source_mode": "fixture",
     "producer": {
@@ -784,7 +784,7 @@
           ]
         },
         {
-          "title": "发布信息",
+          "title": "实验与结果",
           "paragraphs": [
             {
               "text": "论文的 DOI 为 10.3847/1538-3881/ab3467，可用于核验书目身份与固定全文。",
@@ -807,7 +807,7 @@
           "title": "研究问题",
           "paragraphs": [
             {
-              "text": "Whether the revised catalog guarantees complete coverage for every dwarf star remains unverifiable.",
+              "text": "修订目录是否保证所有矮星均完整覆盖，当前证据无法核验。",
               "status": "unverifiable",
               "evidence_ids": ["evd_papsum_05"]
             }
@@ -843,7 +843,7 @@
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
       "input_hash": "sha256:ba778f664897751200fd4286ee0f035f9cc34656dcec7cf1c91e85b68f6029c2",
-      "output_hash": "sha256:bb0dc0a9638d1873693da01505afe688568b36dc0e913fdef44a0d82b5a3decc",
+      "output_hash": "sha256:9be9e9ca64d9162f06f767c6d4a1dd01526c5aea261e663b12b28fcb3324c1c9",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",

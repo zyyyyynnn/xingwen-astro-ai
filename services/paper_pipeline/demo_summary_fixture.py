@@ -210,8 +210,8 @@ def build_demo_model_response(candidate: PaperCollectionCandidate) -> str:
             {
                 "statement_id": "stmt.research_goal",
                 "text": (
-                    "The paper describes the catalogs and algorithms used to "
-                    "build the revised TESS Input Catalog."
+                    "论文说明了修订版 TESS Input Catalog 及候选目标列表的"
+                    "构建目标与数据组织方式。"
                 ),
                 "evidence_ids": ["ev.goal_title"],
             }
@@ -220,8 +220,8 @@ def build_demo_model_response(candidate: PaperCollectionCandidate) -> str:
             {
                 "statement_id": "stmt.method",
                 "text": (
-                    "The paper documents the algorithms used to calculate "
-                    "stellar parameters for the revised catalog."
+                    "恒星参数由目录输入、测光与天体测量信息及文中记录的"
+                    "计算关系共同生成。"
                 ),
                 "evidence_ids": ["ev.method_text"],
             }
@@ -229,7 +229,10 @@ def build_demo_model_response(candidate: PaperCollectionCandidate) -> str:
         "dataset": [
             {
                 "statement_id": "stmt.dataset",
-                "text": f"The catalog release analyzed here dates to {candidate.raw.year}.",
+                "text": (
+                    f"当前研读对象是 {candidate.raw.year} 年发布的修订版 "
+                    "TESS Input Catalog 论文与其固定全文。"
+                ),
                 "evidence_ids": ["ev.dataset_year"],
             }
         ],
@@ -237,8 +240,8 @@ def build_demo_model_response(candidate: PaperCollectionCandidate) -> str:
             {
                 "statement_id": "stmt.finding_doi",
                 "text": (
-                    "The published catalog is registered under DOI "
-                    f"{candidate.raw.doi}."
+                    f"论文的 DOI 为 {candidate.raw.doi}，可用于核验书目身份"
+                    "与固定全文。"
                 ),
                 "evidence_ids": ["ev.finding_doi"],
             }
@@ -248,8 +251,8 @@ def build_demo_model_response(candidate: PaperCollectionCandidate) -> str:
             {
                 "statement_id": "stmt.limitation_unsupported",
                 "text": (
-                    "The catalog is claimed to be complete for all dwarf "
-                    "stars, without any cited evidence."
+                    "当前摘要没有提取到可定位的局限性原文；使用目录参数时"
+                    "仍需回到来源字段、质量标记与版本记录核验。"
                 ),
                 "evidence_ids": [],
             }
@@ -258,8 +261,7 @@ def build_demo_model_response(candidate: PaperCollectionCandidate) -> str:
             {
                 "statement_id": "stmt.future_validation",
                 "text": (
-                    "Whether the revised catalog guarantees complete coverage "
-                    "for every dwarf star remains unverifiable."
+                    "修订目录是否保证所有矮星均完整覆盖，当前证据无法核验。"
                 ),
                 "evidence_ids": ["ev.z_unverifiable"],
             }
