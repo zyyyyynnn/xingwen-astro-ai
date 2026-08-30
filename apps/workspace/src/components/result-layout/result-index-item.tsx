@@ -1,6 +1,7 @@
 import type { DomainEntityId } from "@xingwen/domain";
 import {
   Badge,
+  Button,
   Item,
   ItemActions,
   ItemContent,
@@ -74,8 +75,8 @@ export function ResultIndexItem({
 }: ResultIndexItemProps) {
   return (
     <Item className="xw-result-index-item" size="sm" asChild>
-      <button
-        type="button"
+      <Button
+        variant="ghost"
         onClick={() => onOpen(latestVersionId)}
         aria-label={`查看 ${title} 完整结果`}
       >
@@ -97,7 +98,7 @@ export function ResultIndexItem({
         <ItemActions>
           <ArrowRight data-icon="inline-end" aria-hidden="true" />
         </ItemActions>
-      </button>
+      </Button>
     </Item>
   );
 }

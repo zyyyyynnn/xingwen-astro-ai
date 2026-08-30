@@ -80,16 +80,13 @@ export {
 export { Checkbox } from "./checkbox";
 export { Popover, PopoverContent, PopoverTrigger } from "./popover";
 export { Tabs, TabsContent, TabsList, TabsTrigger } from "./tabs";
-export { Toggle, toggleVariants } from "./toggle";
 export { ToggleGroup, ToggleGroupItem } from "./toggle-group";
 export {
   Item,
   ItemActions,
   ItemContent,
   ItemDescription,
-  ItemFooter,
   ItemGroup,
-  ItemHeader,
   ItemMedia,
   ItemSeparator,
   ItemTitle,
@@ -116,8 +113,6 @@ export {
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectLabel,
-  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "./select";

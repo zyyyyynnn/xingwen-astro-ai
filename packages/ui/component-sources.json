@@ -439,19 +439,6 @@
       ]
     },
     {
-      "name": "Toggle",
-      "local_path": "packages/ui/src/toggle.tsx",
-      "source": "@shadcn/toggle",
-      "upstream_repository": "https://github.com/shadcn-ui/ui",
-      "upstream_revision": "shadcn-cli@4.16.2",
-      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
-      "registry_item": "toggle",
-      "license": "MIT",
-      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
-      "adaptation": "Provides clsx composition and the shared semantic pressed-state variant contract consumed by the governed ToggleGroup component.",
-      "production_consumers": ["packages/ui/src/toggle-group.tsx"]
-    },
-    {
       "name": "ToggleGroup",
       "local_path": "packages/ui/src/toggle-group.tsx",
       "source": "@shadcn/toggle-group",
@@ -461,7 +448,7 @@
       "registry_item": "toggle-group",
       "license": "MIT",
       "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
-      "adaptation": "Retains Radix single and multiple selection, roving focus and shared Toggle variants with clsx composition for compact research filters.",
+      "adaptation": "Retains Radix single and multiple selection, roving focus and locally governed pressed-state variants with clsx composition for compact research filters.",
       "production_consumers": [
         "apps/workspace/src/components/literature-review-workspace.tsx",
         "apps/workspace/src/components/paper-collection-workspace.tsx"

@@ -3342,12 +3342,17 @@ button:disabled {
   padding: var(--space-3) var(--space-4) var(--space-8) var(--space-6);
 }
 
-.literature-review__entry {
+.literature-review__entry.xw-button {
   inline-size: 100%;
+  min-block-size: 0;
+  justify-content: flex-start;
   align-items: center;
+  padding: var(--space-4);
   background: transparent;
   color: inherit;
+  font-weight: inherit;
   text-align: start;
+  white-space: normal;
   cursor: pointer;
 }
 
@@ -4295,10 +4300,15 @@ button:disabled {
 
 .xw-result-index-item {
   inline-size: 100%;
+  min-block-size: 0;
+  justify-content: flex-start;
+  padding: var(--space-3) var(--space-4);
   border-block-end: var(--border-width-default) solid var(--color-border);
   border-radius: 0;
   color: var(--color-ink-primary);
+  font-weight: inherit;
   text-align: start;
+  white-space: normal;
 }
 
 .xw-result-index-item:hover,

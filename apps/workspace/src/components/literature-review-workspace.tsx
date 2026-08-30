@@ -440,8 +440,8 @@ export function LiteratureReviewWorkspace({
               return (
                 <div key={entry.key}>
                   <Item asChild size="default" variant="default">
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
                       className="literature-review__entry"
                       data-selected={selected || undefined}
                       data-testid={`literature-entry-${entry.key}`}
@@ -469,7 +469,7 @@ export function LiteratureReviewWorkspace({
                         ) : null}
                       </ItemContent>
                       <ArrowRight aria-hidden="true" />
-                    </button>
+                    </Button>
                   </Item>
                   {index < filteredEntries.length - 1 ? (
                     <ItemSeparator />
