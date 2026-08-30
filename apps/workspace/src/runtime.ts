@@ -95,7 +95,29 @@ export function createWorkspaceRuntime(
       import.meta.env.VITE_DEMO_REPLAY === "true");
 
   if (useFixture) {
-    const repositories = createFixtureRepositories(exoplanetHostStarFixture);
+    const fixtureOptions: Parameters<typeof createFixtureRepositories>[1] =
+      import.meta.env.VITE_VISUAL_CAPTURE === "true"
+        ? {
+            modelProviderConfiguration: {
+              status: "ready",
+              revision: 1,
+              source: "workspace",
+              preset: "dashscope",
+              baseUrl: null,
+              dashscopeBaseUrl:
+                "https://dashscope.aliyuncs.com/compatible-mode/v1",
+              model: "演示回放（不执行模型调用）",
+              apiKeyHint: "Demo Replay",
+              verifiedAt: null,
+              updatedAt: null,
+              editable: true,
+            },
+          }
+        : {};
+    const repositories = createFixtureRepositories(
+      exoplanetHostStarFixture,
+      fixtureOptions,
+    );
     const queryClient = createWorkspaceQueryClient();
     const sessionInfo: SessionInfo = {
       status: "active",

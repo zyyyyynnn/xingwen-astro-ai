@@ -77,6 +77,8 @@ import type { FixtureBundle } from "./fixture/bundle";
 export interface FixtureAdapterOptions {
   readonly clock?: () => UtcIsoTimestamp;
   readonly idFactory?: (prefix: string) => DomainEntityId;
+  /** Optional explicit UI scenario; the default remains deployment-managed. */
+  readonly modelProviderConfiguration?: ModelProviderConfigurationStatus;
 }
 
 const PUBLIC_SOURCE_URL_KEYS = [
@@ -488,19 +490,20 @@ export function createFixtureRepositories(
 
   const shares = new Map<DomainEntityId, ShareRecord>();
   const shareByToken = new Map<string, DomainEntityId>();
-  const fixtureModelProvider: ModelProviderConfigurationStatus = {
-    status: "ready",
-    revision: 1,
-    source: "workspace",
-    preset: "dashscope",
-    baseUrl: null,
-    dashscopeBaseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    model: "演示回放（不执行模型调用）",
-    apiKeyHint: "Demo Replay",
-    verifiedAt: null,
-    updatedAt: null,
-    editable: true,
-  };
+  const fixtureModelProvider: ModelProviderConfigurationStatus =
+    options.modelProviderConfiguration ?? {
+      status: "ready",
+      revision: 0,
+      source: "deployment",
+      preset: null,
+      baseUrl: null,
+      dashscopeBaseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      model: "演示回放",
+      apiKeyHint: null,
+      verifiedAt: null,
+      updatedAt: null,
+      editable: false,
+    };
   const fixtureArtifactExports = createFixtureArtifactExportRepository(
     bundle.data.projects[0]?.id
       ? asEntityId(bundle.data.projects[0].id)

@@ -37,6 +37,7 @@ export default defineConfig({
       url: "http://127.0.0.1:5199/workspace",
       env: {
         VITE_FIXTURE_MODE: "true",
+        VITE_VISUAL_CAPTURE: "true",
       },
       reuseExistingServer: true,
       timeout: 180_000,
