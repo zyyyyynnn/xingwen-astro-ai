@@ -200,7 +200,6 @@ const artifactShots = new Map([
 ]);
 
 const projectShots = new Map([
-  ["10_project-overview", [PROJECT_A, ["研究概览可见"]]],
   ["11_project-b-overview", [PROJECT_B, ["Project B 研究线程可见"]]],
   ["11b_project-b-results", [PROJECT_B, ["Project B 结果索引可见"]]],
   ["12_project-c-overview", [PROJECT_C, ["Project C 研究线程可见"]]],

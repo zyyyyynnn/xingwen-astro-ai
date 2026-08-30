@@ -108,7 +108,6 @@ test.describe("workspace shell & navigation", () => {
 test.describe("project workspace overview and message stream", () => {
   test("overview, inspector tabs, protocol dialog", async ({ page }) => {
     await openProject(page);
-    await shot(page, "10_project-overview");
 
     const resultsTab = page.getByRole("tab", { name: "研究结果" });
     await expect(resultsTab).toBeVisible();
