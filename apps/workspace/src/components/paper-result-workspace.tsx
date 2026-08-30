@@ -127,9 +127,7 @@ export function PaperResultWorkspace({
       ) : null}
 
       {toolbar ? (
-        <div className="shrink-0 bg-surface-muted/50 px-4 py-2">
-          {toolbar}
-        </div>
+        <div className="shrink-0 bg-surface-muted/50 px-4 py-2">{toolbar}</div>
       ) : null}
 
       {!hasDocument ? (

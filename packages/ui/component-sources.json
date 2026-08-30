@@ -449,9 +449,7 @@
       "license": "MIT",
       "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
       "adaptation": "Provides clsx composition and the shared semantic pressed-state variant contract consumed by the governed ToggleGroup component.",
-      "production_consumers": [
-        "packages/ui/src/toggle-group.tsx"
-      ]
+      "production_consumers": ["packages/ui/src/toggle-group.tsx"]
     },
     {
       "name": "ToggleGroup",

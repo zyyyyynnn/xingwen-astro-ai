@@ -67,28 +67,18 @@ describe("LiteratureReviewWorkspace", () => {
       />,
     );
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "选择可审定关系" }),
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: "接受并进入图谱" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "选择可审定关系" }));
+    fireEvent.click(screen.getByRole("button", { name: "接受并进入图谱" }));
     expect(onRequestRevision).toHaveBeenCalledWith({
       kind: "relation_adjudication",
       relationId: asEntityId("relation-adjudicable"),
       decision: "accepted",
     });
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "选择不可审定关系" }),
-    );
-    expect(
-      screen.queryByRole("button", { name: "接受并进入图谱" }),
-    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "选择不可审定关系" }));
+    expect(screen.queryByRole("button", { name: "接受并进入图谱" })).toBeNull();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "选择审定能力未知" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "选择审定能力未知" }));
     expect(
       screen.queryByRole("button", { name: "拒绝且不进入图谱" }),
     ).toBeNull();

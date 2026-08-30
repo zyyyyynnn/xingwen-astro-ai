@@ -99,7 +99,9 @@
 
 .model-provider-summary__facts > div {
   display: grid;
-  grid-template-columns: var(--workspace-provider-summary-label-inline-size) minmax(0, 1fr);
+  grid-template-columns:
+    var(--workspace-provider-summary-label-inline-size)
+    minmax(0, 1fr);
   gap: var(--space-3);
 }
 
@@ -2157,7 +2159,11 @@ button:disabled {
   padding: var(--space-3);
   border: var(--border-width-default) solid var(--color-warning);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-warning) 10%, var(--color-surface));
+  background: color-mix(
+    in srgb,
+    var(--color-warning) 10%,
+    var(--color-surface)
+  );
 }
 
 .scientific-warning > svg {

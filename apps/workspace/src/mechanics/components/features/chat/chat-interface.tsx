@@ -31,19 +31,22 @@ const RESEARCH_STARTERS: ReadonlyArray<{
   {
     title: "构建证据综述",
     description: "汇总文献、论点关系与可追溯证据",
-    prompt: "围绕我的研究问题构建一份可追溯证据的文献综述，并标出关键争议与证据缺口。",
+    prompt:
+      "围绕我的研究问题构建一份可追溯证据的文献综述，并标出关键争议与证据缺口。",
     icon: FileSearch,
   },
   {
     title: "分析观测数据",
     description: "检查数据质量、信号特征与异常来源",
-    prompt: "分析我提供的观测数据，先核对数据质量与来源，再识别显著信号和可能的异常。",
+    prompt:
+      "分析我提供的观测数据，先核对数据质量与来源，再识别显著信号和可能的异常。",
     icon: Database,
   },
   {
     title: "比较科研模型",
     description: "建立基线、评估差异并解释限制",
-    prompt: "为当前科研问题设计模型比较方案，给出基线、评估指标、证据依据与主要限制。",
+    prompt:
+      "为当前科研问题设计模型比较方案，给出基线、评估指标、证据依据与主要限制。",
     icon: BrainCircuit,
   },
 ];
@@ -148,14 +151,21 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
                         >
                           <button
                             type="button"
-                            onClick={() => composer?.onValueChange(starter.prompt)}
+                            onClick={() =>
+                              composer?.onValueChange(starter.prompt)
+                            }
                           >
                             <ItemMedia className="mt-[var(--space-1)] text-[var(--color-brand)]">
-                              <Icon className="size-[var(--icon-size-md)]" aria-hidden="true" />
+                              <Icon
+                                className="size-[var(--icon-size-md)]"
+                                aria-hidden="true"
+                              />
                             </ItemMedia>
                             <ItemContent>
                               <ItemTitle>{starter.title}</ItemTitle>
-                              <ItemDescription>{starter.description}</ItemDescription>
+                              <ItemDescription>
+                                {starter.description}
+                              </ItemDescription>
                             </ItemContent>
                           </button>
                         </Item>
