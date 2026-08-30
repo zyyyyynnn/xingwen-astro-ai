@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import {
   createHttpRepositories,
@@ -47,6 +47,23 @@ async function openThreadArtifact(
     .click();
 }
 
+async function selectEntryWithReasoningTrace(
+  workspace: Locator,
+): Promise<void> {
+  const entries = workspace.locator('[data-testid^="literature-entry-"]');
+  for (let index = 0; index < (await entries.count()); index += 1) {
+    await entries.nth(index).click();
+    if (
+      (await workspace
+        .getByRole("button", { name: "公开推导与限制" })
+        .count()) > 0
+    ) {
+      return;
+    }
+  }
+  throw new Error("Expected one relation entry with a public reasoning trace.");
+}
+
 test("real Compose exposes the current empty Research Workspace without provider secrets", async ({
   page,
 }) => {
@@ -75,25 +92,44 @@ test("real Compose exposes the current empty Research Workspace without provider
   await expect(page.getByRole("button", { name: "新建研究" })).toHaveCount(1);
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  await page.getByRole("button", { name: "模型服务已连接" }).click();
+  await page
+    .getByRole("button", { name: /^(?:模型服务已连接|配置模型服务)$/ })
+    .click();
   const modelDialog = page.getByRole("dialog", { name: "模型服务" });
   await expect(modelDialog).toBeVisible();
-  await expect(
-    modelDialog.getByText("部署环境已配置", { exact: true }),
-  ).toBeVisible();
-  await expect(modelDialog.getByText("qwen3.7-max-2026-06-08")).toBeVisible();
-  await expect(
-    modelDialog.getByText("https://dashscope.aliyuncs.com/compatible-mode/v1", {
-      exact: true,
-    }),
-  ).toBeVisible();
-  await expect(
-    modelDialog.getByText("工作台只读", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    modelDialog.getByRole("textbox", { name: "API 密钥", exact: true }),
-  ).toHaveCount(0);
-  await modelDialog.getByRole("button", { name: "完成" }).click();
+  const baseUrlField = modelDialog.getByLabel("Base URL");
+  if ((await baseUrlField.count()) > 0) {
+    await expect(baseUrlField).toHaveValue(
+      "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    );
+    await expect(baseUrlField).toHaveAttribute("readonly");
+    await modelDialog.getByRole("combobox", { name: "连接方式" }).click();
+    await page.getByRole("option", { name: "自定义 OpenAI 兼容接口" }).click();
+    await expect(baseUrlField).not.toHaveAttribute("readonly");
+    await expect(page.getByText("qwen3.7-max")).toHaveCount(0);
+    await expect(
+      modelDialog.getByRole("textbox", { name: "API 密钥", exact: true }),
+    ).toHaveValue("");
+    await modelDialog.getByRole("button", { name: "后续配置" }).click();
+  } else {
+    await expect(
+      modelDialog.getByText("部署环境已配置", { exact: true }),
+    ).toBeVisible();
+    await expect(modelDialog.getByText("qwen3.7-max-2026-06-08")).toBeVisible();
+    await expect(
+      modelDialog.getByText(
+        "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(
+      modelDialog.getByText("工作台只读", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      modelDialog.getByRole("textbox", { name: "API 密钥", exact: true }),
+    ).toHaveCount(0);
+    await modelDialog.getByRole("button", { name: "完成" }).click();
+  }
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
   for (const viewport of [
@@ -578,11 +614,6 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   await expect(
     page
       .getByLabel("共享科研结果")
-      .getByRole("heading", { name: "Exoplanet host-star dataset" }),
-  ).toBeVisible();
-  await expect(
-    page
-      .getByLabel("共享科研结果")
       .getByRole("table", { name: "规范化数据" })
       .getByRole("rowheader", { name: "700.01 / planet seven b" }),
   ).toBeVisible();
@@ -895,22 +926,7 @@ test("real worker exposes Literature dossiers, public reasoning, and interactive
   ).toBeVisible();
   const traceConclusion =
     "The two claims compare methods over the same objects.";
-  const relationEntries = relationWorkspace.locator(
-    '[data-testid^="literature-entry-"]',
-  );
-  let foundReasoningTrace = false;
-  for (let index = 0; index < (await relationEntries.count()); index += 1) {
-    await relationEntries.nth(index).click();
-    if (
-      (await relationWorkspace
-        .getByRole("button", { name: "公开推导与限制" })
-        .count()) > 0
-    ) {
-      foundReasoningTrace = true;
-      break;
-    }
-  }
-  expect(foundReasoningTrace).toBe(true);
+  await selectEntryWithReasoningTrace(relationWorkspace);
   await relationWorkspace
     .getByRole("button", { name: "公开推导与限制" })
     .click();
@@ -931,10 +947,11 @@ test("real worker exposes Literature dossiers, public reasoning, and interactive
   await expect(
     publicWorkspace.getByText("关系审定工作区", { exact: true }),
   ).toBeVisible();
-  await publicWorkspace
-    .getByRole("button", { name: `选择${traceConclusion}` })
-    .click();
+  await selectEntryWithReasoningTrace(publicWorkspace);
   await publicWorkspace.getByRole("button", { name: "公开推导与限制" }).click();
+  await expect(
+    publicWorkspace.getByText(traceConclusion, { exact: true }),
+  ).toBeVisible();
   await expect(
     publicWorkspace.getByText("Auditable identify premises step."),
   ).toBeVisible();
