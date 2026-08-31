@@ -1793,12 +1793,13 @@ button:disabled {
 }
 
 .research-contract-facts {
+  display: grid;
   min-inline-size: 0;
+  gap: var(--space-6);
 }
 
 .research-contract-facts__section {
   min-inline-size: 0;
-  padding-block: var(--space-4);
 }
 
 .research-contract-facts__label {
@@ -1837,7 +1838,7 @@ button:disabled {
 .research-contract-facts__pair {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: var(--space-8);
+  gap: var(--space-6) var(--space-8);
 }
 
 .research-contract-facts__data-trigger {
@@ -1895,7 +1896,7 @@ button:disabled {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2) var(--space-6);
   margin: 0;
-  padding: 0 0 var(--space-4);
+  padding: 0;
   list-style: none;
 }
 
@@ -2310,7 +2311,6 @@ button:disabled {
   display: grid;
   gap: var(--space-1);
   padding-block: var(--space-2) var(--space-3);
-  border-block-end: var(--border-width-default) solid var(--color-border);
 }
 
 .revision-relation-summary strong {
@@ -2321,8 +2321,7 @@ button:disabled {
 }
 
 .revision-decision-options {
-  gap: 0;
-  border-block: var(--border-width-default) solid var(--color-border);
+  gap: var(--space-2);
 }
 
 .revision-decision-option {
@@ -2331,11 +2330,8 @@ button:disabled {
   align-items: flex-start;
   gap: var(--space-3);
   padding: var(--space-4) var(--space-3);
+  border-radius: var(--radius-md);
   transition: background var(--motion-fast) var(--ease-standard);
-}
-
-.revision-decision-option + .revision-decision-option {
-  border-block-start: var(--border-width-default) solid var(--color-border);
 }
 
 .revision-decision-option:hover {
@@ -2402,19 +2398,14 @@ button:disabled {
   inline-size: auto;
 }
 
+.evidence-presentation {
+  display: grid;
+  gap: var(--space-6);
+}
+
 .evidence-presentation section {
   display: grid;
   gap: var(--space-3);
-}
-
-.evidence-presentation__section {
-  padding-block: var(--space-5);
-  border-block-start: var(--border-width-default) solid var(--color-border);
-}
-
-.evidence-presentation__section:first-child {
-  padding-block-start: 0;
-  border-block-start: 0;
 }
 
 .evidence-presentation__section-header {
@@ -2464,11 +2455,6 @@ button:disabled {
     minmax(0, 1fr);
   gap: var(--space-2);
   padding-block: var(--space-2);
-  border-block-end: var(--border-width-default) solid var(--color-border);
-}
-
-.evidence-presentation dl > div:last-child {
-  border-block-end: 0;
 }
 
 .evidence-presentation dt {
@@ -2608,7 +2594,6 @@ button:disabled {
   flex-wrap: wrap;
   gap: var(--space-2) 0;
   padding-block: var(--space-2);
-  border-block: var(--border-width-default) solid var(--color-border);
   font-size: var(--font-size-ui-label);
   line-height: var(--line-height-ui-label);
   color: var(--color-ink-secondary);
@@ -3071,7 +3056,6 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 0;
-  border-block-start: var(--border-width-default) solid var(--color-border);
 }
 
 .field-dictionary__item {
@@ -3144,7 +3128,6 @@ button:disabled {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-4);
   padding-block: var(--space-3);
-  border-block: var(--border-width-default) solid var(--color-border);
 }
 
 .field-dictionary__facts div {
@@ -3293,7 +3276,7 @@ button:disabled {
   }
 }
 
-/* Model reports use editorial rules and metric strips instead of card walls. */
+/* Model facts and sections share a spacing-led reading hierarchy. */
 .model-report__facts {
   display: grid;
   grid-template-columns: repeat(
@@ -3301,8 +3284,6 @@ button:disabled {
     minmax(var(--workspace-result-control-inline-size), 1fr)
   );
   gap: var(--space-2) var(--space-8);
-  padding-block: var(--space-3);
-  border-block-start: var(--border-width-default) solid var(--color-border);
 }
 
 .model-report__fact {
@@ -3328,8 +3309,7 @@ button:disabled {
 }
 
 .model-report__section {
-  padding-block: var(--space-4);
-  border-top: var(--border-width-default) solid var(--color-border);
+  min-inline-size: 0;
 }
 
 .model-report__comparison {
@@ -3474,17 +3454,13 @@ button:disabled {
     auto-fit,
     minmax(var(--workspace-result-control-inline-size), 1fr)
   );
-  gap: var(--border-width-default);
-  border-block-start: var(--border-width-default) solid var(--color-border);
-  background: var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
 }
 
 .model-report__metric {
   min-inline-size: 0;
   padding: var(--space-4);
-  border: 0;
-  border-radius: 0;
-  background: var(--color-surface);
 }
 
 .model-report__supporting-grid {
@@ -3519,14 +3495,8 @@ button:disabled {
 .model-report__signature {
   min-inline-size: 0;
   padding: var(--space-3) var(--space-4);
-  border-block: var(--border-width-default) solid var(--color-border);
-  border-radius: 0;
-  background: transparent;
-}
-
-.model-report__signature:last-child {
-  padding: var(--space-3) var(--space-4);
-  border-inline-end: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
 }
 
 .model-report__signature-row {
@@ -3854,8 +3824,6 @@ button:disabled {
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-4);
-  border-block-start: var(--border-width-default) solid
-    color-mix(in srgb, var(--color-border) 60%, transparent);
 }
 
 .observation-workspace__inspector > section > p {
@@ -4875,7 +4843,6 @@ button:disabled {
 
 .model-report__output + .model-report__output {
   padding-block-start: var(--space-2);
-  border-top: var(--border-width-default) solid var(--color-border);
 }
 
 .model-report__signature-row dd {

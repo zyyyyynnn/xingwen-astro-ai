@@ -64,6 +64,7 @@ Cold Paper / Surface    72–82%
 Brand 强调               3–7%
 状态色                   <2%
 ```
+
 Workspace 正式主题为 Light。
 
 ## 5. 字体
@@ -99,6 +100,7 @@ Workspace 壳层统一消费 `--font-size-ui-*` 与 `--line-height-ui-*` 成对�
 - Composer 采用输入区与操作区分层的桌面结构，默认保留足够的组合空间；尺寸由 Workspace 语义 Token 定义，不得为追求紧凑而压缩到控件重叠、内容溢出或后续能力接入需要重做外壳；
 - 圆角 4–8px；
 - 分隔线、背景层级与留白优先于卡片；
+- 事实与正文区块以标题、对齐和留白分组；分隔线用于滚动区域、表格或操作边界。同一层级使用一种主要分组方式。
 - 阴影只用于 Overlay、Popover、Menu 与浮层。
 
 ## 8. Workspace 换肤
