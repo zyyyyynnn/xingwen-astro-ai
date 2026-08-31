@@ -28,6 +28,12 @@ Case 与 Field Manifest 的版本及 content hash 以 `services/data_pipeline/ma
 
 ## 3. 原始记录与 SourceSnapshot
 
+主案例首先按已确认行星标记与 `PS.default_flag=1` 选择 20 pc 内的宿主，
+按最近目录距离及 TIC 标识稳定排序。目标发现使用聚合查询和 TAP `MAXREC=20`，
+最多选取 20 个宿主；科学距离范围与宿主数量上限由 `live_acquisition.py` 定义。
+两张来源快照的 `target_selection` 保存选择策略、查询、抓取时间、实际宿主及距离、
+响应内容 hash、尝试次数与耗时。TOI 与 PS 获取继续分别保存本表原始记录与分页证据。
+
 每条 `RawDataSourceRecord` 保存 table source id、Manifest row key、按 approved column 顺序构造的原始 payload 和稳定 SHA-256 content hash。主数据源 Adapter 不解释数值科学含义，不把 null 改成零，不执行单位转换，也不选择 canonical value。
 
 成功 acquisition 生成一个 `SourceSnapshotRecord`。Snapshot 绑定规范化 query 与 query hash、抓取时间、原始记录和分页内容 hash、许可说明、Adapter 版本、endpoint、TAP_SCHEMA 请求/响应 hash、分页 request/response hash、状态码、attempt count、latency、游标、限流摘要及安全 request-id。响应只经过 header allowlist；Authorization、Cookie、API key、credential 与未批准的响应头不会进入 Snapshot。

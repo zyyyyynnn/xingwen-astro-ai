@@ -99,6 +99,10 @@ export interface PublicPresentationEntry {
   readonly evidenceIds: readonly DomainEntityId[];
   readonly reasoningTrace: PublicPresentationTrace | null;
   readonly canAdjudicate: boolean | null;
+  readonly relation: {
+    readonly sourceClaim: NonEmptyString;
+    readonly targetClaim: NonEmptyString;
+  } | null;
 }
 
 export interface PublicPresentationSection {

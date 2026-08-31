@@ -106,7 +106,7 @@ export function ModelEvaluationContent({
         <>
           <ScientificContentHeader
             title={content.title || title}
-            subtitle={`${fixtureMode ? "模型评估界面样例" : "模型评估报告"} · ${algorithmLabel(content.algorithm)} · ${content.algorithmVersion}`}
+            subtitle={`${algorithmLabel(content.algorithm)} · ${content.algorithmVersion}`}
           />
 
           <div className="model-report__facts" aria-label="模型属性">
@@ -132,9 +132,7 @@ export function ModelEvaluationContent({
               <div className="text-xs model-report__secondary">训练输入</div>
               <div className="mt-1 text-sm font-semibold">
                 {content.trainingInput.kind === "dataset_artifact_version"
-                  ? fixtureMode
-                    ? "演示数据集引用"
-                    : "研究数据集"
+                  ? "研究数据集"
                   : "来源快照"}
               </div>
             </div>
@@ -163,7 +161,7 @@ export function ModelEvaluationContent({
             <div className="model-report__fact">
               <div className="text-xs model-report__secondary">数据源模式</div>
               <div className="mt-1 text-sm font-semibold">
-                {sourceModeLabel(sourceMode)}
+                <Badge variant="secondary">{sourceModeLabel(sourceMode)}</Badge>
               </div>
             </div>
           </div>
@@ -173,8 +171,7 @@ export function ModelEvaluationContent({
       <section className="model-report__section model-report__split">
         <div className="mb-2 flex items-center justify-between text-xs model-report__secondary">
           <span className="font-semibold">
-            {fixtureMode ? "样例划分比例" : "数据集划分比例"} (Train / Val /
-            Test Split)
+            数据集划分比例 (Train / Val / Test Split)
           </span>
           <span>
             {fixtureMode
@@ -210,10 +207,7 @@ export function ModelEvaluationContent({
 
       {holdoutMetrics.length > 0 ? (
         <section className="model-report__section space-y-3">
-          <h4 className="text-sm font-semibold">
-            {fixtureMode ? "指标卡片样例" : "模型性能评价指标"} (Evaluation
-            Metrics)
-          </h4>
+          <h4 className="text-sm font-semibold">评估指标</h4>
           <div className="model-report__metrics">
             {holdoutMetrics.map((metric) => {
               const baseline = content.baselineMetrics?.find(
@@ -252,29 +246,28 @@ export function ModelEvaluationContent({
                       data-comparison={comparison}
                     >
                       {delta >= 0 ? "+" : ""}
-                      {formatNumber(delta, 3)}{" "}
-                      {fixtureMode ? "演示差值（非模型结果）" : "对比基线"}
+                      {formatNumber(delta, 3)} 对比基线
                       {comparison !== "neutral"
                         ? ` · ${comparison === "improved" ? "改善" : "下降"}`
                         : ""}
                     </div>
                   ) : (
                     <div className="mt-1 text-xs model-report__secondary">
-                      {fixtureMode ? "演示值（非模型结果）" : "测试集独立评估"}
+                      测试集独立评估
                     </div>
                   )}
-                  {metric.evidenceIds.length > 0 && onSelectEvidence ? (
-                    <div className="mt-2">
-                      <EvidenceLinks
-                        evidenceIds={metric.evidenceIds}
-                        onSelectEvidence={onSelectEvidence}
-                      />
-                    </div>
-                  ) : null}
                 </div>
               );
             })}
           </div>
+          <EvidenceLinks
+            evidenceIds={[
+              ...new Set(
+                holdoutMetrics.flatMap((metric) => metric.evidenceIds),
+              ),
+            ]}
+            onSelectEvidence={onSelectEvidence}
+          />
         </section>
       ) : null}
 
@@ -580,7 +573,7 @@ export function ModelArtifactContent({
   const canDownload =
     !fixtureMode && content.status === "active" && loadContent !== undefined;
   const statusLabel = fixtureMode
-    ? "界面样例（不可部署）"
+    ? "不可部署"
     : content.status === "active"
       ? "可用"
       : content.status === "deprecated"
@@ -660,7 +653,7 @@ export function ModelArtifactContent({
             <div className="model-report__fact">
               <div className="text-xs model-report__secondary">数据源模式</div>
               <div className="model-report__fact-value">
-                {sourceModeLabel(sourceMode)}
+                <Badge variant="secondary">{sourceModeLabel(sourceMode)}</Badge>
               </div>
             </div>
           </div>
@@ -777,7 +770,7 @@ export function ModelArtifactContent({
               </dl>
             </PopoverContent>
           </Popover>
-          {loadContent ? (
+          {loadContent && !fixtureMode ? (
             <Button
               type="button"
               variant="primary"
@@ -791,16 +784,19 @@ export function ModelArtifactContent({
               ) : (
                 <Download data-icon="inline-start" aria-hidden="true" />
               )}
-              {fixtureMode
-                ? "演示工件不可下载"
-                : downloadState === "pending"
-                  ? "正在下载…"
-                  : downloadState === "error"
-                    ? "重新下载 ONNX 模型"
-                    : "下载 ONNX 模型"}
+              {downloadState === "pending"
+                ? "正在下载…"
+                : downloadState === "error"
+                  ? "重新下载 ONNX 模型"
+                  : "下载 ONNX 模型"}
             </Button>
           ) : null}
         </div>
+        {fixtureMode ? (
+          <p className="model-report__secondary">
+            当前结果仅提供结构展示，模型文件不可部署或下载。
+          </p>
+        ) : null}
         {downloadState === "error" ? (
           <Alert variant="destructive" className="mt-4">
             <AlertDescription>

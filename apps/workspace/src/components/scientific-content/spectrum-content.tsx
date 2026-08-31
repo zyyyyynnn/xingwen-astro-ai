@@ -601,6 +601,10 @@ export function SpectrumContent({
   readonly surface: ScientificContentSurface;
   readonly enhancementOnly?: boolean;
 }) {
+  const fluxUnit =
+    content.fluxUnit === "continuum_normalized"
+      ? "连续谱归一化"
+      : content.fluxUnit;
   return (
     <article
       className="scientific-artifact scientific-artifact--spectrum space-y-6"
@@ -659,7 +663,7 @@ export function SpectrumContent({
           points={content.points}
           lines={content.detectedLines}
           wavelengthUnit={content.wavelengthUnit}
-          fluxUnit={content.fluxUnit}
+          fluxUnit={fluxUnit}
         />
       ) : null}
 
@@ -685,7 +689,7 @@ export function SpectrumContent({
             points={content.points}
             surface={surface}
             wavelengthUnit={content.wavelengthUnit}
-            fluxUnit={content.fluxUnit}
+            fluxUnit={fluxUnit}
           />
         ) : (
           <p className="scientific-artifact__empty text-sm">

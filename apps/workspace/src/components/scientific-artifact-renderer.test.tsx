@@ -73,6 +73,7 @@ function presentationFor(
         evidenceIds: finding.evidenceIds,
         reasoningTrace: null,
         canAdjudicate: null,
+        relation: null,
       })),
       sections: [
         ...(content.limitations.length

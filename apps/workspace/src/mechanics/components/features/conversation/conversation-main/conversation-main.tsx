@@ -192,6 +192,8 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
             isDragging && "transition-none",
           )}
           style={{ right: inspectorVisible ? `${rightWidth}%` : "0px" }}
+          inert={!inspectorVisible}
+          aria-hidden={!inspectorVisible}
         >
           <ResizeHandle
             className="h-full"
@@ -220,6 +222,8 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
               : "transparent",
           }}
           aria-label="右侧研究栏"
+          inert={!inspectorVisible}
+          aria-hidden={!inspectorVisible}
           data-testid="research-inspector-panel"
           data-collapsed={!inspectorVisible}
         >

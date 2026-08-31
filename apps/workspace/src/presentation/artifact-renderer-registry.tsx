@@ -950,7 +950,7 @@ const ARTIFACT_RENDERER_DESCRIPTORS = [
   paperCollection,
   data("dataset", 30, "data"),
   data("field_dictionary", 40, "wide"),
-  data("source_collection", 50, "wide"),
+  data("source_collection", 50, "reading"),
   scientific("analysis_report", 52, "reading"),
   scientific("visualization", 54, "wide"),
   scientific("spectrum", 56, "wide"),

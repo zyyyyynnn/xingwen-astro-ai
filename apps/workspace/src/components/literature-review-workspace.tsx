@@ -131,8 +131,19 @@ function EntryContext({
   return (
     <aside className="literature-review__context" aria-live="polite">
       <header className="literature-review__context-header">
-        <h3>{entry.title}</h3>
-        {assessment ? (
+        {entry.relation ? (
+          <div className="literature-review__claim-pair" aria-label="关联主张">
+            <p>{entry.relation.sourceClaim}</p>
+            <div className="literature-review__connector">
+              <ArrowRight aria-hidden="true" />
+              <span>{assessment}</span>
+            </div>
+            <p>{entry.relation.targetClaim}</p>
+          </div>
+        ) : (
+          <h3>{entry.title}</h3>
+        )}
+        {assessment && !entry.relation ? (
           <p className="ui-text-label literature-review__assessment">
             {assessment}
           </p>
@@ -181,6 +192,16 @@ function EntryContext({
               ) : (
                 <p>没有可公开展示的推导步骤。</p>
               )}
+              {reasoningTrace.facts.length > 0 ? (
+                <dl className="literature-review__facts">
+                  {reasoningTrace.facts.map((fact) => (
+                    <div key={fact.label}>
+                      <dt>{fact.label}</dt>
+                      <dd>{fact.values.join("、")}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : null}
               <EvidenceActions
                 evidenceIds={reasoningTrace.evidenceIds}
                 onSelectEvidence={onSelectEvidence}
@@ -414,7 +435,11 @@ export function LiteratureReviewWorkspace({
                               variant={statusVariant(entry.status)}
                               data-status={entry.status}
                             >
-                              {reviewStatusLabel(entry.status)}
+                              {isRelations
+                                ? (FILTERS.find(
+                                    ({ value }) => value === entry.status,
+                                  )?.label ?? reviewStatusLabel(entry.status))
+                                : reviewStatusLabel(entry.status)}
                             </Badge>
                           ) : null}
                         </div>

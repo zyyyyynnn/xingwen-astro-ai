@@ -70,6 +70,7 @@ const snapshot: PublicShareSnapshot = {
             evidenceIds: [],
             reasoningTrace: null,
             canAdjudicate: null,
+            relation: null,
           },
         ],
         tables: [
@@ -267,6 +268,7 @@ describe("PublicShareView", () => {
                     evidenceIds: [],
                     reasoningTrace: null,
                     canAdjudicate: false,
+                    relation: null,
                   },
                 ],
                 tables: [],
@@ -282,7 +284,11 @@ describe("PublicShareView", () => {
     );
 
     expect(screen.getByText("比较方法 · 发现 · 正向")).toBeVisible();
-    expect(screen.getByText("已纳入结论")).toBeVisible();
+    expect(
+      within(screen.getByTestId("literature-entry-relation-1")).getByText(
+        "已纳入",
+      ),
+    ).toBeVisible();
     for (const token of [
       "compares_method",
       "accepted",

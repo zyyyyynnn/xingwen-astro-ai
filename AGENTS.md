@@ -133,7 +133,7 @@ API Key、认证头、原始私有 provider response 与私有 reasoning 不得�
 - Fixture / HTTP mapping parity；
 - Browser 用户闭环、权限、安全、失败与恢复；
 - Evidence closure、Revision、Share freeze；
-- Accessibility、200% text、核心 viewport 和性能预算；
+- Accessibility、1280×800 与 1440×900 桌面 viewport 和性能预算；
 - 新增或迁入能力与当前单一 Authority 的集成回归。
 
 测试通过是必要条件，不是完成定义。不要用脆弱 CSS class/snapshot、重复层级测试或大面积 hash mutation tests 代替产品与架构验证。

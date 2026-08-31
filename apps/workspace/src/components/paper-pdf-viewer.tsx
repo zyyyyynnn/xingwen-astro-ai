@@ -280,8 +280,14 @@ export function PaperPdfViewer({
           onLoadSuccess={onLoadSuccess}
           onLoadError={() => setLoadError("论文原文载入失败，请稍后重试。")}
           loading={
-            <div className="mx-auto max-w-3xl" aria-busy="true">
-              <Skeleton className="h-12 w-3/4 mb-2" />
+            <div
+              className="xw-pdf-viewer__loading"
+              role="status"
+              aria-busy="true"
+            >
+              <p>正在加载论文原文…</p>
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
               <Skeleton className="h-[var(--workspace-result-pdf-loading-block-size)] w-full" />
             </div>
           }

@@ -182,6 +182,12 @@ export const artifactPresentations = {
     entries: [
       {
         key: "rel_01",
+        relation: {
+          source_claim:
+            "NASA Exoplanet Archive TOI 表将 TOI-1233.04 关联到 TIC-260647166，并记录轨道周期 3.79589 天、半径 1.553135 R_Earth。",
+          target_claim:
+            "同一冻结 TOI 响应记录 TIC-260647166 的有效温度 5723.87 K、log g 4.438、恒星半径 0.864173 R_Sun。",
+        },
         title: "TOI-1233.04 目录记录 ↔ TIC-260647166 恒星参数（同一目录系统）",
         status: "accepted",
         can_adjudicate: false,
@@ -207,6 +213,12 @@ export const artifactPresentations = {
       },
       {
         key: "rel_02",
+        relation: {
+          source_claim:
+            "NASA Exoplanet Archive TOI 表将 TOI-1233.04 关联到 TIC-260647166，并记录轨道周期 3.79589 天、半径 1.553135 R_Earth。",
+          target_claim:
+            "冻结 TOI 表记录 TOI-1233.03 的轨道周期为 6.2036219 天、行星半径为 2.056748 R_Earth。",
+        },
         title: "TOI-1233.04 ↔ TOI-1233.03（共享 TIC-260647166）",
         status: "accepted",
         can_adjudicate: false,
@@ -216,6 +228,12 @@ export const artifactPresentations = {
       },
       {
         key: "rel_03",
+        relation: {
+          source_claim:
+            "NASA Exoplanet Archive TOI 表将 TOI-1233.04 关联到 TIC-260647166，并记录轨道周期 3.79589 天、半径 1.553135 R_Earth。",
+          target_claim:
+            "候选审查：TOI-1233.03 与 TOI-1233.04 的目录周期可用于后续计算周期比，但当前响应不足以支持共振或 TTV 结论。",
+        },
         title: "TOI-1233.03 周期 ↔ TOI-1233.04 周期比解释（待审定）",
         status: "candidate",
         can_adjudicate: true,
@@ -248,6 +266,12 @@ export const artifactPresentations = {
       },
       {
         key: "rel_04",
+        relation: {
+          source_claim:
+            "NASA Exoplanet Archive TOI 表将 TOI-1233.04 关联到 TIC-260647166，并记录轨道周期 3.79589 天、半径 1.553135 R_Earth。",
+          target_claim:
+            "候选审查：TOI 编号与已确认行星名称的交叉映射需要独立来源，当前 TOI 目录响应不能单独完成别名认定。",
+        },
         title: "TOI 编号 ↔ 已确认行星名称交叉映射（待审定）",
         status: "candidate",
         can_adjudicate: true,
@@ -283,6 +307,12 @@ export const artifactPresentations = {
       },
       {
         key: "rel_05",
+        relation: {
+          source_claim:
+            "同一冻结 TOI 响应记录 TIC-260647166 的有效温度 5723.87 K、log g 4.438、恒星半径 0.864173 R_Sun。",
+          target_claim:
+            "已驳回：将 TOI-1233.01 的目录周期写成 3.79589 天，与同一冻结响应中的 14.1758947 天直接冲突。",
+        },
         title: "TOI-1233.01 ↔ 3.79589 天周期（已驳回字段错配）",
         status: "rejected",
         can_adjudicate: false,

@@ -268,6 +268,12 @@ def test_literature_presentation_preserves_scientific_decision_fields() -> None:
         fact.label: fact.values for fact in relation_presentation.entries[0].facts
     }
     assert {"对象可比性", "指标可比性", "单位可比性", "置信度"} <= set(relation_facts)
+    relation_entry = relation_presentation.entries[0]
+    assert relation_entry.relation is not None
+    assert relation_entry.title == (
+        f"{relation_entry.relation.source_claim} → "
+        f"{relation_entry.relation.target_claim}"
+    )
 
     rejected = next(
         case.admission.publisher_candidate

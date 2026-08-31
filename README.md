@@ -26,13 +26,15 @@
 
 1. 输入研究目标并审查系统生成的 Research Contract；
 2. 确认协议并观察 ResearchRun 与 Activity；
-3. 打开 Dataset、Field Dictionary、Source Collection、Paper Summary、Literature Claims、Literature Relations 与 Evidence Graph；
+3. 打开 Dataset、Field Dictionary、Source Collection、Paper Collection、Paper Summary、Literature Claims、Literature Relations 与 Evidence Graph；
 4. 从结果进入 Evidence Inspector，核对具体 SourceSnapshot 与页、块、表格、单元格等 locator；
 5. 对固定 ArtifactVersion 提交反馈并生成 RevisionPlan；
 6. 执行派生 Revision Run，比较旧版本与新版本的 Scientific Diff；
 7. 对明确版本执行 CSV/Markdown Export 或创建只读 Share。
 
 Fullscreen Result Workspace 是正式结果工作区；右侧结果栏只承担索引，不维护第二套结果事实。Public Share 冻结精确 ArtifactVersion，不跟随动态 `latest`。
+
+科学结果通过同一 Renderer / Evidence 链展示 Analysis Report、Light Curve、Spectrum、Periodogram、Folded Light Curve、Model Evaluation 与 ONNX Model Artifact。Observation 结果支持 FITS 图像与 WWT 天球场景的坐标、图层、时间及显示控制。各结果的数据等级和真实调用范围由其来源与执行记录标明。
 
 ## 真实性分层
 
@@ -62,15 +64,13 @@ Fullscreen Result Workspace 是正式结果工作区；右侧结果栏只承担�
 
 这些资产只证明其明确声明的层级。Recorded 响应不等于 Live，真实模型历史报告也不能替代当前 Release 对 exact source commit 的 qualifying Qwen 验证。
 
-## 交接清单与未验证项
+## 交接与运行验证
 
-机器可读交接清单见 [handoff-manifest.json](handoff-manifest.json)：运行入口、数据等级、证据资产、已知限制与未验证项均以该文件为准。
+机器可读能力清单见 [handoff-manifest.json](handoff-manifest.json)，定义运行入口、配置、数据等级、证据资产、验证范围与限制。
 
-- 来源钉定：合格证据必须钉定精确来源提交。在干净工作区上以 `RELEASE_CANDIDATE_SOURCE_COMMIT` 与 `RELEASE_CANDIDATE_E2E=1` 执行 `pnpm release-candidate`，门禁会校验 HEAD 一致并生成 `.artifacts/release-candidate-qwen-evidence.json`。
-- 未验证项（未通过即保持未验证，不以其他层级替代）：
-  - 合格 Qwen Release Candidate 调用证明与 ProducerExecution 闭环：需在钉定来源上以真实 provider 调用执行门禁；
-  - 桌面分辨率与长内容场景的最终人工视觉确认：自动化 NFR 断言与截图已覆盖，正式视觉验收以用户实际确认为准；
-  - worker 重启恢复与长时运行内存/轮询预算：需要受控运行时压测证据，当前无自动化覆盖。
+`pnpm release-candidate` 在干净工作区校验 `RELEASE_CANDIDATE_SOURCE_COMMIT == HEAD` 和该提交的 CI / CodeQL，再使用运行环境显式配置的 Qwen 模型执行真实科研链及活跃任务 graceful restart。证据保存在 `.artifacts/release-candidate/<source_commit>/<execution_time>/`，包含 NASA 来源与选择依据、文献与定位证据、模型执行、图谱、分析和重启结果；同目录生成的交付清单记录精确提交、时间及实际验证事实。
+
+真实数据完整性要求覆盖多个对象与字段，至少 15 条数据、10 个字段、2 个来源、3 篇候选论文、4 个摘要科学章节、3 条定位证据、3 条有依据的主张及实际关系与图谱关系边。人工视觉验收覆盖 1280×800 与 1440×900；强杀恢复、网络分区及长期负载属于独立验证范围。
 
 ## 快速开始
 
@@ -89,7 +89,7 @@ docker compose up --build --wait
 | API 文档 | `http://127.0.0.1:8000/api/docs` |
 | PostgreSQL | `127.0.0.1:5432` |
 
-真实 Qwen 使用 DashScope 服务端配置。API Key 只写入本地 `.env` 或运行环境 Secret，不进入前端 bundle、Git、日志、Artifact 或公开 Share。
+真实 Qwen 使用 DashScope 服务端配置：运行环境显式提供 `DASHSCOPE_API_KEY` 与 `DASHSCOPE_MODEL`，仓库没有默认测试型号；`DASHSCOPE_EXPLICIT_MODEL_REVISION` 可选，提供时须与模型身份一致，未提供时记录为 null。API Key 只写入本地 `.env` 或运行环境 Secret，不进入前端 bundle、Git、日志、Artifact 或公开 Share。
 
 ### 前端开发
 

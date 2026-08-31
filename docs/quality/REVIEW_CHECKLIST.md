@@ -74,7 +74,7 @@
 
 - [ ] 针对性 Unit/Contract/Integration 已通过。
 - [ ] 风险涉及数据库/Worker/Publisher 时有真实 PostgreSQL/vertical proof。
-- [ ] 用户功能有 Browser proof；正式产品 closure 覆盖 keyboard、200% text 与核心 viewport。
+- [ ] 用户功能有 Browser proof；正式产品 closure 覆盖 keyboard、1280×800 与 1440×900 viewport。
 - [ ] 没有通过删除断言、降低 Evidence gate、伪造 Fixture 或过度 snapshot 获得绿色测试。
 - [ ] CI claim 已独立核对；无法绑定 exact HEAD 的检查明确写“未独立验证”。
 
@@ -87,7 +87,7 @@
 - same-count / same-status 但真实 Evidence 内容变化是否被漏掉；
 - partial/unsupported/failure 是否被吞掉；
 - 新增能力是否只是表面接入而未真正融入统一产品链；
-- 200% text、长内容、权限边界、revoked/expired share 是否遗漏；
+- 长内容、权限边界、revoked/expired share 是否遗漏；
 - 是否有更简单、复用更多、删除更多的实现。
 
 ## 11. Formal Review Output

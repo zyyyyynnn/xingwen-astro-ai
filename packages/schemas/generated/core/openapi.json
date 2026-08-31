@@ -13972,6 +13972,16 @@
               }
             ]
           },
+          "relation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicPresentationRelation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "status": {
             "anyOf": [
               {
@@ -14129,6 +14139,28 @@
           "text"
         ],
         "title": "PublicPresentationParagraph",
+        "type": "object"
+      },
+      "PublicPresentationRelation": {
+        "additionalProperties": false,
+        "description": "The two published claims connected by a literature relation.",
+        "properties": {
+          "source_claim": {
+            "minLength": 1,
+            "title": "Source Claim",
+            "type": "string"
+          },
+          "target_claim": {
+            "minLength": 1,
+            "title": "Target Claim",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_claim",
+          "target_claim"
+        ],
+        "title": "PublicPresentationRelation",
         "type": "object"
       },
       "PublicPresentationSection": {

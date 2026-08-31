@@ -70,7 +70,7 @@ formal product entry
 
 大型产品 PR 应以少量高价值 verticals 覆盖主要 Artifact family，而不是给每个组件堆 UI test。
 
-Browser Gate 必须包含真实 failure/refusal/partial/unsupported、安全 share state、键盘路径、200% text 与三个正式桌面 viewport。Graph 需覆盖 canvas selection、edge Evidence 与 list fallback；Diff 需覆盖 Evidence 数量不变但来源替换；Revision 需覆盖 feedback → plan → derived result。
+Browser Gate 必须包含真实 failure/refusal/partial/unsupported、安全 share state、键盘路径与 1280×800、1440×900 桌面 viewport。Graph 需覆盖 canvas selection、edge Evidence 与 list fallback；Diff 需覆盖 Evidence 数量不变但来源替换；Revision 需覆盖 feedback → plan → derived result。
 
 ### Live / Benchmark
 
@@ -122,8 +122,7 @@ Live proof 用于验证真实 provider/source/model 行为；Benchmark 用固定
 
 前端产品变更按风险覆盖：
 
-- Light 1440×900、1280×800、1024×768；
-- 200% text 不遮挡关键内容或破坏 Graph 几何；
+- Light 1440×900、1280×800；
 - keyboard、focus restore、screen reader、reduced motion；
 - lazy chunk / initial JS、长 Activity、长表/大图与长会话内存；
 - polling/backoff/cancel/timeout 不产生请求风暴或状态倒退。

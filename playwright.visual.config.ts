@@ -1,8 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Temporary visual-acceptance harness.
- * Boots the Workspace in Demo Replay (fixture) mode on an isolated port and
+ * Desktop visual acceptance harness.
+ * Boots the Workspace in explicit fixture mode on an isolated port and
  * drives every route/component/state for full-page screenshot capture.
  */
 export default defineConfig({
@@ -26,7 +26,10 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
-        viewport: { width: 1440, height: 900 },
+        viewport:
+          process.env.VISUAL_VIEWPORT === "1280x800"
+            ? { width: 1280, height: 800 }
+            : { width: 1440, height: 900 },
       },
     },
   ],

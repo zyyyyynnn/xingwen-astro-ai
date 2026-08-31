@@ -14,6 +14,7 @@ from app.schemas.core import (
     PublicPresentationGraphEdge,
     PublicPresentationGraphNode,
     PublicPresentationParagraph,
+    PublicPresentationRelation,
     PublicPresentationSection,
     PublicPresentationTable,
     PublicPresentationTableCell,
@@ -709,6 +710,10 @@ def build_artifact_presentation(
                     status=relation.status.value,
                     assessment=relation.relation_type.value,
                     can_adjudicate=literature_relation_adjudicable(relation),
+                    relation=PublicPresentationRelation(
+                        source_claim=claims[str(relation.source_claim_id)],
+                        target_claim=claims[str(relation.target_claim_id)],
+                    ),
                     facts=_facts(
                         _fact("成立条件", *relation.conditions),
                         _fact("条件冲突", *relation.condition_conflicts),

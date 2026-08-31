@@ -317,7 +317,7 @@ class ModelRuntimeRegistry:
                 max_retries=self._max_retries,
             ),
             provider=(
-                "qwen"
+                "dashscope"
                 if stored.preset is ModelProviderPreset.dashscope
                 else "openai_compatible"
             ),
@@ -525,23 +525,25 @@ def deployment_runtime(
     max_retries: int,
 ) -> ModelRuntimeSnapshot:
     normalized_key = api_key.strip() if api_key else None
+    normalized_model = model.strip()
+    configured = bool(normalized_key and normalized_model)
     return ModelRuntimeSnapshot(
         port=QwenModelExecutionAdapter(
-            api_key=normalized_key,
+            api_key=normalized_key if configured else None,
             base_url=base_url,
             timeout_seconds=timeout_seconds,
             max_retries=max_retries,
         ),
-        provider="qwen",
-        requested_model=model,
+        provider="dashscope",
+        requested_model=normalized_model,
         explicit_revision=explicit_revision,
         revision=0,
         source=(
-            ModelProviderConfigurationSource.deployment if normalized_key else None
+            ModelProviderConfigurationSource.deployment if configured else None
         ),
-        preset=ModelProviderPreset.dashscope if normalized_key else None,
-        base_url=base_url if normalized_key else None,
-        api_key_hint=normalized_key[-4:] if normalized_key else None,
+        preset=ModelProviderPreset.dashscope if configured else None,
+        base_url=base_url if configured else None,
+        api_key_hint=normalized_key[-4:] if configured and normalized_key else None,
         verified_at=None,
         updated_at=None,
     )

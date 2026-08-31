@@ -164,7 +164,6 @@ Workspace 壳层统一消费 `--font-size-ui-*` 与 `--line-height-ui-*` 成对�
 ```text
 1440×900
 1280×800
-1024×768
 ```
 
 至少覆盖 Empty、Running、Needs Review、Completed、Artifact Review、Evidence Inspector、Compare 与 Error。

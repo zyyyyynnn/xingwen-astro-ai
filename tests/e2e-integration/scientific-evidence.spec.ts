@@ -83,7 +83,7 @@ test("real worker closes the reasoning chain into an operable evidence graph", a
         try {
           response = await fetch(url, { credentials: "include", ...init });
         } catch (error) {
-          throw new Error(`network ${url}: ${(error as Error).message}`);
+          throw new Error(`network ${url}`, { cause: error });
         }
         if (!response.ok) {
           throw new Error(
@@ -239,7 +239,7 @@ test("fixture dataset result stays readable with row-level evidence", async ({
         try {
           response = await fetch(url, { credentials: "include", ...init });
         } catch (error) {
-          throw new Error(`network ${url}: ${(error as Error).message}`);
+          throw new Error(`network ${url}`, { cause: error });
         }
         if (!response.ok) {
           throw new Error(

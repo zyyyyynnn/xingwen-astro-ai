@@ -334,7 +334,7 @@ class _RevisionScriptedModel:
                 },
                 latency_ms=2,
                 provider_request_id="req-revision-agent",
-                provider_returned_model="qwen3.7-max-2026-08-01",
+                provider_returned_model="test-returned-model-snapshot",
                 tool_calls=(
                     ModelToolCall(
                         id=f"call-{uuid4()}",
@@ -456,7 +456,7 @@ class _RevisionScriptedModel:
             },
             latency_ms=3,
             provider_request_id=f"req-revision-{request.prompt_name}",
-            provider_returned_model="qwen3.7-max-2026-08-01",
+            provider_returned_model="test-returned-model-snapshot",
         )
 
 

@@ -1,6 +1,3 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
-
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import type {
   ArtifactKind,
@@ -10,6 +7,7 @@ import type {
   FieldDictionaryArtifactRead,
   GraphArtifactRead,
   GraphEdgeRead,
+  GraphNodeRead,
   LiteratureClaimRead,
   LiteratureRelationRead,
   PaperCandidateInputBinding,
@@ -24,13 +22,19 @@ import type {
   SourceCollectionArtifactRead,
 } from "../../packages/contracts/src";
 import { exoplanetHostStarFixture } from "@xingwen/data-access";
-import { readReleaseRuntime, restartActiveWorker } from "./release-runtime";
+import {
+  readReleaseRuntime,
+  restartActiveWorker,
+  writeReleaseEvidence as report,
+} from "./release-runtime";
 
 const API_ORIGIN =
   process.env.REAL_INTEGRATION_API_ORIGIN ?? "http://127.0.0.1:8000";
-const QUALIFYING_QWEN_MODEL =
-  process.env.RELEASE_CANDIDATE_QWEN_MODEL ?? "qwen3.7-max-2026-06-08";
+const RUNTIME_QWEN_MODEL = process.env.RELEASE_CANDIDATE_QWEN_MODEL?.trim();
+const EXPLICIT_REVISION =
+  process.env.DASHSCOPE_EXPLICIT_MODEL_REVISION?.trim() || null;
 const SOURCE_COMMIT = process.env.RELEASE_CANDIDATE_SOURCE_COMMIT;
+const observedRuns = new Set<string>();
 const REQUIRED_ARTIFACT_KINDS = [
   "dataset",
   "field_dictionary",
@@ -68,15 +72,6 @@ interface ArtifactHandle {
   detail: ArtifactVersionDetail;
 }
 
-async function report(name: string, value: unknown) {
-  await mkdir(".artifacts", { recursive: true });
-  await writeFile(
-    path.resolve(".artifacts", name),
-    JSON.stringify(value, null, 2) + "\n",
-    "utf8",
-  );
-}
-
 async function apiData<T>(page: Page, pathname: string): Promise<T> {
   const response = await page.request.get(API_ORIGIN + pathname);
   expect(response.ok(), pathname + ": " + (await response.text())).toBe(true);
@@ -84,6 +79,7 @@ async function apiData<T>(page: Page, pathname: string): Promise<T> {
 }
 
 async function waitForRun(page: Page, runId: string): Promise<ResearchRun> {
+  observedRuns.add(runId);
   let run = await apiData<ResearchRun>(page, "/api/runs/" + runId);
   await expect
     .poll(
@@ -239,6 +235,11 @@ function summaryCompleteness(read: PaperSummaryRead) {
     section_count: SUMMARY_SECTIONS.filter(
       (section) => read.summary[section].length > 0,
     ).length,
+    locator_backed_evidence: read.summary.evidence.filter(
+      (evidence) =>
+        evidence.locator.document_parse_id &&
+        evidence.locator.document_locator?.page_index !== undefined,
+    ).length,
     evidence_count: read.evidence.length,
     unsupported_statements: SUMMARY_SECTIONS.flatMap(
       (section) => read.summary[section],
@@ -248,7 +249,7 @@ function summaryCompleteness(read: PaperSummaryRead) {
 
 async function fixtureReference() {
   const data = exoplanetHostStarFixture.data;
-  await report("release-candidate-completeness-baseline.json", {
+  await report("fixture-structure-reference.json", {
     source_commit: SOURCE_COMMIT,
     qualifying: false,
     source_mode: "fixture",
@@ -279,20 +280,59 @@ async function fixtureReference() {
   });
 }
 
-function qwenExecution(version: ArtifactVersionDetail) {
+function qwenExecution(
+  version: ArtifactVersionDetail,
+  runtime: Awaited<ReturnType<typeof readReleaseRuntime>>,
+) {
   expect(version.producer).toMatchObject({
     type: "model",
     model_provider: "dashscope",
-    requested_model: QUALIFYING_QWEN_MODEL,
-    explicit_revision: QUALIFYING_QWEN_MODEL,
+    requested_model: RUNTIME_QWEN_MODEL,
+    explicit_revision: EXPLICIT_REVISION,
   });
   expect(version.producer.provider_returned_model).toBeTruthy();
-  expect(version.producer_execution.provider_request_id).toBeTruthy();
+  const execution = version.producer_execution;
+  const requests = runtime.model_executions.filter(
+    (item) =>
+      item.provider_request_id &&
+      (execution.provider_request_id
+        ? item.id === execution.id
+        : item.step_attempt_id === execution.step_attempt_id &&
+          item.step_key === execution.step_key &&
+          item.prompt_name === version.producer.prompt_name &&
+          item.prompt_hash === version.producer.prompt_hash),
+  );
+  expect(requests.length).toBeGreaterThan(0);
+  for (const request of requests) {
+    expect(request).toMatchObject({
+      status: "completed",
+      model_provider: "dashscope",
+      requested_model: RUNTIME_QWEN_MODEL,
+      explicit_revision: EXPLICIT_REVISION,
+    });
+    expect(request.provider_returned_model).toBeTruthy();
+    expect(request.latency_ms).toBeGreaterThan(0);
+    expect(
+      Object.values(request.token_usage ?? {}).some((count) => count > 0),
+    ).toBe(true);
+  }
   expect(version.producer_execution.status).toBe("completed");
+  expect(version.producer.prompt_name).toBeTruthy();
+  expect(version.producer.prompt_version).toBeTruthy();
+  expect(version.producer.prompt_hash).toBeTruthy();
+  expect(version.producer_execution.input_hash).toBeTruthy();
+  expect(version.producer_execution.output_hash).toBeTruthy();
+  expect(version.producer_execution.latency_ms).toBeGreaterThan(0);
+  expect(
+    Object.values(version.producer_execution.token_usage ?? {}).some(
+      (count) => count > 0,
+    ),
+  ).toBe(true);
   return {
     artifact_version_id: version.id,
     producer: version.producer,
     execution: version.producer_execution,
+    requests,
   };
 }
 
@@ -301,10 +341,32 @@ test.skip(
   "Requires the clean exact-HEAD release stack, real Qwen, and real external scientific sources.",
 );
 
+test.afterEach(async ({ page }, testInfo) => {
+  if (process.env.RELEASE_CANDIDATE_E2E !== "1") return;
+  const runtimes = [];
+  for (const runId of observedRuns) {
+    try {
+      runtimes.push(await readReleaseRuntime(runId));
+    } catch {
+      runtimes.push({ run_id: runId, result: "runtime_read_unavailable" });
+    }
+  }
+  await report("release-candidate-runtime.json", {
+    result: testInfo.status === "passed" ? "passed" : "failed",
+    route: new URL(page.url()).pathname,
+    runtimes,
+  });
+});
+
 test("fresh Workspace completes real acquisition, document evidence, and research revision", async ({
   page,
 }, testInfo) => {
   test.setTimeout(50 * 60_000);
+  if (!RUNTIME_QWEN_MODEL) {
+    throw new Error(
+      "RELEASE_CANDIDATE_QWEN_MODEL must explicitly select the runtime model",
+    );
+  }
   expect(SOURCE_COMMIT).toMatch(/^[0-9a-f]{40}$/u);
   await fixtureReference();
   const warnings: string[] = [];
@@ -403,10 +465,8 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
   expect(runResponse.ok(), await runResponse.text()).toBe(true);
   const initialRunId = ((await runResponse.json()) as { data: ResearchRun })
     .data.id;
-  await report(
-    "restart-recovery-smoke.json",
-    await restartActiveWorker(page, initialRunId),
-  );
+  observedRuns.add(initialRunId);
+  await restartActiveWorker(page, initialRunId);
   const initialRun = await waitForRun(page, initialRunId);
   expect(initialRun).toMatchObject({
     execution_mode: "live",
@@ -456,10 +516,25 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
       collectionArtifact.detail.id +
       "/paper-collection",
   );
-  expect(dataset.dataset.row_count).toBeGreaterThan(2);
-  expect(dataset.dataset.field_count).toBeGreaterThan(2);
-  expect(dataset.source_snapshots.length).toBeGreaterThan(1);
-  expect(dataset.evidence.length).toBeGreaterThan(1);
+  await report("live-source-acquisition.json", {
+    dataset,
+    dictionary,
+    sources,
+  });
+  expect(dataset.dataset.row_count).toBeGreaterThanOrEqual(15);
+  expect(dataset.dataset.field_count).toBeGreaterThanOrEqual(10);
+  expect(dataset.source_snapshots.length).toBeGreaterThanOrEqual(2);
+  const cells = dataset.evidence.filter(
+    (item) => item.locator.kind === "database_cell",
+  );
+  expect(
+    new Set(cells.map((item) => item.target_id)).size,
+  ).toBeGreaterThanOrEqual(3);
+  expect(
+    new Set(
+      cells.map((item) => JSON.stringify(item.locator.row_key)).filter(Boolean),
+    ).size,
+  ).toBeGreaterThanOrEqual(2);
   expect(dictionary.field_dictionary.field_definitions.length).toBe(
     dataset.dataset.field_count,
   );
@@ -467,17 +542,13 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
     expect.arrayContaining(dataset.dataset.source_snapshot_ids),
   );
   const candidates = collection.collection.candidates ?? [];
-  expect(candidates.length).toBeGreaterThan(1);
+  expect(candidates.length).toBeGreaterThanOrEqual(3);
   const paper = candidates.find(
     (candidate) => candidate.selected && candidate.doi === PAPER.doi,
   );
   if (!paper)
     throw new Error(
       "Live search did not return the independently verified open paper",
-    );
-  if (dataset.dataset.row_count < 15)
-    warnings.push(
-      "Dataset has fewer than 15 records; review the real source scope.",
     );
   if (collection.collection.acquisition_run.status !== "completed")
     warnings.push("Paper acquisition is partial.");
@@ -598,15 +669,28 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
         evidence.locator.document_locator?.page_index !== undefined,
     ),
   ).toBe(true);
-  expect(summaryCompleteness(summary).section_count).toBeGreaterThan(1);
+  expect(summaryCompleteness(summary).section_count).toBeGreaterThanOrEqual(4);
+  expect(
+    summaryCompleteness(summary).locator_backed_evidence,
+  ).toBeGreaterThanOrEqual(3);
   const claims = await apiData<LiteratureClaimRead[]>(
     page,
     "/api/artifact-versions/" +
       claimsVersion.id +
       "/literature-claims?limit=100",
   );
-  expect(claims.length).toBeGreaterThan(1);
-  expect(claims.every((claim) => claim.evidence.length > 0)).toBe(true);
+  expect(claims.length).toBeGreaterThanOrEqual(3);
+  expect(
+    claims.every((claim) =>
+      claim.evidence.some(
+        (evidence) =>
+          Object.keys(evidence.locator).length > 0 &&
+          claim.source_snapshots.some(
+            (source) => source.id === evidence.source_snapshot_id,
+          ),
+      ),
+    ),
+  ).toBe(true);
   let relations = await apiData<LiteratureRelationRead[]>(
     page,
     "/api/artifact-versions/" +
@@ -618,8 +702,14 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
     "No real relation was produced; do not manufacture one",
   ).toBeGreaterThan(0);
   const qwenExecutions = [summaryVersion, claimsVersion, relationsVersion].map(
-    qwenExecution,
+    (version) => qwenExecution(version, documentRuntime),
   );
+  await report("live-literature-evidence.json", {
+    summary,
+    claims,
+    relations,
+    executions: qwenExecutions,
+  });
   const relationStatusesBeforeReview = relationStatuses(relations);
 
   fullscreen = await openThreadArtifact(page, projectId, summaryVersion.id);
@@ -701,8 +791,19 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
     "/api/artifact-versions/" + graphVersion.id + "/graph/edges?limit=100",
   );
   expect(graph.integrity_report.status).toBe("passed");
-  expect(graph.node_count).toBeGreaterThan(0);
-  expect(graph.edge_count).toBeGreaterThan(0);
+  expect(graph.node_count).toBeGreaterThanOrEqual(6);
+  expect(graph.edge_count).toBeGreaterThanOrEqual(3);
+  expect(
+    graph.integrity_report.counts.relation_edge_count,
+  ).toBeGreaterThanOrEqual(1);
+  const nodes = await apiData<GraphNodeRead[]>(
+    page,
+    "/api/artifact-versions/" + graphVersion.id + "/graph/nodes?limit=100",
+  );
+  expect(
+    nodes.filter(({ node }) => node.node_type === "claim").length,
+  ).toBeGreaterThanOrEqual(3);
+  await report("live-graph-evidence.json", { graph, nodes, edges });
   expect(
     edges.every((edge) => !edge.relation || edge.relation.graph_eligible),
   ).toBe(true);
@@ -807,6 +908,8 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
   expect(analysis.evidence.length).toBeGreaterThan(0);
   const analysisMetrics = analysis.content.metrics ?? [];
   expect(analysisMetrics.length).toBeGreaterThan(0);
+  expect(analysis.content.findings?.length ?? 0).toBeGreaterThan(0);
+  await report("live-analysis-evidence.json", { analysis });
   fullscreen = await openThreadArtifact(
     page,
     projectId,
@@ -909,11 +1012,11 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
     model: {
       provider: "dashscope",
       configured_official_route: documentRuntime.qwen_route,
-      requested_model: QUALIFYING_QWEN_MODEL,
-      explicit_revision: QUALIFYING_QWEN_MODEL,
+      requested_model: RUNTIME_QWEN_MODEL,
+      explicit_revision: EXPLICIT_REVISION,
     },
-    producer_request_ids: qwenExecutions.map(
-      (item) => item.execution.provider_request_id,
+    producer_request_ids: qwenExecutions.flatMap((item) =>
+      item.requests.map((request) => request.provider_request_id),
     ),
     runs: {
       initial: initialRunId,

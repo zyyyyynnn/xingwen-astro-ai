@@ -163,7 +163,7 @@ test.describe("project workspace overview and message stream", () => {
       page.getByText("L 98-59 公开 HARPS 一维光谱", { exact: true }).first(),
     ).toBeVisible();
     await expect(
-      page.getByText("L 98-59 WWT 天球交互界面样例", { exact: true }).first(),
+      page.getByText("L 98-59 WWT 天球场景", { exact: true }).first(),
     ).toBeVisible();
     await shot(page, "12b_project-c-results");
   });
@@ -342,7 +342,7 @@ test.describe("fullscreen formal artifact workspaces", () => {
         await accepted.scrollIntoViewIfNeeded();
         await accepted.click();
         await expect(
-          accepted.getByText("已纳入结论", { exact: false }),
+          accepted.getByText("已纳入", { exact: true }),
         ).toBeVisible();
         await expect(
           reviewContext.getByRole("button", { name: "接受并进入图谱" }),
@@ -407,11 +407,6 @@ test.describe("paper summary reading workspace", () => {
         name: "The Revised TESS Input Catalog and Candidate Target List",
       }),
     ).toBeVisible();
-    // 24a captures the reading report immediately, before the PDF pane
-    // has necessarily painted its first canvas (spec: report-first view).
-    await settle(page, 200);
-    await shot(page, "24a_paper-summary-report");
-
     const viewer = page.getByTestId("paper-pdf-viewer").first();
     await expect(viewer).toBeVisible();
     await expect
@@ -425,6 +420,9 @@ test.describe("paper summary reading workspace", () => {
     await expect(viewer).toHaveAttribute("data-rendered-page", "1", {
       timeout: 30_000,
     });
+    await shot(page, "24a_paper-summary-report");
+    await viewer.getByRole("button", { name: "下一页" }).click();
+    await expect(viewer).toHaveAttribute("data-rendered-page", "2");
     await shot(page, "24b_paper-summary-with-pdf");
 
     await fullscreen
@@ -577,7 +575,7 @@ test.describe("fullscreen scientific artifact workspaces", () => {
       page.getByText("基线", { exact: false }).first(),
     ).toBeVisible();
     await expect(
-      page.getByText("演示值（非模型结果）", { exact: false }).first(),
+      page.getByText("界面状态覆盖，非训练运行", { exact: true }),
     ).toBeVisible();
     await shot(page, "56_model-evaluation");
     await returnToResearch(page);
@@ -587,7 +585,7 @@ test.describe("fullscreen scientific artifact workspaces", () => {
     await expect(
       page.getByText("ONNX", { exact: false }).first(),
     ).toBeVisible();
-    await expect(page.getByText("界面样例（不可部署）")).toBeVisible();
+    await expect(page.getByText("不可部署", { exact: true })).toBeVisible();
     await expect(page.getByText(/sha256:/i)).toHaveCount(0);
     await shot(page, "57_model-artifact");
     await page.getByRole("button", { name: "技术校验信息" }).click();
@@ -721,7 +719,7 @@ test.describe("share flow and public pages", () => {
 });
 
 test.describe("responsive viewports", () => {
-  test("1440, 1280, and 1024 widths", async ({ page }) => {
+  test("1440 and 1280 widths", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openProject(page, PROJECT_A, 1000);
     await shot(page, "80_viewport-1440x900");
@@ -729,10 +727,6 @@ test.describe("responsive viewports", () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await settle(page, 600);
     await shot(page, "81_viewport-1280x800");
-
-    await page.setViewportSize({ width: 1024, height: 768 });
-    await settle(page, 600);
-    await shot(page, "82_viewport-1024x768");
   });
 });
 

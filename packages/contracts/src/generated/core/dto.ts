@@ -1167,6 +1167,7 @@ export interface PublicPresentationEntry {
   key: string;
   paragraphs?: string[];
   reasoning_trace?: PublicPresentationTrace | null;
+  relation?: PublicPresentationRelation | null;
   status?: string | null;
   title: string;
 }
@@ -1195,6 +1196,16 @@ export interface PublicPresentationTrace {
   facts?: PublicPresentationFact[];
   steps: string[];
   trace_id: string;
+}
+/**
+ * The two published claims connected by a literature relation.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PublicPresentationRelation".
+ */
+export interface PublicPresentationRelation {
+  source_claim: string;
+  target_claim: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema

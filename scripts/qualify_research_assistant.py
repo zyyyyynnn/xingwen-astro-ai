@@ -19,7 +19,7 @@ def main() -> int:
         if len(sys.argv) > 1
         else "比较太阳型恒星与红矮星宜居带行星研究的观测偏差，并先确认研究范围。"
     )
-    if settings.DASHSCOPE_API_KEY is None:
+    if not settings.research_assistant_ready or settings.DASHSCOPE_API_KEY is None:
         print(json.dumps({"status": "blocked", "code": "MODEL_RUNTIME_UNAVAILABLE"}))
         return 2
 

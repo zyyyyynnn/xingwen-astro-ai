@@ -176,7 +176,7 @@ class _ChunkModel:
             provider_returned_model=(
                 f"qwen3.8-max-route-{len(self.requests) % 2}"
                 if self.vary_returned_model
-                else "qwen3.8-max-2026-08-01"
+                else "test-returned-model-snapshot"
             ),
         )
 
@@ -216,11 +216,11 @@ def test_long_document_runs_one_bounded_call_per_chunk() -> None:
     assert len(result.chunk_provider_request_ids) == result.chunk_count
     assert result.model_response.provider_request_id is None
     assert result.admission.producer.provider_request_id is None
-    assert result.model_response.provider_returned_model == "qwen3.8-max-2026-08-01"
-    assert result.admission.producer.provider_returned_model == "qwen3.8-max-2026-08-01"
+    assert result.model_response.provider_returned_model == "test-returned-model-snapshot"
+    assert result.admission.producer.provider_returned_model == "test-returned-model-snapshot"
     assert (
         result.chunk_provider_returned_models
-        == ("qwen3.8-max-2026-08-01",) * result.chunk_count
+        == ("test-returned-model-snapshot",) * result.chunk_count
     )
 
 

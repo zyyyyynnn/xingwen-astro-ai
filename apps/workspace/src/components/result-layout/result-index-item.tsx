@@ -98,7 +98,7 @@ export function ResultIndexItem({
         onClick={() => onOpen(latestVersionId)}
         aria-label={`查看 ${title} 完整结果`}
       >
-        <ItemMedia variant="icon" className="xw-result-index-item__icon">
+        <ItemMedia className="xw-result-index-item__icon">
           <ResultKindIcon kind={kind} />
         </ItemMedia>
         <ItemContent>

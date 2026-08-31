@@ -791,9 +791,6 @@ button:disabled {
 .xw-result-index-item__icon {
   inline-size: var(--control-size-sm);
   block-size: var(--control-size-sm);
-  border: 0;
-  border-radius: 0;
-  background: transparent;
   color: var(--color-ink-secondary);
 }
 
@@ -3225,7 +3222,7 @@ button:disabled {
 .source-collection__item {
   align-content: flex-start;
   align-items: flex-start;
-  padding: var(--space-4);
+  padding: var(--space-3) 0;
   border: 0;
   border-block-end: var(--border-width-default) solid var(--color-border);
   border-radius: 0;
@@ -3266,32 +3263,13 @@ button:disabled {
   font-size: var(--font-size-ui-label);
 }
 
-.source-collection__assurance {
+.xw-pdf-viewer__loading {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding-block: var(--space-3);
-  border-block-start: var(--border-width-default) solid var(--color-border);
-  color: var(--color-ink-secondary);
-}
-
-.source-collection__assurance > svg {
-  inline-size: var(--icon-size-md);
-  block-size: var(--icon-size-md);
-  flex: 0 0 auto;
-  color: var(--color-success);
-}
-
-.source-collection__assurance div {
-  display: flex;
-  min-inline-size: 0;
   flex-direction: column;
-  gap: var(--space-1);
-  font-size: var(--font-size-ui-label);
-}
-
-.source-collection__assurance strong {
-  color: var(--color-ink-primary);
+  gap: var(--space-3);
+  max-inline-size: var(--workspace-result-reading-max-inline-size);
+  margin-inline: auto;
+  color: var(--color-ink-secondary);
   font-size: var(--font-size-ui-body);
 }
 
@@ -3636,7 +3614,6 @@ button:disabled {
   max-inline-size: calc(100% - var(--space-6));
   margin: 0;
   padding: var(--space-2) var(--space-3);
-  border: var(--border-width-default) solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
 }
@@ -3823,6 +3800,12 @@ button:disabled {
   gap: var(--space-4);
 }
 
+.observation-workspace--fits .observation-workspace__body {
+  grid-template-columns: minmax(0, 1fr) var(
+      --workspace-result-sheet-narrow-inline-size
+    );
+}
+
 .observation-workspace__canvas {
   min-inline-size: 0;
 }
@@ -3834,7 +3817,7 @@ button:disabled {
   gap: var(--space-1);
   overflow: hidden;
   border-radius: var(--radius-lg);
-  background: var(--color-surface-muted);
+  background: var(--color-surface);
 }
 
 .observation-workspace__inspector-header {
@@ -3929,7 +3912,7 @@ button:disabled {
 .wwt-scene-controls__group-label {
   flex-basis: 100%;
   padding-inline: 0;
-  color: var(--color-ink-tertiary);
+  color: var(--color-ink-secondary);
   font-size: var(--font-size-ui-label);
   font-weight: var(--font-weight-ui-strong);
 }
@@ -3939,13 +3922,8 @@ button:disabled {
 }
 
 .wwt-scene-controls__group .wwt-scene-controls__select {
+  block-size: var(--control-size-sm);
   min-block-size: var(--control-size-sm);
-  border-color: var(--color-border);
-  background: var(--color-surface);
-}
-
-.wwt-scene-controls__group .wwt-scene-controls__select:hover {
-  background: var(--color-surface-hover);
 }
 
 .wwt-scene-controls__group input {
@@ -3963,7 +3941,8 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
-  .observation-workspace__body {
+  .observation-workspace__body,
+  .observation-workspace--fits .observation-workspace__body {
     grid-template-columns: 1fr;
   }
 
@@ -4177,6 +4156,34 @@ button:disabled {
   font-size: var(--font-size-4);
   font-weight: var(--font-weight-ui-emphasis);
   line-height: var(--line-height-ui-heading);
+}
+
+.literature-review__claim-pair {
+  display: grid;
+  gap: var(--space-3);
+  font-size: var(--font-size-ui-body);
+  line-height: var(--line-height-ui-body);
+}
+
+.literature-review__claim-pair > p {
+  font-weight: var(--font-weight-ui-emphasis);
+  text-wrap: pretty;
+}
+
+.literature-review__connector {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-brand);
+  font-size: var(--font-size-ui-label);
+  font-weight: var(--font-weight-ui-emphasis);
+}
+
+.literature-review__connector > svg {
+  inline-size: var(--icon-size-md);
+  block-size: var(--icon-size-md);
+  flex: none;
+  transform: rotate(90deg);
 }
 
 .literature-review__context-section {
@@ -4833,6 +4840,12 @@ button:disabled {
 .scientific-plot__axis-label,
 .scientific-plot__tick-label {
   fill: var(--color-ink-secondary);
+}
+
+.scientific-plot__axis-label {
+  fill: var(--color-ink-primary);
+  font-size: var(--font-size-ui-body);
+  font-weight: var(--font-weight-ui-emphasis);
 }
 
 .scientific-plot__annotation-label {

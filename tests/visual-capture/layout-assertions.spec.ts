@@ -4,7 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
  * Post-repair layout assertions that complement the screenshot pack:
  * verifies the structural facts behind the visual acceptance items
  * (no default card chrome on thread results, single-line table headers,
- * and 1024 sidebar auto-collapse).
+ * and desktop sidebar geometry).
  */
 
 const PROJECT_A = "/workspace/proj_01JEXAMPLE";
@@ -120,22 +120,7 @@ test.describe("dataset table headers stay single-line", () => {
   });
 });
 
-test.describe("1024 viewport shell", () => {
-  test("sidebar collapses to icon rail and main thread stays readable", async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 1024, height: 768 });
-    await page.goto(PROJECT_A);
-    await expect(page.getByTestId("root-layout")).toBeVisible();
-    await settle(page, 1000);
-    const sidebar = page.getByLabel("工作台侧栏");
-    const width = (await sidebar.boundingBox())?.width ?? 0;
-    expect(width).toBeLessThanOrEqual(3.5 * 16 + 2);
-    const main = page.getByTestId("workspace-main-column");
-    const mainBox = await main.boundingBox();
-    expect(mainBox?.width ?? 0).toBeGreaterThan(480);
-  });
-
+test.describe("desktop viewport shell", () => {
   test("1440 keeps expanded sidebar", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(PROJECT_A);

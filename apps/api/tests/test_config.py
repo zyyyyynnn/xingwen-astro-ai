@@ -23,12 +23,17 @@ def test_development_allows_local_defaults() -> None:
     assert not re.fullmatch(settings.cors_origin_regex, "https://example.test")
 
 
-def test_dashscope_credentials_use_the_platform_environment_name() -> None:
+def test_dashscope_credentials_use_the_platform_environment_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DASHSCOPE_MODEL", raising=False)
+    monkeypatch.delenv("DASHSCOPE_EXPLICIT_MODEL_REVISION", raising=False)
     settings = Settings(_env_file=None, DASHSCOPE_API_KEY="test-key")
 
     assert settings.DASHSCOPE_API_KEY is not None
     assert settings.DASHSCOPE_API_KEY.get_secret_value() == "test-key"
-    assert settings.DASHSCOPE_MODEL == "qwen3.7-max-2026-06-08"
+    assert settings.DASHSCOPE_MODEL == ""
+    assert settings.research_assistant_ready is False
     assert settings.DASHSCOPE_EXPLICIT_MODEL_REVISION is None
     assert settings.DASHSCOPE_TIMEOUT_SECONDS == 300.0
     assert settings.DASHSCOPE_MAX_RETRIES == 0
@@ -46,10 +51,37 @@ def test_dashscope_retry_budget_is_bounded() -> None:
         Settings(_env_file=None, DASHSCOPE_MAX_RETRIES=5)
 
 
-def test_dashscope_model_is_not_limited_to_repository_test_baselines() -> None:
-    settings = Settings(_env_file=None, DASHSCOPE_MODEL="qwen-plus")
+@pytest.mark.parametrize(
+    ("key", "model", "ready"),
+    [("test-key", "", False), ("test-key", "  ", False),
+     (None, "runtime-model", False), ("test-key", " runtime-model ", True)],
+)
+def test_research_assistant_requires_credentials_and_runtime_model(
+    key: str | None, model: str, ready: bool,
+) -> None:
+    settings = Settings(
+        _env_file=None, DASHSCOPE_API_KEY=key, DASHSCOPE_MODEL=model,
+        DASHSCOPE_EXPLICIT_MODEL_REVISION=None,
+    )
+    assert settings.research_assistant_ready is ready
+    assert settings.DASHSCOPE_MODEL == model.strip()
 
-    assert settings.DASHSCOPE_MODEL == "qwen-plus"
+
+@pytest.mark.parametrize("revision", [None, "runtime-model"])
+def test_runtime_model_accepts_optional_matching_revision(revision: str | None) -> None:
+    settings = Settings(
+        _env_file=None, DASHSCOPE_MODEL="runtime-model",
+        DASHSCOPE_EXPLICIT_MODEL_REVISION=revision,
+    )
+    assert settings.DASHSCOPE_EXPLICIT_MODEL_REVISION == revision
+
+
+def test_runtime_model_rejects_mismatched_revision() -> None:
+    with pytest.raises(ValidationError, match="must equal"):
+        Settings(
+            _env_file=None, DASHSCOPE_MODEL="runtime-model",
+            DASHSCOPE_EXPLICIT_MODEL_REVISION="different-model",
+        )
 
 
 def test_paddleocr_remote_and_local_backends_are_mutually_exclusive() -> None:

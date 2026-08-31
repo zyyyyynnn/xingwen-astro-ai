@@ -12,10 +12,15 @@ from __future__ import annotations
 
 import json
 import logging
+import math
+from dataclasses import dataclass
+from datetime import datetime, timezone
 
+from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import ResearchContract
 from app.schemas.crossmatch import CrossmatchSourceInput
 from app.schemas.enums import SourceMode
+from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.manifest import ManifestBundle
 from app.schemas.source_acquisition import DataSourceDataLevel
 
@@ -25,6 +30,7 @@ from .sources.nasa_planetary_systems import (
     NasaPlanetarySystemsSupplementalAdapter,
 )
 from .sources.nasa_tap import NasaTapRequester
+from .sources.base import DataSourceAcquisitionResult
 from .supplemental_query import normalize_ps_supplemental_query
 
 
@@ -33,7 +39,7 @@ LOGGER = logging.getLogger(__name__)
 #: Frozen target-selection policy for the supported research case: the
 #: nearest confirmed planet-host systems, bounded for one live Run.
 SELECTION_POLICY_ID = "nearby-confirmed-hosts"
-SELECTION_POLICY_VERSION = "1.0.0"
+SELECTION_POLICY_VERSION = "1.1.0"
 SELECTION_MAX_TARGETS = 20
 SELECTION_MAX_DISTANCE_PARSECS = 20
 
@@ -45,14 +51,19 @@ ACQUISITION_RECORD_LIMIT = 100
 _TOI_PROVIDER_SOURCE_ID = "nasa_exoplanet_archive"
 
 _DISCOVERY_QUERY = (
-    "select distinct top {max_targets} t.tid from toi t join ps p on "
+    "select t.tid,min(p.sy_dist) as distance_pc from toi t join ps p on "
     "p.tic_id = CONCAT('TIC ',CAST(t.tid AS VARCHAR(20))) "
     "where t.tfopwg_disp='CP' and p.default_flag=1 "
-    "and p.sy_dist <= {max_distance} order by t.tid"
+    "and p.sy_dist <= {max_distance} group by t.tid order by distance_pc,t.tid"
 ).format(
-    max_targets=SELECTION_MAX_TARGETS,
     max_distance=SELECTION_MAX_DISTANCE_PARSECS,
 )
+
+
+@dataclass(frozen=True)
+class NearbyHostSelection:
+    tic_ids: tuple[str, ...]
+    provenance: dict[str, object]
 
 
 def acquire_case_sources(
@@ -62,7 +73,8 @@ def acquire_case_sources(
     """Acquire the frozen case crossmatch inputs gated by the confirmed Contract."""
 
     _require_contract_scope(bundle, contract)
-    tic_ids = discover_nearby_confirmed_tic_ids()
+    selection = select_nearby_confirmed_hosts()
+    tic_ids = selection.tic_ids
     mode = SourceMode.live
     level = DataSourceDataLevel.live_result
     left_result = NasaExoplanetArchiveAdapter(page_delay_seconds=0).acquire(
@@ -93,26 +105,31 @@ def acquire_case_sources(
         data_level=level,
     )
     return (
-        CrossmatchSourceInput(
-            source_mode=mode,
-            data_level=level,
-            records=left_result.records,
-            snapshot=left_result.snapshot,
-            completion=left_result.completion,
-        ),
-        CrossmatchSourceInput(
-            source_mode=mode,
-            data_level=level,
-            records=right_result.records,
-            snapshot=right_result.snapshot,
-            completion=right_result.completion,
-        ),
+        _selected_source_input(left_result, selection),
+        _selected_source_input(right_result, selection),
     )
 
 
-def _require_contract_scope(
-    bundle: ManifestBundle, contract: ResearchContract
-) -> None:
+def _selected_source_input(
+    result: DataSourceAcquisitionResult, selection: NearbyHostSelection
+) -> CrossmatchSourceInput:
+    snapshot = SourceSnapshotRecord.model_validate(
+        result.snapshot.model_dump()
+        | {
+            "request_metadata": result.snapshot.request_metadata
+            | {"target_selection": selection.provenance}
+        }
+    )
+    return CrossmatchSourceInput(
+        source_mode=SourceMode.live,
+        data_level=DataSourceDataLevel.live_result,
+        records=result.records,
+        snapshot=snapshot,
+        completion=result.completion,
+    )
+
+
+def _require_contract_scope(bundle: ManifestBundle, contract: ResearchContract) -> None:
     """Fail closed unless the confirmed Contract covers the frozen case closure."""
 
     case_roles = {target.role for target in bundle.case_manifest.target_objects}
@@ -131,26 +148,53 @@ def _require_contract_scope(
         )
 
 
-def discover_nearby_confirmed_tic_ids() -> tuple[str, ...]:
+def select_nearby_confirmed_hosts() -> NearbyHostSelection:
     """Run the frozen nearby-confirmed-host selection against the NASA TAP service."""
 
-    response, _, _ = NasaTapRequester(
+    params = {
+        "query": _DISCOVERY_QUERY,
+        "format": "json",
+        "MAXREC": SELECTION_MAX_TARGETS,
+    }
+    response, attempts, latency_ms = NasaTapRequester(
         failure_prefix="NASA_TARGET_DISCOVERY",
         source_label="nasa-nearby-confirmed-hosts",
         logger=LOGGER,
-    ).request({"query": _DISCOVERY_QUERY, "format": "json"})
+    ).request(params)
     try:
         payload = json.loads(response.body.decode("utf-8"))
-        tic_ids = tuple(
-            str(item["tid"])
-            for item in payload
-            if isinstance(item, dict) and isinstance(item.get("tid"), int)
-        )
-    except (UnicodeDecodeError, json.JSONDecodeError, TypeError) as error:
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError("NASA 目标发现结果无法验证") from error
-    if not tic_ids or len(tic_ids) != len(set(tic_ids)):
+    if not isinstance(payload, list) or not 1 <= len(payload) <= SELECTION_MAX_TARGETS:
+        raise ValueError("NASA 目标发现结果未遵守记录边界")
+    for item in payload:
+        if (
+            not isinstance(item, dict)
+            or type(item.get("tid")) is not int
+            or item["tid"] <= 0
+            or type(item.get("distance_pc")) not in (int, float)
+            or not math.isfinite(item["distance_pc"])
+            or not 0 <= item["distance_pc"] <= SELECTION_MAX_DISTANCE_PARSECS
+        ):
+            raise ValueError("NASA 目标发现返回无效宿主标识或距离")
+    tic_ids = tuple(str(item["tid"]) for item in payload)
+    if len(tic_ids) != len(set(tic_ids)):
         raise ValueError("NASA 目标发现未返回唯一的有效 TIC 标识")
-    return tic_ids
+    if payload != sorted(payload, key=lambda item: (item["distance_pc"], item["tid"])):
+        raise ValueError("NASA 目标发现未按距离与宿主标识稳定排序")
+    return NearbyHostSelection(
+        tic_ids=tic_ids,
+        provenance={
+            "policy_id": SELECTION_POLICY_ID,
+            "policy_version": SELECTION_POLICY_VERSION,
+            "request": params,
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "selected_hosts": payload,
+            "response_hash": compute_canonical_payload_hash(payload),
+            "attempt_count": attempts,
+            "latency_ms": latency_ms,
+        },
+    )
 
 
 __all__ = [
@@ -162,5 +206,5 @@ __all__ = [
     "SELECTION_POLICY_ID",
     "SELECTION_POLICY_VERSION",
     "acquire_case_sources",
-    "discover_nearby_confirmed_tic_ids",
+    "select_nearby_confirmed_hosts",
 ]

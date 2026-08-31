@@ -146,7 +146,7 @@ export function ScientificContentHeader({
   alerts = [],
 }: {
   readonly title: string;
-  readonly subtitle: string;
+  readonly subtitle: ReactNode;
   /** Only user-facing anomaly states (failures, warnings, partial results). */
   readonly alerts?: readonly ReactNode[];
 }) {

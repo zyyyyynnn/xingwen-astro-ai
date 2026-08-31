@@ -147,7 +147,7 @@ class ScriptedStepAgentModel:
             },
             latency_ms=3,
             provider_request_id="req-scripted-agent",
-            provider_returned_model="qwen3.8-max-2026-08-01",
+            provider_returned_model="test-returned-model-snapshot",
             tool_calls=(
                 ModelToolCall(
                     id="call-scripted-1",
@@ -2486,7 +2486,7 @@ def _assert_publication_chain(
         for execution in model_executions
     )
     assert all(
-        execution.provider_returned_model == "qwen3.8-max-2026-08-01"
+        execution.provider_returned_model == "test-returned-model-snapshot"
         for execution in model_executions
     )
 

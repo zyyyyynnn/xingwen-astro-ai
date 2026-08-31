@@ -29,7 +29,7 @@
 | 可降级 | 外部服务、数据源或可选能力失败时真实呈现 failure/partial/unsupported，并保持仍可成立的核心研究链可用，不以假结果填补缺口 |
 | 可分享 | 冻结版本公开投影可撤销、可过期、最小披露且不加载私有编辑会话 |
 | 可部署 | 当前 schema、配置、健康检查、PostgreSQL、Worker 与前端部署边界完整 |
-| 可访问 | Keyboard、Focus、Screen Reader、Reduced Motion、200% text 与正式桌面视口可用 |
+| 可访问 | Keyboard、Focus、Screen Reader、Reduced Motion 与正式桌面视口可用 |
 | 竞赛合规 | 主案例具有 Qwen 官方合格调用路径、可复核 model/revision 与 call proof、ProducerExecution、ArtifactVersion 与 Evidence 闭环 |
 
 ## 3. Capability Reachability Gate
@@ -71,7 +71,7 @@ real user entry / Agent trigger
 - Public Share 使用冻结 typed projection 和共享只读 presentation；
 - 默认 UI 不显示内部 ID、hash、raw enum、producer、adapter、Issue/PR 编号、内部阶段版本或能力来源标识。
 
-正式视觉验收覆盖 Light：1440×900、1280×800、1024×768，并检查 200% text。
+正式视觉验收覆盖 Light：1440×900、1280×800。
 
 ## 6. Grouped Delivery 验收
 

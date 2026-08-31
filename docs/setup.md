@@ -28,11 +28,11 @@ Copy-Item .env.example .env
 `.env.example` 只声明当前运行时实际消费的配置。严禁提交 `.env`、密钥、Cookie 或其他凭据。
 
 真实研究助手使用千问 AI 平台的 OpenAI 兼容接口。根目录 `.env` 或 Windows 用户
-环境变量使用平台官方名称 `DASHSCOPE_API_KEY`。`DASHSCOPE_MODEL` 指定 Qwen 模型身份
-（默认 `qwen3.7-max-2026-06-08`）；`DASHSCOPE_EXPLICIT_MODEL_REVISION` 固定为同一
-显式日期模型 identity。浮动别名必须留空 revision，不得伪造。这些变量只由 API 读取，不得使用
-`PUBLIC_*` 或 `VITE_*` 前缀。双击 `start-dev.bat` 时，健康门禁要求研究助手状态为
-`ready`；未配置凭据会明确停止启动，不会用 fixture 或模板回答伪装真实 Agent。
+环境变量使用平台官方名称 `DASHSCOPE_API_KEY`，并显式设置 `DASHSCOPE_MODEL`。
+仓库没有默认模型；可用型号由运行环境选择。`DASHSCOPE_EXPLICIT_MODEL_REVISION` 可选，
+提供时须与显式模型身份一致；浮动别名的 revision 保持为空。这些变量只由 API 读取，
+不得使用 `PUBLIC_*` 或 `VITE_*` 前缀。应用可在未配置模型时启动；研究助手同时具备
+密钥与模型身份才进入 `ready`。`start-dev.bat` 的真实研究健康门禁要求该状态。
 
 development/test/integration 也可在 Workspace 顶栏“模型服务”中配置默认 DashScope Qwen，或自定义
 OpenAI Chat Completions-compatible 服务。Base URL 始终可见；该配置是实例级、跨 Project 复用的
@@ -170,13 +170,17 @@ uv run python ../../scripts/export_schemas.py --output ../../.artifacts/schemas
 前置条件：
 
 - 工作区干净，`HEAD` 即待验证的精确 source commit；
-- 根目录存在 `.env`，且已配置 `DASHSCOPE_API_KEY`、`DASHSCOPE_MODEL` 与
-  `DASHSCOPE_EXPLICIT_MODEL_REVISION`（后两者必须指向同一合格 Qwen 显式 revision）。
+- 已认证的 GitHub CLI 可读取该提交的 CI 与 CodeQL 成功结果；
+- 根目录存在 `.env` 与本地 PaddleOCR-VL `models` 捆绑；
+- 当前 shell 显式提供 `DASHSCOPE_API_KEY` 和 `DASHSCOPE_MODEL`；
+- `DASHSCOPE_EXPLICIT_MODEL_REVISION` 可选，提供时与模型身份一致。
 
 运行（PowerShell）：
 
 ```powershell
-$env:RELEASE_CANDIDATE_SOURCE_COMMIT = "<完整 40 位 SHA>"
+$env:DASHSCOPE_MODEL = "<当前账户可用的 Qwen 模型>"
+$env:DASHSCOPE_EXPLICIT_MODEL_REVISION = ""
+$env:RELEASE_CANDIDATE_SOURCE_COMMIT = git rev-parse HEAD
 pnpm release-candidate
 ```
 
@@ -184,6 +188,11 @@ pnpm release-candidate
 Compose project（`xingwen-rc-<sha8>-<pid>`）`up --build --wait`，安装 Chromium 并执行 live
 门禁；结束后 `down --volumes --remove-orphans` 清理该隔离项目自身的容器与临时卷。API Key、
 原始 provider 响应与私有 reasoning 不写入门禁产物。
+
+每次执行的证据保存在 `.artifacts/release-candidate/<source_commit>/<execution_time>/`：
+NASA 查询、目标选择与来源快照，文献与科学结果，ProducerExecution，活跃任务恢复和浏览器结果。
+同目录的 `handoff-manifest.json` 从根目录能力清单生成，填入精确提交、生成时间和各项实际验证结果；
+缺失或失败的证据保持未验证。运行时 Chromium 与临时文件也位于仓库 `.artifacts/tooling/`。
 
 ## 7. 常见问题
 

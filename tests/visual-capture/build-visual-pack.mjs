@@ -217,7 +217,6 @@ const projectShots = new Map([
   ["15_project-failed-state", [PROJECT_FAILED, ["失败与恢复操作可见"]]],
   ["80_viewport-1440x900", [PROJECT_A, ["1440 桌面布局"]]],
   ["81_viewport-1280x800", [PROJECT_A, ["1280 桌面布局"]]],
-  ["82_viewport-1024x768", [PROJECT_A, ["1024 图标侧栏", "主线程可读"]]],
 ]);
 
 const shellShots = new Map([
@@ -253,11 +252,7 @@ function metadataFor(name) {
   const project = projectShots.get(name);
   if (project) {
     const [projectId, assertions] = project;
-    const viewport = name.includes("1024")
-      ? "1024x768"
-      : name.includes("1280")
-        ? "1280x800"
-        : "1440x900";
+    const viewport = name.includes("1280") ? "1280x800" : "1440x900";
     return {
       project_id: projectId,
       route: `/workspace/${projectId}`,
@@ -348,6 +343,7 @@ const entries = files.map((file) => {
     name,
     exact_head: actualHead,
     ...metadataFor(name),
+    viewport: `${bytes.readUInt32BE(16)}x${bytes.readUInt32BE(20)}`,
     file,
     sha256: createHash("sha256").update(bytes).digest("hex"),
     bytes: bytes.length,
@@ -370,7 +366,6 @@ writeFileSync(
       exact_head: actualHead,
       generated_at: new Date().toISOString(),
       execution_mode: "demo_replay",
-      viewport_default: "1440x900",
       shots: entries,
     },
     null,

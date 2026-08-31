@@ -3,17 +3,12 @@
   "schema_version": "1.0.0",
   "package": "星文智析 AI 科研工具",
   "license": "MIT",
-  "generated_at": "2026-08-28T15:52:00Z",
-  "source_pin": {
-    "policy": "exact_source_commit",
-    "verification": {
-      "command": "pnpm release-candidate",
-      "required_environment": [
-        "RELEASE_CANDIDATE_SOURCE_COMMIT",
-        "RELEASE_CANDIDATE_E2E"
-      ],
-      "notes": "门禁要求工作区干净且 HEAD 与 RELEASE_CANDIDATE_SOURCE_COMMIT 完全一致；通过后在 .artifacts/release-candidate-qwen-evidence.json 记录 source_commit 与 generated_at。历史模型报告与录制响应不构成当前来源钉定的合格证据。"
-    }
+  "generated_at": null,
+  "source_commit": null,
+  "generation": {
+    "command": "pnpm release-candidate",
+    "output": ".artifacts/release-candidate/<source_commit>/<execution_time>/handoff-manifest.json",
+    "description": "仓库文件定义当前能力与验证入口；运行生成的交付清单填入精确提交、时间和对应运行证据。"
   },
   "entrypoints": {
     "compose": "docker compose up --build --wait",
@@ -21,6 +16,25 @@
     "workspace": "http://127.0.0.1:5173",
     "api_docs": "http://127.0.0.1:8000/api/docs",
     "windows_dev_script": "start-dev.bat"
+  },
+  "runtime_requirements": {
+    "services": [
+      "Docker Compose",
+      "PostgreSQL 17",
+      "Node.js 24",
+      "pnpm",
+      "Python 3.13"
+    ],
+    "model_configuration": {
+      "required": ["DASHSCOPE_API_KEY", "DASHSCOPE_MODEL"],
+      "optional": ["DASHSCOPE_EXPLICIT_MODEL_REVISION"],
+      "repository_default_model": null,
+      "provider": "DashScope",
+      "official_route": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "revision_policy": "显式 revision 与声明的模型身份一致；未声明时为 null。"
+    },
+    "document_parsing": "本地 PaddleOCR-VL models 捆绑或配置完整的远程服务",
+    "release_gate": "已认证 GitHub CLI、当前提交 CI 与 CodeQL 通过、干净工作区、本地文档模型捆绑及可用的真实数据源与模型账户"
   },
   "data_levels": [
     "fixture",
@@ -31,10 +45,55 @@
     "revision",
     "real_model_execution"
   ],
+  "capabilities": {
+    "workspace": [
+      "研究意图与协议确认",
+      "持久化 Run / Activity",
+      "Fullscreen Result Workspace",
+      "Evidence Inspector",
+      "固定版本导出与只读分享"
+    ],
+    "data": [
+      "NASA TOI / Planetary Systems 获取",
+      "实体交叉匹配",
+      "Dataset",
+      "Field Dictionary",
+      "Source Collection",
+      "数据质量分析"
+    ],
+    "literature": [
+      "真实论文检索与开放全文",
+      "ResearchInput / DocumentParse",
+      "PDF 对照阅读",
+      "Paper Summary",
+      "Literature Claims",
+      "Literature Relations",
+      "人工关系审定",
+      "Evidence Graph"
+    ],
+    "scientific": [
+      "Analysis Report",
+      "Light Curve",
+      "Spectrum",
+      "Periodogram",
+      "Folded Light Curve",
+      "Model Evaluation",
+      "ONNX Model Artifact",
+      "FITS 图像",
+      "WWT 天球场景"
+    ],
+    "revision": [
+      "Feedback",
+      "RevisionPlan",
+      "派生 Run",
+      "不可变 ArtifactVersion",
+      "Scientific Diff"
+    ]
+  },
   "evidence_assets": [
     {
       "path": "services/scientific_document/evidence/",
-      "level": "recorded+real_history_report",
+      "level": "recorded",
       "scope": "PaddleOCR-VL hybrid / paired 文档解析机器报告"
     },
     {
@@ -58,26 +117,43 @@
       "scope": "CI competition-machine-evidence artifact 中的正式机器报告与可读摘要"
     }
   ],
-  "unverified_items": [
-    {
-      "id": "qwen-release-candidate-live",
-      "statement": "合格 Qwen Release Candidate 调用证明与 ProducerExecution 闭环",
-      "condition": "需在钉定来源上以真实 provider 调用执行 `pnpm release-candidate`；未执行时保持未验证，不以 Fixture、Recorded、Benchmark 或 Cached 结果替代"
+  "verification": {
+    "continuous_integration": {
+      "verified": false,
+      "evidence": "continuous-integration.json",
+      "scope": "精确提交的 CI 与 CodeQL"
     },
-    {
-      "id": "desktop-visual-user-confirmation",
-      "statement": "1440×900、1280×800、1024×768 与长内容场景的最终人工视觉确认",
-      "condition": "自动化 NFR 断言与截图已覆盖；正式视觉验收以用户实际确认为准，确认前相关结论保持未验证"
+    "real_data": {
+      "verified": false,
+      "evidence": "release-candidate-real-data-report.json",
+      "scope": "至少 15 条数据、10 个字段、2 个来源；3 篇候选论文、可定位摘要、3 条主张、关系、图谱和分析"
     },
-    {
-      "id": "worker-restart-and-runtime-budgets",
-      "statement": "worker 重启恢复、长时运行内存与轮询预算的运行时观察",
-      "condition": "需要受控运行时压测证据；当前无自动化覆盖，保持未验证"
+    "real_qwen": {
+      "verified": false,
+      "evidence": "release-candidate-qwen-evidence.json",
+      "scope": "官方路线、运行时模型身份和 ProducerExecution"
+    },
+    "restart": {
+      "verified": false,
+      "evidence": "restart-recovery-smoke.json",
+      "scope": "活跃 Run graceful drain / restart、事件连续性及发布唯一性"
+    },
+    "browser_workflow": {
+      "verified": false,
+      "evidence": "release-candidate-runtime.json",
+      "scope": "真实科研浏览器链的最终测试结果"
+    },
+    "visual_confirmation": {
+      "verified": false,
+      "scope": "1440×900 与 1280×800，需用户人工验收"
     }
-  ],
-  "known_limitations": [
+  },
+  "limitations": [
     "产品聚焦科学数据查找、解析与整合；不承诺任意天文方向、任意 PDF 全文高精度解析、任意图表全自动处理或无边界科学发现",
     "视觉文档解析依赖本地验证的 PaddleOCR-VL 运行时捆绑；缺失该运行时时扫描页降级为明确的 partial/unsupported，不冒充已解析内容",
-    "第三方模型结果只作为明确标注的 non-qualifying benchmark/reference，不构成合格主案例证据"
+    "第三方模型结果只作为明确标注的 non-qualifying benchmark/reference，不构成合格主案例证据",
+    "Light Curve、Spectrum、模型评估及 Observation 展示的 Fixture / Recorded 身份由各 Artifact 标明；实际 Live 能力以生成的运行证据为准",
+    "Graceful restart 验证限定为活跃任务正常排空与恢复；进程强杀、网络分区及长期负载需独立验证",
+    "外部 API 的可用性、限流和模型账户额度影响 Live 执行；失败状态与来源诊断保留在运行证据中"
   ]
 }

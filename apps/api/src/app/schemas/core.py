@@ -1390,6 +1390,15 @@ class PublicPresentationTrace(BaseModel):
     evidence_ids: tuple[Identifier, ...] = ()
 
 
+class PublicPresentationRelation(BaseModel):
+    """The two published claims connected by a literature relation."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    source_claim: NonEmptyString
+    target_claim: NonEmptyString
+
+
 class PublicPresentationEntry(BaseModel):
     """One claim, relation, field, paper, or scientific finding."""
 
@@ -1405,6 +1414,7 @@ class PublicPresentationEntry(BaseModel):
     evidence_ids: tuple[Identifier, ...] = ()
     reasoning_trace: PublicPresentationTrace | None = None
     can_adjudicate: bool | None = None
+    relation: PublicPresentationRelation | None = None
 
 
 class PublicPresentationParagraph(BaseModel):

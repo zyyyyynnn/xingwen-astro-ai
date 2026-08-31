@@ -32,6 +32,10 @@ function relation(
     evidenceIds: [asEntityId(`evidence-${id}`)],
     reasoningTrace: null,
     canAdjudicate,
+    relation: {
+      sourceClaim: text("观测主张 A"),
+      targetClaim: text("对照主张 B"),
+    },
   };
 }
 
@@ -68,6 +72,8 @@ describe("LiteratureReviewWorkspace", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "选择可审定关系" }));
+    expect(screen.getByText("观测主张 A")).toBeVisible();
+    expect(screen.getByText("对照主张 B")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "接受并进入图谱" }));
     expect(onRequestRevision).toHaveBeenCalledWith({
       kind: "relation_adjudication",

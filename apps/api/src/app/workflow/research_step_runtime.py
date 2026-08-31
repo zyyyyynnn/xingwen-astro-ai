@@ -192,7 +192,7 @@ class ResearchStepRuntime:
             if self._model_runtime_resolver is not None
             else ModelRuntimeSnapshot(
                 port=self._model_port,
-                provider="qwen",
+                provider="dashscope",
                 requested_model=self._requested_model,
                 explicit_revision=self._explicit_revision,
                 revision=0,

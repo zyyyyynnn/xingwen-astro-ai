@@ -958,6 +958,12 @@ export function mapPublicArtifactPresentation(
           }
         : null,
       canAdjudicate: entry.can_adjudicate ?? null,
+      relation: entry.relation
+        ? {
+            sourceClaim: entry.relation.source_claim as NonEmptyString,
+            targetClaim: entry.relation.target_claim as NonEmptyString,
+          }
+        : null,
     })),
     tables: (dto.tables ?? []).map((table) => ({
       title: table.title as NonEmptyString,

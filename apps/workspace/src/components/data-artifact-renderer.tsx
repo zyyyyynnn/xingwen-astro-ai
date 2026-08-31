@@ -26,13 +26,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@xingwen/ui";
-import {
-  Database,
-  Library,
-  Search,
-  SearchCheck,
-  ShieldCheck,
-} from "@xingwen/ui/icons";
+import { Database, Library, Search, SearchCheck } from "@xingwen/ui/icons";
 
 import { formatScientificUnit, ScientificTable } from "./scientific-table";
 import { ArtifactMetadataStrip, ArtifactToolbar } from "./result-layout";
@@ -432,7 +426,7 @@ function SourceCollectionRenderer({
 
   return (
     <article
-      className="data-artifact data-artifact--source-collection flex flex-col gap-3 min-h-0 flex-1"
+      className="data-artifact data-artifact--source-collection flex flex-col gap-3 min-h-0"
       data-surface={surface}
     >
       {showSummary ? (
@@ -561,14 +555,6 @@ function SourceCollectionRenderer({
             </EmptyHeader>
           </Empty>
         )}
-      </div>
-
-      <div className="source-collection__assurance">
-        <ShieldCheck aria-hidden="true" />
-        <div>
-          <strong>版本化来源闭包已建立</strong>
-          <span>每个目录都绑定到本次研究使用的不可变来源快照。</span>
-        </div>
       </div>
     </article>
   );

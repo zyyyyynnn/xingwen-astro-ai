@@ -79,7 +79,7 @@ class Settings(BaseSettings):
     # For Qwen, a floating alias must never carry a fabricated revision.
     DASHSCOPE_API_KEY: SecretStr | None = None
     DASHSCOPE_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    DASHSCOPE_MODEL: str = "qwen3.7-max-2026-06-08"
+    DASHSCOPE_MODEL: str = ""
     DASHSCOPE_EXPLICIT_MODEL_REVISION: str | None = None
     DASHSCOPE_TIMEOUT_SECONDS: float = Field(default=300.0, gt=0)
     DASHSCOPE_MAX_RETRIES: int = Field(default=0, ge=0, le=4)
@@ -205,6 +205,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_safety(self) -> Settings:
+        self.DASHSCOPE_MODEL = self.DASHSCOPE_MODEL.strip()
         revision = (self.DASHSCOPE_EXPLICIT_MODEL_REVISION or "").strip()
         self.DASHSCOPE_EXPLICIT_MODEL_REVISION = revision or None
         if self.DASHSCOPE_MODEL in QWEN_FLOATING_ALIASES and revision:
@@ -315,7 +316,7 @@ class Settings(BaseSettings):
 
     @property
     def research_assistant_ready(self) -> bool:
-        return bool(self._secret_value(self.DASHSCOPE_API_KEY))
+        return bool(self._secret_value(self.DASHSCOPE_API_KEY) and self.DASHSCOPE_MODEL)
 
     @property
     def model_provider_config_writable(self) -> bool:

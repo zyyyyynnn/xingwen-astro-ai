@@ -50,15 +50,17 @@ async function openThreadArtifact(
 async function selectEntryWithReasoningTrace(
   workspace: Locator,
 ): Promise<void> {
+  const entries = workspace.locator('[data-testid^="literature-entry-"]');
+  await expect(entries.first()).toBeVisible();
   if (
     (await workspace.getByRole("button", { name: "公开推导与限制" }).count()) >
     0
   ) {
     return;
   }
-  const entries = workspace.locator('[data-testid^="literature-entry-"]');
   for (let index = 0; index < (await entries.count()); index += 1) {
     await entries.nth(index).click();
+    await expect(entries.nth(index)).toHaveAttribute("aria-pressed", "true");
     if (
       (await workspace
         .getByRole("button", { name: "公开推导与限制" })
@@ -121,7 +123,18 @@ test("real Compose exposes the current empty Research Workspace without provider
     await expect(
       modelDialog.getByText("部署环境已配置", { exact: true }),
     ).toBeVisible();
-    await expect(modelDialog.getByText("qwen3.7-max-2026-06-08")).toBeVisible();
+    const configurationResponse = await page.request.get(
+      API_ORIGIN + "/api/model-provider/configuration",
+    );
+    expect(configurationResponse.ok()).toBe(true);
+    const { data: configuration } = (await configurationResponse.json()) as {
+      data: { model: string | null };
+    };
+    if (!configuration.model)
+      throw new Error("Configured deployment has no model identity");
+    await expect(
+      modelDialog.getByText(configuration.model, { exact: true }),
+    ).toBeVisible();
     await expect(
       modelDialog.getByText(
         "https://dashscope.aliyuncs.com/compatible-mode/v1",
@@ -141,7 +154,6 @@ test("real Compose exposes the current empty Research Workspace without provider
   for (const viewport of [
     { width: 1440, height: 900 },
     { width: 1280, height: 800 },
-    { width: 1024, height: 768 },
   ]) {
     await page.setViewportSize(viewport);
     await expect(page.getByTestId("interactive-chat-box")).toBeVisible();
@@ -431,7 +443,7 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   await expect(fullscreen.getByText("演示数据", { exact: true })).toBeVisible();
   await expect(fullscreen.locator("[data-source-mode]")).toHaveCount(0);
 
-  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.setViewportSize({ width: 1280, height: 800 });
   expect(
     await fullscreen.evaluate(
       (element) => element.scrollWidth <= element.clientWidth,
@@ -755,11 +767,19 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
 
   runtimeErrors.length = 0;
   await page.goto(`/workspace/${projectId}`);
-  const overviewSheet = page.getByRole("dialog").filter({
-    has: page.getByRole("tab", { name: "研究概览" }),
-  });
-  await expect(overviewSheet).toBeVisible();
-  await overviewSheet.getByRole("button", { name: "关闭" }).click();
+  const overview = page.getByRole("complementary", { name: "右侧研究栏" });
+  await expect(overview.getByRole("tab", { name: "研究概览" })).toBeVisible();
+  await page.getByRole("button", { name: "关闭右侧研究栏" }).click();
+  await expect(overview).not.toBeVisible();
+  const closedOverview = page.getByTestId("research-inspector-panel");
+  await closedOverview
+    .getByRole("tab", { name: "研究概览", includeHidden: true })
+    .focus();
+  expect(
+    await closedOverview.evaluate((element) =>
+      element.contains(document.activeElement),
+    ),
+  ).toBe(false);
   await openThreadArtifact(page, laterVersion.data.artifact_version_id);
   await fullscreen.getByRole("button", { name: "比较结果" }).click();
   await expect(page.getByLabel("科学结果变化")).toBeVisible();

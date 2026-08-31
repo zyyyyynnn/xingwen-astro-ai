@@ -109,16 +109,18 @@ function PublicShareUnavailable({
               : "该链接可能无效、已撤销或已过期。原研究结果不会因此受到影响。"}
           </EmptyDescription>
         </EmptyHeader>
-        <EmptyContent className="flex-row justify-center">
-          <Button variant="primary" onClick={onRetry} disabled={inFlight}>
-            重试
-          </Button>
-          <Link
-            href="/workspace"
-            className={buttonClassName({ variant: "secondary" })}
-          >
-            返回工作台
-          </Link>
+        <EmptyContent>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Button variant="primary" onClick={onRetry} disabled={inFlight}>
+              重试
+            </Button>
+            <a
+              href="/workspace"
+              className={buttonClassName({ variant: "secondary" })}
+            >
+              返回工作台
+            </a>
+          </div>
         </EmptyContent>
       </Empty>
     </main>
