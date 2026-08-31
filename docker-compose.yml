@@ -59,6 +59,7 @@ services:
       DASHSCOPE_EXPLICIT_MODEL_REVISION: ${DASHSCOPE_EXPLICIT_MODEL_REVISION:-}
       DASHSCOPE_TIMEOUT_SECONDS: ${DASHSCOPE_TIMEOUT_SECONDS:-300}
       DASHSCOPE_MAX_RETRIES: ${DASHSCOPE_MAX_RETRIES:-0}
+      URL_FETCH_ALLOWED_HOSTS: ${URL_FETCH_ALLOWED_HOSTS:-}
       RESEARCH_INPUT_UPLOAD_DIR: /var/lib/xingwen/research-inputs
     volumes:
       - research_input_data:/var/lib/xingwen/research-inputs

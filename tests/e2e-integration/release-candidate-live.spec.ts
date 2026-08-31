@@ -586,6 +586,15 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
     "导出 CSV",
     /\.csv$/u,
   );
+  const datasetTable = fullscreen.getByRole("table", {
+    name: "研究数据集中的规范化字段与数据行",
+  });
+  await expect(datasetTable.getByRole("rowheader").first()).not.toHaveText(
+    /^[-\d.]+$/u,
+  );
+  await expect(datasetTable).not.toContainText(
+    /earth_radius|solar_mass|\bnone\b/u,
+  );
   await page.screenshot({ path: testInfo.outputPath("live-dataset.png") });
 
   // Full-text acquisition is available at the selected paper, not a test bootstrap or hidden upload.

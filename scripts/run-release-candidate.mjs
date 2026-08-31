@@ -65,6 +65,16 @@ if (!existsSync("models")) {
 
 requiredEnvironment("DASHSCOPE_API_KEY");
 const model = requiredEnvironment("DASHSCOPE_MODEL");
+const inputHosts = requiredEnvironment("URL_FETCH_ALLOWED_HOSTS");
+if (
+  !inputHosts
+    .split(",")
+    .some((host) => host.trim().toLowerCase() === "arxiv.org")
+) {
+  throw new Error(
+    "Release Candidate full-text ingestion requires arxiv.org in URL_FETCH_ALLOWED_HOSTS.",
+  );
+}
 const explicitRevision = process.env.DASHSCOPE_EXPLICIT_MODEL_REVISION?.trim();
 if (explicitRevision && model !== explicitRevision) {
   throw new Error(

@@ -357,7 +357,7 @@ export const fieldDefinitions: FieldDefinition[] = [
     "TOI 候选体编号",
     "TESS 候选行星标准编号",
     "string",
-    "dimensionless",
+    "none",
     "planet",
     true,
     "not_in_source",
@@ -368,7 +368,7 @@ export const fieldDefinitions: FieldDefinition[] = [
     "行星名称",
     "已确认系外行星或常用命名",
     "string",
-    "dimensionless",
+    "none",
     "planet",
     false,
     "not_in_source",
@@ -390,7 +390,7 @@ export const fieldDefinitions: FieldDefinition[] = [
     "行星半径",
     "以地球半径为单位的拟合物理半径",
     "number",
-    "r_earth",
+    "earth_radius",
     "planet",
     true,
     "not_measured",
@@ -401,7 +401,7 @@ export const fieldDefinitions: FieldDefinition[] = [
     "行星质量",
     "以地球质量为单位的视向速度/TTV 反演质量",
     "number",
-    "m_earth",
+    "earth_mass",
     "planet",
     false,
     "not_measured",
@@ -412,7 +412,7 @@ export const fieldDefinitions: FieldDefinition[] = [
     "平衡温度",
     "假设零反照率下的行星表面平衡温度",
     "number",
-    "k",
+    "kelvin",
     "planet",
     false,
     "not_measured",
@@ -423,7 +423,7 @@ export const fieldDefinitions: FieldDefinition[] = [
     "TIC 恒星编号",
     "TESS Input Catalog 宿主星标识",
     "string",
-    "dimensionless",
+    "none",
     "star",
     true,
     "not_in_source",
@@ -434,7 +434,7 @@ export const fieldDefinitions: FieldDefinition[] = [
     "恒星有效温度",
     "宿主恒星表面有效温度",
     "number",
-    "k",
+    "kelvin",
     "star",
     true,
     "not_measured",
@@ -445,7 +445,7 @@ export const fieldDefinitions: FieldDefinition[] = [
     "恒星半径",
     "以太阳半径为单位的恒星半径",
     "number",
-    "r_sun",
+    "solar_radius",
     "star",
     true,
     "not_measured",
@@ -456,7 +456,7 @@ export const fieldDefinitions: FieldDefinition[] = [
     "恒星质量",
     "以太阳质量为单位的恒星质量",
     "number",
-    "m_sun",
+    "solar_mass",
     "star",
     true,
     "not_measured",
@@ -620,35 +620,45 @@ function buildRow(rec: SampleExoplanetRecord, index: number): DatasetRow {
   const radiusConflictIds =
     rec.status === "conflict" ? [`conflict_radius_${index}`] : [];
   const radiusField = {
-    ...mappedField("planet.radius", "r_earth", String(rec.radius), "rad_toi"),
+    ...mappedField(
+      "planet.radius",
+      "earth_radius",
+      String(rec.radius),
+      "rad_toi",
+    ),
     candidate_source_value_ids: radiusSourceValueIds,
     selected_source_value_id: radiusSourceValueIds[0],
     conflict_ids: radiusConflictIds,
   };
 
   const fields = [
-    mappedField("planet.toi_id", "dimensionless", rec.toi, "toi"),
+    mappedField("planet.toi_id", "none", rec.toi, "toi"),
     rec.name
-      ? mappedField("planet.name", "dimensionless", rec.name, "name")
+      ? mappedField("planet.name", "none", rec.name, "name")
       : nullField("planet.name", "not_in_source"),
     mappedField("planet.period", "day", String(rec.period), "per"),
     radiusField,
     rec.mass !== null
-      ? mappedField("planet.mass", "m_earth", String(rec.mass), "mass")
+      ? mappedField("planet.mass", "earth_mass", String(rec.mass), "mass")
       : nullField("planet.mass", "not_measured"),
     rec.teq !== null
       ? mappedField(
           "planet.equilibrium_temperature",
-          "k",
+          "kelvin",
           String(rec.teq),
           "teq",
         )
       : nullField("planet.equilibrium_temperature", "not_measured"),
-    mappedField("star.tic_id", "dimensionless", rec.tic, "tic"),
-    mappedField("star.effective_temperature", "k", String(rec.teff), "teff"),
-    mappedField("star.radius", "r_sun", String(rec.srad), "srad"),
+    mappedField("star.tic_id", "none", rec.tic, "tic"),
+    mappedField(
+      "star.effective_temperature",
+      "kelvin",
+      String(rec.teff),
+      "teff",
+    ),
+    mappedField("star.radius", "solar_radius", String(rec.srad), "srad"),
     rec.smass !== null
-      ? mappedField("star.mass", "m_sun", String(rec.smass), "smass")
+      ? mappedField("star.mass", "solar_mass", String(rec.smass), "smass")
       : nullField("star.mass", "not_measured"),
     rec.feh !== null
       ? mappedField("star.metallicity", "dex", String(rec.feh), "feh")
@@ -733,7 +743,7 @@ function radiusSourceValue(
   return {
     alias_priority: 1,
     canonical_field_id: "planet.radius",
-    canonical_unit: "r_earth",
+    canonical_unit: "earth_radius",
     canonical_value: String(value),
     content_hash: hash(`${side}:${rec.toi}:${value}`),
     conversion_rule_id: "identity.r_earth",
@@ -754,7 +764,7 @@ function radiusSourceValue(
     source_priority: isToi ? 1 : 2,
     source_snapshot_content_hash: snapshot.content_hash,
     source_snapshot_id: snapshot.id,
-    source_unit: "r_earth",
+    source_unit: "earth_radius",
     source_value_id: `src_rad_${side}_${index}`,
     transformation_rule_version: "1.0.0",
     uncertainty: { status: "missing" },

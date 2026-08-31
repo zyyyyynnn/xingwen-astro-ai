@@ -25,6 +25,104 @@ const EXPECTED_CONTRACT_HASH =
 const ALL_ZERO_HASH = "sha256:" + "0".repeat(64);
 
 describe("Fixture adapter — provenance and semantics", () => {
+  it("uses entity identifiers rather than the last coordinate in a crossmatch identity", async () => {
+    const source = dataArtifactReads[0]!;
+    const row = source.dataset.rows[0]!;
+    if (!("logical_key" in row.row_authority))
+      throw new Error("crossmatch row required");
+    const authority = row.row_authority;
+    const values = [
+      { field_id: "star.name", normalized_value: "gj 806" },
+      { field_id: "star.tic_id", normalized_value: "TIC 239332587" },
+      { field_id: "system.right_ascension", normalized_value: "311.2697" },
+      { field_id: "system.declination", normalized_value: "44.500235" },
+    ].map((value) => ({ ...value, normalization_rule_version: "1.0.0" }));
+    for (const identityValues of [values, [...values].reverse()]) {
+      const repository = createFixtureDataArtifactRepository([
+        {
+          ...source,
+          dataset: {
+            ...source.dataset,
+            rows: [
+              {
+                ...row,
+                row_authority: {
+                  ...authority,
+                  entity_level: "host_star",
+                  canonical_row_identity: {
+                    ...authority.canonical_row_identity,
+                    entity_level: "host_star",
+                    member_entities: [
+                      {
+                        entity_level: "host_star",
+                        identity_values: identityValues,
+                      },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      ]);
+      const mapped = await repository.getDataset(
+        source.artifact_version_id as never,
+      );
+      expect(mapped.rows[0]?.identity).toBe("gj 806");
+      expect(mapped.rows[0]?.sourceSnapshotIds).toEqual(
+        row.source_snapshot_ids,
+      );
+      expect(mapped.rows[0]?.evidenceIds).toEqual(row.evidence_ids);
+      expect(mapped.rows[0]?.cells).toHaveLength(row.fields.length);
+    }
+  });
+
+  it("labels numeric TOI identities as catalogue identifiers", async () => {
+    const source = dataArtifactReads[0]!;
+    const row = source.dataset.rows[0]!;
+    if (!("logical_key" in row.row_authority))
+      throw new Error("crossmatch row required");
+    const authority = row.row_authority;
+    const repository = createFixtureDataArtifactRepository([
+      {
+        ...source,
+        dataset: {
+          ...source.dataset,
+          rows: [
+            {
+              ...row,
+              fields: row.fields.filter(
+                (field) => field.canonical_field_id !== "planet.toi_id",
+              ),
+              row_authority: {
+                ...authority,
+                canonical_row_identity: {
+                  ...authority.canonical_row_identity,
+                  member_entities: [
+                    {
+                      entity_level: "planet_candidate",
+                      identity_values: [
+                        {
+                          field_id: "planet.toi_id",
+                          normalized_value: "455.01",
+                          normalization_rule_version: "1.0.0",
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+    const mapped = await repository.getDataset(
+      source.artifact_version_id as never,
+    );
+    expect(mapped.rows[0]?.identity).toBe("TOI-455.01");
+  });
+
   it("maps Dataset cell pipeline Evidence references to persisted Evidence ids", async () => {
     const source = dataArtifactReads[0]!;
     const sourceRow = source.dataset.rows[0]!;

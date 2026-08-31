@@ -173,13 +173,18 @@ uv run python ../../scripts/export_schemas.py --output ../../.artifacts/schemas
 - 已认证的 GitHub CLI 可读取该提交的 CI 与 CodeQL 成功结果；
 - 根目录存在 `.env` 与本地 PaddleOCR-VL `models` 捆绑；
 - 当前 shell 显式提供 `DASHSCOPE_API_KEY` 和 `DASHSCOPE_MODEL`；
+- `URL_FETCH_ALLOWED_HOSTS` 明确包含 `arxiv.org`，用于关联选中论文的开放全文；
 - `DASHSCOPE_EXPLICIT_MODEL_REVISION` 可选，提供时与模型身份一致。
+
+URL ResearchInput 使用来源 allowlist 和公网 DNS 地址校验。使用 Fake-IP 代理的开发网络，
+需为已授权的全文来源配置真实 DNS 解析，使宿主机与容器均获得公网地址。
 
 运行（PowerShell）：
 
 ```powershell
 $env:DASHSCOPE_MODEL = "<当前账户可用的 Qwen 模型>"
 $env:DASHSCOPE_EXPLICIT_MODEL_REVISION = ""
+$env:URL_FETCH_ALLOWED_HOSTS = "arxiv.org"
 $env:RELEASE_CANDIDATE_SOURCE_COMMIT = git rev-parse HEAD
 pnpm release-candidate
 ```

@@ -56,7 +56,14 @@ const COLUMN_MIN_WIDTH: Record<
 };
 
 const UNIT_LABELS: Readonly<Record<string, string>> = {
+  none: "",
   dimensionless: "",
+  earth_radius: "R⊕",
+  earth_mass: "M⊕",
+  solar_radius: "R☉",
+  solar_mass: "M☉",
+  jupiter_radius: "R♃",
+  jupiter_mass: "M♃",
   r_earth: "R⊕",
   m_earth: "M⊕",
   r_sun: "R☉",
@@ -308,6 +315,7 @@ export function ScientificTable({
                 const cell = row.cells[column.key];
                 const evidenceIds = cell?.evidenceIds ?? [];
                 const numericCell =
+                  column.variant === "numeric" ||
                   typeof cell?.value === "number" ||
                   typeof cell?.value === "boolean";
                 return (

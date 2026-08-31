@@ -197,18 +197,59 @@ function mapCell(
   };
 }
 
+function rowDisplayIdentity(
+  authority: DatasetRow["row_authority"],
+  cells: readonly DatasetCellReview[],
+): string {
+  if (!("logical_key" in authority)) {
+    return authority.canonical_row_identity.canonical_identity;
+  }
+  const values = authority.canonical_row_identity.member_entities.flatMap(
+    (entity) => entity.identity_values,
+  );
+  // Names/catalogue identifiers describe the entity. Coordinate crossmatch
+  // keys and the order of source members must not choose its display name.
+  const preferredFields =
+    authority.entity_level === "host_star"
+      ? ["star.name", "star.tic_id", "star.gaia_dr3_id"]
+      : ["planet.name", "planet.toi_id"];
+  for (const field of preferredFields) {
+    const identityValues = values.filter((value) => value.field_id === field);
+    if (identityValues.length === 0) continue;
+    const selected = cells.find(
+      (cell) =>
+        cell.canonicalFieldId === field &&
+        cell.status === "mapped" &&
+        cell.value,
+    );
+    const labels = (
+      selected?.value
+        ? [selected.value]
+        : identityValues.map((value) => value.normalized_value)
+    ).map((label) => {
+      return field === "planet.toi_id" && /^\d+(?:\.\d+)?$/u.test(label)
+        ? `TOI-${label}`
+        : label;
+    });
+    if (labels.length > 0) return [...new Set(labels)].join(" / ");
+  }
+  return [
+    ["system.right_ascension", "RA"],
+    ["system.declination", "Dec"],
+  ]
+    .flatMap(([field, label]) => {
+      const coordinate = values.find((value) => value.field_id === field);
+      return coordinate ? [`${label} ${coordinate.normalized_value}°`] : [];
+    })
+    .join(" · ");
+}
+
 function mapRow(
   dto: DatasetRow,
   evidenceBindings: ReadonlyMap<string, DomainEntityId>,
 ): DatasetRowReview {
   const authority = dto.row_authority;
-  const identity =
-    "logical_key" in authority
-      ? authority.canonical_row_identity.member_entities
-          .flatMap((entity) => entity.identity_values)
-          .map((value) => `${value.field_id}=${value.normalized_value}`)
-          .join(" · ")
-      : authority.canonical_row_identity.canonical_identity;
+  const cells = dto.fields.map((field) => mapCell(field, evidenceBindings));
   return {
     rowId: dto.row_id,
     entityLevel:
@@ -221,8 +262,8 @@ function mapRow(
       "alignment_status" in authority
         ? String(authority.alignment_status)
         : "not_applicable",
-    identity,
-    cells: dto.fields.map((field) => mapCell(field, evidenceBindings)),
+    identity: rowDisplayIdentity(authority, cells),
+    cells,
     sourceSnapshotIds: dto.source_snapshot_ids.map(id),
     evidenceIds: dto.evidence_ids.map(id),
   };

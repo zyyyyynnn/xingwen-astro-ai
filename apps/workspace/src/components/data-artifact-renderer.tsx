@@ -53,11 +53,6 @@ function fieldLabel(field: DataArtifactFieldDefinitionViewModel): string {
   return field.meaningZh || field.labelEn || "未命名字段";
 }
 
-function recordIdentity(value: string): string {
-  const separator = value.lastIndexOf("=");
-  return separator >= 0 ? value.slice(separator + 1).trim() : value;
-}
-
 const SOURCE_LABELS: Readonly<Record<string, string>> = {
   "nasa_exoplanet_archive.toi": "NASA Exoplanet Archive · TOI 目录",
   "nasa_exoplanet_archive.ps": "NASA Exoplanet Archive · 行星系统目录",
@@ -112,7 +107,7 @@ function DatasetTable({
   const visibleColumns = review.columns.filter((column) => {
     if (review.rows.length === 0) return true;
     return !review.rows.every((row) => {
-      const identity = recordIdentity(row.identity);
+      const identity = row.identity;
       const cell = row.cells.find(
         (candidate) => candidate.canonicalFieldId === column.fieldId,
       );
@@ -126,16 +121,14 @@ function DatasetTable({
         key: String(column.fieldId),
         label: fieldLabel(column),
         unit: column.canonicalUnit || null,
-        variant: column.canonicalUnit
-          ? ("numeric" as const)
-          : column.fieldId === "star_name" ||
-              column.fieldId === "host_star_name"
-            ? ("identity" as const)
-            : undefined,
+        variant:
+          column.dataType === "number" || column.dataType === "integer"
+            ? ("numeric" as const)
+            : ("identity" as const),
       }))}
       rows={review.rows.map((row) => ({
         id: String(row.rowId),
-        identity: recordIdentity(row.identity),
+        identity: row.identity,
         cells: Object.fromEntries(
           row.cells.map((cell) => [
             String(cell.canonicalFieldId),
