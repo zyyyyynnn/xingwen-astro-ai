@@ -20,6 +20,7 @@ interface RuntimeSnapshot {
     provider_request_id: string | null;
     prompt_name: string;
     prompt_hash: string;
+    parameters: Record<string, string | number | boolean | null>;
     status: string;
     token_usage: Record<string, number> | null;
     latency_ms: number | null;
@@ -61,8 +62,9 @@ function composeArguments() {
     "compose",
     "-f",
     "docker-compose.yml",
-    "-f",
-    "docker-compose.paddle-local.yml",
+    ...(process.env.PADDLEOCR_VL_BASE_URL?.trim()
+      ? []
+      : ["-f", "docker-compose.paddle-local.yml"]),
     "-p",
     project,
   ];
@@ -96,7 +98,7 @@ with engine.connect() as connection:
     duplicate_completions = rows("SELECT count(*) AS count FROM (SELECT activity_id, activity_kind FROM run_events WHERE run_id = :run AND activity_phase = 'completed' GROUP BY activity_id, activity_kind HAVING count(*) > 1) duplicates")[0]["count"]
     events = rows("SELECT count(*) AS count, min(sequence) AS min, max(sequence) AS max FROM run_events WHERE run_id = :run")[0]
     parses = rows("SELECT id, research_input_id, overall_quality, native_engine, visual_engine FROM document_parses WHERE created_by_run_id = :run")
-    models = rows("SELECT id, step_key, step_attempt_id, producer_name, producer_version, model_provider, requested_model, provider_returned_model, explicit_revision, provider_request_id, prompt_name, prompt_version, prompt_hash, parameters_hash, input_hash, output_hash, status, started_at, finished_at, token_usage, latency_ms, error_code FROM producer_executions WHERE run_id = :run AND producer_type = 'model' ORDER BY started_at, id")
+    models = rows("SELECT id, step_key, step_attempt_id, producer_name, producer_version, model_provider, requested_model, provider_returned_model, explicit_revision, provider_request_id, prompt_name, prompt_version, prompt_hash, parameters, parameters_hash, input_hash, output_hash, status, started_at, finished_at, token_usage, latency_ms, error_code FROM producer_executions WHERE run_id = :run AND producer_type = 'model' ORDER BY started_at, id")
     print(json.dumps({"qwen_route": route.geturl(), "model_executions": models, "run": run, "worker": worker, "attempts": attempts, "artifact_version_ids": [row["id"] for row in versions], "duplicate_publications": duplicate_publications, "duplicate_completions": duplicate_completions, "events": events, "document_parses": parses}, default=str))
 engine.dispose()
 `;
@@ -115,6 +117,26 @@ export async function readReleaseRuntime(
     runId,
   ]);
   return JSON.parse(stdout) as RuntimeSnapshot;
+}
+
+export async function readReleaseContainerState(): Promise<
+  Record<string, unknown>
+> {
+  const { stdout: containerId } = await execute("docker", [
+    ...composeArguments(),
+    "ps",
+    "--all",
+    "--quiet",
+    "api",
+  ]);
+  if (!containerId.trim()) throw new Error("Release API container is absent");
+  const { stdout } = await execute("docker", [
+    "inspect",
+    "--format",
+    '{"status":{{json .State.Status}},"oom_killed":{{.State.OOMKilled}},"exit_code":{{.State.ExitCode}},"restart_count":{{.RestartCount}},"started_at":{{json .State.StartedAt}},"finished_at":{{json .State.FinishedAt}}}',
+    containerId.trim(),
+  ]);
+  return JSON.parse(stdout) as Record<string, unknown>;
 }
 
 // Planning can fail before a Run exists. Retain its own execution records too.

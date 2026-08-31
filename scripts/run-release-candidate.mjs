@@ -57,9 +57,19 @@ if (!existsSync(".env")) {
   );
 }
 
-if (!existsSync("models")) {
+const visualBaseUrl = process.env.PADDLEOCR_VL_BASE_URL?.trim();
+const visualRevision = process.env.PADDLEOCR_VL_MODEL_REVISION?.trim();
+if (Boolean(visualBaseUrl) !== Boolean(visualRevision)) {
   throw new Error(
-    "Release Candidate requires the operator-managed PaddleOCR-VL model bundle under ./models; see docs/setup.md.",
+    "The HTTP visual backend requires both PADDLEOCR_VL_BASE_URL and PADDLEOCR_VL_MODEL_REVISION.",
+  );
+}
+if (visualBaseUrl && process.env.PADDLEOCR_VL_LOCAL_BUNDLE?.trim()) {
+  throw new Error("Select either the HTTP visual backend or the local bundle.");
+}
+if (!visualBaseUrl && !existsSync("models")) {
+  throw new Error(
+    "Release Candidate requires an explicit HTTP visual backend or the operator-managed model bundle under ./models; see docs/setup.md.",
   );
 }
 
@@ -131,8 +141,7 @@ const composeArgs = [
   "compose",
   "-f",
   "docker-compose.yml",
-  "-f",
-  "docker-compose.paddle-local.yml",
+  ...(visualBaseUrl ? [] : ["-f", "docker-compose.paddle-local.yml"]),
   "-p",
   projectName,
 ];
@@ -143,6 +152,9 @@ const runtimeEnvironment = {
   RELEASE_CANDIDATE_QWEN_MODEL: model,
   DASHSCOPE_MODEL: model,
   DASHSCOPE_EXPLICIT_MODEL_REVISION: explicitRevision ?? "",
+  PADDLEOCR_VL_BASE_URL: visualBaseUrl ?? "",
+  PADDLEOCR_VL_MODEL_REVISION: visualRevision ?? "",
+  PADDLEOCR_VL_LOCAL_BUNDLE: "",
   RELEASE_CANDIDATE_COMPOSE_PROJECT: projectName,
   RELEASE_CANDIDATE_EVIDENCE_DIR: evidenceDirectory,
   PLAYWRIGHT_BROWSERS_PATH: path.resolve(

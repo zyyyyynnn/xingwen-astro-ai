@@ -25,6 +25,7 @@ import { exoplanetHostStarFixture } from "@xingwen/data-access";
 import { requestApi } from "./api-request";
 import {
   readReleaseRuntime,
+  readReleaseContainerState,
   readPlanningExecutions,
   restartActiveWorker,
   writeReleaseEvidence as report,
@@ -314,6 +315,10 @@ function qwenExecution(
       explicit_revision: EXPLICIT_REVISION,
     });
     expect(request.provider_returned_model).toBeTruthy();
+    expect(request.parameters).toMatchObject({
+      temperature: expect.any(Number),
+      top_p: expect.any(Number),
+    });
     expect(request.latency_ms).toBeGreaterThan(0);
     expect(
       Object.values(request.token_usage ?? {}).some((count) => count > 0),
@@ -351,10 +356,17 @@ test.afterEach(async ({ page }, testInfo) => {
   const runtimes = [];
   const planning = [];
   for (const projectId of observedProjects) {
-    planning.push({
-      project_id: projectId,
-      executions: await readPlanningExecutions(projectId),
-    });
+    try {
+      planning.push({
+        project_id: projectId,
+        executions: await readPlanningExecutions(projectId),
+      });
+    } catch {
+      planning.push({
+        project_id: projectId,
+        result: "runtime_read_unavailable",
+      });
+    }
   }
   for (const runId of observedRuns) {
     try {
@@ -366,6 +378,9 @@ test.afterEach(async ({ page }, testInfo) => {
   await report("release-candidate-runtime.json", {
     result: testInfo.status === "passed" ? "passed" : "failed",
     route: new URL(page.url()).pathname,
+    api_container: await readReleaseContainerState().catch(() => ({
+      result: "container_state_unavailable",
+    })),
     runtimes,
     planning,
   });

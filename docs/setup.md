@@ -50,8 +50,8 @@ PostgreSQL override，保存前会调用 `/chat/completions`
 | `SHARE_RETENTION_SECONDS`          | `2592000`                             | 过期/撤销 ShareSnapshot 保留期                              |
 | `CURSOR_SIGNING_KEY`               | `development-only-cursor-signing-key` | 不透明分页 cursor HMAC 密钥                                 |
 | `DATABASE_URL`                     | Docker Compose PostgreSQL URL         | ResearchRun、Artifact、Evidence 与 ResearchInput 的权威存储 |
-| `DASHSCOPE_TIMEOUT_SECONDS`        | `300`                                 | Qwen 单次长结构化生成的超时秒数                            |
-| `DASHSCOPE_MAX_RETRIES`            | `0`                                   | Provider SDK 不内嵌重试；恢复由 ResearchRun Step 负责      |
+| `DASHSCOPE_TIMEOUT_SECONDS`        | `300`                                 | Qwen 单次长结构化生成的超时秒数                             |
+| `DASHSCOPE_MAX_RETRIES`            | `0`                                   | Provider SDK 不内嵌重试；恢复由 ResearchRun Step 负责       |
 | `RESEARCH_INPUT_UPLOAD_DIR`        | `.data/research-inputs`               | ResearchInput 内容寻址存储目录                              |
 | `URL_FETCH_ALLOWED_HOSTS`          | 空                                    | URL ResearchInput host allowlist；空值 fail closed          |
 | `MODEL_PROVIDER_CONFIG_KEY`        | 空                                    | 实例级模型凭据加密根密钥；空值回退稳定 `CURSOR_SIGNING_KEY` |
@@ -82,6 +82,13 @@ docker compose -f docker-compose.yml -f docker-compose.paddle-local.yml up --bui
 该覆盖层仍启动同一个 API、`HybridScientificDocumentParser` 和 Publisher，只改变视觉
 backend 的部署依赖；模型权重不会复制进镜像。远程 Paddle 服务不需要覆盖层，只需在
 `.env` 配置 `PADDLEOCR_VL_BASE_URL` 与 `PADDLEOCR_VL_MODEL_REVISION`。
+
+本地视觉覆盖层使用 CPU，模型加载的峰值内存必须与 API、数据库和宿主机开销一并预算。
+内存受限、具备 NVIDIA GPU 的主机宜将视觉推理部署为独立服务，再通过现有 HTTP backend
+接入；服务必须提供 PaddleOCR-VL 的 `/layout-parsing` 接口，使用明确 revision 的模型，
+并在开放请求前完成初始化。GPU 运行结果与 CPU benchmark 分开记录。
+容器内的 HTTP 地址必须能从 API 容器访问；Docker Desktop 宿主机服务可使用
+`host.docker.internal`，不能使用指向 API 容器自身的 `localhost`。
 
 ### Windows 一键启动
 
@@ -171,7 +178,8 @@ uv run python ../../scripts/export_schemas.py --output ../../.artifacts/schemas
 
 - 工作区干净，`HEAD` 即待验证的精确 source commit；
 - 已认证的 GitHub CLI 可读取该提交的 CI 与 CodeQL 成功结果；
-- 根目录存在 `.env` 与本地 PaddleOCR-VL `models` 捆绑；
+- 根目录存在 `.env`；视觉解析使用本地 `models` 捆绑，或在当前 shell 成对提供
+  `PADDLEOCR_VL_BASE_URL` 与 `PADDLEOCR_VL_MODEL_REVISION`，连接已就绪的独立服务；
 - 当前 shell 显式提供 `DASHSCOPE_API_KEY` 和 `DASHSCOPE_MODEL`；
 - `URL_FETCH_ALLOWED_HOSTS` 明确包含 `arxiv.org`，用于关联选中论文的开放全文；
 - `DASHSCOPE_EXPLICIT_MODEL_REVISION` 可选，提供时与模型身份一致。
@@ -188,6 +196,10 @@ $env:URL_FETCH_ALLOWED_HOSTS = "arxiv.org"
 $env:RELEASE_CANDIDATE_SOURCE_COMMIT = git rev-parse HEAD
 pnpm release-candidate
 ```
+
+选择 HTTP 视觉 backend 时，启动器不加载本地 CPU 模型覆盖层；独立服务由操作者管理，
+门禁不会启动或停止它。API 容器仍通过当前解析器、DocumentParse、Evidence 和 Publisher
+完成科研链路。仅有服务健康检查不代表解析成功，必须保留真实全文解析与下游结果证据。
 
 脚本先校验 `HEAD` 与 `RELEASE_CANDIDATE_SOURCE_COMMIT` 完全一致且工作区干净，随后以唯一
 Compose project（`xingwen-rc-<sha8>-<pid>`）`up --build --wait`，安装 Chromium 并执行 live
