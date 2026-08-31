@@ -23,7 +23,6 @@ import {
   Alert,
   AlertDescription,
   Empty,
-  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -176,7 +175,7 @@ export function UnsupportedArtifactPresentation({
   if (descriptor.unsupportedPresentation === null) return null;
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center px-6 py-10">
-      <Empty className="min-h-72 w-full max-w-3xl border-0 bg-card/80 shadow-sm">
+      <Empty className="min-h-72 w-full max-w-3xl">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <PackageCheck aria-hidden="true" />
@@ -186,11 +185,6 @@ export function UnsupportedArtifactPresentation({
             {descriptor.unsupportedPresentation.description}
           </EmptyDescription>
         </EmptyHeader>
-        <EmptyContent>
-          <p className="text-muted-foreground">
-            结果版本与引用关系已保留；可返回研究结果选择结构化数据或证据报告的下载入口。
-          </p>
-        </EmptyContent>
       </Empty>
     </div>
   );

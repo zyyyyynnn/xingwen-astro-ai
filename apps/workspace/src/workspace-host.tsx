@@ -1147,7 +1147,7 @@ function WorkspaceShell({
   readonly runtime: ResearchWorkspaceRuntime;
 }) {
   return (
-    <div className="workspace-host h-full w-full overflow-hidden bg-background">
+    <div className="workspace-host h-full w-full overflow-hidden">
       <a className="skip-link" href="#main-content">
         跳到主要内容
       </a>

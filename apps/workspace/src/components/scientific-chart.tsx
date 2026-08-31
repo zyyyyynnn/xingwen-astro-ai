@@ -21,10 +21,7 @@ const MARK_TYPES = {
   area: "area",
 } as const;
 
-function resolveTokenColor(
-  token: ChartVisualizationReview["series"][number]["colorToken"],
-): string {
-  const variable = TOKEN_VARIABLES[token];
+function resolveCssColor(variable: string): string {
   const source = getComputedStyle(document.documentElement)
     .getPropertyValue(variable)
     .trim();
@@ -36,10 +33,8 @@ function resolveTokenColor(
   if (!context) throw new Error("浏览器无法解析图表颜色 Token");
   context.fillStyle = source;
   context.fillRect(0, 0, 1, 1);
-  const [red = 0, green = 0, blue = 0] = context.getImageData(0, 0, 1, 1).data;
-  return `${String.fromCodePoint(35)}${[red, green, blue]
-    .map((value) => value.toString(16).padStart(2, "0"))
-    .join("")}`;
+  const rgba = context.getImageData(0, 0, 1, 1).data;
+  return `#${Array.from(rgba, (channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function axisLabel(
@@ -75,13 +70,46 @@ function axisEncoding(
 function buildVegaLiteSpec(
   chart: ChartVisualizationReview,
   containerWidth: number,
+  container: HTMLElement,
 ): TopLevelSpec {
+  const style = getComputedStyle(container);
+  const height = Number.parseFloat(style.minHeight);
+  const fontSize = Number.parseFloat(style.fontSize);
+  const requestedWeight = Number(
+    getComputedStyle(document.documentElement).getPropertyValue(
+      "--font-weight-ui-emphasis",
+    ),
+  );
+  const titleFontWeight = (
+    [100, 200, 300, 400, 500, 600, 700, 800, 900] as const
+  ).find((weight) => weight === requestedWeight);
+  if (
+    titleFontWeight === undefined ||
+    ![height, fontSize].every((value) => Number.isFinite(value) && value > 0)
+  ) {
+    throw new Error("主题缺少图表尺寸或字体 Token");
+  }
+  const border = resolveCssColor("--color-border");
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v6.json",
     autosize: { type: "fit", contains: "padding", resize: true },
-    width: Math.max(240, Math.floor(containerWidth)),
-    height: 320,
+    width: Math.max(1, Math.floor(containerWidth)),
+    height,
     background: "transparent",
+    config: {
+      font: style.fontFamily,
+      view: { stroke: null },
+      axis: {
+        domain: false,
+        gridColor: border,
+        tickColor: border,
+        labelColor: resolveCssColor("--color-ink-secondary"),
+        titleColor: resolveCssColor("--color-ink-primary"),
+        labelFontSize: fontSize,
+        titleFontSize: fontSize,
+        titleFontWeight,
+      },
+    },
     layer: chart.series.map((series) => ({
       data: {
         values: series.points.map((point) => ({ x: point.x, y: point.y })),
@@ -93,7 +121,7 @@ function buildVegaLiteSpec(
       encoding: {
         x: axisEncoding(chart.xAxis, "x"),
         y: axisEncoding(chart.yAxis, "y"),
-        color: { value: resolveTokenColor(series.colorToken) },
+        color: { value: resolveCssColor(TOKEN_VARIABLES[series.colorToken]) },
       },
       name: series.label,
     })),
@@ -132,7 +160,7 @@ export function ScientificChart({
       try {
         const [{ default: embed }, spec] = await Promise.all([
           import("vega-embed"),
-          Promise.resolve(buildVegaLiteSpec(chart, containerWidth)),
+          Promise.resolve(buildVegaLiteSpec(chart, containerWidth, container)),
         ]);
         if (!active || revision !== renderRevision) return;
         finalized?.finalize();
@@ -148,7 +176,7 @@ export function ScientificChart({
         finalized = result;
         setState("ready");
       } catch (error) {
-        if (!active) return;
+        if (!active || revision !== renderRevision) return;
         setState("error");
         setMessage(error instanceof Error ? error.message : "科学图表渲染失败");
       }

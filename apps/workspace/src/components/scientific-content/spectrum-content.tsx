@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, type MouseEvent } from "react";
+import { useId, useMemo, useState, useRef, type MouseEvent } from "react";
 import type { SpectrumArtifactReviewContent } from "@xingwen/domain";
 
 import {
@@ -41,6 +41,8 @@ function SpectrumPlot({
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const plotId = useId();
+  const selectedLine = lines.find((line) => line.lineId === selectedLineId);
 
   const { minW, maxW, minF, maxF, pathD, continuumD, pointsWithCoords } =
     useMemo(() => {
@@ -90,7 +92,7 @@ function SpectrumPlot({
         ...p,
         x: getX(p.wavelength),
         y: getY(p.flux),
-        continuumY: p.continuum != null ? getY(p.continuum) : getY(1.0),
+        continuumY: p.continuum != null ? getY(p.continuum) : null,
       }));
 
       const d = coords.reduce(
@@ -101,13 +103,14 @@ function SpectrumPlot({
         "",
       );
 
-      const contD = coords.reduce(
-        (acc, pt, idx) =>
-          idx === 0
-            ? `M ${pt.x.toFixed(1)} ${pt.continuumY.toFixed(1)}`
-            : `${acc} L ${pt.x.toFixed(1)} ${pt.continuumY.toFixed(1)}`,
-        "",
-      );
+      const contD = coords
+        .map((pt, index) => {
+          if (pt.continuumY === null) return "";
+          const command =
+            index === 0 || coords[index - 1]?.continuumY == null ? "M" : "L";
+          return `${command} ${pt.x.toFixed(1)} ${pt.continuumY.toFixed(1)}`;
+        })
+        .join(" ");
 
       return {
         minW,
@@ -171,25 +174,30 @@ function SpectrumPlot({
 
   return (
     <div className="spectrum-plot-wrapper space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-3">
+      <div className="scientific-plot__header flex flex-wrap items-center justify-between gap-2 pb-3">
         <div>
-          <h4 className="text-sm font-semibold text-foreground">
-            高分辨率恒星光谱显示 (Spectrum Display)
+          <h4 className="text-sm font-semibold">
+            光谱通量与特征谱线 (Spectrum Display)
           </h4>
-          <p className="text-xs text-muted-foreground">
+          <p className="scientific-plot__caption">
             波长范围 {formatNumber(minW, 1)} – {formatNumber(maxW, 1)}{" "}
-            {wavelengthUnit} · 检测到 {lines.length} 条特征吸收谱线
+            {wavelengthUnit} · 检测到 {lines.length} 条特征谱线
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="inline-block h-0.5 w-4 bg-primary" />{" "}
+          <span className="scientific-plot__legend-item">
+            <span className="scientific-plot__legend-line" aria-hidden="true" />{" "}
             光谱通量显示序列
           </span>
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="inline-block h-0.5 w-4 border-b border-dashed border-muted-foreground" />{" "}
-            连续谱基准
-          </span>
+          {continuumD ? (
+            <span className="scientific-plot__legend-item">
+              <span
+                className="scientific-plot__legend-line scientific-plot__legend-line--baseline"
+                aria-hidden="true"
+              />{" "}
+              连续谱基准
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -198,9 +206,17 @@ function SpectrumPlot({
           ref={svgRef}
           viewBox="0 0 800 320"
           className="w-full select-none"
+          role="img"
+          aria-labelledby={`${plotId}-title ${plotId}-description`}
           onMouseMove={handleMouseMove}
           onMouseLeave={() => setHoveredIndex(null)}
         >
+          <title id={`${plotId}-title`}>光谱通量与特征谱线</title>
+          <desc id={`${plotId}-description`}>
+            横轴为波长（{wavelengthUnit}），纵轴为通量（{fluxUnit}）；包含{" "}
+            {points.length} 个采样点与 {lines.length} 条检测谱线。谱线可用 Enter
+            或空格选择。
+          </desc>
           {/* Background Grid */}
           {xTicks.map((tick, i) => {
             const x = 60 + ((tick - minW) / (maxW - minW || 1)) * 710;
@@ -218,10 +234,9 @@ function SpectrumPlot({
                 <text
                   x={x}
                   y={298}
-                  fontSize="10"
+                  className="scientific-plot__tick-label"
                   textAnchor="middle"
                   fill="currentColor"
-                  opacity="0.6"
                 >
                   {Math.round(tick)}
                 </text>
@@ -245,10 +260,9 @@ function SpectrumPlot({
                 <text
                   x={52}
                   y={y + 3}
-                  fontSize="10"
+                  className="scientific-plot__tick-label"
                   textAnchor="end"
                   fill="currentColor"
-                  opacity="0.6"
                 >
                   {tick.toFixed(2)}
                 </text>
@@ -292,7 +306,17 @@ function SpectrumPlot({
             return (
               <g
                 key={line.lineId}
-                className="cursor-pointer transition-opacity hover:opacity-100"
+                className="scientific-plot__line-control"
+                tabIndex={0}
+                role="button"
+                aria-pressed={isSelected}
+                aria-label={`选择${line.kind === "absorption" ? "吸收" : "发射"}谱线 ${formatNumber(line.observedWavelength, 2)} ${wavelengthUnit}，显著性 ${formatNumber(line.significanceSigma, 2)} sigma`}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelectedLineId(isSelected ? null : line.lineId);
+                  }
+                }}
                 onClick={() =>
                   setSelectedLineId(isSelected ? null : line.lineId)
                 }
@@ -337,8 +361,7 @@ function SpectrumPlot({
                 <text
                   x={x}
                   y={20}
-                  fontSize="9"
-                  fontWeight="600"
+                  className="scientific-plot__annotation-label"
                   textAnchor="middle"
                   fill={isSelected ? "var(--color-brand-on)" : "currentColor"}
                 >
@@ -375,54 +398,83 @@ function SpectrumPlot({
           <text
             x={415}
             y={314}
-            fontSize="10"
+            className="scientific-plot__axis-label"
             textAnchor="middle"
             fill="currentColor"
-            opacity="0.75"
           >
             波长 Wavelength ({wavelengthUnit})
           </text>
           <text
             x={-152}
             y={18}
-            fontSize="10"
+            className="scientific-plot__axis-label"
             textAnchor="middle"
             fill="currentColor"
-            opacity="0.75"
             transform="rotate(-90)"
           >
-            相对通量 Flux ({fluxUnit})
+            通量 Flux ({fluxUnit})
           </text>
         </svg>
 
         {/* Hover Tooltip Overlay */}
         {hoveredPoint ? (
           <div
-            className="pointer-events-none absolute top-2 rounded border border-border bg-popover px-2.5 py-1.5 text-xs shadow-md"
+            className="scientific-plot__tooltip"
             style={{
               left: `${Math.min(Math.max((hoveredPoint.x / 800) * 100, 10), 85)}%`,
               transform: "translateX(-50%)",
             }}
           >
-            <div className="font-semibold text-foreground">
+            <div className="scientific-plot__tooltip-title">
               波长: {formatNumber(hoveredPoint.wavelength, 2)} {wavelengthUnit}
             </div>
-            <div className="text-muted-foreground">
+            <div>
               通量: {formatNumber(hoveredPoint.flux, 4)} {fluxUnit}
             </div>
-            {hoveredPoint.continuum !== undefined ? (
-              <div className="text-muted-foreground">
-                连续谱: {formatNumber(hoveredPoint.continuum, 4)}
-              </div>
+            {hoveredPoint.continuum != null ? (
+              <div>连续谱: {formatNumber(hoveredPoint.continuum, 4)}</div>
             ) : null}
-            {hoveredPoint.uncertainty !== undefined ? (
-              <div className="text-muted-foreground">
-                不确定度: ±{formatNumber(hoveredPoint.uncertainty, 4)}
-              </div>
+            {hoveredPoint.uncertainty != null ? (
+              <div>不确定度: ±{formatNumber(hoveredPoint.uncertainty, 4)}</div>
             ) : null}
           </div>
         ) : null}
       </div>
+      {selectedLine ? (
+        <dl
+          className="scientific-plot__selection"
+          aria-label="选中谱线详情"
+          aria-live="polite"
+        >
+          <div>
+            <dt>谱线类型</dt>
+            <dd>
+              {selectedLine.kind === "absorption" ? "吸收谱线" : "发射谱线"}
+            </dd>
+          </div>
+          <div>
+            <dt>观测波长</dt>
+            <dd>
+              {formatNumber(selectedLine.observedWavelength, 2)}{" "}
+              {wavelengthUnit}
+            </dd>
+          </div>
+          <div>
+            <dt>归一化通量</dt>
+            <dd>{formatNumber(selectedLine.normalizedFlux, 4)}</dd>
+          </div>
+          <div>
+            <dt>显著性</dt>
+            <dd>{formatNumber(selectedLine.significanceSigma, 2)} sigma</dd>
+          </div>
+          <div>
+            <dt>等效宽度</dt>
+            <dd>
+              {formatNumber(selectedLine.equivalentWidth, 4)} {wavelengthUnit}
+            </dd>
+          </div>
+        </dl>
+      ) : null}
     </div>
   );
 }
@@ -519,7 +571,7 @@ function SpectrumLineTable({
                 <span className="font-semibold">
                   {formatNumber(line.significanceSigma, 1)} σ
                 </span>
-                <small className="ml-1.5 text-muted-foreground">
+                <small className="ml-1.5">
                   等效宽度 {formatNumber(line.equivalentWidth, 3)}
                 </small>
               </td>
@@ -612,7 +664,7 @@ export function SpectrumContent({
       ) : null}
 
       <section className="scientific-artifact__section">
-        <h4 className="mb-2 font-medium text-foreground">检出的关键特征谱线</h4>
+        <h4 className="mb-2 font-medium">检出的关键特征谱线</h4>
         {content.detectedLines.length > 0 ? (
           <SpectrumLineTable
             lines={content.detectedLines}
@@ -620,14 +672,14 @@ export function SpectrumContent({
             wavelengthUnit={content.wavelengthUnit}
           />
         ) : (
-          <p className="scientific-artifact__empty text-sm text-muted-foreground">
+          <p className="scientific-artifact__empty text-sm">
             当前版本未检测到特征谱线。
           </p>
         )}
       </section>
 
       <section className="scientific-artifact__section">
-        <h4 className="mb-2 font-medium text-foreground">光谱采样点测量表</h4>
+        <h4 className="mb-2 font-medium">光谱采样点测量表</h4>
         {content.points.length > 0 ? (
           <SpectrumPointTable
             points={content.points}
@@ -636,7 +688,7 @@ export function SpectrumContent({
             fluxUnit={content.fluxUnit}
           />
         ) : (
-          <p className="scientific-artifact__empty text-sm text-muted-foreground">
+          <p className="scientific-artifact__empty text-sm">
             未提供光谱采样点数据。
           </p>
         )}

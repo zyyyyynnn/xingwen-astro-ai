@@ -89,83 +89,88 @@ export function ChoicePrompt({
   }
 
   return (
-    <FieldSet
+    <div
       className="xw-choice-prompt xw-choice-prompt--active"
       data-testid={`choice-prompt-active-${id}`}
     >
-      <FieldLegend className="xw-choice-prompt__question">
-        {question}
-      </FieldLegend>
-      {description ? (
-        <FieldDescription
-          id={`${id}-description`}
-          className="xw-choice-prompt__description"
-        >
-          {description}
-        </FieldDescription>
-      ) : null}
-      <FieldGroup className="xw-choice-prompt__fields">
-        <RadioGroup
-          value={selected ?? undefined}
-          onValueChange={setSelected}
-          className="xw-choice-prompt__options"
-          aria-label={question}
-          aria-describedby={description ? `${id}-description` : undefined}
-        >
-          {normalized.map((option, index) => {
-            const itemId = `${id}-opt-${index}`;
-            return (
-              <label
-                key={option.value}
-                htmlFor={itemId}
-                className={`xw-choice-prompt__option ${selected === option.value ? "is-selected" : ""}`}
-              >
-                <RadioGroupItem value={option.value} id={itemId} />
-                <span className="xw-choice-prompt__option-label">
-                  {option.value}
-                </span>
-                {option.recommended ? (
-                  <Badge variant="secondary">推荐</Badge>
-                ) : null}
-              </label>
-            );
-          })}
-          {allowFreeText ? (
-            <label
-              htmlFor={`${id}-opt-free`}
-              className={`xw-choice-prompt__option ${choseFree ? "is-selected" : ""}`}
-            >
-              <RadioGroupItem value={FREE_CHOICE_VALUE} id={`${id}-opt-free`} />
-              <span className="xw-choice-prompt__option-label">自行说明</span>
-            </label>
-          ) : null}
-        </RadioGroup>
-        {allowFreeText && choseFree ? (
-          <div className="xw-choice-prompt__free-text">
-            <Input
-              placeholder="用自己的话说明（必填）"
-              value={customText}
-              aria-label="自行说明内容"
-              onChange={(e) => setCustomText(e.target.value)}
-            />
-          </div>
-        ) : null}
-        <div className="xw-choice-prompt__actions">
-          <Button
-            disabled={!canSubmit || isSubmitting}
-            onClick={() => {
-              if (selected === null) return;
-              if (selected === FREE_CHOICE_VALUE) {
-                onSelect(FREE_CHOICE_VALUE, customText.trim());
-              } else {
-                onSelect(selected, undefined);
-              }
-            }}
+      <FieldSet className="xw-choice-prompt__fields">
+        <FieldLegend className="xw-choice-prompt__question">
+          {question}
+        </FieldLegend>
+        {description ? (
+          <FieldDescription
+            id={`${id}-description`}
+            className="xw-choice-prompt__description"
           >
-            {isSubmitting ? "正在提交..." : "确认选择"}
-          </Button>
-        </div>
-      </FieldGroup>
-    </FieldSet>
+            {description}
+          </FieldDescription>
+        ) : null}
+        <FieldGroup className="xw-choice-prompt__fields">
+          <RadioGroup
+            value={selected ?? undefined}
+            onValueChange={setSelected}
+            className="xw-choice-prompt__options"
+            aria-label={question}
+            aria-describedby={description ? `${id}-description` : undefined}
+          >
+            {normalized.map((option, index) => {
+              const itemId = `${id}-opt-${index}`;
+              return (
+                <label
+                  key={option.value}
+                  htmlFor={itemId}
+                  className={`xw-choice-prompt__option ${selected === option.value ? "is-selected" : ""}`}
+                >
+                  <RadioGroupItem value={option.value} id={itemId} />
+                  <span className="xw-choice-prompt__option-label">
+                    {option.value}
+                  </span>
+                  {option.recommended ? (
+                    <Badge variant="secondary">推荐</Badge>
+                  ) : null}
+                </label>
+              );
+            })}
+            {allowFreeText ? (
+              <label
+                htmlFor={`${id}-opt-free`}
+                className={`xw-choice-prompt__option ${choseFree ? "is-selected" : ""}`}
+              >
+                <RadioGroupItem
+                  value={FREE_CHOICE_VALUE}
+                  id={`${id}-opt-free`}
+                />
+                <span className="xw-choice-prompt__option-label">自行说明</span>
+              </label>
+            ) : null}
+          </RadioGroup>
+          {allowFreeText && choseFree ? (
+            <div className="xw-choice-prompt__free-text">
+              <Input
+                placeholder="用自己的话说明（必填）"
+                value={customText}
+                aria-label="自行说明内容"
+                onChange={(e) => setCustomText(e.target.value)}
+              />
+            </div>
+          ) : null}
+          <div className="xw-choice-prompt__actions">
+            <Button
+              disabled={!canSubmit || isSubmitting}
+              onClick={() => {
+                if (selected === null) return;
+                if (selected === FREE_CHOICE_VALUE) {
+                  onSelect(FREE_CHOICE_VALUE, customText.trim());
+                } else {
+                  onSelect(selected, undefined);
+                }
+              }}
+            >
+              {isSubmitting ? "正在提交..." : "确认选择"}
+            </Button>
+          </div>
+        </FieldGroup>
+      </FieldSet>
+    </div>
   );
 }

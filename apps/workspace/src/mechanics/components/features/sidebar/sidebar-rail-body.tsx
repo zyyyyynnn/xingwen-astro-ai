@@ -36,7 +36,7 @@ import {
 } from "./sidebar-layout";
 
 const STATUS_DOT_CLASS: Record<ResearchNavigationStatus, string> = {
-  idle: "bg-muted-foreground/40",
+  idle: "workspace-status-dot--idle",
   running: "bg-[var(--color-info)] animate-pulse",
   waiting: "bg-[var(--color-warning)]",
   error: "bg-[var(--color-error)]",

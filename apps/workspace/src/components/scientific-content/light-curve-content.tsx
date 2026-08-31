@@ -1,4 +1,11 @@
-import { useMemo, useState, useRef, type MouseEvent } from "react";
+import {
+  useId,
+  useMemo,
+  useState,
+  useRef,
+  type MouseEvent,
+  type KeyboardEvent,
+} from "react";
 import type { LightCurveArtifactReviewContent } from "@xingwen/domain";
 import { ChevronRight } from "@xingwen/ui/icons";
 import {
@@ -18,24 +25,26 @@ import {
 } from "./shared";
 
 const VALUE_KIND_LABELS: Record<string, string> = {
-  relative_flux: "相对流量",
-  flux: "流量",
+  relative_flux: "相对通量",
+  flux: "通量",
   magnitude: "星等",
 };
 
-interface LightCurvePoint {
-  readonly time: number;
-  readonly value: number;
-  readonly normalizedValue?: number | null;
-  readonly uncertainty?: number | null;
-  readonly qualityFlag?: number | null;
-  readonly phase?: number | null;
-}
+type LightCurvePoint = LightCurveArtifactReviewContent["points"][number];
 
 interface PeriodPeak {
   readonly period: number;
   readonly power: number;
 }
+
+const PLOT = {
+  width: 800,
+  height: 300,
+  left: 100,
+  right: 752,
+  top: 20,
+  bottom: 240,
+};
 
 function formatProbability(value: number): string {
   return Math.abs(value) < 0.001 && value !== 0
@@ -50,23 +59,147 @@ function formatCadence(value: number, timeUnit: string): string {
   return `${formatNumber(value, 2)} ${timeUnit}`;
 }
 
+function axisNumber(value: number, span: number): string {
+  if (value === 0) return "0";
+  const decimals = Math.max(0, Math.ceil(-Math.log10(Math.abs(span) / 4)) + 1);
+  return Math.abs(value) < 0.0001
+    ? value.toExponential(2)
+    : value.toFixed(Math.min(decimals, 6));
+}
+
+/** Shared coordinates match all three light-curve projections. */
+function PlotTicks({
+  xMin,
+  xMax,
+  yMin,
+  yMax,
+}: {
+  readonly xMin: number;
+  readonly xMax: number;
+  readonly yMin: number;
+  readonly yMax: number;
+}) {
+  return (
+    <g className="scientific-plot__ticks">
+      {Array.from({ length: 5 }, (_, index) => {
+        const fraction = index / 4;
+        const x = PLOT.left + fraction * (PLOT.right - PLOT.left);
+        const y = PLOT.bottom - fraction * (PLOT.bottom - PLOT.top);
+        return (
+          <g key={index}>
+            <line
+              x1={PLOT.left}
+              x2={PLOT.right}
+              y1={y}
+              y2={y}
+              className="scientific-plot__grid-line"
+            />
+            <text
+              x={PLOT.left - 8}
+              y={y}
+              textAnchor="end"
+              dominantBaseline="middle"
+            >
+              {axisNumber(yMin + fraction * (yMax - yMin), yMax - yMin)}
+            </text>
+            <text x={x} y={PLOT.bottom + 14} textAnchor="middle">
+              {axisNumber(xMin + fraction * (xMax - xMin), xMax - xMin)}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function PlotAxes({
+  xLabel,
+  yLabel,
+}: {
+  readonly xLabel: string;
+  readonly yLabel: string;
+}) {
+  return (
+    <g>
+      <path
+        d={`M ${PLOT.left} ${PLOT.top} V ${PLOT.bottom} H ${PLOT.right}`}
+        fill="none"
+        stroke="var(--color-border)"
+      />
+      <text
+        x={(PLOT.left + PLOT.right) / 2}
+        y={PLOT.height - 10}
+        className="scientific-plot__axis-label"
+        textAnchor="middle"
+        fill="currentColor"
+      >
+        {xLabel}
+      </text>
+      <text
+        x={-(PLOT.top + PLOT.bottom) / 2}
+        y={20}
+        className="scientific-plot__axis-label"
+        textAnchor="middle"
+        fill="currentColor"
+        transform="rotate(-90)"
+      >
+        {yLabel}
+      </text>
+    </g>
+  );
+}
+
+function navigatePoint(
+  event: KeyboardEvent<SVGSVGElement>,
+  index: number | null,
+  count: number,
+  select: (index: number) => void,
+) {
+  if (count === 0) return;
+  const next =
+    event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? count - 1
+        : event.key === "ArrowRight"
+          ? Math.min((index ?? -1) + 1, count - 1)
+          : event.key === "ArrowLeft"
+            ? Math.max((index ?? 1) - 1, 0)
+            : null;
+  if (next !== null) {
+    event.preventDefault();
+    select(next);
+  }
+}
+
 /** Time Series Plot (Flux vs Time) */
 function TimeSeriesPlot({
   points,
   timeUnit,
   valueUnit,
+  valueKind,
 }: {
   readonly points: readonly LightCurvePoint[];
   readonly timeUnit: string;
   readonly valueUnit: string;
+  readonly valueKind: string;
 }) {
+  const plotId = useId();
+  const valueLabel = VALUE_KIND_LABELS[valueKind] ?? "测量值";
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const { minV, maxV, pathD, pointsWithCoords } = useMemo(() => {
+  const { minT, maxT, minV, maxV, pathD, pointsWithCoords } = useMemo(() => {
     const first = points[0];
     if (!first) {
-      return { minV: 0.98, maxV: 1.01, pathD: "", pointsWithCoords: [] };
+      return {
+        minT: 0,
+        maxT: 1,
+        minV: 0,
+        maxV: 1,
+        pathD: "",
+        pointsWithCoords: [],
+      };
     }
     let minT = first.time;
     let maxT = first.time;
@@ -78,20 +211,17 @@ function TimeSeriesPlot({
       if (p.value < minV) minV = p.value;
       if (p.value > maxV) maxV = p.value;
     }
-    const vRange = Math.max(maxV - minV, 0.01);
+    const vRange = maxV - minV || Math.abs(minV) * 0.01 || 1;
     const paddedMinV = minV - vRange * 0.1;
     const paddedMaxV = maxV + vRange * 0.1;
 
-    const width = 800;
-    const height = 280;
-    const margin = { top: 20, right: 24, bottom: 40, left: 60 };
-    const innerW = width - margin.left - margin.right;
-    const innerH = height - margin.top - margin.bottom;
+    const innerW = PLOT.right - PLOT.left;
+    const innerH = PLOT.bottom - PLOT.top;
 
     const getX = (t: number) =>
-      margin.left + ((t - minT) / (maxT - minT || 1)) * innerW;
+      PLOT.left + ((t - minT) / (maxT - minT || 1)) * innerW;
     const getY = (v: number) =>
-      margin.top +
+      PLOT.top +
       (1 - (v - paddedMinV) / (paddedMaxV - paddedMinV || 1)) * innerH;
 
     const coords = points.map((p) => ({
@@ -123,7 +253,7 @@ function TimeSeriesPlot({
     const rect = svgRef.current.getBoundingClientRect();
     const clientX = e.clientX - rect.left;
     const svgWidth = rect.width;
-    const scaleX = 800 / svgWidth;
+    const scaleX = PLOT.width / svgWidth;
     const targetX = clientX * scaleX;
 
     let closestIdx = 0;
@@ -147,25 +277,57 @@ function TimeSeriesPlot({
   const hoveredPoint =
     hoveredIndex !== null ? pointsWithCoords[hoveredIndex] : null;
 
+  if (pointsWithCoords.length === 0)
+    return (
+      <p className="scientific-artifact__empty">当前结果没有可显示的测量点。</p>
+    );
+
   return (
     <div className="relative w-full overflow-hidden">
       <svg
         ref={svgRef}
-        viewBox="0 0 800 280"
+        viewBox={`0 0 ${PLOT.width} ${PLOT.height}`}
         className="w-full select-none"
+        role="img"
+        tabIndex={0}
+        aria-labelledby={`${plotId}-title ${plotId}-description`}
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setHoveredIndex(null)}
+        onFocus={() => setHoveredIndex(0)}
+        onBlur={() => setHoveredIndex(null)}
+        onKeyDown={(event) =>
+          navigatePoint(
+            event,
+            hoveredIndex,
+            pointsWithCoords.length,
+            setHoveredIndex,
+          )
+        }
       >
-        {/* Baseline at 1.0 */}
-        <line
-          x1={60}
-          y1={20 + (1 - (1.0 - minV) / (maxV - minV || 1)) * 220}
-          x2={776}
-          y2={20 + (1 - (1.0 - minV) / (maxV - minV || 1)) * 220}
-          stroke="currentColor"
-          strokeOpacity="0.25"
-          strokeDasharray="4 4"
-        />
+        <title id={`${plotId}-title`}>光变时间序列</title>
+        <desc id={`${plotId}-description`}>
+          横轴为时间（{timeUnit}），纵轴为{valueLabel}（{valueUnit}），包含{" "}
+          {points.length} 个测量点。聚焦后可用左右方向键逐点检查，Home 和 End
+          跳至首尾。
+        </desc>
+        <PlotTicks xMin={minT} xMax={maxT} yMin={minV} yMax={maxV} />
+        {valueKind === "relative_flux" && minV <= 1 && maxV >= 1 ? (
+          <line
+            x1={PLOT.left}
+            y1={
+              PLOT.top +
+              (1 - (1.0 - minV) / (maxV - minV || 1)) * (PLOT.bottom - PLOT.top)
+            }
+            x2={PLOT.right}
+            y2={
+              PLOT.top +
+              (1 - (1.0 - minV) / (maxV - minV || 1)) * (PLOT.bottom - PLOT.top)
+            }
+            stroke="currentColor"
+            strokeOpacity="0.25"
+            strokeDasharray="4 4"
+          />
+        ) : null}
 
         {/* Path / Points */}
         {pathD ? (
@@ -194,9 +356,9 @@ function TimeSeriesPlot({
           <g>
             <line
               x1={hoveredPoint.x}
-              y1={20}
+              y1={PLOT.top}
               x2={hoveredPoint.x}
-              y2={240}
+              y2={PLOT.bottom}
               stroke="currentColor"
               strokeOpacity="0.4"
             />
@@ -211,60 +373,26 @@ function TimeSeriesPlot({
           </g>
         ) : null}
 
-        {/* Axes */}
-        <line
-          x1={60}
-          y1={240}
-          x2={776}
-          y2={240}
-          stroke="currentColor"
-          strokeOpacity="0.2"
+        <PlotAxes
+          xLabel={`时间 Time (${timeUnit})`}
+          yLabel={`${valueLabel} (${valueUnit})`}
         />
-        <line
-          x1={60}
-          y1={20}
-          x2={60}
-          y2={240}
-          stroke="currentColor"
-          strokeOpacity="0.2"
-        />
-
-        <text
-          x={418}
-          y={270}
-          fontSize="10"
-          textAnchor="middle"
-          fill="currentColor"
-          opacity="0.7"
-        >
-          时间 Time ({timeUnit})
-        </text>
-        <text
-          x={-130}
-          y={20}
-          fontSize="10"
-          textAnchor="middle"
-          fill="currentColor"
-          opacity="0.7"
-          transform="rotate(-90)"
-        >
-          相对通量 Flux ({valueUnit})
-        </text>
       </svg>
 
       {hoveredPoint ? (
         <div
-          className="pointer-events-none absolute top-2 rounded border border-border bg-popover px-2 py-1 text-xs shadow-md"
+          className="scientific-plot__tooltip"
+          role="status"
           style={{
-            left: `${Math.min(Math.max((hoveredPoint.x / 800) * 100, 10), 85)}%`,
+            left: `${Math.min(Math.max((hoveredPoint.x / PLOT.width) * 100, 10), 85)}%`,
             transform: "translateX(-50%)",
           }}
         >
-          <div className="font-semibold">
+          <div className="scientific-plot__tooltip-title">
             时间: {formatNumber(hoveredPoint.time, 3)} {timeUnit}
           </div>
-          <div className="text-muted-foreground">
-            通量: {formatNumber(hoveredPoint.value, 4)} {valueUnit}
+          <div>
+            {valueLabel}: {formatNumber(hoveredPoint.value, 4)} {valueUnit}
           </div>
         </div>
       ) : null}
@@ -275,35 +403,29 @@ function TimeSeriesPlot({
 /** Phase Folded Light Curve Plot */
 function PhaseFoldedPlot({
   points,
+  valueLabel,
 }: {
   readonly points: readonly LightCurvePoint[];
+  readonly valueLabel: string;
 }) {
-  const [hoveredPoint, setHoveredPoint] = useState<{
-    x: number;
-    y: number;
-    phase: number;
-    flux: number;
-  } | null>(null);
+  const plotId = useId();
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   // The artifact carries the authoritative orbital phase per point; the plot
   // only projects existing values, it never re-derives or fits them.
-  const { foldedPoints } = useMemo(() => {
+  const { foldedPoints, minPhase, maxPhase, lo, hi } = useMemo(() => {
     const withPhase = points
-      .filter((p) => typeof p.phase === "number")
       .map((p) => ({
-        orbitalPhase: p.phase as number,
-        flux: p.normalizedValue ?? p.value,
+        orbitalPhase: p.phase,
+        flux: p.normalizedValue,
       }))
       .sort((a, b) => a.orbitalPhase - b.orbitalPhase);
 
-    const width = 800;
-    const height = 280;
-    const margin = { top: 20, right: 24, bottom: 40, left: 60 };
-    const innerW = width - margin.left - margin.right;
-    const innerH = height - margin.top - margin.bottom;
+    const innerW = PLOT.right - PLOT.left;
+    const innerH = PLOT.bottom - PLOT.top;
 
-    const minPhase = -0.5;
-    const maxPhase = 0.5;
+    const minPhase = Math.min(-0.5, ...withPhase.map((p) => p.orbitalPhase));
+    const maxPhase = Math.max(0.5, ...withPhase.map((p) => p.orbitalPhase));
     const fMin =
       withPhase.length > 0 ? Math.min(...withPhase.map((p) => p.flux)) : 0;
     const fMax =
@@ -313,9 +435,8 @@ function PhaseFoldedPlot({
     const hi = fMax + fPad;
 
     const getX = (ph: number) =>
-      margin.left + ((ph - minPhase) / (maxPhase - minPhase)) * innerW;
-    const getY = (f: number) =>
-      margin.top + (1 - (f - lo) / (hi - lo)) * innerH;
+      PLOT.left + ((ph - minPhase) / (maxPhase - minPhase)) * innerW;
+    const getY = (f: number) => PLOT.top + (1 - (f - lo) / (hi - lo)) * innerH;
 
     const projected = withPhase.map((p) => ({
       ...p,
@@ -323,12 +444,44 @@ function PhaseFoldedPlot({
       y: getY(p.flux),
     }));
 
-    return { foldedPoints: projected };
+    return { foldedPoints: projected, minPhase, maxPhase, lo, hi };
   }, [points]);
+
+  const hoveredPoint =
+    hoveredIndex === null ? null : foldedPoints[hoveredIndex];
+  if (foldedPoints.length === 0)
+    return (
+      <p className="scientific-artifact__empty">
+        当前结果没有记录轨道相位，无法显示相位折叠图。
+      </p>
+    );
 
   return (
     <div className="relative w-full overflow-hidden">
-      <svg viewBox="0 0 800 280" className="w-full select-none">
+      <svg
+        viewBox={`0 0 ${PLOT.width} ${PLOT.height}`}
+        className="w-full select-none"
+        role="img"
+        tabIndex={0}
+        onFocus={() => setHoveredIndex(0)}
+        onBlur={() => setHoveredIndex(null)}
+        onKeyDown={(event) =>
+          navigatePoint(
+            event,
+            hoveredIndex,
+            foldedPoints.length,
+            setHoveredIndex,
+          )
+        }
+        aria-labelledby={`${plotId}-title ${plotId}-description`}
+      >
+        <title id={`${plotId}-title`}>光变相位折叠图</title>
+        <desc id={`${plotId}-description`}>
+          横轴为结果记录的轨道相位，纵轴为{valueLabel}，包含{" "}
+          {foldedPoints.length}{" "}
+          个带相位的测量点。聚焦后可用左右方向键逐点检查，Home 和 End 跳至首尾。
+        </desc>
+        <PlotTicks xMin={minPhase} xMax={maxPhase} yMin={lo} yMax={hi} />
         {/* Phase Folded Points — authoritative per-point phase */}
         {foldedPoints.map((pt, idx) => (
           <circle
@@ -338,73 +491,28 @@ function PhaseFoldedPlot({
             r={2}
             fill="var(--color-brand)"
             opacity={0.7}
-            className="cursor-pointer transition-transform hover:scale-150"
-            onMouseEnter={() =>
-              setHoveredPoint({
-                x: pt.x,
-                y: pt.y,
-                phase: pt.orbitalPhase,
-                flux: pt.flux,
-              })
-            }
-            onMouseLeave={() => setHoveredPoint(null)}
+            onMouseEnter={() => setHoveredIndex(idx)}
+            onMouseLeave={() => setHoveredIndex(null)}
           />
         ))}
 
-        {/* Axes */}
-        <line
-          x1={60}
-          y1={240}
-          x2={776}
-          y2={240}
-          stroke="currentColor"
-          strokeOpacity="0.2"
-        />
-        <line
-          x1={60}
-          y1={20}
-          x2={60}
-          y2={240}
-          stroke="currentColor"
-          strokeOpacity="0.2"
-        />
-
-        <text
-          x={418}
-          y={270}
-          fontSize="10"
-          textAnchor="middle"
-          fill="currentColor"
-          opacity="0.7"
-        >
-          轨道相位 Orbital Phase
-        </text>
-        <text
-          x={-130}
-          y={20}
-          fontSize="10"
-          textAnchor="middle"
-          fill="currentColor"
-          opacity="0.7"
-          transform="rotate(-90)"
-        >
-          归一化通量 Normalized Flux
-        </text>
+        <PlotAxes xLabel="轨道相位 Orbital Phase" yLabel={valueLabel} />
       </svg>
 
       {hoveredPoint ? (
         <div
-          className="pointer-events-none absolute top-2 rounded border border-border bg-popover px-2 py-1 text-xs shadow-md"
+          className="scientific-plot__tooltip"
+          role="status"
           style={{
-            left: `${Math.min(Math.max((hoveredPoint.x / 800) * 100, 10), 85)}%`,
+            left: `${Math.min(Math.max((hoveredPoint.x / PLOT.width) * 100, 10), 85)}%`,
             transform: "translateX(-50%)",
           }}
         >
-          <div className="font-semibold">
-            相位: {formatNumber(hoveredPoint.phase, 4)}
+          <div className="scientific-plot__tooltip-title">
+            相位: {formatNumber(hoveredPoint.orbitalPhase, 4)}
           </div>
-          <div className="text-muted-foreground">
-            通量: {formatNumber(hoveredPoint.flux, 4)}
+          <div>
+            {valueLabel}: {formatNumber(hoveredPoint.flux, 4)}
           </div>
         </div>
       ) : null}
@@ -421,16 +529,14 @@ function PeriodogramPlot({
   readonly timeUnit: string;
   readonly fixtureMode: boolean;
 }) {
-  const projected = useMemo(() => {
+  const plotId = useId();
+  const { projected, pMin, pMax, powerMax } = useMemo(() => {
     if (peaks.length === 0) {
-      return [];
+      return { projected: [], pMin: 0, pMax: 1, powerMax: 1 };
     }
 
-    const width = 800;
-    const height = 280;
-    const margin = { top: 20, right: 24, bottom: 40, left: 60 };
-    const innerW = width - margin.left - margin.right;
-    const innerH = height - margin.top - margin.bottom;
+    const innerW = PLOT.right - PLOT.left;
+    const innerH = PLOT.bottom - PLOT.top;
 
     const lo = Math.min(...peaks.map((p) => p.period));
     const hi = Math.max(...peaks.map((p) => p.period));
@@ -441,43 +547,65 @@ function PeriodogramPlot({
     const powerMax = Math.max(...peaks.map((p) => p.power)) * 1.15 || 1;
 
     const getX = (p: number) =>
-      margin.left + ((p - pMin) / (pMax - pMin)) * innerW;
-    const getY = (pow: number) => margin.top + (1 - pow / powerMax) * innerH;
+      PLOT.left + ((p - pMin) / (pMax - pMin)) * innerW;
+    const getY = (pow: number) => PLOT.top + (1 - pow / powerMax) * innerH;
 
-    return peaks.map((pk) => ({
-      ...pk,
-      x: getX(pk.period),
-      y: getY(pk.power),
-    }));
+    return {
+      pMin,
+      pMax,
+      powerMax,
+      projected: peaks.map((pk) => ({
+        ...pk,
+        x: getX(pk.period),
+        y: getY(pk.power),
+      })),
+    };
   }, [peaks]);
+
+  if (projected.length === 0)
+    return (
+      <p className="scientific-artifact__empty">当前结果没有周期峰值记录。</p>
+    );
 
   return (
     <div className="relative w-full overflow-hidden">
-      <svg viewBox="0 0 800 280" className="w-full select-none">
+      <svg
+        viewBox={`0 0 ${PLOT.width} ${PLOT.height}`}
+        className="w-full select-none"
+        role="img"
+        aria-labelledby={`${plotId}-title ${plotId}-description`}
+      >
+        <title id={`${plotId}-title`}>
+          {fixtureMode ? "目录周期标记" : "光变周期峰值"}
+        </title>
+        <desc id={`${plotId}-description`}>
+          横轴为周期（{timeUnit}），纵轴为{fixtureMode ? "展示权重" : "谱功率"}
+          ，展示结果中的 {peaks.length} 个峰值记录。
+        </desc>
+        <PlotTicks xMin={pMin} xMax={pMax} yMin={0} yMax={powerMax} />
         {/* Peak Pins — the artifact's periodogram output */}
         {projected.map((pk, idx) => (
           <g key={idx}>
             <line
               x1={pk.x}
-              y1={240}
+              y1={PLOT.bottom}
               x2={pk.x}
               y2={pk.y}
-              stroke="var(--color-error)"
+              stroke="var(--color-brand)"
               strokeWidth="1.5"
             />
             <circle
               cx={pk.x}
               cy={pk.y}
               r={4}
-              fill="var(--color-error)"
+              fill="var(--color-brand)"
               stroke="var(--color-surface)"
               strokeWidth="1"
             />
             <text
               x={pk.x}
               y={pk.y - 8}
-              fontSize="9"
-              fontWeight="600"
+              className="scientific-plot__annotation-label"
               textAnchor="middle"
               fill="currentColor"
             >
@@ -486,45 +614,12 @@ function PeriodogramPlot({
           </g>
         ))}
 
-        {/* Axes */}
-        <line
-          x1={60}
-          y1={240}
-          x2={776}
-          y2={240}
-          stroke="currentColor"
-          strokeOpacity="0.2"
+        <PlotAxes
+          xLabel={`周期 Period (${timeUnit})`}
+          yLabel={
+            fixtureMode ? "展示权重 Display Weight" : "谱功率 Spectral Power"
+          }
         />
-        <line
-          x1={60}
-          y1={20}
-          x2={60}
-          y2={240}
-          stroke="currentColor"
-          strokeOpacity="0.2"
-        />
-
-        <text
-          x={418}
-          y={270}
-          fontSize="10"
-          textAnchor="middle"
-          fill="currentColor"
-          opacity="0.7"
-        >
-          周期 Period ({timeUnit})
-        </text>
-        <text
-          x={-130}
-          y={20}
-          fontSize="10"
-          textAnchor="middle"
-          fill="currentColor"
-          opacity="0.7"
-          transform="rotate(-90)"
-        >
-          {fixtureMode ? "展示权重 Display Weight" : "谱功率 Spectral Power"}
-        </text>
       </svg>
     </div>
   );
@@ -563,71 +658,69 @@ export function LightCurveContent({
           />
 
           <dl
-            className="flex flex-wrap items-baseline gap-x-6 gap-y-1 rounded-md bg-surface-muted/60 px-3 py-2 text-sm"
+            className="light-curve-workspace__summary"
             aria-label="光变测量摘要"
           >
             <div className="flex items-baseline gap-1.5">
-              <dt className="text-xs text-muted-foreground">采样</dt>
-              <dd className="font-semibold tabular-nums text-foreground">
+              <dt className="text-xs">采样</dt>
+              <dd className="font-semibold tabular-nums">
                 {content.sampleCount}
               </dd>
             </div>
             <div className="flex items-baseline gap-1.5">
-              <dt className="text-xs text-muted-foreground">已接受</dt>
-              <dd className="font-semibold tabular-nums text-foreground">
+              <dt className="text-xs">已接受</dt>
+              <dd className="font-semibold tabular-nums">
                 {content.acceptedSampleCount}
               </dd>
             </div>
             {content.rejectedSampleCount > 0 ? (
               <div className="flex items-baseline gap-1.5">
-                <dt className="text-xs text-muted-foreground">已剔除</dt>
-                <dd className="font-semibold tabular-nums text-foreground">
+                <dt className="text-xs">已剔除</dt>
+                <dd className="font-semibold tabular-nums">
                   {content.rejectedSampleCount}
                 </dd>
               </div>
             ) : null}
             <div className="flex items-baseline gap-1.5">
-              <dt className="text-xs text-muted-foreground">
+              <dt className="text-xs">
                 {fixtureMode ? "目录参考周期" : "主周期"}
               </dt>
-              <dd className="font-semibold tabular-nums text-foreground">
+              <dd className="font-semibold tabular-nums">
                 {bestPeriod.toFixed(4)} {content.timeUnit}
               </dd>
             </div>
             {content.falseAlarmProbability !== null ? (
               <div className="flex items-baseline gap-1.5">
-                <dt className="text-xs text-muted-foreground">全局 FAP</dt>
-                <dd className="font-semibold tabular-nums text-foreground">
+                <dt className="text-xs">全局 FAP</dt>
+                <dd className="font-semibold tabular-nums">
                   {formatProbability(content.falseAlarmProbability)}
                 </dd>
               </div>
             ) : null}
             <div className="flex items-baseline gap-1.5">
-              <dt className="text-xs text-muted-foreground">中位采样间隔</dt>
-              <dd className="font-semibold tabular-nums text-foreground">
+              <dt className="text-xs">中位采样间隔</dt>
+              <dd className="font-semibold tabular-nums">
                 {formatCadence(content.medianCadence, content.timeUnit)}
               </dd>
             </div>
             <div className="flex items-baseline gap-1.5">
-              <dt className="text-xs text-muted-foreground">测量</dt>
-              <dd className="font-semibold text-foreground">
+              <dt className="text-xs">测量</dt>
+              <dd className="font-semibold">
                 {fixtureMode
                   ? "确定性演示相对流量"
                   : (VALUE_KIND_LABELS[content.valueKind] ?? content.valueKind)}
               </dd>
             </div>
             <div className="flex items-baseline gap-1.5">
-              <dt className="text-xs text-muted-foreground">时间基准</dt>
-              <dd className="font-semibold text-foreground">
+              <dt className="text-xs">时间基准</dt>
+              <dd className="font-semibold">
                 {content.timeScale.toUpperCase()}
                 {fixtureMode ? " 坐标约定（演示）" : ""}
               </dd>
             </div>
             <div className="flex items-baseline gap-1.5">
-              <dt className="text-xs text-muted-foreground">数据等级</dt>
-              <dd className="font-semibold text-foreground">
-                {sourceModeLabel(sourceMode)}
-              </dd>
+              <dt className="text-xs">数据等级</dt>
+              <dd className="font-semibold">{sourceModeLabel(sourceMode)}</dd>
             </div>
           </dl>
         </>
@@ -661,23 +754,23 @@ export function LightCurveContent({
             </TabsList>
           </Tabs>
 
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <div className="scientific-plot__legend">
             {activeTab === "folded" ? (
               <span className="flex items-center gap-1.5">
-                <span className="inline-block size-2 rounded-full bg-primary" />{" "}
+                <span className="scientific-plot__legend-dot" />{" "}
                 {fixtureMode
                   ? "演示序列折叠点（非观测拟合）"
                   : "观测折叠点（按结果记录的轨道相位）"}
               </span>
             ) : activeTab === "periodogram" ? (
               <span className="flex items-center gap-1.5">
-                <span className="inline-block size-2 rounded-full bg-destructive" />{" "}
+                <span className="scientific-plot__legend-dot" />{" "}
                 {fixtureMode ? "目录周期标记（非功率谱推断）" : "周期峰值"}
               </span>
             ) : (
               <span className="flex items-center gap-1.5">
-                <span className="inline-block size-2 rounded-full bg-primary" />{" "}
-                {fixtureMode ? "目录参数驱动的确定性界面序列" : "归一化测光点"}
+                <span className="scientific-plot__legend-dot" />{" "}
+                {fixtureMode ? "目录参数驱动的确定性界面序列" : "原始测量点"}
               </span>
             )}
           </div>
@@ -689,11 +782,15 @@ export function LightCurveContent({
               points={content.points}
               timeUnit={content.timeUnit}
               valueUnit={content.valueUnit}
+              valueKind={content.valueKind}
             />
           )}
 
           {activeTab === "folded" && (
-            <PhaseFoldedPlot points={content.points} />
+            <PhaseFoldedPlot
+              points={content.points}
+              valueLabel="归一化测量值"
+            />
           )}
 
           {activeTab === "periodogram" && (
@@ -708,7 +805,7 @@ export function LightCurveContent({
 
       {/* Tables — secondary detail, collapsed by default (spec §48) */}
       <Collapsible defaultOpen={false}>
-        <CollapsibleTrigger className="group flex w-full items-center gap-1.5 py-2 text-sm text-muted-foreground hover:text-foreground">
+        <CollapsibleTrigger className="group light-curve-workspace__peaks-trigger">
           <ChevronRight
             className="size-[var(--icon-size-sm)] transition-transform group-data-[state=open]:rotate-90"
             aria-hidden="true"
@@ -741,9 +838,7 @@ export function LightCurveContent({
               </table>
             </div>
           ) : (
-            <p className="py-2 text-sm text-muted-foreground">
-              未检出周期峰值。
-            </p>
+            <p className="scientific-artifact__empty">未检出周期峰值。</p>
           )}
         </CollapsibleContent>
       </Collapsible>

@@ -141,7 +141,7 @@ export function PaperPdfViewer({
   if (!src) {
     return (
       <div
-        className={`xw-pdf-viewer-empty flex h-full flex-col items-center justify-center p-6 text-center text-muted-foreground ${className}`}
+        className={`xw-pdf-viewer-empty flex h-full flex-col items-center justify-center p-6 text-center ${className}`}
         data-testid="paper-pdf-unavailable"
       >
         <p className="text-sm font-medium">全文当前不可用</p>
@@ -161,7 +161,7 @@ export function PaperPdfViewer({
 
   return (
     <section
-      className={`xw-pdf-viewer-container flex h-full min-h-0 w-full flex-col bg-background ${className}`}
+      className={`xw-pdf-viewer-container flex h-full min-h-0 w-full flex-col ${className}`}
       data-testid="paper-pdf-viewer"
       data-num-pages={numPages}
       data-rendered-page={
@@ -181,7 +181,7 @@ export function PaperPdfViewer({
         >
           <ChevronLeft aria-hidden="true" />
         </Button>
-        <span className="min-w-20 text-center text-xs text-muted-foreground">
+        <span className="xw-pdf-toolbar__page-count">
           {numPages > 0 ? `${pageNumber} / ${numPages}` : "— / —"}
         </span>
         <Button
@@ -266,16 +266,13 @@ export function PaperPdfViewer({
         </div>
       </div>
       {searchMessage ? (
-        <p
-          className="shrink-0 border-b border-border px-3 py-1.5 text-xs text-muted-foreground"
-          role="status"
-        >
+        <p className="xw-pdf-viewer__status" role="status">
           {searchMessage}
         </p>
       ) : null}
       <div
         ref={viewportRef}
-        className="min-h-0 flex-1 overflow-auto bg-muted/20 p-4"
+        className="xw-pdf-viewer__viewport min-h-0 flex-1 overflow-auto p-4"
       >
         <Document
           file={src}
@@ -289,7 +286,7 @@ export function PaperPdfViewer({
             </div>
           }
           error={
-            <div className="mx-auto max-w-xl py-12 text-center text-sm text-muted-foreground">
+            <div className="xw-pdf-viewer__error mx-auto max-w-xl py-12 text-center text-sm">
               {loadError ?? "论文原文载入失败，请稍后重试。"}
             </div>
           }

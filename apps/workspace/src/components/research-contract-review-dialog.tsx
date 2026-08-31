@@ -274,7 +274,7 @@ export function ResearchContractReviewDialog({
               </div>
             ) : (
               <div className="p-6 space-y-4">
-                <p className="ui-text-body text-muted-foreground">
+                <p className="ui-text-body contract-review__loading">
                   正在读取研究协议配置项…
                 </p>
               </div>

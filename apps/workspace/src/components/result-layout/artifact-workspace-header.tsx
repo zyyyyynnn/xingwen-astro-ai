@@ -73,7 +73,7 @@ export function ArtifactWorkspaceHeader({
 
   return (
     <header
-      className="xw-artifact-header flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-background px-4 py-2"
+      className="xw-artifact-header flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-2"
       data-testid="artifact-fullscreen-header"
     >
       <div className="flex min-w-0 flex-wrap items-center gap-3">
@@ -81,13 +81,13 @@ export function ArtifactWorkspaceHeader({
           <Button
             variant="ghost"
             size="small"
-            className="ui-text-label flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
+            className="ui-text-label flex items-center gap-1.5"
           >
             <ArrowLeft aria-hidden="true" />
             <span>返回研究</span>
           </Button>
         </DialogClose>
-        <DialogTitle className="min-w-0 max-w-lg truncate font-serif text-lg font-semibold tracking-tight text-foreground">
+        <DialogTitle className="min-w-0 max-w-lg truncate font-serif text-lg font-semibold tracking-tight">
           {title}
         </DialogTitle>
         {orderedVersions.length > 1 && selectedVersion && onSelectVersion ? (
@@ -97,7 +97,7 @@ export function ArtifactWorkspaceHeader({
                 variant="ghost"
                 size="small"
                 aria-haspopup="listbox"
-                className="ui-text-label flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                className="ui-text-label flex items-center gap-1"
                 data-testid="artifact-version-selector"
               >
                 <span>{isCurrentVersion ? "当前结果" : "历史结果"}</span>
@@ -120,7 +120,7 @@ export function ArtifactWorkspaceHeader({
                     className={isActive ? "font-medium" : undefined}
                   >
                     <span>{isCurrent ? "当前结果" : "历史结果"}</span>
-                    <span className="ui-text-label ml-auto pl-4 text-muted-foreground">
+                    <span className="ui-text-label ml-auto pl-4 xw-artifact-header__timestamp">
                       {versionTimestamp(version.createdAt)}
                     </span>
                   </DropdownMenuItem>

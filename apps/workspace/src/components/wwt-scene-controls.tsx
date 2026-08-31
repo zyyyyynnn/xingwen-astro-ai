@@ -4,7 +4,6 @@ import type {
   WwtTrackedObjectViewReview,
 } from "@xingwen/domain";
 import {
-  Badge,
   Button,
   Checkbox,
   DropdownMenu,
@@ -12,6 +11,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
   Field,
+  FieldError,
   FieldLabel,
   Input,
   Popover,
@@ -87,6 +87,7 @@ const TRACKED_TARGETS: readonly {
 ];
 
 function parseNumber(value: string): number | null {
+  if (value.trim() === "") return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -418,7 +419,7 @@ export function WwtSceneControls({
       <div className="observation-workspace__toolbar">
         <div className="wwt-scene-controls__group" aria-label="视角控制">
           <span className="wwt-scene-controls__group-label">定位</span>
-          <Popover>
+          <Popover onOpenChange={() => setControlError(null)}>
             <PopoverTrigger asChild>
               <Button type="button" variant="secondary" size="small">
                 <Target aria-hidden="true" />
@@ -460,6 +461,7 @@ export function WwtSceneControls({
                   />
                 </Field>
               </div>
+              <FieldError>{controlError}</FieldError>
               <Button
                 type="button"
                 variant="primary"
@@ -502,7 +504,7 @@ export function WwtSceneControls({
             <ScanSearch aria-hidden="true" />
             跟踪天体
           </Button>
-          <Popover>
+          <Popover onOpenChange={() => setControlError(null)}>
             <PopoverTrigger asChild>
               <Button type="button" variant="secondary" size="small">
                 <Home aria-hidden="true" />
@@ -545,15 +547,19 @@ export function WwtSceneControls({
                   />
                 </Field>
               </div>
-              <label className="wwt-scene-controls__observer-horizon">
+              <Field orientation="horizontal">
                 <Checkbox
+                  id="wwt-observer-horizon"
                   checked={localHorizonMode}
                   onCheckedChange={(value) =>
                     setLocalHorizonMode(value === true)
                   }
                 />
-                <span>使用本地地平坐标系</span>
-              </label>
+                <FieldLabel htmlFor="wwt-observer-horizon">
+                  使用本地地平坐标系
+                </FieldLabel>
+              </Field>
+              <FieldError>{controlError}</FieldError>
               <Button
                 type="button"
                 variant="primary"
@@ -565,11 +571,6 @@ export function WwtSceneControls({
             </PopoverContent>
           </Popover>
         </div>
-        {controlError ? (
-          <p className="wwt-scene-controls__error" role="alert">
-            {controlError}
-          </p>
-        ) : null}
         <div className="wwt-scene-controls__group" aria-label="场景设置">
           <span className="wwt-scene-controls__group-label">图层</span>
           <Select
@@ -735,7 +736,7 @@ export function WwtSceneControls({
         </div>
         <div className="wwt-scene-controls__group" aria-label="时间控制">
           <span className="wwt-scene-controls__group-label">时间</span>
-          <Popover>
+          <Popover onOpenChange={() => setControlError(null)}>
             <PopoverTrigger asChild>
               <Button type="button" variant="secondary" size="small">
                 <History aria-hidden="true" />
@@ -790,6 +791,7 @@ export function WwtSceneControls({
                   onChange={(event) => setObservedAtInput(event.target.value)}
                 />
               </Field>
+              <FieldError>{controlError}</FieldError>
               <Button
                 type="button"
                 variant="primary"
@@ -817,14 +819,12 @@ export function WwtSceneControls({
         </div>
         <aside
           className="observation-workspace__inspector"
-          aria-label="当前观测状态"
+          aria-label="场景参数"
         >
           <header className="observation-workspace__inspector-header">
             <div>
-              <span>观测状态</span>
-              <h3>当前天球场景</h3>
+              <h3>场景参数</h3>
             </div>
-            <Badge variant="secondary">已同步</Badge>
           </header>
 
           <section>
@@ -897,7 +897,7 @@ export function WwtSceneControls({
               <div>
                 <dt>观测时刻</dt>
                 <dd>
-                  {base.time.observedAt
+                  {base.time.mode !== "system_clock" && base.time.observedAt
                     ? base.time.observedAt.slice(0, 19).replace("T", " ") +
                       " UTC"
                     : "使用当前系统时间"}

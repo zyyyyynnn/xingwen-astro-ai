@@ -17,6 +17,7 @@ import type {
   LightCurveArtifactContent,
   ModelArtifactContent,
   ModelEvaluationArtifactContent,
+  ModelEvaluationMetric,
   ProducerExecutionDetail,
   ScientificArtifactRead,
   ScientificMetric,
@@ -748,9 +749,12 @@ export const lightCurveContent: LightCurveArtifactContent = {
 // ---------------------------------------------------------------------------
 // 5. Model Evaluation
 // ---------------------------------------------------------------------------
-const modelMetrics: [ScientificMetric, ...ScientificMetric[]] = [
+const modelMetrics: [ModelEvaluationMetric, ...ModelEvaluationMetric[]] = [
   {
     metric_id: "met_acc",
+    metric_key: "accuracy",
+    optimization: "maximize",
+    category: "holdout",
     label: "准确率 (Accuracy)",
     value: 0.942,
     unit: null,
@@ -758,6 +762,9 @@ const modelMetrics: [ScientificMetric, ...ScientificMetric[]] = [
   },
   {
     metric_id: "met_f1",
+    metric_key: "macro_f1",
+    optimization: "maximize",
+    category: "holdout",
     label: "F1 分数 (Macro F1)",
     value: 0.918,
     unit: null,
@@ -765,6 +772,9 @@ const modelMetrics: [ScientificMetric, ...ScientificMetric[]] = [
   },
   {
     metric_id: "met_roc_auc",
+    metric_key: "roc_auc",
+    optimization: "maximize",
+    category: "holdout",
     label: "ROC-AUC",
     value: 0.965,
     unit: null,
@@ -772,6 +782,9 @@ const modelMetrics: [ScientificMetric, ...ScientificMetric[]] = [
   },
   {
     metric_id: "met_pr_auc",
+    metric_key: "pr_auc",
+    optimization: "maximize",
+    category: "holdout",
     label: "PR-AUC",
     value: 0.934,
     unit: null,
@@ -779,16 +792,22 @@ const modelMetrics: [ScientificMetric, ...ScientificMetric[]] = [
   },
 ];
 
-const baselineMetrics: ScientificMetric[] = [
+const baselineMetrics: ModelEvaluationMetric[] = [
   {
-    metric_id: "met_acc",
+    metric_id: "met_baseline_acc",
+    metric_key: "accuracy",
+    optimization: "maximize",
+    category: "holdout",
     label: "基线准确率 (Random Forest)",
     value: 0.885,
     unit: null,
     evidence_ids: [],
   },
   {
-    metric_id: "met_f1",
+    metric_id: "met_baseline_f1",
+    metric_key: "macro_f1",
+    optimization: "maximize",
+    category: "holdout",
     label: "基准 F1 分数",
     value: 0.842,
     unit: null,
@@ -819,7 +838,7 @@ export const modelEvaluationContent: ModelEvaluationArtifactContent = {
   target_field: "is_planetary_transit",
   split: {
     strategy: "stratified",
-    field: "target_label",
+    field: null,
     random_seed: 42,
     train_fraction: 0.7,
     validation_fraction: 0.15,
@@ -829,6 +848,7 @@ export const modelEvaluationContent: ModelEvaluationArtifactContent = {
   },
   metrics: modelMetrics,
   baseline_metrics: baselineMetrics,
+  diagnostics: null,
   skill_execution: modelSkillExecution,
   model_binary: {
     content_ref: "/api/fixture/models/transit_classifier_resnet.onnx",
@@ -878,8 +898,10 @@ export const modelArtifactContent: ModelArtifactContent = {
     media_type: "application/onnx",
   },
   input_name: "flux_and_stellar_features",
+  input_dtype: null,
   output_names: ["transit_probability", "feature_embeddings"],
-  input_shape: [-1, 720, 1],
+  output_metadata: { transit_probability: null, feature_embeddings: null },
+  input_shape: [null, 6],
   opset_imports: { "ai.onnx": 17 },
   dependency_revisions: [
     "torch==2.3.0",

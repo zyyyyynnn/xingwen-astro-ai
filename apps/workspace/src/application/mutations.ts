@@ -1,5 +1,6 @@
 import { mutationOptions, type QueryClient } from "@tanstack/react-query";
 import type {
+  AcquirePaperFullTextInput,
   CreateResearchProjectInput,
   CreateResearchInputInput,
   RepositorySet,
@@ -39,6 +40,7 @@ interface WorkspaceMutationDependencies {
     | "revisions"
     | "modelProvider"
     | "shares"
+    | "paperAcquisition"
   >;
   readonly researchAdapter: ResearchAdapter;
   readonly queryClient: QueryClient;
@@ -159,6 +161,19 @@ export interface BindResearchInputToDraftVariables {
   readonly draftId: DomainEntityId;
 }
 
+export type AttachPaperFullTextVariables = {
+  readonly projectId: DomainEntityId;
+} & (
+  | ({ readonly mode: "open_access" } & Omit<
+      AcquirePaperFullTextInput,
+      "idempotencyKey"
+    >)
+  | ({ readonly mode: "uploaded" } & Omit<
+      Parameters<RepositorySet["paperAcquisition"]["bindResearchInput"]>[0],
+      "idempotencyKey"
+    >)
+);
+
 export type CreateRevisionFeedbackVariables = DistributiveOmit<
   RevisionFeedbackIntent,
   "idempotencyKey"
@@ -271,6 +286,33 @@ export function createWorkspaceMutations({
         retry: false,
         mutationFn: ({ projectId, request }: CreateShareVariables) =>
           repositories.shares.create(projectId, request),
+      }),
+    paperFullTextAttach: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "paper", "full-text"],
+        retry: false,
+        mutationFn: (variables: AttachPaperFullTextVariables) => {
+          const idempotencyKey = idempotency.keyFor(
+            "paper.full-text",
+            variables,
+          );
+          return variables.mode === "open_access"
+            ? repositories.paperAcquisition.acquireFullText({
+                ...variables,
+                idempotencyKey,
+              })
+            : repositories.paperAcquisition.bindResearchInput({
+                ...variables,
+                idempotencyKey,
+              });
+        },
+        onSuccess: (_result, variables) => {
+          idempotency.complete("paper.full-text", variables);
+          void queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.researchInputs(variables.projectId),
+            exact: true,
+          });
+        },
       }),
     researchInputCreate: () =>
       mutationOptions({

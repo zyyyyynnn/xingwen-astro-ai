@@ -71,7 +71,7 @@ export function ScientificDossier({
   const isRejected = status === "rejected";
 
   const surfaceClass = isCandidate
-    ? "bg-surface-muted/40 rounded-md"
+    ? "xw-scientific-dossier--candidate"
     : isRejected
       ? "opacity-70"
       : "";
@@ -90,7 +90,7 @@ export function ScientificDossier({
               </Badge>
             ) : null}
             {category ? (
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="text-xs font-medium uppercase tracking-wider xw-scientific-dossier__secondary">
                 {category}
               </span>
             ) : null}
@@ -100,12 +100,12 @@ export function ScientificDossier({
           ) : null}
         </div>
 
-        <h4 className="font-serif text-base font-semibold leading-snug tracking-tight text-foreground">
+        <h4 className="font-serif text-base font-semibold leading-snug tracking-tight">
           {title}
         </h4>
 
         {statement && statement !== title ? (
-          <p className="text-sm leading-relaxed text-muted-foreground">
+          <p className="text-sm leading-relaxed xw-scientific-dossier__secondary">
             {statement}
           </p>
         ) : null}
@@ -125,7 +125,7 @@ export function ScientificDossier({
 
   return (
     <article
-      className={`xw-scientific-dossier border-b border-border/40 px-1 py-4 last:border-b-0 ${surfaceClass} ${className}`}
+      className={`xw-scientific-dossier border-b px-1 py-4 last:border-b-0 ${surfaceClass} ${className}`}
       data-status={status ?? undefined}
       data-testid={testId}
     >

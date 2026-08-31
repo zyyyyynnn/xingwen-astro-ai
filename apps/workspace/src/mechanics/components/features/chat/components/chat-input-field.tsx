@@ -26,6 +26,7 @@ export function ChatInputField({
         suppressContentEditableWarning
         role="textbox"
         aria-label="输入研究消息"
+        aria-placeholder={placeholder}
         aria-multiline="true"
         aria-disabled={disabled}
         data-placeholder={placeholder}

@@ -36,7 +36,12 @@ import {
 } from "@xingwen/domain";
 
 import { FixtureSemanticError, FixtureValidationError } from "./errors";
-import { ConflictError, NotFoundError, UnexpectedHttpError } from "./errors";
+import {
+  ConflictError,
+  NotFoundError,
+  UnexpectedHttpError,
+  ValidationError,
+} from "./errors";
 import {
   buildFixtureProvenance,
   mapArtifactVersionMetadata,
@@ -1506,6 +1511,13 @@ export function createFixtureRepositories(
           ...entry.candidates,
         ]);
       },
+      acquireFullText: async () => {
+        throw new ValidationError(
+          "演示数据无法获取真实全文，请在真实研究中使用此操作。",
+          "PAPER_SOURCE_MODE_NOT_LIVE",
+          [],
+        );
+      },
       bindResearchInput: async (input) => {
         const resInput = researchInputs.get(input.researchInputId);
         if (!resInput) {
@@ -1514,7 +1526,11 @@ export function createFixtureRepositories(
             "RESEARCH_INPUT_NOT_FOUND",
           );
         }
-        paperCandidateBindings.set(input.candidateId, input.researchInputId);
+        paperCandidateBindings.set(
+          input.canonicalPaperId,
+          input.researchInputId,
+        );
+        return resInput;
       },
     },
     paperSummary: {

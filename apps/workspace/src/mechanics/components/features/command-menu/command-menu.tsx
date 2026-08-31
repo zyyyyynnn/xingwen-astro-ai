@@ -273,7 +273,7 @@ export function CommandMenu({
                                   ? "bg-[var(--color-warning)]"
                                   : item.status === "error"
                                     ? "bg-[var(--color-error)]"
-                                    : "bg-muted-foreground/40"
+                                    : "workspace-status-dot--idle"
                             }`}
                             aria-hidden="true"
                           />

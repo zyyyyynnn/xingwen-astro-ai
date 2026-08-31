@@ -148,7 +148,7 @@ function ArtifactDiffSheet({
   const baselineQuery = useQuery({
     ...runtime.application.queries.artifactVersion(
       projectId,
-      effectiveBaselineVersionId as DomainEntityId,
+      effectiveBaselineVersionId ?? currentVersion.id,
     ),
     enabled: open && effectiveBaselineVersionId !== null,
   });
@@ -175,16 +175,22 @@ function ArtifactDiffSheet({
           </SheetDescription>
         </SheetHeader>
         <div className="result-sheet-body">
-          <div className="scientific-diff-controls">
-            <label>
-              <span>作为比较基准的历史结果</span>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="scientific-diff-baseline">
+                作为比较基准的历史结果
+              </FieldLabel>
               <Select
                 value={effectiveBaselineVersionId ?? undefined}
                 onValueChange={(value) =>
                   setBaselineVersionId(value as DomainEntityId)
                 }
               >
-                <SelectTrigger aria-label="选择比较基准">
+                <SelectTrigger
+                  id="scientific-diff-baseline"
+                  aria-label="选择比较基准"
+                  disabled={candidates.length === 0}
+                >
                   <SelectValue placeholder="选择历史结果" />
                 </SelectTrigger>
                 <SelectContent>
@@ -197,9 +203,11 @@ function ArtifactDiffSheet({
                   </SelectGroup>
                 </SelectContent>
               </Select>
-            </label>
-            <p>当前结果 · {versionTimestamp(currentVersion.createdAt)}</p>
-          </div>
+              <FieldDescription>
+                当前结果 · {versionTimestamp(currentVersion.createdAt)}
+              </FieldDescription>
+            </Field>
+          </FieldGroup>
           {currentRunQuery.isError ? (
             <Alert variant="destructive">
               <AlertDescription>
@@ -224,7 +232,11 @@ function ArtifactDiffSheet({
               ) : null}
             </section>
           ) : null}
-          {baselineQuery.isPending ? (
+          {effectiveBaselineVersionId === null ? (
+            <p className="scientific-artifact__empty">
+              当前结果还没有可比较的历史版本。
+            </p>
+          ) : baselineQuery.isPending ? (
             <p aria-busy="true">正在读取历史结果…</p>
           ) : baselineQuery.isError ? (
             <Alert variant="destructive">
@@ -760,7 +772,7 @@ export function ArtifactFullscreenWorkspace({
             <div className="flex h-full flex-col items-center justify-center p-8">
               <Skeleton className="mb-4 h-8 w-1/3" />
               <Skeleton className="h-64 w-2/3" />
-              <p className="ui-text-body mt-4 text-muted-foreground">
+              <p className="ui-text-body mt-4 artifact-fullscreen__loading">
                 正在载入研究结果…
               </p>
             </div>

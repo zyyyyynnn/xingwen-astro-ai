@@ -77,9 +77,7 @@ def evaluate_tabular_model(request: ScientificSkillRequest) -> dict[str, object]
         default="stratified" if task == "classification" else "random",
     )
     if strategy not in SPLIT_STRATEGIES:
-        raise ValueError(
-            f"split_strategy must be one of {', '.join(SPLIT_STRATEGIES)}"
-        )
+        raise ValueError(f"split_strategy must be one of {', '.join(SPLIT_STRATEGIES)}")
     strategy_field = {
         "group": "group_field",
         "entity": "entity_field",
@@ -110,9 +108,15 @@ def evaluate_tabular_model(request: ScientificSkillRequest) -> dict[str, object]
         if len({_stable_key(value) for value in groups}) < 2:
             raise ValueError(f"{split_field} must contain at least two groups")
     elif strategy == "time" and split_field is not None:
+        time_kinds: set[str] = set()
         for row in carried:
-            _kind, value = _time_sort_value(row[split_field], split_field)
+            kind, value = _time_sort_value(row[split_field], split_field)
+            time_kinds.add(kind)
             times.append(value)
+        if len(time_kinds) != 1:
+            raise ValueError(
+                "time_field must use one consistent numeric or ISO-8601 type"
+            )
 
     return _fit_tabular(
         matrix=matrix,
@@ -188,7 +192,9 @@ def classify_time_series(request: ScientificSkillRequest) -> dict[str, object]:
         rows, series_fields, target, task="classification"
     )
     if len(matrix) < 10:
-        raise ValueError("time-series classification requires at least 10 complete rows")
+        raise ValueError(
+            "time-series classification requires at least 10 complete rows"
+        )
     result = _fit_tabular(
         matrix=matrix,
         labels=labels,
@@ -242,7 +248,10 @@ def forecast_time_series(request: ScientificSkillRequest) -> dict[str, object]:
     )
     if not 0.1 <= test_fraction <= 0.5:
         raise ValueError("test_fraction must be within [0.1, 0.5]")
-    series = _ordered_series(rows, time_field=time_field, target_field=target_field)
+    observations = _ordered_series(
+        rows, time_field=time_field, target_field=target_field
+    )
+    series = [point[2] for point in observations]
     if len(series) < max(20, lags * 3):
         raise ValueError("time-series forecast has too few finite observations")
     samples = [series[index - lags : index] for index in range(lags, len(series))]
@@ -252,7 +261,6 @@ def forecast_time_series(request: ScientificSkillRequest) -> dict[str, object]:
         raise ValueError("time-series split produces an empty partition")
 
     from sklearn.ensemble import RandomForestRegressor
-    from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
     model = RandomForestRegressor(
         n_estimators=200,
@@ -278,24 +286,40 @@ def forecast_time_series(request: ScientificSkillRequest) -> dict[str, object]:
         "task_kind": "forecast",
         "algorithm": "random_forest_autoregression",
         "algorithm_version": _sklearn_version(),
+        "feature_fields": [f"lag_{offset}" for offset in range(lags, 0, -1)],
+        "target_field": target_field,
         "split": {
-            "strategy": "time_ordered",
+            "strategy": "time",
+            "field": time_field,
+            "train_cutoff": observations[lags + split_index - 1][1],
             "train_count": split_index,
             "test_count": len(actual),
             "lags": lags,
         },
         "metrics": _regression_metrics(actual, predictions),
-        "forecast": [
-            {"step": index + 1, "predicted_value": value}
-            for index, value in enumerate(future)
-        ],
+        "baseline_metrics": _regression_metrics(
+            actual, [sample[-1] for sample in samples[split_index:]]
+        ),
         "diagnostics": {
-            "r2": float(r2_score(actual, predictions)),
-            "mean_absolute_error": float(mean_absolute_error(actual, predictions)),
-            "root_mean_squared_error": float(
-                mean_squared_error(actual, predictions) ** 0.5
-            ),
+            "evaluated_sample_count": len(actual),
+            "regression_predictions": [
+                {
+                    "row_id": observations[lags + split_index + index][0],
+                    "actual": actual[index],
+                    "predicted": float(predictions[index]),
+                }
+                for index in _diagnostic_sample_indices(len(actual))
+            ],
+            "forecast": [
+                {"step": index + 1, "predicted_value": value}
+                for index, value in enumerate(future)
+            ],
         },
+        "limitations": [
+            "The hold-out evaluation is one-step prediction using observed lag values; future steps recursively use earlier predictions.",
+            "The exported model is trained only through the reported cutoff; the forecast is initialized from the latest observed window without refitting.",
+            "Forecast steps represent observation order, not inferred timestamps or uncertainty intervals.",
+        ],
         "model_binary": model_binary,
     }
 
@@ -349,10 +373,7 @@ def classify_images(request: ScientificSkillRequest) -> dict[str, object]:
         ):
             raise ValueError("each resolved image requires identity, label and pixels")
         pixels = item.get("pixels")
-        if (
-            not isinstance(pixels, list)
-            or len(pixels) != feature_count
-        ):
+        if not isinstance(pixels, list) or len(pixels) != feature_count:
             raise ValueError("each resolved image must match the fixed image shape")
         flat: list[float] = []
         for value in pixels:
@@ -486,10 +507,7 @@ def _fit_tabular(
     if (
         task == "classification"
         and split_strategy in {"random", "stratified"}
-        and (
-            min(label_counts.values()) < 2
-            or expected_test_count < len(label_counts)
-        )
+        and (min(label_counts.values()) < 2 or expected_test_count < len(label_counts))
     ):
         raise ValueError(
             "classification split cannot represent every class in both partitions"
@@ -502,11 +520,7 @@ def _fit_tabular(
         raise ValueError(
             "classification cross-validation folds exceed the smallest class"
         )
-    if (
-        task == "regression"
-        and split_strategy != "time"
-        and len(matrix) < cv_folds * 2
-    ):
+    if task == "regression" and split_strategy != "time" and len(matrix) < cv_folds * 2:
         raise ValueError("regression cross-validation requires two rows per fold")
 
     indices = list(range(len(matrix)))
@@ -527,6 +541,10 @@ def _fit_tabular(
             raise ValueError("time split requires a time value for every row")
         ordered = sorted(indices, key=lambda index: times[index])
         cutoff = int(len(ordered) * (1 - test_fraction))
+        # Keep simultaneous observations together; the first test timestamp is
+        # strictly later than every training timestamp.
+        while cutoff > 0 and times[ordered[cutoff - 1]] == times[ordered[cutoff]]:
+            cutoff -= 1
         if cutoff <= 0 or len(ordered) - cutoff < 2:
             raise ValueError("time split produces an empty partition")
         train_indices = ordered[:cutoff]
@@ -586,9 +604,7 @@ def _fit_tabular(
             "accuracy": float(accuracy_score(test_y, baseline_predicted)),
             "macro_f1": float(f1_score(test_y, baseline_predicted, average="macro")),
         }
-        matrix_table = confusion_matrix(
-            test_y, predicted, labels=list(model.classes_)
-        )
+        matrix_table = confusion_matrix(test_y, predicted, labels=list(model.classes_))
         confusion = {
             "labels": [_native(item) for item in model.classes_],
             "rows": matrix_table.tolist(),
@@ -663,15 +679,30 @@ def _fit_tabular(
                 seed=seed,
             )
         )
-    metrics.update(_feature_importance_metrics(model, features))
+    if split_strategy != "time":
+        limitations.append(
+            "Cross-validation uses all admitted samples and is reported separately "
+            "from the fitted model's holdout evaluation; it is not an independent "
+            "training-only model-selection result."
+        )
+    importance_metrics = _feature_importance_metrics(model, features)
+    metrics.update(importance_metrics)
+    if importance_metrics:
+        limitations.append(
+            "Feature importance is training-fit mean decrease in impurity; "
+            "high-cardinality or correlated fields and overfitting can distort it. "
+            "It is not held-out predictive importance or a causal effect."
+        )
+    else:
+        limitations.append(
+            "Feature importance was not computed for this model representation."
+        )
     if task == "classification":
         if len(label_counts) > 2:
             limitations.append("calibration is reported only for binary targets")
         smallest = min(label_counts.values())
         if smallest < 5:
-            limitations.append(
-                f"the smallest class has only {smallest} observations"
-            )
+            limitations.append(f"the smallest class has only {smallest} observations")
     if len(test_indices) < 20:
         limitations.append(
             f"the evaluation partition has only {len(test_indices)} rows"
@@ -686,9 +717,7 @@ def _fit_tabular(
         "random_seed": seed if split_strategy != "time" else None,
         "train_count": len(train_indices),
         "test_count": len(test_indices),
-        "cross_validation_folds": cv_folds
-        if split_strategy != "time"
-        else None,
+        "cross_validation_folds": cv_folds if split_strategy != "time" else None,
     }
     if split_field_name is not None:
         split_report["field"] = split_field_name
@@ -703,6 +732,20 @@ def _fit_tabular(
         "split": split_report,
         "metrics": metrics,
         "baseline_metrics": baseline_metrics,
+        "diagnostics": {
+            "evaluated_sample_count": len(test_indices),
+            "confusion_matrix": confusion,
+            "regression_predictions": [
+                {
+                    "row_id": row_ids[test_indices[position]],
+                    "actual": float(test_y[position]),
+                    "predicted": float(predicted[position]),
+                }
+                for position in _diagnostic_sample_indices(len(test_indices))
+            ]
+            if task == "regression"
+            else [],
+        },
         "limitations": limitations,
         "predictions": [
             {
@@ -717,6 +760,13 @@ def _fit_tabular(
     if confusion is not None:
         result["confusion_matrix"] = confusion
     return result
+
+
+def _diagnostic_sample_indices(count: int) -> tuple[int, ...]:
+    """Keep a bounded, evenly distributed inspection sample, including endpoints."""
+    if count <= 256:
+        return tuple(range(count))
+    return tuple(index * (count - 1) // 255 for index in range(256))
 
 
 def _cross_validation_metrics(
@@ -751,9 +801,7 @@ def _cross_validation_metrics(
             }
         )
         target: list[Any] = (
-            labels
-            if task == "classification"
-            else [float(item) for item in labels]
+            labels if task == "classification" else [float(item) for item in labels]
         )
         scores = cross_validate(
             model,
@@ -810,28 +858,17 @@ def _feature_importance_metrics(
     estimator = model.steps[-1][1] if hasattr(model, "steps") else model
     raw = getattr(estimator, "feature_importances_", None)
     if raw is None:
-        coefficients = getattr(estimator, "coef_", None)
-        if coefficients is None:
-            return {}
-        coefficient_array = np.asarray(coefficients, dtype=float)
-        raw = (
-            np.abs(coefficient_array)
-            if coefficient_array.ndim == 1
-            else np.mean(np.abs(coefficient_array), axis=0)
-        )
+        return {}
     values = np.asarray(raw, dtype=float).reshape(-1)
     if not len(values) or not np.all(np.isfinite(values)):
         raise ValueError("model produced invalid feature importance values")
-    values = np.abs(values)
-    total = float(values.sum())
-    normalized = values / total if total > 0 else np.zeros_like(values)
-    if len(normalized) != len(features):
+    if len(values) != len(features):
         if features == ("flattened_pixels",):
-            return {"feature_importance_flattened_pixels": float(normalized.sum())}
+            return {}
         raise ValueError("model feature importance shape does not match feature fields")
     return {
         f"feature_importance_{field}": float(value)
-        for field, value in zip(features, normalized, strict=True)
+        for field, value in zip(features, values, strict=True)
     }
 
 
@@ -859,11 +896,47 @@ def _serialize_onnx_model(
         "content_base64": b64encode(content).decode("ascii"),
         "content_hash": content_hash,
         "input_name": exported.graph.input[0].name,
+        "input_dtype": onnx.TensorProto.DataType.Name(
+            exported.graph.input[0].type.tensor_type.elem_type
+        ),
         "output_names": [item.name for item in exported.graph.output],
+        "output_metadata": {
+            item.name: _onnx_output_metadata(item.type)
+            for item in exported.graph.output
+        },
         "input_shape": [None, len(samples[0])],
         "opset_imports": {
             item.domain or "ai.onnx": item.version for item in exported.opset_import
         },
+    }
+
+
+def _onnx_output_metadata(value_type: object) -> dict[str, object]:
+    import onnx
+
+    if not isinstance(value_type, onnx.TypeProto):
+        raise TypeError("ONNX output metadata requires a graph TypeProto")
+    kind = value_type.WhichOneof("value")
+    if kind not in {
+        "tensor_type",
+        "sequence_type",
+        "map_type",
+        "optional_type",
+        "sparse_tensor_type",
+    }:
+        raise ValueError("ONNX graph output has no supported value type")
+    if kind not in {"tensor_type", "sparse_tensor_type"}:
+        return {"value_kind": kind.removesuffix("_type"), "dtype": None, "shape": None}
+    tensor = getattr(value_type, kind)
+    return {
+        "value_kind": kind.removesuffix("_type"),
+        "dtype": onnx.TensorProto.DataType.Name(tensor.elem_type),
+        "shape": [
+            axis.dim_value if axis.HasField("dim_value") else axis.dim_param or None
+            for axis in tensor.shape.dim
+        ]
+        if tensor.HasField("shape")
+        else None,
     }
 
 
@@ -925,9 +998,9 @@ def _ordered_series(
     *,
     time_field: str,
     target_field: str,
-) -> list[float]:
-    points: list[tuple[str, float, float]] = []
-    for row in rows:
+) -> list[tuple[str, str | int | float, float]]:
+    points: list[tuple[str, float, str, str | int | float, float]] = []
+    for index, row in enumerate(rows):
         target = row.get(target_field)
         if (
             isinstance(target, bool)
@@ -936,14 +1009,24 @@ def _ordered_series(
         ):
             continue
         time_kind, time_value = _time_sort_value(row.get(time_field), time_field)
-        points.append((time_kind, time_value, float(target)))
+        points.append(
+            (
+                time_kind,
+                time_value,
+                str(row.get("row_id", f"row.{index + 1}")),
+                row[time_field],
+                float(target),
+            )
+        )
     kinds = {item[0] for item in points}
     if len(kinds) > 1:
         raise ValueError("time_field must use one consistent numeric or ISO-8601 type")
     times = [item[1] for item in points]
     if len(times) != len(set(times)):
         raise ValueError("time_field must not contain duplicate values")
-    return [item[2] for item in sorted(points, key=lambda item: item[1])]
+    return [
+        (item[2], item[3], item[4]) for item in sorted(points, key=lambda item: item[1])
+    ]
 
 
 def _time_sort_value(value: object, field: str) -> tuple[str, float]:

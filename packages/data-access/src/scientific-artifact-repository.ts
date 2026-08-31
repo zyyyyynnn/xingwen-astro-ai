@@ -414,8 +414,42 @@ function mapModel(dto: ModelEvaluationDto): ModelEvaluationReviewContent {
       crossValidationFolds: dto.split.cross_validation_folds ?? null,
       trainCutoff: dto.split.train_cutoff ?? null,
     },
-    metrics: dto.metrics.map(mapMetric),
-    baselineMetrics: (dto.baseline_metrics ?? []).map(mapMetric),
+    metrics: dto.metrics.map((metric) => ({
+      ...mapMetric(metric),
+      metricKey: metric.metric_key,
+      optimization: metric.optimization,
+      category: metric.category,
+    })),
+    baselineMetrics: (dto.baseline_metrics ?? []).map((metric) => ({
+      ...mapMetric(metric),
+      metricKey: metric.metric_key,
+      optimization: metric.optimization,
+      category: metric.category,
+    })),
+    diagnostics: dto.diagnostics
+      ? {
+          evaluatedSampleCount: dto.diagnostics.evaluated_sample_count,
+          confusionMatrix: dto.diagnostics.confusion_matrix
+            ? {
+                labels: [...dto.diagnostics.confusion_matrix.labels],
+                rows: dto.diagnostics.confusion_matrix.rows.map((row) => [
+                  ...row,
+                ]),
+              }
+            : null,
+          regressionPredictions: (
+            dto.diagnostics.regression_predictions ?? []
+          ).map((point) => ({
+            rowId: id(point.row_id),
+            actual: point.actual,
+            predicted: point.predicted,
+          })),
+          forecast: (dto.diagnostics.forecast ?? []).map((point) => ({
+            step: point.step,
+            predictedValue: point.predicted_value,
+          })),
+        }
+      : null,
     skillExecution: mapExecution(dto.skill_execution),
     modelBinary: dto.model_binary ? mapModelBinary(dto.model_binary) : null,
     diagnosticVisualizationIds: (dto.diagnostic_visualization_ids ?? []).map(
@@ -466,7 +500,20 @@ function mapModelArtifact(dto: ModelArtifactDto): ModelArtifactReviewContent {
       mediaType: "application/onnx",
     },
     inputName: id(dto.input_name),
+    inputDtype: dto.input_dtype,
     outputNames: dto.output_names.map(id),
+    outputMetadata: Object.fromEntries(
+      Object.entries(dto.output_metadata).map(([name, metadata]) => [
+        name,
+        metadata === null
+          ? null
+          : {
+              valueKind: metadata.value_kind,
+              dtype: metadata.dtype,
+              shape: metadata.shape === null ? null : [...metadata.shape],
+            },
+      ]),
+    ),
     inputShape: [...dto.input_shape],
     opsetImports: { ...dto.opset_imports },
     dependencyRevisions: [...dto.dependency_revisions],

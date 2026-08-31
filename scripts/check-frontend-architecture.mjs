@@ -272,6 +272,55 @@ const workspaceProductionPresentationFiles = listedFiles.filter(
     !/\.(?:test|spec)\.(?:ts|tsx)$/u.test(file),
 );
 
+// Shared components consume design-tokens CSS, not a Tailwind semantic theme.
+// These color keys have no @theme authority and therefore generate no utility.
+const missingThemeColorAliasPattern =
+  /(?<![\w-])(?:text|bg|border(?:-[trblxyse])?|ring(?:-offset)?|divide|outline|fill|stroke|shadow|from|via|to)-(?:foreground|background|(?:primary|secondary|accent|muted|destructive|card|popover)(?:-foreground)?|surface(?:-muted)?|input|ring|border|chart-[1-5]|sidebar(?:-(?:foreground|primary(?:-foreground)?|accent(?:-foreground)?|border|ring))?)(?![\w-])/gu;
+
+for (const file of [
+  ...uiSourceFiles,
+  ...workspaceProductionPresentationFiles,
+]) {
+  const content = readFileSync(resolve(root, file), "utf8");
+  for (const match of content.matchAll(missingThemeColorAliasPattern)) {
+    const line = content.slice(0, match.index).split("\n").length;
+    failures.push(
+      `${file}:${line} uses ${match[0]} without a Tailwind theme authority; use the owning UI variant or token-backed component CSS.`,
+    );
+  }
+}
+
+const missingThemeColorAliasFixtures = [
+  [
+    true,
+    'className="hover:bg-muted/50 data-[state=on]:text-accent-foreground"',
+  ],
+  [true, 'className="focus-visible:ring-ring/50 border-input"'],
+  [true, 'className="[&>a:hover]:text-primary ring-offset-background"'],
+  [true, "@apply bg-popover border-border;"],
+  [
+    false,
+    'className="flex min-w-0 gap-0 bg-transparent text-inherit fill-current"',
+  ],
+  [
+    false,
+    'className="text-[var(--color-ink-secondary)] bg-[var(--color-surface)]"',
+  ],
+  [
+    false,
+    "color: var(--color-ink-primary); border-color: var(--color-border);",
+  ],
+  [false, 'className="xw-item__text-primary"'],
+];
+for (const [shouldMatch, content] of missingThemeColorAliasFixtures) {
+  if (
+    [...content.matchAll(missingThemeColorAliasPattern)].length > 0 !==
+    shouldMatch
+  ) {
+    failures.push("Missing Tailwind semantic theme alias self-test failed.");
+  }
+}
+
 for (const file of workspaceProductionPresentationFiles) {
   const content = readFileSync(resolve(root, file), "utf8");
   if (content.includes("--oh-")) {

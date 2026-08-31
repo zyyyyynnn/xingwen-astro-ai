@@ -15,7 +15,7 @@ export function EvidencePanel({
 }: EvidencePanelProps) {
   if (evidence.length === 0) {
     return (
-      <div className={`p-4 text-xs text-muted-foreground ${className}`}>
+      <div className={`xw-evidence-panel__empty ${className}`}>
         暂无相关引文证据。
       </div>
     );
@@ -26,9 +26,7 @@ export function EvidencePanel({
       className={`xw-evidence-panel flex flex-col gap-3 ${className}`}
       data-testid="evidence-panel"
     >
-      {title && (
-        <h4 className="text-xs font-semibold text-foreground">{title}</h4>
-      )}
+      {title && <h4 className="text-xs font-semibold">{title}</h4>}
       <div className="flex flex-col gap-2.5">
         {evidence.map((item) => {
           const locator = item.locator;
@@ -49,14 +47,11 @@ export function EvidencePanel({
               : `元数据字段：${locator.metadataField}`;
 
           return (
-            <div
-              key={item.evidenceId}
-              className="xw-evidence-item rounded-lg border border-border/60 bg-muted/20 p-3 text-xs"
-            >
+            <div key={item.evidenceId} className="xw-evidence-item">
               {item.quoteOrValue && (
-                <div className="mb-2 flex items-start gap-2 text-foreground">
+                <div className="mb-2 flex items-start gap-2">
                   <Quote
-                    className="mt-0.5 size-[var(--icon-size-sm)] shrink-0 text-muted-foreground"
+                    className="mt-0.5 size-[var(--icon-size-sm)] shrink-0 xw-evidence-item__quote-icon"
                     aria-hidden="true"
                   />
                   <blockquote className="italic font-serif leading-relaxed">
@@ -65,13 +60,13 @@ export function EvidencePanel({
                 </div>
               )}
 
-              <div className="ui-text-label flex flex-wrap items-center justify-between gap-2 text-muted-foreground">
+              <div className="ui-text-label flex flex-wrap items-center justify-between gap-2 xw-evidence-item__locator">
                 <span className="font-medium">{locationString}</span>
                 {locator.sourceUrl && (
                   <Link
                     href={locator.sourceUrl}
                     external
-                    className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                    className="inline-flex items-center gap-1 font-medium hover:underline"
                   >
                     <span>查看原文依据</span>
                     <ExternalLink

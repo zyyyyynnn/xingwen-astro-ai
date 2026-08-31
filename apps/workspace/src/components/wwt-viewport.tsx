@@ -84,6 +84,21 @@ export function WwtViewport(props: WwtViewportProps) {
         onProgress: (nextMessage) => {
           if (active) setMessage(nextMessage);
         },
+        onReadback: (next) => {
+          if (!active) return;
+          setReadback((current) =>
+            current?.centerCoordinates?.raHours ===
+              next.centerCoordinates?.raHours &&
+            current?.centerCoordinates?.decDegrees ===
+              next.centerCoordinates?.decDegrees &&
+            current?.fieldOfViewDegrees === next.fieldOfViewDegrees &&
+            current?.cameraRollDegrees === next.cameraRollDegrees &&
+            current?.currentTime?.slice(0, 19) ===
+              next.currentTime?.slice(0, 19)
+              ? current
+              : next,
+          );
+        },
         onAsyncError: (error) => {
           if (!active) return;
           setState("error");

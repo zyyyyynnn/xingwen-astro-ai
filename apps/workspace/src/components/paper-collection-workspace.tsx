@@ -1,4 +1,3 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
 import { safeExternalUrl, type DomainEntityId } from "@xingwen/domain";
 import type {
   ArtifactVersionMetadataViewModel,
@@ -9,8 +8,6 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-  Alert,
-  AlertDescription,
   Badge,
   Button,
   Empty,
@@ -20,7 +17,6 @@ import {
   EmptyTitle,
   Field,
   FieldContent,
-  FieldDescription,
   FieldLabel,
   Input,
   Item,
@@ -30,12 +26,6 @@ import {
   ItemGroup,
   ItemTitle,
   ScrollArea,
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   ToggleGroup,
   ToggleGroupItem,
   buttonClassName,
@@ -44,6 +34,7 @@ import { ExternalLink, FileSearch, FileText, Search } from "@xingwen/ui/icons";
 import { useMemo, useState } from "react";
 
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
+import { PaperFullTextForm } from "./paper-full-text-form";
 
 type CollectionFilter = "all" | "selected" | "candidate";
 type PaperCandidate = PaperAcquisitionReviewViewModel["candidates"][number];
@@ -132,57 +123,9 @@ export function PaperCollectionWorkspace({
 }: PaperCollectionWorkspaceProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMode, setFilterMode] = useState<CollectionFilter>("all");
-  const [selectedInputId, setSelectedInputId] = useState<DomainEntityId | null>(
-    null,
-  );
   const [targetCandidateId, setTargetCandidateId] = useState<string | null>(
     null,
   );
-
-  const inputs = useQuery(
-    runtime.application.queries.researchInputs(projectId),
-  );
-  const documentInputs = useMemo(
-    () =>
-      (inputs.data ?? []).filter(
-        (input) =>
-          input.type === "pdf" ||
-          input.type === "image" ||
-          input.mimeType === "application/pdf" ||
-          ["image/jpeg", "image/png", "image/tiff", "image/webp"].includes(
-            input.mimeType ?? "",
-          ),
-      ),
-    [inputs.data],
-  );
-
-  const binding = useMutation({
-    mutationFn: async ({
-      candidateId,
-      canonicalPaperId,
-      evidenceUrl,
-      researchInputId,
-    }: {
-      candidateId: DomainEntityId;
-      canonicalPaperId: DomainEntityId;
-      evidenceUrl: string;
-      researchInputId: DomainEntityId;
-    }) => {
-      const input = documentInputs.find((item) => item.id === researchInputId);
-      if (!input || !evidenceUrl) {
-        throw new Error("缺少可绑定的科研文档或论文来源地址");
-      }
-      await runtime.repositories.paperAcquisition.bindResearchInput({
-        artifactVersionId: version.id,
-        candidateId,
-        canonicalPaperId,
-        researchInputId: input.id,
-        researchInputContentHash: input.contentHash,
-        evidenceUrl,
-        idempotencyKey: globalThis.crypto.randomUUID(),
-      });
-    },
-  });
 
   const allCandidates = review.candidates;
   const selectedCandidates = useMemo(
@@ -315,6 +258,7 @@ export function PaperCollectionWorkspace({
         {filteredCandidates.length > 0 ? (
           <ItemGroup
             className="paper-collection-workspace__list"
+            role="list"
             aria-live="polite"
           >
             {filteredCandidates.map((candidate) => {
@@ -334,6 +278,7 @@ export function PaperCollectionWorkspace({
               return (
                 <Item
                   key={candidate.candidateId}
+                  role="listitem"
                   className="paper-collection-workspace__row"
                   size="default"
                 >
@@ -415,80 +360,16 @@ export function PaperCollectionWorkspace({
                     </Accordion>
 
                     {isTargetBinding && isSelected ? (
-                      <div className="paper-collection-workspace__binding">
-                        <Field>
-                          <FieldLabel>绑定已上传全文</FieldLabel>
-                          <FieldDescription>
-                            绑定后可通过修订研究生成页码与段落级证据定位。
-                          </FieldDescription>
-                          <FieldContent>
-                            {documentInputs.length > 0 ? (
-                              <div className="paper-collection-workspace__binding-controls">
-                                <Select
-                                  value={selectedInputId ?? ""}
-                                  onValueChange={(value) =>
-                                    setSelectedInputId(value as DomainEntityId)
-                                  }
-                                >
-                                  <SelectTrigger aria-label="选择科研文档">
-                                    <SelectValue placeholder="选择已上传 PDF" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectGroup>
-                                      {documentInputs.map((document) => (
-                                        <SelectItem
-                                          key={document.id}
-                                          value={document.id}
-                                        >
-                                          {document.filename ?? "未命名文档"}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectGroup>
-                                  </SelectContent>
-                                </Select>
-                                <Button
-                                  size="small"
-                                  disabled={
-                                    selectedInputId === null ||
-                                    binding.isPending
-                                  }
-                                  onClick={() => {
-                                    if (selectedInputId && externalUrl) {
-                                      binding.mutate({
-                                        candidateId: candidate.candidateId,
-                                        canonicalPaperId:
-                                          candidate.canonicalPaperId,
-                                        evidenceUrl: externalUrl,
-                                        researchInputId: selectedInputId,
-                                      });
-                                    }
-                                  }}
-                                >
-                                  {binding.isPending
-                                    ? "正在绑定…"
-                                    : "确认绑定全文"}
-                                </Button>
-                              </div>
-                            ) : (
-                              <p>当前项目尚未上传受支持的 PDF。</p>
-                            )}
-                          </FieldContent>
-                        </Field>
-                        {binding.isSuccess ? (
-                          <p role="status">全文绑定已建立。</p>
-                        ) : null}
-                        {binding.isError ? (
-                          <Alert variant="destructive">
-                            <AlertDescription>
-                              {
-                                runtime.researchAdapter.toPublicApplicationError(
-                                  binding.error,
-                                ).safeMessage
-                              }
-                            </AlertDescription>
-                          </Alert>
-                        ) : null}
-                      </div>
+                      <PaperFullTextForm
+                        key={`${version.id}:${candidate.candidateId}`}
+                        runtime={runtime}
+                        projectId={projectId}
+                        artifactVersionId={version.id}
+                        candidateId={candidate.candidateId}
+                        canonicalPaperId={candidate.canonicalPaperId}
+                        sourceUrl={externalUrl}
+                        isLive={review.sourceMode === "live"}
+                      />
                     ) : null}
                   </ItemContent>
 
@@ -510,7 +391,7 @@ export function PaperCollectionWorkspace({
                         />
                       </a>
                     ) : (
-                      <span className="ui-text-label text-muted-foreground">
+                      <span className="ui-text-label paper-collection-workspace__unavailable">
                         无安全外链
                       </span>
                     )}
@@ -526,7 +407,7 @@ export function PaperCollectionWorkspace({
                         }
                       >
                         <FileText data-icon="inline-start" aria-hidden="true" />
-                        {isTargetBinding ? "收起全文绑定" : "绑定全文"}
+                        {isTargetBinding ? "收起全文" : "关联全文"}
                       </Button>
                     ) : null}
                   </ItemActions>

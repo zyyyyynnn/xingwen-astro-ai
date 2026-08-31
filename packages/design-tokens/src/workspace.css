@@ -57,8 +57,8 @@
   --workspace-result-sheet-narrow-inline-size: min(20rem, 92vw);
   --workspace-result-public-max-inline-size: 72rem;
   --workspace-result-node-inline-size: 14rem;
-  --workspace-result-node-block-size: 4.5rem;
-  --workspace-result-node-separation: 3rem;
+  --workspace-result-node-block-size: 4rem;
+  --workspace-result-node-separation: 0.5rem;
   --workspace-result-rank-separation: 6rem;
   --workspace-result-graph-focus-padding: 0.24;
   --workspace-result-code-max-block-size: 20rem;

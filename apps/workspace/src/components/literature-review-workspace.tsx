@@ -133,7 +133,9 @@ function EntryContext({
       <header className="literature-review__context-header">
         <h3>{entry.title}</h3>
         {assessment ? (
-          <p className="ui-text-label text-muted-foreground">{assessment}</p>
+          <p className="ui-text-label literature-review__assessment">
+            {assessment}
+          </p>
         ) : null}
       </header>
 
@@ -169,9 +171,7 @@ function EntryContext({
           <AccordionItem value="reasoning">
             <AccordionTrigger>公开推导与限制</AccordionTrigger>
             <AccordionContent>
-              <p className="font-medium text-foreground">
-                {reasoningTrace.conclusion}
-              </p>
+              <p className="font-medium">{reasoningTrace.conclusion}</p>
               {reasoningTrace.steps.length > 0 ? (
                 <ol>
                   {reasoningTrace.steps.map((step, index) => (
@@ -392,11 +392,11 @@ export function LiteratureReviewWorkspace({
 
       <div className="literature-review__split">
         <ScrollArea className="literature-review__list-scroll">
-          <ItemGroup className="literature-review__list">
+          <ItemGroup className="literature-review__list" role="list">
             {filteredEntries.map((entry, index) => {
               const selected = entry.key === selectedEntry?.key;
               return (
-                <div key={entry.key}>
+                <div key={entry.key} role="listitem">
                   <Item asChild size="default" variant="default">
                     <Button
                       variant="ghost"

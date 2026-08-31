@@ -22,7 +22,9 @@ import type {
   ResearchInputType,
 } from "./ports";
 
-function mapResearchInputRef(dto: ResearchInputRefDto): ResearchInputRef {
+export function mapResearchInputRef(
+  dto: ResearchInputRefDto,
+): ResearchInputRef {
   return {
     id: asEntityId(dto.id),
     type: dto.type as ResearchInputType,

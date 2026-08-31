@@ -73,7 +73,7 @@ function ArtifactResultIndex({
 
   if (visible.length === 0) {
     return (
-      <div className="py-8 text-center text-xs text-muted-foreground">
+      <div className="py-8 text-center text-xs artifact-results__note">
         研究任务尚未产出正式结果。
       </div>
     );
@@ -145,7 +145,7 @@ function ArtifactResultIndex({
         <section aria-labelledby="review-results-title">
           <h3
             id="review-results-title"
-            className="ui-text-label mb-1 font-medium text-foreground"
+            className="ui-text-label mb-1 font-medium"
           >
             需要处理 · {reviewItems.length}
           </h3>
@@ -155,7 +155,7 @@ function ArtifactResultIndex({
       <section aria-labelledby="all-results-title">
         <h3
           id="all-results-title"
-          className="ui-text-label mb-1 font-medium text-muted-foreground"
+          className="ui-text-label mb-1 font-medium artifact-results__note"
         >
           研究结果 · {ordinaryItems.length}
         </h3>

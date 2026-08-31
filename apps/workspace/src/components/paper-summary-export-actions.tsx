@@ -30,7 +30,9 @@ export function PaperSummaryExportActions({
       className="flex flex-wrap items-center gap-2"
       aria-label="论文摘要导出"
     >
-      <span className="ui-text-label text-muted-foreground">导出当前版本</span>
+      <span className="ui-text-label paper-summary-export__note">
+        导出当前版本
+      </span>
       {FORMATS.map(({ format, label }) => (
         <Button
           key={format}
@@ -58,7 +60,7 @@ export function PaperSummaryExportActions({
         </Alert>
       ) : null}
       {exportMutation.isSuccess ? (
-        <p className="ui-text-label text-muted-foreground" role="status">
+        <p className="ui-text-label paper-summary-export__note" role="status">
           论文摘要已导出。
         </p>
       ) : null}

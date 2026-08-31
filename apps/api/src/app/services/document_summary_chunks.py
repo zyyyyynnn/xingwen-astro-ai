@@ -27,10 +27,6 @@ from app.schemas.paper_summary import (
     PaperSummaryModelUsage,
     PaperSummarySectionKind,
 )
-from app.schemas.scientific_document import (
-    DocumentBlockKind,
-    DocumentParseQuality,
-)
 from app.services.document_summary import (
     DocumentSummaryExecution,
     DocumentSummaryService,
@@ -124,7 +120,7 @@ class ChunkedDocumentSummaryService:
         request: ExecuteDocumentSummaryRequest,
         evidence: tuple[PaperSummaryEvidenceCandidate, ...],
     ) -> ChunkedDocumentSummaryExecution:
-        chunks = _build_chunks(request, evidence)
+        chunks = _build_chunks(evidence)
         chunk_outputs: list[PaperSummaryModelOutput] = []
         request_ids: list[str | None] = []
         returned_models: list[str | None] = []
@@ -215,47 +211,30 @@ def _consensus_returned_model(models: list[str | None]) -> str | None:
 
 
 def _build_chunks(
-    request: ExecuteDocumentSummaryRequest,
     evidence: tuple[PaperSummaryEvidenceCandidate, ...],
 ) -> tuple[SummaryChunk, ...]:
-    """Project parse blocks into chunks with per-block Evidence identity."""
+    """Chunk canonical Evidence excerpts, including every span of a large block.
 
-    first_evidence_by_block: dict[str, str] = {}
-    for candidate in evidence:
-        locator = candidate.locator.document_locator
-        if locator is None or locator.block_id is None:
-            continue
-        first_evidence_by_block.setdefault(locator.block_id, candidate.evidence_id)
-
+    Chunk units use Evidence identity: original page/block/span identity remains
+    on each candidate's locator. No full block is paired with just its first quote.
+    """
     blocks: list[ChunkDocumentBlock] = []
-    section: str | None = None
-    ordered = sorted(
-        request.document_parse.blocks,
-        key=lambda block: (
-            block.page_index,
-            block.reading_order if block.reading_order is not None else 0,
-            block.block_id,
-        ),
-    )
-    for block in ordered:
-        if block.kind is DocumentBlockKind.heading and block.text:
-            section = block.text[:512]
-        if (
-            block.kind is DocumentBlockKind.reference
-            or block.text is None
-            or block.quality is DocumentParseQuality.unsupported
-        ):
-            continue
+    for order, candidate in enumerate(evidence):
+        locator = candidate.locator.document_locator
+        if locator is None or locator.text_span is None:
+            raise ValueError("document chunk evidence requires a precise text span")
         blocks.append(
             ChunkDocumentBlock(
-                block_id=block.block_id,
-                page_index=block.page_index,
-                text=block.text,
-                section=section,
-                reading_order=block.reading_order,
+                block_id=candidate.evidence_id,
+                page_index=locator.page_index,
+                reading_order=order,
+                section=candidate.locator.section,
+                text=candidate.quote_or_value,
             )
         )
-    return build_summary_chunks(blocks, first_evidence_by_block)
+    return build_summary_chunks(
+        blocks, {item.evidence_id: item.evidence_id for item in evidence}
+    )
 
 
 def _chunk_request(
@@ -288,7 +267,6 @@ def _chunk_request(
                     for evidence_id in chunk.evidence_ids
                     if evidence_id in evidence_by_id
                 ],
-                "text": chunk.text,
             },
         },
     }

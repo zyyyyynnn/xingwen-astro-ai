@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from app.schemas._hashing import compute_canonical_payload_hash
@@ -219,6 +221,36 @@ def test_long_document_runs_one_bounded_call_per_chunk() -> None:
     assert (
         result.chunk_provider_returned_models
         == ("qwen3.8-max-2026-08-01",) * result.chunk_count
+    )
+
+
+def test_oversized_parse_block_keeps_every_bounded_evidence_span() -> None:
+    request = _request(2)
+    paragraph = request.document_parse.blocks[1]
+    long_text = "Observations in the first interval. " * 6000
+    request = replace(
+        request,
+        document_parse=request.document_parse.model_copy(
+            update={
+                "blocks": (
+                    request.document_parse.blocks[0],
+                    paragraph.model_copy(update={"text": long_text}),
+                ),
+            }
+        ),
+    )
+    model = _ChunkModel()
+    result = ChunkedDocumentSummaryService(model).execute(request)
+    assert isinstance(result, ChunkedDocumentSummaryExecution)
+    chunks = [call.input_payload["paper_payload"]["chunk"] for call in model.requests]
+    quoted = [item["text"] for chunk in chunks for item in chunk["evidence"]]
+    assert "".join(quoted[1:]) == long_text
+    assert all(
+        sum(len(item["text"]) for item in chunk["evidence"]) <= 12_000
+        for chunk in chunks
+    )
+    assert all("text" not in chunk for chunk in chunks), (
+        "do not duplicate full block text outside precise Evidence"
     )
 
 

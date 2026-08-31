@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+import pytest
+
 from app.schemas.core import ScientificSkillId
 from services.scientific_skills import (
     ScientificSkillBudget,
@@ -108,9 +110,7 @@ def test_group_split_keeps_test_groups_out_of_training() -> None:
     test_row_ids = {str(item["row_id"]) for item in predictions}
     test_groups = {group_by_row[row_id] for row_id in test_row_ids}
     training_groups = {
-        group_by_row[row_id]
-        for row_id in group_by_row
-        if row_id not in test_row_ids
+        group_by_row[row_id] for row_id in group_by_row if row_id not in test_row_ids
     }
     assert test_groups, "test partition must cover at least one group"
     assert training_groups, "training partition must cover at least one group"
@@ -186,6 +186,70 @@ def test_time_split_evaluates_only_rows_after_the_training_cutoff() -> None:
         "validation is strictly after the training cutoff; cross-validation is skipped to avoid future leakage"
         in result.output["limitations"]
     )
+
+
+def test_simultaneous_observations_never_cross_the_time_boundary() -> None:
+    rows = [
+        {"row_id": f"obs.{index}", "day": index // 3, "value": float(index)}
+        for index in range(40)
+    ]
+    result = build_scientific_skill_registry().execute(
+        _request(
+            {
+                "rows": rows,
+                "feature_fields": ["day"],
+                "target_field": "value",
+                "task_kind": "regression",
+                "algorithm": "linear_regression",
+                "split_strategy": "time",
+                "time_field": "day",
+            }
+        )
+    )
+    split = result.output["split"]
+    time_by_row = {row["row_id"]: row["day"] for row in rows}
+    assert split["train_count"] + split["test_count"] == len(rows)
+    assert all(
+        time_by_row[point["row_id"]] > split["train_cutoff"]
+        for point in result.output["predictions"]
+    )
+    assert not any(
+        key.startswith("feature_importance_") for key in result.output["metrics"]
+    )
+    assert (
+        "Feature importance was not computed for this model representation."
+        in result.output["limitations"]
+    )
+
+
+@pytest.mark.parametrize("mixed_time", [False, True])
+def test_invalid_time_boundaries_are_rejected(mixed_time: bool) -> None:
+    rows = _time_series_rows()
+    if mixed_time:
+        rows[0]["day"] = "2024-01-01T00:00:00Z"
+    else:
+        for row in rows:
+            row["day"] = 1
+    with pytest.raises(ValueError, match="consistent numeric|empty partition"):
+        build_scientific_skill_registry().execute(
+            _request(
+                {
+                    "rows": rows,
+                    "feature_fields": ["value"],
+                    "target_field": "row_target",
+                    "task_kind": "regression",
+                    "algorithm": "linear_regression",
+                    "split_strategy": "time",
+                    "time_field": "day",
+                }
+                | {
+                    "rows": [
+                        row | {"row_target": index * 2.0}
+                        for index, row in enumerate(rows)
+                    ]
+                }
+            )
+        )
 
 
 def test_group_split_reports_grouped_cross_validation_metrics() -> None:

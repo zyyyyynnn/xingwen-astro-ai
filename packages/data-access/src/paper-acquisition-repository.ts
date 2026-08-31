@@ -49,6 +49,7 @@ import { asEntityId } from "@xingwen/domain";
 import { HttpClient, seg } from "./http-client";
 import { computeCanonicalJsonHash } from "./contract-hash";
 import { ValidationError } from "./errors";
+import { mapResearchInputRef } from "./research-input-repository";
 import type { PaperAcquisitionRepository } from "./ports";
 
 /** Internal page size; deliberately not exposed through the port. */
@@ -496,6 +497,20 @@ export function parseContract<T>(
   }
 }
 
+function mapFullTextBinding(payload: unknown) {
+  const binding = parseContract<PaperCandidateInputBindingDto>(
+    "PaperCandidateInputBinding",
+    payload,
+  );
+  if (binding.outcome !== "accepted" || !binding.research_input) {
+    throw contractViolation(
+      "Full text binding has no research input",
+      "PAPER_INPUT_BINDING_INVALID",
+    );
+  }
+  return mapResearchInputRef(binding.research_input);
+}
+
 export function createPaperAcquisitionRepository(
   http: HttpClient,
 ): PaperAcquisitionRepository {
@@ -569,6 +584,44 @@ export function createPaperAcquisitionRepository(
 
       return assemblePaperAcquisitionReview(read, candidateReads);
     },
+    async acquireFullText(input) {
+      if (!URL.canParse(input.accessUrl)) {
+        throw contractViolation(
+          "Full text URL is invalid",
+          "PAPER_ACCESS_NOT_PROVEN",
+        );
+      }
+      const url = new URL(input.accessUrl);
+      if (url.protocol !== "https:" || url.username || url.password) {
+        throw contractViolation(
+          "Full text requires a credential-free HTTPS URL",
+          "PAPER_ACCESS_NOT_PROVEN",
+        );
+      }
+      url.hash = "";
+      const accessUrl = url.href;
+      const resourceIdentityHash = await computeCanonicalJsonHash({
+        resource_type: "access_url",
+        url: accessUrl,
+      });
+      const payload = await http.post<unknown>(
+        `/api/artifact-versions/${seg(input.artifactVersionId)}/paper-candidates/${seg(input.candidateId)}/research-input`,
+        {
+          mode: "open_access_url",
+          access_url: accessUrl,
+          access_evidence: {
+            kind: input.accessKind,
+            license: input.license,
+            evidence_url: input.evidenceUrl,
+            canonical_paper_id: input.canonicalPaperId,
+            resource_type: "access_url",
+            resource_identity_hash: resourceIdentityHash,
+          },
+        },
+        { "Idempotency-Key": input.idempotencyKey },
+      );
+      return mapFullTextBinding(payload);
+    },
     async bindResearchInput(input) {
       const resourceIdentityHash = await computeCanonicalJsonHash({
         resource_type: "research_input",
@@ -591,10 +644,7 @@ export function createPaperAcquisitionRepository(
         },
         { "Idempotency-Key": input.idempotencyKey },
       );
-      parseContract<PaperCandidateInputBindingDto>(
-        "PaperCandidateInputBinding",
-        payload,
-      );
+      return mapFullTextBinding(payload);
     },
   };
 }

@@ -115,6 +115,10 @@ def build_summary_chunks(
         if block.block_id in seen:
             raise ValueError(f"duplicate block_id: {block.block_id}")
         seen.add(block.block_id)
+        if len(block.text.strip()) > max_chunk_characters:
+            raise ValueError(
+                "oversized block must be split into bounded evidence excerpts before chunking"
+            )
         ordered.append(block)
 
     if not ordered:
@@ -163,14 +167,13 @@ def build_summary_chunks(
             current_section = block.section
         elif current_section is None:
             current_section = block.section or "document"
-        size = len(block.text)
+        size = len(block.text.strip())
         if (
-            current_blocks
-            and current_characters + size > max_chunk_characters
+            current_blocks and current_characters + 2 + size > max_chunk_characters
         ) or len(current_blocks) >= max_chunk_blocks:
             flush()
+        current_characters += size + (2 if current_blocks else 0)
         current_blocks.append(block)
-        current_characters += size
     flush()
     return tuple(chunks)
 
@@ -215,9 +218,7 @@ def missing_section_keys(
 ) -> tuple[str, ...]:
     """Sections without any supported statements, reported honestly."""
 
-    return tuple(
-        section.section for section in reduced if not section.statements
-    )
+    return tuple(section.section for section in reduced if not section.statements)
 
 
 __all__ = [

@@ -187,6 +187,7 @@ export type {
   ModelBinaryReview,
   ModelDiagnosticVisualizationReview,
   ModelEvaluationReviewContent,
+  ModelEvaluationMetricReview,
   ModelSplitReview,
   ModelTrainingInputReview,
   PeriodogramPeakReview,

@@ -38,8 +38,12 @@ def _validate_safe_text(value: str) -> str:
     return value
 
 
+MAX_SUMMARY_TEXT_CHARACTERS = 4_000
+
 NonEmptyString = Annotated[
-    str, Field(min_length=1, max_length=4000), AfterValidator(_validate_safe_text)
+    str,
+    Field(min_length=1, max_length=MAX_SUMMARY_TEXT_CHARACTERS),
+    AfterValidator(_validate_safe_text),
 ]
 ShortString = Annotated[
     str, Field(min_length=1, max_length=512), AfterValidator(_validate_safe_text)

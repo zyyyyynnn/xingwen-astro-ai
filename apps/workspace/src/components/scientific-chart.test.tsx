@@ -10,6 +10,21 @@ import { ScientificChart } from "./scientific-chart";
 
 beforeAll(() => {
   document.documentElement.style.setProperty("--color-brand", "rgb(1,2,3)");
+  for (const token of [
+    "--color-border",
+    "--color-ink-secondary",
+    "--color-ink-primary",
+  ]) {
+    document.documentElement.style.setProperty(token, "rgb(1,2,3)");
+  }
+  document.documentElement.style.setProperty(
+    "--font-weight-ui-emphasis",
+    "600",
+  );
+  const stylesheet = document.createElement("style");
+  stylesheet.textContent =
+    '.scientific-chart__canvas { min-height: 352px; font-size: 12px; font-family: "Inter", sans-serif; }';
+  document.head.append(stylesheet);
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
     fillStyle: "",
     fillRect: () => undefined,
@@ -90,6 +105,19 @@ describe("ScientificChart", () => {
       layer: readonly { mark: { type: string } }[];
     };
     expect(built.width).toBe(640);
+    expect(spec).toMatchObject({
+      height: 352,
+      config: {
+        font: '"Inter", sans-serif',
+        view: { stroke: null },
+        axis: {
+          labelFontSize: 12,
+          titleFontSize: 12,
+          titleFontWeight: 600,
+          domain: false,
+        },
+      },
+    });
     expect(built.layer).toHaveLength(1);
     expect(built.layer[0]?.mark.type).toBe("point");
 

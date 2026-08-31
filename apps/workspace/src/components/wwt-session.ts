@@ -24,6 +24,7 @@ export interface WwtSceneOptions {
   readonly loadContent: (contentHash: ContentHash) => Promise<ArrayBuffer>;
   readonly onProgress: (message: string) => void;
   readonly onAsyncError?: (error: unknown) => void;
+  readonly onReadback?: (readback: WwtSceneReadback) => void;
 }
 
 export interface WwtSceneReadback {
@@ -53,6 +54,9 @@ export interface WwtSessionLease {
 }
 
 const ENGINE_ROOT_ID = "xingwen-wwt-engine-root";
+// WWT's sky camera zoom is six times the vertical angular field of view.
+const SKY_ZOOM_PER_FIELD_OF_VIEW_DEGREE = 6;
+const READBACK_INTERVAL_MS = 250;
 
 let engineRoot: HTMLDivElement | null = null;
 let engineSessionPromise: Promise<EngineSession> | null = null;
@@ -424,7 +428,7 @@ async function gotoView(
     await session.instance.gotoRADecZoom(
       (view.center.raHours * Math.PI) / 12,
       (view.center.decDegrees * Math.PI) / 180,
-      view.fieldOfViewDegrees,
+      view.fieldOfViewDegrees * SKY_ZOOM_PER_FIELD_OF_VIEW_DEGREE,
       view.transitionSeconds === 0,
       (view.rollDegrees * Math.PI) / 180,
       view.transitionSeconds || undefined,
@@ -438,7 +442,7 @@ async function gotoView(
   place.set_target(SolarSystemObjects[view.target]);
   place.set_zoomLevel(view.fieldOfViewDegrees);
   const camera = place.get_camParams();
-  camera.rotation = view.rollDegrees;
+  camera.rotation = (view.rollDegrees * Math.PI) / 180;
   place.set_camParams(camera);
   await session.instance.gotoTarget({
     place,
@@ -601,7 +605,7 @@ function sceneReadback(
       ? session.instance.ctl.renderContext.get_fovAngle()
       : null,
     cameraRollDegrees: requested.has("camera_roll")
-      ? session.instance.ctl.renderContext.viewCamera.rotation
+      ? (session.instance.ctl.renderContext.viewCamera.rotation * 180) / Math.PI
       : null,
     currentTime: requested.has("current_time")
       ? session.engine.SpaceTimeController.get_now().toISOString()
@@ -721,6 +725,7 @@ export function openWwtSession(host: HTMLElement): WwtSessionLease {
   const token = Symbol("wwt-session-lease");
   const abortController = new AbortController();
   let previousSpec: WwtSpec | null = null;
+  let stopReadback = () => {};
   activeLease = token;
   const sessionPromise = getEngineSession(host);
   void sessionPromise
@@ -736,6 +741,7 @@ export function openWwtSession(host: HTMLElement): WwtSessionLease {
       queue(async () => {
         const session = await sessionPromise;
         assertLease(token);
+        stopReadback();
         if (session.canvas.parentElement !== host) host.append(session.canvas);
         try {
           const readback = await renderScene(
@@ -747,6 +753,23 @@ export function openWwtSession(host: HTMLElement): WwtSessionLease {
             previousSpec,
           );
           previousSpec = spec;
+          if (spec.mode === "wwt_scene" && options.onReadback) {
+            let lastReadAt = 0;
+            const onFrame = () => {
+              if (activeLease !== token) {
+                stopReadback();
+                return;
+              }
+              const now = performance.now();
+              if (now - lastReadAt < READBACK_INTERVAL_MS) return;
+              lastReadAt = now;
+              options.onReadback?.(sceneReadback(session, spec));
+            };
+            session.instance.addFrameCallback(onFrame);
+            stopReadback = () => {
+              session.instance.removeFrameCallback(onFrame);
+            };
+          }
           return readback;
         } catch (error) {
           if (error instanceof SupersededWwtLeaseError) return null;
@@ -758,6 +781,7 @@ export function openWwtSession(host: HTMLElement): WwtSessionLease {
         }
       }),
     close: () => {
+      stopReadback();
       if (activeLease !== token) return;
       abortController.abort();
       activeLease = null;

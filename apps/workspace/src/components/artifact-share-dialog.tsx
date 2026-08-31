@@ -133,11 +133,11 @@ export function ArtifactShareDialog({
               </Button>
             </FieldContent>
             {copyState === "copied" ? (
-              <p className="ui-text-label text-muted-foreground" role="status">
+              <p className="ui-text-label artifact-share__status" role="status">
                 已复制
               </p>
             ) : copyState === "failed" ? (
-              <p className="ui-text-label text-destructive" role="status">
+              <p className="ui-text-label artifact-share__error" role="status">
                 复制失败，请手动复制
               </p>
             ) : null}

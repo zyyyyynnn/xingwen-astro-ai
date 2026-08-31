@@ -9,7 +9,8 @@ from app.schemas.enums import (
     SourceMode,
     UpstreamFailureClass,
 )
-from app.schemas.paper_collection import PaperCollectionCandidate
+from app.schemas.paper_collection import PaperCollection, PaperCollectionCandidate
+from app.services.research_input_store import ResearchInputRecord
 from app.schemas.paper_summary import (
     PaperSummaryAdmissionStatus,
     PaperSummaryEvidenceCandidate,
@@ -80,18 +81,6 @@ _RETRYABLE_SOURCE_FAILURES = frozenset(
         "upstream_server",
     }
 )
-
-
-def _selected_candidate(
-    collection,
-) -> PaperCollectionCandidate:
-    """Pick the summarized paper: first selected, non-synthetic candidate."""
-
-    return next(
-        candidate
-        for candidate in collection.candidates
-        if candidate.selected and candidate.raw.synthetic_note is None
-    )
 
 
 def _evidence_candidates(
@@ -337,16 +326,10 @@ class PaperStepService:
             raise ValueError("paper_collection must be prepared first")
         if collection_version_id is None:
             raise ValueError("paper_collection must be published first")
-        candidate = _selected_candidate(collection)
-        full_text = (
-            self._paper_inputs.accepted_research_input(
-                session_id=context.session_id,
-                project_id=str(context.project_id),
-                paper_collection_version_id=str(collection_version_id),
-                canonical_paper_id=candidate.canonical_paper_id,
-            )
-            if self._paper_inputs is not None
-            else None
+        candidate, full_text = self._resolve_summary_source(
+            collection,
+            context=context,
+            collection_version_id=str(collection_version_id),
         )
         if full_text is not None:
             return self._summarize_document(
@@ -448,6 +431,33 @@ class PaperStepService:
             ),
         )
 
+    def _resolve_summary_source(
+        self,
+        collection: PaperCollection,
+        *,
+        context: RunStepContext,
+        collection_version_id: str,
+    ) -> tuple[PaperCollectionCandidate, ResearchInputRecord | None]:
+        """Prefer a selected paper with full text, preserving collection ranking."""
+        selected = tuple(
+            candidate
+            for candidate in collection.candidates
+            if candidate.selected and candidate.raw.synthetic_note is None
+        )
+        if not selected:
+            raise ValueError("论文集合没有可研读的已选文献")
+        if self._paper_inputs is not None:
+            for candidate in selected:
+                document = self._paper_inputs.accepted_research_input(
+                    session_id=context.session_id,
+                    project_id=str(context.project_id),
+                    paper_collection_version_id=collection_version_id,
+                    canonical_paper_id=candidate.canonical_paper_id,
+                )
+                if document is not None:
+                    return candidate, document
+        return selected[0], None
+
     def _summarize_document(
         self,
         context: RunStepContext,
@@ -457,7 +467,7 @@ class PaperStepService:
         lease: LeaseGrant,
         model_caller: StepModelCaller,
         candidate: PaperCollectionCandidate,
-        research_input: object,
+        research_input: ResearchInputRecord,
     ) -> PreparedStep:
         if self._document_parse_execution is None:
             raise ValueError("全文论文总结需要生产文档解析运行时")

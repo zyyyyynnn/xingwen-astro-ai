@@ -383,7 +383,7 @@ export function ArtifactPresentationContent({
                     <Link
                       href={externalUrl}
                       external
-                      className="text-primary hover:underline"
+                      className="hover:underline"
                     >
                       查看原文链接
                     </Link>
@@ -392,13 +392,13 @@ export function ArtifactPresentationContent({
                 {entry.paragraphs.map((paragraph, index) => (
                   <p
                     key={`${entry.key}:paragraph:${index}`}
-                    className="text-sm leading-relaxed text-foreground"
+                    className="text-sm leading-relaxed"
                   >
                     {paragraph}
                   </p>
                 ))}
                 {reasoningTrace ? (
-                  <div className="mt-2 pt-2 border-t border-border/40">
+                  <div className="scientific-reasoning__actions">
                     {onRequestRevision ? (
                       <Button
                         size="small"

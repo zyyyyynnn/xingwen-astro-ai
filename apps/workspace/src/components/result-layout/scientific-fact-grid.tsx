@@ -34,10 +34,8 @@ export function ScientificFactGrid({
         if (values.length === 0 || values.every((v) => !v)) return null;
         return (
           <div key={fact.label} className="flex flex-col gap-0.5 py-0.5">
-            <dt className="text-xs font-medium text-muted-foreground">
-              {fact.label}
-            </dt>
-            <dd className="text-xs text-foreground">{values.join("；")}</dd>
+            <dt className="text-xs font-medium">{fact.label}</dt>
+            <dd className="text-xs">{values.join("；")}</dd>
           </div>
         );
       })}

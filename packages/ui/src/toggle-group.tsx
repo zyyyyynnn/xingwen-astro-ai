@@ -10,60 +10,31 @@ type ToggleVariantProps = {
   readonly size?: ToggleSize | null;
 };
 
-const TOGGLE_VARIANT_CLASSES: Record<ToggleVariant, string> = {
-  default: "bg-transparent",
-  outline:
-    "border border-input bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground",
-  segmented: "xw-toggle-group__item--segmented",
-};
-
-const TOGGLE_SIZE_CLASSES: Record<ToggleSize, string> = {
-  default: "h-9 min-w-9 px-2",
-  sm: "h-8 min-w-8 px-1.5",
-  lg: "h-10 min-w-10 px-2.5",
-};
-
-function toggleGroupItemClassName({
-  variant = "default",
-  size = "default",
-  className,
-}: ToggleVariantProps & { readonly className?: string } = {}): string {
-  return cn(
-    "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-[color,box-shadow] outline-none hover:bg-muted hover:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-    TOGGLE_VARIANT_CLASSES[variant ?? "default"],
-    TOGGLE_SIZE_CLASSES[size ?? "default"],
-    className,
-  );
-}
+type ToggleSpacing = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 8;
 
 const ToggleGroupContext = React.createContext<
-  ToggleVariantProps & { readonly spacing?: number }
->({
-  size: "default",
-  variant: "default",
-  spacing: 0,
-});
+  ToggleVariantProps & { readonly spacing?: ToggleSpacing }
+>({});
 
 function ToggleGroup({
   className,
   variant,
   size,
   spacing = 0,
+  orientation = "horizontal",
   children,
   ...props
 }: React.ComponentProps<typeof ToggleGroupPrimitive.Root> &
-  ToggleVariantProps & { readonly spacing?: number }) {
+  ToggleVariantProps & { readonly spacing?: ToggleSpacing }) {
   return (
     <ToggleGroupPrimitive.Root
       data-slot="toggle-group"
-      data-variant={variant}
-      data-size={size}
+      data-variant={variant ?? "default"}
+      data-size={size ?? "default"}
       data-spacing={spacing}
-      style={{ "--gap": spacing } as React.CSSProperties}
-      className={cn(
-        "xw-toggle-group group/toggle-group flex w-fit items-center gap-[--spacing(var(--gap))]",
-        className,
-      )}
+      data-orientation={orientation}
+      orientation={orientation}
+      className={cn("xw-toggle-group", className)}
       {...props}
     >
       <ToggleGroupContext.Provider value={{ variant, size, spacing }}>
@@ -86,18 +57,10 @@ function ToggleGroupItem({
   return (
     <ToggleGroupPrimitive.Item
       data-slot="toggle-group-item"
-      data-variant={context.variant || variant}
-      data-size={context.size || size}
+      data-variant={context.variant ?? variant ?? "default"}
+      data-size={context.size ?? size ?? "default"}
       data-spacing={context.spacing}
-      className={cn(
-        toggleGroupItemClassName({
-          variant: context.variant || variant,
-          size: context.size || size,
-        }),
-        "xw-toggle-group__item w-auto min-w-0 shrink-0 px-3 focus:z-10 focus-visible:z-10",
-        "data-[spacing=0]:rounded-none data-[spacing=0]:shadow-none data-[spacing=0]:first:rounded-l-md data-[spacing=0]:last:rounded-r-md data-[spacing=0]:data-[variant=outline]:border-l-0 data-[spacing=0]:data-[variant=outline]:first:border-l",
-        className,
-      )}
+      className={cn("xw-toggle-group__item", className)}
       {...props}
     >
       {children}

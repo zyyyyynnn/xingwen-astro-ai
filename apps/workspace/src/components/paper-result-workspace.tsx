@@ -76,7 +76,7 @@ export function PaperResultWorkspace({
   const renderReport = (sectionIdPrefix: string) => (
     <div className="xw-paper-report flex h-full flex-col">
       <header className="paper-report__header">
-        <h2 className="font-serif text-2xl font-bold tracking-tight text-foreground">
+        <h2 className="font-serif text-2xl font-bold tracking-tight">
           {paperMeta?.title ?? artifact.title}
         </h2>
         <dl className="paper-report__metadata">
@@ -130,12 +130,12 @@ export function PaperResultWorkspace({
 
   return (
     <div
-      className={`xw-paper-result-workspace flex h-full w-full flex-col overflow-hidden bg-background ${className}`}
+      className={`xw-paper-result-workspace flex h-full w-full flex-col overflow-hidden ${className}`}
       data-testid="paper-result-workspace"
       data-artifact-version-id={version.id}
     >
       {hasDocument ? (
-        <div className="flex bg-muted/40 p-1 xl:hidden">
+        <div className="paper-result-workspace__tabs flex p-1 xl:hidden">
           <Tabs
             value={activePane}
             onValueChange={(value) => setActivePane(value as PaperResultPane)}
@@ -154,7 +154,9 @@ export function PaperResultWorkspace({
       ) : null}
 
       {toolbar ? (
-        <div className="shrink-0 bg-surface-muted/50 px-4 py-2">{toolbar}</div>
+        <div className="paper-result-workspace__toolbar shrink-0 px-4 py-2">
+          {toolbar}
+        </div>
       ) : null}
 
       {!hasDocument ? (
@@ -163,7 +165,7 @@ export function PaperResultWorkspace({
             <div className="paper-report__notice">
               <div className="flex items-center gap-2">
                 <Info
-                  className="size-[var(--icon-size-md)] shrink-0 text-muted-foreground"
+                  className="size-[var(--icon-size-md)] shrink-0 paper-report__notice-icon"
                   aria-hidden="true"
                 />
                 <span>
@@ -194,13 +196,13 @@ export function PaperResultWorkspace({
               <ResizableHandle
                 id="report-paper-divider"
                 aria-label="调整研究报告与论文原文的宽度"
-                className="xw-resize-handle relative flex w-2 items-center justify-center transition-colors hover:bg-primary/10 focus-visible:bg-primary/10"
+                className="xw-resize-handle relative flex w-2 items-center justify-center"
               />
               <ResizablePanel
                 id="paper"
                 defaultSize="42%"
                 minSize="25%"
-                className="h-full overflow-hidden bg-muted/10"
+                className="paper-result-workspace__document h-full overflow-hidden"
               >
                 {documentKind === "image" && documentUrl ? (
                   <img

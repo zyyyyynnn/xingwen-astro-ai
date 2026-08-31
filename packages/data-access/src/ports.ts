@@ -279,6 +279,7 @@ export interface CreateResearchInputInput {
  */
 export interface PaperAcquisitionRepository {
   getReview(artifactVersionId: DomainEntityId): Promise<PaperAcquisitionReview>;
+  acquireFullText(input: AcquirePaperFullTextInput): Promise<ResearchInputRef>;
   bindResearchInput(input: {
     readonly artifactVersionId: DomainEntityId;
     readonly candidateId: DomainEntityId;
@@ -287,7 +288,19 @@ export interface PaperAcquisitionRepository {
     readonly researchInputContentHash: string;
     readonly evidenceUrl: string;
     readonly idempotencyKey: string;
-  }): Promise<void>;
+  }): Promise<ResearchInputRef>;
+}
+
+export interface AcquirePaperFullTextInput {
+  readonly artifactVersionId: DomainEntityId;
+  readonly candidateId: DomainEntityId;
+  readonly canonicalPaperId: DomainEntityId;
+  readonly accessUrl: string;
+  readonly accessKind:
+    "publisher_open_access" | "repository_open_access" | "author_provided";
+  readonly license: string;
+  readonly evidenceUrl: string;
+  readonly idempotencyKey: string;
 }
 
 /**

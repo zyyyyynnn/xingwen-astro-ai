@@ -278,7 +278,7 @@ export const ResearchMessageStream = memo(function ResearchMessageStream({
             return (
               <div
                 key={item.id}
-                className="my-2 rounded-lg border border-border/70 p-4 text-sm"
+                className="research-message-stream__unsupported"
               >
                 当前结果类型暂时无法显示。
               </div>

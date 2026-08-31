@@ -188,9 +188,7 @@ function DatasetRenderer({
     >
       {showSummary ? (
         <header className="data-artifact__header">
-          <h3 className="font-serif text-lg font-semibold text-foreground">
-            {title}
-          </h3>
+          <h3 className="font-serif text-lg font-semibold">{title}</h3>
         </header>
       ) : null}
 
@@ -220,7 +218,7 @@ function DatasetRenderer({
             onSelectEvidence={onSelectEvidence}
           />
         ) : (
-          <div className="flex flex-col items-center justify-center p-12 text-center text-xs text-muted-foreground">
+          <div className="data-artifact__empty">
             当前版本没有可展示的数据行或字段。
           </div>
         )}
@@ -285,9 +283,7 @@ function FieldDictionaryRenderer({
     >
       {showSummary ? (
         <header className="data-artifact__header">
-          <h3 className="font-serif text-lg font-semibold text-foreground">
-            {title}
-          </h3>
+          <h3 className="font-serif text-lg font-semibold">{title}</h3>
         </header>
       ) : null}
 
@@ -304,7 +300,7 @@ function FieldDictionaryRenderer({
         left={
           <div className="field-dictionary__search relative min-w-64 max-w-sm">
             <Search
-              className="pointer-events-none absolute left-2.5 top-1/2 size-[var(--icon-size-sm)] -translate-y-1/2 text-muted-foreground"
+              className="pointer-events-none absolute left-2.5 top-1/2 size-[var(--icon-size-sm)] -translate-y-1/2 field-dictionary__search-icon"
               data-testid="field-dictionary-search-icon"
               aria-hidden="true"
             />
@@ -318,7 +314,7 @@ function FieldDictionaryRenderer({
           </div>
         }
         right={
-          <span className="text-xs text-muted-foreground">
+          <span className="field-dictionary__count">
             共 {filteredFields.length} 个字段定义
           </span>
         }
@@ -396,7 +392,7 @@ function FieldDictionaryRenderer({
             })}
           </Accordion>
         ) : (
-          <Empty className="border-0 bg-surface-muted/50 py-12">
+          <Empty className="data-artifact__empty">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <Search aria-hidden="true" />
@@ -441,9 +437,7 @@ function SourceCollectionRenderer({
     >
       {showSummary ? (
         <header className="data-artifact__header">
-          <h3 className="font-serif text-lg font-semibold text-foreground">
-            {title}
-          </h3>
+          <h3 className="font-serif text-lg font-semibold">{title}</h3>
         </header>
       ) : null}
 
@@ -486,14 +480,14 @@ function SourceCollectionRenderer({
       </dl>
 
       {mixesRecordedAndFixtureSources ? (
-        <p className="text-sm leading-relaxed text-muted-foreground">
+        <p className="source-collection__note">
           差异统计来自参与对齐的录制响应；标记为演示数据的来源只覆盖接入结构，不计入科研比较。
         </p>
       ) : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {members.length > 0 ? (
-          <ItemGroup className="source-collection__grid">
+          <ItemGroup className="source-collection__grid" role="list">
             {members.map((member) => {
               const complete = ["complete", "completed"].includes(
                 member.completionStatus ?? "",
@@ -513,6 +507,7 @@ function SourceCollectionRenderer({
               return (
                 <Item
                   key={`${member.sourceSnapshotId}-${member.side}`}
+                  role="listitem"
                   variant="default"
                   className="source-collection__item"
                 >
@@ -554,7 +549,7 @@ function SourceCollectionRenderer({
             })}
           </ItemGroup>
         ) : (
-          <Empty className="border-0 bg-surface-muted/50 py-12">
+          <Empty className="data-artifact__empty">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <Database aria-hidden="true" />

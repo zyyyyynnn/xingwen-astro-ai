@@ -349,6 +349,12 @@ export interface ModelBinaryReview {
     "application/onnx" | "application/vnd.sklearn" | "application/octet-stream";
 }
 
+export interface ModelEvaluationMetricReview extends ScientificMetricReview {
+  readonly metricKey: string;
+  readonly optimization: "maximize" | "minimize" | "none";
+  readonly category: "holdout" | "cross_validation" | "feature_importance";
+}
+
 export interface ModelEvaluationReviewContent {
   readonly kind: "model_evaluation";
   readonly schemaVersion: SemanticVersion;
@@ -366,8 +372,24 @@ export interface ModelEvaluationReviewContent {
   readonly featureFields: readonly DomainEntityId[];
   readonly targetField: DomainEntityId;
   readonly split: ModelSplitReview;
-  readonly metrics: readonly ScientificMetricReview[];
-  readonly baselineMetrics: readonly ScientificMetricReview[];
+  readonly metrics: readonly ModelEvaluationMetricReview[];
+  readonly baselineMetrics: readonly ModelEvaluationMetricReview[];
+  readonly diagnostics: {
+    readonly evaluatedSampleCount: number;
+    readonly confusionMatrix: {
+      readonly labels: readonly (string | number | boolean)[];
+      readonly rows: readonly (readonly number[])[];
+    } | null;
+    readonly regressionPredictions: readonly {
+      readonly rowId: DomainEntityId;
+      readonly actual: number;
+      readonly predicted: number;
+    }[];
+    readonly forecast: readonly {
+      readonly step: number;
+      readonly predictedValue: number;
+    }[];
+  } | null;
   readonly skillExecution: ScientificSkillExecutionReview;
   readonly modelBinary: ModelBinaryReview | null;
   readonly diagnosticVisualizationIds: readonly DomainEntityId[];
@@ -400,7 +422,19 @@ export interface ModelArtifactReviewContent {
     readonly mediaType: "application/onnx";
   };
   readonly inputName: DomainEntityId;
+  readonly inputDtype: string | null;
   readonly outputNames: readonly DomainEntityId[];
+  readonly outputMetadata: Readonly<
+    Record<
+      string,
+      {
+        readonly valueKind:
+          "tensor" | "sequence" | "map" | "optional" | "sparse_tensor";
+        readonly dtype: string | null;
+        readonly shape: readonly (number | string | null)[] | null;
+      } | null
+    >
+  >;
   readonly inputShape: readonly (number | null)[];
   readonly opsetImports: Readonly<Record<string, number>>;
   readonly dependencyRevisions: readonly string[];

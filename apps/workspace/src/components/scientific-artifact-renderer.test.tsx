@@ -19,6 +19,10 @@ import type {
   VisualizationReviewContent,
 } from "@xingwen/domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  buildScientificArtifactDiffSnapshot,
+  compareScientificSnapshots,
+} from "../presentation/scientific-diff";
 
 import {
   ScientificArtifactRenderer as ScientificArtifactRendererImpl,
@@ -283,6 +287,32 @@ const spectrumContent: SpectrumArtifactReviewContent = {
 };
 
 describe("ScientificArtifactRenderer scientific content", () => {
+  it("names the spectrum and toggles authoritative line details with Enter and Space", () => {
+    render(
+      <ScientificArtifactRenderer
+        review={makeReview(spectrumContent)}
+        title="光谱结果"
+        surface="fullscreen"
+      />,
+    );
+    expect(
+      screen.getByRole("img", {
+        name: /光谱通量与特征谱线.*包含 2 个采样点与 1 条检测谱线/,
+      }),
+    ).toBeInTheDocument();
+    const line = screen.getByRole("button", {
+      name: "选择吸收谱线 656.30 nm，显著性 6.20 sigma",
+    });
+    expect(line).toHaveAttribute("tabindex", "0");
+    fireEvent.keyDown(line, { key: "Enter" });
+    expect(line).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText("选中谱线详情")).toHaveTextContent(
+      "等效宽度0.4500 nm",
+    );
+    expect(fireEvent.keyDown(line, { key: " ", cancelable: true })).toBe(false);
+    expect(line).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByLabelText("选中谱线详情")).toBeNull();
+  });
   it("renders spectrum measurements and wired evidence selection", () => {
     const onSelectEvidence = vi.fn();
     render(
@@ -538,7 +568,7 @@ describe("ScientificArtifactRenderer scientific content", () => {
     expect(screen.queryByText("matrix")).toBeNull();
   });
 
-  it("keeps light-curve time-scale identity visible", () => {
+  it("keeps light-curve units consistent and supports numeric axes and keyboard inspection", () => {
     const content: LightCurveArtifactReviewContent = {
       kind: "light_curve",
       schemaVersion: "1.0.0",
@@ -550,8 +580,8 @@ describe("ScientificArtifactRenderer scientific content", () => {
       valueUnit: "relative flux",
       valueKind: "relative_flux",
       normalization: "median_division",
-      sampleCount: 1,
-      acceptedSampleCount: 1,
+      sampleCount: 2,
+      acceptedSampleCount: 2,
       rejectedSampleCount: 0,
       duration: 3.2,
       medianCadence: 120 / 86_400,
@@ -562,11 +592,19 @@ describe("ScientificArtifactRenderer scientific content", () => {
       points: [
         {
           time: 2459000.5,
-          value: 1.0,
+          value: 100,
           normalizedValue: 1.0,
           uncertainty: 0.01,
           quality: "good",
           phase: 0.45,
+        },
+        {
+          time: 2459000.6,
+          value: 110,
+          normalizedValue: 1.1,
+          uncertainty: 1,
+          quality: "good",
+          phase: 0.49,
         },
       ],
       skillExecutions: [],
@@ -585,6 +623,30 @@ describe("ScientificArtifactRenderer scientific content", () => {
     expect(screen.getByText("TDB")).toBeInTheDocument();
     expect(screen.getByText("1.00e-12")).toBeInTheDocument();
     expect(screen.getByText("2.00 min")).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: /光变时间序列.*包含 2 个测量点/ }),
+    ).toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /相位折叠曲线/ }), {
+      button: 0,
+    });
+    const phase = screen.getByRole("img", {
+      name: /光变相位折叠图.*2 个带相位的测量点/,
+    });
+    expect(phase).toBeInTheDocument();
+    fireEvent.focus(phase);
+    expect(screen.getByRole("status")).toHaveTextContent("1.0000");
+    fireEvent.keyDown(phase, { key: "End" });
+    expect(screen.getByRole("status")).toHaveTextContent("1.1000");
+    expect(phase.querySelectorAll(".scientific-plot__ticks text")).toHaveLength(
+      10,
+    );
+    fireEvent.mouseDown(
+      screen.getByRole("tab", { name: /周期图谱 \(Periodogram\)/ }),
+      { button: 0 },
+    );
+    expect(
+      screen.getByRole("img", { name: /光变周期峰值.*1 个峰值记录/ }),
+    ).toBeInTheDocument();
     // The peak table is collapsed by default (spec §48) — expand first.
     fireEvent.click(screen.getByRole("button", { name: /周期图谱峰值候选/ }));
     expect(
@@ -652,7 +714,7 @@ describe("ScientificArtifactRenderer scientific content", () => {
     expect(screen.getByText("5800")).toBeInTheDocument();
   });
 
-  it("downloads the ONNX model binary through the immutable content channel", async () => {
+  it("downloads the immutable ONNX binary and recovers from a failed download", async () => {
     const content: ModelArtifactReviewContent = {
       kind: "model_artifact",
       schemaVersion: "1.0.0",
@@ -675,7 +737,11 @@ describe("ScientificArtifactRenderer scientific content", () => {
         mediaType: "application/onnx",
       },
       inputName: asEntityId("features"),
+      inputDtype: "DOUBLE",
       outputNames: [asEntityId("prediction")],
+      outputMetadata: {
+        prediction: { valueKind: "tensor", dtype: "INT64", shape: ["batch"] },
+      },
       inputShape: [null, 2],
       opsetImports: { ai_onnx_ml: 1 },
       dependencyRevisions: ["scikit-learn 1.6.1"],
@@ -709,8 +775,22 @@ describe("ScientificArtifactRenderer scientific content", () => {
       fireEvent.click(screen.getByRole("button", { name: "下载 ONNX 模型" }));
     });
     expect(loadContent).toHaveBeenCalledWith("sha256:model");
+    expect(screen.getByText("DOUBLE")).toBeVisible();
+    expect(screen.getByText("INT64")).toBeVisible();
+    expect(screen.getByText("[batch]")).toBeVisible();
+    expect(screen.getByText("ai_onnx_ml · 1")).toBeVisible();
+    expect(screen.queryByText(/Opset 17|Softmax|Float32/)).toBeNull();
+    const ioChanges = compareScientificSnapshots(
+      buildScientificArtifactDiffSnapshot(
+        makeReview({ ...content, inputDtype: null }),
+      ),
+      buildScientificArtifactDiffSnapshot(makeReview(content)),
+    ).find((result) => result.category === "conclusions");
+    expect(ioChanges?.changes).toEqual([
+      expect.objectContaining({ key: "model-input", kind: "changed" }),
+    ]);
     expect(
-      screen.getByText("ONNX 模型交付产物包 · random_forest v1.6.1"),
+      screen.getByText("ONNX 模型交付产物包 · 随机森林 · 1.6.1"),
     ).toBeVisible();
     expect(screen.queryByText("active")).not.toBeInTheDocument();
     expect(screen.queryByText("scikit-learn 1.6.1")).not.toBeInTheDocument();
@@ -720,6 +800,23 @@ describe("ScientificArtifactRenderer scientific content", () => {
         mediaType: "application/onnx",
       }),
     );
+    loadContent.mockRejectedValueOnce(new Error("private storage details"));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "下载 ONNX 模型" }));
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "模型下载失败，请检查连接后重试。",
+    );
+    expect(
+      screen.queryByText("private storage details"),
+    ).not.toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "重新下载 ONNX 模型" }),
+      );
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(downloadBytes).toHaveBeenCalledTimes(2);
   });
 
   it("renders exact entity split provenance and runtime limitations", () => {
@@ -747,8 +844,62 @@ describe("ScientificArtifactRenderer scientific content", () => {
         crossValidationFolds: 5,
         trainCutoff: null,
       },
-      metrics: [],
-      baselineMetrics: [],
+      metrics: [
+        {
+          metricId: asEntityId("metric-accuracy"),
+          metricKey: "accuracy",
+          optimization: "maximize",
+          category: "holdout",
+          label: "准确率",
+          value: 0.75,
+          unit: null,
+          evidenceIds: [],
+        },
+        {
+          metricId: asEntityId("metric-cv-accuracy"),
+          metricKey: "cv_accuracy_mean",
+          optimization: "none",
+          category: "cross_validation",
+          label: "准确率 · 均值",
+          value: 0.72,
+          unit: null,
+          evidenceIds: [],
+        },
+        {
+          metricId: asEntityId("metric-importance"),
+          metricKey: "feature_importance_teff",
+          optimization: "none",
+          category: "feature_importance",
+          label: "teff",
+          value: 0.64,
+          unit: null,
+          evidenceIds: [],
+        },
+      ],
+      baselineMetrics: [
+        {
+          metricId: asEntityId("baseline-accuracy"),
+          metricKey: "accuracy",
+          optimization: "maximize",
+          category: "holdout",
+          label: "基线准确率",
+          value: 0.5,
+          unit: null,
+          evidenceIds: [],
+        },
+      ],
+      diagnostics: {
+        evaluatedSampleCount: 4,
+        confusionMatrix: {
+          labels: ["star", "galaxy"],
+          rows: [
+            [2, 0],
+            [1, 1],
+          ],
+        },
+        regressionPredictions: [],
+        forecast: [],
+      },
       skillExecution: {
         executionId: asEntityId("execution-1"),
         skillId: "tabular_machine_learning",
@@ -768,7 +919,7 @@ describe("ScientificArtifactRenderer scientific content", () => {
       outputHash: "sha256:output",
     };
 
-    render(
+    const view = render(
       <ScientificArtifactRenderer
         review={makeReview(content)}
         title="模型评估"
@@ -780,7 +931,7 @@ describe("ScientificArtifactRenderer scientific content", () => {
       screen.getByText("实体隔离划分 (Target Entity Split)"),
     ).toBeInTheDocument();
     expect(screen.getByText("object_id")).toBeInTheDocument();
-    expect(screen.getByText("random_forest")).toBeInTheDocument();
+    expect(screen.getByText("随机森林")).toBeInTheDocument();
     expect(screen.getByText("研究数据集")).toBeInTheDocument();
     expect(screen.queryByText("算法版本")).not.toBeInTheDocument();
     expect(screen.queryByText("随机种子")).not.toBeInTheDocument();
@@ -789,5 +940,134 @@ describe("ScientificArtifactRenderer scientific content", () => {
     expect(
       screen.getByText("同一实体不会跨越训练与测试边界"),
     ).toBeInTheDocument();
+    expect(screen.getByText("+0.250 对比基线 · 改善")).toBeInTheDocument();
+    const scientificChanges = compareScientificSnapshots(
+      buildScientificArtifactDiffSnapshot(makeReview(content)),
+      buildScientificArtifactDiffSnapshot(
+        makeReview({
+          ...content,
+          metrics: content.metrics.map((metric) => ({
+            ...metric,
+            metricId: asEntityId(`new-${metric.metricId}`),
+          })),
+          baselineMetrics: content.baselineMetrics.map((metric) => ({
+            ...metric,
+            value: 0.6,
+          })),
+          diagnostics: {
+            evaluatedSampleCount: 4,
+            confusionMatrix: {
+              labels: ["star", "galaxy"],
+              rows: [
+                [1, 1],
+                [1, 1],
+              ],
+            },
+            regressionPredictions: [],
+            forecast: [],
+          },
+        }),
+      ),
+    ).find((result) => result.category === "conclusions");
+    expect(scientificChanges?.changes).toHaveLength(3);
+    expect(scientificChanges?.changes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: "baseline:accuracy", kind: "changed" }),
+        expect.objectContaining({
+          key: 'confusion:["star","star"]',
+          kind: "changed",
+        }),
+        expect.objectContaining({
+          key: 'confusion:["star","galaxy"]',
+          kind: "changed",
+        }),
+      ]),
+    );
+    expect(screen.queryByText("准确率 · 均值")).not.toBeInTheDocument();
+    expect(screen.queryAllByText("测试集独立评估")).toHaveLength(0);
+    fireEvent.click(
+      screen.getByRole("button", { name: "交叉验证与特征重要性 · 2 项" }),
+    );
+    expect(
+      screen.getByRole("region", { name: "全样本交叉验证" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("rowheader", { name: "准确率 · 均值" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", {
+        name: "特征重要性（模型贡献，不代表因果关系）",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "分类混淆矩阵" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "测试集诊断 · 4 个样本" }),
+    );
+    expect(
+      screen.getByRole("region", { name: "分类混淆矩阵" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "galaxy" }),
+    ).toBeInTheDocument();
+
+    view.rerender(
+      <ScientificArtifactRenderer
+        title="模型评估"
+        surface="fullscreen"
+        review={makeReview({
+          ...content,
+          evaluationId: asEntityId("forecast-evaluation"),
+          taskKind: "forecast",
+          metrics: [
+            {
+              metricId: asEntityId("metric-mae"),
+              unit: null,
+              evidenceIds: [],
+              metricKey: "mae",
+              optimization: "minimize",
+              category: "holdout",
+              label: "平均绝对误差",
+              value: 0.1,
+            },
+          ],
+          baselineMetrics: [
+            {
+              metricId: asEntityId("baseline-mae"),
+              unit: null,
+              evidenceIds: [],
+              metricKey: "mae",
+              optimization: "minimize",
+              category: "holdout",
+              label: "基线平均绝对误差",
+              value: 0.2,
+            },
+          ],
+          diagnostics: {
+            evaluatedSampleCount: 4,
+            confusionMatrix: null,
+            regressionPredictions: [
+              { rowId: asEntityId("row-40"), actual: 1.01, predicted: 1.02 },
+            ],
+            forecast: Array.from({ length: 51 }, (_, index) => ({
+              step: index + 1,
+              predictedValue: index / 10,
+            })),
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText("-0.100 对比基线 · 改善")).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "测试集诊断 · 4 个样本" }),
+    );
+    expect(
+      screen.getByText("均匀抽取 1 / 4 个测试样本", { exact: false }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "下一页" }));
+    expect(screen.getByRole("status")).toHaveTextContent("第 51 步，共 51 步");
+    expect(screen.getByRole("rowheader", { name: "51" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "下一页" })).toBeDisabled();
   });
 });

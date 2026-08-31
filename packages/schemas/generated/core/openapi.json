@@ -9074,6 +9074,19 @@
               }
             ]
           },
+          "input_dtype": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Dtype"
+          },
           "input_hash": {
             "pattern": "^sha256:[0-9a-f]{64}$",
             "title": "Input Hash",
@@ -9141,6 +9154,25 @@
             "pattern": "^sha256:[0-9a-f]{64}$",
             "title": "Output Hash",
             "type": "string"
+          },
+          "output_metadata": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ModelOutputMetadata"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "minProperties": 1,
+            "propertyNames": {
+              "maxLength": 128,
+              "minLength": 1
+            },
+            "title": "Output Metadata",
+            "type": "object"
           },
           "output_names": {
             "items": {
@@ -9213,7 +9245,9 @@
           "target_field",
           "model_binary",
           "input_name",
+          "input_dtype",
           "output_names",
+          "output_metadata",
           "input_shape",
           "opset_imports",
           "dependency_revisions",
@@ -9265,6 +9299,49 @@
           "media_type"
         ],
         "title": "ModelBinaryReference",
+        "type": "object"
+      },
+      "ModelConfusionMatrix": {
+        "additionalProperties": false,
+        "properties": {
+          "labels": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "minItems": 2,
+            "title": "Labels",
+            "type": "array"
+          },
+          "rows": {
+            "items": {
+              "items": {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "labels",
+          "rows"
+        ],
+        "title": "ModelConfusionMatrix",
         "type": "object"
       },
       "ModelDiagnosticVisualizationSpec": {
@@ -9321,7 +9398,7 @@
           "baseline_metrics": {
             "default": [],
             "items": {
-              "$ref": "#/components/schemas/ScientificMetric"
+              "$ref": "#/components/schemas/ModelEvaluationMetric"
             },
             "title": "Baseline Metrics",
             "type": "array"
@@ -9335,6 +9412,16 @@
             },
             "title": "Diagnostic Visualization Ids",
             "type": "array"
+          },
+          "diagnostics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelEvaluationDiagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "evaluation_id": {
             "maxLength": 128,
@@ -9394,7 +9481,7 @@
           },
           "metrics": {
             "items": {
-              "$ref": "#/components/schemas/ScientificMetric"
+              "$ref": "#/components/schemas/ModelEvaluationMetric"
             },
             "minItems": 1,
             "title": "Metrics",
@@ -9481,6 +9568,223 @@
           "output_hash"
         ],
         "title": "ModelEvaluationArtifactContent",
+        "type": "object"
+      },
+      "ModelEvaluationDiagnostics": {
+        "additionalProperties": false,
+        "properties": {
+          "confusion_matrix": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelConfusionMatrix"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evaluated_sample_count": {
+            "minimum": 1.0,
+            "title": "Evaluated Sample Count",
+            "type": "integer"
+          },
+          "forecast": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ModelForecastPoint"
+            },
+            "maxItems": 10000,
+            "title": "Forecast",
+            "type": "array"
+          },
+          "regression_predictions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ModelRegressionPrediction"
+            },
+            "maxItems": 256,
+            "title": "Regression Predictions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "evaluated_sample_count"
+        ],
+        "title": "ModelEvaluationDiagnostics",
+        "type": "object"
+      },
+      "ModelEvaluationMetric": {
+        "additionalProperties": false,
+        "description": "Stable metric semantics, independent of the identity of one measurement.",
+        "properties": {
+          "category": {
+            "enum": [
+              "holdout",
+              "cross_validation",
+              "feature_importance"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "evidence_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "label": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "metric_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Metric Id",
+            "type": "string"
+          },
+          "metric_key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Metric Key",
+            "type": "string"
+          },
+          "optimization": {
+            "enum": [
+              "maximize",
+              "minimize",
+              "none"
+            ],
+            "title": "Optimization",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "metric_id",
+          "label",
+          "value",
+          "metric_key",
+          "optimization",
+          "category"
+        ],
+        "title": "ModelEvaluationMetric",
+        "type": "object"
+      },
+      "ModelForecastPoint": {
+        "additionalProperties": false,
+        "properties": {
+          "predicted_value": {
+            "title": "Predicted Value",
+            "type": "number"
+          },
+          "step": {
+            "minimum": 1.0,
+            "title": "Step",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "step",
+          "predicted_value"
+        ],
+        "title": "ModelForecastPoint",
+        "type": "object"
+      },
+      "ModelOutputMetadata": {
+        "additionalProperties": false,
+        "description": "Value metadata read from an exported ONNX graph output.",
+        "properties": {
+          "dtype": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dtype"
+          },
+          "shape": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "maxLength": 4000,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shape"
+          },
+          "value_kind": {
+            "enum": [
+              "tensor",
+              "sequence",
+              "map",
+              "optional",
+              "sparse_tensor"
+            ],
+            "title": "Value Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value_kind",
+          "dtype",
+          "shape"
+        ],
+        "title": "ModelOutputMetadata",
         "type": "object"
       },
       "ModelProviderConfigurationSource": {
@@ -9617,6 +9921,32 @@
         ],
         "title": "ModelProviderPreset",
         "type": "string"
+      },
+      "ModelRegressionPrediction": {
+        "additionalProperties": false,
+        "properties": {
+          "actual": {
+            "title": "Actual",
+            "type": "number"
+          },
+          "predicted": {
+            "title": "Predicted",
+            "type": "number"
+          },
+          "row_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Row Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "row_id",
+          "actual",
+          "predicted"
+        ],
+        "title": "ModelRegressionPrediction",
+        "type": "object"
       },
       "ModelSplitReference": {
         "additionalProperties": false,

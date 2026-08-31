@@ -186,7 +186,10 @@ function AttachmentStrip({
             ) : null}
           </div>
           {item.errorMessage ? (
-            <p className="mt-1 max-w-72 text-xs text-destructive" role="alert">
+            <p
+              className="mt-1 max-w-72 text-xs research-attachment__error"
+              role="alert"
+            >
               {item.errorMessage}
             </p>
           ) : null}

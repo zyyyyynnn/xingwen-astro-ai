@@ -167,7 +167,7 @@ export function EvidencePresentationContent({
         <p>
           {presentation.sourceType}
           {presentation.retrievedAt
-            ? ` · 获取于 ${new Date(presentation.retrievedAt).toLocaleString()}`
+            ? ` · 获取于 ${new Date(presentation.retrievedAt).toLocaleString("zh-CN")}`
             : ""}
         </p>
         {presentation.licenseNote ? <p>{presentation.licenseNote}</p> : null}

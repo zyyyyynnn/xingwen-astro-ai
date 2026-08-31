@@ -6,6 +6,8 @@ import {
   MarkerType,
   Position,
   ReactFlow,
+  useReactFlow,
+  useStore,
   type Edge,
   type Node,
   type NodeProps,
@@ -34,7 +36,7 @@ import {
   TabsTrigger,
 } from "@xingwen/ui";
 import { Quote, Target } from "@xingwen/ui/icons";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import {
   comparabilityLabel,
@@ -48,6 +50,17 @@ import "@xyflow/react/dist/style.css";
 
 const INITIAL_NODE_BUDGET = 60;
 const NODE_BUDGET_INCREMENT = 60;
+const OVERVIEW_FIT_OPTIONS = { padding: 0.08, maxZoom: 1.25 };
+
+function GraphCanvasFit() {
+  const { fitView } = useReactFlow();
+  const width = useStore((state) => state.width);
+  const height = useStore((state) => state.height);
+  useEffect(() => {
+    if (width > 0 && height > 0) void fitView(OVERVIEW_FIT_OPTIONS);
+  }, [fitView, height, width]);
+  return null;
+}
 
 interface ResolvedGraphGeometry {
   readonly nodeInlineSize: number;
@@ -166,7 +179,7 @@ function ScientificNode({ data, selected }: NodeProps<ScientificGraphNode>) {
     >
       <Handle type="target" position={Position.Left} />
       <span>{data.typeLabel}</span>
-      <strong>{data.label}</strong>
+      <strong title={data.label}>{data.label}</strong>
       <Handle type="source" position={Position.Right} />
     </div>
   );
@@ -186,6 +199,7 @@ function layoutElements(
   graph.setGraph({
     rankdir: "LR",
     nodesep: geometry.nodeSeparation,
+    edgesep: geometry.nodeSeparation,
     ranksep: geometry.rankSeparation,
   });
   for (const node of nodes) {
@@ -507,16 +521,22 @@ export function GraphContent({
     visibleEdgeKeys.has(edge.key),
   );
 
+  const selectedCanvasNodes = useMemo(
+    () =>
+      selectedEdge
+        ? [selectedEdge.sourceNodeId, selectedEdge.targetNodeId]
+            .filter((value): value is DomainEntityId => value !== null)
+            .map((id) => ({ id }))
+        : selectedNode
+          ? [{ id: selectedNode.nodeId }]
+          : [],
+    [selectedEdge, selectedNode],
+  );
+
   const focusSelection = () => {
-    const id = selectedEdgeId ?? selectedNodeId;
-    if (!instance || !id) return;
-    const nodes = selectedEdge
-      ? [selectedEdge.sourceNodeId, selectedEdge.targetNodeId]
-          .filter((value): value is DomainEntityId => value !== null)
-          .map((nodeId) => ({ id: nodeId }))
-      : [{ id }];
+    if (!instance || selectedCanvasNodes.length === 0) return;
     void instance.fitView({
-      nodes,
+      nodes: selectedCanvasNodes,
       padding: graphGeometry?.focusPadding ?? 0,
     });
   };
@@ -652,11 +672,7 @@ export function GraphContent({
                   disableKeyboardA11y={false}
                   deleteKeyCode={null}
                   fitView
-                  fitViewOptions={{
-                    padding: 0.08,
-                    minZoom: 0.8,
-                    maxZoom: 1.25,
-                  }}
+                  fitViewOptions={OVERVIEW_FIT_OPTIONS}
                   aria-label="可交互科学关系图"
                   ariaLabelConfig={{
                     "node.a11yDescription.default":
@@ -666,6 +682,7 @@ export function GraphContent({
                     "controls.ariaLabel": "关系图视图控制",
                   }}
                 >
+                  <GraphCanvasFit />
                   <Background />
                   <Controls showInteractive={false} />
                 </ReactFlow>
@@ -674,11 +691,6 @@ export function GraphContent({
                   当前筛选下没有可展示的研究对象。
                 </p>
               )}
-              {!hasSelection ? (
-                <p className="graph-workspace__canvas-hint">
-                  选择节点或关系，查看科学内容、公开推导与证据
-                </p>
-              ) : null}
             </div>
             {hasSelection ? (
               <div className="graph-workspace__side-inspector">

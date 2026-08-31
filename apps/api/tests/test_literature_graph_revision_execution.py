@@ -78,7 +78,7 @@ from app.schemas.scientific_document import (
     ParserBackend,
 )
 from app.services.artifacts import ArtifactReadService
-from app.services.content_storage import LocalContentStorage, sha256_content_hash
+from app.services.content_storage import LocalContentStorage
 from app.services.document_parse_store import (
     DocumentParseRepository,
     DocumentParseService,
@@ -255,34 +255,28 @@ class _AcceptedConfidenceProvider:
                         target_claim_id=target.claim_id,
                         relation_type=relation_type,
                     )
-                    assessment_id = (
-                        f"assessment.live_scope.{subject.fingerprint[7:31]}"
-                    )
-                    assessments[assessment_id] = (
-                        LiteratureRelationConfidenceAssessment(
-                            assessment_id=assessment_id,
-                            subject=subject,
-                            decision=LiteratureRelationStatus.accepted,
-                            status=LiteratureRelationConfidenceStatus.assessed,
-                            score=0.97,
-                            definition_id=RELATION_CONFIDENCE_DEFINITION_ID,
-                            definition_version=RELATION_CONFIDENCE_DEFINITION_VERSION,
-                            calibration_id=RELATION_CONFIDENCE_CALIBRATION_ID,
-                            calibration_version=RELATION_CONFIDENCE_CALIBRATION_VERSION,
-                            calibration_scientific_payload_hash=(
-                                FROZEN_SCIENTIFIC_PAYLOAD_HASH
-                            ),
-                            calibration_content_hash=FROZEN_BENCHMARK_CONTENT_HASH,
-                            calibration_sample_size=(
-                                RELATION_CONFIDENCE_CALIBRATION_SAMPLE_SIZE
-                            ),
-                            calibration_method=RELATION_CONFIDENCE_CALIBRATION_METHOD,
-                            applicability_scope=RELATION_CONFIDENCE_APPLICABILITY_SCOPE,
-                            acceptance_threshold=(
-                                RELATION_CONFIDENCE_ACCEPTANCE_THRESHOLD
-                            ),
-                            basis=("Deterministic benchmark reference assessment.",),
-                        )
+                    assessment_id = f"assessment.live_scope.{subject.fingerprint[7:31]}"
+                    assessments[assessment_id] = LiteratureRelationConfidenceAssessment(
+                        assessment_id=assessment_id,
+                        subject=subject,
+                        decision=LiteratureRelationStatus.accepted,
+                        status=LiteratureRelationConfidenceStatus.assessed,
+                        score=0.97,
+                        definition_id=RELATION_CONFIDENCE_DEFINITION_ID,
+                        definition_version=RELATION_CONFIDENCE_DEFINITION_VERSION,
+                        calibration_id=RELATION_CONFIDENCE_CALIBRATION_ID,
+                        calibration_version=RELATION_CONFIDENCE_CALIBRATION_VERSION,
+                        calibration_scientific_payload_hash=(
+                            FROZEN_SCIENTIFIC_PAYLOAD_HASH
+                        ),
+                        calibration_content_hash=FROZEN_BENCHMARK_CONTENT_HASH,
+                        calibration_sample_size=(
+                            RELATION_CONFIDENCE_CALIBRATION_SAMPLE_SIZE
+                        ),
+                        calibration_method=RELATION_CONFIDENCE_CALIBRATION_METHOD,
+                        applicability_scope=RELATION_CONFIDENCE_APPLICABILITY_SCOPE,
+                        acceptance_threshold=(RELATION_CONFIDENCE_ACCEPTANCE_THRESHOLD),
+                        basis=("Deterministic benchmark reference assessment.",),
                     )
         return assessments
 
@@ -555,8 +549,10 @@ def _create_chain(postgres_engine: Engine) -> dict[str, object]:
 
     factory = session_factory(postgres_engine)
     manifests = load_manifest_bundle(
-        _ROOT / "services/data_pipeline/manifests/exoplanet_host_star/case-manifest.json",
-        _ROOT / "services/data_pipeline/manifests/exoplanet_host_star/field-manifest.json",
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/case-manifest.json",
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/field-manifest.json",
     )
     store = PersistentWorkflowStore(factory)
     executor: PersistentWorkflowExecutor[object, object] = PersistentWorkflowExecutor(
@@ -709,9 +705,7 @@ def _create_feedback_for_target(
     version_number = _latest_version_number(chain, kind)
     artifacts = ArtifactReadService(chain["factory"])
     document_parses = chain.get("document_parses")
-    summary_reader = PaperSummaryReadService(
-        artifacts, document_parses=document_parses
-    )
+    summary_reader = PaperSummaryReadService(artifacts, document_parses=document_parses)
     lit_service = LiteratureArtifactReadService(
         artifacts, paper_summary_reader=summary_reader
     )
@@ -719,9 +713,7 @@ def _create_feedback_for_target(
 
     if target_type is FeedbackTargetType.paper_summary:
         summary_read = asyncio.run(
-            summary_reader.get_summary(
-                version_id=version_id, session_id=session_id
-            )
+            summary_reader.get_summary(version_id=version_id, session_id=session_id)
         )
         target_id = summary_read.summary.summary_id
         locator = {"artifact_version_id": version_id, "summary_id": target_id}
@@ -854,7 +846,6 @@ def _confirm_plan(
     return plan, run_id
 
 
-
 def test_parent_production_chain_reads_through_typed_readers(chain) -> None:
     """All 5 artifacts from parent run validate through existing typed readers."""
 
@@ -883,7 +874,11 @@ def test_parent_production_chain_reads_through_typed_readers(chain) -> None:
     claims_id = str(_latest_version_id(chain, "literature_claims"))
     claims_items, _, _ = asyncio.run(
         LiteratureArtifactReadService(artifacts).list_claims(
-            version_id=claims_id, session_id=session_id, status=None, cursor=None, limit=10
+            version_id=claims_id,
+            session_id=session_id,
+            status=None,
+            cursor=None,
+            limit=10,
         )
     )
     assert len(claims_items) == 2
@@ -891,14 +886,22 @@ def test_parent_production_chain_reads_through_typed_readers(chain) -> None:
     relations_id = str(_latest_version_id(chain, "literature_relations"))
     relations_items, _, _ = asyncio.run(
         LiteratureArtifactReadService(artifacts).list_relations(
-            version_id=relations_id, session_id=session_id, status=None, cursor=None, limit=10
+            version_id=relations_id,
+            session_id=session_id,
+            status=None,
+            cursor=None,
+            limit=10,
         )
     )
     assert len(relations_items) == 1
 
     traces_items, _, _ = asyncio.run(
         LiteratureArtifactReadService(artifacts).list_reasoning_traces(
-            version_id=relations_id, session_id=session_id, status=None, cursor=None, limit=10
+            version_id=relations_id,
+            session_id=session_id,
+            status=None,
+            cursor=None,
+            limit=10,
         )
     )
     assert len(traces_items) == 1
@@ -918,7 +921,13 @@ def test_relation_feedback_recomputes_only_affected_closure(chain) -> None:
     summary_model_calls_before = chain["model"].call_counts["paper_summary"]
     frozen_before = {
         kind: _latest_version_id(chain, kind)
-        for kind in ("paper_collection", "paper_summary", "literature_claims", "literature_relations", "graph")
+        for kind in (
+            "paper_collection",
+            "paper_summary",
+            "literature_claims",
+            "literature_relations",
+            "graph",
+        )
     }
 
     feedback = _create_feedback_for_target(
@@ -943,7 +952,10 @@ def test_relation_feedback_recomputes_only_affected_closure(chain) -> None:
     # Excluded steps (searching_papers, summarizing_papers) were not executed
     assert chain["adapter"].search_calls == search_calls_before
     assert chain["model"].call_counts["paper_summary"] == summary_model_calls_before
-    assert _latest_version_id(chain, "paper_collection") == frozen_before["paper_collection"]
+    assert (
+        _latest_version_id(chain, "paper_collection")
+        == frozen_before["paper_collection"]
+    )
     assert _latest_version_id(chain, "paper_summary") == frozen_before["paper_summary"]
 
     # Recomputed steps published new versions atomically
@@ -960,7 +972,9 @@ def test_relation_feedback_recomputes_only_affected_closure(chain) -> None:
         relations_row = session.get(ArtifactVersionModel, new_relations)
         graph_row = session.get(ArtifactVersionModel, new_graph)
         assert claims_row.supersedes_version_id == frozen_before["literature_claims"]
-        assert relations_row.supersedes_version_id == frozen_before["literature_relations"]
+        assert (
+            relations_row.supersedes_version_id == frozen_before["literature_relations"]
+        )
         assert graph_row.supersedes_version_id == frozen_before["graph"]
         assert any(
             item["artifact_version_id"] == str(new_relations)
@@ -1080,9 +1094,7 @@ def test_relation_adjudication_reuses_claims_and_updates_graph(
     assert final.status == "completed", final.failure_summary
     assert chain["model"].call_counts["literature_claim"] == claims_calls_before
     assert chain["model"].call_counts["literature_relation"] == relation_calls_before
-    assert _latest_version_id(chain, "literature_claims") == frozen[
-        "literature_claims"
-    ]
+    assert _latest_version_id(chain, "literature_claims") == frozen["literature_claims"]
 
     new_relations = _latest_version_id(chain, "literature_relations")
     new_graph = _latest_version_id(chain, "graph")
@@ -1127,8 +1139,7 @@ def test_relation_adjudication_reuses_claims_and_updates_graph(
             )
         )
         assert not any(
-            item.producer_name == RELATION_PRODUCER_NAME
-            for item in revision_producers
+            item.producer_name == RELATION_PRODUCER_NAME for item in revision_producers
         )
 
     adjudicated_items, _, _ = asyncio.run(
@@ -1213,7 +1224,13 @@ def test_graph_only_feedback_recomputes_only_graph_on_frozen_relations(chain) ->
 
     frozen_before = {
         kind: _latest_version_id(chain, kind)
-        for kind in ("paper_collection", "paper_summary", "literature_claims", "literature_relations", "graph")
+        for kind in (
+            "paper_collection",
+            "paper_summary",
+            "literature_claims",
+            "literature_relations",
+            "graph",
+        )
     }
 
     feedback = _create_feedback_for_target(
@@ -1234,10 +1251,19 @@ def test_graph_only_feedback_recomputes_only_graph_on_frozen_relations(chain) ->
     assert chain["model"].call_counts["literature_relation"] == relation_calls_before
 
     # Upstream latest versions remain unchanged
-    assert _latest_version_id(chain, "paper_collection") == frozen_before["paper_collection"]
+    assert (
+        _latest_version_id(chain, "paper_collection")
+        == frozen_before["paper_collection"]
+    )
     assert _latest_version_id(chain, "paper_summary") == frozen_before["paper_summary"]
-    assert _latest_version_id(chain, "literature_claims") == frozen_before["literature_claims"]
-    assert _latest_version_id(chain, "literature_relations") == frozen_before["literature_relations"]
+    assert (
+        _latest_version_id(chain, "literature_claims")
+        == frozen_before["literature_claims"]
+    )
+    assert (
+        _latest_version_id(chain, "literature_relations")
+        == frozen_before["literature_relations"]
+    )
 
     # Graph receives a new superseding version
     new_graph = _latest_version_id(chain, "graph")
@@ -1258,7 +1284,13 @@ def test_paper_summary_feedback_recomputes_from_frozen_collection(chain) -> None
     search_calls_before = chain["adapter"].search_calls
     frozen_before = {
         kind: _latest_version_id(chain, kind)
-        for kind in ("paper_collection", "paper_summary", "literature_claims", "literature_relations", "graph")
+        for kind in (
+            "paper_collection",
+            "paper_summary",
+            "literature_claims",
+            "literature_relations",
+            "graph",
+        )
     }
 
     feedback = _create_feedback_for_target(
@@ -1284,7 +1316,10 @@ def test_paper_summary_feedback_recomputes_from_frozen_collection(chain) -> None
 
     # searching_papers is not rerun; paper_collection reused from frozen baseline
     assert chain["adapter"].search_calls == search_calls_before
-    assert _latest_version_id(chain, "paper_collection") == frozen_before["paper_collection"]
+    assert (
+        _latest_version_id(chain, "paper_collection")
+        == frozen_before["paper_collection"]
+    )
 
     new_summary = _latest_version_id(chain, "paper_summary")
     new_claims = _latest_version_id(chain, "literature_claims")
@@ -1392,8 +1427,14 @@ def test_literature_model_failure_does_not_publish_partial_sets(chain) -> None:
     assert snapshot.status == "failed"
 
     # 1. No partial publication occurred: latest pointers are unchanged
-    assert _latest_version_id(chain, "literature_claims") == latest_before["literature_claims"]
-    assert _latest_version_id(chain, "literature_relations") == latest_before["literature_relations"]
+    assert (
+        _latest_version_id(chain, "literature_claims")
+        == latest_before["literature_claims"]
+    )
+    assert (
+        _latest_version_id(chain, "literature_relations")
+        == latest_before["literature_relations"]
+    )
     assert _latest_version_id(chain, "graph") == latest_before["graph"]
 
     # 2. No partial ArtifactVersions were created by this failed Run
@@ -1620,11 +1661,15 @@ def test_document_parse_backed_summary_revision_preserves_provenance_and_recompu
 
     factory = session_factory(postgres_engine)
     manifests = load_manifest_bundle(
-        _ROOT / "services/data_pipeline/manifests/exoplanet_host_star/case-manifest.json",
-        _ROOT / "services/data_pipeline/manifests/exoplanet_host_star/field-manifest.json",
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/case-manifest.json",
+        _ROOT
+        / "services/data_pipeline/manifests/exoplanet_host_star/field-manifest.json",
     )
     store = PersistentWorkflowStore(factory)
-    executor: PersistentWorkflowExecutor[object, object] = PersistentWorkflowExecutor(store)
+    executor: PersistentWorkflowExecutor[object, object] = PersistentWorkflowExecutor(
+        store
+    )
     service = ResearchApplicationService(
         factory=factory, workflow_store=store, manifests=manifests
     )
@@ -1768,6 +1813,19 @@ def test_document_parse_backed_summary_revision_preserves_provenance_and_recompu
     adapter = _FrozenCrossref()
     model = _RevisionScriptedModel(factory)
     document_parser = _TestDocParser()
+    adapter.records += (
+        RawSourceRecord(
+            source_id="crossref",
+            source_record_id="document-source-paper",
+            title="Stellar parameters for nearby transiting planet systems",
+            authors=("Document Author",),
+            year=2025,
+            doi="10.9999/document-source-paper",
+            arxiv_id=None,
+            url="https://doi.org/10.9999/document-source-paper",
+            abstract=None,
+        ),
+    )
 
     def make_worker() -> ResearchRunWorker:
         return ResearchRunWorker(
@@ -1794,6 +1852,7 @@ def test_document_parse_backed_summary_revision_preserves_provenance_and_recompu
         confidence_provider
     )
     try:
+
         def _project_latest_version_id(kind: str) -> UUID:
             with factory() as session:
                 artifact = session.scalar(
@@ -1849,12 +1908,15 @@ def test_document_parse_backed_summary_revision_preserves_provenance_and_recompu
             collection_read = paper_collections.get_collection(
                 version_id=collection_ver_id, session_id=session_id
             )
-            cand_id = collection_read.collection.candidates[0].candidate_id
+            assert len(collection_read.collection.candidates) == 2
+            bound_candidate = collection_read.collection.candidates[-1]
+            assert bound_candidate.selected
+            cand_id = bound_candidate.candidate_id
             access_evidence = PaperCandidateAccessEvidence(
                 kind=PaperAccessEvidenceKind.author_provided,
                 license="CC-BY-4.0",
                 evidence_url="https://publisher.example/proof",
-                canonical_paper_id=collection_read.collection.candidates[0].canonical_paper_id,
+                canonical_paper_id=bound_candidate.canonical_paper_id,
                 resource_type="research_input",
                 resource_identity_hash=canonical_request_hash(
                     {
@@ -1898,7 +1960,12 @@ def test_document_parse_backed_summary_revision_preserves_provenance_and_recompu
         summary_ver = artifacts.get_version(
             version_id=str(parent_summary_version_id), session_id=session_id
         )
-        assert len(summary_ver.content.get("input_versions", {}).get("document_parses", ())) == 1
+        assert (
+            len(
+                summary_ver.content.get("input_versions", {}).get("document_parses", ())
+            )
+            == 1
+        )
 
         # 2. Submit relation feedback and confirm revision plan
         doc_parse_service = DocumentParseService(
@@ -1978,7 +2045,9 @@ def test_document_parse_backed_summary_revision_preserves_provenance_and_recompu
             version_id=str(new_relations_ver_id), session_id=session_id
         )
         assert new_claims_ver.supersedes_version_id == str(parent_claims_version_id)
-        assert new_relations_ver.supersedes_version_id == str(parent_relations_version_id)
+        assert new_relations_ver.supersedes_version_id == str(
+            parent_relations_version_id
+        )
         assert new_claims_ver.created_by_run_id == str(revision_run_id)
         assert new_relations_ver.created_by_run_id == str(revision_run_id)
 
@@ -2024,9 +2093,7 @@ def test_document_parse_backed_summary_revision_preserves_provenance_and_recompu
                 version_id=str(parent_summary_version_id), session_id=session_id
             )
         )
-        assert (
-            len(summary_read.summary.input_versions.document_parses) == 1
-        )
+        assert len(summary_read.summary.input_versions.document_parses) == 1
         assert (
             summary_read.summary.input_versions.document_parses[0].document_parse_id
             is not None
@@ -2046,7 +2113,9 @@ def test_document_parse_backed_summary_revision_preserves_provenance_and_recompu
         old_graph_read = graph_service.get_graph(
             version_id=str(parent_graph_version_id), session_id=session_id
         )
-        assert old_graph_read.version.artifact_version_id == str(parent_graph_version_id)
+        assert old_graph_read.version.artifact_version_id == str(
+            parent_graph_version_id
+        )
     finally:
         literature_steps_module.build_live_relation_confidence_assessments = (
             original_provider
@@ -2107,7 +2176,11 @@ def test_uuid_shaped_logical_snapshot_identity_is_not_treated_as_persisted_uuid(
     claims_id = str(_latest_version_id(chain, "literature_claims"))
     claims_items, _, _ = asyncio.run(
         LiteratureArtifactReadService(artifacts).list_claims(
-            version_id=claims_id, session_id=session_id, status=None, cursor=None, limit=10
+            version_id=claims_id,
+            session_id=session_id,
+            status=None,
+            cursor=None,
+            limit=10,
         )
     )
     assert len(claims_items) == 2

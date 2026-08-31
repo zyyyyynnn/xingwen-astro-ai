@@ -16,7 +16,11 @@ async function settle(page: Page, ms = 800): Promise<void> {
 }
 
 async function shot(page: Page, name: string): Promise<void> {
-  await page.screenshot({ path: `${SHOT_DIR}/${name}.png` });
+  await page.evaluate(() => document.fonts.ready);
+  await page.screenshot({
+    path: `${SHOT_DIR}/${name}.png`,
+    animations: "disabled",
+  });
   console.log(`[shot] ${name}.png`);
 }
 

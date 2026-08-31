@@ -71,12 +71,26 @@ def test_character_budget_splits_without_crossing_sections():
 
 
 def test_block_budget_limits_chunk_size():
-    blocks = [
-        _block(f"b{i}", 0, f"text {i}", section=None, order=i) for i in range(9)
-    ]
+    blocks = [_block(f"b{i}", 0, f"text {i}", section=None, order=i) for i in range(9)]
     chunks = build_summary_chunks(blocks, {}, max_chunk_blocks=2)
     assert len(chunks) == 5
     assert all(len(chunk.block_ids) <= 2 for chunk in chunks)
+
+
+def test_character_budget_includes_separators():
+    chunks = build_summary_chunks(
+        [_block("a", 0, "a" * 500), _block("b", 0, "b" * 500)],
+        {},
+        max_chunk_characters=1_000,
+    )
+    assert all(len(chunk.text) <= 1_000 for chunk in chunks)
+
+
+def test_oversized_block_must_be_split_at_the_evidence_boundary():
+    with pytest.raises(ValueError, match="evidence"):
+        build_summary_chunks(
+            [_block("a", 0, "x" * 1_001)], {}, max_chunk_characters=1_000
+        )
 
 
 def test_evidence_ids_flow_from_blocks_deduplicated():
@@ -120,9 +134,7 @@ def test_empty_documents_are_rejected():
 
 
 def test_chunk_budget_is_enforced():
-    blocks = [
-        _block(f"b{i}", 0, f"text {i}", section=f"S{i}") for i in range(5)
-    ]
+    blocks = [_block(f"b{i}", 0, f"text {i}", section=f"S{i}") for i in range(5)]
     with pytest.raises(ValueError, match="chunk budget"):
         build_summary_chunks(blocks, {}, max_chunks=2)
 
@@ -132,9 +144,7 @@ def test_reduction_merges_statements_in_chunk_order():
         chunk_id="chunk.0001",
         chunk_evidence_ids=("e1",),
         sections={
-            "background": (
-                SectionStatement(text="first claim", evidence_ids=("e1",)),
-            )
+            "background": (SectionStatement(text="first claim", evidence_ids=("e1",)),)
         },
     )
     second = ChunkSectionExtraction(
@@ -166,9 +176,7 @@ def test_reduction_refuses_invented_evidence_ids():
         chunk_id="chunk.0001",
         chunk_evidence_ids=("e1",),
         sections={
-            "background": (
-                SectionStatement(text="claim", evidence_ids=("e9",)),
-            )
+            "background": (SectionStatement(text="claim", evidence_ids=("e9",)),)
         },
     )
     with pytest.raises(ValueError, match="outside its chunk"):

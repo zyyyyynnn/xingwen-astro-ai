@@ -17,6 +17,7 @@ from app.schemas.paper_collection import (
     PaperCollectionCandidate,
 )
 from app.schemas.paper_summary import (
+    MAX_SUMMARY_TEXT_CHARACTERS,
     PaperSummaryAdmissionResult,
     PaperSummaryAdmissionStatus,
     PaperSummaryArtifactContent,
@@ -652,15 +653,24 @@ def build_document_evidence_candidates(
     source_id: str,
     source_record_id: str,
     source_snapshot_id: str,
-    max_quote_characters: int = 8_000,
+    max_quote_characters: int = MAX_SUMMARY_TEXT_CHARACTERS,
 ) -> tuple[PaperSummaryEvidenceCandidate, ...]:
     """Project usable canonical blocks into bounded model-selectable Evidence."""
-    if not 256 <= max_quote_characters <= 16_000:
-        raise ValueError("max_quote_characters must be between 256 and 16000")
+    if not 256 <= max_quote_characters <= MAX_SUMMARY_TEXT_CHARACTERS:
+        raise ValueError(
+            f"max_quote_characters must be between 256 and {MAX_SUMMARY_TEXT_CHARACTERS}"
+        )
     candidates: list[PaperSummaryEvidenceCandidate] = []
     section: str | None = None
     paragraph = 0
-    for block in document_parse.blocks:
+    for block in sorted(
+        document_parse.blocks,
+        key=lambda item: (
+            item.page_index,
+            item.reading_order if item.reading_order is not None else 0,
+            item.block_id,
+        ),
+    ):
         if block.kind is DocumentBlockKind.heading and block.text:
             section = block.text[:512]
         if (

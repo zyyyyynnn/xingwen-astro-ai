@@ -5314,8 +5314,9 @@ export interface LightCurvePoint {
 export interface ModelEvaluationArtifactContent {
   algorithm: string;
   algorithm_version: string;
-  baseline_metrics?: ScientificMetric[];
+  baseline_metrics?: ModelEvaluationMetric[];
   diagnostic_visualization_ids?: string[];
+  diagnostics?: ModelEvaluationDiagnostics | null;
   evaluation_id: string;
   evidence_ids: string[];
   /**
@@ -5329,7 +5330,7 @@ export interface ModelEvaluationArtifactContent {
   /**
    * @minItems 1
    */
-  metrics: [ScientificMetric, ...ScientificMetric[]];
+  metrics: [ModelEvaluationMetric, ...ModelEvaluationMetric[]];
   model_binary?: ModelBinaryReference | null;
   output_hash: string;
   schema_version?: "1.0.0";
@@ -5341,6 +5342,70 @@ export interface ModelEvaluationArtifactContent {
   task_kind: ModelTaskKind;
   title: string;
   training_input: ModelTrainingInputReference;
+}
+/**
+ * Stable metric semantics, independent of the identity of one measurement.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelEvaluationMetric".
+ */
+export interface ModelEvaluationMetric {
+  category: "holdout" | "cross_validation" | "feature_importance";
+  evidence_ids?: string[];
+  label: string;
+  metric_id: string;
+  metric_key: string;
+  optimization: "maximize" | "minimize" | "none";
+  unit?: string | null;
+  value: number | string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelEvaluationDiagnostics".
+ */
+export interface ModelEvaluationDiagnostics {
+  confusion_matrix?: ModelConfusionMatrix | null;
+  evaluated_sample_count: number;
+  /**
+   * @maxItems 10000
+   */
+  forecast?: ModelForecastPoint[];
+  /**
+   * @maxItems 256
+   */
+  regression_predictions?: ModelRegressionPrediction[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelConfusionMatrix".
+ */
+export interface ModelConfusionMatrix {
+  /**
+   * @minItems 2
+   */
+  labels: [
+    string | number | number | boolean,
+    string | number | number | boolean,
+    ...(string | number | number | boolean)[],
+  ];
+  rows: number[][];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelForecastPoint".
+ */
+export interface ModelForecastPoint {
+  predicted_value: number;
+  step: number;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelRegressionPrediction".
+ */
+export interface ModelRegressionPrediction {
+  actual: number;
+  predicted: number;
+  row_id: string;
 }
 /**
  * Reproducible label and tensor contract for an image training run.
@@ -5439,6 +5504,7 @@ export interface ModelArtifactContent {
    */
   feature_fields: [string, ...string[]];
   image_training?: ImageTrainingSpecification | null;
+  input_dtype: string | null;
   input_hash: string;
   input_name: string;
   /**
@@ -5453,6 +5519,9 @@ export interface ModelArtifactContent {
     [k: string]: number;
   };
   output_hash: string;
+  output_metadata: {
+    [k: string]: ModelOutputMetadata | null;
+  };
   /**
    * @minItems 1
    */
@@ -5466,6 +5535,17 @@ export interface ModelArtifactContent {
   task_kind: ModelTaskKind;
   title: string;
   training_input: ModelTrainingInputReference;
+}
+/**
+ * Value metadata read from an exported ONNX graph output.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelOutputMetadata".
+ */
+export interface ModelOutputMetadata {
+  dtype: string | null;
+  shape: (number | string | null)[] | null;
+  value_kind: "tensor" | "sequence" | "map" | "optional" | "sparse_tensor";
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
