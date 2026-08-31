@@ -206,7 +206,8 @@ async function shareAndExport(
       /\/api\/projects\/[^/]+\/shares$/u.test(new URL(response.url()).pathname),
   );
   await dialog.getByRole("button", { name: "创建链接" }).click();
-  expect((await responsePromise).ok()).toBe(true);
+  const shareResponse = await responsePromise;
+  expect(shareResponse.ok(), await shareResponse.text()).toBe(true);
   const shareUrl = await dialog.getByLabel("分享链接").inputValue();
   const publicPage = await page.context().newPage();
   await publicPage.goto(shareUrl);
@@ -675,6 +676,10 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
       summaryVersion.id +
       "/paper-summary/document-source",
   );
+  await report("live-document-evidence.json", {
+    summary,
+    document_source: documentSource,
+  });
   expect(documentSource.research_input?.id).toBe(binding.research_input.id);
   expect(documentSource.research_input?.content_hash).toBe(
     binding.research_input.content_hash,
@@ -810,20 +815,20 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
     page,
     "/api/artifact-versions/" + graphVersion.id + "/graph/edges?limit=100",
   );
+  const nodes = await apiData<GraphNodeRead[]>(
+    page,
+    "/api/artifact-versions/" + graphVersion.id + "/graph/nodes?limit=100",
+  );
+  await report("live-graph-evidence.json", { graph, nodes, edges });
   expect(graph.integrity_report.status).toBe("passed");
   expect(graph.node_count).toBeGreaterThanOrEqual(6);
   expect(graph.edge_count).toBeGreaterThanOrEqual(3);
   expect(
     graph.integrity_report.counts.relation_edge_count,
   ).toBeGreaterThanOrEqual(1);
-  const nodes = await apiData<GraphNodeRead[]>(
-    page,
-    "/api/artifact-versions/" + graphVersion.id + "/graph/nodes?limit=100",
-  );
   expect(
     nodes.filter(({ node }) => node.node_type === "claim").length,
   ).toBeGreaterThanOrEqual(3);
-  await report("live-graph-evidence.json", { graph, nodes, edges });
   expect(
     edges.every((edge) => !edge.relation || edge.relation.graph_eligible),
   ).toBe(true);

@@ -44,7 +44,6 @@ export function ArtifactShareDialog({
   projectId,
   artifactVersionId,
   artifactTitle,
-  evidenceIds,
   open,
   onOpenChange,
 }: {
@@ -52,7 +51,6 @@ export function ArtifactShareDialog({
   readonly projectId: DomainEntityId;
   readonly artifactVersionId: DomainEntityId;
   readonly artifactTitle: string;
-  readonly evidenceIds: readonly DomainEntityId[];
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
 }) {
@@ -82,7 +80,6 @@ export function ArtifactShareDialog({
         request: {
           title: artifactTitle,
           artifactVersionIds: [artifactVersionId],
-          evidenceIds: [...new Set(evidenceIds)],
           expiresAt,
           redactionPolicy: "redacted_public_snapshot",
         },

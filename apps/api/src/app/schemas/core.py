@@ -1328,20 +1328,19 @@ class ShareRedactionPolicy(StrEnum):
 
 
 class CreateShareSnapshotRequest(BaseModel):
+    """Select immutable results; their complete Evidence scope is server-owned."""
+
     model_config = CORE_MODEL_CONFIG
 
     title: NonEmptyString = Field(max_length=200)
     artifact_version_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=100)
-    evidence_ids: tuple[Identifier, ...] = Field(default=(), max_length=500)
     redaction_policy: Literal[ShareRedactionPolicy.redacted_public_snapshot]
     expires_at: UtcDateTime
 
     @model_validator(mode="after")
     def require_unique_share_scope(self) -> CreateShareSnapshotRequest:
-        for field_name in ("artifact_version_ids", "evidence_ids"):
-            values = getattr(self, field_name)
-            if len(values) != len(set(values)):
-                raise ValueError(f"{field_name} must not contain duplicates")
+        if len(self.artifact_version_ids) != len(set(self.artifact_version_ids)):
+            raise ValueError("artifact_version_ids must not contain duplicates")
         return self
 
 

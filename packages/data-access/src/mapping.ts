@@ -849,7 +849,6 @@ export function mapCreateShareSnapshotRequestToDto(
       string,
       ...string[],
     ],
-    evidence_ids: domain.evidenceIds.map(String),
     expires_at: domain.expiresAt,
     redaction_policy: domain.redactionPolicy,
   };

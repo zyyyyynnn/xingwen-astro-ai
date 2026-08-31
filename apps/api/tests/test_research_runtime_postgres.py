@@ -927,7 +927,6 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
         json={
             "title": "Real Compose and Browser Integration dataset evidence",
             "artifact_version_ids": [version_id],
-            "evidence_ids": list(evidence_ids),
             "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
             "redaction_policy": "redacted_public_snapshot",
         },

@@ -841,7 +841,6 @@ export function ArtifactFullscreenWorkspace({
             projectId={projectId}
             artifactVersionId={version.id}
             artifactTitle={artifact.title}
-            evidenceIds={evidenceIds}
             open={shareOpen}
             onOpenChange={setShareOpen}
           />

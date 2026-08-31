@@ -329,14 +329,12 @@ def _authority(
 
 def _share_request(
     version: PublicArtifactVersion,
-    evidence: PublicEvidence,
     *,
     expires_at: datetime,
 ) -> CreateShareSnapshotRequest:
     return CreateShareSnapshotRequest(
         title="Restart-safe public share",
         artifact_version_ids=(version.id,),
-        evidence_ids=(evidence.id,),
         redaction_policy="redacted_public_snapshot",
         expires_at=expires_at,
     )
@@ -364,7 +362,7 @@ def test_restart_recovers_session_workspace_and_frozen_share(
     created_share = first_snapshots.create_share(
         project_id=project_id,
         session_id=owner.id,
-        request=_share_request(version, evidence, expires_at=NOW + timedelta(hours=1)),
+        request=_share_request(version, expires_at=NOW + timedelta(hours=1)),
         now=NOW,
     )
 
@@ -554,7 +552,6 @@ def test_http_persistent_authority_conceals_resources_and_freezes_share(
                 json={
                     "title": "Must remain concealed",
                     "artifact_version_ids": [str(references["version"])],
-                    "evidence_ids": [str(references["evidence"])],
                     "redaction_policy": "redacted_public_snapshot",
                     "expires_at": expires_at.isoformat(),
                 },
@@ -584,7 +581,6 @@ def test_http_persistent_authority_conceals_resources_and_freezes_share(
             json={
                 "title": "Frozen production share",
                 "artifact_version_ids": [str(victim["version"])],
-                "evidence_ids": [str(item) for item in victim["evidence_ids"]],
                 "redaction_policy": "redacted_public_snapshot",
                 "expires_at": expires_at.isoformat(),
             },
@@ -758,9 +754,7 @@ def test_revocation_expiry_and_retention_are_fail_closed(
     share = snapshots.create_share(
         project_id=project_id,
         session_id=owner.id,
-        request=_share_request(
-            version, evidence, expires_at=NOW + timedelta(seconds=1)
-        ),
+        request=_share_request(version, expires_at=NOW + timedelta(seconds=1)),
         now=NOW,
     )
     with pytest.raises(SecurityProblem) as expired:
@@ -772,7 +766,7 @@ def test_revocation_expiry_and_retention_are_fail_closed(
     active_share = snapshots.create_share(
         project_id=project_id,
         session_id=owner.id,
-        request=_share_request(version, evidence, expires_at=NOW + timedelta(hours=1)),
+        request=_share_request(version, expires_at=NOW + timedelta(hours=1)),
         now=NOW,
     )
     snapshots.revoke_share(
@@ -844,9 +838,7 @@ def test_cleanup_failure_rolls_back_session_and_share_creation(
             snapshots.create_share(
                 project_id=project_id,
                 session_id=owner.id,
-                request=_share_request(
-                    version, evidence, expires_at=NOW + timedelta(hours=1)
-                ),
+                request=_share_request(version, expires_at=NOW + timedelta(hours=1)),
                 now=NOW,
             )
 

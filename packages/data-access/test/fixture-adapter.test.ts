@@ -434,7 +434,6 @@ describe("Fixture adapter — share create resolves a frozen public projection",
   const request = {
     title: "Public dataset evidence",
     artifactVersionIds: ["artv_dataset_01" as never],
-    evidenceIds: ["evd_01" as never],
     redactionPolicy: "redacted_public_snapshot" as const,
     expiresAt: "2026-07-22T09:00:00Z" as never,
   };
@@ -459,7 +458,12 @@ describe("Fixture adapter — share create resolves a frozen public projection",
     expect(publicContent).not.toContain("source_snapshot_id");
     expect(publicContent).not.toContain("input_hash");
     expect(publicContent).not.toContain("producer");
-    expect(publicShare!.evidence).toHaveLength(1);
+    expect(publicShare!.evidence.map((item) => item.id)).toEqual(
+      publicShare!.artifactVersions[0]!.evidenceIds,
+    );
+    expect(created.evidenceIds).toEqual(
+      publicShare!.artifactVersions[0]!.evidenceIds,
+    );
     expect(publicShare!.evidence[0]!.id).toBe("evd_01");
     expect(
       Object.keys(publicShare!.evidence[0]!.source.requestMetadata).every(
@@ -508,10 +512,7 @@ describe("Fixture adapter — share create resolves a frozen public projection",
     };
     const fresh = createFixtureRepositories(bundle);
     await expect(
-      fresh.shares.create(PROJECT_ID, {
-        ...request,
-        evidenceIds: ["evd_01" as never],
-      }),
+      fresh.shares.create(PROJECT_ID, request),
     ).rejects.toBeInstanceOf(FixtureValidationError);
   });
 
@@ -522,12 +523,6 @@ describe("Fixture adapter — share create resolves a frozen public projection",
       artifactVersionIds: Array.from(
         { length: 101 },
         (_, index) => `artv_${index}` as never,
-      ),
-    },
-    {
-      evidenceIds: Array.from(
-        { length: 501 },
-        (_, index) => `evd_${index}` as never,
       ),
     },
     { redactionPolicy: "private" as never },

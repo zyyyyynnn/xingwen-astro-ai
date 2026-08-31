@@ -656,12 +656,6 @@ export function createFixtureRepositories(
     ) {
       errors.push("artifactVersionIds must not contain duplicates");
     }
-    if (request.evidenceIds.length !== new Set(request.evidenceIds).size) {
-      errors.push("evidenceIds must not contain duplicates");
-    }
-    if (request.evidenceIds.length > 500) {
-      errors.push("evidenceIds must contain at most 500 values");
-    }
     if (request.redactionPolicy !== "redacted_public_snapshot") {
       errors.push('redactionPolicy must be "redacted_public_snapshot"');
     }
@@ -1720,7 +1714,12 @@ export function createFixtureRepositories(
           toPublicVersion(projectId, versionId),
         );
         const allowed = new Set(request.artifactVersionIds);
-        const evidence = request.evidenceIds.map((evidenceId) =>
+        const evidenceIds = [
+          ...new Set(
+            artifactVersions.flatMap((version) => version.evidenceIds),
+          ),
+        ];
+        const evidence = evidenceIds.map((evidenceId) =>
           toPublicEvidence(projectId, allowed, evidenceId),
         );
         const snapshot: ShareSnapshot = {
@@ -1730,7 +1729,7 @@ export function createFixtureRepositories(
           status: "active",
           redactionPolicy: request.redactionPolicy,
           artifactVersionIds: request.artifactVersionIds,
-          evidenceIds: request.evidenceIds,
+          evidenceIds,
           createdAt: now,
           expiresAt: request.expiresAt,
           revokedAt: null,

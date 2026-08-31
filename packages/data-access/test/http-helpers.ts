@@ -140,7 +140,6 @@ const PUBLIC_SHARE = {
 function shareCreated(body: {
   title: string;
   artifact_version_ids: readonly string[];
-  evidence_ids: readonly string[];
   redaction_policy: string;
   expires_at: string;
 }): Record<string, unknown> {
@@ -151,7 +150,7 @@ function shareCreated(body: {
     status: "active",
     redaction_policy: body.redaction_policy,
     artifact_version_ids: body.artifact_version_ids,
-    evidence_ids: body.evidence_ids,
+    evidence_ids: PUBLIC_SHARE.evidence.map((item) => item.id),
     created_at: "2026-07-21T09:00:00Z",
     expires_at: body.expires_at,
     revoked_at: null,

@@ -29,11 +29,13 @@ from app.db.models import (
     ResearchRunModel,
 )
 from app.schemas.core import (
+    EvidenceDetail,
     PublicArtifactVersion,
     PublicEvidence,
     PublicEvidenceBBox,
     PublicEvidenceLocator,
     PublicSourceSnapshot,
+    SourceSnapshotDetail,
 )
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
@@ -94,6 +96,11 @@ class ResourceAuthority(Protocol):
         self, project_id: str, evidence_id: str
     ) -> PublicEvidence | None:
         """Return a minimal Evidence projection scoped to the project."""
+
+    def public_version_evidence(
+        self, project_id: str, version_id: str
+    ) -> tuple[PublicEvidence, ...] | None:
+        """Resolve the complete Evidence closure of one owned immutable result."""
 
 
 class ContentReferenceAuthority(ResourceAuthority, Protocol):
@@ -160,6 +167,20 @@ class InMemoryResourceAuthority:
         if entry is None or entry[0] != project_id:
             return None
         return entry[1]
+
+    def public_version_evidence(
+        self, project_id: str, version_id: str
+    ) -> tuple[PublicEvidence, ...] | None:
+        version = self.public_artifact_version(project_id, version_id)
+        if version is None:
+            return None
+        evidence: list[PublicEvidence] = []
+        for evidence_id in version.evidence_ids:
+            item = self.public_evidence(project_id, evidence_id)
+            if item is None:
+                return None
+            evidence.append(item)
+        return tuple(evidence)
 
     def content_reference_closure(self) -> ContentReferenceClosure:
         return ContentReferenceClosure(
@@ -249,31 +270,28 @@ class PersistentResourceAuthority:
             )
         except SecurityProblem:
             return None
-        locator = _public_locator(read.locator)
-        quote = read.quote_or_value
-        if quote is not None and not isinstance(quote, str):
-            quote = str(quote) if isinstance(quote, (int, float, bool)) else None
-        source = read.source_snapshot
-        metadata = {
-            key: value
-            for key, value in source.request_metadata.items()
-            if key in {"source_url", "url", "original_url", "landing_url"}
-            and isinstance(value, str)
-        }
-        return PublicEvidence(
-            id=read.id,
-            artifact_version_id=read.artifact_version_id,
-            source_snapshot_id=read.source_snapshot_id,
-            locator=locator,
-            quote_or_value=quote,
-            created_at=read.created_at,
-            source=PublicSourceSnapshot(
-                source_id=source.source_id,
-                source_type=source.source_type,
-                retrieved_at=source.retrieved_at,
-                license_note=source.license_note,
-                request_metadata=metadata,
-            ),
+        return _public_evidence_projection(read, read.source_snapshot)
+
+    def public_version_evidence(
+        self, project_id: str, version_id: str
+    ) -> tuple[PublicEvidence, ...] | None:
+        owner_session_id = self.project_owner(project_id)
+        if owner_session_id is None:
+            return None
+        try:
+            version = self._artifacts.get_version(
+                version_id=version_id, session_id=owner_session_id
+            )
+        except SecurityProblem:
+            return None
+        if version.project_id != project_id:
+            return None
+        sources = {source.id: source for source in version.source_snapshots}
+        if any(item.source_snapshot_id not in sources for item in version.evidence):
+            return None
+        return tuple(
+            _public_evidence_projection(item, sources[item.source_snapshot_id])
+            for item in version.evidence
         )
 
     def content_reference_closure(self) -> ContentReferenceClosure:
@@ -418,6 +436,34 @@ def _scientific_binary_references(
         model = ModelArtifactContent.model_validate(raw_content)
         return ((model.model_binary.content_hash, model.model_binary.content_ref),)
     return ()
+
+
+def _public_evidence_projection(
+    read: EvidenceDetail, source: SourceSnapshotDetail
+) -> PublicEvidence:
+    quote = read.quote_or_value
+    if quote is not None and not isinstance(quote, str):
+        quote = str(quote) if isinstance(quote, (int, float, bool)) else None
+    return PublicEvidence(
+        id=read.id,
+        artifact_version_id=read.artifact_version_id,
+        source_snapshot_id=read.source_snapshot_id,
+        locator=_public_locator(read.locator),
+        quote_or_value=quote,
+        created_at=read.created_at,
+        source=PublicSourceSnapshot(
+            source_id=source.source_id,
+            source_type=source.source_type,
+            retrieved_at=source.retrieved_at,
+            license_note=source.license_note,
+            request_metadata={
+                key: value
+                for key, value in source.request_metadata.items()
+                if key in {"source_url", "url", "original_url", "landing_url"}
+                and isinstance(value, str)
+            },
+        ),
+    )
 
 
 def _optional_text(value: object) -> str | None:

@@ -65,7 +65,6 @@ export interface ShareSnapshotCreated extends ShareSnapshot {
 export interface CreateShareSnapshotRequest {
   readonly title: NonEmptyString;
   readonly artifactVersionIds: readonly DomainEntityId[];
-  readonly evidenceIds: readonly DomainEntityId[];
   readonly expiresAt: UtcIsoTimestamp;
   readonly redactionPolicy: ShareRedactionPolicy;
 }

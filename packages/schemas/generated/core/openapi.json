@@ -1688,6 +1688,7 @@
       },
       "CreateShareSnapshotRequest": {
         "additionalProperties": false,
+        "description": "Select immutable results; their complete Evidence scope is server-owned.",
         "properties": {
           "artifact_version_ids": {
             "items": {
@@ -1698,17 +1699,6 @@
             "maxItems": 100,
             "minItems": 1,
             "title": "Artifact Version Ids",
-            "type": "array"
-          },
-          "evidence_ids": {
-            "default": [],
-            "items": {
-              "maxLength": 128,
-              "minLength": 1,
-              "type": "string"
-            },
-            "maxItems": 500,
-            "title": "Evidence Ids",
             "type": "array"
           },
           "expires_at": {

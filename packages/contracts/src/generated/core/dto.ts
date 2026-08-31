@@ -2643,6 +2643,8 @@ export interface CreateRunRequest {
   execution_mode: ExecutionMode;
 }
 /**
+ * Select immutable results; their complete Evidence scope is server-owned.
+ *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "CreateShareSnapshotRequest".
  */
@@ -2652,10 +2654,6 @@ export interface CreateShareSnapshotRequest {
    * @maxItems 100
    */
   artifact_version_ids: [string, ...string[]];
-  /**
-   * @maxItems 500
-   */
-  evidence_ids?: string[];
   expires_at: string;
   redaction_policy: "redacted_public_snapshot";
   title: string;

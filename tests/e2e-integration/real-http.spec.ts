@@ -400,7 +400,6 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
           body: JSON.stringify({
             title: "Expiring browser integration share",
             artifact_version_ids: [current.data.artifact_version_id],
-            evidence_ids: current.data.evidence_ids,
             expires_at: new Date(expiredAt).toISOString(),
             redaction_policy: "redacted_public_snapshot",
           }),
@@ -580,7 +579,6 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
           body: JSON.stringify({
             title: "Unsupported export presentation",
             artifact_version_ids: [unsupportedExport.data.artifact_version_id],
-            evidence_ids: [],
             expires_at: new Date(Date.now() + 60_000).toISOString(),
             redaction_policy: "redacted_public_snapshot",
           }),
