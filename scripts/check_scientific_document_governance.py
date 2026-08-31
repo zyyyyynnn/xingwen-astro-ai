@@ -375,24 +375,37 @@ def check_adoption_manifest_integrity() -> list[str]:
                 gpu = by_id.get("gpu", {})
                 if set(by_id) != {"cpu", "gpu"}:
                     errors.append("visual runtime profiles must be exactly cpu and gpu")
+                if not any(profile.get("status") == "approved" for profile in (cpu, gpu)):
+                    errors.append("approved visual capability requires a verified runtime")
                 if (
                     cpu.get("distribution") != "paddlepaddle"
                     or cpu.get("device") != "cpu"
-                    or cpu.get("status") != "approved"
-                    or cpu.get("probe_evidence") != "live"
-                    or cpu.get("initialization_completed") is not True
-                    or cpu.get("predict_executed") is not True
                 ):
-                    errors.append("visual CPU profile lacks approved Live predict evidence")
+                    errors.append("visual CPU profile must use paddlepaddle on cpu")
                 if (
                     gpu.get("distribution") != "paddlepaddle-gpu"
                     or gpu.get("device") != "gpu"
-                    or gpu.get("status") != "deferred"
-                    or gpu.get("probe_evidence") != "not_run"
-                    or gpu.get("initialization_completed") is not False
-                    or gpu.get("predict_executed") is not False
                 ):
-                    errors.append("visual GPU profile must remain deferred/not_run")
+                    errors.append("visual GPU profile must use paddlepaddle-gpu on gpu")
+                for profile in (cpu, gpu):
+                    approved = profile.get("status") == "approved"
+                    if (
+                        profile.get("probe_evidence") != ("live" if approved else "not_run")
+                        or profile.get("initialization_completed") is not approved
+                        or profile.get("predict_executed") is not approved
+                        or (
+                            approved
+                            and not all(
+                                profile.get(field) for field in (
+                                    "python_version", "fixture_id",
+                                    "fixture_sha256", "result_boundary",
+                                )
+                            )
+                        )
+                    ):
+                        errors.append(
+                            f"visual {profile.get('profile_id')} status requires matching independent execution evidence"
+                        )
                 if cpu.get("version") != gpu.get("version"):
                     errors.append("visual CPU and GPU profiles must pin the same base version")
     return errors

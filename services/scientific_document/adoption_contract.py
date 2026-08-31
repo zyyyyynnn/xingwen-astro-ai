@@ -79,7 +79,11 @@ class RuntimeProfile(BaseModel):
                 raise ValueError("approved runtime profile requires complete live probe evidence")
             if not re.fullmatch(r"sha256:[0-9a-f]{64}", str(self.fixture_sha256)):
                 raise ValueError("live probe fixture_sha256 must be sha256")
-        elif self.probe_evidence != "not_run":
+        elif (
+            self.probe_evidence != "not_run"
+            or self.initialization_completed
+            or self.predict_executed
+        ):
             raise ValueError("non-approved runtime profile must not claim execution evidence")
         return self
 
@@ -267,23 +271,18 @@ class AdoptionEntry(BaseModel):
                     raise ValueError("runtime profile ids must be unique")
                 if len(profile_ids) != 2 or set(profile_ids) != {"cpu", "gpu"}:
                     raise ValueError("visual capability requires exactly cpu and gpu profiles")
+                if not any(
+                    profile.status == AdoptionStatus.approved
+                    for profile in self.runtime_profiles
+                ):
+                    raise ValueError("approved visual capability requires a verified runtime")
                 profiles = {profile.profile_id: profile for profile in self.runtime_profiles}
                 cpu = profiles["cpu"]
                 gpu = profiles["gpu"]
-                if (
-                    cpu.distribution != "paddlepaddle"
-                    or cpu.device != "cpu"
-                    or cpu.status != AdoptionStatus.approved
-                    or cpu.probe_evidence != "live"
-                ):
-                    raise ValueError("visual CPU profile must be approved paddlepaddle live")
-                if (
-                    gpu.distribution != "paddlepaddle-gpu"
-                    or gpu.device != "gpu"
-                    or gpu.status != AdoptionStatus.deferred
-                    or gpu.probe_evidence != "not_run"
-                ):
-                    raise ValueError("visual GPU profile must remain deferred and not_run")
+                if cpu.distribution != "paddlepaddle" or cpu.device != "cpu":
+                    raise ValueError("visual CPU profile must use paddlepaddle on cpu")
+                if gpu.distribution != "paddlepaddle-gpu" or gpu.device != "gpu":
+                    raise ValueError("visual GPU profile must use paddlepaddle-gpu on gpu")
                 if cpu.version != gpu.version:
                     raise ValueError("visual CPU and GPU profiles must pin the same base version")
 

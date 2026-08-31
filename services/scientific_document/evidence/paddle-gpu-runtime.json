@@ -1,0 +1,39 @@
+{
+  "generated_at": "2026-08-31T12:43:16.635680+00:00",
+  "validation_scope": [
+    "GPU initialization",
+    "official HTTP prediction",
+    "canonical visual page projection"
+  ],
+  "runtime": {
+    "python_version": "3.13.13",
+    "distribution": "paddlepaddle-gpu",
+    "version": "3.2.1",
+    "paddleocr_version": "3.6.0",
+    "paddlex_version": "3.6.0",
+    "device": "gpu:0",
+    "hardware": "NVIDIA GeForce RTX 4070 Laptop GPU",
+    "model_id": "PaddleOCR-VL-1.6-0.9B",
+    "model_revision": "cdc88f5feff0e4079e75863205053a68358e52f7"
+  },
+  "input": {
+    "mode": "fixture",
+    "fixture_id": "gs-formula",
+    "fixture_sha256": "sha256:252613f4b998757e63ebf1d1a980bc8cfa6c3109d6e741c33a0027e887db48c3",
+    "projection": "Complete first page rendered by the production document renderer",
+    "rendered_page_content_hash": "sha256:f480456aedc7860c19d31263597f9e47a67d4999daac73212ce6208f1b7066f9"
+  },
+  "execution": {
+    "mode": "live",
+    "transport": "HTTP /layout-parsing",
+    "initialization_completed": true,
+    "predict_executed": true,
+    "latency_seconds": 13.504697856999883,
+    "canonical_quality": "accepted",
+    "page_count": 1,
+    "visual_block_count": 4,
+    "structured_formula_count": 0,
+    "scientific_accuracy": "not_evaluated",
+    "full_golden_set_benchmark": "not_run"
+  }
+}
