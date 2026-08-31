@@ -321,7 +321,16 @@ def test_planner_rejects_untyped_model_payload() -> None:
     assert captured.value.code == "MODEL_RESPONSE_INVALID"
 
 
-def test_planner_rejects_typed_draft_outside_manifest_catalog() -> None:
+@pytest.mark.parametrize(
+    ("requested_fields", "output_requirements"),
+    [
+        (["invented.observation_bias"], ["dataset"]),
+        (["star.tic_id"], ["dataset", "analysis_report"]),
+    ],
+)
+def test_planner_rejects_inadmissible_draft(
+    requested_fields: list[str], output_requirements: list[str]
+) -> None:
     class Port:
         def execute(self, _request: ModelExecutionRequest):
             from app.services.model_execution import ModelExecutionResponse
@@ -338,10 +347,10 @@ def test_planner_rejects_typed_draft_outside_manifest_catalog() -> None:
                             "unit_policy": "canonical",
                             "document_source_policy": "disabled",
                         },
-                        "requested_fields": ["invented.observation_bias"],
+                        "requested_fields": requested_fields,
                         "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
                         "paper_search_scope": {},
-                        "output_requirements": ["dataset"],
+                        "output_requirements": output_requirements,
                         "evidence_requirements": {},
                         "quality_constraints": {},
                     },
@@ -390,6 +399,7 @@ def test_planner_uses_the_registered_prompt_and_identified_output_contract() -> 
     )
 
     output_contract = request_value.input_payload["output_contract"]
+    assert request_value.parameters == {"temperature": 0, "top_p": 1}
     assert output_contract["name"] == "PlannerOutcome"
     rendered_schema = str(output_contract["json_schema"])
     assert "question_id" in rendered_schema

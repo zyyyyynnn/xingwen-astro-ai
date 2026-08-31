@@ -117,6 +117,33 @@ export async function readReleaseRuntime(
   return JSON.parse(stdout) as RuntimeSnapshot;
 }
 
+// Planning can fail before a Run exists. Retain its own execution records too.
+export async function readPlanningExecutions(projectId: string) {
+  const { stdout } = await execute("docker", [
+    ...composeArguments(),
+    "exec",
+    "-T",
+    "api",
+    "python",
+    "-c",
+    String.raw`
+import json, sys
+from uuid import UUID
+from sqlalchemy import text
+from app.config import settings
+from app.db.session import create_engine_from_url
+project_id = str(UUID(sys.argv[1]))
+engine = create_engine_from_url(settings.DATABASE_URL.get_secret_value())
+with engine.connect() as connection:
+    records = connection.execute(text("SELECT id, provider, requested_model, provider_returned_model, explicit_revision, prompt_name, prompt_version, prompt_hash, input_hash, output_hash, parameters_hash, parameters_snapshot, status, token_usage, latency_ms, provider_request_id, error_code, created_at, finished_at FROM model_executions WHERE project_id = :project ORDER BY created_at, id"), {"project": project_id}).mappings()
+    print(json.dumps([dict(row) for row in records], default=str))
+engine.dispose()
+`,
+    projectId,
+  ]);
+  return JSON.parse(stdout) as Record<string, unknown>[];
+}
+
 export async function writeReleaseEvidence(
   name: string,
   value: Record<string, unknown>,

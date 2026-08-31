@@ -8,7 +8,7 @@ import sys
 
 from app.config import settings
 from app.schemas.manifest import load_manifest_bundle
-from app.schemas.core import ResearchProject
+from app.schemas.core import ResearchProject, ResearchThreadSummary
 from app.services.model_execution import ModelExecutionError, QwenModelExecutionAdapter
 from app.services.research_planner import ResearchContractPlanner
 
@@ -30,7 +30,7 @@ def main() -> int:
     )
     planner = ResearchContractPlanner(
         model_port=adapter,
-        provider="qwen",
+        provider="dashscope",
         requested_model=settings.DASHSCOPE_MODEL,
         explicit_revision=settings.DASHSCOPE_EXPLICIT_MODEL_REVISION,
         manifests=load_manifest_bundle(
@@ -45,6 +45,11 @@ def main() -> int:
         name="研究助手真实调用资格验证",
         description="只验证真实 Planner 调用与结构化输出，不保存原始响应。",
         case_key="exoplanet_host_star",
+        thread_summary=ResearchThreadSummary(
+            has_thread_entries=False,
+            latest_thread_actor=None,
+            has_unanswered_clarification=False,
+        ),
         created_at=now,
         updated_at=now,
         revision=1,
@@ -65,8 +70,9 @@ def main() -> int:
         "status": "passed",
         "provider": request.provider,
         "official_route": settings.DASHSCOPE_BASE_URL,
-        "model": request.model,
-        "model_revision": request.model_revision,
+        "requested_model": request.requested_model,
+        "provider_returned_model": result.response.provider_returned_model,
+        "explicit_revision": request.explicit_revision,
         "prompt": request.prompt_name,
         "prompt_version": request.prompt_version,
         "prompt_hash": request.prompt_hash,
@@ -74,6 +80,7 @@ def main() -> int:
         "parameters_hash": request.parameters_hash,
         "output_hash": result.response.output_hash,
         "latency_ms": result.response.latency_ms,
+        "token_usage": result.response.token_usage,
         "provider_request_id": result.response.provider_request_id,
         "outcome": result.output.outcome,
     }

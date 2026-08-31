@@ -24,6 +24,7 @@ import type {
 import { exoplanetHostStarFixture } from "@xingwen/data-access";
 import {
   readReleaseRuntime,
+  readPlanningExecutions,
   restartActiveWorker,
   writeReleaseEvidence as report,
 } from "./release-runtime";
@@ -35,6 +36,7 @@ const EXPLICIT_REVISION =
   process.env.DASHSCOPE_EXPLICIT_MODEL_REVISION?.trim() || null;
 const SOURCE_COMMIT = process.env.RELEASE_CANDIDATE_SOURCE_COMMIT;
 const observedRuns = new Set<string>();
+const observedProjects = new Set<string>();
 const REQUIRED_ARTIFACT_KINDS = [
   "dataset",
   "field_dictionary",
@@ -344,6 +346,13 @@ test.skip(
 test.afterEach(async ({ page }, testInfo) => {
   if (process.env.RELEASE_CANDIDATE_E2E !== "1") return;
   const runtimes = [];
+  const planning = [];
+  for (const projectId of observedProjects) {
+    planning.push({
+      project_id: projectId,
+      executions: await readPlanningExecutions(projectId),
+    });
+  }
   for (const runId of observedRuns) {
     try {
       runtimes.push(await readReleaseRuntime(runId));
@@ -355,6 +364,7 @@ test.afterEach(async ({ page }, testInfo) => {
     result: testInfo.status === "passed" ? "passed" : "failed",
     route: new URL(page.url()).pathname,
     runtimes,
+    planning,
   });
 });
 
@@ -371,7 +381,7 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
   await fixtureReference();
   const warnings: string[] = [];
   const intent =
-    "整合附近系外行星候选体与宿主恒星的公开参数，核对身份、位置、轨道周期、半径和恒星参数；检索 2019 年以来的 TESS 目标选择与输入星表研究，比较方法和限制，形成可追溯的数据、文献结论与图谱。";
+    "研究附近系外行星候选体与宿主恒星，使用当前案例的 20 pc 内已确认宿主选择范围，获取 NASA Exoplanet Archive 的 TOI 与 Planetary Systems 公开表；核对 TOI 和 TIC 身份、行星与恒星名称、候选状态、赤经赤纬、轨道周期、行星半径、恒星有效温度、半径和质量，统一为标准单位，不将论文数值混入数据表。检索 Crossref 中 2019 年以来的 TESS Input Catalog Candidate Target List 研究，最多保留 10 篇候选文献，比较方法和限制。成果需要结构化数据、字段字典、来源汇总、文献候选、文献总结、文献主张及关系、证据图谱。当前仅获取与整理数据和文献，不运行额外科学计算技能；后续另行确认数据质量分析。";
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/workspace");
   await page.getByRole("textbox", { name: "输入研究消息" }).fill(intent);
@@ -385,6 +395,10 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
   );
   await page.getByRole("button", { name: "发送研究消息" }).click();
   const turnResponse = await turnPromise;
+  const requestedProjectId = new URL(turnResponse.url()).pathname.split("/")[3];
+  if (!requestedProjectId)
+    throw new Error("Planning response has no project route");
+  observedProjects.add(requestedProjectId);
   expect(turnResponse.ok(), await turnResponse.text()).toBe(true);
   await expect(page.getByTestId("protocol-summary-card")).toBeVisible({
     timeout: 120_000,
@@ -463,9 +477,15 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
   await page.getByRole("button", { name: "确认协议并开始研究" }).click();
   const runResponse = await runPromise;
   expect(runResponse.ok(), await runResponse.text()).toBe(true);
-  const initialRunId = ((await runResponse.json()) as { data: ResearchRun })
-    .data.id;
+  const createdRun = ((await runResponse.json()) as { data: ResearchRun }).data;
+  const initialRunId = createdRun.id;
   observedRuns.add(initialRunId);
+  await report("confirmed-research-contract.json", {
+    project_id: projectId,
+    run_id: initialRunId,
+    intent,
+    contract: await apiData(page, "/api/contracts/" + createdRun.contract_id),
+  });
   await restartActiveWorker(page, initialRunId);
   const initialRun = await waitForRun(page, initialRunId);
   expect(initialRun).toMatchObject({

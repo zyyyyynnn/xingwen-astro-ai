@@ -123,8 +123,8 @@ class ResearchContractPlanner:
             prompt=prompt.content,
             input_payload=input_payload,
             parameters={
-                "temperature": 0.6,
-                "top_p": 0.8,
+                "temperature": 0,
+                "top_p": 1,
             },
             enable_thinking=False,
         )
