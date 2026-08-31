@@ -128,6 +128,7 @@ public candidate 不携带完整 replay input，也不新增 replay hash。该�
 
 confirmed data revision 先从 Plan 的三个独立 version decisions 读取 Dataset、
 FieldDictionary、SourceCollection baseline，并始终核对 frozen version identity 与 latest。
+baseline content hash 使用 Publisher 的 canonical persisted payload，保留来源 metadata 中的显式 null。
 reuse compatibility 继续校验 typed content/schema/input hash、SourceSnapshot/Evidence、
 Quality projection、共同 input hash、Contract/Manifest/current policy、replay input
 self-validation 与 build-result cross-binding；all-reuse 任一项不兼容均在 Producer 启动前

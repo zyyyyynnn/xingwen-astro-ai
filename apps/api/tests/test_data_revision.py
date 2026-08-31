@@ -9,6 +9,8 @@ from uuid import uuid4
 
 import pytest
 
+from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.artifact_publication import canonical_artifact_content_payload
 from app.schemas.core import ArtifactKind
 from app.schemas.enums import SourceMode
 from app.schemas.source_acquisition import DataSourceDataLevel
@@ -21,8 +23,9 @@ from app.schemas.crossmatch import (
 )
 from app.schemas.data_artifacts import (
     CrossmatchDataArtifactAuthority,
+    DataArtifactBuildInput,
     compute_data_artifact_content_hash,
-    compute_data_artifact_public_payload_hash,
+    compute_data_artifact_input_hash,
 )
 from app.schemas.manifest import load_manifest_bundle
 from data_artifact_test_support import build_input
@@ -68,8 +71,10 @@ def _versioned(value: object, **updates: object) -> object:
 def _execution_input(
     *,
     scenario: str,
+    baseline_input: DataArtifactBuildInput | None = None,
 ) -> tuple[DataRevisionExecutionInput, list[str]]:
-    baseline_input = build_input("star.tic_id")
+    if baseline_input is None:
+        baseline_input = build_input("star.tic_id")
     baseline_result = build_data_artifact_candidates(baseline_input)
     candidates = {
         "dataset": baseline_result.dataset,
@@ -84,8 +89,8 @@ def _execution_input(
             version_number=1,
             decision="reuse" if scenario == "unaffected" else "recompute",
             step_key=None if scenario == "unaffected" else "cleaning_data",
-            candidate_content_hash=compute_data_artifact_public_payload_hash(
-                candidate
+            candidate_content_hash=compute_canonical_payload_hash(
+                canonical_artifact_content_payload(candidate)
             ),
         )
         for kind, candidate in candidates.items()
@@ -250,6 +255,44 @@ def test_selective_revision_executes_only_the_authorized_stage_closure(
         assert first.build_result.model_dump(mode="json") == (
             execution_input.baseline_result.model_dump(mode="json")
         )
+
+
+def test_revision_reuses_published_source_metadata_with_nulls() -> None:
+    template, _ = _execution_input(scenario="unaffected")
+    authority = template.baseline_input.authority
+    left = authority.left_acquisition
+    metadata = {
+        **left.snapshot.request_metadata,
+        "pages": [{"data_etag": None, "request_id": None}],
+    }
+    left = left.model_copy(
+        update={
+            "snapshot": left.snapshot.model_copy(update={"request_metadata": metadata}),
+        }
+    )
+    payload = template.baseline_input.model_dump(mode="json")
+    assert template.align_crossmatch_authority is not None
+    payload["authority"] = template.align_crossmatch_authority(
+        left,
+        authority.right_acquisition,
+    ).model_dump(mode="json")
+    payload["input_hash"] = compute_data_artifact_input_hash(payload)
+    execution_input, acquisition_calls = _execution_input(
+        scenario="unaffected",
+        baseline_input=DataArtifactBuildInput.model_validate(payload),
+    )
+
+    result = execute_data_revision(execution_input)
+
+    assert result.disposition == "reuse"
+    assert result.publication_targets == ()
+    assert acquisition_calls == []
+    assert execution_input.baseline_result is not None
+    members = execution_input.baseline_result.source_collection.members
+    assert any(
+        member.source_snapshot.request_metadata.get("pages") == metadata["pages"]
+        for member in members
+    )
 
 
 def test_unstructured_affected_revision_requires_replan() -> None:
@@ -482,8 +525,8 @@ def test_source_table_mapping_drift_rebuilds_from_raw_authority_without_provider
                 version_number=1,
                 decision="recompute",
                 step_key="analyzing_data",
-                candidate_content_hash=compute_data_artifact_public_payload_hash(
-                    candidate
+                candidate_content_hash=compute_canonical_payload_hash(
+                    canonical_artifact_content_payload(candidate)
                 ),
             )
             for kind, candidate in candidates.items()
@@ -567,8 +610,8 @@ def test_source_table_insufficient_raw_authority_requires_replan_before_provider
                 version_number=1,
                 decision="recompute",
                 step_key="analyzing_data",
-                candidate_content_hash=compute_data_artifact_public_payload_hash(
-                    candidate
+                candidate_content_hash=compute_canonical_payload_hash(
+                    canonical_artifact_content_payload(candidate)
                 ),
             )
             for kind, candidate in candidates.items()
