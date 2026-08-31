@@ -910,6 +910,7 @@ button.xw-item:hover:not(:disabled) {
   font-size: var(--font-size-ui-heading);
   font-weight: var(--font-weight-ui-strong);
   line-height: var(--line-height-ui-heading);
+  text-wrap: balance;
 }
 
 .xw-empty__description {
@@ -917,7 +918,7 @@ button.xw-item:hover:not(:disabled) {
   color: var(--color-ink-secondary);
   font-size: var(--font-size-ui-body);
   line-height: var(--line-height-ui-body);
-  text-wrap: pretty;
+  text-wrap: balance;
 }
 
 .xw-alert {
