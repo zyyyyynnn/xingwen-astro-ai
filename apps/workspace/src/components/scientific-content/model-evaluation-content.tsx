@@ -13,6 +13,9 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  Item,
+  ItemContent,
+  ItemTitle,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -668,72 +671,80 @@ export function ModelArtifactContent({
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="model-report__signature">
-            <div className="text-xs font-semibold">输入规格 (Inputs)</div>
-            <div className="mt-2 space-y-1 text-xs">
-              <div className="model-report__signature-row">
-                <span className="model-report__secondary">张量名称:</span>{" "}
-                <span className="font-mono font-medium">
-                  {content.inputName}
-                </span>
-              </div>
-              <div className="model-report__signature-row">
-                <span className="model-report__secondary">张量形状:</span>{" "}
-                <span className="font-mono font-medium">
-                  [{content.inputShape.map((v) => v ?? "动态").join(", ")}]
-                </span>
-              </div>
-              {content.inputDtype !== null ? (
+          <Item variant="muted" size="sm" className="model-report__signature">
+            <ItemContent>
+              <ItemTitle>输入规格 (Inputs)</ItemTitle>
+              <div className="mt-2 space-y-1 text-xs">
                 <div className="model-report__signature-row">
-                  <span className="model-report__secondary">数据类型:</span>{" "}
+                  <span className="model-report__secondary">张量名称:</span>{" "}
                   <span className="font-mono font-medium">
-                    {content.inputDtype}
+                    {content.inputName}
                   </span>
                 </div>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="model-report__signature">
-            <div className="text-xs font-semibold">输出规格 (Outputs)</div>
-            {content.outputNames.map((name) => {
-              const metadata = content.outputMetadata[name];
-              return (
-                <dl key={name} className="model-report__output">
+                <div className="model-report__signature-row">
+                  <span className="model-report__secondary">张量形状:</span>{" "}
+                  <span className="font-mono font-medium">
+                    [{content.inputShape.map((v) => v ?? "动态").join(", ")}]
+                  </span>
+                </div>
+                {content.inputDtype !== null ? (
                   <div className="model-report__signature-row">
-                    <dt className="model-report__secondary">输出名称</dt>
-                    <dd className="font-mono font-medium">{name}</dd>
+                    <span className="model-report__secondary">数据类型:</span>{" "}
+                    <span className="font-mono font-medium">
+                      {content.inputDtype}
+                    </span>
                   </div>
-                  {metadata ? (
-                    <>
-                      <div className="model-report__signature-row">
-                        <dt className="model-report__secondary">值类型</dt>
-                        <dd>{OUTPUT_KIND_LABELS[metadata.valueKind]}</dd>
-                      </div>
-                      {metadata.shape !== null ? (
+                ) : null}
+              </div>
+            </ItemContent>
+          </Item>
+
+          <Item variant="muted" size="sm" className="model-report__signature">
+            <ItemContent>
+              <ItemTitle>输出规格 (Outputs)</ItemTitle>
+              {content.outputNames.map((name) => {
+                const metadata = content.outputMetadata[name];
+                return (
+                  <dl key={name} className="model-report__output">
+                    <div className="model-report__signature-row">
+                      <dt className="model-report__secondary">输出名称</dt>
+                      <dd className="font-mono font-medium">{name}</dd>
+                    </div>
+                    {metadata ? (
+                      <>
                         <div className="model-report__signature-row">
-                          <dt className="model-report__secondary">张量形状</dt>
-                          <dd className="font-mono">
-                            [
-                            {metadata.shape
-                              .map((axis) => axis ?? "动态")
-                              .join(", ")}
-                            ]
-                          </dd>
+                          <dt className="model-report__secondary">值类型</dt>
+                          <dd>{OUTPUT_KIND_LABELS[metadata.valueKind]}</dd>
                         </div>
-                      ) : null}
-                      {metadata.dtype !== null ? (
-                        <div className="model-report__signature-row">
-                          <dt className="model-report__secondary">数据类型</dt>
-                          <dd className="font-mono">{metadata.dtype}</dd>
-                        </div>
-                      ) : null}
-                    </>
-                  ) : null}
-                </dl>
-              );
-            })}
-          </div>
+                        {metadata.shape !== null ? (
+                          <div className="model-report__signature-row">
+                            <dt className="model-report__secondary">
+                              张量形状
+                            </dt>
+                            <dd className="font-mono">
+                              [
+                              {metadata.shape
+                                .map((axis) => axis ?? "动态")
+                                .join(", ")}
+                              ]
+                            </dd>
+                          </div>
+                        ) : null}
+                        {metadata.dtype !== null ? (
+                          <div className="model-report__signature-row">
+                            <dt className="model-report__secondary">
+                              数据类型
+                            </dt>
+                            <dd className="font-mono">{metadata.dtype}</dd>
+                          </div>
+                        ) : null}
+                      </>
+                    ) : null}
+                  </dl>
+                );
+              })}
+            </ItemContent>
+          </Item>
         </div>
 
         <dl className="model-report__opsets">

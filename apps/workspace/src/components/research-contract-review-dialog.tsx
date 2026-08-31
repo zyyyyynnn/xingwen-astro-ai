@@ -26,6 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
   ScrollArea,
+  Separator,
 } from "@xingwen/ui";
 import {
   Check,
@@ -115,6 +116,8 @@ function ContractFacts({
         <p>{contract.researchGoal}</p>
       </section>
 
+      <Separator />
+
       <div className="research-contract-facts__pair">
         <section className="research-contract-facts__section">
           <FactLabel icon={ListChecks}>目标对象</FactLabel>
@@ -125,6 +128,8 @@ function ContractFacts({
           <p>{allowedSources || "未指定来源"}</p>
         </section>
       </div>
+
+      <Separator />
 
       <Collapsible defaultOpen className="research-contract-facts__data">
         <CollapsibleTrigger asChild>
@@ -151,6 +156,8 @@ function ContractFacts({
         </CollapsibleContent>
       </Collapsible>
 
+      <Separator />
+
       <div className="research-contract-facts__pair research-contract-facts__closing">
         <section className="research-contract-facts__section">
           <FactLabel icon={PackageCheck}>目标成果</FactLabel>
@@ -165,13 +172,16 @@ function ContractFacts({
       </div>
 
       {scientificTaskLabels.length > 0 ? (
-        <section className="research-contract-facts__section">
-          <FactLabel icon={ListChecks}>计划执行</FactLabel>
-          <p>
-            {scientificTaskLabels.length} 项科学任务：
-            {scientificTaskLabels.join("、")}
-          </p>
-        </section>
+        <>
+          <Separator />
+          <section className="research-contract-facts__section">
+            <FactLabel icon={ListChecks}>计划执行</FactLabel>
+            <p>
+              {scientificTaskLabels.length} 项科学任务：
+              {scientificTaskLabels.join("、")}
+            </p>
+          </section>
+        </>
       ) : null}
     </div>
   );
