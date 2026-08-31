@@ -34,7 +34,7 @@
       "revision_policy": "显式 revision 与声明的模型身份一致；未声明时为 null。"
     },
     "document_parsing": "本地 PaddleOCR-VL models 捆绑或配置完整的远程服务",
-    "release_gate": "已认证 GitHub CLI、当前提交 CI 与 CodeQL 通过、干净工作区、本地文档模型捆绑及可用的真实数据源与模型账户"
+    "release_gate": "已认证 GitHub CLI、当前提交 CI 与 CodeQL 通过、干净工作区、本地文档模型捆绑或显式配置的 HTTP 视觉服务，以及可用的真实数据源与模型账户"
   },
   "data_levels": [
     "fixture",
