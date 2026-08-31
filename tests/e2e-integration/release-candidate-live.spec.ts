@@ -81,7 +81,11 @@ async function apiData<T>(page: Page, pathname: string): Promise<T> {
   return ((await response.json()) as { data: T }).data;
 }
 
-async function waitForRun(page: Page, runId: string): Promise<ResearchRun> {
+async function waitForRun(
+  page: Page,
+  runId: string,
+  timeout = 20 * 60_000,
+): Promise<ResearchRun> {
   observedRuns.add(runId);
   let run = await apiData<ResearchRun>(page, "/api/runs/" + runId);
   await expect
@@ -90,7 +94,7 @@ async function waitForRun(page: Page, runId: string): Promise<ResearchRun> {
         run = await apiData<ResearchRun>(page, "/api/runs/" + runId);
         return run.status;
       },
-      { timeout: 20 * 60_000, intervals: [2_000, 3_000, 5_000] },
+      { timeout, intervals: [2_000, 3_000, 5_000] },
     )
     .toMatch(/^(completed|failed|cancelled)$/u);
   expect(
@@ -673,7 +677,8 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
     fullscreen,
     "使用刚关联的完整开放论文重新生成摘要、论点和关系，保留页码、段落定位和证据限制；不得把元数据推断当成全文结论。",
   );
-  const documentRun = await waitForRun(page, documentRunId);
+  // Full-text revisions include page-wise visual inference before model synthesis.
+  const documentRun = await waitForRun(page, documentRunId, 40 * 60_000);
   const documentRuntime = await readReleaseRuntime(documentRunId);
   expect(documentRun).toMatchObject({
     execution_mode: "live",
