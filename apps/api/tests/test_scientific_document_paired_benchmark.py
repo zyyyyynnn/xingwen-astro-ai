@@ -523,12 +523,14 @@ def test_local_pipeline_projects_official_layout_block_objects(
     assert result.blocks[0].order == 2
 
 
-def test_recorded_real_paddle_response_projects_the_paper_table() -> None:
+def test_recorded_real_paddle_table_enters_document_summary_evidence() -> None:
     from app.schemas.scientific_document import DocumentParseInput
     from app.services.scientific_document.hybrid_parser import (
         HybridScientificDocumentParser,
         PaddleOcrVlClient,
     )
+    from app.services.document_parse_store import validate_document_locator
+    from services.paper_pipeline.summary import build_document_evidence_candidates
 
     fixture_dir = ROOT / "tests" / "fixtures" / "scientific-documents" / "papers"
     image_path = fixture_dir / "cadieux-2025-l98-59-page-14.png"
@@ -576,7 +578,7 @@ def test_recorded_real_paddle_response_projects_the_paper_table() -> None:
     )
     candidate = parser.parse_document(
         DocumentParseInput(
-            research_input_id="recorded-cadieux-page-14",
+            research_input_id="00000000-0000-4000-8000-0000000000aa",
             content_hash="sha256:" + hashlib.sha256(image_bytes).hexdigest(),
             source_type="upload",
             mime_type="image/png",
@@ -589,6 +591,41 @@ def test_recorded_real_paddle_response_projects_the_paper_table() -> None:
     assert len(candidate.tables) == 1
     assert candidate.tables[0].row_count >= 10
     assert candidate.tables[0].column_count == 6
+
+    evidence = build_document_evidence_candidates(
+        document_parse=candidate,
+        document_parse_id="00000000-0000-4000-8000-0000000000bb",
+        paper_id="paper.cadieux",
+        source_id="arxiv",
+        source_record_id="2507.09343",
+        source_snapshot_id="00000000-0000-4000-8000-0000000000cc",
+    )
+    table = candidate.tables[0]
+    table_quotes = [
+        item
+        for item in evidence
+        if item.locator.document_locator is not None
+        and item.locator.document_locator.block_id == table.block_id
+    ]
+    assert table_quotes
+    quoted_text = "".join(item.quote_or_value for item in table_quotes)
+    for row in table.rows:
+        for cell in row:
+            if cell.text:
+                assert cell.text in quoted_text
+            assert cell.bbox is None
+    for item in table_quotes:
+        locator = item.locator.document_locator
+        assert locator is not None and locator.text_span is not None
+        validate_document_locator(candidate, locator)
+        block = next(
+            block for block in candidate.blocks if block.block_id == locator.block_id
+        )
+        assert block.text is not None
+        assert (
+            block.text[locator.text_span.start : locator.text_span.end]
+            == item.quote_or_value
+        )
 
 
 def test_local_pipeline_bounds_cpu_inference_resources(
@@ -660,7 +697,26 @@ def test_visual_projection_rejects_oversized_block_content() -> None:
         )
 
 
-def test_official_html_table_projects_to_canonical_cells() -> None:
+@pytest.mark.parametrize(
+    ("content", "expected_cells", "expected_text"),
+    [
+        (
+            "<table><tr><td>TOI</td><td>Teff [K]</td></tr>"
+            "<tr><td>101.01</td><td>5200</td></tr></table>",
+            [["TOI", "Teff [K]"], ["101.01", "5200"]],
+            "TOI\tTeff [K]\n101.01\t5200",
+        ),
+        (
+            '<table><tr><th rowspan="2">L 98-59</th><td>1.2 ± 0.1</td></tr>'
+            '<tr><td>&lt; 3.5</td></tr><tr><td colspan="2">No measurement</td></tr></table>',
+            [["L 98-59", "1.2 ± 0.1"], ["< 3.5"], ["No measurement"]],
+            "L 98-59\t1.2 ± 0.1\n\t< 3.5\nNo measurement",
+        ),
+    ],
+)
+def test_official_html_table_projects_to_canonical_cells(
+    content: str, expected_cells: list[list[str]], expected_text: str
+) -> None:
     from app.services.scientific_document.hybrid_parser import (
         VisualPageBlock,
         VisualPageResult,
@@ -674,10 +730,7 @@ def test_official_html_table_projects_to_canonical_cells() -> None:
             blocks=(
                 VisualPageBlock(
                     label="table",
-                    content=(
-                        "<table><tr><td>TOI</td><td>Teff [K]</td></tr>"
-                        "<tr><td>101.01</td><td>5200</td></tr></table>"
-                    ),
+                    content=content,
                     bbox=(10.0, 20.0, 190.0, 90.0),
                     order=0,
                 ),
@@ -691,12 +744,10 @@ def test_official_html_table_projects_to_canonical_cells() -> None:
 
     assert len(tables) == 1
     assert tables[0].quality.value == "accepted"
-    assert [[cell.text for cell in row] for row in tables[0].rows] == [
-        ["TOI", "Teff [K]"],
-        ["101.01", "5200"],
-    ]
+    assert [[cell.text for cell in row] for row in tables[0].rows] == expected_cells
     assert all(cell.bbox is None for row in tables[0].rows for cell in row)
     assert _blocks[0].bbox is not None
+    assert _blocks[0].text == expected_text
 
 
 def test_official_html_table_rejects_unbounded_span_before_projection() -> None:

@@ -42,7 +42,7 @@ from app.schemas.scientific_document import (
 
 _NATIVE_PACKAGE = "docling-parse"
 _PARSER_PROFILE_ID = "scientific-document-hybrid"
-_PARSER_PROFILE_VERSION = "1.1.0"
+_PARSER_PROFILE_VERSION = "1.2.0"
 _ROUTING_POLICY_ID = "native-first-page-hybrid"
 _RESOURCE_POLICY_ID = "bounded-document-pages"
 _VISUAL_ENGINE = "PaddleOCR-VL layout-parsing service"
@@ -617,6 +617,18 @@ def _canonical_visual_page(
             if item.content is not None
             else DocumentParseQuality.partial
         )
+        text = item.content
+        if kind is DocumentBlockKind.table:
+            table = _markdown_table(
+                item.content,
+                table_id=f"table-{block_id}",
+                block_id=block_id,
+                page_index=page_index,
+                bbox=bbox,
+            )
+            tables.append(table)
+            text = _table_block_text(table)
+            quality = table.quality
         blocks.append(
             DocumentBlock(
                 block_id=block_id,
@@ -624,23 +636,13 @@ def _canonical_visual_page(
                 reading_order=index,
                 kind=kind,
                 bbox=bbox,
-                text=item.content,
+                text=text,
                 quality=quality,
                 parser_backend=ParserBackend.visual,
                 parser_profile_id=profile_id,
             )
         )
-        if kind is DocumentBlockKind.table:
-            tables.append(
-                _markdown_table(
-                    item.content,
-                    table_id=f"table-{block_id}",
-                    block_id=block_id,
-                    page_index=page_index,
-                    bbox=bbox,
-                )
-            )
-        elif kind is DocumentBlockKind.formula:
+        if kind is DocumentBlockKind.formula:
             formulas.append(
                 DocumentFormula(
                     block_id=block_id,
@@ -686,6 +688,23 @@ def _block_kind(label: str) -> DocumentBlockKind:
     if "list" in label:
         return DocumentBlockKind.list
     return DocumentBlockKind.paragraph
+
+
+def _table_block_text(table: DocumentTable) -> str | None:
+    """Expose canonical cell text, not vendor markup, to readers and Evidence.
+
+    Keep each anchor in its actual column. Covered positions stay empty rather
+    than duplicating merged-cell values or fabricating missing observations.
+    """
+    if not table.rows:
+        return None
+    lines: list[str] = []
+    for row in table.rows:
+        columns = [""] * table.column_count
+        for cell in row:
+            columns[cell.column_index] = cell.text or ""
+        lines.append("\t".join(columns))
+    return "\n".join(lines)
 
 
 def _markdown_table(

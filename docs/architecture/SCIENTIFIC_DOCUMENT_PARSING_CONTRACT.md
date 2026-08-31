@@ -87,6 +87,11 @@ HTML table 只提供 enclosing table/block geometry 时，各 `DocumentTableCell
 `DocumentLocator` 仍绑定真实 `table_id`/`cell_id`，其 `bbox` 明确回退到 enclosing
 table block bbox；这样既保留可核验的 region locator，也不虚构 cell-level 坐标。
 
+表格 block 的 `text` 从 canonical cells 按真实行列生成纯文本，不保留供应商
+HTML 标记。合并单元格只在 anchor 位置输出一次，覆盖位置保持空白；数值、单位
+与不确定性不改写。摘要和展示消费同一 block text，Evidence text span 定位到该
+不可变文本；单元格级科学数据准入继续使用 table/cell locator。
+
 `cell_id` 必须同时有 `table_id`；`text_span` 必须同时有 `block_id`。持久化
 层必须在 immutable parse 上重新验证 locator，确认 page、block、table、cell
 与 bbox 闭合。
