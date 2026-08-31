@@ -817,15 +817,18 @@ class _BoundResearchInputs:
 
 
 @pytest.mark.parametrize(
-    ("input_type", "mime_type"),
+    ("input_type", "mime_type", "supported"),
     (
-        ("pdf", "text/plain"),
-        ("image", "image/gif"),
-        ("text", "application/pdf"),
+        ("pdf", "text/plain", False),
+        ("image", "image/gif", False),
+        ("text", "application/pdf", False),
+        ("url", "application/pdf", True),
+        ("url", "image/png", True),
+        ("url", "text/html", False),
     ),
 )
-def test_paper_candidate_reader_rejects_type_mime_mismatch(
-    input_type: str, mime_type: str
+def test_paper_candidate_reader_requires_supported_document_content(
+    input_type: str, mime_type: str, supported: bool
 ) -> None:
     from app.schemas.research_input import ResearchInputStatus, ResearchInputType
     from app.services.research_input_store import ResearchInputRecord
@@ -835,7 +838,7 @@ def test_paper_candidate_reader_rejects_type_mime_mismatch(
         session_id="owner",
         project_id=PROJECT_ID,
         type=ResearchInputType(input_type),
-        source_type="upload",
+        source_type="url_fetch" if input_type == "url" else "upload",
         content_hash=HASH_A,
         storage_ref="local:input-document-1",
         filename="paper.bin",
@@ -859,7 +862,7 @@ def test_paper_candidate_reader_rejects_type_mime_mismatch(
         canonical_paper_id=TEST_CANDIDATE.canonical_paper_id,
     )
 
-    assert resolved is None
+    assert resolved == (record if supported else None)
 
 
 def test_paper_summary_hash_uses_current_document_parse_family() -> None:

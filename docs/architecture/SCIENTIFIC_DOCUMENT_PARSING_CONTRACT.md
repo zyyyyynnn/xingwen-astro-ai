@@ -50,6 +50,7 @@ DocumentParserPort.parse_document(
 ```
 
 调用方提供并负责 `source_type`、`mime_type` 与输入内容身份；解析器不得猜测。
+科学文档准入接受上传的 PDF / 支持的图像，以及经受控 URL 摄取、按实际字节确认同类 MIME 的文档。URL 输入保留 `type=url` 与 `source_type=url_fetch` 来源身份；研读和原文读取使用已存储的不可变内容、项目所有权及统一 MIME 准入。
 生产 hybrid adapter 可先使用 native PDF text/geometry，再把需要视觉能力的页
 路由到已配置的 visual service。缺少视觉配置或调用失败时必须显式返回
 `partial`/`unsupported`，不能伪造结构或数值。

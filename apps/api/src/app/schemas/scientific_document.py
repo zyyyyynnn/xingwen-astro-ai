@@ -65,6 +65,11 @@ def is_supported_scientific_document_input(
         return mime_type == "application/pdf"
     if input_type is ResearchInputType.image:
         return mime_type in SCIENTIFIC_DOCUMENT_IMAGE_MIME_TYPES
+    if input_type is ResearchInputType.url:
+        return (
+            mime_type == "application/pdf"
+            or mime_type in SCIENTIFIC_DOCUMENT_IMAGE_MIME_TYPES
+        )
     return False
 
 

@@ -78,7 +78,7 @@ from app.schemas.scientific_document import (
     ParserBackend,
 )
 from app.services.artifacts import ArtifactReadService
-from app.services.content_storage import LocalContentStorage
+from app.services.content_storage import LocalContentStorage, sha256_content_hash
 from app.services.document_parse_store import (
     DocumentParseRepository,
     DocumentParseService,
@@ -110,7 +110,7 @@ from app.services.research_input_store import (
     PersistentResearchInputStore,
 )
 from app.services.revisions import RevisionApplicationService
-from app.services.url_fetcher import UrlFetchConfig
+from app.services.url_fetcher import UrlFetchConfig, UrlFetchResult
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.security import canonical_request_hash
 from app.workflow.persistent_executor import PersistentWorkflowExecutor
@@ -1654,8 +1654,9 @@ def test_literature_evidence_locator_full_provenance_and_graph_build(chain) -> N
             assert len(item.evidence) >= 1
 
 
+@pytest.mark.parametrize("document_source", ("upload", "url_fetch"))
 def test_document_parse_backed_summary_revision_preserves_provenance_and_recomputes_graph(
-    postgres_engine: Engine, tmp_path: Path
+    postgres_engine: Engine, tmp_path: Path, document_source: str
 ) -> None:
     """DocumentParse-backed Summary reuses frozen summary and validates complete provenance."""
 
@@ -1716,6 +1717,29 @@ def test_document_parse_backed_summary_revision_preserves_provenance_and_recompu
     content_storage = LocalContentStorage(tmp_path / "cas")
     input_store = PersistentResearchInputStore(factory)
     pdf_bytes = b"%PDF-1.7\nScientific Document Content for Revision Test\n"
+
+    async def fetch_document(url: str, config: UrlFetchConfig) -> UrlFetchResult:
+        assert url == "https://repository.example/paper.pdf"
+        content_hash = sha256_content_hash(pdf_bytes)
+        return UrlFetchResult(
+            content_hash=content_hash,
+            content_bytes=pdf_bytes,
+            mime_type="application/pdf",
+            status_code=200,
+            final_url=url,
+            source_snapshot=SourceSnapshotRecord(
+                snapshot_id="snapshot.document-source",
+                source_id="repository.example",
+                source_type="url_fetch",
+                retrieved_at=_FIXED_NOW,
+                query=url,
+                query_hash=canonical_request_hash(url),
+                content_hash=content_hash,
+                license_note="Controlled document fixture",
+                request_metadata={"status_code": 200},
+            ),
+        )
+
     research_input = asyncio.run(
         ResearchInputIngestionService(
             repository=input_store,
@@ -1732,18 +1756,24 @@ def test_document_parse_backed_summary_revision_preserves_provenance_and_recompu
                 max_redirects=0,
                 max_response_bytes=1024,
             ),
+            url_fetcher=fetch_document,
         ).create(
             ResearchInputIngestionCommand(
                 session_id=session_id,
                 project_id=project.id,
                 payload=ResearchInputCreate(
-                    type="pdf",
+                    type="url" if document_source == "url_fetch" else "pdf",
+                    url=(
+                        "https://repository.example/paper.pdf"
+                        if document_source == "url_fetch"
+                        else None
+                    ),
                     filename="test_paper.pdf",
                     mime_type="application/pdf",
                 ),
                 idempotency_key=f"upload-{uuid4()}",
-                file_content=pdf_bytes,
-                file_filename="test_paper.pdf",
+                file_content=pdf_bytes if document_source == "upload" else None,
+                file_filename="test_paper.pdf" if document_source == "upload" else None,
             )
         )
     )

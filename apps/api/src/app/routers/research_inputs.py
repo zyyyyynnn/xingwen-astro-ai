@@ -205,6 +205,7 @@ async def get_research_input_content(
     response = Response(content=content, media_type=mime_type)
     _no_store(response)
     response.headers["Content-Disposition"] = _content_disposition(filename)
+    response.headers["X-Content-Type-Options"] = "nosniff"
     return response
 
 
