@@ -7,16 +7,16 @@
  * part of `pnpm check:architecture`.
  *
  * Gates:
- *   G1  Unique product          — only OpenHands is an upstream Agent product.
- *   G2  Exact ref               — OpenHands/OpenHands @ v1.10.0 @ 566386...
- *   G3  No other source        — repository allowlist + unique upstream root.
- *   G4  No second shell        — no competing Agent Product skeleton root.
- *   G5  Provenance             — production mechanics root <-> provenance.json exact 1:1, fail-closed.
- *   G6  No rewrite class       — adoption_class forbids REWRITE/RECREATE/REIMPLEMENT/INSPIRED_BY.
- *   G7  Coding surface         — excluded coding surfaces must not enter production graph.
- *   G8  Only OpenHands src     — no file sourced from a non-OpenHands repository.
- *   G9  Public analysis boundary — policy_sets honored (excluded/disclosure).
- *   G10 Source closure         — vendored files are reachable and imports resolve.
+ *   Unique product          — only OpenHands is an upstream Agent product.
+ *   Exact ref               — OpenHands/OpenHands @ v1.10.0 @ 566386...
+ *   No other source        — repository allowlist + unique upstream root.
+ *   No second shell        — no competing Agent Product skeleton root.
+ *   Provenance             — production mechanics root <-> provenance.json exact 1:1, fail-closed.
+ *   No rewrite class       — adoption_class forbids REWRITE/RECREATE/REIMPLEMENT/INSPIRED_BY.
+ *   Coding surface         — excluded coding surfaces must not enter production graph.
+ *   Only OpenHands src     — no file sourced from a non-OpenHands repository.
+ *   Public analysis boundary — policy_sets honored (excluded/disclosure).
+ *   Source closure         — vendored files are reachable and imports resolve.
  *
  * The check is injectable: `checkAgentUpstreamAdoption(root)` where root is any
  * repo root. The CLI entrypoint passes process.cwd().
@@ -29,9 +29,6 @@ import { analyzeVendoredImportGraph } from "./agent-upstream-graph.mjs";
 
 const UPSTREAM_ROOT = "apps/workspace/upstream/openhands";
 const MECHANICS_ROOT = "apps/workspace/src/mechanics";
-const ALLOWED_REPOSITORIES = new Set([
-  "https://github.com/OpenHands/OpenHands.git",
-]);
 const FORBIDDEN_CLASSES = ["REWRITE", "RECREATE", "REIMPLEMENT", "INSPIRED_BY"];
 const REQUIRED_META = [
   "upstream-lock.json",
@@ -49,7 +46,6 @@ const VALID_CLASSIFICATIONS = new Set([
   "EXCLUDED",
   "DEFERRED_NOT_VENDORED",
 ]);
-const HASH_RE = /^[0-9a-f]{64}$/u;
 const DISCLOSURE_CONSTRAINTS = [
   "preserve-disclosure-mechanics",
   "server-validated-public-analysis-only",
@@ -86,62 +82,40 @@ export function checkAgentUpstreamAdoption(root) {
   const failures = [];
   const notes = [];
 
-  // ---- G1 / G2 / G3 / G6 : validate upstream-lock.json ----
+  // ---- validate upstream-lock.json ----
   const lock = readJSON(root, `${UPSTREAM_ROOT}/upstream-lock.json`);
   if (!lock) {
     failures.push(`Missing ${UPSTREAM_ROOT}/upstream-lock.json`);
     return { failures, notes };
   }
-  // G1
   if (lock.product !== "OpenHands") {
-    failures.push(
-      `G1: unique product must be OpenHands, found "${lock.product}".`,
-    );
+    failures.push(`unique product must be OpenHands, found "${lock.product}".`);
   }
   if (!lock.unique_agent_product_source) {
-    failures.push(
-      "G1: upstream-lock.unique_agent_product_source must be true.",
-    );
+    failures.push("upstream-lock.unique_agent_product_source must be true.");
   }
-  // G2
   if (lock.repository !== "https://github.com/OpenHands/OpenHands.git") {
     failures.push(
-      `G2: repository must be OpenHands/OpenHands, found "${lock.repository}".`,
+      `repository must be OpenHands/OpenHands, found "${lock.repository}".`,
     );
   }
   if (lock.tag !== "v1.10.0") {
-    failures.push(`G2: tag must be v1.10.0, found "${lock.tag}".`);
+    failures.push(`tag must be v1.10.0, found "${lock.tag}".`);
   }
   if (lock.commit !== "56638693908b8ac83a2fa3bde6eb6c33aae37f4b") {
     failures.push(
-      `G2: commit must be 56638693908b8ac83a2fa3bde6eb6c33aae37f4b, found "${lock.commit}".`,
+      `commit must be 56638693908b8ac83a2fa3bde6eb6c33aae37f4b, found "${lock.commit}".`,
     );
   }
-  if (typeof lock.commit !== "string" || lock.commit.length !== 40) {
-    failures.push("G2: commit must be a 40-char SHA.");
-  }
-  if (
-    ["latest", "main", "master", ""].includes(lock.tag) ||
-    lock.tag?.startsWith("main")
-  ) {
-    failures.push("G2: floating tag/main not allowed.");
-  }
-  // G3 — repository allowlist (no second upstream source)
-  if (!ALLOWED_REPOSITORIES.has(lock.repository)) {
-    failures.push(`G3: repository not on allowlist: "${lock.repository}".`);
-  }
-  // G6
   for (const cls of lock.adoption_class_forbidden ?? []) {
     if (!FORBIDDEN_CLASSES.includes(cls))
-      failures.push(
-        `G6: adoption_class_forbidden contains unexpected "${cls}".`,
-      );
+      failures.push(`adoption_class_forbidden contains unexpected "${cls}".`);
   }
   if (lock.forbid_design_level_reimplementation !== true) {
-    failures.push("G6: forbid_design_level_reimplementation must be true.");
+    failures.push("forbid_design_level_reimplementation must be true.");
   }
 
-  // ---- G1 / G3 / G8 : no other vendor/third_party/upstream roots ----
+  // ---- no other vendor/third_party/upstream roots ----
   const forbiddenRoots = [
     "apps/workspace/upstream",
     "apps/workspace/third_party",
@@ -156,12 +130,12 @@ export function checkAgentUpstreamAdoption(root) {
       if (!statSync(full).isDirectory()) continue;
       if (toPosix(full).endsWith(UPSTREAM_ROOT)) continue;
       failures.push(
-        `G4/G8: competing vendor root detected: ${r}/${entry} (only ${UPSTREAM_ROOT} allowed).`,
+        `competing vendor root detected: ${r}/${entry} (only ${UPSTREAM_ROOT} allowed).`,
       );
     }
   }
 
-  // ---- G6 / G7 : validate blueprint + scope ----
+  // ---- validate blueprint + scope ----
   const blueprint = readJSON(root, `${UPSTREAM_ROOT}/vendor-blueprint.json`);
   if (!blueprint)
     failures.push(`Missing ${UPSTREAM_ROOT}/vendor-blueprint.json`);
@@ -338,29 +312,29 @@ export function checkAgentUpstreamAdoption(root) {
         !JSON.stringify(blueprint.adoption_class_allowlist ?? []).includes(f)
       ) {
         failures.push(
-          `G6: blueprint references forbidden class "${f}" outside allowlist context.`,
+          `blueprint references forbidden class "${f}" outside allowlist context.`,
         );
       }
     }
   }
-  // G7: excluded coding surfaces classified EXCLUDED
+  // excluded coding surfaces classified EXCLUDED
   const excluded = files.filter((f) => f.classification === "EXCLUDED");
   if (excluded.length === 0) {
     failures.push(
-      "G7: source-scope has no EXCLUDED entries (coding surfaces must be excluded).",
+      "source-scope has no EXCLUDED entries (coding surfaces must be excluded).",
     );
   }
-  // G6: no forbidden adoption class in scope
+  // no forbidden adoption class in scope
   const badClass = files.filter((f) =>
     FORBIDDEN_CLASSES.includes(f.classification),
   );
   if (badClass.length) {
     failures.push(
-      `G6: forbidden adoption_class present: ${badClass.length} file(s).`,
+      `forbidden adoption_class present: ${badClass.length} file(s).`,
     );
   }
 
-  // ---- G9 : public analysis boundary (policy_sets) ----
+  // ---- public analysis boundary (policy_sets) ----
   // source-policy is the complete inventory; compact source-scope files only
   // need to reject a private path when it is explicitly represented there.
   const policySets = scope.policy_sets ?? {};
@@ -371,7 +345,7 @@ export function checkAgentUpstreamAdoption(root) {
         : null;
       if (sf && sf.classification !== "EXCLUDED") {
         failures.push(
-          `G9: foreign_runtime_excluded path not classified EXCLUDED: ${p}.`,
+          `foreign_runtime_excluded path not classified EXCLUDED: ${p}.`,
         );
       }
     }
@@ -381,34 +355,32 @@ export function checkAgentUpstreamAdoption(root) {
       const sf = files.find((f) => f.upstream_path === p);
       if (!sf || sf.classification !== "PARTIAL_SURGICAL") {
         failures.push(
-          `G9: public_step_analysis_disclosure path not classified PARTIAL_SURGICAL: ${p}.`,
+          `public_step_analysis_disclosure path not classified PARTIAL_SURGICAL: ${p}.`,
         );
         continue;
       }
       const cs = sf.constraints ?? [];
       for (const req of DISCLOSURE_CONSTRAINTS) {
         if (!cs.includes(req)) {
-          failures.push(
-            `G9: disclosure path missing constraint "${req}": ${p}.`,
-          );
+          failures.push(`disclosure path missing constraint "${req}": ${p}.`);
         }
       }
     }
   }
 
-  // ---- G5 : provenance (disk <-> provenance exact 1:1, fail-closed) ----
+  // ---- provenance (disk <-> provenance exact 1:1, fail-closed) ----
   const mechanicsDir = resolve(root, MECHANICS_ROOT);
   let provenanceEntries = [];
   let diskLocalPaths = new Set();
   if (!existsSync(mechanicsDir)) {
     failures.push(
-      `G5: production mechanics root missing; adopted mechanics must be vendored at ${MECHANICS_ROOT}.`,
+      `production mechanics root missing; adopted mechanics must be vendored at ${MECHANICS_ROOT}.`,
     );
   } else {
     const manifestPath = resolve(root, `${UPSTREAM_ROOT}/provenance.json`);
     if (!existsSync(manifestPath)) {
       failures.push(
-        `G5: vendored src/ present but ${UPSTREAM_ROOT}/provenance.json missing.`,
+        `vendored src/ present but ${UPSTREAM_ROOT}/provenance.json missing.`,
       );
     } else {
       const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
@@ -416,12 +388,10 @@ export function checkAgentUpstreamAdoption(root) {
       const entryList = Array.isArray(entries) ? entries : [];
       if (
         Array.isArray(manifest) ||
-        manifest?.schema !== "xingwen.agent-upstream.provenance/v2" ||
+        manifest?.schema !== "xingwen.agent-upstream.provenance" ||
         !Array.isArray(entries)
       ) {
-        failures.push(
-          "G5: provenance.json must use the manifest object contract.",
-        );
+        failures.push("provenance.json must use the manifest object contract.");
       }
       provenanceEntries = entryList;
       const schema =
@@ -439,7 +409,7 @@ export function checkAgentUpstreamAdoption(root) {
       ];
       for (const [field, expected] of sourceChecks) {
         if (manifest?.source?.[field] !== expected) {
-          failures.push(`G5: provenance source ${field} mismatch.`);
+          failures.push(`provenance source ${field} mismatch.`);
         }
       }
       // Disk -> Provenance : every on-disk file has exactly one manifest entry
@@ -450,9 +420,7 @@ export function checkAgentUpstreamAdoption(root) {
       const provByLocal = new Map();
       for (const e of entryList) {
         if (provByLocal.has(e.local_path)) {
-          failures.push(
-            `G5: duplicate local_path in provenance: ${e.local_path}.`,
-          );
+          failures.push(`duplicate local_path in provenance: ${e.local_path}.`);
         }
         provByLocal.set(e.local_path, e);
       }
@@ -462,20 +430,20 @@ export function checkAgentUpstreamAdoption(root) {
       for (const upstreamPath of adoptedMechanicsPaths) {
         if (!provenancePaths.has(upstreamPath)) {
           failures.push(
-            `G5: adopted source-scope path has no provenance entry: ${upstreamPath}.`,
+            `adopted source-scope path has no provenance entry: ${upstreamPath}.`,
           );
         }
       }
       for (const lp of diskLocalPaths) {
         if (!provByLocal.has(lp)) {
-          failures.push(`G5: on-disk file has no provenance entry: ${lp}.`);
+          failures.push(`on-disk file has no provenance entry: ${lp}.`);
         }
       }
       // Provenance -> Disk : every manifest entry maps to a real file
       for (const e of entryList) {
         if (!diskLocalPaths.has(e.local_path)) {
           failures.push(
-            `G5: dangling provenance entry (file missing): ${e.local_path}.`,
+            `dangling provenance entry (file missing): ${e.local_path}.`,
           );
         }
       }
@@ -486,19 +454,17 @@ export function checkAgentUpstreamAdoption(root) {
         for (const rf of requiredFields) {
           if (!(rf in e))
             failures.push(
-              `G5: provenance entry missing required field "${rf}" (${where}).`,
+              `provenance entry missing required field "${rf}" (${where}).`,
             );
         }
         if (!("modified" in e)) {
-          failures.push(`G5: provenance entry missing "modified" (${where}).`);
+          failures.push(`provenance entry missing "modified" (${where}).`);
         } else if (typeof e.modified !== "boolean") {
-          failures.push(
-            `G5: provenance "modified" must be boolean (${where}).`,
-          );
+          failures.push(`provenance "modified" must be boolean (${where}).`);
         }
         if (e.modified === true && !e.modification_reason) {
           failures.push(
-            `G5: modified=true requires non-empty modification_reason (${where}).`,
+            `modified=true requires non-empty modification_reason (${where}).`,
           );
         }
         // path safety (skip if already flagged missing by required-field check)
@@ -508,7 +474,7 @@ export function checkAgentUpstreamAdoption(root) {
           e.upstream_path.includes("..") ||
           e.upstream_path.includes("\\")
         ) {
-          failures.push(`G5: unsafe upstream_path (${where}).`);
+          failures.push(`unsafe upstream_path (${where}).`);
         }
         if (
           typeof e.local_path !== "string" ||
@@ -516,27 +482,27 @@ export function checkAgentUpstreamAdoption(root) {
           e.local_path.includes("..")
         ) {
           failures.push(
-            `G5: local_path escapes the production mechanics root (${where}).`,
+            `local_path escapes the production mechanics root (${where}).`,
           );
         } else if (
           typeof e.upstream_path === "string" &&
           e.local_path !== mechanicsLocalPath(e.upstream_path)
         ) {
           failures.push(
-            `G5: local_path must preserve the upstream relative path (${where}).`,
+            `local_path must preserve the upstream relative path (${where}).`,
           );
         }
         // adoption class validity for actual files
         if (e.adoption_class && !vendoredClasses.includes(e.adoption_class)) {
           failures.push(
-            `G5: adoption_class not allowed for vendored file: ${e.adoption_class} (${where}).`,
+            `adoption_class not allowed for vendored file: ${e.adoption_class} (${where}).`,
           );
         }
         // Provenance -> Scope membership
         const sc = scopeByPath.get(e.upstream_path);
         if (!sc) {
           failures.push(
-            `G5: provenance upstream_path not in source-scope: ${e.upstream_path} (${where}).`,
+            `provenance upstream_path not in source-scope: ${e.upstream_path} (${where}).`,
           );
         } else if (
           ![
@@ -546,18 +512,18 @@ export function checkAgentUpstreamAdoption(root) {
           ].includes(sc.classification)
         ) {
           failures.push(
-            `G5: provenance upstream_path classified ${sc.classification} (must be REQUIRED_VENDOR/TRANSITIVE/PARTIAL_SURGICAL): ${e.upstream_path} (${where}).`,
+            `provenance upstream_path classified ${sc.classification} (must be REQUIRED_VENDOR/TRANSITIVE/PARTIAL_SURGICAL): ${e.upstream_path} (${where}).`,
           );
         } else if (
           e.adoption_class &&
           !(classCompat[sc.classification] ?? []).includes(e.adoption_class)
         ) {
           failures.push(
-            `G5: adoption_class ${e.adoption_class} incompatible with scope classification ${sc.classification} (${where}).`,
+            `adoption_class ${e.adoption_class} incompatible with scope classification ${sc.classification} (${where}).`,
           );
         }
         if (e.modified === false && e.adoption_class !== "KEEP_AS_IS") {
-          failures.push(`G5: modified=false requires KEEP_AS_IS (${where}).`);
+          failures.push(`modified=false requires KEEP_AS_IS (${where}).`);
         }
         if (
           e.modified === true &&
@@ -567,14 +533,14 @@ export function checkAgentUpstreamAdoption(root) {
           ].includes(e.adoption_class)
         ) {
           failures.push(
-            `G5: modified=true requires a patched adoption class (${where}).`,
+            `modified=true requires a patched adoption class (${where}).`,
           );
         }
       }
     }
   }
 
-  // ---- G10 : local import reachability ----
+  // ---- local import reachability ----
   if (existsSync(mechanicsDir)) {
     const importGraph = analyzeVendoredImportGraph({
       root,
@@ -583,14 +549,14 @@ export function checkAgentUpstreamAdoption(root) {
     });
     if (importGraph.unresolved.length > 0) {
       failures.push(
-        `G10: vendored source has unresolved local imports: ${importGraph.unresolved
+        `vendored source has unresolved local imports: ${importGraph.unresolved
           .map(({ from, specifier }) => `${from} -> ${specifier}`)
           .join(", ")}.`,
       );
     }
     if (importGraph.unreachable.length > 0) {
       failures.push(
-        `G10: vendored source is outside the ${MECHANICS_ROOT}/root.tsx dependency closure: ${importGraph.unreachable.join(", ")}.`,
+        `vendored source is outside the ${MECHANICS_ROOT}/root.tsx dependency closure: ${importGraph.unreachable.join(", ")}.`,
       );
     }
   }

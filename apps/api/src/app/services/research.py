@@ -660,9 +660,7 @@ class ResearchApplicationService:
                 # clients poll this read for every owned run.
                 return None
             decision = session.get(RunCheckpointDecisionModel, checkpoint.id)
-            return _run_checkpoint(
-                checkpoint, decision, run_revision=snapshot.revision
-            )
+            return _run_checkpoint(checkpoint, decision, run_revision=snapshot.revision)
 
     def submit_run_checkpoint_decision(
         self,
@@ -1536,7 +1534,6 @@ def _active_run_conflict() -> SecurityProblem:
 def _encode_project_cursor(project_id: UUID, *, session_id: str) -> str:
     return _encode_signed_cursor(
         {
-            "v": 1,
             "collection": "research_projects",
             "session_id": session_id,
             "ordering": "created_at.desc,id.desc",
@@ -1551,14 +1548,12 @@ def _decode_project_cursor(cursor: str, *, session_id: str) -> UUID:
         if (
             set(payload)
             != {
-                "v",
                 "collection",
                 "session_id",
                 "ordering",
                 "anchor_id",
                 "signature",
             }
-            or payload["v"] != 1
             or payload["collection"] != "research_projects"
             or payload["session_id"] != session_id
             or payload["ordering"] != "created_at.desc,id.desc"
@@ -1572,7 +1567,6 @@ def _decode_project_cursor(cursor: str, *, session_id: str) -> UUID:
 def _encode_thread_cursor(*, project_id: UUID, sequence: int) -> str:
     return _encode_signed_cursor(
         {
-            "v": 1,
             "collection": "research_thread",
             "project_id": str(project_id),
             "ordering": "sequence.asc",
@@ -1589,14 +1583,12 @@ def _decode_thread_cursor(cursor: str | None, *, project_id: UUID) -> int:
         if (
             set(payload)
             != {
-                "v",
                 "collection",
                 "project_id",
                 "ordering",
                 "sequence",
                 "signature",
             }
-            or payload["v"] != 1
             or payload["collection"] != "research_thread"
             or payload["project_id"] != str(project_id)
             or payload["ordering"] != "sequence.asc"

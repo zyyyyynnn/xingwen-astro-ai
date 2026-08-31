@@ -19,11 +19,11 @@
     "format:check": "prettier --check \"apps/{site,workspace}/**/*.{astro,css,html,json,ts,tsx}\" \"packages/{design-tokens,ui,domain,contracts,data-access,workspace-core,research-adapter,testing}/**/*.{css,json,ts,tsx}\" \"tests/{e2e,e2e-integration}/**/*.ts\" \"scripts/*.mjs\" \"*.{json,mjs,yaml,yml}\" \".github/**/*.yml\" && node scripts/format-agent-upstream-modifications.mjs",
     "check:docs": "node scripts/check-docs.mjs",
     "check:start-dev": "node --test scripts/start-dev.test.mjs",
-    "check:architecture": "node scripts/check-architecture-delegacy.mjs && node scripts/check-frontend-architecture.mjs && node scripts/check-agent-upstream-adoption.mjs && node scripts/check-agent-upstream-policy.mjs",
+    "check:architecture": "node scripts/check-frontend-architecture.mjs && node scripts/check-agent-upstream-adoption.mjs && node scripts/check-agent-upstream-policy.mjs",
     "check:agent-upstream": "node scripts/check-agent-upstream-adoption.mjs && node scripts/check-agent-upstream-policy.mjs",
     "generate:agent-upstream-provenance": "node scripts/generate-agent-upstream-provenance.mjs",
     "check:versionless": "node scripts/check-versionless-api.mjs",
-    "test:tooling": "node --test scripts/check-docs.test.mjs scripts/check-architecture-delegacy.test.mjs scripts/check-agent-upstream-adoption.test.mjs scripts/check-agent-upstream-policy.test.mjs scripts/check-versionless-api.test.mjs scripts/check-title-governance.test.mjs && python -m unittest scripts.test_check_foundation",
+    "test:tooling": "node --test scripts/check-docs.test.mjs scripts/check-agent-upstream-adoption.test.mjs scripts/check-agent-upstream-policy.test.mjs scripts/check-versionless-api.test.mjs scripts/check-title-governance.test.mjs && python -m unittest scripts.test_check_foundation",
     "check": "pnpm format:check && pnpm check:docs && pnpm check:start-dev && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm check:architecture && pnpm check:versionless && pnpm test:tooling"
   },
   "devDependencies": {

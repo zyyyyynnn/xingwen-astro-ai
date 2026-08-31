@@ -40,8 +40,7 @@ from app.services.literature_artifacts import LiteratureArtifactReadService
 
 _MAX_PAGE_SIZE = 100
 _MAX_CONTENT_BYTES = 8 * 1024 * 1024
-_ORDERING = "stable_id.asc.v1.0"
-_CURSOR_VERSION = 1
+_ORDERING = "stable_id.asc"
 
 
 @dataclass(frozen=True, slots=True)
@@ -724,7 +723,6 @@ def _encode_cursor(
     last_id: str,
 ) -> str:
     payload: dict[str, Any] = {
-        "v": _CURSOR_VERSION,
         "version_id": version_id,
         "collection": collection,
         "ordering": _ORDERING,
@@ -757,7 +755,6 @@ def _decode_cursor(
         if not isinstance(payload, dict):
             raise ValueError
         if set(payload) != {
-            "v",
             "version_id",
             "collection",
             "ordering",
@@ -767,8 +764,7 @@ def _decode_cursor(
         }:
             raise ValueError
         if (
-            payload["v"] != _CURSOR_VERSION
-            or payload["version_id"] != version_id
+            payload["version_id"] != version_id
             or payload["collection"] != collection
             or payload["ordering"] != _ORDERING
             or payload["filters"] != dict(filters)

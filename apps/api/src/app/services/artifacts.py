@@ -797,7 +797,6 @@ def _artifact_versions_cursor_scope(*, artifact_id: str) -> str:
 def _encode_cursor(*, scope: str, created_at: datetime, entity_id: UUID) -> str:
     payload = json.dumps(
         {
-            "v": 1,
             "scope": scope,
             "created_at": _utc(created_at).isoformat(),
             "id": str(entity_id),
@@ -812,9 +811,9 @@ def _decode_cursor(value: str, *, scope: str) -> tuple[datetime, UUID]:
     try:
         padded = value + "=" * (-len(value) % 4)
         payload = json.loads(base64.urlsafe_b64decode(padded).decode("utf-8"))
-        if set(payload) != {"v", "scope", "created_at", "id"}:
+        if set(payload) != {"scope", "created_at", "id"}:
             raise ValueError
-        if payload["v"] != 1 or payload["scope"] != scope:
+        if payload["scope"] != scope:
             raise ValueError
         created_at = datetime.fromisoformat(payload["created_at"])
         if created_at.tzinfo is None:

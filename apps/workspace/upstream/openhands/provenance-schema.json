@@ -1,5 +1,5 @@
 {
-  "schema": "xingwen.agent-upstream.provenance/v2",
+  "schema": "xingwen.agent-upstream.provenance",
   "description": "Manifest-level OpenHands source identity and exact file mapping for every adopted mechanics source file.",
   "manifest_file": "provenance.json",
   "policy_file": "source-policy.json",

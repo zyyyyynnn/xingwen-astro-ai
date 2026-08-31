@@ -1,5 +1,5 @@
 {
-  "schema": "xingwen.agent-upstream.provenance/v2",
+  "schema": "xingwen.agent-upstream.provenance",
   "generated_by": "scripts/generate-agent-upstream-provenance.mjs",
   "source": {
     "repository": "https://github.com/OpenHands/OpenHands.git",

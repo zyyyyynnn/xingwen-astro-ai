@@ -145,7 +145,7 @@ function saveProvenance(root, entries, overrides = {}) {
   const lock = load(root, "upstream-lock.json");
   save(root, "upstream-lock.json", lock);
   save(root, "provenance.json", {
-    schema: "xingwen.agent-upstream.provenance/v2",
+    schema: "xingwen.agent-upstream.provenance",
     generated_by: "test",
     source: SOURCE,
     entries,
@@ -230,7 +230,7 @@ for (const [field, value] of [
       const lock = load(root, "upstream-lock.json");
       lock[field] = value;
       save(root, "upstream-lock.json", lock);
-      assertFail(root, /G2|G3|mismatch/u, `lock ${field}`);
+      assertFail(root, /must be|mismatch/u, `lock ${field}`);
     } finally {
       cleanup(root);
     }

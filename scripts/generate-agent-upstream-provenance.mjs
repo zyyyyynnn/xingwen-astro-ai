@@ -326,7 +326,7 @@ export function generateAgentUpstreamProvenance(root = process.cwd()) {
   }
 
   writeJson(root, `${UPSTREAM_ROOT}/provenance.json`, {
-    schema: "xingwen.agent-upstream.provenance/v2",
+    schema: "xingwen.agent-upstream.provenance",
     generated_by: "scripts/generate-agent-upstream-provenance.mjs",
     source: {
       repository: REPOSITORY,

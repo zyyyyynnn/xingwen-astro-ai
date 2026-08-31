@@ -52,7 +52,6 @@ _MAX_PAGE_SIZE = 100
 _MAX_CONTENT_BYTES = 10 * 1024 * 1024
 _MAX_DOMAIN_ITEMS = 10_000
 _ORDERING = "stable_id.asc"
-_CURSOR_VERSION = 1
 _Item = TypeVar("_Item")
 
 
@@ -690,7 +689,6 @@ def _validate_runtime_producer(
     candidate: LiteratureClaimsCandidate | LiteratureRelationsCandidate,
     read_version: Callable[[str], ArtifactVersionDetail] | None = None,
 ) -> None:
-    producer = candidate.producer
     runtime = version.producer_execution
     if (
         isinstance(candidate, LiteratureRelationsCandidate)
@@ -731,7 +729,9 @@ def _validate_runtime_producer(
             ):
                 raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
             expected_input_hash = compute_literature_relation_adjudication_input_hash(
-                baseline_relation_artifact_version_id=str(version.supersedes_version_id),
+                baseline_relation_artifact_version_id=str(
+                    version.supersedes_version_id
+                ),
                 baseline_relation_content_hash=predecessor.content_hash,
                 literature_claim_artifact_version_id=str(
                     claim_versions[0].artifact_version_id
@@ -750,9 +750,11 @@ def _validate_runtime_producer(
                 candidate.input_versions != predecessor_candidate.input_versions
                 or candidate.claims != predecessor_candidate.claims
                 or candidate.evidence != predecessor_candidate.evidence
-                or candidate.evidence_references != predecessor_candidate.evidence_references
+                or candidate.evidence_references
+                != predecessor_candidate.evidence_references
                 or candidate.evidence_ids != predecessor_candidate.evidence_ids
-                or candidate.source_snapshot_ids != predecessor_candidate.source_snapshot_ids
+                or candidate.source_snapshot_ids
+                != predecessor_candidate.source_snapshot_ids
                 or candidate.input_hash != predecessor_candidate.input_hash
                 or candidate.producer != predecessor_candidate.producer
             ):
@@ -781,8 +783,7 @@ def _validate_runtime_producer(
                     or before.direction != after.direction
                     or before.conditions != after.conditions
                     or before.condition_conflicts != after.condition_conflicts
-                    or before.condition_uncertainties
-                    != after.condition_uncertainties
+                    or before.condition_uncertainties != after.condition_uncertainties
                     or before.comparability != after.comparability
                     or before.evidence_ids != after.evidence_ids
                     or before.source_snapshot_ids != after.source_snapshot_ids
@@ -805,14 +806,19 @@ def _validate_runtime_producer(
                         "literature_relation.review.confidence_below_threshold",
                     ):
                         raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
-                    if after.status not in ("accepted", "rejected") or after.review_reason is not None:
+                    if (
+                        after.status not in ("accepted", "rejected")
+                        or after.review_reason is not None
+                    ):
                         raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
                     if after.adjudication.decision != after.status:
                         raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
             predecessor_traces = {
                 item.trace_id: item for item in predecessor_candidate.reasoning_traces
             }
-            current_traces = {item.trace_id: item for item in candidate.reasoning_traces}
+            current_traces = {
+                item.trace_id: item for item in candidate.reasoning_traces
+            }
             if set(predecessor_traces) != set(current_traces):
                 raise _schema_problem("LITERATURE_RELATIONS_SCHEMA_INVALID")
             for trace_id, before in predecessor_traces.items():
@@ -1000,7 +1006,6 @@ def _encode_cursor(
     *, version_id: str, collection: str, status: str | None, last_id: str
 ) -> str:
     payload: dict[str, Any] = {
-        "v": _CURSOR_VERSION,
         "version_id": version_id,
         "collection": collection,
         "status": status,
@@ -1023,7 +1028,6 @@ def _decode_cursor(
         if (
             set(payload)
             != {
-                "v",
                 "version_id",
                 "collection",
                 "status",
@@ -1031,7 +1035,6 @@ def _decode_cursor(
                 "last_id",
                 "signature",
             }
-            or payload["v"] != _CURSOR_VERSION
             or payload["version_id"] != version_id
             or payload["collection"] != collection
             or payload["status"] != status

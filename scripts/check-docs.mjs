@@ -43,7 +43,6 @@ const repositoryTextFiles = trackedFiles.filter(
     !file.startsWith("apps/workspace/upstream/") &&
     !["apps/api/uv.lock", "pnpm-lock.yaml"].includes(file) &&
     file !== "scripts/governance-identifiers.mjs" &&
-    file !== "scripts/check-architecture-delegacy.mjs" &&
     file !== "scripts/check-title-governance.mjs",
 );
 
