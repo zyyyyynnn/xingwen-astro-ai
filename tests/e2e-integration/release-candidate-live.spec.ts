@@ -22,6 +22,7 @@ import type {
   SourceCollectionArtifactRead,
 } from "../../packages/contracts/src";
 import { exoplanetHostStarFixture } from "@xingwen/data-access";
+import { requestApi } from "./api-request";
 import {
   readReleaseRuntime,
   readPlanningExecutions,
@@ -75,8 +76,7 @@ interface ArtifactHandle {
 }
 
 async function apiData<T>(page: Page, pathname: string): Promise<T> {
-  const response = await page.request.get(API_ORIGIN + pathname);
-  expect(response.ok(), pathname + ": " + (await response.text())).toBe(true);
+  const response = await requestApi(page.request, API_ORIGIN + pathname);
   return ((await response.json()) as { data: T }).data;
 }
 
@@ -339,6 +339,8 @@ function qwenExecution(
   };
 }
 
+test.use({ trace: "off" });
+
 test.skip(
   process.env.RELEASE_CANDIDATE_E2E !== "1",
   "Requires the clean exact-HEAD release stack, real Qwen, and real external scientific sources.",
@@ -410,8 +412,13 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
     .at(-1);
   if (!projectId) throw new Error("Research intent did not create a project");
 
-  const sessionResponse = await page.request.post(API_ORIGIN + "/api/sessions");
-  expect(sessionResponse.ok()).toBe(true);
+  const sessionResponse = await requestApi(
+    page.request,
+    API_ORIGIN + "/api/sessions",
+    {
+      method: "POST",
+    },
+  );
   const session = (await sessionResponse.json()) as {
     data: { csrf_token: string };
   };
@@ -424,9 +431,11 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
     "/api/contracts/drafts/" + project.active_draft_id,
   );
   // Freeze scope, not answers: all records and scientific conclusions come from production acquisition.
-  const patch = await page.request.patch(
+  await requestApi(
+    page.request,
     API_ORIGIN + "/api/contracts/drafts/" + draft.id,
     {
+      method: "PATCH",
       headers: {
         "If-Match": String(draft.version),
         "X-CSRF-Token": session.data.csrf_token,
@@ -468,7 +477,6 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
       },
     },
   );
-  expect(patch.ok(), await patch.text()).toBe(true);
   await page.reload();
   const runPromise = page.waitForResponse(
     (response) =>
@@ -864,16 +872,19 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
 
   // Profile the actual published Dataset through the existing Contract/Worker
   // chain. The input is a fixed ArtifactVersion, not a fabricated observation.
-  const scientificSessionResponse = await page.request.post(
+  const scientificSessionResponse = await requestApi(
+    page.request,
     API_ORIGIN + "/api/sessions",
+    { method: "POST" },
   );
-  expect(scientificSessionResponse.ok()).toBe(true);
   const scientificSession = (await scientificSessionResponse.json()) as {
     data: { csrf_token: string };
   };
-  const scientificDraftResponse = await page.request.post(
+  await requestApi(
+    page.request,
     API_ORIGIN + "/api/projects/" + projectId + "/contract-drafts",
     {
+      method: "POST",
       headers: {
         "Idempotency-Key": "profile-" + datasetArtifact.detail.id,
         "X-CSRF-Token": scientificSession.data.csrf_token,
@@ -907,10 +918,6 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
       },
     },
   );
-  expect(
-    scientificDraftResponse.ok(),
-    await scientificDraftResponse.text(),
-  ).toBe(true);
   await page.goto("/workspace/" + projectId);
   await expect(page.getByTestId("protocol-summary-card")).toBeVisible();
   const scientificRunPromise = page.waitForResponse(
