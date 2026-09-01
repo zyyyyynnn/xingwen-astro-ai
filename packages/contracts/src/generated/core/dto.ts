@@ -562,7 +562,8 @@ export type DerivationKind = "original" | "retry" | "revision" | "fork";
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "GraphInputRole".
  */
-export type GraphInputRole = "literature_relations" | "dataset" | "field_dictionary";
+export type GraphInputRole =
+  "literature_claims" | "literature_relations" | "dataset" | "field_dictionary";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "GraphRejectionReason".
@@ -3470,13 +3471,14 @@ export interface GraphArtifactRead {
 export interface GraphInputVersionClosure {
   project_id: string;
   /**
-   * @minItems 1
-   * @maxItems 3
+   * @minItems 2
+   * @maxItems 256
    */
-  versions:
-    | [GraphArtifactVersionReference]
-    | [GraphArtifactVersionReference, GraphArtifactVersionReference]
-    | [GraphArtifactVersionReference, GraphArtifactVersionReference, GraphArtifactVersionReference];
+  versions: [
+    GraphArtifactVersionReference,
+    GraphArtifactVersionReference,
+    ...GraphArtifactVersionReference[],
+  ];
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -3487,7 +3489,7 @@ export interface GraphArtifactVersionReference {
   artifact_version_id: string;
   content_hash: string;
   input_hash: string;
-  kind: "literature_relations" | "dataset" | "field_dictionary";
+  kind: "literature_claims" | "literature_relations" | "dataset" | "field_dictionary";
   output_hash: string;
   parameters_hash: string;
   producer_name: string;
