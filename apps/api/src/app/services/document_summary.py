@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import json
 from typing import Any
 
@@ -16,6 +16,7 @@ from app.schemas.paper_summary import (
 )
 from app.schemas.scientific_document import DocumentParseCandidate
 from app.services.model_execution import (
+    ModelExecutionError,
     ModelExecutionPort,
     ModelExecutionRequest,
     ModelExecutionResponse,
@@ -181,8 +182,25 @@ class DocumentSummaryService:
         producer_execution_id: str | None = None,
     ) -> DocumentSummaryExecution:
         request = prepared.request
-        response = self._models.execute(prepared.model_request)
-        _validate_model_response(response)
+        try:
+            response = self._models.execute(prepared.model_request)
+            _validate_model_response(response)
+        except ModelExecutionError as exc:
+            if exc.code != "MODEL_RESPONSE_TRUNCATED":
+                raise
+            response = self._models.execute(
+                replace(
+                    prepared.model_request,
+                    input_payload={
+                        **prepared.model_request.input_payload,
+                        "validation_feedback": {
+                            "code": "DOCUMENT_SUMMARY_TRUNCATED",
+                            "concise_output": True,
+                        },
+                    },
+                )
+            )
+            _validate_model_response(response)
         usage = _model_usage(response.token_usage)
         admission = self._pipeline.admit_document(
             document_parse=request.document_parse,

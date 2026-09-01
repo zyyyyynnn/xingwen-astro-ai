@@ -18,6 +18,7 @@ from app.db.models import (
     ResearchRunModel,
 )
 from app.schemas.core import ResearchContract
+from app.schemas.enums import UpstreamFailureClass
 from app.schemas.manifest import ManifestBundle
 from app.schemas.scientific_capabilities import capability_for
 from app.services.content_storage import ContentStorage
@@ -58,9 +59,13 @@ from app.services.research_thread import append_assistant_message
 from packages.prompts.registry import PromptRegistry
 from services.paper_pipeline.errors import (
     LiteratureAdmissionExecutionError,
+    LiteratureClaimExecutionError,
+    LiteratureRelationLocalError,
     PaperSearchExecutionError,
+    PaperSummaryExecutionError,
 )
 from services.data_pipeline.revision import DataRevisionError, DataRevisionErrorCode
+from services.data_pipeline.sources.base import SourceFailure
 from services.paper_pipeline.live_collection import LivePaperCollectionRunner
 
 LOGGER = logging.getLogger(__name__)
@@ -85,6 +90,18 @@ _STEP_STARTED_MESSAGES = {
     "reasoning_literature": "正在提取并核验文献论点、关系与支持证据。",
     "building_graph": "正在把已验证的研究事实组织为证据图谱。",
 }
+
+
+def _source_failure_public_message(error: SourceFailure) -> str:
+    if error.classification is UpstreamFailureClass.rate_limited:
+        return "外部科研数据源请求受限，请稍后重试。"
+    if error.classification in (
+        UpstreamFailureClass.timeout,
+        UpstreamFailureClass.transport,
+        UpstreamFailureClass.upstream_server,
+    ):
+        return "外部科研数据源暂时不可用，请稍后重试。"
+    return "外部科研数据源返回了无法接受的结果，本次执行终止。"
 
 
 def _step_started_message(*, step_key: str, skill_id: str | None) -> str:
@@ -531,6 +548,16 @@ class ResearchRunWorker:
 
     @staticmethod
     def _classify_failure(error: Exception) -> FailureDecision:
+        decision = ResearchRunWorker._classify_failure_cause(error)
+        LOGGER.warning(
+            "ResearchRun step failure classified: error_code=%s retryable=%s",
+            decision.error_code,
+            decision.retryable,
+        )
+        return decision
+
+    @staticmethod
+    def _classify_failure_cause(error: Exception) -> FailureDecision:
         activity_error = error if isinstance(error, AgentActivityError) else None
         cause = activity_error.cause if activity_error is not None else error
         activity_fields = {
@@ -552,12 +579,40 @@ class ResearchRunWorker:
                 retryable=cause.retryable,
                 **activity_fields,
             )
+        if isinstance(cause, SourceFailure):
+            return FailureDecision(
+                error_code=cause.code,
+                public_message=_source_failure_public_message(cause),
+                retryable=cause.retryable,
+                **activity_fields,
+            )
         if isinstance(cause, ModelExecutionError):
             return FailureDecision(
                 error_code=cause.code,
                 public_message=cause.public_message,
                 retryable=cause.code in _RETRYABLE_MODEL_FAILURE_CODES,
                 upstream_request_id=cause.provider_request_id,
+                **activity_fields,
+            )
+        if isinstance(cause, LiteratureClaimExecutionError):
+            return FailureDecision(
+                error_code=cause.code,
+                public_message=cause.public_message,
+                retryable=False,
+                **activity_fields,
+            )
+        if isinstance(cause, PaperSummaryExecutionError):
+            return FailureDecision(
+                error_code=cause.code,
+                public_message=cause.public_message,
+                retryable=cause.retryable,
+                **activity_fields,
+            )
+        if isinstance(cause, LiteratureRelationLocalError):
+            return FailureDecision(
+                error_code=cause.code,
+                public_message=cause.public_message,
+                retryable=False,
                 **activity_fields,
             )
         if isinstance(cause, DataRevisionError):

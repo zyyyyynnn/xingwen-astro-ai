@@ -9,6 +9,7 @@ from uuid import UUID
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.services.model_execution import (
+    ModelExecutionError,
     ModelExecutionRequest,
     ModelExecutionResponse,
     ModelToolCall,
@@ -253,6 +254,7 @@ class ResearchStepAgent:
                 details={"analysis_type": "public"},
             )
         )
+        fallback_analysis: str | None = None
         try:
             response, execution_id = self._model_port.start_agent_call(
                 ModelExecutionRequest(
@@ -276,67 +278,100 @@ class ResearchStepAgent:
                     primary.registry_revision or STEP_TOOLS_REGISTRY_REVISION
                 ),
             )
-        except Exception as error:
-            raise AgentActivityError(
-                activity_id=analysis_activity_id,
-                activity_kind="reasoning",
-                activity_name="分析",
-                cause=error,
-            ) from error
-        try:
-            call = _single_tool_call(response)
-            if call.name != primary.name:
-                raise ValueError(f"Agent requested an unregistered tool: {call.name}")
-            public_analysis = _public_analysis(call)
-        except Exception as error:
-            rejected_tool_call_id: str | None = None
-            rejected_arguments_hash: str | None = None
-            if response.tool_calls:
-                rejected_call = response.tool_calls[0]
-                rejected_tool_call_id = rejected_call.id
-                rejected_arguments_hash = compute_canonical_payload_hash(
-                    rejected_call.arguments
+        except ModelExecutionError:
+            fallback_analysis = _deterministic_public_analysis(primary)
+            self._emit(
+                AgentActivity(
+                    activity_id=analysis_activity_id,
+                    activity_kind="reasoning",
+                    activity_phase="completed",
+                    activity_name="分析",
+                    content=fallback_analysis,
+                    details={
+                        "analysis_type": "public",
+                        "analysis_source": "deterministic_fallback",
+                    },
                 )
-            self._model_port.reject_agent_call(
-                execution_id,
-                error_code="AGENT_TOOL_CALL_REJECTED",
-                error_hash=compute_canonical_payload_hash({"error": str(error)}),
-                response=response,
-                tool_call_id=rejected_tool_call_id,
-                rejected_arguments_hash=rejected_arguments_hash,
             )
+        except Exception as error:
             raise AgentActivityError(
                 activity_id=analysis_activity_id,
                 activity_kind="reasoning",
                 activity_name="分析",
                 cause=error,
             ) from error
-        self._model_port.complete_agent_call(
-            execution_id,
-            response=response,
-            tool_call_id=call.id,
-            validated_arguments_hash=compute_canonical_payload_hash(call.arguments),
-            public_message=public_analysis,
-        )
+        tool_activity_id = f"{attempt_id}:primary"
+        tool_name = primary.name
+        if fallback_analysis is None:
+            try:
+                call = _single_tool_call(response)
+                if call.name != primary.name:
+                    raise ValueError(
+                        f"Agent requested an unregistered tool: {call.name}"
+                    )
+                public_analysis = _public_analysis(call)
+            except Exception as error:
+                rejected_tool_call_id: str | None = None
+                rejected_arguments_hash: str | None = None
+                if response.tool_calls:
+                    rejected_call = response.tool_calls[0]
+                    rejected_tool_call_id = rejected_call.id
+                    rejected_arguments_hash = compute_canonical_payload_hash(
+                        rejected_call.arguments
+                    )
+                self._model_port.reject_agent_call(
+                    execution_id,
+                    error_code="AGENT_TOOL_CALL_REJECTED",
+                    error_hash=compute_canonical_payload_hash({"error": str(error)}),
+                    response=response,
+                    tool_call_id=rejected_tool_call_id,
+                    rejected_arguments_hash=rejected_arguments_hash,
+                )
+                fallback_analysis = _deterministic_public_analysis(primary)
+                self._emit(
+                    AgentActivity(
+                        activity_id=analysis_activity_id,
+                        activity_kind="reasoning",
+                        activity_phase="completed",
+                        activity_name="分析",
+                        content=fallback_analysis,
+                        details={
+                            "analysis_type": "public",
+                            "analysis_source": "deterministic_fallback",
+                        },
+                    )
+                )
+            else:
+                tool_activity_id = call.id
+                tool_name = call.name
+                self._model_port.complete_agent_call(
+                    execution_id,
+                    response=response,
+                    tool_call_id=call.id,
+                    validated_arguments_hash=compute_canonical_payload_hash(
+                        call.arguments
+                    ),
+                    public_message=public_analysis,
+                )
+                self._emit(
+                    AgentActivity(
+                        activity_id=analysis_activity_id,
+                        activity_kind="reasoning",
+                        activity_phase="completed",
+                        activity_name="分析",
+                        content=public_analysis,
+                        details={"analysis_type": "public"},
+                    )
+                )
         self._emit(
             AgentActivity(
-                activity_id=analysis_activity_id,
-                activity_kind="reasoning",
-                activity_phase="completed",
-                activity_name="分析",
-                content=public_analysis,
-                details={"analysis_type": "public"},
-            )
-        )
-        self._emit(
-            AgentActivity(
-                activity_id=call.id,
+                activity_id=tool_activity_id,
                 activity_kind="tool",
                 activity_phase="running",
                 activity_name=primary.label,
                 content=f"正在{primary.label}。",
                 details={
-                    "tool_name": call.name,
+                    "tool_name": tool_name,
                     "tool_kind": primary.tool_kind,
                 },
             )
@@ -356,13 +391,13 @@ class ResearchStepAgent:
         observation = {"status": "completed", "summary": result_summary}
         self._emit(
             AgentActivity(
-                activity_id=call.id,
+                activity_id=tool_activity_id,
                 activity_kind="observation",
                 activity_phase="completed",
                 activity_name=primary.label,
                 content=result_summary,
                 details={
-                    "tool_name": call.name,
+                    "tool_name": tool_name,
                     "tool_kind": primary.tool_kind,
                     "result": observation,
                 },
@@ -373,7 +408,7 @@ class ResearchStepAgent:
         )
         return AgentStepResult(
             value=prepared,
-            activity_id=call.id,
+            activity_id=tool_activity_id,
             activity_name=primary.label,
             activity_result_summary=result_summary,
             assistant_narrative=assistant_narrative,
@@ -400,6 +435,16 @@ def deterministic_assistant_narrative(
     """Fallback Assistant Message for a completed, non-model explanation."""
 
     return f"“{activity_name}”已完成。{activity_result_summary}"
+
+
+def _deterministic_public_analysis(primary: StepTool) -> str:
+    """Safe public analysis when the explanation-only agent call cannot run."""
+
+    return (
+        f"现在执行{primary.label}，因为当前步骤的前置输入已经就绪。"
+        f"本步骤将{primary.description}"
+        "完成依据是唯一授权操作成功返回可校验的结果。"
+    )
 
 
 def _simplified_chinese_text(value: Any, tool_name: str, field: str) -> str:

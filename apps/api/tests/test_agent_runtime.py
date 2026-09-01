@@ -238,37 +238,39 @@ def test_agent_rejects_an_unregistered_tool() -> None:
             )
 
     audit = ScriptedAuditPort(InvalidModel())
+    emitted: list[AgentActivity] = []
     agent = ResearchStepAgent(
         model_port=audit,
         provider="qwen",
         requested_model="qwen3.8-max",
         explicit_revision="",
         prompt=PromptRegistry().get("research_step_agent"),
-        emit=lambda _activity: None,
+        emit=emitted.append,
     )
 
-    try:
-        agent.run(
-            step_key="fetching_data",
-            attempt_id="attempt-1",
-            contract={},
-            available_artifacts={},
-            execute_primary=lambda: {},
-            describe_primary_result=lambda _value: "完成",
-        )
-    except AgentActivityError as exc:
-        assert isinstance(exc.cause, ValueError)
-        assert "unregistered tool" in str(exc.cause)
-        assert exc.activity_kind == "reasoning"
-        assert exc.activity_name == "分析"
-    else:  # pragma: no cover - assertion guard
-        raise AssertionError("unregistered tool must be rejected")
+    result = agent.run(
+        step_key="fetching_data",
+        attempt_id="attempt-1",
+        contract={},
+        available_artifacts={},
+        execute_primary=lambda: {"done": 1},
+        describe_primary_result=lambda _value: "完成",
+    )
+
     assert audit.completed is None
     assert audit.rejected is not None
     assert audit.rejected["error_code"] == "AGENT_TOOL_CALL_REJECTED"
     assert audit.rejected["tool_call_id"] == "tool-invalid"
     assert audit.rejected["rejected_arguments_hash"].startswith("sha256:")
     assert audit.rejected["error_hash"].startswith("sha256:")
+    assert result.value == {"done": 1}
+    fallback = [
+        activity
+        for activity in emitted
+        if activity.details.get("analysis_source") == "deterministic_fallback"
+    ]
+    assert len(fallback) == 1
+    assert "查询天文数据" in fallback[0].content
 
 
 def test_agent_preserves_tool_activity_identity_when_execution_fails() -> None:

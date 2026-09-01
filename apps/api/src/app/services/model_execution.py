@@ -241,6 +241,28 @@ class OpenAICompatibleModelExecutionAdapter:
             ) from exc
 
         latency_ms = _elapsed_ms(started)
+        if raw.finish_reason == "length":
+            raise ModelExecutionError(
+                "MODEL_RESPONSE_TRUNCATED",
+                "研究助手返回结果不完整，请稍后重试。",
+                output_hash=canonical_request_hash({"provider_content": raw.content}),
+                token_usage=raw.token_usage,
+                latency_ms=latency_ms,
+                provider_request_id=raw.provider_request_id,
+            )
+        if request.response_mode == "tool" and raw.finish_reason not in (
+            None,
+            "stop",
+            "tool_calls",
+        ):
+            raise ModelExecutionError(
+                "MODEL_RESPONSE_UNFINISHED",
+                "研究助手未返回完整结果，请稍后重试。",
+                output_hash=canonical_request_hash({"provider_content": raw.content}),
+                token_usage=raw.token_usage,
+                latency_ms=latency_ms,
+                provider_request_id=raw.provider_request_id,
+            )
         try:
             payload = (
                 _parse_json_content(raw.content)
@@ -313,6 +335,7 @@ class QwenModelExecutionAdapter(OpenAICompatibleModelExecutionAdapter):
 @dataclass(frozen=True, slots=True)
 class _RawCompletion:
     content: str
+    finish_reason: str | None
     tool_calls: tuple[dict[str, str], ...]
     token_usage: dict[str, int] | None
     provider_request_id: str | None
@@ -323,6 +346,11 @@ def _consume_completion(
     completion: Any,  # noqa: ANN401
 ) -> _RawCompletion:
     message = completion.choices[0].message if completion.choices else None
+    finish_reason = (
+        getattr(completion.choices[0], "finish_reason", None)
+        if completion.choices
+        else None
+    )
     content = getattr(message, "content", None) or ""
     # Provider private reasoning_content is deliberately not read, stored or
     # returned: it must never enter Thread, RunEvent, shares, exports or
@@ -339,6 +367,7 @@ def _consume_completion(
     returned_model = getattr(completion, "model", None)
     return _RawCompletion(
         content=content,
+        finish_reason=finish_reason,
         tool_calls=tool_calls,
         token_usage=_standard_token_usage(getattr(completion, "usage", None)),
         provider_request_id=(

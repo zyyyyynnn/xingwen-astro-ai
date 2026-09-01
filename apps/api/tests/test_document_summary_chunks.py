@@ -27,9 +27,9 @@ from app.services.document_summary import (
     ExecuteDocumentSummaryRequest,
 )
 from app.services.document_summary_chunks import (
-    ChunkEvidenceViolationError,
     ChunkedDocumentSummaryExecution,
     ChunkedDocumentSummaryService,
+    SummaryChunkViolation,
 )
 from app.services.model_execution import (
     ModelExecutionRequest,
@@ -289,7 +289,7 @@ def test_chunked_execution_is_deterministic() -> None:
 
 
 def test_chunk_statement_citing_foreign_evidence_is_rejected() -> None:
-    with pytest.raises(ChunkEvidenceViolationError):
+    with pytest.raises(SummaryChunkViolation):
         ChunkedDocumentSummaryService(_ChunkModel(invent_evidence=True)).execute(
             _request(513)
         )

@@ -2,9 +2,9 @@
   "schema_version": "1.0.0",
   "prompts": {
     "literature_claim": {
-      "version": "1.1.0",
+      "version": "1.2.0",
       "path": "literature_claim/prompt.md",
-      "content_hash": "sha256:ab64ad3c1da0d41876a81aac630523600e4435c6f7935d9253481a6dadedaffd",
+      "content_hash": "sha256:e21860656031aedc1408ef61859c00d60f87a94c449ea5d43ba3cfb26c38f5f1",
       "output_models": ["LiteratureClaimExtractionOutput"]
     },
     "literature_relation": {

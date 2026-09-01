@@ -53,6 +53,9 @@ _STEP_LABELS = {
     "building_graph": "构建证据图谱",
 }
 _STEP_MAX_ATTEMPTS = {
+    "fetching_data": 2,
+    "searching_papers": 2,
+    "summarizing_papers": 2,
     "reasoning_literature": 2,
 }
 
@@ -272,6 +275,13 @@ def compile_run_plan(
                     success_status="completed",
                     task_id=task.task_id,
                     skill_id=task.skill_id.value,
+                    max_attempts=(
+                        2
+                        if capability_for(task.skill_id.value)[
+                            "produces_source_snapshot"
+                        ]
+                        else 1
+                    ),
                 )
                 for task in phase_tasks
             )

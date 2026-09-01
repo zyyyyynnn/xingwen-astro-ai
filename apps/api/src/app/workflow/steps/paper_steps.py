@@ -23,7 +23,11 @@ from app.schemas.scientific_document import DocumentParseQuality
 from app.services.artifacts import ArtifactReadService
 from app.services.paper_collections import PaperCollectionReadService
 from app.services.document_summary import ExecuteDocumentSummaryRequest
-from app.services.document_summary_chunks import ChunkedDocumentSummaryService
+from app.services.document_summary_chunks import (
+    ChunkedDocumentSummaryService,
+    SummaryChunkViolation,
+)
+from app.services.model_execution import ModelExecutionError
 from app.services.paper_candidate_inputs import PaperCandidateInputReadService
 from app.workflow.document_parse_execution import (
     DocumentInputSource,
@@ -38,7 +42,10 @@ from app.workflow.step_publication import (
     step_uuid,
 )
 from app.workflow.store import AttemptHandle, LeaseGrant
-from services.paper_pipeline.errors import PaperSearchExecutionError
+from services.paper_pipeline.errors import (
+    PaperSearchExecutionError,
+    PaperSummaryExecutionError,
+)
 from services.paper_pipeline.live_collection import LivePaperCollectionRunner
 from services.paper_pipeline.mapper import build_paper_search_input
 from services.paper_pipeline.constants import (
@@ -382,13 +389,24 @@ class PaperStepService:
             result.admission_status is not PaperSummaryAdmissionStatus.accepted
             or result.summary is None
         ):
+            rejection_code = f"PAPER_SUMMARY_{result.failure_stage or 'REJECTED'}"
             model_caller.reject(
                 execution_id,
                 input_hash=None,
                 response=response,
-                error_code=f"PAPER_SUMMARY_{result.failure_stage or 'REJECTED'}",
+                error_code=rejection_code,
             )
-            raise ValueError(f"论文总结未通过准入: {result.failure_stage}")
+            raise PaperSummaryExecutionError(
+                code=rejection_code,
+                public_message="论文总结未通过准入校验，请稍后重试。",
+                retryable=(
+                    result.failure_stage is not None
+                    and (
+                        "json" in str(result.failure_stage)
+                        or "schema" in str(result.failure_stage)
+                    )
+                ),
+            )
         summary = result.summary
         summary_version_id = step_uuid(
             str(context.run_id), "artifact-version:paper_summary"
@@ -561,6 +579,24 @@ class PaperStepService:
         )
         try:
             result = ChunkedDocumentSummaryService(model_execution).execute(request)
+        except SummaryChunkViolation as exc:
+            self._publications.finish_producer(
+                summary_execution.id,
+                status="failed",
+                error_code=exc.code,
+            )
+            raise PaperSummaryExecutionError(
+                code=exc.code,
+                public_message="论文总结未通过批次契约校验，请稍后重试。",
+                retryable=False,
+            ) from exc
+        except ModelExecutionError as exc:
+            self._publications.finish_producer(
+                summary_execution.id,
+                status="failed",
+                error_code=exc.code,
+            )
+            raise
         except Exception:
             self._publications.finish_producer(
                 summary_execution.id,
@@ -580,7 +616,11 @@ class PaperStepService:
                 response=result.model_response,
                 error_code="DOCUMENT_SUMMARY_REJECTED",
             )
-            raise ValueError("论文全文总结未通过证据准入")
+            raise PaperSummaryExecutionError(
+                code="DOCUMENT_SUMMARY_REJECTED",
+                public_message="论文全文总结未通过证据准入。",
+                retryable=False,
+            )
         summary = result.admission.summary
         source_bindings, evidence_bindings = self._publications.paper_summary_bindings(
             context,

@@ -81,6 +81,87 @@ async function apiData<T>(page: Page, pathname: string): Promise<T> {
   return ((await response.json()) as { data: T }).data;
 }
 
+const EVIDENCE_STAGE_KINDS: Record<string, readonly string[]> = {
+  "live-source-acquisition.json": [
+    "dataset",
+    "field_dictionary",
+    "source_collection",
+  ],
+  "live-paper-acquisition.json": ["paper_collection"],
+  "live-document-summary.json": ["paper_summary"],
+  "live-literature-evidence.json": [
+    "literature_claims",
+    "literature_relations",
+  ],
+  "live-graph-evidence.json": ["graph"],
+};
+const writtenEvidenceFiles = new Set<string>();
+
+async function writeIncrementalRunEvidence(page: Page, runId: string) {
+  let artifacts: ResearchArtifact[];
+  try {
+    artifacts = await apiData<ResearchArtifact[]>(
+      page,
+      "/api/runs/" + runId + "/artifacts?limit=100",
+    );
+  } catch {
+    return;
+  }
+  const published = artifacts.filter((item) => item.latest_version_id);
+  for (const [fileName, kinds] of Object.entries(EVIDENCE_STAGE_KINDS)) {
+    if (writtenEvidenceFiles.has(fileName)) continue;
+    const stageArtifacts = published.filter((item) =>
+      kinds.includes(item.kind),
+    );
+    if (stageArtifacts.length !== kinds.length) continue;
+    await report(fileName, {
+      result: "stage_completed",
+      run_id: runId,
+      artifacts: stageArtifacts.map((item) => ({
+        kind: item.kind,
+        title: item.title,
+        artifact_version_id: item.latest_version_id,
+      })),
+    });
+    writtenEvidenceFiles.add(fileName);
+  }
+}
+
+async function writeRunFailureEvidence(
+  page: Page,
+  run: ResearchRun,
+): Promise<void> {
+  const artifacts = await apiData<ResearchArtifact[]>(
+    page,
+    "/api/runs/" + run.id + "/artifacts?limit=100",
+  ).catch(() => [] as ResearchArtifact[]);
+  let completedProducerIds: string[] = [];
+  try {
+    const runtime = (await readReleaseRuntime(run.id)) as {
+      producer_executions?: Array<{ id: string; status: string }>;
+    };
+    completedProducerIds = (runtime.producer_executions ?? [])
+      .filter((item) => item.status === "completed")
+      .map((item) => item.id);
+  } catch {
+    completedProducerIds = [];
+  }
+  await report("release-candidate-failure.json", {
+    source_commit: SOURCE_COMMIT,
+    run_id: run.id,
+    step_key:
+      (run as unknown as { current_step_key?: string | null })
+        .current_step_key ?? null,
+    error_code: run.failure_code ?? null,
+    error_class: run.failure_summary ?? null,
+    completed_artifact_version_ids: artifacts
+      .filter((item) => item.latest_version_id)
+      .map((item) => item.latest_version_id),
+    completed_producer_execution_ids: completedProducerIds,
+    timestamp: new Date().toISOString(),
+  }).catch(() => undefined);
+}
+
 async function waitForRun(
   page: Page,
   runId: string,
@@ -92,11 +173,21 @@ async function waitForRun(
     .poll(
       async () => {
         run = await apiData<ResearchRun>(page, "/api/runs/" + runId);
+        if (
+          run.status !== "completed" &&
+          run.status !== "failed" &&
+          run.status !== "cancelled"
+        ) {
+          await writeIncrementalRunEvidence(page, runId);
+        }
         return run.status;
       },
       { timeout, intervals: [2_000, 3_000, 5_000] },
     )
     .toMatch(/^(completed|failed|cancelled)$/u);
+  if (run.status !== "completed") {
+    await writeRunFailureEvidence(page, run);
+  }
   expect(
     run.status,
     JSON.stringify({

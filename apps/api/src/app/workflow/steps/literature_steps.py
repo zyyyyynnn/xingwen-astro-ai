@@ -22,7 +22,11 @@ from app.schemas.literature_relation import (
 )
 from app.schemas.paper_summary import PaperSummaryArtifactContent
 from app.services.artifacts import ArtifactReadService
-from app.services.literature_claim_chunks import ChunkedLiteratureClaimService
+from app.services.literature_claim_chunks import (
+    ClaimChunkViolation,
+    ChunkedLiteratureClaimService,
+)
+from app.services.model_execution import ModelExecutionError, ModelExecutionResponse
 from app.services.paper_summaries import PaperSummaryReadPort
 from app.workflow.publisher import ArtifactPublication, admit_artifact_candidate
 from app.workflow.step_publication import (
@@ -48,7 +52,11 @@ from services.paper_pipeline.constants import (
     RELATION_PRODUCER_NAME,
     RELATION_PRODUCER_VERSION,
 )
-from services.paper_pipeline.errors import LiteratureAdmissionExecutionError
+from services.paper_pipeline.errors import (
+    LiteratureAdmissionExecutionError,
+    LiteratureClaimExecutionError,
+    LiteratureRelationLocalError,
+)
 from services.paper_pipeline.relation import (
     LiteratureClaimsArtifactVersionInput,
     LiteratureRelationPipeline,
@@ -67,6 +75,19 @@ MODEL_PARAMETERS: dict[str, float | int] = {
     "top_p": 0.8,
     "max_tokens": 8192,
 }
+
+
+def _claims_parent_error_code(
+    response: ModelExecutionResponse | None,
+    error: Exception,
+) -> str:
+    if isinstance(error, ClaimChunkViolation):
+        return error.code
+    if isinstance(error, ModelExecutionError):
+        return error.code
+    if response is not None:
+        return "LITERATURE_CLAIM_POST_PROVIDER_LOCAL_FAILURE"
+    return "LITERATURE_CLAIM_EXECUTION_FAILED"
 
 #: Product capacity for one reviewable relation synthesis batch.
 MAX_RELATION_CANDIDATES = 1
@@ -290,7 +311,7 @@ class LiteratureStepService:
                 response=claims_response,
             )
             claims_terminalized = True
-        except Exception:
+        except Exception as exc:
             if not claims_terminalized:
                 self._publications.finish_producer(
                     claims_execution_id,
@@ -301,12 +322,13 @@ class LiteratureStepService:
                         else None
                     ),
                     response=claims_response,
-                    error_code=(
-                        "LITERATURE_CLAIM_POST_PROVIDER_LOCAL_FAILURE"
-                        if claims_response is not None
-                        else "LITERATURE_CLAIM_EXECUTION_FAILED"
-                    ),
+                    error_code=_claims_parent_error_code(claims_response, exc),
                 )
+            if isinstance(exc, ClaimChunkViolation):
+                raise LiteratureClaimExecutionError(
+                    code=exc.code,
+                    public_message="文献论点提取未通过批次契约校验，请稍后重试。",
+                ) from exc
             raise
         publication = self._publications.publication(
             context,
@@ -602,7 +624,7 @@ class LiteratureStepService:
                 response=relations_response,
             )
             relations_terminalized = True
-        except Exception:
+        except Exception as exc:
             if not relations_terminalized:
                 error_code = "LITERATURE_RELATION_POST_PROVIDER_LOCAL_FAILURE"
                 self._publications.finish_producer(
@@ -612,7 +634,12 @@ class LiteratureStepService:
                     response=relations_response,
                     error_code=error_code,
                 )
-            raise
+            if isinstance(exc, ModelExecutionError):
+                raise
+            raise LiteratureRelationLocalError(
+                code=error_code,
+                public_message="文献关系校验未通过，请稍后重试。",
+            ) from exc
         relations_publication = self._publications.publication(
             context,
             kind="literature_relations",
