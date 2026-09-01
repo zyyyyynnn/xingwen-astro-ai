@@ -86,10 +86,10 @@ def test_compile_run_plan_includes_data_closure_only_when_requested() -> None:
     )
     assert {step.key: step.max_attempts for step in plan} == {
         "planning": 1,
-        "fetching_data": 1,
+        "fetching_data": 2,
         "cleaning_data": 1,
-        "searching_papers": 1,
-        "summarizing_papers": 1,
+        "searching_papers": 2,
+        "summarizing_papers": 2,
         "reasoning_literature": 2,
         "building_graph": 1,
     }

@@ -328,10 +328,10 @@ def test_claim_prompt_is_hash_pinned_and_schema_aligned() -> None:
     record = PromptRegistry().get("literature_claim")
     prompt_bytes = (ROOT / "packages" / "prompts" / record.path).read_bytes()
 
-    assert record.version == "1.1.0"
+    assert record.version == "1.2.0"
     assert record.output_models == ("LiteratureClaimExtractionOutput",)
     assert record.content_hash == (
-        "sha256:ab64ad3c1da0d41876a81aac630523600e4435c6f7935d9253481a6dadedaffd"
+        "sha256:e21860656031aedc1408ef61859c00d60f87a94c449ea5d43ba3cfb26c38f5f1"
     )
     assert b"\r" not in prompt_bytes
     assert f"sha256:{sha256(prompt_bytes).hexdigest()}" == record.content_hash
@@ -438,7 +438,7 @@ def test_valid_claim_is_fully_traceable_and_publisher_ready() -> None:
     assert claim.model_response_hash == result.producer.model_response_hash
     assert candidate.input_versions.paper_summary_output_hash == _summary().output_hash
     assert candidate.producer.prompt_name == "literature_claim"
-    assert candidate.producer.prompt_version == "1.1.0"
+    assert candidate.producer.prompt_version == "1.2.0"
     assert candidate.producer.model_name == "qwen.fixture.1"
     assert candidate.producer.parameters_version == CLAIM_PARAMETERS_VERSION
     assert candidate.producer.output_hash == candidate.output_hash
@@ -793,7 +793,7 @@ def test_prompt_definition_change_changes_input_and_output_hashes(
     shutil.copytree(ROOT / "packages" / "prompts", prompt_root)
     prompt_path = prompt_root / "literature_claim" / "prompt.md"
     changed_content = prompt_path.read_text(encoding="utf-8").replace(
-        "version: 1.1.0",
+        "version: 1.2.0",
         "version: 2.0.0",
         1,
     )
@@ -816,7 +816,7 @@ def test_prompt_definition_change_changes_input_and_output_hashes(
         prompt_registry=PromptRegistry(prompt_root),
     )
 
-    assert first.producer.prompt_version == "1.1.0"
+    assert first.producer.prompt_version == "1.2.0"
     assert second.producer.prompt_version == "2.0.0"
     assert first.producer.input_hash != second.producer.input_hash
     assert first.output_hash != second.output_hash
