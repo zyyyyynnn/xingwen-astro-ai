@@ -16,7 +16,7 @@
           "type": "integer"
         },
         "input_version_count": {
-          "maximum": 3,
+          "maximum": 256,
           "minimum": 1,
           "title": "Input Version Count",
           "type": "integer"

@@ -426,6 +426,7 @@
         },
         "kind": {
           "enum": [
+            "literature_claims",
             "literature_relations",
             "dataset",
             "field_dictionary"
@@ -630,9 +631,9 @@
           "type": "integer"
         },
         "max_input_versions": {
-          "default": 3,
-          "maximum": 3,
-          "minimum": 1,
+          "default": 256,
+          "maximum": 256,
+          "minimum": 2,
           "title": "Max Input Versions",
           "type": "integer"
         },
@@ -833,6 +834,7 @@
     },
     "GraphInputRole": {
       "enum": [
+        "literature_claims",
         "literature_relations",
         "dataset",
         "field_dictionary"
@@ -853,8 +855,8 @@
           "items": {
             "$ref": "#/$defs/GraphArtifactVersionReference"
           },
-          "maxItems": 3,
-          "minItems": 1,
+          "maxItems": 256,
+          "minItems": 2,
           "title": "Versions",
           "type": "array"
         }
@@ -882,7 +884,7 @@
           "type": "integer"
         },
         "input_version_count": {
-          "maximum": 3,
+          "maximum": 256,
           "minimum": 1,
           "title": "Input Version Count",
           "type": "integer"

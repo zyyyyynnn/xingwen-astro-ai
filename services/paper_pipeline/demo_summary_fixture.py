@@ -240,8 +240,7 @@ def build_demo_model_response(candidate: PaperCollectionCandidate) -> str:
             {
                 "statement_id": "stmt.finding_doi",
                 "text": (
-                    f"论文的 DOI 为 {candidate.raw.doi}，可用于核验书目身份"
-                    "与固定全文。"
+                    f"论文的 DOI 为 {candidate.raw.doi}，可用于核验书目身份与固定全文。"
                 ),
                 "evidence_ids": ["ev.finding_doi"],
             }
@@ -260,18 +259,9 @@ def build_demo_model_response(candidate: PaperCollectionCandidate) -> str:
         "research_questions": [
             {
                 "statement_id": "stmt.future_validation",
-                "text": (
-                    "修订目录是否保证所有矮星均完整覆盖，当前证据无法核验。"
-                ),
+                "text": ("修订目录是否保证所有矮星均完整覆盖，当前证据无法核验。"),
                 "evidence_ids": ["ev.z_unverifiable"],
             }
-        ],
-        "evidence_ids": [
-            "ev.dataset_year",
-            "ev.finding_doi",
-            "ev.goal_title",
-            "ev.method_text",
-            "ev.z_unverifiable",
         ],
     }
     return json.dumps(payload, ensure_ascii=False)

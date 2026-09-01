@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import timedelta, timezone
+from datetime import timezone
 import logging
 from typing import Any, Callable
 from uuid import UUID
@@ -176,17 +176,20 @@ class ResearchRunWorker:
             configured_capacity=1,
         )
         draining = worker_state.state == "draining"
-        while not self._stop.is_set():
-            if not draining:
-                run_ids = await asyncio.to_thread(self._queued_run_ids)
-                for run_id in run_ids:
-                    try:
-                        await self.execute_run(run_id)
-                    except Exception:
-                        LOGGER.exception(
-                            "ResearchRun execution failed",
-                            extra={"run_id": str(run_id)},
-                        )
+        active_run: asyncio.Task[None] | None = None
+        while not self._stop.is_set() or active_run is not None:
+            if active_run is not None and active_run.done():
+                try:
+                    await active_run
+                except Exception as error:
+                    LOGGER.error(
+                        "ResearchRun execution failed",
+                        extra={
+                            "run_id": active_run.get_name(),
+                            "error_class": type(error).__name__,
+                        },
+                    )
+                active_run = None
             try:
                 snapshot = await asyncio.to_thread(
                     self._workers.heartbeat, self._worker_id
@@ -194,10 +197,20 @@ class ResearchRunWorker:
                 draining = snapshot.state == "draining"
             except RuntimeError:
                 draining = True
-            try:
-                await asyncio.wait_for(self._stop.wait(), timeout=0.5)
-            except TimeoutError:
-                pass
+            if active_run is None and not draining and not self._stop.is_set():
+                run_ids = await asyncio.to_thread(self._queued_run_ids)
+                if run_ids and not self._stop.is_set():
+                    run_id = run_ids[0]
+                    active_run = asyncio.create_task(
+                        self.execute_run(run_id), name=str(run_id)
+                    )
+            if active_run is not None:
+                await asyncio.wait((active_run,), timeout=0.5)
+            elif not self._stop.is_set():
+                try:
+                    await asyncio.wait_for(self._stop.wait(), timeout=0.5)
+                except TimeoutError:
+                    pass
         try:
             await asyncio.to_thread(self._workers.mark_stopped, self._worker_id)
         except RuntimeError:
@@ -224,7 +237,7 @@ class ResearchRunWorker:
         lease = self._store.acquire_lease(
             run_id,
             owner=self._worker_id,
-            lease_duration=timedelta(minutes=30),
+            lease_duration=self._executor.lease_duration,
             expected_status=snapshot.status,
             expected_revision=snapshot.revision,
         )
@@ -291,13 +304,15 @@ class ResearchRunWorker:
                             attempt,
                             lease,
                         )
-                    except Exception:
-                        LOGGER.exception(
+                    except Exception as error:
+                        LOGGER.error(
                             "ResearchRun step execution failed",
                             extra={
                                 "run_id": str(run_id),
                                 "step_key": step_key,
                                 "attempt_id": str(attempt.attempt_id),
+                                "error_class": type(error).__name__,
+                                "error_code": self._classify_failure(error).error_code,
                             },
                         )
                         raise

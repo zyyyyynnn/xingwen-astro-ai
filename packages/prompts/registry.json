@@ -2,21 +2,21 @@
   "schema_version": "1.0.0",
   "prompts": {
     "literature_claim": {
-      "version": "1.0.2",
+      "version": "1.1.0",
       "path": "literature_claim/prompt.md",
-      "content_hash": "sha256:e12fecc51d91b976dd385e73e3f98d572b1fb2c59ab97f69b518b2fe4eb47b11",
+      "content_hash": "sha256:ab64ad3c1da0d41876a81aac630523600e4435c6f7935d9253481a6dadedaffd",
       "output_models": ["LiteratureClaimExtractionOutput"]
     },
     "literature_relation": {
-      "version": "2.0.10",
+      "version": "2.1.0",
       "path": "literature_relation/prompt.md",
-      "content_hash": "sha256:c056fb0732e49cc1e8a2b3748a70c569757478858f3d6dbe6129d65aaa80ac37",
+      "content_hash": "sha256:25d95bc7283ba00c000d300e7d52bd62652089e055241acdffb7ea635f160f59",
       "output_models": ["LiteratureRelationExtractionOutput"]
     },
     "paper_summary": {
-      "version": "3.0.0",
+      "version": "4.0.0",
       "path": "paper_summary/prompt.md",
-      "content_hash": "sha256:758c9277003b9597514721ce359738219b7ba154ab0a924cb5b9600cef0b6323",
+      "content_hash": "sha256:6b0a4c43898aaf1aaa8d9babff6a6257a069e20eb915813390108eea05d654f4",
       "output_models": ["PaperSummaryModelOutput"]
     },
     "research_contract_planner": {

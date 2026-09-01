@@ -1,18 +1,8 @@
-"""Section-aware chunking and deterministic reduction for long papers.
+"""Bounded document-order chunks and Evidence-preserving section reduction.
 
-Inosum fed whole papers to a single classification prompt and had no notion of
-page, block, or evidence identity.  This module replaces that behavior with:
-
-1. ``build_summary_chunks`` — ordered, section-aware ``SummaryChunk``
-   construction from structured document blocks with bounded text size and
-   block count per chunk.
-2. ``reduce_chunk_sections`` — deterministic aggregation of per-chunk
-   structured extractions into the fixed seven-section summary payload,
-   preserving evidence identity end to end.
-
-The input is a narrow projection (``ChunkDocumentBlock``) so the pipeline does
-not depend on parser internals; callers map their ``DocumentParse`` blocks into
-this stable shape.
+Adjacent sections can share a chunk: section metadata belongs to the source
+blocks, not to a mandatory model-call boundary. The narrow input projection
+keeps the pipeline independent of parser internals.
 """
 
 from __future__ import annotations
@@ -31,7 +21,7 @@ SEVEN_SECTIONS = (
 )
 
 DEFAULT_MAX_CHUNK_CHARACTERS = 12_000
-DEFAULT_MAX_CHUNK_BLOCKS = 64
+DEFAULT_MAX_CHUNK_BLOCKS = 256
 DEFAULT_MAX_CHUNKS = 200
 
 
@@ -95,9 +85,9 @@ def build_summary_chunks(
 ) -> tuple[SummaryChunk, ...]:
     """Construct ordered section-aware chunks from document blocks.
 
-    Chunks never cross a section boundary introduced by a heading, respect the
-    per-chunk character and block budgets, and carry the evidence ids of every
-    contributing block so downstream statements cannot invent provenance.
+    Adjacent sections share available capacity within the character and block
+    budgets. Every contributing block keeps its Evidence identity, and the
+    section hint records each represented section in document order.
     """
 
     if not 1_000 <= max_chunk_characters <= 64_000:
@@ -128,9 +118,10 @@ def build_summary_chunks(
     current_blocks: list[ChunkDocumentBlock] = []
     current_characters = 0
     current_section: str | None = None
+    current_sections: list[str] = []
 
     def flush() -> None:
-        nonlocal current_blocks, current_characters, current_section
+        nonlocal current_blocks, current_characters, current_sections
         if not current_blocks:
             return
         if len(chunks) >= max_chunks:
@@ -149,7 +140,7 @@ def build_summary_chunks(
             SummaryChunk(
                 chunk_id=f"chunk.{len(chunks) + 1:04d}",
                 order=len(chunks) + 1,
-                section_hint=current_section or "document",
+                section_hint=" / ".join(current_sections),
                 block_ids=block_ids,
                 evidence_ids=evidence_ids,
                 text="\n\n".join(block.text.strip() for block in current_blocks),
@@ -157,21 +148,19 @@ def build_summary_chunks(
         )
         current_blocks = []
         current_characters = 0
+        current_sections = []
 
     for block in ordered:
-        section_boundary = (
-            block.section is not None and block.section != current_section
-        )
-        if section_boundary:
-            flush()
+        if block.section is not None:
             current_section = block.section
-        elif current_section is None:
-            current_section = block.section or "document"
         size = len(block.text.strip())
         if (
             current_blocks and current_characters + 2 + size > max_chunk_characters
         ) or len(current_blocks) >= max_chunk_blocks:
             flush()
+        section = current_section or "document"
+        if section not in current_sections:
+            current_sections.append(section)
         current_characters += size + (2 if current_blocks else 0)
         current_blocks.append(block)
     flush()

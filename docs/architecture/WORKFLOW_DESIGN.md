@@ -57,10 +57,13 @@ Planner 只有在持久化明确的输入请求后才能从 `planning` 进入 `w
 - `GET /api/runs/{id}` 返回权威快照；RunEvent 仅用于按 `sequence` 恢复增量通知，且不得超过 `latest_event_sequence`。
 - 状态写入使用 `expected_status + expected_revision` 条件更新。
 - 同一 Run 只允许一个有效 lease；lease 绑定 token、owner、expiry 与递增 generation。
+- Executor 在 Step 执行期间通过同一 Workflow Store 定期续租；续租保持 Attempt 的 revision 与 token/generation，不推进状态或事件。租约失效或取消后停止执行协调，晚到结果仍由 Publisher 围栏拒绝。
+- Worker 的容量心跳在活跃 Run 与正常排空期间持续更新；排空等待当前 Run 结束，并停止领取后续 Run。
 - RunEvent 是项目私有消息流的唯一增量事实：`activity_id` 标识一个逻辑操作，`activity_kind / activity_phase / activity_name / step_key / progress / content / details / artifact_version_ids / occurred_at` 表达分析、工具调用、Observation、重试、产物与终态。同一工具的运行、Observation 与产物提交必须使用同一个 `activity_id` 原位演化，不得写成开始/完成两条重复流水账。
 - 每个服务端冻结 Step 只进行一次模型决策：模型通过唯一注册主工具的结构化参数生成简体中文公开分析（`public_analysis`），并选择该工具；主工具成功返回 Observation 后由服务端完成 Step，不再通过额外模型调用请求 `finish_step`。研究协议与前序产物作为任务上下文直接提供，不重复播报无独立决策价值的读取动作。
 - `public_analysis` 以 `reasoning` Activity 持久化；模型响应前先写同一 `activity_id` 的运行态，结构化参数验证通过后原位更新为完成态。Provider 私有 `reasoning_content` 不进入 RunEvent、Research Thread、ShareSnapshot、Export 或正式 Artifact Renderer。ReasoningTrace 仍是证据绑定的正式产物，与步骤级公开分析是两个边界。
 - 工具 Activity 只记录注册工具的稳定名称、经过领域过滤的参数、来源与结果摘要；凭据、原始传输响应和内部错误堆栈不得写入 RunEvent。
+- Worker 失败日志保留 Run、Step、Attempt 和错误分类；模型输出校验错误隐藏输入内容，私有 provider payload 不进入日志。
 
 ## 4.1 消息边界
 

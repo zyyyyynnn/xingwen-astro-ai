@@ -42,7 +42,7 @@ from app.schemas.scientific_document import (
 
 _NATIVE_PACKAGE = "docling-parse"
 _PARSER_PROFILE_ID = "scientific-document-hybrid"
-_PARSER_PROFILE_VERSION = "1.2.0"
+_PARSER_PROFILE_VERSION = "1.3.0"
 _ROUTING_POLICY_ID = "native-first-page-hybrid"
 _RESOURCE_POLICY_ID = "bounded-document-pages"
 _VISUAL_ENGINE = "PaddleOCR-VL layout-parsing service"
@@ -453,11 +453,13 @@ class HybridScientificDocumentParser:
         formulas: list[DocumentFormula] = []
         figures: list[DocumentFigure] = []
         unresolved_pages = 0
-        for page_count, (page_index, page) in enumerate(
+        for page_count, (page_number, page) in enumerate(
             document.iterate_pages(), start=1
         ):
             if page_count > self._max_pages:
                 raise ValueError("PDF exceeds the configured document page budget")
+            # Docling uses one-based page numbers; canonical locators are zero-based.
+            page_index = page_number - 1
             dimension = page.dimension
             page_width = float(dimension.width)
             page_height = float(dimension.height)
@@ -612,12 +614,12 @@ def _canonical_visual_page(
             page_width=page_width,
             page_height=page_height,
         )
+        text = _visual_text(item.content)
         quality = (
             DocumentParseQuality.accepted
-            if item.content is not None
+            if text is not None
             else DocumentParseQuality.partial
         )
-        text = item.content
         if kind is DocumentBlockKind.table:
             table = _markdown_table(
                 item.content,
@@ -649,7 +651,7 @@ def _canonical_visual_page(
                     page_index=page_index,
                     bbox=bbox,
                     raw_text=item.content,
-                    latex=item.content,
+                    latex=text,
                     quality=quality,
                     parser_backend=ParserBackend.visual,
                     parser_profile_id=profile_id,
@@ -661,7 +663,7 @@ def _canonical_visual_page(
                     block_id=block_id,
                     page_index=page_index,
                     bbox=bbox,
-                    caption=item.content,
+                    caption=text,
                     quality=quality,
                     parser_backend=ParserBackend.visual,
                     parser_profile_id=profile_id,
@@ -673,14 +675,14 @@ def _canonical_visual_page(
 def _block_kind(label: str) -> DocumentBlockKind:
     if label in {"doc_title", "paragraph_title", "title", "section_title"}:
         return DocumentBlockKind.heading
+    if "caption" in label or label in {"figure_title", "table_title"}:
+        return DocumentBlockKind.caption
     if "table" in label:
         return DocumentBlockKind.table
     if "formula" in label or "equation" in label:
         return DocumentBlockKind.formula
     if label in {"image", "figure", "chart"}:
         return DocumentBlockKind.figure
-    if "caption" in label or label in {"figure_title", "table_title"}:
-        return DocumentBlockKind.caption
     if "reference" in label:
         return DocumentBlockKind.reference
     if label in {"footnote", "header", "footer", "number"}:
@@ -688,6 +690,57 @@ def _block_kind(label: str) -> DocumentBlockKind:
     if "list" in label:
         return DocumentBlockKind.list
     return DocumentBlockKind.paragraph
+
+
+class _VisualTextParser(HTMLParser):
+    """Project presentation markup to text without promoting image attributes."""
+
+    _FORMATTING_TAGS = frozenset(
+        {
+            "div",
+            "span",
+            "p",
+            "br",
+            "b",
+            "strong",
+            "i",
+            "em",
+            "sub",
+            "sup",
+            "img",
+            "figure",
+            "figcaption",
+            "a",
+        }
+    )
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+
+    def handle_data(self, data: str) -> None:
+        self.parts.append(data)
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in {"br", "div", "p", "figcaption"}:
+            self.parts.append("\n")
+        elif tag not in self._FORMATTING_TAGS:
+            self.parts.append(self.get_starttag_text())
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in {"div", "p", "figcaption"}:
+            self.parts.append("\n")
+        elif tag not in self._FORMATTING_TAGS:
+            self.parts.append(f"</{tag}>")
+
+
+def _visual_text(content: str | None) -> str | None:
+    if content is None:
+        return None
+    parser = _VisualTextParser()
+    parser.feed(content)
+    parser.close()
+    return "".join(parser.parts).strip() or None
 
 
 def _table_block_text(table: DocumentTable) -> str | None:
@@ -952,9 +1005,8 @@ def project_visual_page_result(
 
     page_width = _positive_int(width, "width")
     page_height = _positive_int(height, "height")
-    if (
-        not isinstance(raw_blocks, Iterable)
-        or isinstance(raw_blocks, (str, bytes, bytearray, dict))
+    if not isinstance(raw_blocks, Iterable) or isinstance(
+        raw_blocks, (str, bytes, bytearray, dict)
     ):
         raise VisualParseError("PaddleOCR-VL omitted parsing_res_list")
     if isinstance(raw_blocks, Sized) and len(raw_blocks) > _MAX_VISUAL_BLOCKS:
@@ -992,9 +1044,7 @@ def project_visual_page_result(
                     page_width,
                     page_height,
                 ),
-                order=_non_negative_int(
-                    _visual_block_field(raw, "block_order"), index
-                ),
+                order=_non_negative_int(_visual_block_field(raw, "block_order"), index),
             )
         )
     return VisualPageResult(page_width, page_height, tuple(blocks))
@@ -1002,8 +1052,12 @@ def project_visual_page_result(
 
 def _is_visual_block(item: object) -> bool:
     get = getattr(item, "get", None)
-    return isinstance(item, dict) or callable(get) or any(
-        hasattr(item, attribute) for attribute in _BLOCK_ATTRIBUTE_NAMES.values()
+    return (
+        isinstance(item, dict)
+        or callable(get)
+        or any(
+            hasattr(item, attribute) for attribute in _BLOCK_ATTRIBUTE_NAMES.values()
+        )
     )
 
 

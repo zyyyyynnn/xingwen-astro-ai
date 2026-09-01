@@ -82,10 +82,13 @@ SAFE_PARAMETERS = {
     "response_format": "json_schema",
 }
 
+
 def _persisted_uuid(value: str) -> str:
     return str(uuid5(NAMESPACE_URL, f"xingwen.literature-relation-test:{value}"))
 
+
 PROJECT_ID = _persisted_uuid("project.fixture")
+
 
 def _claim_version(
     tag: str,
@@ -235,6 +238,7 @@ def _claim_version(
         content=content,
     )
 
+
 def _confidence(
     assessment_id: str = "confidence.relation.fixture",
     *,
@@ -285,6 +289,7 @@ def _confidence(
         basis=("Confidence covers relation type and admission decision.",),
     )
 
+
 def _nan_confidence() -> LiteratureRelationConfidenceAssessment:
     base = _confidence()
     values = {
@@ -293,6 +298,7 @@ def _nan_confidence() -> LiteratureRelationConfidenceAssessment:
     }
     values["score"] = float("nan")
     return LiteratureRelationConfidenceAssessment.model_construct(**values)
+
 
 def _unserializable_confidence() -> LiteratureRelationConfidenceAssessment:
     base = _confidence()
@@ -303,6 +309,7 @@ def _unserializable_confidence() -> LiteratureRelationConfidenceAssessment:
     values["subject"] = object()
     values["basis"] = (object(),)
     return LiteratureRelationConfidenceAssessment.model_construct(**values)
+
 
 def _adjudication(
     *,
@@ -329,6 +336,7 @@ def _adjudication(
         baseline_relation_id="relation.baseline",
         basis=("A reviewer adjudicated the confidence-gated Relation.",),
     )
+
 
 def _relation(
     source: str = "claim.source",
@@ -389,12 +397,14 @@ def _relation(
         },
     }
 
+
 def _response(*relations: dict[str, object]) -> str:
     return json.dumps(
         {"schema_version": "1.0.0", "relations": list(relations)},
         ensure_ascii=False,
         sort_keys=True,
     )
+
 
 def _admit(
     model_response: str | None = None,
@@ -435,6 +445,7 @@ def _admit(
         confidence_assessments=assessments,
         **kwargs,
     )
+
 
 def _publication_bindings(candidate):
     snapshot_bindings = tuple(
@@ -477,6 +488,7 @@ def _publication_bindings(candidate):
     )
     return snapshot_bindings, evidence_bindings
 
+
 def _publish(candidate, *, schema_version=None, snapshots=None, evidence=None):
     snapshot_bindings, evidence_bindings = _publication_bindings(candidate)
     return admit_artifact_candidate(
@@ -490,6 +502,7 @@ def _publish(candidate, *, schema_version=None, snapshots=None, evidence=None):
         source_snapshot_bindings=snapshot_bindings,
         evidence_bindings=evidence_bindings,
     )
+
 
 def test_happy_path_builds_sealed_relation_and_trace_candidate() -> None:
     result = _admit()
@@ -517,6 +530,7 @@ def test_happy_path_builds_sealed_relation_and_trace_candidate() -> None:
     )
     assert published.evidence_ids != result.publisher_candidate.evidence_ids
 
+
 def test_complete_relation_taxonomy_is_admitted() -> None:
     relations = []
     assessments = {}
@@ -540,6 +554,7 @@ def test_complete_relation_taxonomy_is_admitted() -> None:
         item.status is LiteratureRelationStatus.accepted for item in result.records
     )
 
+
 def test_workflow_pair_policy_uses_admission_comparability() -> None:
     source = _claim_version("source", metric="radius", unit="earth_radius")
     target = _claim_version("target")
@@ -558,6 +573,7 @@ def test_workflow_pair_policy_uses_admission_comparability() -> None:
     assert pair["non_structural_metric_status"] == "incomparable"
     assert pair["non_structural_unit_status"] == "incomparable"
 
+
 def test_live_confidence_scope_excludes_inadmissible_non_structural_pairs() -> None:
     source = _claim_version("source", metric="radius", unit="earth_radius")
     target = _claim_version("target")
@@ -574,6 +590,7 @@ def test_live_confidence_scope_excludes_inadmissible_non_structural_pairs() -> N
     }
 
     assert source_to_target_types == STRUCTURAL_RELATION_TYPES
+
 
 def test_publisher_blocks_non_authoritative_relation_models() -> None:
     result = _admit()
@@ -599,6 +616,7 @@ def test_publisher_blocks_non_authoritative_relation_models() -> None:
                 domain_validator=lambda _context: None,
                 quality_validator=lambda _context: None,
             )
+
 
 def test_publisher_requires_exact_persisted_literature_provenance_bindings() -> None:
     candidate = _admit().publisher_candidate
@@ -641,6 +659,7 @@ def test_publisher_requires_exact_persisted_literature_provenance_bindings() -> 
             evidence_bindings=invalid_evidence,
         )
 
+
 def test_invalid_json_and_schema_are_fatal_and_stable() -> None:
     invalid_json = _admit("not-json")
     invalid_schema = _admit(json.dumps({"schema_version": "1.0.0"}))
@@ -660,7 +679,10 @@ def test_invalid_json_and_schema_are_fatal_and_stable() -> None:
         LiteratureRelationRejectionReason.schema_invalid,
     )
     assert invalid_json.records == invalid_schema.records == ()
-    assert invalid_json.publisher_candidate is invalid_schema.publisher_candidate is None
+    assert (
+        invalid_json.publisher_candidate is invalid_schema.publisher_candidate is None
+    )
+
 
 @pytest.mark.parametrize(
     ("case", "expected_stage", "expected_reason"),
@@ -931,6 +953,7 @@ def test_record_level_gates_use_stable_stage_and_reason(
     assert result.publisher_candidate is not None
     assert result.publisher_candidate.relations == result.records
 
+
 def test_all_rejected_relations_keep_a_truthful_empty_embedded_trace_set() -> None:
     relation = _relation()
     relation["trace"] = None
@@ -946,6 +969,8 @@ def test_all_rejected_relations_keep_a_truthful_empty_embedded_trace_set() -> No
         "candidate": 0,
         "rejected": 1,
     }
+
+
 def test_multiple_failures_obey_global_gate_priority() -> None:
     relation = _relation()
     relation["evidence_ids"] = []
@@ -973,6 +998,7 @@ def test_multiple_failures_obey_global_gate_priority() -> None:
         ),
     )
     assert result.records[0].failure_stage is LiteratureRelationFailureStage.input
+
 
 def test_trace_and_relation_conflicts_are_closed_at_conditions_gate() -> None:
     trace_only = _relation()
@@ -1013,6 +1039,7 @@ def test_trace_and_relation_conflicts_are_closed_at_conditions_gate() -> None:
         is LiteratureRelationStatus.rejected
     )
 
+
 def test_tri_state_and_not_evaluable_confidence_are_explicit() -> None:
     accepted = _admit()
     low = _confidence(score=0.5)
@@ -1038,6 +1065,7 @@ def test_tri_state_and_not_evaluable_confidence_are_explicit() -> None:
         is LiteratureRelationConfidenceStatus.not_evaluable
     )
 
+
 @pytest.mark.parametrize(
     ("decision", "expected_status"),
     (
@@ -1061,10 +1089,14 @@ def test_exact_adjudication_decides_confidence_gated_relation(
     relation = candidate.relations[0]
     assert relation.status is LiteratureRelationStatus.candidate
     baseline_version_id = _persisted_uuid("literature-relations.baseline")
-    claim_version_id = candidate.input_versions.claim_artifact_versions[0].artifact_version_id
+    claim_version_id = candidate.input_versions.claim_artifact_versions[
+        0
+    ].artifact_version_id
     adjudication = LiteratureRelationAdjudication(
         adjudication_id="adjudication.relation.fixture",
-        subject=relation.confidence.subject if relation.confidence else unavailable.subject,
+        subject=relation.confidence.subject
+        if relation.confidence
+        else unavailable.subject,
         decision=decision,
         feedback_id=_persisted_uuid("feedback.relation.fixture"),
         feedback_hash=compute_canonical_payload_hash({"feedback": "relation.fixture"}),
@@ -1079,7 +1111,9 @@ def test_exact_adjudication_decides_confidence_gated_relation(
         adjudications={adjudication.adjudication_id: adjudication},
     )
     adjudicated_relation = next(
-        item for item in adjudicated.relations if item.relation_id == relation.relation_id
+        item
+        for item in adjudicated.relations
+        if item.relation_id == relation.relation_id
     )
     assert adjudicated_relation.status is expected_status
     assert adjudicated_relation.failure_stage is None
@@ -1090,7 +1124,10 @@ def test_exact_adjudication_decides_confidence_gated_relation(
         adjudicated_relation.confidence.status
         is LiteratureRelationConfidenceStatus.not_evaluable
     )
-    assert adjudicated_relation.confidence.decision is LiteratureRelationStatus.candidate
+    assert (
+        adjudicated_relation.confidence.decision is LiteratureRelationStatus.candidate
+    )
+
 
 def test_adjudication_with_different_subject_does_not_decide_relation() -> None:
     unavailable = _confidence(
@@ -1117,11 +1154,15 @@ def test_adjudication_with_different_subject_does_not_decide_relation() -> None:
         decision=LiteratureRelationStatus.accepted,
         feedback_id=_persisted_uuid("feedback.relation.fixture"),
         feedback_hash=compute_canonical_payload_hash({"feedback": "relation.fixture"}),
-        baseline_relation_artifact_version_id=_persisted_uuid("literature-relations.baseline"),
+        baseline_relation_artifact_version_id=_persisted_uuid(
+            "literature-relations.baseline"
+        ),
         baseline_relation_id=relation.relation_id,
         basis=("A reviewer adjudicated the confidence-gated Relation.",),
     )
-    claim_version_id = candidate.input_versions.claim_artifact_versions[0].artifact_version_id
+    claim_version_id = candidate.input_versions.claim_artifact_versions[
+        0
+    ].artifact_version_id
     baseline_version_id = _persisted_uuid("literature-relations.baseline")
     # Mismatched subject should raise validation error (fail closed)
     with pytest.raises(ValueError, match="subject does not match"):
@@ -1131,6 +1172,7 @@ def test_adjudication_with_different_subject_does_not_decide_relation() -> None:
             literature_claim_artifact_version_id=claim_version_id,
             adjudications={adjudication.adjudication_id: adjudication},
         )
+
 
 def test_confidence_subject_and_decision_are_relation_specific() -> None:
     wrong_subject = _confidence().model_copy(
@@ -1186,6 +1228,7 @@ def test_confidence_subject_and_decision_are_relation_specific() -> None:
     )
     assert rejected_decision_result.records[0].confidence is None
 
+
 def test_earlier_failure_keeps_priority_and_drops_mismatched_confidence() -> None:
     relation = _relation()
     relation["evidence_ids"] = []
@@ -1200,6 +1243,7 @@ def test_earlier_failure_keeps_priority_and_drops_mismatched_confidence() -> Non
     )
     assert result.records[0].confidence is None
 
+
 def test_one_confidence_assessment_cannot_be_reused_across_relation_types() -> None:
     supports = _relation(relation_type="supports")
     contradicts = _relation(relation_type="contradicts")
@@ -1212,6 +1256,7 @@ def test_one_confidence_assessment_cannot_be_reused_across_relation_types() -> N
     assert statuses[LiteratureRelationType.contradicts].rejection_reason is (
         LiteratureRelationRejectionReason.confidence_subject_mismatch
     )
+
 
 def test_mixed_batch_retains_rejected_record_without_publishing_it_as_accepted() -> (
     None
@@ -1246,6 +1291,7 @@ def test_mixed_batch_retains_rejected_record_without_publishing_it_as_accepted()
         "rejected": 1,
     }
 
+
 def test_mixed_batch_drops_trace_when_early_evidence_rejection_breaks_closure() -> None:
     valid = _relation(relation_type="supports")
     evidence_missing = _relation(relation_type="limits")
@@ -1278,6 +1324,7 @@ def test_mixed_batch_drops_trace_when_early_evidence_rejection_breaks_closure() 
         "rejected": 1,
     }
 
+
 def test_schema_rejects_unclosed_evidence_for_rejected_relation_trace() -> None:
     valid = _relation(relation_type="supports")
     rejected_with_trace = _relation(relation_type="limits")
@@ -1305,6 +1352,7 @@ def test_schema_rejects_unclosed_evidence_for_rejected_relation_trace() -> None:
         match="ReasoningTrace Relation Evidence closure mismatch",
     ):
         LiteratureRelationsCandidate.model_validate(payload)
+
 
 def test_input_and_response_order_do_not_change_identity_or_hash() -> None:
     source = _claim_version("source")
@@ -1336,6 +1384,7 @@ def test_input_and_response_order_do_not_change_identity_or_hash() -> None:
     )
     assert first.output_hash == second.output_hash
 
+
 def test_upstream_claim_execution_runtime_is_excluded_only_from_stable_output_hash() -> (
     None
 ):
@@ -1351,6 +1400,7 @@ def test_upstream_claim_execution_runtime_is_excluded_only_from_stable_output_ha
     assert compute_canonical_payload_hash(original) != compute_canonical_payload_hash(
         changed
     )
+
 
 def test_prompt_model_parameters_and_input_versions_are_hash_pinned() -> None:
     baseline = _admit()
@@ -1419,6 +1469,7 @@ def test_prompt_model_parameters_and_input_versions_are_hash_pinned() -> None:
         == 5
     )
 
+
 def test_wrong_output_prompt_contract_cannot_execute() -> None:
     source = _claim_version("source")
     target = _claim_version("target")
@@ -1448,6 +1499,7 @@ def test_wrong_output_prompt_contract_cannot_execute() -> None:
             confidence_assessments={"confidence.relation.fixture": _confidence()},
         )
 
+
 @pytest.mark.parametrize(
     "invalid",
     (
@@ -1474,6 +1526,7 @@ def test_invalid_external_confidence_is_revalidated_and_rejected_stably(
         LiteratureRelationFailureStage.confidence,
         LiteratureRelationRejectionReason.confidence_undefined,
     )
+
 
 def test_external_admission_context_is_hash_pinned() -> None:
     baseline = _admit()
@@ -1515,6 +1568,7 @@ def test_external_admission_context_is_hash_pinned() -> None:
         == 5
     )
 
+
 def test_schema_valid_duplicate_trace_references_reject_without_crashing() -> None:
     duplicate_claim = _relation()
     trace = duplicate_claim["trace"]
@@ -1541,6 +1595,7 @@ def test_schema_valid_duplicate_trace_references_reject_without_crashing() -> No
         LiteratureRelationFailureStage.trace,
         LiteratureRelationRejectionReason.trace_evidence_incomplete,
     )
+
 
 @pytest.mark.parametrize(
     "surface",
@@ -1592,6 +1647,7 @@ def test_all_authored_free_text_surfaces_reject_and_redact_unsafe_content(
     )
     assert "synthetic-redaction-fixture-must-never-persist" not in serialized
 
+
 def test_earlier_rejection_redacts_unsafe_conflict_from_mixed_sealed_batch() -> None:
     valid = _relation(relation_type="supports")
     unsafe = _relation(relation_type="limits")
@@ -1617,6 +1673,7 @@ def test_earlier_rejection_redacts_unsafe_conflict_from_mixed_sealed_batch() -> 
     )
     _publish(result.publisher_candidate)
 
+
 def test_duplicate_relation_evidence_is_rejected_at_schema_gate() -> None:
     relation = _relation()
     relation["evidence_ids"].append("evidence.source")
@@ -1624,6 +1681,7 @@ def test_duplicate_relation_evidence_is_rejected_at_schema_gate() -> None:
 
     assert result.failure_stage is LiteratureRelationFailureStage.schema
     assert result.rejection_reason is LiteratureRelationRejectionReason.schema_invalid
+
 
 @pytest.mark.parametrize(
     ("source_metric", "target_metric", "source_unit", "target_unit", "reason"),
@@ -1669,6 +1727,7 @@ def test_truthful_incomparable_metric_or_unit_is_still_rejected(
     )
     assert result.records[0].rejection_reason is reason
 
+
 @pytest.mark.parametrize(
     "relation_type",
     (
@@ -1696,11 +1755,12 @@ def test_structural_relations_mark_metric_and_unit_not_applicable(
     assert result.records[0].status is LiteratureRelationStatus.accepted
     assert result.records[0].failure_stage is None
 
+
 def test_literature_relation_is_the_only_relation_prompt_identity() -> None:
     registry = PromptRegistry()
     prompt = registry.get("literature_relation")
     assert prompt.name == "literature_relation"
-    assert prompt.version == "2.0.10"
+    assert prompt.version == "2.1.0"
     assert "顶层只允许 `schema_version" in prompt.content
     assert "`comparability` 必须是包含" in prompt.content
     assert "至少依次覆盖 `identify_premises`" in prompt.content

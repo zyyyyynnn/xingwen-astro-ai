@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import asyncio
+from threading import Event
 from types import SimpleNamespace
 from uuid import UUID
+
+import pytest
 
 from app.schemas.core import ResearchContract
 from app.services.model_execution import ModelExecutionError
@@ -10,6 +14,64 @@ from app.workflow.research_run_worker import ResearchRunWorker, _step_started_me
 from app.workflow.research_step_runtime import RunStepContext
 from app.workflow.step_publication import StepPublicationFactory
 from services.paper_pipeline.errors import LiteratureAdmissionExecutionError
+
+
+@pytest.mark.parametrize("fails", [False, True])
+def test_worker_keeps_heartbeat_while_draining_an_active_run(
+    fails: bool, caplog: pytest.LogCaptureFixture
+) -> None:
+    async def exercise() -> None:
+        started = asyncio.Event()
+        release = asyncio.Event()
+        heartbeat_during_run = Event()
+        stopped = Event()
+        run_id = UUID("00000000-0000-0000-0000-000000000001")
+        calls: list[UUID] = []
+
+        def heartbeat(_: str) -> SimpleNamespace:
+            if started.is_set() and not release.is_set():
+                heartbeat_during_run.set()
+            return SimpleNamespace(state="accepting")
+
+        async def execute_run(value: UUID) -> None:
+            calls.append(value)
+            started.set()
+            await release.wait()
+            if fails:
+                raise ValueError("PRIVATE_PROVIDER_CONTENT")
+
+        worker = object.__new__(ResearchRunWorker)
+        worker._task = None
+        worker._stop = asyncio.Event()
+        worker._worker_id = "worker-heartbeat-test"
+        worker._workers = SimpleNamespace(
+            register=lambda *_args, **_kwargs: SimpleNamespace(state="accepting"),
+            heartbeat=heartbeat,
+            mark_stopped=lambda _: stopped.set(),
+        )
+        worker._queued_run_ids = lambda: (run_id,)
+        worker.execute_run = execute_run
+        worker.start()
+        await asyncio.wait_for(started.wait(), timeout=3)
+        shutdown = asyncio.create_task(worker.stop())
+        try:
+            await asyncio.sleep(0)
+            assert not shutdown.done()
+            maintained = await asyncio.to_thread(heartbeat_during_run.wait, 2)
+        finally:
+            release.set()
+            await asyncio.wait_for(shutdown, timeout=3)
+        assert maintained
+        assert calls == [run_id]
+        assert stopped.is_set()
+        assert "PRIVATE_PROVIDER_CONTENT" not in caplog.text
+        if fails:
+            assert any(
+                getattr(record, "error_class", None) == "ValueError"
+                for record in caplog.records
+            )
+
+    asyncio.run(exercise())
 
 
 def test_scientific_step_has_a_public_start_message() -> None:
@@ -113,7 +175,10 @@ def test_literature_bindings_materialize_shared_evidence_per_domain_target() -> 
                 "created_at": "2026-08-13T00:00:00Z",
                 "research_goal": "研究目标",
                 "target_objects": ["host_star"],
-                "data_requirements": {"unit_policy": "canonical", "document_source_policy": "disabled"},
+                "data_requirements": {
+                    "unit_policy": "canonical",
+                    "document_source_policy": "disabled",
+                },
                 "requested_fields": ["star.tic_id"],
                 "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
                 "paper_search_scope": {},

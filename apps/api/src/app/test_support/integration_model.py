@@ -187,29 +187,26 @@ class DeterministicIntegrationModelExecutionPort:
             "discussion": (),
             "limitations": (),
             "research_questions": (),
-            "evidence_ids": [evidence_id],
         }
 
     def _literature_claims(self, request: ModelExecutionRequest) -> dict[str, object]:
-        summary = request.input_payload.get("paper_summary", {})
-        evidence_ids = (
-            summary.get("evidence_ids")
-            if isinstance(summary, dict) and summary.get("evidence_ids")
-            else [_PAPER_EVIDENCE_ID]
+        artifact = request.input_payload.get("paper_summary_artifact", {})
+        statements = (
+            artifact.get("statements", ()) if isinstance(artifact, dict) else ()
         )
-        claims = (
-            self._claim(
-                _STATEMENT_A,
-                "Confirmed transiting planets orbit nearby host stars.",
-                evidence_ids,
+        if not isinstance(statements, (list, tuple)) or not statements:
+            raise RuntimeError("integration Claim fixture requires Summary statements")
+        return {
+            "schema_version": "1.0.0",
+            "claims": tuple(
+                self._claim(
+                    statement["statement_id"],
+                    statement["text"],
+                    statement["evidence_ids"],
+                )
+                for statement in statements
             ),
-            self._claim(
-                _STATEMENT_B,
-                "Small-planet recovery methods share comparable transit signatures.",
-                evidence_ids,
-            ),
-        )
-        return {"schema_version": "1.0.0", "claims": claims}
+        }
 
     def _literature_relations(
         self, request: ModelExecutionRequest

@@ -1,6 +1,6 @@
 ---
 name: literature_relation
-version: 2.0.10
+version: 2.1.0
 output_model: LiteratureRelationExtractionOutput
 input_schema_version: 1.0.0
 output_schema_version: 1.0.0
@@ -73,7 +73,9 @@ evidence_required: true
 - 不生成 confidence、assessment id 或准入状态，也不以 confidence 替代 Evidence
   或可比性。Pipeline 会按 Relation 的 source/target Claim、方向和类型绑定外部、
   版本化 confidence assessment，并对缺失、冲突或校准不完整的记录硬拒绝。
-- 对调用方固定的 LiteratureClaim ArtifactVersion 全集执行稳定配对；不接收或推断未版本化的独立研究目标，也不因输入排列改变候选集合、方向或输出顺序。
+- 输入是调用方从固定 LiteratureClaim ArtifactVersion 中确定性筛选的有界配对批次；
+  只在该批次工作，不接收或推断未版本化的独立研究目标，也不因输入排列改变方向或
+  输出顺序。完整 Claim 与 Evidence Authority 仍由准入服务按版本解析。
 - 按 Evidence 闭合程度、科学相关性和条件可比性选择最强的非重复 Relation，输出
   数量不得超过输入的 `max_relation_candidates`；不得为穷举 Claim 对或
   `relation_type` 而生成弱关系。
@@ -81,7 +83,7 @@ evidence_required: true
 
 ## User template
 
-已准入的 LiteratureClaim 批次、版本、Evidence 与 SourceSnapshot：
+已准入 LiteratureClaim ArtifactVersion 的有界科研字段与配对约束：
 
 ```json
 {{ literature_claims }}

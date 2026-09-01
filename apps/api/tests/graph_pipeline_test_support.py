@@ -68,6 +68,7 @@ from services.graph_pipeline.ports import (
     PublishedDatasetVersion,
     PublishedFieldDictionaryVersion,
     PublishedGraphInputs,
+    PublishedLiteratureClaimsVersion,
     PublishedLiteratureRelationsVersion,
 )
 from services.paper_pipeline.benchmark import load_frozen_benchmark
@@ -146,6 +147,7 @@ class LiteratureGraphFixture:
         relation_version_id = (
             self.inputs.selection.literature_relations_artifact_version_id
         )
+        claim_version_ids = self.inputs.selection.literature_claims_artifact_version_ids
         data_selection = self.inputs.selection.data
         dataset_version_id = (
             data_selection.dataset_artifact_version_id
@@ -160,6 +162,7 @@ class LiteratureGraphFixture:
         if progressive is None:
             progressive = build_complete_progressive_input(
                 progressive_id="progressive.evidence_graph.real_literature_relation",
+                literature_claims_artifact_version_ids=claim_version_ids,
                 literature_relations_artifact_version_id=relation_version_id,
                 dataset_artifact_version_id=dataset_version_id,
                 field_dictionary_artifact_version_id=dictionary_version_id,
@@ -169,6 +172,7 @@ class LiteratureGraphFixture:
             )
         return GraphBuildRequest(
             project_id=self.inputs.selection.project_id,
+            literature_claims_artifact_version_ids=claim_version_ids,
             literature_relations_artifact_version_id=relation_version_id,
             dataset_artifact_version_id=dataset_version_id,
             field_dictionary_artifact_version_id=dictionary_version_id,
@@ -195,7 +199,9 @@ def build_literature_graph_fixture(
         LiteratureRelationStatus.accepted,
         LiteratureRelationStatus.candidate,
     }:
-        raise ValueError("fixture requires a LiteratureRelation Pipeline publishable relation status")
+        raise ValueError(
+            "fixture requires a LiteratureRelation Pipeline publishable relation status"
+        )
 
     benchmark = load_frozen_benchmark()
     claim_inputs = _uuid_ready_claim_inputs(benchmark)
@@ -245,7 +251,10 @@ def build_literature_graph_fixture(
             model_response=json.dumps(
                 {
                     "schema_version": "1.0.0",
-                    "relations": [literature_relation_fixture.payload, shared_fixture.payload],
+                    "relations": [
+                        literature_relation_fixture.payload,
+                        shared_fixture.payload,
+                    ],
                 },
                 ensure_ascii=False,
                 sort_keys=True,
@@ -263,12 +272,16 @@ def build_literature_graph_fixture(
         admission = _admit(fixture=literature_relation_fixture)
     candidate = admission.publisher_candidate
     if candidate is None:
-        raise AssertionError("selected real LiteratureRelation Pipeline case did not publish a candidate")
+        raise AssertionError(
+            "selected real LiteratureRelation Pipeline case did not publish a candidate"
+        )
     selected = tuple(
         item for item in candidate.relations if item.status is relation_status
     )
     if len(selected) != 1:
-        raise AssertionError("real LiteratureRelation Pipeline fixture relation status drifted")
+        raise AssertionError(
+            "real LiteratureRelation Pipeline fixture relation status drifted"
+        )
     relation = selected[0]
 
     relation_version_id = stable_uuid(
@@ -281,12 +294,30 @@ def build_literature_graph_fixture(
         relation_version_id=relation_version_id,
         reverse_bindings=reverse_published_bindings,
     )
+    claim_candidates_by_version = {
+        item.version.artifact_version_id: item.version.content
+        for item in claim_inputs.values()
+    }
+    published_claims = tuple(
+        _published_literature_claims_version(
+            candidate=claim_candidates_by_version[reference.artifact_version_id],
+            project_id=project_id,
+            claim_version_id=reference.artifact_version_id,
+            reverse_bindings=reverse_published_bindings,
+        )
+        for reference in candidate.input_versions.claim_artifact_versions
+    )
+    claim_version_ids = tuple(
+        sorted(item.pins.artifact_version_id for item in published_claims)
+    )
     selection = GraphInputVersionSelection(
         project_id=project_id,
+        literature_claims_artifact_version_ids=claim_version_ids,
         literature_relations_artifact_version_id=relation_version_id,
     )
     inputs = PublishedGraphInputs(
         selection=selection,
+        literature_claims=published_claims,
         literature_relations=published,
     )
 
@@ -414,6 +445,9 @@ def build_data_graph_fixture(
     )
     selection = GraphInputVersionSelection(
         project_id=project_id,
+        literature_claims_artifact_version_ids=(
+            literature.inputs.selection.literature_claims_artifact_version_ids
+        ),
         literature_relations_artifact_version_id=(
             literature.inputs.selection.literature_relations_artifact_version_id
         ),
@@ -421,6 +455,7 @@ def build_data_graph_fixture(
     )
     inputs = PublishedGraphInputs(
         selection=selection,
+        literature_claims=literature.inputs.literature_claims,
         literature_relations=literature.inputs.literature_relations,
         data=PublishedDataGraphInputs(
             dataset=dataset,
@@ -469,7 +504,9 @@ def _quality_projection(
     )
     projection = admitted_candidate.quality_projection
     if projection is None:
-        raise AssertionError("passing Data Quality Evaluation admission did not expose its projection")
+        raise AssertionError(
+            "passing Data Quality Evaluation admission did not expose its projection"
+        )
     return projection
 
 
@@ -592,9 +629,7 @@ def _data_evidence_bindings(
             }
             target_type = "crossmatch"
             target_id = item.evidence_id
-        persisted_id = stable_uuid(
-            f"evidence:{candidate_kind}:{evidence_id}"
-        )
+        persisted_id = stable_uuid(f"evidence:{candidate_kind}:{evidence_id}")
         bindings.append(
             PersistedEvidenceBinding(
                 pipeline_evidence_id=evidence_id,
@@ -640,9 +675,9 @@ def _uuid_ready_claim_inputs(benchmark: object) -> dict[str, object]:
         summary_version_id = stable_uuid(
             f"artifact-version:paper-summary:{old_summary_version_id}"
         )
-        content_payload["input_versions"][
-            "paper_summary_artifact_version_id"
-        ] = summary_version_id
+        content_payload["input_versions"]["paper_summary_artifact_version_id"] = (
+            summary_version_id
+        )
         content_payload["producer"]["input_versions"][
             "paper_summary_artifact_version_id"
         ] = summary_version_id
@@ -669,6 +704,147 @@ def _uuid_ready_claim_inputs(benchmark: object) -> dict[str, object]:
             version=version,
         )
     return result
+
+
+def _published_literature_claims_version(
+    *,
+    candidate: LiteratureClaimsCandidate,
+    project_id: str,
+    claim_version_id: str,
+    reverse_bindings: bool,
+) -> PublishedLiteratureClaimsVersion:
+    candidate_payload = canonical_artifact_content_payload(candidate)
+    content_hash = compute_canonical_payload_hash(candidate_payload)
+    nested_producer = candidate.producer
+    producer = ProducerReference(
+        type=nested_producer.producer_type,
+        name=nested_producer.producer_name,
+        version=nested_producer.producer_version,
+        requested_model=nested_producer.model_name,
+        prompt_name=nested_producer.prompt_name,
+        prompt_version=nested_producer.prompt_version,
+        prompt_hash=nested_producer.prompt_hash,
+        parameters_hash=nested_producer.parameters_hash,
+    )
+    execution = ProducerExecutionDetail(
+        id=stable_uuid(f"producer-execution:{claim_version_id}"),
+        run_id=stable_uuid(f"run:{claim_version_id}"),
+        step_key=nested_producer.step_key,
+        step_attempt_id=stable_uuid(f"step-attempt:{claim_version_id}"),
+        producer=producer,
+        parameters={},
+        parameters_hash=nested_producer.parameters_hash,
+        input_hash=candidate.input_hash,
+        output_hash=content_hash,
+        status="completed",
+        started_at=NOW,
+        finished_at=NOW,
+        latency_ms=1,
+    )
+    pins = PublishedArtifactVersionPins(
+        artifact_id=stable_uuid(f"artifact:literature-claims:{claim_version_id}"),
+        artifact_version_id=claim_version_id,
+        project_id=project_id,
+        version_number=1,
+        schema_version=candidate.schema_version,
+        content_hash=content_hash,
+        input_hash=candidate.input_hash,
+        output_hash=candidate.output_hash,
+        source_mode=SourceMode.fixture,
+        producer_execution=execution,
+    )
+
+    pipeline_evidence = {item.evidence_id: item for item in candidate.evidence}
+    snapshot_bindings = tuple(
+        PersistedSourceSnapshotBinding(
+            pipeline_source_snapshot_id=pipeline_snapshot_id,
+            source_snapshot=SourceSnapshotDetail(
+                id=stable_uuid(f"source-snapshot:{pipeline_snapshot_id}"),
+                source_id=evidence.source_id,
+                source_type="benchmark",
+                retrieved_at=NOW,
+                query={"fixture": pipeline_snapshot_id},
+                query_hash=compute_canonical_payload_hash(
+                    {"fixture": pipeline_snapshot_id}
+                ),
+                source_version_or_etag=evidence.source_snapshot_version,
+                content_hash=evidence.source_snapshot_content_hash,
+                license_note="Frozen paper acquisition benchmark fixture",
+                request_metadata={"data_level": "benchmark"},
+            ),
+        )
+        for pipeline_snapshot_id in candidate.source_snapshot_ids
+        for evidence in (
+            next(
+                item
+                for item in candidate.evidence
+                if item.source_snapshot_id == pipeline_snapshot_id
+            ),
+        )
+    )
+    snapshot_by_pipeline = {
+        item.pipeline_source_snapshot_id: item for item in snapshot_bindings
+    }
+    evidence_bindings = tuple(
+        PersistedEvidenceBinding(
+            pipeline_evidence_id=reference.evidence_id,
+            pipeline_evidence_content_hash=compute_canonical_payload_hash(
+                pipeline_evidence[reference.evidence_id].model_dump(
+                    mode="json",
+                    exclude_none=True,
+                )
+            ),
+            pipeline_source_snapshot_id=reference.source_snapshot_id,
+            pipeline_target_type="claim",
+            pipeline_target_id=reference.claim_id,
+            pipeline_locator={
+                "summary_evidence_id": reference.evidence_id,
+                "source_record_id": pipeline_evidence[
+                    reference.evidence_id
+                ].source_record_id,
+            },
+            evidence=EvidenceDetail(
+                id=stable_uuid(
+                    f"evidence:{claim_version_id}:claim:{reference.claim_id}:"
+                    f"{reference.evidence_id}"
+                ),
+                artifact_version_id=claim_version_id,
+                target_type="claim",
+                target_id=reference.claim_id,
+                evidence_type="paper_text",
+                source_snapshot_id=snapshot_by_pipeline[
+                    reference.source_snapshot_id
+                ].persisted_source_snapshot_id,
+                paper_id=reference.paper_id,
+                locator={
+                    "summary_evidence_id": reference.evidence_id,
+                    "source_record_id": pipeline_evidence[
+                        reference.evidence_id
+                    ].source_record_id,
+                },
+                quote_or_value="Frozen benchmark evidence",
+                extraction_method="literature_admission",
+                confidence=1.0,
+                created_at=NOW,
+            ),
+            is_restricted=False,
+        )
+        for reference in candidate.evidence_references
+    )
+    return PublishedLiteratureClaimsVersion(
+        pins=pins,
+        candidate=candidate,
+        source_snapshot_bindings=(
+            tuple(reversed(snapshot_bindings))
+            if reverse_bindings
+            else snapshot_bindings
+        ),
+        evidence_bindings=(
+            tuple(reversed(evidence_bindings))
+            if reverse_bindings
+            else evidence_bindings
+        ),
+    )
 
 
 def _published_literature_version(

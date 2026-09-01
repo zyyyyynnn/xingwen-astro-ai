@@ -275,8 +275,7 @@ export function ScientificTable({
               >
                 <Button
                   variant="ghost"
-                  size="small"
-                  className="ui-text-body h-auto p-0 font-medium text-inherit"
+                  size="inline"
                   aria-label={
                     formatScientificUnit(column.unit)
                       ? `${column.label} (${formatScientificUnit(column.unit)})`
@@ -326,8 +325,8 @@ export function ScientificTable({
                     {evidenceIds.length > 0 && onSelectEvidence ? (
                       <Button
                         variant="ghost"
-                        size="small"
-                        className="ui-text-body h-auto p-0 text-inherit underline-offset-2 hover:underline focus-visible:underline"
+                        size="inline"
+                        className="underline-offset-2 hover:underline focus-visible:underline"
                         title="查看该数值的证据"
                         onClick={() => onSelectEvidence(evidenceIds)}
                       >

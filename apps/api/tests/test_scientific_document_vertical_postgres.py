@@ -171,7 +171,6 @@ class _StubSummaryModel:
             "discussion": [],
             "limitations": [],
             "research_questions": [],
-            "evidence_ids": [evidence_id],
         }
         return ModelExecutionResponse(
             payload=payload,

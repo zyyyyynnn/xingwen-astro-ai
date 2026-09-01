@@ -393,7 +393,7 @@ test.afterEach(async ({ page }, testInfo) => {
 test("fresh Workspace completes real acquisition, document evidence, and research revision", async ({
   page,
 }, testInfo) => {
-  test.setTimeout(50 * 60_000);
+  test.setTimeout(80 * 60_000);
   if (!RUNTIME_QWEN_MODEL) {
     throw new Error(
       "RELEASE_CANDIDATE_QWEN_MODEL must explicitly select the runtime model",
@@ -622,6 +622,34 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
   await expect(datasetTable).not.toContainText(
     /earth_radius|solar_mass|\bnone\b/u,
   );
+  for (const [entityLevel, label, screenshot] of [
+    ["host_star", "宿主恒星", "live-dataset-host-stars.png"],
+    ["planet_assertion", "行星记录", "live-dataset-planets.png"],
+    ["planet_candidate", "候选体", "live-dataset-candidates.png"],
+  ] as const) {
+    const rows = dataset.dataset.rows.filter(
+      (row) =>
+        "entity_level" in row.row_authority &&
+        row.row_authority.entity_level === entityLevel,
+    );
+    expect(rows.length).toBeGreaterThan(0);
+    await fullscreen
+      .getByRole("tab", { name: `${label} ${rows.length}`, exact: true })
+      .click();
+    await expect(datasetTable.getByRole("rowheader")).toHaveCount(rows.length);
+    const projected = new Set(rows.flatMap((row) => row.projected_field_ids));
+    for (const column of dataset.dataset.columns) {
+      if (!projected.has(column.field.field_id)) {
+        await expect(
+          datasetTable.getByRole("columnheader", {
+            name: column.field.meaning_zh,
+          }),
+        ).toHaveCount(0);
+      }
+    }
+    await page.screenshot({ path: testInfo.outputPath(screenshot) });
+  }
+  await fullscreen.getByRole("tab", { name: /^宿主恒星 /u }).click();
   await page.screenshot({ path: testInfo.outputPath("live-dataset.png") });
 
   // Full-text acquisition is available at the selected paper, not a test bootstrap or hidden upload.
@@ -678,7 +706,7 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
     "使用刚关联的完整开放论文重新生成摘要、论点和关系，保留页码、段落定位和证据限制；不得把元数据推断当成全文结论。",
   );
   // Full-text revisions include page-wise visual inference before model synthesis.
-  const documentRun = await waitForRun(page, documentRunId, 40 * 60_000);
+  const documentRun = await waitForRun(page, documentRunId, 60 * 60_000);
   const documentRuntime = await readReleaseRuntime(documentRunId);
   expect(documentRun).toMatchObject({
     execution_mode: "live",
@@ -970,6 +998,38 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
   const analysisMetrics = analysis.content.metrics ?? [];
   expect(analysisMetrics.length).toBeGreaterThan(0);
   expect(analysis.content.findings?.length ?? 0).toBeGreaterThan(0);
+  const profileRows = analysis.content.result_blocks.flatMap<unknown>(
+    (block) => {
+      const payload = block.payload;
+      if (!payload || typeof payload !== "object" || Array.isArray(payload))
+        return [];
+      return "rows" in payload && Array.isArray(payload.rows)
+        ? payload.rows
+        : [];
+    },
+  );
+  for (const column of dataset.dataset.columns) {
+    const projected = dataset.dataset.rows.flatMap((row) =>
+      row.fields.filter(
+        (field) => field.canonical_field_id === column.field.field_id,
+      ),
+    );
+    const profile = profileRows.find(
+      (row) =>
+        row !== null &&
+        typeof row === "object" &&
+        !Array.isArray(row) &&
+        "field" in row &&
+        row.field === column.field.field_id,
+    );
+    expect(profile).toMatchObject({
+      present_count: projected.length,
+      absent_count: dataset.dataset.rows.length - projected.length,
+      null_count: projected.filter((field) => field.status !== "mapped").length,
+      non_null_count: projected.filter((field) => field.status === "mapped")
+        .length,
+    });
+  }
   await report("live-analysis-evidence.json", { analysis });
   fullscreen = await openThreadArtifact(
     page,

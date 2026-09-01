@@ -23,11 +23,13 @@ def build_data_profile(request: ScientificSkillRequest) -> dict[str, object]:
     fields = tuple(sorted({key for row in rows for key in row}))
     profile: list[dict[str, object]] = []
     for field in fields:
-        values = [row.get(field) for row in rows]
+        values = [row[field] for row in rows if field in row]
         non_null = [value for value in values if value is not None]
         type_counts = Counter(_value_kind(value) for value in non_null)
         entry: dict[str, object] = {
             "field": field,
+            "present_count": len(values),
+            "absent_count": len(rows) - len(values),
             "non_null_count": len(non_null),
             "null_count": len(values) - len(non_null),
             "distinct_count": len({_stable_scalar(value) for value in non_null}),

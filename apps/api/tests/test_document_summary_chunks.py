@@ -130,10 +130,12 @@ class _ChunkModel:
         self,
         *,
         invent_evidence: bool = False,
+        cite_all_evidence: bool = False,
         vary_returned_model: bool = False,
     ) -> None:
         self.requests: list[ModelExecutionRequest] = []
         self.invent_evidence = invent_evidence
+        self.cite_all_evidence = cite_all_evidence
         self.vary_returned_model = vary_returned_model
 
     def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
@@ -146,7 +148,13 @@ class _ChunkModel:
         else:
             evidence_ids = [item["evidence_id"] for item in chunk["evidence"]]
             chunk_id = chunk["chunk_id"]
-        cited = "evidence.invented" if self.invent_evidence else evidence_ids[0]
+        cited = (
+            ["evidence.invented"]
+            if self.invent_evidence
+            else evidence_ids
+            if self.cite_all_evidence
+            else [evidence_ids[0]]
+        )
         payload = {
             "background": [],
             "methodology": [],
@@ -155,13 +163,12 @@ class _ChunkModel:
                 {
                     "statement_id": f"finding.{chunk_id}",
                     "text": f"Chunk {chunk_id} reports an observation.",
-                    "evidence_ids": [cited],
+                    "evidence_ids": cited,
                 }
             ],
             "discussion": [],
             "limitations": [],
             "research_questions": [],
-            "evidence_ids": [cited],
         }
         return ModelExecutionResponse(
             payload=payload,
@@ -216,8 +223,13 @@ def test_long_document_runs_one_bounded_call_per_chunk() -> None:
     assert len(result.chunk_provider_request_ids) == result.chunk_count
     assert result.model_response.provider_request_id is None
     assert result.admission.producer.provider_request_id is None
-    assert result.model_response.provider_returned_model == "test-returned-model-snapshot"
-    assert result.admission.producer.provider_returned_model == "test-returned-model-snapshot"
+    assert (
+        result.model_response.provider_returned_model == "test-returned-model-snapshot"
+    )
+    assert (
+        result.admission.producer.provider_returned_model
+        == "test-returned-model-snapshot"
+    )
     assert (
         result.chunk_provider_returned_models
         == ("test-returned-model-snapshot",) * result.chunk_count
@@ -281,3 +293,20 @@ def test_chunk_statement_citing_foreign_evidence_is_rejected() -> None:
         ChunkedDocumentSummaryService(_ChunkModel(invent_evidence=True)).execute(
             _request(513)
         )
+
+
+def test_chunk_statement_keeps_all_valid_in_chunk_evidence() -> None:
+    result = ChunkedDocumentSummaryService(_ChunkModel(cite_all_evidence=True)).execute(
+        _request(513)
+    )
+
+    assert isinstance(result, ChunkedDocumentSummaryExecution)
+    assert result.admission.admission_status is PaperSummaryAdmissionStatus.accepted
+    assert result.admission.summary is not None
+    assert (
+        max(
+            len(statement.evidence_ids)
+            for statement in result.admission.summary.experiments
+        )
+        > 32
+    )

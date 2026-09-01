@@ -90,7 +90,6 @@ class _Model:
             "discussion": [],
             "limitations": [],
             "research_questions": [],
-            "evidence_ids": [evidence_id],
         }
         output_hash = compute_canonical_payload_hash(payload)
         if self.tamper_hash:

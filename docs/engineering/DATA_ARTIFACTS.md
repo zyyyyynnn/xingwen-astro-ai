@@ -89,6 +89,12 @@ authority 的每个 row 由 admission 的 canonical row identity、admission ID 
 row ID 绑定，不伪造 pairwise alignment 或 conflict 语义。所有 Dataset row 的
 字段对象层级必须符合 Field Manifest；不会从同行原始列隐式连接宿主上下文。
 
+Dataset 浏览按 row 的 entity level 分组，视图列来自该组实际投影的字段。
+不适用于该组的字段不展示；已投影但源目录缺失的 typed null 仍保留，不能按
+非空值筛掉整列。对象切换只改变浏览视图，下载与 Evidence 仍绑定同一不可变版本。
+科学数据概览分别统计记录中存在的字段、未包含的字段与显式空值；未投影字段
+不计入空值数。数值分布只使用实际存在的有限数值。
+
 `FieldSelectionRecord` 记录候选集合、策略与原因；不同 canonical value 形成
 `FieldConflictRecord`。source priority 只决定展示选择，不删除低优先级原值或
 provenance。

@@ -628,6 +628,87 @@ def test_recorded_real_paddle_table_enters_document_summary_evidence() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "caption_label", ["figure_title", "figure_caption", "table_title", "table_caption"]
+)
+def test_visual_image_placeholder_preserves_figure_without_becoming_text_evidence(
+    caption_label: str,
+) -> None:
+    from app.schemas.scientific_document import DocumentBlockKind, DocumentParseInput
+    from app.services.scientific_document.hybrid_parser import (
+        HybridScientificDocumentParser,
+        PaddleOcrVlClient,
+    )
+    from services.paper_pipeline.summary import build_document_evidence_candidates
+
+    payload = _stub_layout_parsing_payload()
+    blocks = payload["result"]["layoutParsingResults"][0]["prunedResult"][
+        "parsing_res_list"
+    ]
+    blocks.extend(
+        [
+            {
+                "block_label": "image",
+                "block_content": '<div style="text-align: center;"><img src="imgs/chart.jpg" alt="Image" /></div>',
+                "block_bbox": [40, 180, 560, 400],
+                "block_order": 2,
+            },
+            {
+                "block_label": caption_label,
+                "block_content": '<div style="text-align: center;">Figure 1. Stellar radius versus effective temperature.</div>',
+                "block_bbox": [40, 410, 560, 440],
+                "block_order": 3,
+            },
+        ]
+    )
+    visual = PaddleOcrVlClient(
+        base_url="http://127.0.0.1:9/vision",
+        model_revision="stub-0",
+        client=httpx.Client(
+            transport=httpx.MockTransport(
+                lambda _request: httpx.Response(200, json=payload)
+            )
+        ),
+    )
+    image = (
+        ROOT
+        / "tests/fixtures/scientific-documents/papers/cadieux-2025-l98-59-page-14.png"
+    ).read_bytes()
+    document = HybridScientificDocumentParser(visual_parser=visual).parse_document(
+        DocumentParseInput(
+            research_input_id="00000000-0000-4000-8000-0000000000aa",
+            content_hash="sha256:" + hashlib.sha256(image).hexdigest(),
+            source_type="upload",
+            mime_type="image/png",
+            input_bytes=image,
+        )
+    )
+    evidence = build_document_evidence_candidates(
+        document_parse=document,
+        document_parse_id="00000000-0000-4000-8000-0000000000bb",
+        paper_id="paper.figure",
+        source_id="arxiv",
+        source_record_id="figure-test",
+        source_snapshot_id="00000000-0000-4000-8000-0000000000cc",
+    )
+    figure = document.figures[0]
+    assert figure.bbox is not None
+    assert figure.caption is None
+    assert (
+        next(
+            block for block in document.blocks if block.kind is DocumentBlockKind.figure
+        ).text
+        is None
+    )
+    assert any(
+        item.quote_or_value == "Figure 1. Stellar radius versus effective temperature."
+        for item in evidence
+    )
+    assert all(
+        item.locator.document_locator.block_id != figure.block_id for item in evidence
+    )
+
+
 def test_local_pipeline_bounds_cpu_inference_resources(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

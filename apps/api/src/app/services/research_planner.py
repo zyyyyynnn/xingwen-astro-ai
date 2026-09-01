@@ -126,7 +126,7 @@ class ResearchContractPlanner:
                 "temperature": 0,
                 "top_p": 1,
             },
-            enable_thinking=False,
+            enable_thinking=True,
         )
         return request
 

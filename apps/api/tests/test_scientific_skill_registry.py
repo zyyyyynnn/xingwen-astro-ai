@@ -142,6 +142,31 @@ def test_production_registry_is_an_exact_fail_closed_skill_catalog() -> None:
     assert len(registry.skill_ids) == len(ScientificSkillId)
 
 
+def test_data_profile_distinguishes_absent_fields_from_explicit_nulls() -> None:
+    result = build_scientific_skill_registry().execute(
+        _request(
+            ScientificSkillId.data_profile,
+            {
+                "rows": [
+                    {"star.temperature": 3600},
+                    {"planet.period": 2.616235},
+                    {"planet.period": None},
+                ]
+            },
+        )
+    )
+    fields = {item["field"]: item for item in result.output["fields"]}
+    period = fields["planet.period"]
+    assert period["null_count"] == 1
+    assert period["non_null_count"] == 1
+    assert period["present_count"] == 2
+    assert period["absent_count"] == 1
+    assert period["numeric_summary"]["count"] == 1
+    assert period["numeric_summary"]["mean"] == 2.616235
+    assert fields["star.temperature"]["null_count"] == 0
+    assert fields["star.temperature"]["absent_count"] == 2
+
+
 @pytest.mark.parametrize(
     ("skill_id", "parameters", "output_key"),
     [

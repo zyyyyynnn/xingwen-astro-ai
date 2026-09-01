@@ -53,8 +53,6 @@ from services.paper_pipeline.summary_chunks import (
     reduce_chunk_sections,
 )
 
-_MAX_STATEMENTS_PER_FIELD_PER_CHUNK = 32
-
 
 class ChunkEvidenceViolationError(ValueError):
     """A chunk output cited Evidence identity outside its own chunk."""
@@ -296,8 +294,6 @@ def _enforce_chunk_evidence_allowlist(
 ) -> None:
     allowed = set(chunk.evidence_ids)
     for statement in output.statements():
-        if len(statement.evidence_ids) > _MAX_STATEMENTS_PER_FIELD_PER_CHUNK:
-            raise ValueError(f"{chunk.chunk_id} statement exceeds the evidence budget")
         unknown = set(statement.evidence_ids) - allowed
         if unknown:
             raise ChunkEvidenceViolationError(
@@ -334,10 +330,8 @@ def _reduce_chunk_outputs(
         )
     )
     payload: dict[str, Any] = {section.section: [] for section in reduced}
-    all_evidence: set[str] = set()
     for section in reduced:
         for index, statement in enumerate(section.statements, start=1):
-            all_evidence.update(statement.evidence_ids)
             payload[section.section].append(
                 {
                     "statement_id": (f"summary.document.{section.section}.{index:02d}"),
@@ -345,7 +339,6 @@ def _reduce_chunk_outputs(
                     "evidence_ids": list(statement.evidence_ids),
                 }
             )
-    payload["evidence_ids"] = sorted(all_evidence)
     # Validate the merged shape before admission (fail closed on any drift).
     PaperSummaryModelOutput.model_validate(payload)
     return payload

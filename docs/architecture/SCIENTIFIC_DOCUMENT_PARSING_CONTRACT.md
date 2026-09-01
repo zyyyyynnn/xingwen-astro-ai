@@ -82,6 +82,9 @@ textual payload。
 左上角原点、x 向右、y 向下的绝对 PDF points；不使用 0..1 归一化。未知几何
 使用 `None`，不能用零矩形代替。
 
+`page_index` 按 PDF 物理页序从 0 开始。解析适配层转换底层库的页号，展示层在
+用户可见页码中加 1；page、block、table、formula、figure 与 Evidence 共享该约定。
+
 HTML table 只提供 enclosing table/block geometry 时，各 `DocumentTableCell.bbox`
 必须为 `None`，不能把 enclosing bbox 复制成伪 cell geometry。由该 cell 派生的
 `DocumentLocator` 仍绑定真实 `table_id`/`cell_id`，其 `bbox` 明确回退到 enclosing
@@ -91,6 +94,15 @@ table block bbox；这样既保留可核验的 region locator，也不虚构 cel
 HTML 标记。合并单元格只在 anchor 位置输出一次，覆盖位置保持空白；数值、单位
 与不确定性不改写。摘要和展示消费同一 block text，Evidence text span 定位到该
 不可变文本；单元格级科学数据准入继续使用 table/cell locator。
+
+视觉 block 的展示包装转换为可读纯文本，保留科学内容；未知标记保留供下游安全
+校验拒绝，不通过删去未知内容绕过准入。Figure 保留真实 region geometry；图片占位 HTML 的路径、属性与通用 alt 标签
+不作为正文或图注。没有识别到可读文本时，figure text/caption 为 `None`、quality
+为 partial。独立 figure/table caption 保持 caption block，参与正常文本 Evidence。
+
+长文摘要按文档顺序合并相邻段落与短章节，在字符数和 Evidence 条目数预算内
+分片；章节标题不单独强制触发模型调用。每条 Evidence 保留原章节、页码与文本
+定位，分片携带所覆盖章节的有序提示，聚合结果继续校验分片内引用闭包。
 
 `cell_id` 必须同时有 `table_id`；`text_span` 必须同时有 `block_id`。持久化
 层必须在 immutable parse 上重新验证 locator，确认 page、block、table、cell

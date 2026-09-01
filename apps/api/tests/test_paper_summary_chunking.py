@@ -44,19 +44,19 @@ def test_chunks_preserve_document_order_across_pages():
     assert chunks[0].text == "first\n\nsecond\n\nthird"
 
 
-def test_section_boundary_starts_a_new_chunk():
+def test_short_adjacent_sections_share_a_bounded_chunk():
     blocks = [
         _block("b1", 0, "intro text", section="Introduction", order=0),
         _block("b2", 0, "method text one", section="Method", order=1),
         _block("b3", 0, "method text two", section="Method", order=2),
     ]
     chunks = build_summary_chunks(blocks, {})
-    assert [chunk.section_hint for chunk in chunks] == ["Introduction", "Method"]
-    assert chunks[0].block_ids == ("b1",)
-    assert chunks[1].block_ids == ("b2", "b3")
+    assert len(chunks) == 1
+    assert chunks[0].section_hint == "Introduction / Method"
+    assert chunks[0].block_ids == ("b1", "b2", "b3")
 
 
-def test_character_budget_splits_without_crossing_sections():
+def test_character_budget_bounds_mixed_section_chunks():
     filler = "x" * 600
     blocks = [
         _block("b1", 0, filler, section="One", order=0),
@@ -101,8 +101,8 @@ def test_evidence_ids_flow_from_blocks_deduplicated():
     ]
     mapping = {"b1": "evidence.a", "b2": "evidence.a", "b3": "evidence.b"}
     chunks = build_summary_chunks(blocks, mapping)
-    assert chunks[0].evidence_ids == ("evidence.a",)
-    assert chunks[1].evidence_ids == ("evidence.b",)
+    assert len(chunks) == 1
+    assert chunks[0].evidence_ids == ("evidence.a", "evidence.b")
 
 
 def test_blocks_without_evidence_produce_empty_evidence_chunk():
@@ -136,7 +136,7 @@ def test_empty_documents_are_rejected():
 def test_chunk_budget_is_enforced():
     blocks = [_block(f"b{i}", 0, f"text {i}", section=f"S{i}") for i in range(5)]
     with pytest.raises(ValueError, match="chunk budget"):
-        build_summary_chunks(blocks, {}, max_chunks=2)
+        build_summary_chunks(blocks, {}, max_chunks=2, max_chunk_blocks=1)
 
 
 def test_reduction_merges_statements_in_chunk_order():

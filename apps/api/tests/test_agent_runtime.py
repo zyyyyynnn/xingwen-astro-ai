@@ -148,9 +148,7 @@ def test_agent_emits_reasoning_and_one_tool_lifecycle() -> None:
     assert result.value == {"rows": 2}
     assert result.activity_id == "tool-1"
     assert result.activity_result_summary == "已获取 2 条记录。"
-    assert result.assistant_narrative == (
-        "“查询天文数据”已完成。已获取 2 条记录。"
-    )
+    assert result.assistant_narrative == ("“查询天文数据”已完成。已获取 2 条记录。")
     assert [activity.activity_kind for activity in emitted] == [
         "reasoning",
         "reasoning",
@@ -172,7 +170,7 @@ def test_agent_emits_reasoning_and_one_tool_lifecycle() -> None:
     assert user_message.startswith("只调用当前提供的唯一工具")
     assert "public_analysis 必须从第一句开始使用简体中文" in user_message
     assert '"step_key": "fetching_data"' in user_message
-    assert request.enable_thinking is False
+    assert request.enable_thinking is True
     tool_parameters = request.tools[0]["function"]["parameters"]
     assert tool_parameters["required"] == ["public_analysis"]
     assert set(tool_parameters["properties"]) == {"public_analysis"}
@@ -215,9 +213,7 @@ def test_agent_does_not_require_a_second_model_call_after_tool_success() -> None
     )
 
     assert result.value == {"rows": 2}
-    assert result.assistant_narrative == (
-        "“查询天文数据”已完成。已获取 2 条记录。"
-    )
+    assert result.assistant_narrative == ("“查询天文数据”已完成。已获取 2 条记录。")
     assert model.calls == 1
 
 

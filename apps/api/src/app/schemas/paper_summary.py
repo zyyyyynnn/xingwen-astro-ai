@@ -15,6 +15,7 @@ from pydantic import (
     Field,
     HttpUrl,
     PrivateAttr,
+    field_validator,
     model_validator,
 )
 
@@ -107,16 +108,17 @@ class PaperSummaryStatementCandidate(BaseModel):
     text: NonEmptyString
     evidence_ids: tuple[Identifier, ...]
 
-    @model_validator(mode="after")
-    def validate_evidence_ids(self) -> Self:
-        _require_unique(self.evidence_ids, "statement evidence id")
-        return self
+    @field_validator("evidence_ids")
+    @classmethod
+    def normalize_evidence_ids(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        """Repeated citations have one identity; admission still checks every id."""
+        return tuple(dict.fromkeys(value))
 
 
 class PaperSummaryModelOutput(BaseModel):
     """The complete JSON shape accepted before Evidence validation."""
 
-    model_config = MODEL_CONFIG
+    model_config = ConfigDict(**MODEL_CONFIG, hide_input_in_errors=True)
     __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     background: tuple[PaperSummaryStatementCandidate, ...]
@@ -126,7 +128,6 @@ class PaperSummaryModelOutput(BaseModel):
     discussion: tuple[PaperSummaryStatementCandidate, ...]
     limitations: tuple[PaperSummaryStatementCandidate, ...]
     research_questions: tuple[PaperSummaryStatementCandidate, ...]
-    evidence_ids: tuple[Identifier, ...]
 
     @model_validator(mode="after")
     def validate_statement_registry(self) -> Self:
@@ -135,20 +136,20 @@ class PaperSummaryModelOutput(BaseModel):
             tuple(statement.statement_id for statement in statements),
             "summary statement id",
         )
-        expected_evidence_ids = tuple(
+        return self
+
+    @property
+    def evidence_ids(self) -> tuple[str, ...]:
+        """Derive the registry from the only model-authored reference source."""
+        return tuple(
             sorted(
                 {
                     evidence_id
-                    for item in statements
+                    for item in self.statements()
                     for evidence_id in item.evidence_ids
                 }
             )
         )
-        if self.evidence_ids != expected_evidence_ids:
-            raise ValueError(
-                "evidence_ids must equal the sorted statement Evidence union"
-            )
-        return self
 
     def statements(self) -> tuple[PaperSummaryStatementCandidate, ...]:
         return tuple(

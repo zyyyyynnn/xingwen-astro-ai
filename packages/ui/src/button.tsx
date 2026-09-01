@@ -16,6 +16,7 @@ export type ButtonSize =
   | "xsmall"
   | "small"
   | "large"
+  | "inline"
   | "icon"
   | "icon-small"
   | "icon-xsmall";

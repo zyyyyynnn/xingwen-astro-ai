@@ -22,6 +22,7 @@ from app.schemas.literature_relation import (
 )
 from app.schemas.paper_summary import PaperSummaryArtifactContent
 from app.services.artifacts import ArtifactReadService
+from app.services.literature_claim_chunks import ChunkedLiteratureClaimService
 from app.services.paper_summaries import PaperSummaryReadPort
 from app.workflow.publisher import ArtifactPublication, admit_artifact_candidate
 from app.workflow.step_publication import (
@@ -36,9 +37,9 @@ from services.data_pipeline.revision import DataRevisionError, DataRevisionError
 from services.paper_pipeline.claim import (
     LiteratureClaimPipeline,
     PaperSummaryArtifactVersionInput,
+    build_literature_claim_input_identity,
 )
 from services.paper_pipeline.constants import (
-    CLAIM_PARAMETERS_VERSION,
     CLAIM_PRODUCER_NAME,
     CLAIM_PRODUCER_VERSION,
     RELATION_ADJUDICATION_PRODUCER_NAME,
@@ -57,7 +58,7 @@ from services.paper_pipeline.relation_confidence import (
     build_live_relation_confidence_assessments,
 )
 from services.paper_pipeline.relation_pairing import (
-    build_literature_relation_pairing_policy,
+    select_literature_relation_model_policy,
 )
 
 #: Governed generation parameters shared by the literature model calls.
@@ -69,6 +70,8 @@ MODEL_PARAMETERS: dict[str, float | int] = {
 
 #: Product capacity for one reviewable relation synthesis batch.
 MAX_RELATION_CANDIDATES = 1
+MAX_RELATION_MODEL_PAIRS = 64
+
 
 class RelationConfidenceBuilder(Protocol):
     """Attempt-local confidence boundary used by the literature step."""
@@ -80,17 +83,6 @@ class RelationConfidenceBuilder(Protocol):
         claims: Iterable[LiteratureClaimCandidate],
     ) -> dict[str, LiteratureRelationConfidenceAssessment]: ...
 
-def _claim_parameters_hash(
-    parameters: dict[str, float | int],
-) -> str:
-    """Mirror the Claim pipeline's governed parameter-hash identity."""
-
-    return compute_canonical_payload_hash(
-        {
-            "parameters_version": CLAIM_PARAMETERS_VERSION,
-            "parameters": dict(parameters),
-        }
-    )
 
 def _relation_parameters_hash(
     parameters: dict[str, float | int],
@@ -103,6 +95,33 @@ def _relation_parameters_hash(
             "parameters": dict(parameters),
         }
     )
+
+
+def _relation_claim_model_input(
+    claim: LiteratureClaimCandidate,
+) -> dict[str, object]:
+    """Project only scientific endpoint fields required by Relation synthesis."""
+
+    return {
+        "claim_id": claim.claim_id,
+        "source_statement_id": claim.source_statement_id,
+        "text": claim.text,
+        "normalized_text": claim.normalized_text,
+        "claim_type": claim.claim_type.value,
+        "polarity": claim.polarity.value,
+        "objects": list(claim.objects),
+        "metric": claim.metric,
+        "unit": claim.unit,
+        "conditions": list(claim.conditions),
+        "scope": list(claim.scope),
+        "limitations": list(claim.limitations),
+        "qualifiers": list(claim.qualifiers),
+        "uncertainty": claim.uncertainty,
+        "comparison_basis": claim.comparison_basis,
+        "evidence_ids": list(claim.evidence_ids),
+        "status": claim.status.value,
+    }
+
 
 class LiteratureStepService:
     """Extract and admit literature claims and relations for one Run."""
@@ -126,6 +145,9 @@ class LiteratureStepService:
         context: RunStepContext,
         summary: PaperSummaryArtifactContent,
         summary_version_id: UUID,
+        step_key: str,
+        attempt: AttemptHandle,
+        lease: LeaseGrant,
         model_caller: StepModelCaller,
         snapshot_bindings_override: dict[str, str],
     ) -> tuple[
@@ -152,31 +174,68 @@ class LiteratureStepService:
         claims_version_id = step_uuid(
             str(context.run_id), "artifact-version:literature_claims"
         )
-        claims_model_response, claims_response, claims_execution_id = (
-            model_caller.execute_json(
-                prompt_name="literature_claim",
-                input_payload={
-                    "paper_summary_artifact_version_id": str(summary_version_id),
-                    "paper_summary": summary.model_dump(mode="json"),
-                },
-                parameters=MODEL_PARAMETERS,
-                producer_name=CLAIM_PRODUCER_NAME,
-                producer_version=CLAIM_PRODUCER_VERSION,
-                parameters_hash=_claim_parameters_hash(MODEL_PARAMETERS),
+        summary_versions = {
+            str(summary_version_id): PaperSummaryArtifactVersionInput(
+                artifact_version_id=str(summary_version_id),
+                schema_version=summary.schema_version,
+                content=summary,
             )
+        }
+        prompt = model_caller.prompt("literature_claim")
+        model_execution = model_caller.pin_resumable_port()
+        model_identity = model_caller.identity
+        _, claim_input_hash, parameters_hash = build_literature_claim_input_identity(
+            paper_summary_artifact_version_id=str(summary_version_id),
+            paper_id=summary.paper_id,
+            paper_summary_versions=summary_versions,
+            model_name=model_identity.requested_model,
+            parameters=MODEL_PARAMETERS,
         )
+        claims_execution = self._publications.start_producer(
+            context,
+            step_key=step_key,
+            operation_key="literature_claim_extraction",
+            producer_type="model",
+            producer_name=CLAIM_PRODUCER_NAME,
+            producer_version=CLAIM_PRODUCER_VERSION,
+            input_hash=claim_input_hash,
+            parameters={
+                **MODEL_PARAMETERS,
+                "resume_from_completed_children": True,
+            },
+            parameters_hash=parameters_hash,
+            model_provider=model_identity.provider,
+            requested_model=model_identity.requested_model,
+            explicit_revision=model_identity.explicit_revision,
+            prompt_name=prompt.name,
+            prompt_version=prompt.version,
+            prompt_hash=prompt.content_hash,
+            attempt=attempt,
+            lease=lease,
+        )
+        claims_execution_id = claims_execution.id
         claims_terminalized = False
+        claims_response = None
         try:
+            chunked = ChunkedLiteratureClaimService(model_execution).execute(
+                summary=summary,
+                paper_summary_artifact_version_id=str(summary_version_id),
+                provider=model_identity.provider,
+                model=model_identity.requested_model,
+                model_revision=model_identity.explicit_revision,
+                parameters=MODEL_PARAMETERS,
+            )
+            claims_response = chunked.model_response
+            claims_model_response = json.dumps(
+                chunked.extraction.model_dump(mode="json"),
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
             claims_result = LiteratureClaimPipeline().admit(
                 paper_summary_artifact_version_id=str(summary_version_id),
                 paper_id=summary.paper_id,
-                paper_summary_versions={
-                    str(summary_version_id): PaperSummaryArtifactVersionInput(
-                        artifact_version_id=str(summary_version_id),
-                        schema_version=summary.schema_version,
-                        content=summary,
-                    )
-                },
+                paper_summary_versions=summary_versions,
                 model_response=claims_model_response,
                 model_name=model_caller.requested_model,
                 parameters=MODEL_PARAMETERS,
@@ -200,9 +259,7 @@ class LiteratureStepService:
                     ),
                 )
                 claims_terminalized = True
-                raise ValueError(
-                    f"文献论点未通过准入: {claims_result.failure_stage}"
-                )
+                raise ValueError(f"文献论点未通过准入: {claims_result.failure_stage}")
 
             claims_source_bindings = self._publications.source_bindings(
                 context,
@@ -238,9 +295,17 @@ class LiteratureStepService:
                 self._publications.finish_producer(
                     claims_execution_id,
                     status="failed",
-                    output_hash=claims_response.output_hash,
+                    output_hash=(
+                        claims_response.output_hash
+                        if claims_response is not None
+                        else None
+                    ),
                     response=claims_response,
-                    error_code="LITERATURE_CLAIM_POST_PROVIDER_LOCAL_FAILURE",
+                    error_code=(
+                        "LITERATURE_CLAIM_POST_PROVIDER_LOCAL_FAILURE"
+                        if claims_response is not None
+                        else "LITERATURE_CLAIM_EXECUTION_FAILED"
+                    ),
                 )
             raise
         publication = self._publications.publication(
@@ -273,9 +338,7 @@ class LiteratureStepService:
                 DataRevisionErrorCode.replan_required,
                 "Relation adjudication requires the frozen LiteratureRelations version",
             )
-        baseline_version = ArtifactReadService(
-            self._publications.factory
-        ).get_version(
+        baseline_version = ArtifactReadService(self._publications.factory).get_version(
             version_id=str(baseline_version_id),
             session_id=context.session_id,
             full_content=True,
@@ -396,6 +459,9 @@ class LiteratureStepService:
                 context=context,
                 summary=summary,
                 summary_version_id=summary_version_id,
+                step_key=step_key,
+                attempt=attempt,
+                lease=lease,
                 model_caller=model_caller,
                 snapshot_bindings_override=snapshot_bindings_override,
             )
@@ -438,18 +504,31 @@ class LiteratureStepService:
             claim_artifact_version_id=str(claims_version_id),
             claims=claim_records,
         )
+        relation_policy = select_literature_relation_model_policy(
+            claim_records,
+            max_pairs=MAX_RELATION_MODEL_PAIRS,
+        )
+        relation_claim_ids = {
+            claim_id
+            for pair in relation_policy.pairs
+            for claim_id in (pair.source_claim_id, pair.target_claim_id)
+        }
         relations_model_response, relations_response, relations_execution_id = (
             model_caller.execute_json(
                 prompt_name="literature_relation",
                 input_payload={
                     "literature_claim_artifact_version_ids": [str(claims_version_id)],
-                    "claims": claims.model_dump(mode="json"),
+                    "claims": {
+                        "artifact_version_id": str(claims_version_id),
+                        "schema_version": claims.schema_version,
+                        "claims": [
+                            _relation_claim_model_input(claim)
+                            for claim in claim_records
+                            if claim.claim_id in relation_claim_ids
+                        ],
+                    },
                     "max_relation_candidates": MAX_RELATION_CANDIDATES,
-                    "relation_comparability_policy": (
-                        build_literature_relation_pairing_policy(
-                            claim_records
-                        ).as_model_input()
-                    ),
+                    "relation_comparability_policy": relation_policy.as_model_input(),
                 },
                 parameters=MODEL_PARAMETERS,
                 producer_name=RELATION_PRODUCER_NAME,
@@ -481,9 +560,7 @@ class LiteratureStepService:
                 LiteratureRelationStatus.accepted,
                 LiteratureRelationStatus.candidate,
             }:
-                error_code = (
-                    f"LITERATURE_RELATION_{relations_result.failure_stage or 'REJECTED'}"
-                )
+                error_code = f"LITERATURE_RELATION_{relations_result.failure_stage or 'REJECTED'}"
                 model_caller.reject(
                     relations_execution_id,
                     input_hash=None,
@@ -558,5 +635,6 @@ class LiteratureStepService:
                 f"{len(relations_result.records)} 条论点关系"
             ),
         )
+
 
 __all__ = ["LiteratureStepService"]

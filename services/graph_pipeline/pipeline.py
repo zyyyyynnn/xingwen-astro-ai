@@ -11,7 +11,7 @@ from pydantic import ValidationError
 
 from app.schemas._graph_seal import _bind_graph_pipeline_authority
 from app.schemas._hashing import compute_canonical_payload_hash
-from app.schemas.enums import EvidenceType, GraphEdgeType, GraphNodeType
+from app.schemas.enums import EvidenceType, GraphEdgeType
 from app.schemas.graph_artifact import (
     GRAPH_TAXONOMY_EDGE_TYPES,
     GRAPH_TAXONOMY_NODE_TYPES,
@@ -31,7 +31,6 @@ from app.schemas.graph_artifact import (
     GraphIntegrityFinding,
     GraphIntegrityStage,
     GraphIntegrityStatus,
-    GraphLayoutHint,
     GraphLogicalReferencePart,
     GraphNodeVersionBinding,
     GraphPolicySet,
@@ -91,6 +90,7 @@ def _item_id(category: str, payload: object) -> str:
 
 def required_progressive_item_ids(
     *,
+    literature_claims_artifact_version_ids: tuple[str, ...],
     literature_relations_artifact_version_id: str,
     dataset_artifact_version_id: str | None,
     field_dictionary_artifact_version_id: str | None,
@@ -99,6 +99,10 @@ def required_progressive_item_ids(
     """Return the complete stable logical item set for progressive admission."""
 
     values = {
+        *(
+            _item_id("input", version_id)
+            for version_id in literature_claims_artifact_version_ids
+        ),
         _item_id("input", literature_relations_artifact_version_id),
         *(_item_id("paper", value) for value in scope.literature_paper_ids),
         *(_item_id("claim", value) for value in scope.literature_claim_ids),
@@ -121,6 +125,7 @@ def required_progressive_item_ids(
 def build_complete_progressive_input(
     *,
     progressive_id: str,
+    literature_claims_artifact_version_ids: tuple[str, ...],
     literature_relations_artifact_version_id: str,
     dataset_artifact_version_id: str | None,
     field_dictionary_artifact_version_id: str | None,
@@ -133,6 +138,7 @@ def build_complete_progressive_input(
     if chunk_size < 1 or chunk_size > 10_000:
         raise ValueError("chunk_size must be between 1 and 10000")
     item_ids = required_progressive_item_ids(
+        literature_claims_artifact_version_ids=(literature_claims_artifact_version_ids),
         literature_relations_artifact_version_id=(
             literature_relations_artifact_version_id
         ),
@@ -141,7 +147,9 @@ def build_complete_progressive_input(
         scope=scope,
     )
     chunks = tuple(
-        GraphProgressiveChunk(chunk_index=index, item_ids=item_ids[offset : offset + chunk_size])
+        GraphProgressiveChunk(
+            chunk_index=index, item_ids=item_ids[offset : offset + chunk_size]
+        )
         for index, offset in enumerate(range(0, len(item_ids), chunk_size))
     )
     supplied = tuple(reversed(chunks)) if reverse_chunks else chunks
@@ -153,9 +161,9 @@ def build_complete_progressive_input(
     )
 
 
-def _empty_counts(input_version_count: int = 1) -> GraphIntegrityCounts:
+def _empty_counts(input_version_count: int = 2) -> GraphIntegrityCounts:
     return GraphIntegrityCounts(
-        input_version_count=max(1, min(input_version_count, 3)),
+        input_version_count=max(2, min(input_version_count, 256)),
         node_count=0,
         edge_count=0,
         evidence_use_count=0,
@@ -354,16 +362,27 @@ class _Assembly:
         self.edges[edge.edge_id] = edge
 
 
-def _literature_claim_version_id(inputs: PublishedGraphInputs, claim_id: str) -> str:
-    for reference in inputs.literature_relations.candidate.input_versions.claim_artifact_versions:
-        if claim_id in reference.claim_ids:
-            return reference.artifact_version_id
+def _literature_claims_version(
+    inputs: PublishedGraphInputs,
+    claim_id: str,
+) -> Any:
+    matches = tuple(
+        published
+        for published in inputs.literature_claims
+        if any(item.claim_id == claim_id for item in published.candidate.claims)
+    )
+    if len(matches) == 1:
+        return matches[0]
     raise GraphAdmissionFailure(
         GraphIntegrityStage.artifact_version,
         GraphRejectionReason.cross_version_reference,
         f"claims.{claim_id}.artifact_version_id",
-        "Claim does not resolve to one pinned LiteratureClaims ArtifactVersion",
+        "Claim does not resolve to the pinned LiteratureClaims ArtifactVersion",
     )
+
+
+def _literature_claim_version_id(inputs: PublishedGraphInputs, claim_id: str) -> str:
+    return _literature_claims_version(inputs, claim_id).pins.artifact_version_id
 
 
 def _literature_evidence_bindings(
@@ -374,10 +393,21 @@ def _literature_evidence_bindings(
     target_ids: Iterable[str],
 ) -> tuple[PersistedEvidenceBinding, ...]:
     targets = frozenset(target_ids)
+    if target_type == "claim":
+        if len(targets) != 1:
+            raise GraphAdmissionFailure(
+                GraphIntegrityStage.evidence_snapshot,
+                GraphRejectionReason.evidence_inconsistent,
+                f"evidence.{evidence_id}",
+                "Claim Evidence lookup requires one exact Claim target",
+            )
+        published = _literature_claims_version(inputs, next(iter(targets)))
+    else:
+        published = inputs.literature_relations
     pipeline_evidence = next(
         (
             item
-            for item in inputs.literature_relations.candidate.evidence
+            for item in published.candidate.evidence
             if item.evidence_id == evidence_id
         ),
         None,
@@ -391,7 +421,7 @@ def _literature_evidence_bindings(
     )
     matches = tuple(
         item
-        for item in inputs.literature_relations.evidence_bindings
+        for item in published.evidence_bindings
         if item.pipeline_evidence_id == evidence_id
         and item.pipeline_evidence_content_hash == pipeline_content_hash
         and item.pipeline_target_type == target_type
@@ -580,11 +610,15 @@ def _reasoning_trace_failure(
 
 
 def _add_literature(assembly: _Assembly, scope: GraphBuildScope) -> None:
-    published = assembly.inputs.literature_relations
-    candidate = published.candidate
-    claims = {item.claim_id: item for item in candidate.claims}
-    relations = {item.relation_id: item for item in candidate.relations}
-    traces = {item.trace_id: item for item in candidate.reasoning_traces}
+    published_relations = assembly.inputs.literature_relations
+    claims = {
+        item.claim_id: item
+        for published in assembly.inputs.literature_claims
+        for item in published.candidate.claims
+    }
+    relations = {
+        item.relation_id: item for item in published_relations.candidate.relations
+    }
     for relation_id in scope.accepted_relation_ids:
         failure = _selected_relation_failure(relation_id, relations)
         if failure is not None:
@@ -649,11 +683,6 @@ def _add_literature(assembly: _Assembly, scope: GraphBuildScope) -> None:
         assembly.add_node(node)
         paper_node_by_id[paper_id] = node
 
-    snapshots_by_pipeline = {
-        item.pipeline_source_snapshot_id: item
-        for item in published.source_snapshot_bindings
-    }
-
     for request in scope.structural_edges:
         source_node = paper_node_by_id.get(request.source_paper_id)
         target_node = claim_node_by_id.get(request.target_claim_id)
@@ -671,6 +700,14 @@ def _add_literature(assembly: _Assembly, scope: GraphBuildScope) -> None:
             paper_node_identity(request.source_paper_id),
             claim_node_identity(request.target_claim_id),
         )
+        published_claims = _literature_claims_version(
+            assembly.inputs,
+            claim.claim_id,
+        )
+        claim_snapshots_by_pipeline = {
+            item.pipeline_source_snapshot_id: item
+            for item in published_claims.source_snapshot_bindings
+        }
         uses: list[GraphEvidenceUse] = []
         for evidence_id in sorted(claim.evidence_ids):
             for binding in _literature_evidence_bindings(
@@ -679,7 +716,7 @@ def _add_literature(assembly: _Assembly, scope: GraphBuildScope) -> None:
                 target_type="claim",
                 target_ids=(claim.claim_id,),
             ):
-                snapshot = snapshots_by_pipeline.get(
+                snapshot = claim_snapshots_by_pipeline.get(
                     binding.pipeline_source_snapshot_id
                 )
                 if snapshot is None:
@@ -693,7 +730,7 @@ def _add_literature(assembly: _Assembly, scope: GraphBuildScope) -> None:
                 uses.append(
                     assembly.evidence_use(
                         edge_id=edge_identity.edge_id,
-                        pins=published.pins,
+                        pins=published_claims.pins,
                         binding=binding,
                     )
                 )
@@ -711,7 +748,10 @@ def _add_literature(assembly: _Assembly, scope: GraphBuildScope) -> None:
         scope,
         claims=claims,
         claim_node_by_id=claim_node_by_id,
-        snapshots_by_pipeline=snapshots_by_pipeline,
+        snapshots_by_pipeline={
+            item.pipeline_source_snapshot_id: item
+            for item in published_relations.source_snapshot_bindings
+        },
     )
 
 
@@ -747,9 +787,7 @@ def _add_literature_relations(
         if failure is not None:
             raise failure
         try:
-            edge_type = graph_edge_type_for_literature_relation(
-                relation.relation_type
-            )
+            edge_type = graph_edge_type_for_literature_relation(relation.relation_type)
         except GraphIdentityError as exc:
             raise GraphAdmissionFailure(
                 GraphIntegrityStage.taxonomy,
@@ -864,8 +902,7 @@ def _data_evidence_bindings(
                 and binding.pipeline_evidence_content_hash
                 == transformation.content_hash
                 and binding.pipeline_target_type == "canonical_field"
-                and binding.pipeline_target_id
-                == transformation.canonical_field_id
+                and binding.pipeline_target_id == transformation.canonical_field_id
                 and binding.pipeline_locator
                 == transformation.locator.model_dump(mode="json")
                 and binding.pipeline_source_snapshot_id
@@ -1044,7 +1081,6 @@ def _add_data(assembly: _Assembly) -> None:
         return
     published_dataset = assembly.inputs.data.dataset
     published_dictionary = assembly.inputs.data.field_dictionary
-    dataset = published_dataset.candidate
     dictionary = published_dictionary.candidate
     dataset_identity = dataset_node_identity(published_dataset.pins.artifact_id)
     dataset_node = _node(
@@ -1073,9 +1109,7 @@ def _add_data(assembly: _Assembly) -> None:
             label=f"Field {field_id}",
             bindings=(
                 GraphNodeVersionBinding(
-                    artifact_version_id=(
-                        published_dictionary.pins.artifact_version_id
-                    ),
+                    artifact_version_id=(published_dictionary.pins.artifact_version_id),
                     domain_object_id=field_id,
                 ),
             ),
@@ -1089,9 +1123,7 @@ def _add_data(assembly: _Assembly) -> None:
 
         uses: list[GraphEvidenceUse] = []
         for evidence_id in closure.evidence_ids:
-            for pins, binding in _data_evidence_bindings(
-                assembly.inputs, evidence_id
-            ):
+            for pins, binding in _data_evidence_bindings(assembly.inputs, evidence_id):
                 snapshot = snapshot_bindings.get(binding.pipeline_source_snapshot_id)
                 if snapshot is None:
                     raise GraphAdmissionFailure(
@@ -1122,10 +1154,17 @@ def _add_data(assembly: _Assembly) -> None:
 
 def _input_versions(inputs: PublishedGraphInputs) -> GraphInputVersionClosure:
     values = [
+        *(
+            _version_reference(
+                published.pins,
+                role=GraphInputRole.literature_claims,
+            )
+            for published in inputs.literature_claims
+        ),
         _version_reference(
             inputs.literature_relations.pins,
             role=GraphInputRole.literature_relations,
-        )
+        ),
     ]
     if inputs.data is not None:
         values.extend(
@@ -1146,7 +1185,9 @@ def _input_versions(inputs: PublishedGraphInputs) -> GraphInputVersionClosure:
     )
 
 
-def _producer(policies: GraphPolicySet, taxonomy: GraphTaxonomy) -> GraphAlgorithmProducer:
+def _producer(
+    policies: GraphPolicySet, taxonomy: GraphTaxonomy
+) -> GraphAlgorithmProducer:
     return GraphAlgorithmProducer(
         parameters_hash=compute_graph_algorithm_parameters_hash(policies, taxonomy)
     )
@@ -1166,6 +1207,9 @@ def _collect_progressive_failures(
             )
         )
     expected = required_progressive_item_ids(
+        literature_claims_artifact_version_ids=(
+            request.literature_claims_artifact_version_ids
+        ),
         literature_relations_artifact_version_id=(
             request.literature_relations_artifact_version_id
         ),
@@ -1176,7 +1220,11 @@ def _collect_progressive_failures(
         scope=request.scope,
     )
     actual = tuple(
-        sorted(item_id for chunk in request.progressive.chunks for item_id in chunk.item_ids)
+        sorted(
+            item_id
+            for chunk in request.progressive.chunks
+            for item_id in chunk.item_ids
+        )
     )
     if actual != expected:
         failures.append(
@@ -1188,12 +1236,9 @@ def _collect_progressive_failures(
             )
         )
     capacity = request.policies.capacity_policy
-    if (
-        len(request.progressive.chunks) > capacity.max_progressive_chunks
-        or any(
-            len(chunk.item_ids) > capacity.max_items_per_chunk
-            for chunk in request.progressive.chunks
-        )
+    if len(request.progressive.chunks) > capacity.max_progressive_chunks or any(
+        len(chunk.item_ids) > capacity.max_items_per_chunk
+        for chunk in request.progressive.chunks
     ):
         failures.append(
             GraphAdmissionFailure(
@@ -1263,19 +1308,27 @@ def _collect_literature_gate_failures(
     scope: GraphBuildScope,
 ) -> tuple[GraphAdmissionFailure, ...]:
     failures: list[GraphAdmissionFailure] = []
-    published = inputs.literature_relations
-    candidate = published.candidate
-    claims = {item.claim_id: item for item in candidate.claims}
-    relations = {item.relation_id: item for item in candidate.relations}
-    traces = {item.trace_id: item for item in candidate.reasoning_traces}
-    snapshots = {
-        item.pipeline_source_snapshot_id: item
-        for item in published.source_snapshot_bindings
+    published_claims = inputs.literature_claims
+    published_relations = inputs.literature_relations
+    claims = {
+        item.claim_id: item
+        for published in published_claims
+        for item in published.candidate.claims
+    }
+    relations = {
+        item.relation_id: item for item in published_relations.candidate.relations
+    }
+    traces = {
+        item.trace_id: item for item in published_relations.candidate.reasoning_traces
     }
 
     evidence_bindings: list[
         tuple[PublishedArtifactVersionPins, PersistedEvidenceBinding]
-    ] = [(published.pins, item) for item in published.evidence_bindings]
+    ] = [
+        (published.pins, item)
+        for published in (*published_claims, published_relations)
+        for item in published.evidence_bindings
+    ]
     if inputs.data is not None:
         evidence_bindings.extend(
             (data_input.pins, item)
@@ -1398,6 +1451,15 @@ def _collect_literature_gate_failures(
         except GraphAdmissionFailure as exc:
             failures.append(exc)
             return
+        published = (
+            _literature_claims_version(inputs, next(iter(target_ids)))
+            if target_type == "claim"
+            else published_relations
+        )
+        snapshots = {
+            item.pipeline_source_snapshot_id: item
+            for item in published.source_snapshot_bindings
+        }
         for binding in matches:
             if binding.pipeline_source_snapshot_id not in snapshots:
                 failures.append(
@@ -1490,6 +1552,9 @@ def _selection(request: GraphBuildRequest) -> GraphInputVersionSelection:
         )
     return GraphInputVersionSelection(
         project_id=request.project_id,
+        literature_claims_artifact_version_ids=(
+            request.literature_claims_artifact_version_ids
+        ),
         literature_relations_artifact_version_id=(
             request.literature_relations_artifact_version_id
         ),
@@ -1567,6 +1632,9 @@ def _assemble_candidate(
     producer = _producer(request.policies, taxonomy)
     canonical_progressive = build_complete_progressive_input(
         progressive_id=request.progressive.progressive_id,
+        literature_claims_artifact_version_ids=(
+            request.literature_claims_artifact_version_ids
+        ),
         literature_relations_artifact_version_id=(
             request.literature_relations_artifact_version_id
         ),
@@ -1680,8 +1748,7 @@ class GraphPipeline:
                         stage=GraphIntegrityStage.input_schema,
                         reason=GraphRejectionReason.schema_invalid,
                         priority=100,
-                        path="request."
-                        + ".".join(str(part) for part in error["loc"]),
+                        path="request." + ".".join(str(part) for part in error["loc"]),
                         message=(
                             "Graph build field failed strict validation: "
                             f"{error['type']}"
@@ -1708,7 +1775,7 @@ class GraphPipeline:
     ) -> GraphAdmissionResult:
         """Admit and seal one complete Graph; failures never return candidates."""
 
-        input_count = 1
+        input_count = 1 + len(request.literature_claims_artifact_version_ids)
         if isinstance(request, GraphBuildRequest):
             input_count += int(request.dataset_artifact_version_id is not None) * 2
         failures: list[GraphAdmissionFailure] = []

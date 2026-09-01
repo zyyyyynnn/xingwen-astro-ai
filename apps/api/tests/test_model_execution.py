@@ -400,6 +400,7 @@ def test_planner_uses_the_registered_prompt_and_identified_output_contract() -> 
 
     output_contract = request_value.input_payload["output_contract"]
     assert request_value.parameters == {"temperature": 0, "top_p": 1}
+    assert request_value.enable_thinking is True
     assert output_contract["name"] == "PlannerOutcome"
     rendered_schema = str(output_contract["json_schema"])
     assert "question_id" in rendered_schema

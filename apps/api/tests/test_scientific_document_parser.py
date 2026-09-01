@@ -74,6 +74,8 @@ def test_scanned_page_routes_to_visual_parser_and_preserves_structure() -> None:
         DocumentBlockKind.figure,
     }
     assert all(block.parser_backend is ParserBackend.visual for block in parsed.blocks)
+    assert [page.page_index for page in parsed.pages] == [0]
+    assert all(block.page_index == 0 for block in parsed.blocks)
     assert parsed.tables[0].rows[1][1].text == "1.2"
     assert parsed.formulas[0].latex == "F = ma"
     assert parsed.figures[0].caption == "图 1：光变曲线"

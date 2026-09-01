@@ -71,9 +71,7 @@ def _field_upstream_evidence_ids(dataset, field_id: str) -> set[str]:
             continue
         evidence_ids.update(outcome.transformation_evidence_ids)
         for evidence_id in outcome.transformation_evidence_ids:
-            evidence_ids.update(
-                transformations[evidence_id].authority.evidence_ids
-            )
+            evidence_ids.update(transformations[evidence_id].authority.evidence_ids)
     return evidence_ids
 
 
@@ -183,9 +181,7 @@ def test_published_input_producer_failure_has_structured_reason() -> None:
         )
 
     assert captured.value.stage is GraphIntegrityStage.artifact_version
-    assert (
-        captured.value.reason is GraphRejectionReason.producer_execution_mismatch
-    )
+    assert captured.value.reason is GraphRejectionReason.producer_execution_mismatch
 
 
 def test_published_input_ownership_failure_has_structured_reason() -> None:
@@ -197,6 +193,7 @@ def test_published_input_ownership_failure_has_structured_reason() -> None:
                 inputs.selection,
                 project_id=stable_uuid("another-project"),
             ),
+            literature_claims=inputs.literature_claims,
             literature_relations=inputs.literature_relations,
         )
 
@@ -235,7 +232,9 @@ def test_published_provenance_closure_failures_have_structured_reasons(
     assert captured.value.reason is reason
 
 
-def test_real_literature_relation_literature_only_candidate_builds_four_nodes_and_two_edges() -> None:
+def test_real_literature_relation_literature_only_candidate_builds_four_nodes_and_two_edges() -> (
+    None
+):
     fixture, candidate = _accepted_candidate()
 
     assert len(candidate.nodes) == 4
@@ -271,9 +270,7 @@ def test_real_literature_relation_literature_only_candidate_builds_four_nodes_an
 
 
 def test_shared_literature_evidence_is_selected_by_accepted_relation_target() -> None:
-    fixture = build_literature_graph_fixture(
-        include_shared_candidate_relation=True
-    )
+    fixture = build_literature_graph_fixture(include_shared_candidate_relation=True)
     published = fixture.inputs.literature_relations
     accepted = next(
         item
@@ -300,9 +297,7 @@ def test_shared_literature_evidence_is_selected_by_accepted_relation_target() ->
 
     assert result.status is GraphIntegrityStatus.passed
     assert result.candidate is not None
-    graph_uses = {
-        item.evidence_use_id: item for item in result.candidate.evidence_uses
-    }
+    graph_uses = {item.evidence_use_id: item for item in result.candidate.evidence_uses}
     relation_edge = next(
         item for item in result.candidate.edges if item.relation_trace is not None
     )
@@ -446,9 +441,7 @@ def test_multi_gate_failures_are_complete_prioritized_and_order_invariant() -> N
             "not_a_governed_evidence_type",
         )
         retained_bindings = tuple(
-            item
-            for item in published.evidence_bindings
-            if item is not missing_binding
+            item for item in published.evidence_bindings if item is not missing_binding
         )
         object.__setattr__(
             published,
@@ -493,9 +486,7 @@ def test_multi_gate_failures_are_complete_prioritized_and_order_invariant() -> N
 
 def test_binding_and_progressive_chunk_permutations_are_canonical() -> None:
     normal = build_literature_graph_fixture()
-    reversed_bindings = build_literature_graph_fixture(
-        reverse_published_bindings=True
-    )
+    reversed_bindings = build_literature_graph_fixture(reverse_published_bindings=True)
 
     request = normal.request(chunk_size=2)
     reversed_request = reversed_bindings.request(
@@ -504,9 +495,7 @@ def test_binding_and_progressive_chunk_permutations_are_canonical() -> None:
     )
     assert request == reversed_request
     normal_result = GraphPipeline(normal.reader).admit(request)
-    reversed_result = GraphPipeline(reversed_bindings.reader).admit(
-        reversed_request
-    )
+    reversed_result = GraphPipeline(reversed_bindings.reader).admit(reversed_request)
 
     assert normal_result.candidate is not None
     assert reversed_result.candidate is not None
@@ -515,7 +504,9 @@ def test_binding_and_progressive_chunk_permutations_are_canonical() -> None:
     )
 
 
-def test_layout_is_non_scientific_and_progressive_partition_is_output_invariant() -> None:
+def test_layout_is_non_scientific_and_progressive_partition_is_output_invariant() -> (
+    None
+):
     fixture = build_literature_graph_fixture()
     baseline_result = GraphPipeline(fixture.reader).admit(fixture.request())
     layout_result = GraphPipeline(fixture.reader).admit(
@@ -626,7 +617,8 @@ def test_missing_persisted_evidence_binding_is_rejected() -> None:
     missing_id = next(
         item.evidence_id
         for item in published.candidate.evidence
-        if item.evidence_id in set(
+        if item.evidence_id
+        in set(
             next(
                 claim
                 for claim in published.candidate.claims
@@ -659,12 +651,8 @@ def test_structural_edge_wrong_direction_is_rejected() -> None:
         source_paper_id=fixture.target_paper_id,
         target_claim_id=fixture.source_claim_id,
     )
-    wrong_scope = fixture.scope.model_copy(
-        update={"structural_edges": (wrong_edge,)}
-    )
-    result = GraphPipeline(fixture.reader).admit(
-        fixture.request(scope=wrong_scope)
-    )
+    wrong_scope = fixture.scope.model_copy(update={"structural_edges": (wrong_edge,)})
+    result = GraphPipeline(fixture.reader).admit(fixture.request(scope=wrong_scope))
 
     _assert_failure(
         result,
@@ -692,12 +680,8 @@ def test_node_capacity_exact_boundary_passes_and_one_below_fails() -> None:
         )
     )
 
-    exact_result = GraphPipeline(fixture.reader).admit(
-        fixture.request(policies=exact)
-    )
-    below_result = GraphPipeline(fixture.reader).admit(
-        fixture.request(policies=below)
-    )
+    exact_result = GraphPipeline(fixture.reader).admit(fixture.request(policies=exact))
+    below_result = GraphPipeline(fixture.reader).admit(fixture.request(policies=below))
 
     assert exact_result.status is GraphIntegrityStatus.passed
     assert exact_result.candidate is not None
@@ -708,7 +692,9 @@ def test_node_capacity_exact_boundary_passes_and_one_below_fails() -> None:
     )
 
 
-def test_real_data_artifact_quality_data_maps_dataset_and_every_canonical_field_once() -> None:
+def test_real_data_artifact_quality_data_maps_dataset_and_every_canonical_field_once() -> (
+    None
+):
     fixture, candidate = _accepted_data_candidate()
     assert fixture.inputs.data is not None
     dataset_version = fixture.inputs.data.dataset
@@ -722,9 +708,9 @@ def test_real_data_artifact_quality_data_maps_dataset_and_every_canonical_field_
         item for item in candidate.nodes if item.node_type is GraphNodeType.field
     ]
     assert len(dataset_nodes) == 1
-    assert {
-        part.name: part.value for part in dataset_nodes[0].logical_reference
-    } == {"artifact_id": dataset_version.pins.artifact_id}
+    assert {part.name: part.value for part in dataset_nodes[0].logical_reference} == {
+        "artifact_id": dataset_version.pins.artifact_id
+    }
     assert dataset_nodes[0].version_bindings[0].artifact_version_id == (
         dataset_version.pins.artifact_version_id
     )
@@ -740,9 +726,7 @@ def test_real_data_artifact_quality_data_maps_dataset_and_every_canonical_field_
     }
     assert actual_fields == expected_fields
     assert all(
-        {
-            part.name: part.value for part in node.logical_reference
-        }["field_manifest_id"]
+        {part.name: part.value for part in node.logical_reference}["field_manifest_id"]
         == dictionary_version.candidate.manifest_pins.field_manifest_id
         for node in field_nodes
     )
@@ -755,10 +739,10 @@ def test_real_data_artifact_quality_data_maps_dataset_and_every_canonical_field_
     assert len(provides) == len(expected_fields)
     assert len({item.target_node_id for item in provides}) == len(expected_fields)
     assert all(item.source_node_id == dataset_nodes[0].node_id for item in provides)
-    assert all(nodes[item.target_node_id].node_type is GraphNodeType.field for item in provides)
-    assert {
-        item.node_type for item in candidate.nodes
-    } <= {
+    assert all(
+        nodes[item.target_node_id].node_type is GraphNodeType.field for item in provides
+    )
+    assert {item.node_type for item in candidate.nodes} <= {
         GraphNodeType.dataset,
         GraphNodeType.field,
         GraphNodeType.paper,
@@ -826,15 +810,13 @@ def test_data_edges_preserve_all_value_states_and_both_version_evidence_uses() -
             outcome.status == "unresolved" for outcome in applicable_outcomes
         )
         assert aggregation.retained_candidate_count == sum(
-            len(outcome.candidate_source_value_ids)
-            for outcome in applicable_outcomes
+            len(outcome.candidate_source_value_ids) for outcome in applicable_outcomes
         )
         assert aggregation.selected_candidate_count == sum(
             outcome.status == "mapped" for outcome in applicable_outcomes
         )
         assert aggregation.unselected_candidate_count == (
-            aggregation.retained_candidate_count
-            - aggregation.selected_candidate_count
+            aggregation.retained_candidate_count - aggregation.selected_candidate_count
         )
         assert aggregation.conflict_count == len(
             {
@@ -915,8 +897,7 @@ def test_transformation_evidence_storage_identity_fails_closed(tamper: str) -> N
         published,
         "evidence_bindings",
         tuple(
-            changed if item is binding else item
-            for item in published.evidence_bindings
+            changed if item is binding else item for item in published.evidence_bindings
         ),
     )
 
@@ -953,8 +934,7 @@ def test_crossmatch_evidence_content_identity_fails_closed() -> None:
         published,
         "evidence_bindings",
         tuple(
-            changed if item is binding else item
-            for item in published.evidence_bindings
+            changed if item is binding else item for item in published.evidence_bindings
         ),
     )
 
@@ -1010,10 +990,7 @@ def test_data_field_with_unbound_evidence_fails_closed() -> None:
     assert result.status is GraphIntegrityStatus.failed
     assert result.candidate is None
     assert result.report.first_failure_stage is GraphIntegrityStage.evidence_snapshot
-    assert (
-        result.report.first_rejection_reason
-        is GraphRejectionReason.evidence_missing
-    )
+    assert result.report.first_rejection_reason is GraphRejectionReason.evidence_missing
     assert {
         item.path.removeprefix("data.evidence.")
         for item in result.report.findings

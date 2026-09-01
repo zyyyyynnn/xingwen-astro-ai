@@ -487,37 +487,21 @@ def _transitive_binding_versions(
 ) -> frozenset[str]:
     """Collect the upstream-declared versions a Graph node may legally bind.
 
-    Binds Claim nodes to the LiteratureClaims version and Paper nodes to
-    the PaperSummary version, both of which the pinned LiteratureRelations
-    ArtifactVersion itself declares. Those declarations are read from the
-    resolved upstream content, never from the Graph body, so a tampered Graph
-    cannot widen its own closure.
+    Paper nodes bind to the PaperSummary version declared by each exact
+    LiteratureClaims input. That declaration is read from resolved upstream
+    content, never from the Graph body, so a tampered Graph cannot widen its
+    own closure.
     """
 
-    if reference.role is not GraphInputRole.literature_relations:
+    if reference.role is not GraphInputRole.literature_claims:
         return frozenset()
     declared = content.get("input_versions")
     if not isinstance(declared, Mapping):
         raise _provenance_problem()
-    claim_versions = declared.get("claim_artifact_versions")
-    if not isinstance(claim_versions, (list, tuple)):
+    summary_id = declared.get("paper_summary_artifact_version_id")
+    if not isinstance(summary_id, str):
         raise _provenance_problem()
-    result: set[str] = set()
-    for item in claim_versions:
-        if not isinstance(item, Mapping):
-            raise _provenance_problem()
-        version_id = item.get("artifact_version_id")
-        if not isinstance(version_id, str):
-            raise _provenance_problem()
-        result.add(version_id)
-        summaries = item.get("paper_summary_artifact_version_ids") or ()
-        if not isinstance(summaries, (list, tuple)):
-            raise _provenance_problem()
-        for summary_id in summaries:
-            if not isinstance(summary_id, str):
-                raise _provenance_problem()
-            result.add(summary_id)
-    return frozenset(result)
+    return frozenset((summary_id,))
 
 
 def _upstream_output_hash(content: Mapping[str, Any]) -> str | None:

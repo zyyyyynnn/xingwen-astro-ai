@@ -29,6 +29,7 @@ from app.schemas.graph_artifact import (
 from app.schemas.literature_relation import LiteratureRelationsCandidate
 from app.security import SecurityProblem
 from app.services.graph_inputs import ArtifactVersionGraphInputReadAdapter
+from graph_pipeline_test_support import build_literature_graph_fixture
 from literature_artifact_test_support import build_literature_fixture
 from services.graph_pipeline import (
     EvidenceRestrictionFact,
@@ -65,6 +66,13 @@ _DOMAIN_OUTPUT_HASH = "sha256:" + "2" * 64
 _CONTENT_HASH = "sha256:" + "3" * 64
 _PARAMETERS_HASH = "sha256:" + "4" * 64
 _NOW = datetime(2026, 8, 9, 8, 0, tzinfo=UTC)
+
+
+def _claim_version_ids(candidate: LiteratureRelationsCandidate) -> tuple[str, ...]:
+    return tuple(
+        item.artifact_version_id
+        for item in candidate.input_versions.claim_artifact_versions
+    )
 
 
 class _RestrictionReader:
@@ -110,7 +118,9 @@ def _producer_execution(*, output_hash: str) -> ProducerExecutionDetail:
     )
 
 
-def test_published_pins_keep_domain_output_and_publisher_content_hash_separate() -> None:
+def test_published_pins_keep_domain_output_and_publisher_content_hash_separate() -> (
+    None
+):
     pins = PublishedArtifactVersionPins(
         artifact_id="artifact.dataset",
         artifact_version_id="artifact-version.dataset",
@@ -137,15 +147,14 @@ def test_published_pins_keep_domain_output_and_publisher_content_hash_separate()
             input_hash=_INPUT_HASH,
             output_hash=_DOMAIN_OUTPUT_HASH,
             source_mode=SourceMode.fixture,
-            producer_execution=_producer_execution(
-                output_hash=_DOMAIN_OUTPUT_HASH
-            ),
+            producer_execution=_producer_execution(output_hash=_DOMAIN_OUTPUT_HASH),
         )
 
 
 def test_version_selection_supports_literature_only_or_an_exact_data_pair() -> None:
     literature_only = GraphInputVersionSelection(
         project_id="project.graph",
+        literature_claims_artifact_version_ids=("artifact-version.claims",),
         literature_relations_artifact_version_id="artifact-version.relations",
     )
     data = GraphDataVersionSelection(
@@ -154,6 +163,7 @@ def test_version_selection_supports_literature_only_or_an_exact_data_pair() -> N
     )
     full = GraphInputVersionSelection(
         project_id="project.graph",
+        literature_claims_artifact_version_ids=("artifact-version.claims",),
         literature_relations_artifact_version_id="artifact-version.relations",
         data=data,
     )
@@ -163,19 +173,18 @@ def test_version_selection_supports_literature_only_or_an_exact_data_pair() -> N
     with pytest.raises(GraphInputIntegrityError, match="typed"):
         GraphInputVersionSelection(
             project_id="project.graph",
-            literature_relations_artifact_version_id=(
-                "artifact-version.relations"
-            ),
+            literature_claims_artifact_version_ids=("artifact-version.claims",),
+            literature_relations_artifact_version_id=("artifact-version.relations"),
             data={  # type: ignore[arg-type]
                 "dataset_artifact_version_id": "artifact-version.dataset",
-                "field_dictionary_artifact_version_id": (
-                    "artifact-version.fields"
-                ),
+                "field_dictionary_artifact_version_id": ("artifact-version.fields"),
             },
         )
+    valid_inputs = build_literature_graph_fixture().inputs
     with pytest.raises(GraphInputIntegrityError, match="LiteratureRelations envelope"):
         PublishedGraphInputs(
-            selection=literature_only,
+            selection=valid_inputs.selection,
+            literature_claims=valid_inputs.literature_claims,
             literature_relations={"kind": "literature_relations"},  # type: ignore[arg-type]
         )
 
@@ -254,11 +263,18 @@ def test_literature_only_bundle_closes_the_published_version_and_provenance() ->
     )
     selection = GraphInputVersionSelection(
         project_id=version.project_id,
+        literature_claims_artifact_version_ids=_claim_version_ids(candidate),
         literature_relations_artifact_version_id=version.id,
     )
+    closed = ArtifactVersionGraphInputReadAdapter(
+        artifacts=fixture.artifacts,  # type: ignore[arg-type]
+        session_id="owner",
+        evidence_restrictions=_RestrictionReader(),
+    ).read(selection)
 
     inputs = PublishedGraphInputs(
         selection=selection,
+        literature_claims=closed.literature_claims,
         literature_relations=published,
     )
 
@@ -270,8 +286,10 @@ def test_literature_only_bundle_closes_the_published_version_and_provenance() ->
 def test_trusted_adapter_reads_only_the_exact_complete_literature_version() -> None:
     fixture = build_literature_fixture()
     version = fixture.artifacts.versions[fixture.relation_version_id]
+    candidate = LiteratureRelationsCandidate.model_validate(version.content)
     selection = GraphInputVersionSelection(
         project_id=version.project_id,
+        literature_claims_artifact_version_ids=_claim_version_ids(candidate),
         literature_relations_artifact_version_id=version.id,
     )
     adapter = ArtifactVersionGraphInputReadAdapter(
@@ -285,7 +303,9 @@ def test_trusted_adapter_reads_only_the_exact_complete_literature_version() -> N
     assert inputs.selection is selection
     assert inputs.literature_relations.pins.artifact_version_id == version.id
     assert inputs.literature_relations.candidate.kind == "literature_relations"
-    assert fixture.artifacts.full_content_requests == [True]
+    assert fixture.artifacts.full_content_requests == [True] * (
+        len(selection.literature_claims_artifact_version_ids) + 1
+    )
 
 
 def test_trusted_adapter_translates_artifact_security_problem_structurally() -> None:
@@ -308,18 +328,20 @@ def test_trusted_adapter_translates_artifact_security_problem_structurally() -> 
         adapter.read(
             GraphInputVersionSelection(
                 project_id="project.graph",
+                literature_claims_artifact_version_ids=("version.claims",),
                 literature_relations_artifact_version_id="version.missing",
             )
         )
 
     assert captured.value.stage.value == "artifact_version"
     assert captured.value.reason.value == "input_version_unknown"
-    assert captured.value.path == "input_versions.version.missing"
+    assert captured.value.path == "input_versions.version.claims"
 
 
 def test_trusted_adapter_fails_closed_when_restriction_fact_is_missing() -> None:
     fixture = build_literature_fixture()
     version = fixture.artifacts.versions[fixture.relation_version_id]
+    candidate = LiteratureRelationsCandidate.model_validate(version.content)
     adapter = ArtifactVersionGraphInputReadAdapter(
         artifacts=fixture.artifacts,  # type: ignore[arg-type]
         session_id="owner",
@@ -330,6 +352,7 @@ def test_trusted_adapter_fails_closed_when_restriction_fact_is_missing() -> None
         adapter.read(
             GraphInputVersionSelection(
                 project_id=version.project_id,
+                literature_claims_artifact_version_ids=_claim_version_ids(candidate),
                 literature_relations_artifact_version_id=version.id,
             )
         )
@@ -338,6 +361,7 @@ def test_trusted_adapter_fails_closed_when_restriction_fact_is_missing() -> None
 def test_trusted_adapter_fails_data_path_without_governed_evidence_mapping() -> None:
     fixture = build_literature_fixture()
     version = fixture.artifacts.versions[fixture.relation_version_id]
+    candidate = LiteratureRelationsCandidate.model_validate(version.content)
     adapter = ArtifactVersionGraphInputReadAdapter(
         artifacts=fixture.artifacts,  # type: ignore[arg-type]
         session_id="owner",
@@ -345,6 +369,7 @@ def test_trusted_adapter_fails_data_path_without_governed_evidence_mapping() -> 
     )
     selection = GraphInputVersionSelection(
         project_id=version.project_id,
+        literature_claims_artifact_version_ids=_claim_version_ids(candidate),
         literature_relations_artifact_version_id=version.id,
         data=GraphDataVersionSelection(
             dataset_artifact_version_id="artifact-version.dataset",
@@ -433,19 +458,24 @@ def test_node_identity_uses_only_type_and_authoritative_logical_reference() -> N
     field = field_node_identity("manifest.star", "star.tic_id")
 
     assert dataset.node_id == same_dataset.node_id
-    assert GraphNodeVersionBinding(
-        node_id=dataset.node_id,
-        upstream_artifact_version_id="artifact-version.dataset",
-    ).node_id == GraphNodeVersionBinding(
-        node_id=dataset.node_id,
-        upstream_artifact_version_id="artifact-version.dataset.revised",
-    ).node_id
-    assert field.node_id != field_node_identity(
-        "manifest.star.revised", "star.tic_id"
-    ).node_id
-    assert field.node_id != field_node_identity(
-        "manifest.star", "star.gaia_source_id"
-    ).node_id
+    assert (
+        GraphNodeVersionBinding(
+            node_id=dataset.node_id,
+            upstream_artifact_version_id="artifact-version.dataset",
+        ).node_id
+        == GraphNodeVersionBinding(
+            node_id=dataset.node_id,
+            upstream_artifact_version_id="artifact-version.dataset.revised",
+        ).node_id
+    )
+    assert (
+        field.node_id
+        != field_node_identity("manifest.star.revised", "star.tic_id").node_id
+    )
+    assert (
+        field.node_id
+        != field_node_identity("manifest.star", "star.gaia_source_id").node_id
+    )
     with pytest.raises(GraphIdentityError, match="does not generate"):
         GraphNodeIdentity(
             node_type=GraphNodeType.source,
@@ -498,9 +528,9 @@ def test_relation_edge_is_source_to_target_direction_sensitive(
 
     assert forward.edge_id != reversed_edge.edge_id
     assert forward.edge_id != other_relation.edge_id
-    assert graph_edge_type_for_literature_relation(
-        relation_type
-    ) is GraphEdgeType(relation_type.value)
+    assert graph_edge_type_for_literature_relation(relation_type) is GraphEdgeType(
+        relation_type.value
+    )
     edge_type = graph_edge_type_for_literature_relation(relation_type)
     trace = GraphRelationTraceBinding(
         relation_id="relation.1",
@@ -512,14 +542,17 @@ def test_relation_edge_is_source_to_target_direction_sensitive(
         premise_claim_ids=("claim.source", "claim.target"),
         trace_evidence_ids=("evidence.1",),
     )
-    assert GraphArtifactEdge(
-        edge_id=forward.edge_id,
-        edge_type=edge_type,
-        source_node_id=source.node_id,
-        target_node_id=target.node_id,
-        evidence_use_ids=("evidence.graph-use",),
-        relation_trace=trace,
-    ).relation_trace == trace
+    assert (
+        GraphArtifactEdge(
+            edge_id=forward.edge_id,
+            edge_type=edge_type,
+            source_node_id=source.node_id,
+            target_node_id=target.node_id,
+            evidence_use_ids=("evidence.graph-use",),
+            relation_trace=trace,
+        ).relation_trace
+        == trace
+    )
     with pytest.raises(GraphIdentityError, match="self-referential"):
         literature_relation_edge_identity(
             source,
@@ -585,7 +618,10 @@ def test_graph_taxonomy_is_the_exact_authorized_set() -> None:
         )
 
     node_types = tuple(
-        sorted((*GRAPH_TAXONOMY_NODE_TYPES, GraphNodeType.finding), key=lambda item: item.value)
+        sorted(
+            (*GRAPH_TAXONOMY_NODE_TYPES, GraphNodeType.finding),
+            key=lambda item: item.value,
+        )
     )
     extra_payload = {**payload, "node_types": node_types}
     with pytest.raises(ValidationError) as node_error:

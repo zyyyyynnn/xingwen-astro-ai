@@ -124,6 +124,13 @@
   padding-inline: var(--space-6);
 }
 
+.xw-button--inline {
+  min-block-size: var(--control-size-xs);
+  padding: 0;
+  border: 0;
+  font: inherit;
+}
+
 .xw-button--icon {
   min-block-size: var(--control-size-lg);
   inline-size: var(--control-size-lg);

@@ -2,13 +2,13 @@
   "authoring_source": "apps/api/src/app/schemas",
   "models": [
     {
-      "content_hash": "sha256:fbddd459152c849d96dae8bb62330ebf0530a146d5efa8be34d21ff16ba067b3",
+      "content_hash": "sha256:b38cb7e957238932edd635aa64b5b652bf751a1ad2ef4b3b0cbada549fe10686",
       "module": "app.schemas.graph_artifact",
       "name": "GraphAdmissionResult",
       "path": "json/GraphAdmissionResult.schema.json"
     },
     {
-      "content_hash": "sha256:77f96b3ac651a95e83eab7b4322618c8e1992ac9b7770091e9a9a0efd01b02e8",
+      "content_hash": "sha256:80dd3655b719cbba80ebf1b7fa1fdf9fab9adf0813492101aed8e38a79bb3673",
       "module": "app.schemas.graph_artifact",
       "name": "GraphArtifactCandidate",
       "path": "json/GraphArtifactCandidate.schema.json"
@@ -38,7 +38,7 @@
       "path": "json/GraphBenchmarkReport.schema.json"
     },
     {
-      "content_hash": "sha256:dc0d5afec1574f08fa1b0467f02369f76ed7bd1466a141b932eaaa3bdebf924a",
+      "content_hash": "sha256:1bba1e49ae319067ccc646f1539f71844d2a556f422998f879d55eb91233fe4e",
       "module": "app.schemas.graph_artifact",
       "name": "GraphBuildRequest",
       "path": "json/GraphBuildRequest.schema.json"
@@ -50,7 +50,7 @@
       "path": "json/GraphEvidenceUse.schema.json"
     },
     {
-      "content_hash": "sha256:7238111187e1375691537234ce4435672c28c82d27eef381a961ff85327d07be",
+      "content_hash": "sha256:6deafc038af015905d926df41c75180bb819b43cab54ba01818747a4ef879f94",
       "module": "app.schemas.graph_artifact",
       "name": "GraphIntegrityReport",
       "path": "json/GraphIntegrityReport.schema.json"

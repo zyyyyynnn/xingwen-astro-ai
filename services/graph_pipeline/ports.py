@@ -33,6 +33,7 @@ from app.schemas.graph_artifact import (
     GraphRejectionReason,
     compute_graph_upstream_evidence_hash,
 )
+from app.schemas.literature_claim import LiteratureClaimsCandidate
 from app.schemas.literature_relation import LiteratureRelationsCandidate
 from services.paper_pipeline.constants import RELATION_ADJUDICATION_PRODUCER_NAME
 
@@ -165,7 +166,10 @@ class GraphDataVersionSelection:
             ),
         ):
             _require_text(value, label)
-        if self.dataset_artifact_version_id == self.field_dictionary_artifact_version_id:
+        if (
+            self.dataset_artifact_version_id
+            == self.field_dictionary_artifact_version_id
+        ):
             raise _schema_error(
                 "Dataset and FieldDictionary must identify distinct ArtifactVersions",
                 path="input_versions.data",
@@ -182,11 +186,25 @@ class GraphInputVersionSelection:
     """
 
     project_id: str
+    literature_claims_artifact_version_ids: tuple[str, ...]
     literature_relations_artifact_version_id: str
     data: GraphDataVersionSelection | None = None
 
     def __post_init__(self) -> None:
         _require_text(self.project_id, "project_id")
+        if (
+            not self.literature_claims_artifact_version_ids
+            or any(
+                not isinstance(item, str) or not item.strip()
+                for item in self.literature_claims_artifact_version_ids
+            )
+            or self.literature_claims_artifact_version_ids
+            != tuple(sorted(set(self.literature_claims_artifact_version_ids)))
+        ):
+            raise _schema_error(
+                "literature_claims_artifact_version_ids must be sorted unique text",
+                path="input_versions.literature_claims",
+            )
         _require_text(
             self.literature_relations_artifact_version_id,
             "literature_relations_artifact_version_id",
@@ -196,7 +214,16 @@ class GraphInputVersionSelection:
                 "data selection must be a typed GraphDataVersionSelection",
                 path="input_versions.data",
             )
-        if self.data is not None and self.literature_relations_artifact_version_id in {
+        selected_ids = {
+            *self.literature_claims_artifact_version_ids,
+            self.literature_relations_artifact_version_id,
+        }
+        if len(selected_ids) != len(self.literature_claims_artifact_version_ids) + 1:
+            raise _schema_error(
+                "LiteratureClaims and LiteratureRelations must identify distinct ArtifactVersions",
+                path="input_versions",
+            )
+        if self.data is not None and selected_ids & {
             self.data.dataset_artifact_version_id,
             self.data.field_dictionary_artifact_version_id,
         }:
@@ -359,9 +386,7 @@ class PersistedEvidenceBinding:
             self.pipeline_evidence_content_hash,
             "pipeline_evidence_content_hash",
         )
-        _require_text(
-            self.pipeline_source_snapshot_id, "pipeline_source_snapshot_id"
-        )
+        _require_text(self.pipeline_source_snapshot_id, "pipeline_source_snapshot_id")
         _require_text(self.pipeline_target_type, "pipeline_target_type")
         _require_text(self.pipeline_target_id, "pipeline_target_id")
         if type(self.pipeline_locator) is not dict:
@@ -418,9 +443,8 @@ def _canonical_source_bindings(
     )
     pipeline_ids = tuple(item.pipeline_source_snapshot_id for item in ordered)
     persisted_ids = tuple(item.persisted_source_snapshot_id for item in ordered)
-    if (
-        len(pipeline_ids) != len(set(pipeline_ids))
-        or len(persisted_ids) != len(set(persisted_ids))
+    if len(pipeline_ids) != len(set(pipeline_ids)) or len(persisted_ids) != len(
+        set(persisted_ids)
     ):
         raise _evidence_error(
             "SourceSnapshot bindings must be one-to-one and unique",
@@ -459,9 +483,8 @@ def _canonical_evidence_bindings(
         for item in ordered
     )
     persisted_ids = tuple(item.persisted_evidence_id for item in ordered)
-    if (
-        len(semantic_keys) != len(set(semantic_keys))
-        or len(persisted_ids) != len(set(persisted_ids))
+    if len(semantic_keys) != len(set(semantic_keys)) or len(persisted_ids) != len(
+        set(persisted_ids)
     ):
         raise _evidence_error(
             "semantic and persisted Evidence bindings must be unique",
@@ -471,7 +494,9 @@ def _canonical_evidence_bindings(
     return ordered
 
 
-def _validated_candidate(candidate: BaseModel, expected_type: type[BaseModel]) -> BaseModel:
+def _validated_candidate(
+    candidate: BaseModel, expected_type: type[BaseModel]
+) -> BaseModel:
     if type(candidate) is not expected_type:
         raise _schema_error(
             f"candidate must be an exact {expected_type.__name__}",
@@ -492,6 +517,7 @@ def _validate_candidate_pins(
     pins: PublishedArtifactVersionPins,
     candidate: DatasetArtifactCandidate
     | FieldDictionaryArtifactCandidate
+    | LiteratureClaimsCandidate
     | LiteratureRelationsCandidate,
 ) -> None:
     content = canonical_artifact_content_payload(candidate)
@@ -511,8 +537,7 @@ def _validate_candidate_pins(
     # hash on the produced ArtifactVersion, which deliberately differs from the
     # inherited Relations candidate input identity.
     adjudicated = (
-        pins.producer_execution.producer.name
-        == RELATION_ADJUDICATION_PRODUCER_NAME
+        pins.producer_execution.producer.name == RELATION_ADJUDICATION_PRODUCER_NAME
     )
     if pins.input_hash != candidate.input_hash and not adjudicated:
         raise _artifact_error(
@@ -550,7 +575,7 @@ def _validate_data_producer(
 
 def _validate_literature_producer(
     execution: ProducerExecutionDetail,
-    candidate: LiteratureRelationsCandidate,
+    candidate: LiteratureClaimsCandidate | LiteratureRelationsCandidate,
 ) -> None:
     producer = execution.producer
     expected = candidate.producer
@@ -693,7 +718,8 @@ def _validate_data_evidence_semantics(
             content_hash != binding.pipeline_evidence_content_hash
             or binding.pipeline_target_type != "crossmatch"
             or binding.pipeline_target_id != evidence_id
-            or set(locator) != {
+            or set(locator)
+            != {
                 "crossmatch_evidence_id",
                 "crossmatch_content_hash",
             }
@@ -942,6 +968,100 @@ class PublishedLiteratureRelationsVersion:
             )
 
 
+@dataclass(frozen=True, slots=True)
+class PublishedLiteratureClaimsVersion:
+    """One complete published LiteratureClaims version and provenance closure."""
+
+    pins: PublishedArtifactVersionPins
+    candidate: LiteratureClaimsCandidate
+    source_snapshot_bindings: tuple[PersistedSourceSnapshotBinding, ...]
+    evidence_bindings: tuple[PersistedEvidenceBinding, ...]
+
+    def __post_init__(self) -> None:
+        if type(self.pins) is not PublishedArtifactVersionPins:
+            raise _schema_error(
+                "LiteratureClaims pins require a published envelope",
+                path="input_versions.literature_claims.pins",
+            )
+        candidate = _validated_candidate(self.candidate, LiteratureClaimsCandidate)
+        object.__setattr__(self, "candidate", candidate)
+        source_bindings = _canonical_source_bindings(self.source_snapshot_bindings)
+        evidence_bindings = _canonical_evidence_bindings(self.evidence_bindings)
+        object.__setattr__(self, "source_snapshot_bindings", source_bindings)
+        object.__setattr__(self, "evidence_bindings", evidence_bindings)
+        _validate_candidate_pins(pins=self.pins, candidate=candidate)
+        _validate_literature_producer(self.pins.producer_execution, candidate)
+        _validate_persisted_provenance(
+            pins=self.pins,
+            declared_snapshot_ids=candidate.source_snapshot_ids,
+            declared_evidence_ids=candidate.evidence_ids,
+            source_snapshot_bindings=source_bindings,
+            evidence_bindings=evidence_bindings,
+        )
+
+        snapshot_by_pipeline = {
+            item.pipeline_source_snapshot_id: item.source_snapshot
+            for item in source_bindings
+        }
+        for evidence in candidate.evidence:
+            snapshot = snapshot_by_pipeline.get(evidence.source_snapshot_id)
+            effective_version = (
+                snapshot.source_version_or_etag
+                or snapshot.cache_version
+                or snapshot.content_hash
+                if snapshot is not None
+                else None
+            )
+            if (
+                snapshot is None
+                or snapshot.source_id != evidence.source_id
+                or snapshot.content_hash != evidence.source_snapshot_content_hash
+                or effective_version != evidence.source_snapshot_version
+            ):
+                raise _evidence_error(
+                    "Literature Claim Evidence does not resolve to its persisted SourceSnapshot",
+                    reason=GraphRejectionReason.source_snapshot_inconsistent,
+                    path=f"input_versions.evidence.{evidence.evidence_id}",
+                )
+
+        expected_references = {
+            ("claim", item.claim_id, item.evidence_id, item.source_snapshot_id)
+            for item in candidate.evidence_references
+        }
+        pipeline_snapshot_by_persisted = {
+            item.persisted_source_snapshot_id: item.pipeline_source_snapshot_id
+            for item in source_bindings
+        }
+        actual_references = {
+            (
+                item.evidence.target_type,
+                item.evidence.target_id,
+                item.pipeline_evidence_id,
+                pipeline_snapshot_by_persisted.get(item.evidence.source_snapshot_id),
+            )
+            for item in evidence_bindings
+        }
+        pipeline_evidence_hashes = {
+            item.evidence_id: compute_canonical_payload_hash(
+                item.model_dump(mode="json", exclude_none=True)
+            )
+            for item in candidate.evidence
+        }
+        if actual_references != expected_references or any(
+            item.evidence.target_type != "claim"
+            or item.evidence.locator.get("summary_evidence_id")
+            != item.pipeline_evidence_id
+            or item.pipeline_evidence_content_hash
+            != pipeline_evidence_hashes.get(item.pipeline_evidence_id)
+            for item in evidence_bindings
+        ):
+            raise _evidence_error(
+                "persisted Literature Claim Evidence does not exactly close Claim references",
+                reason=GraphRejectionReason.evidence_inconsistent,
+                path="input_versions.evidence",
+            )
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class PublishedDataGraphInputs:
     """One exact, cross-validated Data Artifact/Data Quality Evaluation data input closure."""
@@ -950,9 +1070,10 @@ class PublishedDataGraphInputs:
     field_dictionary: PublishedFieldDictionaryVersion
 
     def __post_init__(self) -> None:
-        if type(self.dataset) is not PublishedDatasetVersion or type(
-            self.field_dictionary
-        ) is not PublishedFieldDictionaryVersion:
+        if (
+            type(self.dataset) is not PublishedDatasetVersion
+            or type(self.field_dictionary) is not PublishedFieldDictionaryVersion
+        ):
             raise _schema_error(
                 "data graph input requires exact published typed envelopes",
                 path="input_versions.data",
@@ -1030,6 +1151,7 @@ class PublishedGraphInputs:
     """Complete input bundle returned by the exact version read port."""
 
     selection: GraphInputVersionSelection
+    literature_claims: tuple[PublishedLiteratureClaimsVersion, ...]
     literature_relations: PublishedLiteratureRelationsVersion
     data: PublishedDataGraphInputs | None = None
 
@@ -1038,6 +1160,14 @@ class PublishedGraphInputs:
             raise _schema_error(
                 "graph input bundle requires a typed version selection",
                 path="input_versions",
+            )
+        if not self.literature_claims or any(
+            type(item) is not PublishedLiteratureClaimsVersion
+            for item in self.literature_claims
+        ):
+            raise _schema_error(
+                "graph input bundle requires an exact LiteratureClaims envelope",
+                path="input_versions.literature_claims",
             )
         if type(self.literature_relations) is not PublishedLiteratureRelationsVersion:
             raise _schema_error(
@@ -1054,10 +1184,24 @@ class PublishedGraphInputs:
                 "selected and published data closures must both be present or absent",
                 path="input_versions.data",
             )
-        if self.selection.project_id != self.literature_relations.pins.project_id:
+        literature_projects = {
+            self.literature_relations.pins.project_id,
+            *(item.pins.project_id for item in self.literature_claims),
+        }
+        if literature_projects != {self.selection.project_id}:
             raise _ownership_error(
-                "LiteratureRelations envelope belongs to another Project",
-                path="input_versions.literature_relations.project_id",
+                "Literature graph envelopes belong to another Project",
+                path="input_versions.literature.project_id",
+            )
+        selected_claim_versions = self.selection.literature_claims_artifact_version_ids
+        published_claim_versions = tuple(
+            sorted(item.pins.artifact_version_id for item in self.literature_claims)
+        )
+        if selected_claim_versions != published_claim_versions:
+            raise _artifact_error(
+                "LiteratureClaims envelope does not match the exact selection",
+                reason=GraphRejectionReason.cross_version_reference,
+                path="input_versions.literature_claims.artifact_version_id",
             )
         if (
             self.selection.literature_relations_artifact_version_id
@@ -1068,14 +1212,34 @@ class PublishedGraphInputs:
                 reason=GraphRejectionReason.cross_version_reference,
                 path="input_versions.literature_relations.artifact_version_id",
             )
+        referenced_claim_versions = {
+            item.artifact_version_id
+            for item in self.literature_relations.candidate.input_versions.claim_artifact_versions
+        }
+        if referenced_claim_versions != set(published_claim_versions):
+            raise _artifact_error(
+                "LiteratureRelations must resolve to the selected LiteratureClaims version",
+                reason=GraphRejectionReason.cross_version_reference,
+                path="input_versions.literature_relations.claim_artifact_versions",
+            )
+        claim_ids = tuple(
+            claim.claim_id
+            for published in self.literature_claims
+            for claim in published.candidate.claims
+        )
+        if len(claim_ids) != len(set(claim_ids)):
+            raise _artifact_error(
+                "LiteratureClaims versions contain duplicate Claim identities",
+                reason=GraphRejectionReason.cross_version_reference,
+                path="input_versions.literature_claims.claims",
+            )
         if self.data is None:
             return
 
         assert self.selection.data is not None
         if (
             self.data.dataset.pins.project_id != self.selection.project_id
-            or self.data.field_dictionary.pins.project_id
-            != self.selection.project_id
+            or self.data.field_dictionary.pins.project_id != self.selection.project_id
         ):
             raise _ownership_error(
                 "published data closure belongs to another Project",

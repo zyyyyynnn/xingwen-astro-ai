@@ -1096,7 +1096,7 @@ class StepModelCaller:
             input_payload=dict(input_payload),
             parameters=dict(parameters),
             response_mode="json",
-            enable_thinking=False,
+            enable_thinking=True,
         )
         response, execution_id = (
             self._model_port.start_named(

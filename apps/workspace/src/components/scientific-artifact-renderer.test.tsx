@@ -503,7 +503,15 @@ describe("ScientificArtifactRenderer scientific content", () => {
           label: "字段概览",
           representation: "table",
           payload: {
-            rows: [{ field: "mass", missing_count: 0 }],
+            rows: [
+              {
+                field: "mass",
+                present_count: 2,
+                absent_count: 1,
+                non_null_count: 1,
+                null_count: 1,
+              },
+            ],
           },
           contentHash: "sha256:fields",
           evidenceIds: [],
@@ -559,6 +567,15 @@ describe("ScientificArtifactRenderer scientific content", () => {
     );
 
     expect(screen.getByText("字段概览")).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "包含字段的记录" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "未包含字段的记录" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "空值记录" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("描述统计")).toBeInTheDocument();
     expect(screen.getByText("假设检验")).toBeInTheDocument();
     expect(screen.getByText("相关系数")).toBeInTheDocument();

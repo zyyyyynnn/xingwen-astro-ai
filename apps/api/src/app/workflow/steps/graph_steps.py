@@ -6,7 +6,10 @@ from collections.abc import Callable
 from sqlalchemy.orm import Session
 
 from app.schemas.enums import GraphEdgeType, GraphNodeType
-from app.schemas.literature_claim import LiteratureClaimStatus
+from app.schemas.literature_claim import (
+    LiteratureClaimsCandidate,
+    LiteratureClaimStatus,
+)
 from app.schemas.literature_relation import (
     LiteratureRelationStatus,
     LiteratureRelationsCandidate,
@@ -47,7 +50,7 @@ from services.graph_pipeline import (
 
 
 class GraphStepService:
-    """Build an admitted Graph from the exact published Relation version."""
+    """Build a Graph from exact published Claims and Relations versions."""
 
     def __init__(
         self,
@@ -66,6 +69,15 @@ class GraphStepService:
         attempt: AttemptHandle,
         lease: LeaseGrant,
     ) -> PreparedStep:
+        claims_version_id = context.versions.get("literature_claims")
+        claims = context.literature_claims
+        if claims is None and claims_version_id is not None:
+            version = ArtifactReadService(self._factory).get_version(
+                version_id=str(claims_version_id),
+                session_id=context.session_id,
+            )
+            claims = LiteratureClaimsCandidate.model_validate(version.content)
+            context.literature_claims = claims
         relations_version_id = context.versions.get("literature_relations")
         relations = context.literature_relations
         if relations is None and relations_version_id is not None:
@@ -75,25 +87,31 @@ class GraphStepService:
             )
             relations = LiteratureRelationsCandidate.model_validate(version.content)
             context.literature_relations = relations
+        if claims_version_id is None or claims is None:
+            raise ValueError("literature_claims must be published before graph build")
         if relations_version_id is None or relations is None:
-            raise ValueError("literature_relations must be published before graph build")
+            raise ValueError(
+                "literature_relations must be published before graph build"
+            )
 
         accepted_claim_ids = {
             item.claim_id
-            for item in relations.claims
+            for item in claims.claims
             if item.status is LiteratureClaimStatus.accepted
         }
         structural_pairs = tuple(
             sorted(
                 {
                     (item.paper_id, item.claim_id)
-                    for item in relations.evidence_references
+                    for item in claims.evidence_references
                     if item.claim_id in accepted_claim_ids
                 }
             )
         )
         claim_ids = tuple(sorted(accepted_claim_ids))
-        paper_ids = tuple(sorted({paper_id for paper_id, _claim_id in structural_pairs}))
+        paper_ids = tuple(
+            sorted({paper_id for paper_id, _claim_id in structural_pairs})
+        )
         structural_edges = tuple(
             GraphStructuralEdgeRequest(
                 edge_type=GraphEdgeType.supports_finding,
@@ -118,6 +136,7 @@ class GraphStepService:
         )
         progressive = build_complete_progressive_input(
             progressive_id=f"progressive.{str(context.run_id).replace('-', '')[:24]}",
+            literature_claims_artifact_version_ids=(str(claims_version_id),),
             literature_relations_artifact_version_id=str(relations_version_id),
             dataset_artifact_version_id=None,
             field_dictionary_artifact_version_id=None,
@@ -125,6 +144,7 @@ class GraphStepService:
         )
         request = GraphBuildRequest(
             project_id=str(context.project_id),
+            literature_claims_artifact_version_ids=(str(claims_version_id),),
             literature_relations_artifact_version_id=str(relations_version_id),
             scope=scope,
             policies=GraphPolicySet(),

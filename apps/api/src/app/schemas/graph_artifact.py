@@ -63,7 +63,9 @@ MODEL_CONFIG = ConfigDict(
 
 Identifier = Annotated[
     str,
-    StringConstraints(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$"),
+    StringConstraints(
+        min_length=1, max_length=128, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    ),
 ]
 ShortText = Annotated[str, StringConstraints(min_length=1, max_length=512)]
 SemanticVersion = Annotated[
@@ -74,6 +76,7 @@ ContentHash = Annotated[
     str,
     StringConstraints(pattern=r"^sha256:[0-9a-f]{64}$", max_length=71),
 ]
+
 
 def _coerce_source_mode(value: SourceMode | str) -> SourceMode:
     return value if isinstance(value, SourceMode) else SourceMode(value)
@@ -108,9 +111,7 @@ def _json_compatible(value: Any) -> Any:
 
 def _payload(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     normalized = _json_compatible(value)
-    payload = json.loads(
-        json.dumps(normalized, ensure_ascii=False, allow_nan=False)
-    )
+    payload = json.loads(json.dumps(normalized, ensure_ascii=False, allow_nan=False))
     if not isinstance(payload, dict):
         raise TypeError("Graph hash payload must be a JSON object")
     return payload
@@ -122,6 +123,7 @@ def _require_sorted_unique(values: tuple[str, ...], label: str) -> None:
 
 
 class GraphInputRole(StrEnum):
+    literature_claims = "literature_claims"
     literature_relations = "literature_relations"
     dataset = "dataset"
     field_dictionary = "field_dictionary"
@@ -209,7 +211,12 @@ class GraphArtifactVersionReference(BaseModel):
     artifact_version_id: PersistedUuid
     project_id: PersistedUuid
     version_number: int = Field(ge=1)
-    kind: Literal["literature_relations", "dataset", "field_dictionary"]
+    kind: Literal[
+        "literature_claims",
+        "literature_relations",
+        "dataset",
+        "field_dictionary",
+    ]
     schema_version: SemanticVersion
     content_hash: ContentHash
     input_hash: ContentHash
@@ -231,26 +238,45 @@ class GraphInputVersionClosure(BaseModel):
     model_config = MODEL_CONFIG
 
     project_id: PersistedUuid
-    versions: tuple[GraphArtifactVersionReference, ...] = Field(min_length=1, max_length=3)
+    versions: tuple[GraphArtifactVersionReference, ...] = Field(
+        min_length=2,
+        max_length=256,
+    )
 
     @model_validator(mode="after")
     def validate_versions(self) -> Self:
         ids = tuple(item.artifact_version_id for item in self.versions)
         if ids != tuple(sorted(ids)) or len(ids) != len(set(ids)):
-            raise ValueError("Graph input ArtifactVersions must use sorted unique order")
+            raise ValueError(
+                "Graph input ArtifactVersions must use sorted unique order"
+            )
         if any(item.project_id != self.project_id for item in self.versions):
             raise ValueError("Graph inputs must belong to one Project")
         roles = {item.role for item in self.versions}
-        if GraphInputRole.literature_relations not in roles:
-            raise ValueError("Graph input closure requires LiteratureRelations")
+        if (
+            GraphInputRole.literature_claims not in roles
+            or sum(
+                item.role is GraphInputRole.literature_relations
+                for item in self.versions
+            )
+            != 1
+        ):
+            raise ValueError(
+                "Graph input closure requires LiteratureClaims and LiteratureRelations"
+            )
         data_roles = roles & {GraphInputRole.dataset, GraphInputRole.field_dictionary}
         if data_roles not in (
             set(),
             {GraphInputRole.dataset, GraphInputRole.field_dictionary},
         ):
             raise ValueError("Dataset and FieldDictionary must form one exact pair")
-        if len(roles) != len(self.versions):
-            raise ValueError("Graph input roles must be unique")
+        non_claim_roles = tuple(
+            item.role
+            for item in self.versions
+            if item.role is not GraphInputRole.literature_claims
+        )
+        if len(non_claim_roles) != len(set(non_claim_roles)):
+            raise ValueError("Graph non-Claim input roles must be unique")
         return self
 
 
@@ -286,8 +312,7 @@ GRAPH_TAXONOMY_LITERATURE_EDGE_TYPES = frozenset(
 )
 GRAPH_TAXONOMY_EDGE_TYPES = tuple(
     sorted(
-        GRAPH_TAXONOMY_STRUCTURAL_EDGE_TYPES
-        | GRAPH_TAXONOMY_LITERATURE_EDGE_TYPES,
+        GRAPH_TAXONOMY_STRUCTURAL_EDGE_TYPES | GRAPH_TAXONOMY_LITERATURE_EDGE_TYPES,
         key=lambda item: item.value,
     )
 )
@@ -348,7 +373,9 @@ GraphTaxonomyEdgeTypes = tuple[
 class GraphTaxonomy(BaseModel):
     model_config = MODEL_CONFIG
 
-    taxonomy_id: Literal["taxonomy.graph.evidence_graph"] = "taxonomy.graph.evidence_graph"
+    taxonomy_id: Literal["taxonomy.graph.evidence_graph"] = (
+        "taxonomy.graph.evidence_graph"
+    )
     schema_version: Literal["2.0.0"] = "2.0.0"
     version: Literal["2.0.0"] = "2.0.0"
     node_types: GraphTaxonomyNodeTypes
@@ -358,13 +385,9 @@ class GraphTaxonomy(BaseModel):
     @model_validator(mode="after")
     def validate_taxonomy(self) -> Self:
         if self.node_types != GRAPH_TAXONOMY_NODE_TYPES:
-            raise ValueError(
-                "Evidence Graph node_types must equal its exact authority"
-            )
+            raise ValueError("Evidence Graph node_types must equal its exact authority")
         if self.edge_types != GRAPH_TAXONOMY_EDGE_TYPES:
-            raise ValueError(
-                "Evidence Graph edge_types must equal its exact authority"
-            )
+            raise ValueError("Evidence Graph edge_types must equal its exact authority")
         expected = compute_canonical_payload_hash(
             self.model_dump(mode="json", exclude={"content_hash"})
         )
@@ -377,7 +400,7 @@ class GraphCapacityPolicy(BaseModel):
     model_config = MODEL_CONFIG
 
     version: Literal["2.0.0"] = "2.0.0"
-    max_input_versions: int = Field(default=3, ge=1, le=3)
+    max_input_versions: int = Field(default=256, ge=2, le=256)
     max_nodes: int = Field(default=10_000, ge=1, le=10_000)
     max_edges: int = Field(default=20_000, ge=1, le=20_000)
     max_evidence_uses: int = Field(default=50_000, ge=1, le=50_000)
@@ -479,7 +502,9 @@ class GraphProgressiveInput(BaseModel):
         object.__setattr__(self, "chunks", ordered)
         if self.chunk_count != len(ordered):
             raise ValueError("progressive chunk_count does not match chunks")
-        if tuple(item.chunk_index for item in ordered) != tuple(range(self.chunk_count)):
+        if tuple(item.chunk_index for item in ordered) != tuple(
+            range(self.chunk_count)
+        ):
             raise ValueError("progressive chunk indexes must be contiguous from zero")
         all_items = tuple(item_id for chunk in ordered for item_id in chunk.item_ids)
         if len(all_items) != len(set(all_items)):
@@ -507,6 +532,10 @@ class GraphBuildRequest(BaseModel):
     model_config = MODEL_CONFIG
 
     project_id: PersistedUuid
+    literature_claims_artifact_version_ids: tuple[PersistedUuid, ...] = Field(
+        min_length=1,
+        max_length=253,
+    )
     literature_relations_artifact_version_id: PersistedUuid
     dataset_artifact_version_id: PersistedUuid | None = None
     field_dictionary_artifact_version_id: PersistedUuid | None = None
@@ -517,6 +546,10 @@ class GraphBuildRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_data_pair(self) -> Self:
+        _require_sorted_unique(
+            self.literature_claims_artifact_version_ids,
+            "LiteratureClaims ArtifactVersion",
+        )
         pair = (
             self.dataset_artifact_version_id,
             self.field_dictionary_artifact_version_id,
@@ -561,10 +594,12 @@ class GraphArtifactNode(BaseModel):
             GraphNodeType.evidence,
         }:
             raise ValueError("Evidence Graph does not generate this Graph node type")
-        reference_keys = tuple((item.name, item.value) for item in self.logical_reference)
-        if reference_keys != tuple(sorted(reference_keys)) or len(reference_keys) != len(
-            set(reference_keys)
-        ):
+        reference_keys = tuple(
+            (item.name, item.value) for item in self.logical_reference
+        )
+        if reference_keys != tuple(sorted(reference_keys)) or len(
+            reference_keys
+        ) != len(set(reference_keys)):
             raise ValueError("node logical references must use sorted unique order")
         binding_keys = tuple(
             (item.artifact_version_id, item.domain_object_id)
@@ -723,7 +758,7 @@ class GraphIntegrityFinding(BaseModel):
 class GraphIntegrityCounts(BaseModel):
     model_config = MODEL_CONFIG
 
-    input_version_count: int = Field(ge=1, le=3)
+    input_version_count: int = Field(ge=1, le=256)
     node_count: int = Field(ge=0, le=10_000)
     edge_count: int = Field(ge=0, le=20_000)
     evidence_use_count: int = Field(ge=0, le=50_000)
@@ -761,7 +796,9 @@ class GraphIntegrityReport(BaseModel):
                 self.first_failure_stage is not first.stage
                 or self.first_rejection_reason is not first.reason
             ):
-                raise ValueError("first Graph failure must equal the stable first finding")
+                raise ValueError(
+                    "first Graph failure must equal the stable first finding"
+                )
         expected = compute_graph_integrity_report_hash(self)
         if self.content_hash != expected:
             raise ValueError(f"integrity report content_hash mismatch: {expected}")
@@ -804,9 +841,7 @@ class GraphArtifactCandidate(BaseModel):
     scope: GraphBuildScope
     nodes: tuple[GraphArtifactNode, ...] = Field(min_length=1, max_length=10_000)
     edges: tuple[GraphArtifactEdge, ...] = Field(min_length=1, max_length=20_000)
-    evidence_uses: tuple[GraphEvidenceUse, ...] = Field(
-        min_length=1, max_length=50_000
-    )
+    evidence_uses: tuple[GraphEvidenceUse, ...] = Field(min_length=1, max_length=50_000)
     source_snapshots: tuple[GraphSourceSnapshotReference, ...] = Field(min_length=1)
     evidence_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=50_000)
     source_snapshot_ids: tuple[Identifier, ...] = Field(min_length=1)
@@ -827,7 +862,9 @@ class GraphArtifactCandidate(BaseModel):
         if self.integrity_report.status is not GraphIntegrityStatus.passed:
             raise ValueError("publisher candidate requires a passed integrity report")
         if not self.progressive.complete:
-            raise ValueError("incomplete progressive input cannot become a Graph candidate")
+            raise ValueError(
+                "incomplete progressive input cannot become a Graph candidate"
+            )
 
         node_ids = tuple(item.node_id for item in self.nodes)
         edge_ids = tuple(item.edge_id for item in self.edges)
@@ -853,7 +890,9 @@ class GraphArtifactCandidate(BaseModel):
                 "Graph Evidence-use edge/version/Evidence bindings must be unique"
             )
         if self.evidence_ids != use_ids:
-            raise ValueError("candidate evidence_ids must equal its Evidence-use registry")
+            raise ValueError(
+                "candidate evidence_ids must equal its Evidence-use registry"
+            )
         if self.source_snapshot_ids != snapshot_ids:
             raise ValueError(
                 "candidate source_snapshot_ids must equal its SourceSnapshot registry"
@@ -891,13 +930,22 @@ class GraphArtifactCandidate(BaseModel):
                     ),
                 }.get(edge.edge_type)
                 if expected_endpoints is None:
-                    raise ValueError("Graph edge lies outside the exact Evidence Graph taxonomy")
+                    raise ValueError(
+                        "Graph edge lies outside the exact Evidence Graph taxonomy"
+                    )
             if (source.node_type, target.node_type) != expected_endpoints:
-                raise ValueError("Graph edge violates its authoritative endpoint direction")
+                raise ValueError(
+                    "Graph edge violates its authoritative endpoint direction"
+                )
             edge_uses = tuple(
-                item for item in self.evidence_uses if item.graph_edge_id == edge.edge_id
+                item
+                for item in self.evidence_uses
+                if item.graph_edge_id == edge.edge_id
             )
-            if tuple(item.evidence_use_id for item in edge_uses) != edge.evidence_use_ids:
+            if (
+                tuple(item.evidence_use_id for item in edge_uses)
+                != edge.evidence_use_ids
+            ):
                 raise ValueError("Graph edge Evidence-use closure is incomplete")
             if edge.relation_trace is not None:
                 relation_edges += 1
@@ -908,7 +956,9 @@ class GraphArtifactCandidate(BaseModel):
                     or target.logical_reference[-1].value != binding.target_claim_id
                     or binding.relation_artifact_version_id not in input_version_ids
                 ):
-                    raise ValueError("Literature edge Relation/Trace endpoint closure mismatch")
+                    raise ValueError(
+                        "Literature edge Relation/Trace endpoint closure mismatch"
+                    )
             if any(use_id not in uses for use_id in edge.evidence_use_ids):
                 raise ValueError("Graph edge references unknown Evidence-use")
         if {item.graph_edge_id for item in self.evidence_uses} != set(edge_ids):
@@ -917,16 +967,18 @@ class GraphArtifactCandidate(BaseModel):
             raise ValueError("Graph node lies outside the pinned taxonomy")
         if not {item.edge_type for item in self.edges} <= set(self.taxonomy.edge_types):
             raise ValueError("Graph edge lies outside the pinned taxonomy")
-        if len({item.persisted_source_snapshot_id for item in self.source_snapshots}) != len(
-            self.source_snapshots
-        ):
+        if len(
+            {item.persisted_source_snapshot_id for item in self.source_snapshots}
+        ) != len(self.source_snapshots):
             raise ValueError("persisted Graph SourceSnapshot bindings must be unique")
         for item in self.evidence_uses:
             if (
                 item.upstream_artifact_version_id not in input_version_ids
                 or item.source_snapshot_id not in snapshot_registry
             ):
-                raise ValueError("Graph Evidence-use escapes its input provenance closure")
+                raise ValueError(
+                    "Graph Evidence-use escapes its input provenance closure"
+                )
 
         counts = self.integrity_report.counts
         expected_counts = GraphIntegrityCounts(
@@ -977,7 +1029,9 @@ class GraphArtifactCandidate(BaseModel):
                 raise ValueError(f"{field} does not match Graph candidate: {expected}")
         expected_graph_id = f"graph.{self.scientific_hash.removeprefix('sha256:')[:24]}"
         if self.graph_id != expected_graph_id:
-            raise ValueError(f"graph_id does not match scientific identity: {expected_graph_id}")
+            raise ValueError(
+                f"graph_id does not match scientific identity: {expected_graph_id}"
+            )
         serialized_size = len(
             json.dumps(
                 self.model_dump(mode="json", exclude_none=True),
@@ -1135,14 +1189,18 @@ class GraphBenchmarkCaseResult(BaseModel):
     @model_validator(mode="after")
     def validate_result(self) -> Self:
         failed = self.status is GraphIntegrityStatus.failed
-        if failed != (self.failure_stage is not None and self.rejection_reason is not None):
+        if failed != (
+            self.failure_stage is not None and self.rejection_reason is not None
+        ):
             raise ValueError("failed Graph benchmark result requires stage and reason")
         expected_failed = self.expected_status is GraphIntegrityStatus.failed
         if expected_failed != (
             self.expected_failure_stage is not None
             and self.expected_rejection_reason is not None
         ):
-            raise ValueError("failed Graph benchmark expectation requires stage and reason")
+            raise ValueError(
+                "failed Graph benchmark expectation requires stage and reason"
+            )
         count_bounds = (
             (self.matched_node_count, self.expected_node_count, self.actual_node_count),
             (self.matched_edge_count, self.expected_edge_count, self.actual_edge_count),
@@ -1167,7 +1225,10 @@ class GraphBenchmarkCaseResult(BaseModel):
                 self.expected_nonaccepted_relation_count,
             ),
         )
-        if any(matched > min(expected, actual) for matched, expected, actual in count_bounds):
+        if any(
+            matched > min(expected, actual)
+            for matched, expected, actual in count_bounds
+        ):
             raise ValueError("Graph benchmark matched count exceeds its applicable set")
         expected_node_exact = (
             self.matched_node_count == self.expected_node_count
@@ -1205,12 +1266,16 @@ class GraphBenchmarkCaseResult(BaseModel):
                 and self.stable_order_pass
             )
         if self.expected_result_pass != expected_pass:
-            raise ValueError("Graph benchmark expected-result flag disagrees with case facts")
+            raise ValueError(
+                "Graph benchmark expected-result flag disagrees with case facts"
+            )
         if self.status is GraphIntegrityStatus.passed and None in (
             self.scientific_hash,
             self.layout_hash,
         ):
-            raise ValueError("passing Graph result requires all stable candidate hashes")
+            raise ValueError(
+                "passing Graph result requires all stable candidate hashes"
+            )
         return self
 
 
@@ -1227,7 +1292,9 @@ class GraphBenchmarkMetric(BaseModel):
     def validate_rate(self) -> Self:
         expected = None if self.denominator == 0 else self.numerator / self.denominator
         if self.numerator > self.denominator or self.rate != expected:
-            raise ValueError("Graph benchmark rate does not match numerator/denominator")
+            raise ValueError(
+                "Graph benchmark rate does not match numerator/denominator"
+            )
         return self
 
 
@@ -1273,7 +1340,9 @@ class GraphBenchmarkReport(BaseModel):
             self.paper_benchmark_scientific_payload_hash,
             self.paper_benchmark_content_hash,
         ) != GRAPH_BENCHMARK_PAPER_BENCHMARK_IDENTITY:
-            raise ValueError("Graph benchmark frozen Paper Acquisition Benchmark identity mismatch")
+            raise ValueError(
+                "Graph benchmark frozen Paper Acquisition Benchmark identity mismatch"
+            )
         case_ids = tuple(item.case_id for item in self.cases)
         _require_sorted_unique(case_ids, "Graph benchmark case")
         if self.taxonomy_node_types != tuple(
@@ -1435,9 +1504,7 @@ class GraphBenchmarkReport(BaseModel):
                 "taxonomy_edge_types": [
                     item.value for item in self.taxonomy_edge_types
                 ],
-                "case_content_hashes": [
-                    item.case_content_hash for item in self.cases
-                ],
+                "case_content_hashes": [item.case_content_hash for item in self.cases],
             }
         )
         if self.input_hash != expected_input_hash:
@@ -1545,7 +1612,9 @@ def compute_graph_algorithm_parameters_hash(
     policies: GraphPolicySet,
     taxonomy: GraphTaxonomy,
 ) -> str:
-    return compute_canonical_payload_hash(graph_algorithm_parameters(policies, taxonomy))
+    return compute_canonical_payload_hash(
+        graph_algorithm_parameters(policies, taxonomy)
+    )
 
 
 def compute_graph_input_hash(value: GraphArtifactCandidate | dict[str, Any]) -> str:
@@ -1586,7 +1655,9 @@ def compute_graph_scientific_hash(
 
 
 def compute_graph_layout_hash(value: GraphArtifactCandidate | dict[str, Any]) -> str:
-    return compute_canonical_payload_hash({"layout_hint": _payload(value).get("layout_hint")})
+    return compute_canonical_payload_hash(
+        {"layout_hint": _payload(value).get("layout_hint")}
+    )
 
 
 def compute_graph_output_hash(value: GraphArtifactCandidate | dict[str, Any]) -> str:

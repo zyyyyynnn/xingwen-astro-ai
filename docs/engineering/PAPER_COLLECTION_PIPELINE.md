@@ -125,6 +125,11 @@ PaperSummary Prompt 只能通过 `packages/prompts/registry.json` / `registry.py
 
 Summary 只接收已选定的 PaperCollection paper identity。JSON/schema/Evidence 三层验证分别失败关闭；finding/limitation 的 `supported | unsupported | unverifiable` 科研语义保留，不能因模型输出而自动提升为支持事实。
 
+模型输出包含七个章节的陈述数组，每条陈述携带自己的 Evidence 引用；同一条陈述
+重复引用同一个 Evidence 时，服务按首次出现顺序归一化。总 Evidence
+清单由服务从逐条引用计算去重排序并集；分片引用必须属于当前分片，发布内容继续
+校验陈述、Evidence、SourceSnapshot 与文档定位的一致性。
+
 研读按集合排名优先使用已有可解析全文的已选论文；其余情况下使用排名最高的已选论文元数据。全文绑定固定到当前 PaperCollection ArtifactVersion 与 canonical paper identity，文档解析、摘要和下游结论沿同一 ResearchRun/Publisher 链生成。多个全文已关联时，集合排名决定当前报告的研读对象。
 
 ## 9. Publisher handoff

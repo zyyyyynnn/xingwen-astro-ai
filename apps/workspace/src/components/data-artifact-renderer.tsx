@@ -25,6 +25,10 @@ import {
   ItemGroup,
   ItemMedia,
   ItemTitle,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
 } from "@xingwen/ui";
 import { Database, Library, Search, SearchCheck } from "@xingwen/ui/icons";
 
@@ -94,19 +98,31 @@ const DATA_TYPE_LABELS: Readonly<Record<string, string>> = {
   datetime: "日期时间",
 };
 
-function DatasetTable({
-  review,
+const ENTITY_LEVEL_LABELS: Readonly<Record<string, string>> = {
+  host_star: "宿主恒星",
+  planet_assertion: "行星记录",
+  planet_candidate: "候选体",
+  source_table: "来源记录",
+};
+
+function DatasetRowsTable({
+  columns,
+  rows,
   surface,
   onSelectEvidence,
 }: {
-  readonly review: DatasetArtifactReviewViewModel;
+  readonly columns: DatasetArtifactReviewViewModel["columns"];
+  readonly rows: DatasetArtifactReviewViewModel["rows"];
   readonly surface: DataArtifactSurface;
   readonly onSelectEvidence?: (evidenceIds: readonly DomainEntityId[]) => void;
 }) {
   const limits = SURFACE_LIMITS[surface];
-  const visibleColumns = review.columns.filter((column) => {
-    if (review.rows.length === 0) return true;
-    return !review.rows.every((row) => {
+  const projectedFields = new Set(
+    rows.flatMap((row) => row.cells.map((cell) => cell.canonicalFieldId)),
+  );
+  const visibleColumns = columns.filter((column) => {
+    if (!projectedFields.has(column.fieldId)) return false;
+    return !rows.every((row) => {
       const identity = row.identity;
       const cell = row.cells.find(
         (candidate) => candidate.canonicalFieldId === column.fieldId,
@@ -126,20 +142,28 @@ function DatasetTable({
             ? ("numeric" as const)
             : ("identity" as const),
       }))}
-      rows={review.rows.map((row) => ({
+      rows={rows.map((row) => ({
         id: String(row.rowId),
         identity: row.identity,
         cells: Object.fromEntries(
-          row.cells.map((cell) => [
-            String(cell.canonicalFieldId),
-            {
-              value: cell.value,
-              unit: cell.unit,
-              status: cell.status === "declared_null" ? "missing" : cell.status,
-              reason: cell.reason,
-              evidenceIds: cell.evidenceIds,
-            },
-          ]),
+          visibleColumns.map((column) => {
+            const cell = row.cells.find(
+              (item) => item.canonicalFieldId === column.fieldId,
+            );
+            return [
+              String(column.fieldId),
+              cell
+                ? {
+                    value: cell.value,
+                    unit: cell.unit,
+                    status:
+                      cell.status === "declared_null" ? "missing" : cell.status,
+                    reason: cell.reason,
+                    evidenceIds: cell.evidenceIds,
+                  }
+                : { value: "不适用" },
+            ];
+          }),
         ),
       }))}
       maxRows={limits.rows}
@@ -147,6 +171,57 @@ function DatasetTable({
       showIdentity
       onSelectEvidence={onSelectEvidence}
     />
+  );
+}
+
+function DatasetTable({
+  review,
+  surface,
+  onSelectEvidence,
+}: {
+  readonly review: DatasetArtifactReviewViewModel;
+  readonly surface: DataArtifactSurface;
+  readonly onSelectEvidence?: (evidenceIds: readonly DomainEntityId[]) => void;
+}) {
+  const groups = new Map<
+    string,
+    DatasetArtifactReviewViewModel["rows"][number][]
+  >();
+  for (const row of review.rows) {
+    const rows = groups.get(row.entityLevel);
+    if (rows) rows.push(row);
+    else groups.set(row.entityLevel, [row]);
+  }
+  if (groups.size < 2) {
+    return (
+      <DatasetRowsTable
+        columns={review.columns}
+        rows={review.rows}
+        surface={surface}
+        onSelectEvidence={onSelectEvidence}
+      />
+    );
+  }
+  return (
+    <Tabs defaultValue={review.rows[0]?.entityLevel}>
+      <TabsList aria-label="数据对象类型">
+        {[...groups].map(([level, rows]) => (
+          <TabsTrigger key={level} value={level}>
+            {ENTITY_LEVEL_LABELS[level] ?? "数据记录"} {rows.length}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      {[...groups].map(([level, rows]) => (
+        <TabsContent key={level} value={level}>
+          <DatasetRowsTable
+            columns={review.columns}
+            rows={rows}
+            surface={surface}
+            onSelectEvidence={onSelectEvidence}
+          />
+        </TabsContent>
+      ))}
+    </Tabs>
   );
 }
 
@@ -200,6 +275,7 @@ function DatasetRenderer({
       <div className="min-h-0 flex-1 overflow-auto">
         {review.rows.length > 0 && review.columns.length > 0 ? (
           <DatasetTable
+            key={review.artifactVersionId}
             review={review}
             surface={surface}
             onSelectEvidence={onSelectEvidence}

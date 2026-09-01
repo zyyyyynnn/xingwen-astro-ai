@@ -456,10 +456,10 @@ class LiteratureArtifactReadService:
                 summary_version_by_claim_id[claim_id] = (
                     read.paper_summary.artifact_version_id
                 )
-        if set(upstream_claims) != {item.claim_id for item in candidate.claims}:
-            raise _provenance_problem()
-        if any(upstream_claims.get(item.claim_id) != item for item in candidate.claims):
-            raise _provenance_problem()
+        _require_retained_claims_match_upstream(
+            candidate.claims,
+            upstream_claims=upstream_claims,
+        )
         _validate_relation_endpoint_versions(
             candidate,
             claim_version_by_id=claim_version_by_id,
@@ -871,6 +871,17 @@ def _snapshot_projection_map(
     if {item.id for item in result.values()} != set(version.source_snapshot_ids):
         raise _provenance_problem()
     return result
+
+
+def _require_retained_claims_match_upstream(
+    retained_claims: tuple[LiteratureClaimCandidate, ...],
+    *,
+    upstream_claims: Mapping[str, LiteratureClaimCandidate],
+) -> None:
+    """Require every retained Relation endpoint Claim to match its frozen input."""
+
+    if any(upstream_claims.get(claim.claim_id) != claim for claim in retained_claims):
+        raise _provenance_problem()
 
 
 def _validate_relation_endpoint_versions(

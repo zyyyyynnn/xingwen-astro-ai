@@ -111,6 +111,65 @@ def build_literature_relation_pairing_policy(
     return LiteratureRelationPairingPolicy(pairs=tuple(pairs))
 
 
+def select_literature_relation_model_policy(
+    claims: Iterable[LiteratureClaimCandidate],
+    *,
+    max_pairs: int,
+) -> LiteratureRelationPairingPolicy:
+    """Select a deterministic, bounded model-facing view of the full pair space.
+
+    Admission still resolves endpoints against the complete frozen Claim
+    ArtifactVersion. The provider only needs the strongest reviewable pair
+    candidates, not the quadratic Cartesian product and unrelated provenance.
+    """
+
+    if not 1 <= max_pairs <= 1_024:
+        raise ValueError("max_pairs must be between 1 and 1024")
+    eligible = tuple(
+        claim
+        for claim in claims
+        if claim.status is not LiteratureClaimStatus.rejected and claim.evidence_ids
+    )
+    claims_by_id = {claim.claim_id: claim for claim in eligible}
+    full = build_literature_relation_pairing_policy(eligible)
+
+    def rank(pair: LiteratureRelationPairConstraint) -> tuple[object, ...]:
+        source = claims_by_id[pair.source_claim_id]
+        target = claims_by_id[pair.target_claim_id]
+        source_objects = {
+            item.strip().casefold() for item in source.objects if item.strip()
+        }
+        target_objects = {
+            item.strip().casefold() for item in target.objects if item.strip()
+        }
+        shared_object_count = len(source_objects.intersection(target_objects))
+        metric_match = (
+            source.metric is not None
+            and target.metric is not None
+            and source.metric.casefold() == target.metric.casefold()
+        )
+        unit_match = (
+            source.unit is not None
+            and target.unit is not None
+            and source.unit.casefold() == target.unit.casefold()
+        )
+        same_claim_type = source.claim_type is target.claim_type
+        independent_evidence = set(source.evidence_ids).isdisjoint(target.evidence_ids)
+        return (
+            -shared_object_count,
+            -int(metric_match),
+            -int(unit_match),
+            -int(same_claim_type),
+            -int(independent_evidence),
+            pair.source_claim_id,
+            pair.target_claim_id,
+        )
+
+    return LiteratureRelationPairingPolicy(
+        pairs=tuple(sorted(full.pairs, key=rank)[:max_pairs])
+    )
+
+
 def expected_literature_relation_comparability(
     *,
     relation_type: LiteratureRelationType,
@@ -152,5 +211,6 @@ __all__ = [
     "LiteratureRelationPairConstraint",
     "LiteratureRelationPairingPolicy",
     "build_literature_relation_pairing_policy",
+    "select_literature_relation_model_policy",
     "expected_literature_relation_comparability",
 ]

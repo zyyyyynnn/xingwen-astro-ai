@@ -268,7 +268,7 @@ class ResearchStepAgent:
                     conversation=tuple(messages),
                     tools=(primary.schema,),
                     response_mode="tool",
-                    enable_thinking=False,
+                    enable_thinking=True,
                 ),
                 authorized_tool_name=primary.name,
                 authorized_skill_id=primary.authorized_skill_id or step_key,

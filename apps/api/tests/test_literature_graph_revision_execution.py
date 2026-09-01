@@ -386,26 +386,21 @@ class _RevisionScriptedModel:
                 "discussion": (),
                 "limitations": (),
                 "research_questions": (),
-                "evidence_ids": [ev_id],
             }
         elif request.prompt_name == "literature_claim":
             self.call_counts["literature_claim"] += 1
-            summary_payload = request.input_payload.get("paper_summary", {})
-            ev_ids = summary_payload.get("evidence_ids") or [_EVIDENCE_ID]
+            summary_payload = request.input_payload.get("paper_summary_artifact", {})
+            statements = summary_payload.get("statements", ())
+            assert statements
             payload = {
                 "schema_version": "1.0.0",
-                "claims": (
+                "claims": tuple(
                     _claim_payload(
-                        _STATEMENT_A,
-                        "Confirmed transiting planets orbit nearby host stars.",
-                        evidence_ids=list(ev_ids),
-                    ),
-                    _claim_payload(
-                        _STATEMENT_B,
-                        "Small-planet recovery methods share comparable "
-                        "transit signatures.",
-                        evidence_ids=list(ev_ids),
-                    ),
+                        statement["statement_id"],
+                        statement["text"],
+                        evidence_ids=list(statement["evidence_ids"]),
+                    )
+                    for statement in statements
                 ),
             }
         elif request.prompt_name == "literature_relation":
@@ -1525,9 +1520,17 @@ def test_claims_post_provider_local_failure_terminalizes_execution(
             for item in claims
         )
         assert all(item.output_hash is not None for item in claims)
+        assert all(item.provider_request_id is None for item in claims)
+        claim_children = [
+            item
+            for item in producers
+            if item.prompt_name == "literature_claim"
+            and item.producer_name != CLAIM_PRODUCER_NAME
+        ]
+        assert claim_children
         assert all(
             item.provider_request_id == "req-revision-literature_claim"
-            for item in claims
+            for item in claim_children
         )
         assert all(item.model_response is not None for item in claims)
         assert not any(
