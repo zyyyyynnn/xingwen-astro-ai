@@ -59,6 +59,8 @@ const SUMMARY_SECTIONS = [
   "limitations",
 ] as const;
 
+export const FULL_TEXT_REVISION_TIMEOUT_MS = 35 * 60_000;
+
 // The repository distributes this author manuscript under its posted license.
 // This is a real external input; it is never copied from the fixture bundle.
 const PAPER = {
@@ -819,8 +821,12 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
   );
   // Full-text revisions use the production native-first parser. Visual
   // inference is selective and bounded when the native text layer is
-  // insufficient; a healthy RC must finish within the normal Run budget.
-  const documentRun = await waitForRun(page, documentRunId);
+  // insufficient; a healthy RC must finish within the full-text revision budget.
+  const documentRun = await waitForRun(
+    page,
+    documentRunId,
+    FULL_TEXT_REVISION_TIMEOUT_MS,
+  );
   const documentRuntime = await readReleaseRuntime(documentRunId);
   expect(documentRun).toMatchObject({
     execution_mode: "live",

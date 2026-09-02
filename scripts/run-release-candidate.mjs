@@ -249,6 +249,8 @@ try {
       "tests/e2e-integration/release-candidate-live.spec.ts",
       "--config",
       "playwright.integration.config.ts",
+      "--retries",
+      "0",
       "--output",
       path.join(evidenceDirectory, "browser-results"),
     ],
