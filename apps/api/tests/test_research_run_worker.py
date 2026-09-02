@@ -13,7 +13,10 @@ from app.workflow.agent_runtime import AgentActivityError
 from app.workflow.research_run_worker import ResearchRunWorker, _step_started_message
 from app.workflow.research_step_runtime import RunStepContext
 from app.workflow.step_publication import StepPublicationFactory
-from services.paper_pipeline.errors import LiteratureAdmissionExecutionError
+from services.paper_pipeline.errors import (
+    LiteratureAdmissionExecutionError,
+    LiteratureClaimExecutionError,
+)
 
 
 @pytest.mark.parametrize("fails", [False, True])
@@ -137,6 +140,31 @@ def test_invalid_model_response_is_not_retried() -> None:
 
     decision = ResearchRunWorker._classify_failure(error)
 
+    assert decision.retryable is False
+
+
+def test_model_access_unavailable_is_not_retried_within_the_same_run() -> None:
+    error = ModelExecutionError(
+        "MODEL_ACCESS_UNAVAILABLE",
+        "当前研究模型尚未开通或额度不足，请检查模型套餐后重试。",
+    )
+
+    decision = ResearchRunWorker._classify_failure(error)
+
+    assert decision.error_code == "MODEL_ACCESS_UNAVAILABLE"
+    assert decision.retryable is False
+
+
+def test_literature_claim_rejection_keeps_its_safe_failure_code() -> None:
+    error = LiteratureClaimExecutionError(
+        code="LITERATURE_CLAIM_REJECTED",
+        public_message="文献论点未通过科学准入。",
+    )
+
+    decision = ResearchRunWorker._classify_failure(error)
+
+    assert decision.error_code == "LITERATURE_CLAIM_REJECTED"
+    assert decision.public_message == "文献论点未通过科学准入。"
     assert decision.retryable is False
 
 

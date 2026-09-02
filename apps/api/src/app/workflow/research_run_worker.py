@@ -118,7 +118,6 @@ _RETRYABLE_MODEL_FAILURE_CODES: frozenset[str] = frozenset(
         "MODEL_PROVIDER_TIMEOUT",
         "MODEL_RATE_LIMITED",
         "MODEL_PROVIDER_UNAVAILABLE",
-        "MODEL_ACCESS_UNAVAILABLE",
     }
 )
 

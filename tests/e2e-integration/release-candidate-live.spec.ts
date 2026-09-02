@@ -135,29 +135,43 @@ async function writeRunFailureEvidence(
     page,
     "/api/runs/" + run.id + "/artifacts?limit=100",
   ).catch(() => [] as ResearchArtifact[]);
-  let completedProducerIds: string[] = [];
+  let runtime: Awaited<ReturnType<typeof readReleaseRuntime>> | null = null;
   try {
-    const runtime = (await readReleaseRuntime(run.id)) as {
-      producer_executions?: Array<{ id: string; status: string }>;
-    };
-    completedProducerIds = (runtime.producer_executions ?? [])
-      .filter((item) => item.status === "completed")
-      .map((item) => item.id);
+    runtime = await readReleaseRuntime(run.id);
   } catch {
-    completedProducerIds = [];
+    runtime = null;
   }
+  const failedAttempt = runtime?.attempts
+    .filter((attempt) => attempt.status === "failed")
+    .at(-1);
+  const failedProducers = failedAttempt
+    ? (runtime?.producer_executions ?? []).filter(
+        (execution) =>
+          execution.step_attempt_id === failedAttempt.id &&
+          execution.status !== "completed",
+      )
+    : [];
   await report("release-candidate-failure.json", {
     source_commit: SOURCE_COMMIT,
     run_id: run.id,
-    step_key:
-      (run as unknown as { current_step_key?: string | null })
-        .current_step_key ?? null,
-    error_code: run.failure_code ?? null,
-    error_class: run.failure_summary ?? null,
+    step_key: failedAttempt?.step ?? null,
+    attempt_number: failedAttempt?.attempt_number ?? null,
+    error_code: failedAttempt?.error_code ?? run.failure_code ?? null,
+    error_class: failedAttempt?.error_class ?? null,
+    retryable: failedAttempt?.retryable ?? false,
+    upstream_request_id: failedAttempt?.upstream_request_id ?? null,
+    producer_errors: failedProducers.map((execution) => ({
+      producer_execution_id: execution.id,
+      producer_type: execution.producer_type,
+      producer_name: execution.producer_name,
+      error_code: execution.error_code,
+    })),
     completed_artifact_version_ids: artifacts
       .filter((item) => item.latest_version_id)
       .map((item) => item.latest_version_id),
-    completed_producer_execution_ids: completedProducerIds,
+    completed_producer_execution_ids: (runtime?.producer_executions ?? [])
+      .filter((item) => item.status === "completed")
+      .map((item) => item.id),
     timestamp: new Date().toISOString(),
   }).catch(() => undefined);
 }
@@ -402,13 +416,17 @@ function qwenExecution(
           item.prompt_hash === version.producer.prompt_hash),
   );
   expect(requests.length).toBeGreaterThan(0);
+  expect(requests.some((request) => request.status === "completed")).toBe(true);
   for (const request of requests) {
     expect(request).toMatchObject({
-      status: "completed",
       model_provider: "dashscope",
       requested_model: RUNTIME_QWEN_MODEL,
       explicit_revision: EXPLICIT_REVISION,
     });
+    expect(["completed", "failed"]).toContain(request.status);
+    if (request.status === "failed") {
+      expect(request.error_code).toBe("MODEL_RESPONSE_TRUNCATED");
+    }
     expect(request.provider_returned_model).toBeTruthy();
     expect(request.parameters).toMatchObject({
       temperature: expect.any(Number),
@@ -419,6 +437,9 @@ function qwenExecution(
       Object.values(request.token_usage ?? {}).some((count) => count > 0),
     ).toBe(true);
   }
+  expect(
+    new Set(requests.map((request) => request.provider_returned_model)),
+  ).toEqual(new Set([version.producer.provider_returned_model]));
   expect(version.producer_execution.status).toBe("completed");
   expect(version.producer.prompt_name).toBeTruthy();
   expect(version.producer.prompt_version).toBeTruthy();
@@ -1226,6 +1247,17 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
       configured_official_route: documentRuntime.qwen_route,
       requested_model: RUNTIME_QWEN_MODEL,
       explicit_revision: EXPLICIT_REVISION,
+      provider_returned_model: (() => {
+        const returnedModels = new Set(
+          qwenExecutions.flatMap((item) =>
+            item.requests
+              .map((request) => request.provider_returned_model)
+              .filter((model): model is string => Boolean(model)),
+          ),
+        );
+        expect(returnedModels.size).toBe(1);
+        return [...returnedModels][0];
+      })(),
     },
     producer_request_ids: qwenExecutions.flatMap((item) =>
       item.requests.map((request) => request.provider_request_id),
@@ -1235,6 +1267,10 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
       document_revision: documentRunId,
       adjudication: adjudicationRunId,
     },
+    qualifying_artifact_versions: qwenExecutions.map(
+      (execution) => execution.artifact_version_id,
+    ),
+    executions: qwenExecutions,
     result: "passed",
   });
 });

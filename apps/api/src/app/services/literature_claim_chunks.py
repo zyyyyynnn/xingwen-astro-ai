@@ -35,6 +35,7 @@ from app.services.model_execution import (
     ModelExecutionPort,
     ModelExecutionRequest,
     ModelExecutionResponse,
+    model_execution_failure_response,
 )
 from packages.prompts.registry import PromptRecord, PromptRegistry
 
@@ -62,12 +63,14 @@ class ClaimChunkViolation(ValueError):
         code: str,
         chunk_id: str,
         affected_statement_ids: tuple[str, ...] = (),
+        model_response: ModelExecutionResponse | None = None,
         message: str,
     ) -> None:
         super().__init__(message)
         self.code = code
         self.chunk_id = chunk_id
         self.affected_statement_ids = affected_statement_ids
+        self.model_response = model_response
 
 
 @dataclass(frozen=True, slots=True)
@@ -284,10 +287,12 @@ def _execute_chunk_with_bounded_recovery(
     except ModelExecutionError as exc:
         if exc.code != _MODEL_RESPONSE_TRUNCATED:
             raise
+        failed_response = model_execution_failure_response(exc)
         return _recover_truncated_chunk(
             run=run,
             base_payload=base_payload,
             chunk=chunk,
+            prior_responses=(() if failed_response is None else (failed_response,)),
         )
     except ClaimChunkViolation as violation:
         try:
@@ -308,10 +313,15 @@ def _execute_chunk_with_bounded_recovery(
                     code=CLAIM_CHUNK_TRUNCATED,
                     chunk_id=chunk.chunk_id,
                     affected_statement_ids=violation.affected_statement_ids,
+                    model_response=model_execution_failure_response(correction_error),
                     message=f"{chunk.chunk_id} correction response was truncated",
                 ) from violation
             raise
-        return (response,), extraction, 1, 0
+        observed = (
+            (() if violation.model_response is None else (violation.model_response,))
+            + (response,)
+        )
+        return observed, extraction, 1, 0
 
 
 def _recover_truncated_chunk(
@@ -319,6 +329,7 @@ def _recover_truncated_chunk(
     run,
     base_payload,
     chunk: ClaimExtractionChunk,
+    prior_responses: tuple[ModelExecutionResponse, ...] = (),
 ) -> tuple[tuple[ModelExecutionResponse, ...], LiteratureClaimExtractionOutput, int, int]:
     if len(chunk.statements) < 2:
         single = chunk.statements[0].statement.statement_id
@@ -339,12 +350,13 @@ def _recover_truncated_chunk(
                     code=CLAIM_CHUNK_TRUNCATED,
                     chunk_id=chunk.chunk_id,
                     affected_statement_ids=(single,),
+                    model_response=model_execution_failure_response(exc),
                     message=(
                         f"{chunk.chunk_id} single-statement output remained truncated"
                     ),
                 ) from exc
             raise
-        return (response,), extraction, 1, 1
+        return prior_responses + (response,), extraction, 1, 0
 
     middle = (len(chunk.statements) + 1) // 2
     halves = (
@@ -357,8 +369,9 @@ def _recover_truncated_chunk(
             statements=chunk.statements[middle:],
         ),
     )
-    responses: list[ModelExecutionResponse] = []
+    responses: list[ModelExecutionResponse] = list(prior_responses)
     claims: list[LiteratureClaimModelCandidate] = []
+    correction_count = 0
     for half in halves:
         try:
             response, extraction = run(half, base_payload(half))
@@ -370,12 +383,16 @@ def _recover_truncated_chunk(
                     affected_statement_ids=tuple(
                         item.statement.statement_id for item in half.statements
                     ),
+                    model_response=model_execution_failure_response(exc),
                     message=(
                         f"{half.chunk_id} remained truncated at the split depth limit"
                     ),
                 ) from exc
             raise
         except ClaimChunkViolation as violation:
+            correction_count += 1
+            if violation.model_response is not None:
+                responses.append(violation.model_response)
             try:
                 response, extraction = run(
                     half,
@@ -394,6 +411,9 @@ def _recover_truncated_chunk(
                         code=CLAIM_CHUNK_TRUNCATED,
                         chunk_id=half.chunk_id,
                         affected_statement_ids=violation.affected_statement_ids,
+                        model_response=model_execution_failure_response(
+                            correction_error
+                        ),
                         message=(
                             f"{half.chunk_id} correction response was truncated"
                         ),
@@ -405,7 +425,7 @@ def _recover_truncated_chunk(
         schema_version="1.0.0",
         claims=tuple(claims),
     )
-    return tuple(responses), combined, 0, 1
+    return tuple(responses), combined, correction_count, 1
 
 
 def _chunk_call(
@@ -441,9 +461,19 @@ def _chunk_call(
         raise ClaimChunkViolation(
             code=CLAIM_CHUNK_SCHEMA_INVALID,
             chunk_id=chunk.chunk_id,
+            model_response=response,
             message=f"{chunk.chunk_id} model output did not match the Claim schema",
         ) from exc
-    _validate_chunk_coverage(chunk, extraction)
+    try:
+        _validate_chunk_coverage(chunk, extraction)
+    except ClaimChunkViolation as exc:
+        raise ClaimChunkViolation(
+            code=exc.code,
+            chunk_id=exc.chunk_id,
+            affected_statement_ids=exc.affected_statement_ids,
+            model_response=response,
+            message=str(exc),
+        ) from exc
     return response, extraction
 
 

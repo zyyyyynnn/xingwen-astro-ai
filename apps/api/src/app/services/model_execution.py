@@ -100,6 +100,7 @@ class ModelExecutionError(RuntimeError):
         token_usage: dict[str, int] | None = None,
         latency_ms: int | None = None,
         provider_request_id: str | None = None,
+        provider_returned_model: str | None = None,
     ) -> None:
         super().__init__(message)
         self.code = code
@@ -108,6 +109,30 @@ class ModelExecutionError(RuntimeError):
         self.token_usage = token_usage
         self.latency_ms = latency_ms
         self.provider_request_id = provider_request_id
+        self.provider_returned_model = provider_returned_model
+
+
+def model_execution_failure_response(
+    error: ModelExecutionError,
+) -> ModelExecutionResponse | None:
+    """Project safe provider metadata from a failed model call for persistence."""
+
+    if (
+        error.latency_ms is None
+        and error.token_usage is None
+        and error.provider_request_id is None
+        and error.provider_returned_model is None
+        and error.output_hash is None
+    ):
+        return None
+    return ModelExecutionResponse(
+        payload={},
+        output_hash=error.output_hash or ("sha256:" + "0" * 64),
+        token_usage=error.token_usage,
+        latency_ms=error.latency_ms or 0,
+        provider_request_id=error.provider_request_id,
+        provider_returned_model=error.provider_returned_model,
+    )
 
 
 class ModelRuntimeUnavailable(ModelExecutionError):
@@ -235,7 +260,9 @@ class OpenAICompatibleModelExecutionAdapter:
                 **failure_metadata,
             ) from exc
         except (APIConnectionError, APIError) as exc:
-            raise ModelRuntimeUnavailable(
+            raise ModelExecutionError(
+                "MODEL_PROVIDER_UNAVAILABLE",
+                "研究助手服务暂时不可用，请稍后重试。",
                 latency_ms=_elapsed_ms(started),
                 provider_request_id=getattr(exc, "request_id", None),
             ) from exc
@@ -249,6 +276,7 @@ class OpenAICompatibleModelExecutionAdapter:
                 token_usage=raw.token_usage,
                 latency_ms=latency_ms,
                 provider_request_id=raw.provider_request_id,
+                provider_returned_model=raw.model,
             )
         if request.response_mode == "tool" and raw.finish_reason not in (
             None,
@@ -262,6 +290,7 @@ class OpenAICompatibleModelExecutionAdapter:
                 token_usage=raw.token_usage,
                 latency_ms=latency_ms,
                 provider_request_id=raw.provider_request_id,
+                provider_returned_model=raw.model,
             )
         try:
             payload = (
@@ -283,6 +312,7 @@ class OpenAICompatibleModelExecutionAdapter:
                 token_usage=raw.token_usage,
                 latency_ms=latency_ms,
                 provider_request_id=raw.provider_request_id,
+                provider_returned_model=raw.model,
             ) from exc
 
         return ModelExecutionResponse(
@@ -435,6 +465,7 @@ __all__ = [
     "ModelExecutionResponse",
     "ModelToolCall",
     "ModelRuntimeUnavailable",
+    "model_execution_failure_response",
     "OpenAICompatibleModelExecutionAdapter",
     "QwenModelExecutionAdapter",
     "qwen_execution_lease_duration",

@@ -267,24 +267,24 @@ def compile_run_plan(
             continue
         phase_tasks = tasks_by_phase.get(phase, ())
         if phase_tasks:
-            planned.extend(
-                RunStepDefinition(
-                    key=_scientific_task_step_key(task.task_id),
-                    label=str(capability_for(task.skill_id.value)["label"]),
-                    enter_status=phase,
-                    success_status="completed",
-                    task_id=task.task_id,
-                    skill_id=task.skill_id.value,
-                    max_attempts=(
-                        2
-                        if capability_for(task.skill_id.value)[
-                            "produces_source_snapshot"
-                        ]
-                        else 1
-                    ),
+            for task in phase_tasks:
+                capability = capability_for(task.skill_id.value)
+                planned.append(
+                    RunStepDefinition(
+                        key=_scientific_task_step_key(task.task_id),
+                        label=str(capability["label"]),
+                        enter_status=phase,
+                        success_status="completed",
+                        task_id=task.task_id,
+                        skill_id=task.skill_id.value,
+                        max_attempts=(
+                            2
+                            if capability["workload_class"] == "network"
+                            and capability["produces_source_snapshot"]
+                            else 1
+                        ),
+                    )
                 )
-                for task in phase_tasks
-            )
             continue
         planned.append(
             RunStepDefinition(

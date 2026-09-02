@@ -26,7 +26,10 @@ from app.services.literature_claim_chunks import (
     ClaimChunkViolation,
     ChunkedLiteratureClaimService,
 )
-from app.services.model_execution import ModelExecutionError, ModelExecutionResponse
+from app.services.model_execution import (
+    ModelExecutionError,
+    ModelExecutionResponse,
+)
 from app.services.paper_summaries import PaperSummaryReadPort
 from app.workflow.publisher import ArtifactPublication, admit_artifact_candidate
 from app.workflow.step_publication import (
@@ -271,16 +274,20 @@ class LiteratureStepService:
                 LiteratureClaimStatus.accepted,
                 LiteratureClaimStatus.candidate,
             }:
+                error_code = (
+                    f"LITERATURE_CLAIM_{claims_result.failure_stage or 'REJECTED'}"
+                )
                 model_caller.reject(
                     claims_execution_id,
                     input_hash=None,
                     response=claims_response,
-                    error_code=(
-                        f"LITERATURE_CLAIM_{claims_result.failure_stage or 'REJECTED'}"
-                    ),
+                    error_code=error_code,
                 )
                 claims_terminalized = True
-                raise ValueError(f"文献论点未通过准入: {claims_result.failure_stage}")
+                raise LiteratureClaimExecutionError(
+                    code=error_code,
+                    public_message="文献论点未通过科学准入。",
+                )
 
             claims_source_bindings = self._publications.source_bindings(
                 context,
@@ -327,7 +334,7 @@ class LiteratureStepService:
             if isinstance(exc, ClaimChunkViolation):
                 raise LiteratureClaimExecutionError(
                     code=exc.code,
-                    public_message="文献论点提取未通过批次契约校验，请稍后重试。",
+                    public_message="文献论点提取未通过批次契约校验。",
                 ) from exc
             raise
         publication = self._publications.publication(
@@ -638,7 +645,7 @@ class LiteratureStepService:
                 raise
             raise LiteratureRelationLocalError(
                 code=error_code,
-                public_message="文献关系校验未通过，请稍后重试。",
+                public_message="文献关系校验未通过。",
             ) from exc
         relations_publication = self._publications.publication(
             context,

@@ -382,7 +382,7 @@ class ResearchStepAgent:
             raise
         except Exception as error:
             raise AgentActivityError(
-                activity_id=call.id,
+                activity_id=tool_activity_id,
                 activity_kind="observation",
                 activity_name=primary.label,
                 cause=error,

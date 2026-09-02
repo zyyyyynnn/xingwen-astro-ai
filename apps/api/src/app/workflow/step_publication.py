@@ -46,6 +46,7 @@ from app.services.model_execution import (
     ModelExecutionPort,
     ModelExecutionRequest,
     ModelExecutionResponse,
+    model_execution_failure_response,
 )
 from app.workflow.publisher import (
     AdmittedArtifactCandidate,
@@ -738,23 +739,12 @@ class TrackedStepModelExecutionPort:
         try:
             response = base.execute(request)
         except ModelExecutionError as error:
+            failure_response = model_execution_failure_response(error)
             self._publications.finish_producer(
                 execution.id,
                 status="failed",
                 output_hash=error.output_hash,
-                response=(
-                    ModelExecutionResponse(
-                        payload={},
-                        output_hash=error.output_hash or ("sha256:" + "0" * 64),
-                        token_usage=error.token_usage,
-                        latency_ms=error.latency_ms or 0,
-                        provider_request_id=error.provider_request_id,
-                    )
-                    if error.latency_ms is not None
-                    or error.token_usage is not None
-                    or error.provider_request_id is not None
-                    else None
-                ),
+                response=failure_response,
                 error_code=error.code,
             )
             raise
@@ -843,23 +833,12 @@ class TrackedStepModelExecutionPort:
         try:
             response = base.execute(request)
         except ModelExecutionError as error:
+            failure_response = model_execution_failure_response(error)
             self._publications.finish_producer(
                 execution.id,
                 status="failed",
                 output_hash=error.output_hash,
-                response=(
-                    ModelExecutionResponse(
-                        payload={},
-                        output_hash=error.output_hash or ("sha256:" + "0" * 64),
-                        token_usage=error.token_usage,
-                        latency_ms=error.latency_ms or 0,
-                        provider_request_id=error.provider_request_id,
-                    )
-                    if error.latency_ms is not None
-                    or error.token_usage is not None
-                    or error.provider_request_id is not None
-                    else None
-                ),
+                response=failure_response,
                 error_code=error.code,
                 error_hash=compute_canonical_payload_hash({"error": error.code}),
             )

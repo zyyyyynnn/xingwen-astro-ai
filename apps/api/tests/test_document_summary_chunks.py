@@ -32,6 +32,7 @@ from app.services.document_summary_chunks import (
     SummaryChunkViolation,
 )
 from app.services.model_execution import (
+    ModelExecutionError,
     ModelExecutionRequest,
     ModelExecutionResponse,
 )
@@ -197,6 +198,47 @@ def test_small_document_delegates_to_the_single_execution_path() -> None:
     assert "chunk" not in model.requests[0].input_payload["paper_payload"]
 
 
+def test_small_document_truncation_accounts_for_both_provider_calls() -> None:
+    class SmallTruncatingModel(_ChunkModel):
+        def __init__(self) -> None:
+            super().__init__()
+            self.call_count = 0
+
+        def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
+            self.call_count += 1
+            if self.call_count == 1:
+                self.requests.append(request)
+                raise ModelExecutionError(
+                    "MODEL_RESPONSE_TRUNCATED",
+                    "研究助手返回结果不完整，请稍后重试。",
+                    output_hash="sha256:" + "a" * 64,
+                    token_usage={
+                        "prompt_tokens": 10,
+                        "completion_tokens": 20,
+                        "total_tokens": 30,
+                    },
+                    latency_ms=7,
+                    provider_request_id="summary-small-truncated",
+                    provider_returned_model="test-returned-model-snapshot",
+                )
+            return super().execute(request)
+
+    model = SmallTruncatingModel()
+    result = ChunkedDocumentSummaryService(model).execute(_request(3))
+
+    assert isinstance(result, DocumentSummaryExecution)
+    assert len(model.requests) == 2
+    assert result.token_usage is not None
+    assert result.token_usage.total_tokens == 45
+    assert result.latency_ms == 11
+    assert result.provider_request_id is None
+    assert result.model_response.provider_request_id is None
+    assert (
+        result.model_response.provider_returned_model
+        == "test-returned-model-snapshot"
+    )
+
+
 def test_long_document_runs_one_bounded_call_per_chunk() -> None:
     model = _ChunkModel()
     result = ChunkedDocumentSummaryService(model).execute(_request(513))
@@ -286,6 +328,114 @@ def test_chunked_execution_is_deterministic() -> None:
     assert second.admission.summary is not None
     assert first.admission.summary.output_hash == second.admission.summary.output_hash
     assert first.admission.producer.input_hash == second.admission.producer.input_hash
+
+
+def test_long_document_truncation_uses_one_split_without_recursion() -> None:
+    class TruncatingChunkModel(_ChunkModel):
+        def __init__(self) -> None:
+            super().__init__()
+            self.call_count = 0
+
+        def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
+            self.call_count += 1
+            self.requests.append(request)
+            if self.call_count == 1:
+                raise ModelExecutionError(
+                    "MODEL_RESPONSE_TRUNCATED",
+                    "研究助手返回结果不完整，请稍后重试。",
+                    output_hash="sha256:" + "e" * 64,
+                    token_usage={
+                        "prompt_tokens": 10,
+                        "completion_tokens": 20,
+                        "total_tokens": 30,
+                    },
+                    latency_ms=7,
+                    provider_request_id="summary-truncated-1",
+                )
+            paper_payload = request.input_payload["paper_payload"]
+            chunk = paper_payload["chunk"]
+            evidence_ids = [item["evidence_id"] for item in chunk["evidence"]]
+            safe_chunk_id = str(chunk["chunk_id"]).lower()
+            payload = {
+                "background": [],
+                "methodology": [],
+                "dataset": [],
+                "experiments": [
+                    {
+                        "statement_id": f"finding.{safe_chunk_id}",
+                        "text": f"Chunk {safe_chunk_id} reports an observation.",
+                        "evidence_ids": [evidence_ids[0]],
+                    }
+                ],
+                "discussion": [],
+                "limitations": [],
+                "research_questions": [],
+            }
+            return ModelExecutionResponse(
+                payload=payload,
+                output_hash=compute_canonical_payload_hash(payload),
+                token_usage={
+                    "prompt_tokens": 10,
+                    "completion_tokens": 5,
+                    "total_tokens": 15,
+                },
+                latency_ms=4,
+                provider_request_id=f"request-{safe_chunk_id}",
+                provider_returned_model="test-returned-model-snapshot",
+            )
+
+    model = TruncatingChunkModel()
+    result = ChunkedDocumentSummaryService(model).execute(_request(513))
+
+    assert isinstance(result, ChunkedDocumentSummaryExecution)
+    assert result.split_count == 1
+    assert result.correction_count == 0
+    assert len(model.requests) > result.chunk_count
+    assert result.token_usage is not None
+    assert result.token_usage.total_tokens == 90
+    assert result.latency_ms == 23
+
+
+def test_single_block_truncation_uses_one_concise_correction() -> None:
+    class SingleBlockTruncatingModel(_ChunkModel):
+        def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
+            paper_payload = request.input_payload["paper_payload"]
+            chunk = paper_payload["chunk"]
+            if (
+                len(chunk["evidence"]) == 1
+                and "validation_feedback" not in request.input_payload
+            ):
+                self.requests.append(request)
+                raise ModelExecutionError(
+                    "MODEL_RESPONSE_TRUNCATED",
+                    "研究助手返回结果不完整，请稍后重试。",
+                    output_hash="sha256:" + "d" * 64,
+                    token_usage={
+                        "prompt_tokens": 10,
+                        "completion_tokens": 20,
+                        "total_tokens": 30,
+                    },
+                    latency_ms=7,
+                    provider_request_id="summary-single-truncated",
+                )
+            return super().execute(request)
+
+    model = SingleBlockTruncatingModel()
+    result = ChunkedDocumentSummaryService(model).execute(_request(513))
+
+    assert isinstance(result, ChunkedDocumentSummaryExecution)
+    assert result.correction_count == 1
+    assert result.split_count == 0
+    corrected = [
+        request
+        for request in model.requests
+        if request.input_payload.get("validation_feedback") is not None
+    ]
+    assert len(corrected) == 1
+    assert corrected[0].input_payload["validation_feedback"]["concise_output"] is True
+    assert result.token_usage is not None
+    assert result.token_usage.total_tokens == 75
+    assert result.latency_ms == 19
 
 
 def test_chunk_statement_citing_foreign_evidence_is_rejected() -> None:

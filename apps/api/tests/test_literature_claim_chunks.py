@@ -18,6 +18,7 @@ from app.services.literature_claim_chunks import (
     ChunkedLiteratureClaimService,
 )
 from app.services.model_execution import (
+    ModelExecutionError,
     ModelExecutionRequest,
     ModelExecutionResponse,
 )
@@ -191,6 +192,9 @@ def test_claim_correction_recovers_with_new_input_identity() -> None:
         "statement.000",
         "statement.001",
     ]
+    assert result.token_usage is not None
+    assert result.token_usage["total_tokens"] == 600
+    assert result.latency_ms == 50
 
 
 class _AlwaysViolatingModel:
@@ -218,6 +222,123 @@ def test_claim_correction_budget_fails_closed_without_third_call() -> None:
             summary=_summary(2), **_EXECUTE_KWARGS
         )
     assert len(model.requests) == 2
+
+
+class _TruncatingClaimModel(_ClaimModel):
+    def __init__(self, *, truncate_calls: int = 1) -> None:
+        super().__init__()
+        self.truncate_calls = truncate_calls
+
+    def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
+        self.requests.append(request)
+        if len(self.requests) <= self.truncate_calls:
+            raise ModelExecutionError(
+                "MODEL_RESPONSE_TRUNCATED",
+                "研究助手返回结果不完整，请稍后重试。",
+                output_hash="sha256:" + "f" * 64,
+                token_usage={
+                    "prompt_tokens": 50,
+                    "completion_tokens": 100,
+                    "total_tokens": 150,
+                },
+                latency_ms=10,
+                provider_request_id=f"truncated-{len(self.requests)}",
+            )
+        artifact = request.input_payload["paper_summary_artifact"]
+        statements = artifact["statements"]
+        return _response(
+            {
+                "schema_version": "1.0.0",
+                "claims": [_claim_payload(statement) for statement in statements],
+            },
+            len(self.requests),
+        )
+
+
+def test_claim_truncation_splits_once_with_distinct_child_inputs() -> None:
+    model = _TruncatingClaimModel()
+
+    result = ChunkedLiteratureClaimService(model).execute(
+        summary=_summary(4), **_EXECUTE_KWARGS
+    )
+
+    assert result.split_count == 1
+    assert result.correction_count == 0
+    assert len(result.extraction.claims) == 4
+    assert len(model.requests) == 3
+    assert len({request.input_hash for request in model.requests}) == 3
+    assert result.token_usage is not None
+    assert result.token_usage["total_tokens"] == 750
+    assert result.latency_ms == 60
+
+
+def test_claim_truncation_does_not_recurse_past_one_split() -> None:
+    model = _TruncatingClaimModel(truncate_calls=2)
+
+    with pytest.raises(ClaimChunkViolation, match="split depth limit"):
+        ChunkedLiteratureClaimService(model).execute(
+            summary=_summary(4), **_EXECUTE_KWARGS
+        )
+
+    assert len(model.requests) == 2
+
+
+def test_single_statement_truncation_uses_one_concise_correction() -> None:
+    model = _TruncatingClaimModel()
+
+    result = ChunkedLiteratureClaimService(model).execute(
+        summary=_summary(1), **_EXECUTE_KWARGS
+    )
+
+    assert result.correction_count == 1
+    assert result.split_count == 0
+    assert len(model.requests) == 2
+    feedback = model.requests[1].input_payload["validation_feedback"]
+    assert feedback["code"] == "CLAIM_CHUNK_TRUNCATED"
+    assert feedback["concise_output"] is True
+    assert result.token_usage is not None
+    assert result.token_usage["total_tokens"] == 450
+    assert result.latency_ms == 35
+
+
+def test_split_recovery_counts_a_child_contract_correction() -> None:
+    class SplitThenBudgetModel(_ClaimModel):
+        def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
+            self.requests.append(request)
+            if len(self.requests) == 1:
+                raise ModelExecutionError(
+                    "MODEL_RESPONSE_TRUNCATED",
+                    "研究助手返回结果不完整，请稍后重试。",
+                    output_hash="sha256:" + "c" * 64,
+                    token_usage={
+                        "prompt_tokens": 50,
+                        "completion_tokens": 100,
+                        "total_tokens": 150,
+                    },
+                    latency_ms=10,
+                    provider_request_id="split-truncated",
+                )
+            artifact = request.input_payload["paper_summary_artifact"]
+            statements = artifact["statements"]
+            claims = [_claim_payload(statement) for statement in statements]
+            if len(self.requests) == 2:
+                claims.extend(_claim_payload(statements[0]) for _ in range(4))
+            return _response(
+                {"schema_version": "1.0.0", "claims": claims}, len(self.requests)
+            )
+
+    model = SplitThenBudgetModel()
+
+    result = ChunkedLiteratureClaimService(model).execute(
+        summary=_summary(4), **_EXECUTE_KWARGS
+    )
+
+    assert result.split_count == 1
+    assert result.correction_count == 1
+    assert len(model.requests) == 4
+    assert result.token_usage is not None
+    assert result.token_usage["total_tokens"] == 1050
+    assert result.latency_ms == 85
 
 
 def test_literature_claim_prompt_declares_claim_budget() -> None:

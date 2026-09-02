@@ -41,6 +41,7 @@ from app.services.model_execution import (
     ModelExecutionPort,
     ModelExecutionRequest,
     ModelExecutionResponse,
+    model_execution_failure_response,
 )
 from packages.prompts.registry import PromptRegistry
 from services.paper_pipeline.summary import (
@@ -75,12 +76,14 @@ class SummaryChunkViolation(ValueError):
         code: str,
         chunk_id: str,
         affected_evidence_ids: tuple[str, ...] = (),
+        model_response: ModelExecutionResponse | None = None,
         message: str,
     ) -> None:
         super().__init__(message)
         self.code = code
         self.chunk_id = chunk_id
         self.affected_evidence_ids = affected_evidence_ids
+        self.model_response = model_response
 
 
 @dataclass(frozen=True, slots=True)
@@ -429,9 +432,19 @@ def _execute_summary_chunk_with_bounded_recovery(
             raise SummaryChunkViolation(
                 code=DOCUMENT_SUMMARY_CHUNK_SCHEMA_INVALID,
                 chunk_id=target.chunk_id,
+                model_response=response,
                 message=f"{target.chunk_id} model output did not match the Summary schema",
             ) from exc
-        _enforce_chunk_evidence_allowlist(target, output)
+        try:
+            _enforce_chunk_evidence_allowlist(target, output)
+        except SummaryChunkViolation as exc:
+            raise SummaryChunkViolation(
+                code=exc.code,
+                chunk_id=exc.chunk_id,
+                affected_evidence_ids=exc.affected_evidence_ids,
+                model_response=response,
+                message=str(exc),
+            ) from exc
         return response, output
 
     try:
@@ -440,10 +453,12 @@ def _execute_summary_chunk_with_bounded_recovery(
     except ModelExecutionError as exc:
         if exc.code != _MODEL_RESPONSE_TRUNCATED:
             raise
+        failed_response = model_execution_failure_response(exc)
         return _recover_truncated_summary_chunk(
             run=run,
             chunk=chunk,
             evidence=evidence,
+            prior_responses=(() if failed_response is None else (failed_response,)),
         )
     except SummaryChunkViolation as violation:
         try:
@@ -463,10 +478,15 @@ def _execute_summary_chunk_with_bounded_recovery(
                     code=DOCUMENT_SUMMARY_CHUNK_TRUNCATED,
                     chunk_id=chunk.chunk_id,
                     affected_evidence_ids=violation.affected_evidence_ids,
+                    model_response=model_execution_failure_response(correction_error),
                     message=f"{chunk.chunk_id} correction response was truncated",
                 ) from violation
             raise
-        return (response,), _chunk_sections(output), 1, 0
+        observed = (
+            (() if violation.model_response is None else (violation.model_response,))
+            + (response,)
+        )
+        return observed, _chunk_sections(output), 1, 0
 
 
 def _recover_truncated_summary_chunk(
@@ -474,6 +494,7 @@ def _recover_truncated_summary_chunk(
     run,
     chunk: SummaryChunk,
     evidence: tuple[PaperSummaryEvidenceCandidate, ...],
+    prior_responses: tuple[ModelExecutionResponse, ...] = (),
 ) -> tuple[
     tuple[ModelExecutionResponse, ...],
     dict[str, tuple[SectionStatement, ...]],
@@ -497,12 +518,13 @@ def _recover_truncated_summary_chunk(
                     code=DOCUMENT_SUMMARY_CHUNK_TRUNCATED,
                     chunk_id=chunk.chunk_id,
                     affected_evidence_ids=tuple(chunk.block_ids),
+                    model_response=model_execution_failure_response(exc),
                     message=(
                         f"{chunk.chunk_id} single-block output remained truncated"
                     ),
                 ) from exc
             raise
-        return (response,), _chunk_sections(output), 1, 1
+        return prior_responses + (response,), _chunk_sections(output), 1, 0
 
     middle = (len(chunk.block_ids) + 1) // 2
     text_by_id = {item.evidence_id: item.quote_or_value for item in evidence}
@@ -521,8 +543,9 @@ def _recover_truncated_summary_chunk(
             strict=True,
         )
     )
-    responses: list[ModelExecutionResponse] = []
+    responses: list[ModelExecutionResponse] = list(prior_responses)
     half_sections: list[dict[str, tuple[SectionStatement, ...]]] = []
+    correction_count = 0
     for half in halves:
         try:
             response, output = run(half, None)
@@ -532,12 +555,16 @@ def _recover_truncated_summary_chunk(
                     code=DOCUMENT_SUMMARY_CHUNK_TRUNCATED,
                     chunk_id=half.chunk_id,
                     affected_evidence_ids=tuple(half.block_ids),
+                    model_response=model_execution_failure_response(exc),
                     message=(
                         f"{half.chunk_id} remained truncated at the split depth limit"
                     ),
                 ) from exc
             raise
         except SummaryChunkViolation as violation:
+            correction_count += 1
+            if violation.model_response is not None:
+                responses.append(violation.model_response)
             try:
                 response, output = run(
                     half,
@@ -555,13 +582,16 @@ def _recover_truncated_summary_chunk(
                         code=DOCUMENT_SUMMARY_CHUNK_TRUNCATED,
                         chunk_id=half.chunk_id,
                         affected_evidence_ids=violation.affected_evidence_ids,
+                        model_response=model_execution_failure_response(
+                            correction_error
+                        ),
                         message=f"{half.chunk_id} correction response was truncated",
                     ) from violation
                 raise
         responses.append(response)
         half_sections.append(_chunk_sections(output))
     merged = _merged_half_sections(half_sections[0], half_sections[1])
-    return tuple(responses), merged, 0, 1
+    return tuple(responses), merged, correction_count, 1
 
 
 def _chunk_validation_feedback(

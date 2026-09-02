@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from uuid import UUID, uuid4
 
+import pytest
+
 from app.services.model_execution import (
+    ModelExecutionError,
     ModelExecutionRequest,
     ModelExecutionResponse,
     ModelToolCall,
@@ -305,4 +308,43 @@ def test_agent_preserves_tool_activity_identity_when_execution_fails() -> None:
         raise AssertionError("tool execution failure must preserve Activity identity")
 
     assert emitted[-1].activity_id == "tool-1"
+    assert emitted[-1].activity_phase == "running"
+
+
+def test_agent_fallback_preserves_primary_failure_identity() -> None:
+    class UnavailableModel(ScriptedModel):
+        def execute(self, _request: ModelExecutionRequest) -> ModelExecutionResponse:
+            raise ModelExecutionError(
+                "MODEL_PROVIDER_UNAVAILABLE",
+                "研究助手服务暂时不可用，请稍后重试。",
+            )
+
+    emitted: list[AgentActivity] = []
+    agent = ResearchStepAgent(
+        model_port=ScriptedAuditPort(UnavailableModel()),
+        provider="qwen",
+        requested_model="qwen3.8-max",
+        explicit_revision="",
+        prompt=PromptRegistry().get("research_step_agent"),
+        emit=emitted.append,
+    )
+
+    def fail_primary() -> dict[str, int]:
+        raise RuntimeError("private source failure")
+
+    with pytest.raises(AgentActivityError) as captured:
+        agent.run(
+            step_key="fetching_data",
+            attempt_id="attempt-fallback",
+            contract={},
+            available_artifacts={},
+            execute_primary=fail_primary,
+            describe_primary_result=lambda _value: "完成",
+        )
+
+    assert captured.value.activity_id == "attempt-fallback:primary"
+    assert captured.value.activity_kind == "observation"
+    assert captured.value.activity_name == "查询天文数据"
+    assert isinstance(captured.value.cause, RuntimeError)
+    assert emitted[-1].activity_id == "attempt-fallback:primary"
     assert emitted[-1].activity_phase == "running"

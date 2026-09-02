@@ -22,8 +22,18 @@ interface RuntimeSnapshot {
     prompt_hash: string;
     parameters: Record<string, string | number | boolean | null>;
     status: string;
+    error_code: string | null;
     token_usage: Record<string, number> | null;
     latency_ms: number | null;
+  }[];
+  producer_executions: {
+    id: string;
+    step_key: string;
+    step_attempt_id: string;
+    producer_type: string;
+    producer_name: string;
+    status: string;
+    error_code: string | null;
   }[];
   run: {
     id: string;
@@ -36,7 +46,16 @@ interface RuntimeSnapshot {
     failure_summary: string | null;
   };
   worker: { state: string; started_at: string; heartbeat_at: string };
-  attempts: { id: string; step: string; status: string }[];
+  attempts: {
+    id: string;
+    step: string;
+    attempt_number: number;
+    status: string;
+    error_class: string | null;
+    error_code: string | null;
+    retryable: boolean;
+    upstream_request_id: string | null;
+  }[];
   artifact_version_ids: string[];
   duplicate_publications: number;
   duplicate_completions: number;
@@ -92,14 +111,15 @@ with engine.connect() as connection:
         return [dict(row) for row in connection.execute(text(sql), {"run": run_id}).mappings()]
     run = rows("SELECT id, status, lease_owner, lease_generation, lease_expires_at, latest_event_sequence, failure_code, failure_summary FROM research_runs WHERE id = :run")[0]
     worker = rows("SELECT state, started_at, heartbeat_at FROM workflow_workers WHERE worker_id = 'api-research-run-worker'")[0]
-    attempts = rows("SELECT a.id, s.key AS step, a.status FROM step_attempts a JOIN run_steps s ON s.id = a.run_step_id WHERE s.run_id = :run ORDER BY s.position, a.attempt_number")
+    attempts = rows("SELECT a.id, s.key AS step, a.attempt_number, a.status, a.error_class, a.error_code, a.retryable, a.upstream_request_id FROM step_attempts a JOIN run_steps s ON s.id = a.run_step_id WHERE s.run_id = :run ORDER BY s.position, a.attempt_number")
     versions = rows("SELECT id FROM artifact_versions WHERE created_by_run_id = :run ORDER BY created_at, id")
     duplicate_publications = rows("SELECT count(*) AS count FROM (SELECT artifact_id FROM artifact_versions WHERE created_by_run_id = :run GROUP BY artifact_id HAVING count(*) > 1) duplicates")[0]["count"]
     duplicate_completions = rows("SELECT count(*) AS count FROM (SELECT activity_id, activity_kind FROM run_events WHERE run_id = :run AND activity_phase = 'completed' GROUP BY activity_id, activity_kind HAVING count(*) > 1) duplicates")[0]["count"]
     events = rows("SELECT count(*) AS count, min(sequence) AS min, max(sequence) AS max FROM run_events WHERE run_id = :run")[0]
     parses = rows("SELECT id, research_input_id, overall_quality, native_engine, visual_engine FROM document_parses WHERE created_by_run_id = :run")
+    producers = rows("SELECT id, step_key, step_attempt_id, producer_type, producer_name, status, error_code FROM producer_executions WHERE run_id = :run ORDER BY started_at, id")
     models = rows("SELECT id, step_key, step_attempt_id, producer_name, producer_version, model_provider, requested_model, provider_returned_model, explicit_revision, provider_request_id, prompt_name, prompt_version, prompt_hash, parameters, parameters_hash, input_hash, output_hash, status, started_at, finished_at, token_usage, latency_ms, error_code FROM producer_executions WHERE run_id = :run AND producer_type = 'model' ORDER BY started_at, id")
-    print(json.dumps({"qwen_route": route.geturl(), "model_executions": models, "run": run, "worker": worker, "attempts": attempts, "artifact_version_ids": [row["id"] for row in versions], "duplicate_publications": duplicate_publications, "duplicate_completions": duplicate_completions, "events": events, "document_parses": parses}, default=str))
+    print(json.dumps({"qwen_route": route.geturl(), "model_executions": models, "producer_executions": producers, "run": run, "worker": worker, "attempts": attempts, "artifact_version_ids": [row["id"] for row in versions], "duplicate_publications": duplicate_publications, "duplicate_completions": duplicate_completions, "events": events, "document_parses": parses}, default=str))
 engine.dispose()
 `;
 

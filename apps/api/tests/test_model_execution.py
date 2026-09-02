@@ -7,7 +7,7 @@ from typing import Any, cast
 
 import httpx2
 import pytest
-from openai import APIStatusError, OpenAI
+from openai import APIConnectionError, APIStatusError, OpenAI
 
 import app.services.model_execution as model_execution_module
 from app.schemas.core import ArtifactKind, ResearchProject
@@ -102,6 +102,7 @@ def successful_response() -> Any:  # noqa: ANN401
     return SimpleNamespace(
         id="req_123",
         _request_id="provider-123",
+        model="qwen3.8-max",
         choices=[
             SimpleNamespace(
                 message=SimpleNamespace(
@@ -229,6 +230,25 @@ def test_qwen_adapter_maps_provider_failures_without_leaking_body(
     assert captured.value.latency_ms is not None
 
 
+def test_qwen_adapter_maps_connection_failure_to_retryable_provider_unavailable() -> None:
+    provider_request = httpx2.Request(
+        "POST", "https://dashscope.example/compatible-mode/v1/chat/completions"
+    )
+    client = FakeClient(error=APIConnectionError(request=provider_request))
+    adapter = QwenModelExecutionAdapter(
+        api_key="test-secret",
+        base_url="https://dashscope.example/v1",
+        timeout_seconds=3,
+        client=cast(OpenAI, client),
+    )
+
+    with pytest.raises(ModelExecutionError) as captured:
+        adapter.execute(request())
+
+    assert captured.value.code == "MODEL_PROVIDER_UNAVAILABLE"
+    assert captured.value.latency_ms is not None
+
+
 @pytest.mark.parametrize(
     "provider_code", ["access_denied", "AllocationQuota.FreeTierOnly"]
 )
@@ -285,6 +305,32 @@ def test_qwen_adapter_keeps_safe_execution_metadata_for_invalid_content() -> Non
     }
     assert captured.value.latency_ms is not None
     assert captured.value.provider_request_id == "provider-123"
+    assert captured.value.provider_returned_model == "qwen3.8-max"
+
+
+def test_qwen_adapter_classifies_length_finish_as_truncation_with_safe_metadata() -> None:
+    response = successful_response()
+    response.choices[0].finish_reason = "length"
+    response.model = "qwen3.8-max"
+    client = FakeClient(response)
+    adapter = QwenModelExecutionAdapter(
+        api_key="test-secret",
+        base_url="https://dashscope.example/v1",
+        timeout_seconds=3,
+        client=cast(OpenAI, client),
+    )
+
+    with pytest.raises(ModelExecutionError) as captured:
+        adapter.execute(request())
+
+    assert captured.value.code == "MODEL_RESPONSE_TRUNCATED"
+    assert captured.value.output_hash is not None
+    assert captured.value.token_usage == {
+        "prompt_tokens": 10,
+        "completion_tokens": 12,
+    }
+    assert captured.value.latency_ms is not None
+    assert captured.value.provider_request_id == "provider-123"
 
 
 def test_planner_rejects_untyped_model_payload() -> None:
@@ -301,6 +347,7 @@ def test_planner_rejects_untyped_model_payload() -> None:
                 token_usage=None,
                 latency_ms=1,
                 provider_request_id=None,
+                provider_returned_model="planner-returned-model",
             )
 
     planner = ResearchContractPlanner(
@@ -319,6 +366,7 @@ def test_planner_rejects_untyped_model_payload() -> None:
         )
 
     assert captured.value.code == "MODEL_RESPONSE_INVALID"
+    assert captured.value.provider_returned_model == "planner-returned-model"
 
 
 @pytest.mark.parametrize(
@@ -359,6 +407,7 @@ def test_planner_rejects_inadmissible_draft(
                 token_usage=None,
                 latency_ms=1,
                 provider_request_id=None,
+                provider_returned_model="planner-returned-model",
             )
 
     planner = ResearchContractPlanner(
@@ -377,6 +426,7 @@ def test_planner_rejects_inadmissible_draft(
         )
 
     assert captured.value.code == "MODEL_RESPONSE_INVALID"
+    assert captured.value.provider_returned_model == "planner-returned-model"
 
 
 def test_planner_uses_the_registered_prompt_and_identified_output_contract() -> None:

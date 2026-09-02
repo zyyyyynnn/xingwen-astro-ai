@@ -587,7 +587,7 @@ class PaperStepService:
             )
             raise PaperSummaryExecutionError(
                 code=exc.code,
-                public_message="论文总结未通过批次契约校验，请稍后重试。",
+                public_message="论文总结未通过批次契约校验。",
                 retryable=False,
             ) from exc
         except ModelExecutionError as exc:

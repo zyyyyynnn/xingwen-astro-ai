@@ -156,6 +156,42 @@ def test_unsupervised_skill_is_frozen_as_task_owned_analysis_step(
     assert scientific.enter_status == "analyzing_data"
 
 
+@pytest.mark.parametrize(
+    ("skill_id", "parameters", "expected_attempts"),
+    (
+        (
+            "ephemeris",
+            {"target": "Mars", "observed_at": "2026-09-01T00:00:00Z"},
+            1,
+        ),
+        ("simbad_lookup", {"object_name": "Vega"}, 2),
+    ),
+)
+def test_scientific_retry_budget_tracks_external_acquisition(
+    skill_id: str, parameters: dict[str, object], expected_attempts: int
+) -> None:
+    contract = ResearchContractInput.model_validate(
+        {
+            **contract_for("dataset").model_dump(mode="json"),
+            "output_requirements": ["analysis_report"],
+            "scientific_tasks": [
+                {
+                    "task_id": f"task-{skill_id}",
+                    "skill_id": skill_id,
+                    "input_refs": ["input-version"],
+                    "parameters": parameters,
+                }
+            ],
+        }
+    )
+
+    plan = compile_run_plan(contract)
+    scientific = next(step for step in plan if step.task_id is not None)
+
+    assert scientific.skill_id == skill_id
+    assert scientific.max_attempts == expected_attempts
+
+
 def test_revision_plan_preserves_scientific_task_identity_and_dependencies() -> None:
     contract = ResearchContractInput.model_validate(
         {
