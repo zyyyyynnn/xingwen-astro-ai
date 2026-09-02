@@ -1093,6 +1093,9 @@ class ResearchApplicationService:
                 token_usage=planner_result.response.token_usage,
                 latency_ms=planner_result.response.latency_ms,
                 provider_request_id=planner_result.response.provider_request_id,
+                provider_returned_model=(
+                    planner_result.response.provider_returned_model
+                ),
             )
             self._finish_failed_turn(
                 execution_id=execution_id,
@@ -1384,6 +1387,7 @@ class ResearchApplicationService:
             execution.token_usage = error.token_usage
             execution.latency_ms = error.latency_ms
             execution.provider_request_id = error.provider_request_id
+            execution.provider_returned_model = error.provider_returned_model
             execution.error_code = error.code
             execution.error_summary = error.public_message
             execution.finished_at = datetime.now(UTC)
@@ -1708,6 +1712,7 @@ def _validate_planner_outcome(
             token_usage=response.token_usage,
             latency_ms=response.latency_ms,
             provider_request_id=response.provider_request_id,
+            provider_returned_model=response.provider_returned_model,
         ) from exc
 
 

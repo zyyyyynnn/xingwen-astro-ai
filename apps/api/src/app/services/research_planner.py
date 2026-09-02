@@ -142,6 +142,7 @@ class ResearchContractPlanner:
                 token_usage=response.token_usage,
                 latency_ms=response.latency_ms,
                 provider_request_id=response.provider_request_id,
+                provider_returned_model=response.provider_returned_model,
             ) from exc
         if output.outcome == "draft_ready":
             try:
@@ -158,6 +159,7 @@ class ResearchContractPlanner:
                     token_usage=response.token_usage,
                     latency_ms=response.latency_ms,
                     provider_request_id=response.provider_request_id,
+                    provider_returned_model=response.provider_returned_model,
                 ) from exc
         return PlannerResult(output=output, request=request, response=response)
 

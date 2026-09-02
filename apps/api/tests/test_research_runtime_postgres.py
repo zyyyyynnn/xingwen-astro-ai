@@ -97,6 +97,7 @@ class StubResearchPlanner:
                 token_usage={"prompt_tokens": 7, "completion_tokens": 3},
                 latency_ms=9,
                 provider_request_id="provider-failed-request",
+                provider_returned_model="planner-fixture-returned",
             )
         if (
             request.input_payload.get("message") == "Clarify the original stellar study"
@@ -125,6 +126,7 @@ class StubResearchPlanner:
                 token_usage={"prompt_tokens": 10, "completion_tokens": 20},
                 latency_ms=2,
                 provider_request_id="test-provider-request",
+                provider_returned_model="planner-fixture-returned",
             ),
         )
 
@@ -749,6 +751,7 @@ def test_final_persistence_failure_releases_the_project_execution_slot(
         )
         assert execution is not None
         assert execution.status == "failed"
+        assert execution.provider_returned_model == "planner-fixture-returned"
 
     client.app.state.research_service = ResearchApplicationService(
         factory=factory,  # type: ignore[arg-type]
@@ -795,6 +798,7 @@ def test_failed_model_execution_keeps_safe_provider_metadata(
         }
         assert execution.latency_ms == 9
         assert execution.provider_request_id == "provider-failed-request"
+        assert execution.provider_returned_model == "planner-fixture-returned"
 
 
 def test_clarification_answer_keeps_the_original_research_intent(
