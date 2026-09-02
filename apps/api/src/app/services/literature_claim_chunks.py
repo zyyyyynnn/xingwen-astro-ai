@@ -68,6 +68,7 @@ class ClaimChunkViolation(ValueError):
         affected_statement_ids: tuple[str, ...] = (),
         schema_issues: tuple[dict[str, Any], ...] = (),
         model_response: ModelExecutionResponse | None = None,
+        extraction: LiteratureClaimExtractionOutput | None = None,
         message: str,
     ) -> None:
         super().__init__(message)
@@ -76,6 +77,7 @@ class ClaimChunkViolation(ValueError):
         self.affected_statement_ids = affected_statement_ids
         self.schema_issues = schema_issues
         self.model_response = model_response
+        self.extraction = extraction
 
 
 @dataclass(frozen=True, slots=True)
@@ -327,6 +329,17 @@ def _execute_chunk_with_bounded_recovery(
             prior_responses=(() if failed_response is None else (failed_response,)),
         )
     except ClaimChunkViolation as violation:
+        if (
+            violation.code == CLAIM_CHUNK_STATEMENT_UNCOVERED
+            and violation.affected_statement_ids
+            and violation.extraction is not None
+        ):
+            return _recover_uncovered_chunk(
+                run=run,
+                base_payload=base_payload,
+                chunk=chunk,
+                violation=violation,
+            )
         try:
             response, extraction = run(
                 chunk,
@@ -355,6 +368,80 @@ def _execute_chunk_with_bounded_recovery(
             + (response,)
         )
         return observed, extraction, 1, 0
+
+
+def _recover_uncovered_chunk(
+    *,
+    run,
+    base_payload,
+    chunk: ClaimExtractionChunk,
+    violation: ClaimChunkViolation,
+) -> tuple[tuple[ModelExecutionResponse, ...], LiteratureClaimExtractionOutput, int, int]:
+    uncovered_ids = set(violation.affected_statement_ids)
+    correction_statements = tuple(
+        item for item in chunk.statements
+        if item.statement.statement_id in uncovered_ids
+    )
+    if not correction_statements:
+        raise violation
+
+    correction_chunk = ClaimExtractionChunk(
+        chunk_id=chunk.chunk_id,
+        statements=correction_statements,
+    )
+    correction_payload = _validation_feedback_payload(
+        base_payload(correction_chunk),
+        chunk=correction_chunk,
+        code=violation.code,
+        affected_statement_ids=violation.affected_statement_ids,
+        schema_issues=violation.schema_issues,
+    )
+    try:
+        response, correction_extraction = run(
+            correction_chunk,
+            correction_payload,
+        )
+    except ClaimChunkViolation as correction_violation:
+        raise correction_violation from violation
+    except ModelExecutionError as correction_error:
+        if correction_error.code == _MODEL_RESPONSE_TRUNCATED:
+            raise ClaimChunkViolation(
+                code=CLAIM_CHUNK_TRUNCATED,
+                chunk_id=chunk.chunk_id,
+                affected_statement_ids=violation.affected_statement_ids,
+                model_response=model_execution_failure_response(correction_error),
+                message=f"{chunk.chunk_id} correction response was truncated",
+            ) from violation
+        raise
+
+    assert violation.extraction is not None
+    original_valid_claims = tuple(
+        claim for claim in violation.extraction.claims
+        if claim.source_statement_id not in uncovered_ids
+    )
+    merged_claims = original_valid_claims + tuple(correction_extraction.claims)
+    merged_extraction = LiteratureClaimExtractionOutput(
+        schema_version=violation.extraction.schema_version,
+        claims=merged_claims,
+    )
+    try:
+        _validate_chunk_coverage(chunk, merged_extraction)
+    except ClaimChunkViolation as merge_violation:
+        raise ClaimChunkViolation(
+            code=merge_violation.code,
+            chunk_id=chunk.chunk_id,
+            affected_statement_ids=merge_violation.affected_statement_ids,
+            schema_issues=merge_violation.schema_issues,
+            model_response=response,
+            extraction=merged_extraction,
+            message=str(merge_violation),
+        ) from violation
+
+    observed = (
+        (() if violation.model_response is None else (violation.model_response,))
+        + (response,)
+    )
+    return observed, merged_extraction, 1, 0
 
 
 def _recover_truncated_chunk(
@@ -510,6 +597,7 @@ def _chunk_call(
             affected_statement_ids=exc.affected_statement_ids,
             schema_issues=exc.schema_issues,
             model_response=response,
+            extraction=extraction,
             message=str(exc),
         ) from exc
     return response, extraction

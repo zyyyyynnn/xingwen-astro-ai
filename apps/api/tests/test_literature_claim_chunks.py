@@ -87,6 +87,26 @@ class _ClaimModel:
         return _response(payload, len(self.requests))
 
 
+class _TargetedCoverageModel:
+    def __init__(self, *, omit_statement_ids_on_first_call: set[str]) -> None:
+        self.omit_statement_ids = set(omit_statement_ids_on_first_call)
+        self.requests: list[ModelExecutionRequest] = []
+
+    def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
+        self.requests.append(request)
+        artifact = request.input_payload["paper_summary_artifact"]
+        statements = artifact["statements"]
+        is_first_call = len(self.requests) == 1
+        claims: list[dict] = []
+        for statement in statements:
+            if is_first_call and statement["statement_id"] in self.omit_statement_ids:
+                continue
+            claims.append(_claim_payload(statement))
+        return _response(
+            {"schema_version": "1.0.0", "claims": claims}, len(self.requests)
+        )
+
+
 class _BudgetViolatingModel:
     """Emits one extra claim for the first statement until corrected."""
 
@@ -180,14 +200,145 @@ def test_claim_extraction_uses_bounded_narrow_batches() -> None:
         )
 
 
-def test_claim_extraction_fails_closed_when_batch_coverage_is_incomplete() -> None:
-    model = _ClaimModel(omit_last_statement=True)
+def test_claim_targeted_uncovered_recovery_single_missing() -> None:
+    model = _TargetedCoverageModel(omit_statement_ids_on_first_call={"statement.002"})
 
+    result = ChunkedLiteratureClaimService(model).execute(
+        summary=_summary(3), **_EXECUTE_KWARGS
+    )
+
+    assert result.correction_count == 1
+    assert result.split_count == 0
+    assert len(result.extraction.claims) == 3
+    assert len(model.requests) == 2
+    assert model.requests[0].input_hash != model.requests[1].input_hash
+
+    first_statements = [
+        s["statement_id"]
+        for s in model.requests[0].input_payload["paper_summary_artifact"]["statements"]
+    ]
+    assert first_statements == ["statement.000", "statement.001", "statement.002"]
+
+    second_statements = [
+        s["statement_id"]
+        for s in model.requests[1].input_payload["paper_summary_artifact"]["statements"]
+    ]
+    assert second_statements == ["statement.002"]
+
+    feedback = model.requests[1].input_payload["validation_feedback"]
+    assert feedback["code"] == "CLAIM_CHUNK_STATEMENT_UNCOVERED"
+    assert feedback["required_statement_ids"] == ["statement.002"]
+    assert feedback["affected_statement_ids"] == ["statement.002"]
+    assert feedback["max_claims_per_statement"] == 4
+
+    candidate_schema = model.requests[1].response_schema["$defs"]["LiteratureClaimModelCandidate"]
+    assert candidate_schema["properties"]["source_statement_id"]["enum"] == ["statement.002"]
+
+    covered_statement_ids = [c.source_statement_id for c in result.extraction.claims]
+    assert set(covered_statement_ids) == {"statement.000", "statement.001", "statement.002"}
+
+
+def test_claim_targeted_uncovered_recovery_multiple_missing() -> None:
+    model = _TargetedCoverageModel(
+        omit_statement_ids_on_first_call={"statement.001", "statement.003"}
+    )
+
+    result = ChunkedLiteratureClaimService(model).execute(
+        summary=_summary(4), **_EXECUTE_KWARGS
+    )
+
+    assert result.correction_count == 1
+    assert result.split_count == 0
+    assert len(result.extraction.claims) == 4
+    assert len(model.requests) == 2
+    assert model.requests[0].input_hash != model.requests[1].input_hash
+
+    second_statements = [
+        s["statement_id"]
+        for s in model.requests[1].input_payload["paper_summary_artifact"]["statements"]
+    ]
+    assert second_statements == ["statement.001", "statement.003"]
+
+    feedback = model.requests[1].input_payload["validation_feedback"]
+    assert feedback["code"] == "CLAIM_CHUNK_STATEMENT_UNCOVERED"
+    assert feedback["required_statement_ids"] == ["statement.001", "statement.003"]
+    assert feedback["affected_statement_ids"] == ["statement.001", "statement.003"]
+
+    covered_statement_ids = [c.source_statement_id for c in result.extraction.claims]
+    assert set(covered_statement_ids) == {
+        "statement.000",
+        "statement.001",
+        "statement.002",
+        "statement.003",
+    }
+
+
+def test_claim_targeted_correction_still_incomplete_fails_closed() -> None:
+    class _StillUncoveredModel:
+        def __init__(self) -> None:
+            self.requests: list[ModelExecutionRequest] = []
+
+        def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
+            self.requests.append(request)
+            artifact = request.input_payload["paper_summary_artifact"]
+            statements = artifact["statements"]
+            if len(self.requests) == 1:
+                return _response(
+                    {"schema_version": "1.0.0", "claims": [_claim_payload(statements[0])]},
+                    len(self.requests),
+                )
+            return _response(
+                {"schema_version": "1.0.0", "claims": [_claim_payload(statements[0])]},
+                len(self.requests),
+            )
+
+    model = _StillUncoveredModel()
     with pytest.raises(ClaimChunkViolation, match="did not cover"):
         ChunkedLiteratureClaimService(model).execute(
-            summary=_summary(2), **_EXECUTE_KWARGS
+            summary=_summary(3), **_EXECUTE_KWARGS
         )
     assert len(model.requests) == 2
+
+
+def test_claim_targeted_recovery_merge_retains_valid_original_claims() -> None:
+    class _CustomClaimContentModel:
+        def __init__(self) -> None:
+            self.requests: list[ModelExecutionRequest] = []
+
+        def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
+            self.requests.append(request)
+            artifact = request.input_payload["paper_summary_artifact"]
+            statements = artifact["statements"]
+            if len(self.requests) == 1:
+                s0_claim = _claim_payload(statements[0])
+                s0_claim["text"] = "ORIGINAL_DISTINCT_CLAIM_TEXT_FOR_S0"
+                s0_claim["normalized_text"] = "original_distinct_claim_text_for_s0"
+                return _response(
+                    {"schema_version": "1.0.0", "claims": [s0_claim]},
+                    len(self.requests),
+                )
+            assert len(statements) == 1
+            assert statements[0]["statement_id"] == "statement.001"
+            s1_claim = _claim_payload(statements[0])
+            s1_claim["text"] = "REPAIRED_CLAIM_TEXT_FOR_S1"
+            s1_claim["normalized_text"] = "repaired_claim_text_for_s1"
+            return _response(
+                {"schema_version": "1.0.0", "claims": [s1_claim]},
+                len(self.requests),
+            )
+
+    model = _CustomClaimContentModel()
+    result = ChunkedLiteratureClaimService(model).execute(
+        summary=_summary(2), **_EXECUTE_KWARGS
+    )
+
+    assert result.correction_count == 1
+    assert len(model.requests) == 2
+    assert len(result.extraction.claims) == 2
+    assert result.extraction.claims[0].source_statement_id == "statement.000"
+    assert result.extraction.claims[0].text == "ORIGINAL_DISTINCT_CLAIM_TEXT_FOR_S0"
+    assert result.extraction.claims[1].source_statement_id == "statement.001"
+    assert result.extraction.claims[1].text == "REPAIRED_CLAIM_TEXT_FOR_S1"
 
 
 def test_claim_correction_recovers_with_new_input_identity() -> None:
