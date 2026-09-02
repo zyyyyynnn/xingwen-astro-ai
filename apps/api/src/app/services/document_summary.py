@@ -10,6 +10,7 @@ from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.paper_summary import (
     PaperSummaryAdmissionResult,
     PaperSummaryEvidenceCandidate,
+    PaperSummaryModelOutput,
     PaperSummaryModelUsage,
     PaperSummaryPaperMetadata,
     PaperSummarySourceSnapshotReference,
@@ -155,6 +156,8 @@ class DocumentSummaryService:
             prompt=prompt.content,
             input_payload=input_payload,
             parameters=request.parameters,
+            response_schema_name="paper_summary",
+            response_schema=PaperSummaryModelOutput.model_json_schema(),
         )
         _, input_hash, parameters_hash = build_document_summary_input_identity(
             document_parse=request.document_parse,

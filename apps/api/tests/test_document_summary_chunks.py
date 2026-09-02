@@ -9,6 +9,7 @@ import pytest
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.paper_summary import (
     PaperSummaryAdmissionStatus,
+    PaperSummaryModelOutput,
     PaperSummaryPaperMetadata,
     PaperSummarySourceSnapshotReference,
 )
@@ -245,6 +246,13 @@ def test_long_document_runs_one_bounded_call_per_chunk() -> None:
     assert isinstance(result, ChunkedDocumentSummaryExecution)
     assert result.chunk_count == len(model.requests)
     assert result.chunk_count > 1
+    assert all(
+        request.response_schema_name == "paper_summary" for request in model.requests
+    )
+    assert all(
+        request.response_schema == PaperSummaryModelOutput.model_json_schema()
+        for request in model.requests
+    )
     assert result.admission.admission_status is PaperSummaryAdmissionStatus.accepted
     summary = result.admission.summary
     assert summary is not None

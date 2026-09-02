@@ -54,7 +54,19 @@ class ModelExecutionRequest:
     conversation: tuple[dict[str, Any], ...] = ()
     tools: tuple[dict[str, Any], ...] = ()
     response_mode: Literal["json", "tool"] = "json"
+    response_schema_name: str | None = None
+    response_schema: dict[str, Any] | None = None
     enable_thinking: bool = True
+
+    def __post_init__(self) -> None:
+        has_schema_name = bool(self.response_schema_name and self.response_schema_name.strip())
+        has_schema = self.response_schema is not None
+        if has_schema_name != has_schema:
+            raise ValueError(
+                "response_schema_name and response_schema must be provided together"
+            )
+        if has_schema and self.response_mode != "json":
+            raise ValueError("response_schema requires json response mode")
 
     @property
     def input_hash(self) -> str:
@@ -62,7 +74,15 @@ class ModelExecutionRequest:
 
     @property
     def parameters_hash(self) -> str:
-        return canonical_request_hash(self.parameters)
+        if self.response_schema is None:
+            return canonical_request_hash(self.parameters)
+        return canonical_request_hash(
+            {
+                "parameters": self.parameters,
+                "response_schema_name": self.response_schema_name,
+                "response_schema": self.response_schema,
+            }
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -213,7 +233,18 @@ class OpenAICompatibleModelExecutionAdapter:
                 "preserve_thinking": request.enable_thinking,
             }
         if request.response_mode == "json":
-            create_arguments["response_format"] = {"type": "json_object"}
+            create_arguments["response_format"] = (
+                {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": request.response_schema_name,
+                        "strict": True,
+                        "schema": request.response_schema,
+                    },
+                }
+                if request.response_schema is not None
+                else {"type": "json_object"}
+            )
         if request.tools:
             create_arguments["tools"] = list(request.tools)
             create_arguments["tool_choice"] = "auto"

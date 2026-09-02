@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -168,6 +169,44 @@ def test_qwen_adapter_uses_the_sdk_route_and_exact_snapshot(
     assert response.output_hash.startswith("sha256:")
     assert response.token_usage == {"prompt_tokens": 10, "completion_tokens": 12}
     assert response.provider_request_id == "provider-123"
+
+
+def test_qwen_adapter_uses_strict_json_schema_when_requested() -> None:
+    client = FakeClient(successful_response())
+    adapter = QwenModelExecutionAdapter(
+        api_key="test-secret",
+        base_url="https://dashscope.example/v1",
+        timeout_seconds=3,
+        client=cast(OpenAI, client),
+    )
+    schema = {
+        "type": "object",
+        "properties": {"outcome": {"type": "string"}},
+        "required": ["outcome"],
+        "additionalProperties": False,
+    }
+    structured = replace(
+        request(),
+        response_schema_name="planner_outcome",
+        response_schema=schema,
+    )
+
+    adapter.execute(structured)
+
+    assert client.calls[0]["response_format"] == {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "planner_outcome",
+            "strict": True,
+            "schema": schema,
+        },
+    }
+    assert structured.parameters_hash != request().parameters_hash
+
+
+def test_model_request_requires_complete_json_schema_contract() -> None:
+    with pytest.raises(ValueError, match="must be provided together"):
+        replace(request(), response_schema_name="planner_outcome")
 
 
 def test_generic_openai_compatible_adapter_omits_qwen_private_arguments() -> None:

@@ -326,6 +326,8 @@ def _chunk_request(
         prompt=prompt.content,
         input_payload=input_payload,
         parameters=dict(request.parameters),
+        response_schema_name="paper_summary",
+        response_schema=PaperSummaryModelOutput.model_json_schema(),
     )
 
 
