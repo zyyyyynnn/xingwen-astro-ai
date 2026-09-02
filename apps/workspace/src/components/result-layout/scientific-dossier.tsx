@@ -73,41 +73,34 @@ export function ScientificDossier({
   const surfaceClass = isCandidate
     ? "xw-scientific-dossier--candidate"
     : isRejected
-      ? "opacity-70"
+      ? "xw-scientific-dossier--rejected"
       : "";
 
   const main = (
-    <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-      <header className="flex flex-col gap-1.5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
+    <div className="xw-scientific-dossier__main">
+      <header className="xw-scientific-dossier__header">
+        <div className="xw-scientific-dossier__meta-row">
+          <div className="xw-scientific-dossier__meta-group">
             {displayStatusLabel ? (
-              <Badge
-                variant={statusBadgeVariant(status)}
-                className="h-5 px-1.5 text-xs font-normal"
-              >
+              <Badge variant={statusBadgeVariant(status)}>
                 {displayStatusLabel}
               </Badge>
             ) : null}
             {category ? (
-              <span className="text-xs font-medium uppercase tracking-wider xw-scientific-dossier__secondary">
+              <span className="xw-scientific-dossier__category">
                 {category}
               </span>
             ) : null}
           </div>
           {actions ? (
-            <div className="flex flex-wrap items-center gap-1.5">{actions}</div>
+            <div className="xw-scientific-dossier__actions">{actions}</div>
           ) : null}
         </div>
 
-        <h4 className="font-serif text-base font-semibold leading-snug tracking-tight">
-          {title}
-        </h4>
+        <h4 className="xw-scientific-dossier__title">{title}</h4>
 
         {statement && statement !== title ? (
-          <p className="text-sm leading-relaxed xw-scientific-dossier__secondary">
-            {statement}
-          </p>
+          <p className="xw-scientific-dossier__statement">{statement}</p>
         ) : null}
       </header>
 
@@ -116,7 +109,7 @@ export function ScientificDossier({
       {children}
 
       {evidenceActions ? (
-        <div className="flex flex-wrap items-center gap-2 pt-1">
+        <div className="xw-scientific-dossier__evidence-actions">
           {evidenceActions}
         </div>
       ) : null}
@@ -125,12 +118,12 @@ export function ScientificDossier({
 
   return (
     <article
-      className={`xw-scientific-dossier border-b px-1 py-4 last:border-b-0 ${surfaceClass} ${className}`}
+      className={`xw-scientific-dossier ${surfaceClass} ${className}`}
       data-status={status ?? undefined}
       data-testid={testId}
     >
       {aside ? (
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+        <div className="xw-scientific-dossier__with-aside lg:flex-row lg:items-start">
           {main}
           {aside}
         </div>

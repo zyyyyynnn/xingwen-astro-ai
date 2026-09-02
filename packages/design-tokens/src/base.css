@@ -143,6 +143,7 @@
   --font-size-8: clamp(4rem, 10vw, 9rem);
   --font-size-ui-label: var(--font-size-0);
   --font-size-ui-body: 0.875rem;
+  --font-size-ui-subheading: var(--font-size-3);
   --font-size-ui-heading: 1.25rem;
   --font-weight-ui-regular: 400;
   --font-weight-ui-medium: 500;
@@ -153,6 +154,7 @@
   --line-height-ui-body: 1.6;
   --line-height-ui-heading: 1.5;
   --line-height-ui-display: 1.3;
+  --letter-spacing-ui-label: 0.04em;
   --letter-spacing-ui-display: -0.015em;
 
   /* Radius */

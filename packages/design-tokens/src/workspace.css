@@ -68,6 +68,8 @@
   --workspace-result-pdf-loading-block-size: 60dvh;
   --workspace-result-control-inline-size: 12rem;
   --workspace-result-settings-popover-inline-size: 22rem;
+  --workspace-result-header-title-max-inline-size: 32rem;
+  --workspace-result-rejected-opacity: 0.7;
   --workspace-result-table-identity-inline-size: 10rem;
   --workspace-result-table-numeric-inline-size: 7rem;
   --workspace-result-table-descriptive-inline-size: 12rem;
@@ -112,6 +114,7 @@
   --workspace-command-menu-max-block-size: 70vh;
   --workspace-command-menu-viewport-offset: 12vh;
   --workspace-tab-overflow-min-inline-size: 8rem;
+  --workspace-pending-opacity: 0.7;
   --workspace-motion-panel: var(--motion-panel);
   --workspace-ease-panel: var(--ease-panel);
   --workspace-motion-navigation: var(--motion-fast);

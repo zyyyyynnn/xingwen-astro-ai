@@ -22,7 +22,10 @@ export function ScrollToBottomButton({
     >
       <ChevronDown className="size-[var(--icon-size-sm)]" aria-hidden="true" />
       {newCount > 0 ? (
-        <span className="px-1 text-xs" data-testid="new-progress-count">
+        <span
+          className="ui-text-label px-[var(--space-1)]"
+          data-testid="new-progress-count"
+        >
           {newCount} 条新进展
         </span>
       ) : null}

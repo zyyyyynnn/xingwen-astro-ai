@@ -15,15 +15,15 @@ export function ArtifactToolbar({
 }: ArtifactToolbarProps) {
   return (
     <div
-      className={`xw-artifact-toolbar flex flex-wrap items-center justify-between gap-3 ${className}`}
+      className={`xw-artifact-toolbar ${className}`}
       role="toolbar"
       aria-label="结果操作栏"
     >
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="xw-artifact-toolbar__group">
         {left}
         {children}
       </div>
-      <div className="flex flex-wrap items-center gap-2">{right}</div>
+      <div className="xw-artifact-toolbar__actions">{right}</div>
     </div>
   );
 }

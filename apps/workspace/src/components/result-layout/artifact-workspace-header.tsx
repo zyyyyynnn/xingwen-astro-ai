@@ -73,23 +73,17 @@ export function ArtifactWorkspaceHeader({
 
   return (
     <header
-      className="xw-artifact-header flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-2"
+      className="xw-artifact-header"
       data-testid="artifact-fullscreen-header"
     >
-      <div className="flex min-w-0 flex-wrap items-center gap-3">
+      <div className="xw-artifact-header__main">
         <DialogClose asChild>
-          <Button
-            variant="ghost"
-            size="small"
-            className="ui-text-label flex items-center gap-1.5"
-          >
+          <Button variant="ghost" size="small" className="ui-text-label">
             <ArrowLeft aria-hidden="true" />
             <span>返回研究</span>
           </Button>
         </DialogClose>
-        <DialogTitle className="min-w-0 max-w-lg truncate font-serif text-lg font-semibold tracking-tight">
-          {title}
-        </DialogTitle>
+        <DialogTitle className="xw-artifact-header__title">{title}</DialogTitle>
         {orderedVersions.length > 1 && selectedVersion && onSelectVersion ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -97,17 +91,20 @@ export function ArtifactWorkspaceHeader({
                 variant="ghost"
                 size="small"
                 aria-haspopup="listbox"
-                className="ui-text-label flex items-center gap-1"
+                className="ui-text-label"
                 data-testid="artifact-version-selector"
               >
                 <span>{isCurrentVersion ? "当前结果" : "历史结果"}</span>
-                <span className="text-xs">
+                <span className="ui-text-label">
                   {versionTimestamp(selectedVersion.createdAt)}
                 </span>
                 <ChevronDown aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-56">
+            <DropdownMenuContent
+              align="start"
+              className="xw-artifact-header__version-menu"
+            >
               {orderedVersions.map((version) => {
                 const isCurrent = orderedVersions[0]?.id === version.id;
                 const isActive = version.id === artifactVersionId;
@@ -120,7 +117,7 @@ export function ArtifactWorkspaceHeader({
                     className={isActive ? "font-medium" : undefined}
                   >
                     <span>{isCurrent ? "当前结果" : "历史结果"}</span>
-                    <span className="ui-text-label ml-auto pl-4 xw-artifact-header__timestamp">
+                    <span className="ui-text-label xw-artifact-header__timestamp">
                       {versionTimestamp(version.createdAt)}
                     </span>
                   </DropdownMenuItem>
@@ -131,7 +128,7 @@ export function ArtifactWorkspaceHeader({
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center justify-end gap-1.5">
+      <div className="xw-artifact-header__actions">
         {actions}
         {hasEvidence && onOpenEvidence ? (
           <Button size="small" variant="ghost" onClick={onOpenEvidence}>
@@ -146,12 +143,7 @@ export function ArtifactWorkspaceHeader({
           </Button>
         ) : null}
         {canShare && onOpenShare ? (
-          <Button
-            size="small"
-            variant="ghost"
-            className="gap-1.5"
-            onClick={onOpenShare}
-          >
+          <Button size="small" variant="ghost" onClick={onOpenShare}>
             <Share2 aria-hidden="true" />
             分享
           </Button>

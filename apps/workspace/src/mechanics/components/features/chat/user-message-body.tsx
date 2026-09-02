@@ -4,7 +4,6 @@ import { cn } from "../../../utils/utils";
 
 const USER_MESSAGE_MAX_LINES = 5;
 const USER_MESSAGE_LENGTH_THRESHOLD = 360;
-const USER_MESSAGE_LINE_HEIGHT_PX = 24;
 
 /** OpenHands long-user-message collapse mechanic over public plain text. */
 export function UserMessageBody({
@@ -32,12 +31,12 @@ export function UserMessageBody({
     }
     const measure = () => {
       const measured = Number.parseFloat(getComputedStyle(content).lineHeight);
-      const lineHeight =
-        Number.isFinite(measured) && measured > 0
-          ? measured
-          : USER_MESSAGE_LINE_HEIGHT_PX;
+      const exceedsMeasuredHeight =
+        Number.isFinite(measured) &&
+        measured > 0 &&
+        content.scrollHeight > USER_MESSAGE_MAX_LINES * measured + 1;
       setTruncatable(
-        content.scrollHeight > USER_MESSAGE_MAX_LINES * lineHeight + 1 ||
+        exceedsMeasuredHeight ||
           (message.match(/\n/g) ?? []).length >= USER_MESSAGE_MAX_LINES ||
           message.trim().length > USER_MESSAGE_LENGTH_THRESHOLD,
       );
@@ -57,7 +56,7 @@ export function UserMessageBody({
       <div
         ref={contentRef}
         className={cn(
-          "min-w-0 whitespace-pre-wrap text-sm leading-6 [word-break:break-word]",
+          "chat-message__user-body min-w-0 whitespace-pre-wrap [word-break:break-word]",
           collapsed && "line-clamp-5",
         )}
       >
@@ -65,13 +64,8 @@ export function UserMessageBody({
       </div>
       {collapsed ? (
         <>
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[var(--color-surface-muted)] to-transparent"
-          />
-          <span className="pointer-events-none absolute bottom-0.5 left-1/2 z-10 -translate-x-1/2 rounded-[var(--radius-pill)] bg-[var(--color-surface-hover)] px-2.5 py-0.5 text-xs text-[var(--color-ink-primary)] shadow-sm">
-            展开
-          </span>
+          <div aria-hidden="true" className="chat-message__collapse-fade" />
+          <span className="chat-message__expand-label">展开</span>
         </>
       ) : null}
     </div>

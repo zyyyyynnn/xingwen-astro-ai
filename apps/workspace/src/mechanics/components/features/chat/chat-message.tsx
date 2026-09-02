@@ -51,17 +51,13 @@ export function ChatMessage({
       data-testid={`${type}-message`}
       data-message-type={type}
       className={cn(
-        "chat-message relative flex w-fit max-w-[var(--workspace-chat-message-max-inline-size)] flex-col rounded-[var(--radius-lg)]",
-        children && "gap-2",
-        type === "user" &&
-          "chat-message--user mt-6 self-end bg-[var(--color-surface-muted)] px-4 py-2.5",
-        type === "agent" && "chat-message--agent mt-6 w-full bg-transparent",
-        pendingStatus === "sending" && "opacity-70",
-        pendingStatus === "error" && "border border-[var(--color-error)]/40",
-        interactive &&
-          type === "agent" &&
-          "mt-2 border border-[var(--color-border)] bg-[var(--color-surface)] p-4",
-        "last:mb-4",
+        "chat-message",
+        children && "chat-message--with-content",
+        type === "user" && "chat-message--user",
+        type === "agent" && "chat-message--agent",
+        pendingStatus === "sending" && "chat-message--sending",
+        pendingStatus === "error" && "chat-message--error",
+        interactive && type === "agent" && "chat-message--interactive",
       )}
     >
       {type === "agent" && message ? (
@@ -84,16 +80,14 @@ export function ChatMessage({
       {collapsed ? (
         <button
           type="button"
-          className="absolute inset-0 cursor-pointer rounded-[var(--radius-lg)]"
+          className="chat-message__expand-hit-area"
           aria-label="展开完整研究消息"
           onClick={() => setExpansion({ message, expanded: true })}
         />
       ) : null}
       {children}
       {pendingStatus === "sending" ? (
-        <span className="text-xs text-[var(--color-ink-secondary)]">
-          正在发送…
-        </span>
+        <span className="chat-message__pending">正在发送…</span>
       ) : null}
     </article>
   );

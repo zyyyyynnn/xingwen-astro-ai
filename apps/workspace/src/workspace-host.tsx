@@ -484,12 +484,7 @@ function ResearchComposerLeadingActions({
           提交后生成{protocolLabel}
         </span>
       ) : (
-        <Button
-          variant="ghost"
-          size="small"
-          onClick={onOpenProtocolEditor}
-          className="gap-1 text-xs text-[var(--color-ink-secondary)]"
-        >
+        <Button variant="ghost" size="small" onClick={onOpenProtocolEditor}>
           {protocolLabel}
         </Button>
       )}
@@ -595,7 +590,7 @@ export function WorkspaceEntry({
         composer: null,
         threadPanel: (
           <section
-            className="flex min-h-[calc(100vh-var(--workspace-header-block-size))] items-center justify-center px-6 py-12"
+            className="workspace-missing-project"
             data-testid="missing-project-notice"
             role="status"
           >
@@ -1041,7 +1036,7 @@ export function WorkspaceHost({
               {attachments.attachmentStrip}
               {runStartFailed && currentContract ? (
                 <div
-                  className="mb-2 flex items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface-hover)] px-3 py-2 text-sm"
+                  className="workspace-run-start-failed"
                   data-testid="run-start-failed"
                   role="status"
                 >
@@ -1057,7 +1052,7 @@ export function WorkspaceHost({
                 </div>
               ) : null}
               {answerToQuestionId ? (
-                <div className="flex items-center justify-between px-1 text-xs text-[var(--color-ink-secondary)]">
+                <div className="workspace-answering-question">
                   <span>正在回答助手的问题</span>
                   <Button
                     variant="ghost"

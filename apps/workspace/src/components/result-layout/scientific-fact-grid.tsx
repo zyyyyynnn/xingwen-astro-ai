@@ -26,16 +26,14 @@ export function ScientificFactGrid({
           : "grid-cols-1 sm:grid-cols-2";
 
   return (
-    <dl
-      className={`xw-fact-grid grid gap-x-6 gap-y-2.5 py-1.5 text-sm ${colClass} ${className}`}
-    >
+    <dl className={`xw-fact-grid grid ${colClass} ${className}`}>
       {facts.map((fact) => {
         const values = Array.isArray(fact.value) ? fact.value : [fact.value];
         if (values.length === 0 || values.every((v) => !v)) return null;
         return (
-          <div key={fact.label} className="flex flex-col gap-0.5 py-0.5">
-            <dt className="text-xs font-medium">{fact.label}</dt>
-            <dd className="text-xs">{values.join("；")}</dd>
+          <div key={fact.label} className="xw-fact-grid__item">
+            <dt>{fact.label}</dt>
+            <dd>{values.join("；")}</dd>
           </div>
         );
       })}

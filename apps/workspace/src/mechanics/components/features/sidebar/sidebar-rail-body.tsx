@@ -146,7 +146,7 @@ export function SidebarRailBody({
         aria-label="研究项目列表"
       >
         <div className="flex flex-col gap-[var(--space-4)]">
-          <div className="sidebar-project-search flex items-center gap-2">
+          <div className="sidebar-project-search flex items-center gap-[var(--space-2)]">
             <Search
               className="size-[var(--icon-size-sm)] shrink-0 text-[var(--color-ink-secondary)]"
               aria-hidden="true"
@@ -188,13 +188,13 @@ export function SidebarRailBody({
                   >
                     <button
                       type="button"
-                      className="flex min-w-0 flex-1 items-center gap-2 px-[var(--space-2)] py-[var(--space-2)] text-left"
+                      className="flex min-w-0 flex-1 items-center gap-[var(--space-2)] px-[var(--space-2)] py-[var(--space-2)] text-left"
                       aria-current={project.current ? "page" : undefined}
                       onClick={() => onOpenProject(project.id)}
                     >
                       <span
                         className={cn(
-                          "size-2 shrink-0 rounded-full",
+                          "size-[var(--workspace-status-indicator-size)] shrink-0 rounded-full",
                           statusDot(project.status),
                         )}
                         aria-hidden="true"

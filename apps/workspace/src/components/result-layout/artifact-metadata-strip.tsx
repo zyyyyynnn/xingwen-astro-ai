@@ -42,26 +42,20 @@ export function ArtifactMetadataStrip({
   className = "",
 }: ArtifactMetadataStripProps) {
   return (
-    <div
-      className={`xw-metadata-strip flex flex-wrap items-center gap-x-4 gap-y-1.5 py-2 text-xs ${className}`}
-      aria-label="结果元数据"
-    >
+    <div className={`xw-metadata-strip ${className}`} aria-label="结果元数据">
       {statusBadge ? (
-        <Badge
-          variant={statusBadge.variant ?? "secondary"}
-          className="h-5 px-1.5 text-xs"
-        >
+        <Badge variant={statusBadge.variant ?? "secondary"}>
           {statusBadge.label}
         </Badge>
       ) : null}
 
       {sourceLabel ? (
-        <span className="flex items-center gap-1">
+        <span className="xw-metadata-strip__item">
           <span className="xw-metadata-strip__label">来源：</span>
           <span>{sourceLabel}</span>
         </span>
       ) : typeof sourceCount === "number" ? (
-        <span className="flex items-center gap-1">
+        <span className="xw-metadata-strip__item">
           <span className="xw-metadata-strip__label">来源：</span>
           <span>
             {sourceCount > 0 ? `${sourceCount} 个来源快照` : "未提供"}
@@ -70,7 +64,7 @@ export function ArtifactMetadataStrip({
       ) : null}
 
       {sourceMode ? (
-        <span className="flex items-center gap-1">
+        <span className="xw-metadata-strip__item">
           <span className="xw-metadata-strip__label">模式：</span>
           <span>
             {{
@@ -84,28 +78,28 @@ export function ArtifactMetadataStrip({
       ) : null}
 
       {typeof recordCount === "number" ? (
-        <span className="flex items-center gap-1">
+        <span className="xw-metadata-strip__item">
           <span className="xw-metadata-strip__label">记录：</span>
           <span>{recordCount} 项</span>
         </span>
       ) : null}
 
       {typeof fieldCount === "number" ? (
-        <span className="flex items-center gap-1">
+        <span className="xw-metadata-strip__item">
           <span className="xw-metadata-strip__label">字段：</span>
           <span>{fieldCount} 项</span>
         </span>
       ) : null}
 
       {retrievedAt ? (
-        <span className="flex items-center gap-1">
+        <span className="xw-metadata-strip__item">
           <span className="xw-metadata-strip__label">获取：</span>
           <span>{formatTimestamp(retrievedAt)}</span>
         </span>
       ) : null}
 
       {qualityStatus ? (
-        <span className="flex items-center gap-1">
+        <span className="xw-metadata-strip__item">
           <span className="xw-metadata-strip__label">质量：</span>
           <span
             className={
@@ -130,7 +124,7 @@ export function ArtifactMetadataStrip({
       ) : null}
 
       {typeof evidenceCount === "number" && evidenceCount > 0 ? (
-        <span className="flex items-center gap-1">
+        <span className="xw-metadata-strip__item">
           <span className="xw-metadata-strip__label">证据：</span>
           <span>{evidenceCount} 条</span>
         </span>

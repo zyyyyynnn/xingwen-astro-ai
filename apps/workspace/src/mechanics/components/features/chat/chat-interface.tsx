@@ -97,7 +97,7 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
         onScroll={(event) => onChatBodyScroll(event.currentTarget)}
       >
         <div
-          className={`flex flex-col px-4 md:px-8 ${hasStartedConversation ? "min-h-full pb-8 pt-4" : ""}`}
+          className={`flex flex-col px-[var(--space-4)] md:px-[var(--space-8)] ${hasStartedConversation ? "min-h-full pb-[var(--space-8)] pt-[var(--space-4)]" : ""}`}
         >
           {runtime.threadPanel}
           <div ref={endRef} aria-hidden="true" />
@@ -110,14 +110,14 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
           style={inspectorInsetStyle}
         >
           <div
-            className={`relative px-4 md:px-8 ${hasStartedConversation ? "pb-4" : ""}`}
+            className={`relative px-[var(--space-4)] md:px-[var(--space-8)] ${hasStartedConversation ? "pb-[var(--space-4)]" : ""}`}
             data-testid="chat-composer-gutter"
           >
             {!hasStartedConversation ? (
               <div className="mx-auto mb-[var(--space-6)] flex w-full max-w-[var(--workspace-content-max-inline-size)] flex-col gap-[var(--space-6)]">
                 <div className="mx-auto flex max-w-[var(--workspace-result-reading-max-inline-size)] flex-col items-center text-center">
                   <h1
-                    className="workspace-font-serif text-3xl font-medium tracking-tight text-[var(--color-ink-primary)]"
+                    className="workspace-font-serif text-[length:var(--font-size-6)] leading-[var(--line-height-ui-display)] font-medium tracking-[var(--letter-spacing-ui-display)] text-[var(--color-ink-primary)]"
                     role="heading"
                     aria-level={1}
                   >
@@ -168,7 +168,7 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
             ) : null}
             <div className="relative mx-auto flex w-full max-w-[var(--workspace-content-max-inline-size)] flex-col gap-[var(--space-2)]">
               {hasStartedConversation && !hitBottom ? (
-                <div className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2">
+                <div className="absolute bottom-full left-1/2 mb-[var(--space-2)] -translate-x-1/2">
                   <ScrollToBottomButton
                     onClick={scrollDomToBottom}
                     newCount={pendingNewCount}
