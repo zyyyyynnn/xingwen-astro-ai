@@ -75,6 +75,19 @@ class PreparedDocumentSummary:
     parameters_hash: str
 
 
+def build_paper_summary_response_schema(
+    allowed_evidence_ids: tuple[str, ...],
+) -> dict[str, Any]:
+    """Constrain model-authored Evidence references to the current input."""
+
+    schema = PaperSummaryModelOutput.model_json_schema()
+    allowed = tuple(dict.fromkeys(allowed_evidence_ids))
+    if allowed:
+        statement_schema = schema["$defs"]["PaperSummaryStatementCandidate"]
+        statement_schema["properties"]["evidence_ids"]["items"]["enum"] = list(allowed)
+    return schema
+
+
 class DocumentSummaryService:
     """Bounded model execution followed by the canonical summary admission."""
 
@@ -157,7 +170,10 @@ class DocumentSummaryService:
             input_payload=input_payload,
             parameters=request.parameters,
             response_schema_name="paper_summary",
-            response_schema=PaperSummaryModelOutput.model_json_schema(),
+            response_schema=build_paper_summary_response_schema(
+                tuple(item.evidence_id for item in evidence)
+            ),
+            enable_thinking=False,
         )
         _, input_hash, parameters_hash = build_document_summary_input_identity(
             document_parse=request.document_parse,
@@ -320,4 +336,5 @@ __all__ = [
     "MAX_SINGLE_EXECUTION_EVIDENCE_CHARACTERS",
     "MAX_SINGLE_EXECUTION_EVIDENCE_ITEMS",
     "PreparedDocumentSummary",
+    "build_paper_summary_response_schema",
 ]

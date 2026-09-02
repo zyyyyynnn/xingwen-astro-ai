@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
-from typing import Callable, Protocol, cast
+from typing import Any, Callable, Protocol, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from pydantic import BaseModel
@@ -1062,6 +1062,9 @@ class StepModelCaller:
         producer_name: str | None = None,
         producer_version: str | None = None,
         parameters_hash: str | None = None,
+        response_schema_name: str | None = None,
+        response_schema: dict[str, Any] | None = None,
+        enable_thinking: bool = True,
     ) -> tuple[str, ModelExecutionResponse, UUID]:
         prompt = self._prompts.get(prompt_name)
         request = ModelExecutionRequest(
@@ -1075,7 +1078,9 @@ class StepModelCaller:
             input_payload=dict(input_payload),
             parameters=dict(parameters),
             response_mode="json",
-            enable_thinking=True,
+            response_schema_name=response_schema_name,
+            response_schema=response_schema,
+            enable_thinking=enable_thinking,
         )
         response, execution_id = (
             self._model_port.start_named(

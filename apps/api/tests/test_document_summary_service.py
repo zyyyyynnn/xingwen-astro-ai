@@ -24,7 +24,6 @@ from app.services.public_presentation import build_artifact_presentation
 from app.schemas.paper_summary import (
     PaperSummaryArtifactContent,
     PaperSummaryInputVersions,
-    PaperSummaryModelOutput,
     PaperSummaryPaperMetadata,
     PaperSummarySourceSnapshotReference,
     compute_paper_summary_output_hash,
@@ -413,10 +412,13 @@ def test_document_summary_prepares_exact_identity_before_model_execution() -> No
     assert model.request is None
     assert prepared.input_hash.startswith("sha256:")
     assert prepared.model_request.response_schema_name == "paper_summary"
-    assert (
-        prepared.model_request.response_schema
-        == PaperSummaryModelOutput.model_json_schema()
-    )
+    assert prepared.model_request.enable_thinking is False
+    schema = prepared.model_request.response_schema
+    assert schema is not None
+    statement_schema = schema["$defs"]["PaperSummaryStatementCandidate"]
+    assert statement_schema["properties"]["evidence_ids"]["items"]["enum"] == [
+        item.evidence_id for item in prepared.evidence_candidates
+    ]
     result = service.execute_prepared(
         prepared,
         producer_execution_id="execution.document-summary.fixed",

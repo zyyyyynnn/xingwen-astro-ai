@@ -35,6 +35,7 @@ from app.services.document_summary import (
     ExecuteDocumentSummaryRequest,
     MAX_SINGLE_EXECUTION_EVIDENCE_CHARACTERS,
     MAX_SINGLE_EXECUTION_EVIDENCE_ITEMS,
+    build_paper_summary_response_schema,
 )
 from app.services.model_execution import (
     ModelExecutionError,
@@ -327,7 +328,8 @@ def _chunk_request(
         input_payload=input_payload,
         parameters=dict(request.parameters),
         response_schema_name="paper_summary",
-        response_schema=PaperSummaryModelOutput.model_json_schema(),
+        response_schema=build_paper_summary_response_schema(chunk.evidence_ids),
+        enable_thinking=False,
     )
 
 

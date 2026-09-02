@@ -189,6 +189,7 @@ def test_qwen_adapter_uses_strict_json_schema_when_requested() -> None:
         request(),
         response_schema_name="planner_outcome",
         response_schema=schema,
+        enable_thinking=False,
     )
 
     adapter.execute(structured)
@@ -201,7 +202,12 @@ def test_qwen_adapter_uses_strict_json_schema_when_requested() -> None:
             "schema": schema,
         },
     }
-    assert structured.parameters_hash != request().parameters_hash
+    assert structured.parameters_hash == request().parameters_hash
+    assert structured.input_hash != request().input_hash
+    assert client.calls[0]["extra_body"] == {
+        "enable_thinking": False,
+        "preserve_thinking": False,
+    }
 
 
 def test_model_request_requires_complete_json_schema_contract() -> None:
@@ -220,6 +226,34 @@ def test_generic_openai_compatible_adapter_omits_qwen_private_arguments() -> Non
 
     adapter.execute(request())
 
+    assert "extra_body" not in client.calls[0]
+
+
+def test_generic_openai_compatible_adapter_keeps_json_object_for_typed_requests() -> None:
+    client = FakeClient(successful_response())
+    adapter = OpenAICompatibleModelExecutionAdapter(
+        api_key="test-secret",
+        base_url="https://api.openai.example/v1",
+        timeout_seconds=3,
+        client=cast(OpenAI, client),
+    )
+    schema = {
+        "type": "object",
+        "properties": {"outcome": {"type": "string"}},
+        "required": ["outcome"],
+        "additionalProperties": False,
+    }
+
+    adapter.execute(
+        replace(
+            request(),
+            response_schema_name="planner_outcome",
+            response_schema=schema,
+            enable_thinking=False,
+        )
+    )
+
+    assert client.calls[0]["response_format"] == {"type": "json_object"}
     assert "extra_body" not in client.calls[0]
 
 

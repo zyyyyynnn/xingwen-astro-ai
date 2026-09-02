@@ -349,6 +349,9 @@ class _RevisionScriptedModel:
                 ),
             )
         if request.prompt_name == "paper_summary":
+            assert request.response_schema_name == "paper_summary"
+            assert request.response_schema is not None
+            assert request.enable_thinking is False
             if self.pause_before_paper_summary:
                 raise ModelExecutionError(
                     "MODEL_PROVIDER_UNAVAILABLE",

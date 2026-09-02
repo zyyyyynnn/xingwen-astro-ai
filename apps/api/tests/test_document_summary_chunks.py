@@ -9,7 +9,6 @@ import pytest
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.paper_summary import (
     PaperSummaryAdmissionStatus,
-    PaperSummaryModelOutput,
     PaperSummaryPaperMetadata,
     PaperSummarySourceSnapshotReference,
 )
@@ -249,10 +248,15 @@ def test_long_document_runs_one_bounded_call_per_chunk() -> None:
     assert all(
         request.response_schema_name == "paper_summary" for request in model.requests
     )
-    assert all(
-        request.response_schema == PaperSummaryModelOutput.model_json_schema()
-        for request in model.requests
-    )
+    assert all(request.enable_thinking is False for request in model.requests)
+    for request in model.requests:
+        schema = request.response_schema
+        assert schema is not None
+        chunk = request.input_payload["paper_payload"]["chunk"]
+        statement_schema = schema["$defs"]["PaperSummaryStatementCandidate"]
+        assert statement_schema["properties"]["evidence_ids"]["items"]["enum"] == [
+            item["evidence_id"] for item in chunk["evidence"]
+        ]
     assert result.admission.admission_status is PaperSummaryAdmissionStatus.accepted
     summary = result.admission.summary
     assert summary is not None

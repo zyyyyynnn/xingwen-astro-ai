@@ -59,7 +59,9 @@ class ModelExecutionRequest:
     enable_thinking: bool = True
 
     def __post_init__(self) -> None:
-        has_schema_name = bool(self.response_schema_name and self.response_schema_name.strip())
+        has_schema_name = bool(
+            self.response_schema_name and self.response_schema_name.strip()
+        )
         has_schema = self.response_schema is not None
         if has_schema_name != has_schema:
             raise ValueError(
@@ -70,19 +72,20 @@ class ModelExecutionRequest:
 
     @property
     def input_hash(self) -> str:
-        return canonical_request_hash(self.input_payload)
+        if self.response_schema is None:
+            return canonical_request_hash(self.input_payload)
+        return canonical_request_hash(
+            {
+                "input_payload": self.input_payload,
+                "response_schema_name": self.response_schema_name,
+                "response_schema": self.response_schema,
+                "enable_thinking": self.enable_thinking,
+            }
+        )
 
     @property
     def parameters_hash(self) -> str:
-        if self.response_schema is None:
-            return canonical_request_hash(self.parameters)
-        return canonical_request_hash(
-            {
-                "parameters": self.parameters,
-                "response_schema_name": self.response_schema_name,
-                "response_schema": self.response_schema,
-            }
-        )
+        return canonical_request_hash(self.parameters)
 
 
 @dataclass(frozen=True, slots=True)
@@ -242,7 +245,7 @@ class OpenAICompatibleModelExecutionAdapter:
                         "schema": request.response_schema,
                     },
                 }
-                if request.response_schema is not None
+                if request.response_schema is not None and self._qwen_thinking_control
                 else {"type": "json_object"}
             )
         if request.tools:

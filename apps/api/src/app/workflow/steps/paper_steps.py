@@ -22,7 +22,10 @@ from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.scientific_document import DocumentParseQuality
 from app.services.artifacts import ArtifactReadService
 from app.services.paper_collections import PaperCollectionReadService
-from app.services.document_summary import ExecuteDocumentSummaryRequest
+from app.services.document_summary import (
+    ExecuteDocumentSummaryRequest,
+    build_paper_summary_response_schema,
+)
 from app.services.document_summary_chunks import (
     ChunkedDocumentSummaryService,
     SummaryChunkViolation,
@@ -62,7 +65,6 @@ from services.paper_pipeline.summary import (
 MODEL_PARAMETERS: dict[str, float | int] = {
     "temperature": 0.6,
     "top_p": 0.8,
-    "max_tokens": 8192,
 }
 
 
@@ -375,6 +377,11 @@ class PaperStepService:
             producer_name=SUMMARY_PRODUCER_NAME,
             producer_version=SUMMARY_PRODUCER_VERSION,
             parameters_hash=_summary_parameters_hash(MODEL_PARAMETERS),
+            response_schema_name="paper_summary",
+            response_schema=build_paper_summary_response_schema(
+                tuple(item.evidence_id for item in evidence_candidates)
+            ),
+            enable_thinking=False,
         )
         result = PaperSummaryPipeline().admit(
             paper_collection=collection,
