@@ -641,7 +641,7 @@ class LiteratureStepService:
                     response=relations_response,
                     error_code=error_code,
                 )
-            if isinstance(exc, ModelExecutionError):
+            if isinstance(exc, (ModelExecutionError, LiteratureAdmissionExecutionError)):
                 raise
             raise LiteratureRelationLocalError(
                 code=error_code,
