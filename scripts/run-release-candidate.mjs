@@ -145,6 +145,43 @@ const composeArgs = [
   "-p",
   projectName,
 ];
+function parseTcpPort(name, fallback) {
+  const value = (process.env[name] ?? fallback)?.toString().trim();
+  if (!value || !/^\d+$/u.test(value)) {
+    throw new Error(
+      `${name} must be a valid numeric TCP port, received "${value}".`,
+    );
+  }
+  const port = Number.parseInt(value, 10);
+  if (port < 1 || port > 65535) {
+    throw new Error(`${name} must be between 1 and 65535, received ${port}.`);
+  }
+  return port;
+}
+
+const rcPostgresPort = parseTcpPort("RELEASE_CANDIDATE_POSTGRES_PORT", "55432");
+const rcApiPort = parseTcpPort("RELEASE_CANDIDATE_API_PORT", "58000");
+const rcSitePort = parseTcpPort("RELEASE_CANDIDATE_SITE_PORT", "54321");
+const rcWorkspacePort = parseTcpPort(
+  "RELEASE_CANDIDATE_WORKSPACE_PORT",
+  "55173",
+);
+
+const configuredPorts = [
+  { name: "RELEASE_CANDIDATE_POSTGRES_PORT", port: rcPostgresPort },
+  { name: "RELEASE_CANDIDATE_API_PORT", port: rcApiPort },
+  { name: "RELEASE_CANDIDATE_SITE_PORT", port: rcSitePort },
+  { name: "RELEASE_CANDIDATE_WORKSPACE_PORT", port: rcWorkspacePort },
+];
+const distinctPorts = new Set(configuredPorts.map((item) => item.port));
+if (distinctPorts.size !== configuredPorts.length) {
+  throw new Error(
+    `Release Candidate host ports must be mutually distinct: ${configuredPorts
+      .map((item) => `${item.name}=${item.port}`)
+      .join(", ")}.`,
+  );
+}
+
 const runtimeEnvironment = {
   ...process.env,
   APP_ENV: "development",
@@ -157,6 +194,20 @@ const runtimeEnvironment = {
   PADDLEOCR_VL_LOCAL_BUNDLE: "",
   RELEASE_CANDIDATE_COMPOSE_PROJECT: projectName,
   RELEASE_CANDIDATE_EVIDENCE_DIR: evidenceDirectory,
+  RELEASE_CANDIDATE_POSTGRES_PORT: String(rcPostgresPort),
+  RELEASE_CANDIDATE_API_PORT: String(rcApiPort),
+  RELEASE_CANDIDATE_SITE_PORT: String(rcSitePort),
+  RELEASE_CANDIDATE_WORKSPACE_PORT: String(rcWorkspacePort),
+  POSTGRES_PORT: String(rcPostgresPort),
+  API_PORT: String(rcApiPort),
+  SITE_PORT: String(rcSitePort),
+  WORKSPACE_PORT: String(rcWorkspacePort),
+  CORS_ORIGINS: `http://localhost:${rcWorkspacePort},http://127.0.0.1:${rcWorkspacePort}`,
+  PUBLIC_WORKSPACE_URL: `http://localhost:${rcWorkspacePort}/workspace`,
+  VITE_API_BASE_URL: `http://127.0.0.1:${rcApiPort}`,
+  VITE_SITE_URL: `http://127.0.0.1:${rcSitePort}`,
+  REAL_INTEGRATION_API_ORIGIN: `http://127.0.0.1:${rcApiPort}`,
+  REAL_INTEGRATION_WORKSPACE_BASE_URL: `http://127.0.0.1:${rcWorkspacePort}`,
   PLAYWRIGHT_BROWSERS_PATH: path.resolve(
     ".artifacts",
     "tooling",
@@ -164,9 +215,6 @@ const runtimeEnvironment = {
   ),
   TEMP: path.resolve(".artifacts", "tooling", "temp"),
   TMP: path.resolve(".artifacts", "tooling", "temp"),
-  REAL_INTEGRATION_API_ORIGIN: "http://127.0.0.1:8000",
-  REAL_INTEGRATION_WORKSPACE_BASE_URL: "http://127.0.0.1:5173",
-  VITE_API_BASE_URL: "http://127.0.0.1:8000",
 };
 const pnpmShell = process.platform === "win32";
 mkdirSync(runtimeEnvironment.TEMP, { recursive: true });
@@ -174,6 +222,9 @@ mkdirSync(runtimeEnvironment.TEMP, { recursive: true });
 console.log(`Release Candidate source: ${head}`);
 console.log(`Release Candidate model: ${model}`);
 console.log(`Release Candidate Compose project: ${projectName}`);
+console.log(
+  `Release Candidate host ports: postgres=${rcPostgresPort}, api=${rcApiPort}, site=${rcSitePort}, workspace=${rcWorkspacePort}`,
+);
 console.log(`Release Candidate evidence: ${evidenceDirectory}`);
 
 try {
