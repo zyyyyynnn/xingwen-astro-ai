@@ -65,6 +65,9 @@ DOCUMENT_SUMMARY_CHUNK_EVIDENCE_OUT_OF_SCOPE = (
 DOCUMENT_SUMMARY_CHUNK_TRUNCATED = "DOCUMENT_SUMMARY_CHUNK_TRUNCATED"
 
 _MODEL_RESPONSE_TRUNCATED = "MODEL_RESPONSE_TRUNCATED"
+_MAX_SCHEMA_FEEDBACK_ISSUES = 12
+_MAX_SCHEMA_FEEDBACK_TYPE_CHARACTERS = 128
+_MAX_SCHEMA_FEEDBACK_MESSAGE_CHARACTERS = 256
 
 
 class SummaryChunkViolation(ValueError):
@@ -76,6 +79,7 @@ class SummaryChunkViolation(ValueError):
         code: str,
         chunk_id: str,
         affected_evidence_ids: tuple[str, ...] = (),
+        schema_issues: tuple[dict[str, Any], ...] = (),
         model_response: ModelExecutionResponse | None = None,
         message: str,
     ) -> None:
@@ -83,6 +87,7 @@ class SummaryChunkViolation(ValueError):
         self.code = code
         self.chunk_id = chunk_id
         self.affected_evidence_ids = affected_evidence_ids
+        self.schema_issues = schema_issues
         self.model_response = model_response
 
 
@@ -432,6 +437,7 @@ def _execute_summary_chunk_with_bounded_recovery(
             raise SummaryChunkViolation(
                 code=DOCUMENT_SUMMARY_CHUNK_SCHEMA_INVALID,
                 chunk_id=target.chunk_id,
+                schema_issues=_schema_validation_issues(exc),
                 model_response=response,
                 message=f"{target.chunk_id} model output did not match the Summary schema",
             ) from exc
@@ -468,6 +474,7 @@ def _execute_summary_chunk_with_bounded_recovery(
                     chunk,
                     code=violation.code,
                     affected_evidence_ids=violation.affected_evidence_ids,
+                    schema_issues=violation.schema_issues,
                 ),
             )
         except SummaryChunkViolation as correction_violation:
@@ -483,9 +490,8 @@ def _execute_summary_chunk_with_bounded_recovery(
                 ) from violation
             raise
         observed = (
-            (() if violation.model_response is None else (violation.model_response,))
-            + (response,)
-        )
+            () if violation.model_response is None else (violation.model_response,)
+        ) + (response,)
         return observed, _chunk_sections(output), 1, 0
 
 
@@ -572,6 +578,7 @@ def _recover_truncated_summary_chunk(
                         half,
                         code=violation.code,
                         affected_evidence_ids=violation.affected_evidence_ids,
+                        schema_issues=violation.schema_issues,
                     ),
                 )
             except SummaryChunkViolation as correction_violation:
@@ -594,11 +601,38 @@ def _recover_truncated_summary_chunk(
     return tuple(responses), merged, correction_count, 1
 
 
+def _schema_validation_issues(
+    error: ValidationError,
+) -> tuple[dict[str, Any], ...]:
+    """Project bounded, actionable schema diagnostics without model input/output."""
+
+    issues: list[dict[str, Any]] = []
+    for item in error.errors(include_input=False, include_url=False)[
+        :_MAX_SCHEMA_FEEDBACK_ISSUES
+    ]:
+        issues.append(
+            {
+                "loc": [
+                    part if isinstance(part, (str, int)) else str(part)
+                    for part in item.get("loc", ())
+                ],
+                "type": str(item.get("type", "validation_error"))[
+                    :_MAX_SCHEMA_FEEDBACK_TYPE_CHARACTERS
+                ],
+                "message": str(item.get("msg", "invalid value"))[
+                    :_MAX_SCHEMA_FEEDBACK_MESSAGE_CHARACTERS
+                ],
+            }
+        )
+    return tuple(issues)
+
+
 def _chunk_validation_feedback(
     chunk: SummaryChunk,
     *,
     code: str,
     affected_evidence_ids: tuple[str, ...],
+    schema_issues: tuple[dict[str, Any], ...] = (),
     concise: bool = False,
 ) -> dict[str, Any]:
     feedback: dict[str, Any] = {
@@ -606,6 +640,8 @@ def _chunk_validation_feedback(
         "required_evidence_ids": list(chunk.evidence_ids),
         "affected_evidence_ids": list(affected_evidence_ids),
     }
+    if schema_issues:
+        feedback["schema_issues"] = list(schema_issues)
     if concise:
         feedback["concise_output"] = True
     return feedback

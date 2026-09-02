@@ -233,8 +233,7 @@ def test_small_document_truncation_accounts_for_both_provider_calls() -> None:
     assert result.provider_request_id is None
     assert result.model_response.provider_request_id is None
     assert (
-        result.model_response.provider_returned_model
-        == "test-returned-model-snapshot"
+        result.model_response.provider_returned_model == "test-returned-model-snapshot"
     )
 
 
@@ -435,6 +434,74 @@ def test_single_block_truncation_uses_one_concise_correction() -> None:
     assert result.token_usage is not None
     assert result.token_usage.total_tokens == 75
     assert result.latency_ms == 19
+
+
+def test_schema_correction_receives_bounded_actionable_validation_issues() -> None:
+    class SchemaRepairModel(_ChunkModel):
+        def __init__(self) -> None:
+            super().__init__()
+            self.invalid_sent = False
+
+        def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
+            if not self.invalid_sent:
+                self.invalid_sent = True
+                self.requests.append(request)
+                chunk = request.input_payload["paper_payload"]["chunk"]
+                evidence_id = chunk["evidence"][0]["evidence_id"]
+                payload = {
+                    "background": [],
+                    "methodology": [],
+                    "dataset": [],
+                    "experiments": [
+                        {
+                            "statement_id": "Invalid Statement ID",
+                            "text": "<div>PRIVATE_PROVIDER_CONTENT</div>",
+                            "evidence_ids": [evidence_id],
+                        }
+                    ],
+                    "discussion": [],
+                    "limitations": [],
+                }
+                return ModelExecutionResponse(
+                    payload=payload,
+                    output_hash=compute_canonical_payload_hash(payload),
+                    token_usage={
+                        "prompt_tokens": 10,
+                        "completion_tokens": 5,
+                        "total_tokens": 15,
+                    },
+                    latency_ms=4,
+                    provider_request_id="request-schema-invalid",
+                    provider_returned_model="test-returned-model-snapshot",
+                )
+            return super().execute(request)
+
+    model = SchemaRepairModel()
+    result = ChunkedDocumentSummaryService(model).execute(_request(513))
+
+    assert isinstance(result, ChunkedDocumentSummaryExecution)
+    assert result.admission.admission_status is PaperSummaryAdmissionStatus.accepted
+    assert result.correction_count == 1
+    corrected = [
+        request
+        for request in model.requests
+        if request.input_payload.get("validation_feedback") is not None
+    ]
+    assert len(corrected) == 1
+    feedback = corrected[0].input_payload["validation_feedback"]
+    assert feedback["code"] == "DOCUMENT_SUMMARY_CHUNK_SCHEMA_INVALID"
+    assert any(
+        issue["loc"] == ["experiments", 0, "statement_id"]
+        for issue in feedback["schema_issues"]
+    )
+    assert any(
+        issue["loc"] == ["research_questions"] for issue in feedback["schema_issues"]
+    )
+    assert all(
+        set(issue) == {"loc", "type", "message"} for issue in feedback["schema_issues"]
+    )
+    assert "PRIVATE_PROVIDER_CONTENT" not in str(feedback)
+    assert "model_response" not in feedback
 
 
 def test_chunk_statement_citing_foreign_evidence_is_rejected() -> None:
