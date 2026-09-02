@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Sequence
 from uuid import UUID
 
 from sqlalchemy import select
@@ -29,6 +29,7 @@ from app.services.document_parse_store import (
     DocumentParseService,
     DocumentParseSourceSnapshot,
     PersistDocumentParseRequest,
+    PersistedDocumentLocator,
 )
 from app.services.scientific_document.ports import DocumentParserPort
 from app.workflow.step_publication import RunStepContext, StepPublicationFactory
@@ -198,20 +199,20 @@ class DocumentParseExecutionService:
             ),
         )
 
-    def persist_locator(
+    def persist_locators(
         self,
         *,
         project_id: UUID,
         document_parse_id: UUID,
         source_snapshot_id: UUID,
-        locator: DocumentLocator,
-    ) -> None:
-        asyncio.run(
-            self._document_parses.persist_locator(
+        locators: Sequence[DocumentLocator],
+    ) -> tuple[PersistedDocumentLocator, ...]:
+        return asyncio.run(
+            self._document_parses.persist_locators(
                 project_id=project_id,
                 document_parse_id=document_parse_id,
                 source_snapshot_id=source_snapshot_id,
-                locator=locator,
+                locators=locators,
             )
         )
 

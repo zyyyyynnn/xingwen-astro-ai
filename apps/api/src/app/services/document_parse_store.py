@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Callable
+from typing import Callable, Sequence
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -200,23 +200,34 @@ class DocumentParseService:
             )
         return candidate
 
-    async def persist_locator(
+    async def persist_locators(
         self,
         *,
         project_id: UUID,
         document_parse_id: UUID,
         source_snapshot_id: UUID,
-        locator: DocumentLocator,
-    ) -> PersistedDocumentLocator:
+        locators: Sequence[DocumentLocator],
+    ) -> tuple[PersistedDocumentLocator, ...]:
+        if not locators:
+            return ()
         candidate = await self.get_candidate(
             project_id=project_id, document_parse_id=document_parse_id
         )
-        validate_document_locator(candidate, locator)
-        return self._repository.persist_locator(
+        ordered_unique_locators: list[DocumentLocator] = []
+        seen_hashes: set[str] = set()
+        for locator in locators:
+            validate_document_locator(candidate, locator)
+            locator_payload = locator.model_dump(mode="json", exclude_none=True)
+            locator_hash = compute_canonical_payload_hash(locator_payload)
+            if locator_hash not in seen_hashes:
+                seen_hashes.add(locator_hash)
+                ordered_unique_locators.append(locator)
+
+        return self._repository.persist_locators(
             project_id=project_id,
             document_parse_id=document_parse_id,
             source_snapshot_id=source_snapshot_id,
-            locator=locator,
+            locators=tuple(ordered_unique_locators),
         )
 
     def source_snapshot(
@@ -364,17 +375,34 @@ class DocumentParseRepository:
                 request_metadata=dict(row.request_metadata or {}),
             )
 
-    def persist_locator(
+    def persist_locators(
         self,
         *,
         project_id: UUID,
         document_parse_id: UUID,
         source_snapshot_id: UUID,
-        locator: DocumentLocator,
-    ) -> PersistedDocumentLocator:
-        locator_payload = locator.model_dump(mode="json", exclude_none=True)
-        locator_hash = compute_canonical_payload_hash(locator_payload)
-        locator_id = uuid4()
+        locators: Sequence[DocumentLocator],
+    ) -> tuple[PersistedDocumentLocator, ...]:
+        if not locators:
+            return ()
+
+        unique_locators: list[tuple[UUID, str, dict[str, object], DocumentLocator]] = []
+        seen_hashes: set[str] = set()
+        ordered_hashes: list[str] = []
+        planned_id_by_hash: dict[str, UUID] = {}
+
+        for locator in locators:
+            locator_payload = locator.model_dump(mode="json", exclude_none=True)
+            locator_hash = compute_canonical_payload_hash(locator_payload)
+            if locator_hash not in seen_hashes:
+                seen_hashes.add(locator_hash)
+                ordered_hashes.append(locator_hash)
+                planned_id = uuid4()
+                planned_id_by_hash[locator_hash] = planned_id
+                unique_locators.append(
+                    (planned_id, locator_hash, locator_payload, locator)
+                )
+
         with self._factory() as session, session.begin():
             parse = session.scalar(
                 select(DocumentParseModel)
@@ -390,57 +418,77 @@ class DocumentParseRepository:
                 raise DocumentParseIntegrityError(
                     "locator SourceSnapshot does not belong to the immutable parse"
                 )
+
+            insert_values = [
+                {
+                    "id": planned_id,
+                    "project_id": project_id,
+                    "document_parse_id": document_parse_id,
+                    "source_snapshot_id": source_snapshot_id,
+                    "locator_hash": locator_hash,
+                    "locator": locator_payload,
+                }
+                for planned_id, locator_hash, locator_payload, _ in unique_locators
+            ]
+
             session.execute(
                 pg_insert(DocumentParseLocatorModel.__table__)
-                .values(
-                    id=locator_id,
-                    project_id=project_id,
-                    document_parse_id=document_parse_id,
-                    source_snapshot_id=source_snapshot_id,
-                    locator_hash=locator_hash,
-                    locator=locator_payload,
-                )
+                .values(insert_values)
                 .on_conflict_do_nothing(
                     index_elements=["document_parse_id", "locator_hash"]
                 )
             )
-            winner = session.scalar(
+
+            winners = session.scalars(
                 select(DocumentParseLocatorModel).where(
                     DocumentParseLocatorModel.document_parse_id == document_parse_id,
-                    DocumentParseLocatorModel.locator_hash == locator_hash,
+                    DocumentParseLocatorModel.locator_hash.in_(ordered_hashes),
                 )
-            )
-            if winner is None:
+            ).all()
+
+            winners_by_hash: dict[str, DocumentParseLocatorModel] = {
+                winner.locator_hash: winner for winner in winners
+            }
+            if len(winners_by_hash) != len(ordered_hashes):
                 raise DocumentParseIntegrityError(
                     "unable to resolve authoritative locator identity"
                 )
-            try:
-                persisted_locator = DocumentLocator.model_validate(winner.locator)
-            except Exception as exc:
-                raise DocumentParseIntegrityError(
-                    "persisted locator no longer satisfies the Canonical schema"
-                ) from exc
-            persisted_hash = compute_canonical_payload_hash(
-                persisted_locator.model_dump(mode="json", exclude_none=True)
-            )
-            if (
-                winner.project_id != project_id
-                or winner.source_snapshot_id != source_snapshot_id
-                or persisted_hash != winner.locator_hash
-                or persisted_hash != locator_hash
-            ):
-                raise DocumentParseIntegrityError(
-                    "persisted locator has conflicting immutable content"
+
+            results: list[PersistedDocumentLocator] = []
+            for locator_hash in ordered_hashes:
+                winner = winners_by_hash[locator_hash]
+                planned_id = planned_id_by_hash[locator_hash]
+                try:
+                    persisted_locator = DocumentLocator.model_validate(winner.locator)
+                except Exception as exc:
+                    raise DocumentParseIntegrityError(
+                        "persisted locator no longer satisfies the Canonical schema"
+                    ) from exc
+                persisted_hash = compute_canonical_payload_hash(
+                    persisted_locator.model_dump(mode="json", exclude_none=True)
                 )
-            return PersistedDocumentLocator(
-                id=winner.id,
-                project_id=winner.project_id,
-                document_parse_id=winner.document_parse_id,
-                source_snapshot_id=winner.source_snapshot_id,
-                locator_hash=winner.locator_hash,
-                locator=persisted_locator,
-                reused=winner.id != locator_id,
-            )
+                if (
+                    winner.project_id != project_id
+                    or winner.source_snapshot_id != source_snapshot_id
+                    or persisted_hash != winner.locator_hash
+                    or persisted_hash != locator_hash
+                ):
+                    raise DocumentParseIntegrityError(
+                        "persisted locator has conflicting immutable content"
+                    )
+                results.append(
+                    PersistedDocumentLocator(
+                        id=winner.id,
+                        project_id=winner.project_id,
+                        document_parse_id=winner.document_parse_id,
+                        source_snapshot_id=winner.source_snapshot_id,
+                        locator_hash=winner.locator_hash,
+                        locator=persisted_locator,
+                        reused=winner.id != planned_id,
+                    )
+                )
+
+            return tuple(results)
 
     @staticmethod
     def _validated_context(

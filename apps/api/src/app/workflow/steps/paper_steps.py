@@ -656,15 +656,17 @@ class PaperStepService:
             output_hash=admitted.content_hash,
             response=result.model_response,
         )
-        for evidence in summary.evidence:
-            locator = evidence.locator.document_locator
-            if locator is None:
-                continue
-            self._document_parse_execution.persist_locator(
+        document_locators = tuple(
+            evidence.locator.document_locator
+            for evidence in summary.evidence
+            if evidence.locator.document_locator is not None
+        )
+        if document_locators:
+            self._document_parse_execution.persist_locators(
                 project_id=context.project_id,
                 document_parse_id=parse_record.id,
                 source_snapshot_id=snapshot.id,
-                locator=locator,
+                locators=document_locators,
             )
         publication = self._publications.publication(
             context,
