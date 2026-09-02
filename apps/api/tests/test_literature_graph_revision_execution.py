@@ -391,6 +391,9 @@ class _RevisionScriptedModel:
                 "research_questions": (),
             }
         elif request.prompt_name == "literature_claim":
+            assert request.response_schema_name == "literature_claim"
+            assert request.response_schema is not None
+            assert request.enable_thinking is False
             self.call_counts["literature_claim"] += 1
             summary_payload = request.input_payload.get("paper_summary_artifact", {})
             statements = summary_payload.get("statements", ())
@@ -407,6 +410,9 @@ class _RevisionScriptedModel:
                 ),
             }
         elif request.prompt_name == "literature_relation":
+            assert request.response_schema_name == "literature_relation"
+            assert request.response_schema is not None
+            assert request.enable_thinking is False
             self.call_counts["literature_relation"] += 1
             if self.fail_literature_relation:
                 raise ModelExecutionError(
@@ -418,6 +424,11 @@ class _RevisionScriptedModel:
             claim_ids = [item["claim_id"] for item in claims_list]
             assert len(claim_ids) >= 2, "relation fixture needs two claims"
             ev_ids = claims_list[0].get("evidence_ids") or [_EVIDENCE_ID]
+            relation_schema = request.response_schema["$defs"][
+                "LiteratureRelationModelCandidate"
+            ]
+            assert relation_schema["properties"]["source_claim_id"]["enum"] == claim_ids
+            assert relation_schema["properties"]["target_claim_id"]["enum"] == claim_ids
             assert "confidence_assessments" not in request.input_payload
             assert request.input_payload["max_relation_candidates"] == 1
             comparability_policy = request.input_payload[

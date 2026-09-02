@@ -17,6 +17,7 @@ from app.schemas.literature_claim import (
 )
 from app.schemas.literature_relation import (
     LiteratureRelationConfidenceAssessment,
+    LiteratureRelationExtractionOutput,
     LiteratureRelationsCandidate,
     LiteratureRelationStatus,
 )
@@ -76,8 +77,39 @@ from services.paper_pipeline.relation_pairing import (
 MODEL_PARAMETERS: dict[str, float | int] = {
     "temperature": 0.6,
     "top_p": 0.8,
-    "max_tokens": 8192,
 }
+
+
+def _literature_relation_response_schema(
+    claims: Iterable[LiteratureClaimCandidate],
+) -> dict[str, object]:
+    """Constrain Relation references to the Claim/Evidence batch sent to the model."""
+
+    visible = tuple(claims)
+    claim_ids = tuple(dict.fromkeys(claim.claim_id for claim in visible))
+    evidence_ids = tuple(
+        dict.fromkeys(
+            evidence_id
+            for claim in visible
+            for evidence_id in claim.evidence_ids
+        )
+    )
+    schema = LiteratureRelationExtractionOutput.model_json_schema()
+    relation = schema["$defs"]["LiteratureRelationModelCandidate"]
+    direction = schema["$defs"]["LiteratureRelationDirectionCandidate"]
+    trace = schema["$defs"]["LiteratureReasoningTraceModelCandidate"]
+    trace_step = schema["$defs"]["LiteratureReasoningTraceStepCandidate"]
+    for target in (relation, direction):
+        target["properties"]["source_claim_id"]["enum"] = list(claim_ids)
+        target["properties"]["target_claim_id"]["enum"] = list(claim_ids)
+    trace["properties"]["premise_claim_ids"]["items"]["enum"] = list(claim_ids)
+    trace_step["properties"]["claim_ids"]["items"]["enum"] = list(claim_ids)
+    if evidence_ids:
+        relation["properties"]["evidence_ids"]["items"]["enum"] = list(evidence_ids)
+        trace_step["properties"]["evidence_ids"]["items"]["enum"] = list(
+            evidence_ids
+        )
+    return schema
 
 
 def _claims_parent_error_code(
@@ -542,6 +574,9 @@ class LiteratureStepService:
             for pair in relation_policy.pairs
             for claim_id in (pair.source_claim_id, pair.target_claim_id)
         }
+        model_visible_claims = tuple(
+            claim for claim in claim_records if claim.claim_id in relation_claim_ids
+        )
         relations_model_response, relations_response, relations_execution_id = (
             model_caller.execute_json(
                 prompt_name="literature_relation",
@@ -552,8 +587,7 @@ class LiteratureStepService:
                         "schema_version": claims.schema_version,
                         "claims": [
                             _relation_claim_model_input(claim)
-                            for claim in claim_records
-                            if claim.claim_id in relation_claim_ids
+                            for claim in model_visible_claims
                         ],
                     },
                     "max_relation_candidates": MAX_RELATION_CANDIDATES,
@@ -563,6 +597,11 @@ class LiteratureStepService:
                 producer_name=RELATION_PRODUCER_NAME,
                 producer_version=RELATION_PRODUCER_VERSION,
                 parameters_hash=_relation_parameters_hash(MODEL_PARAMETERS),
+                response_schema_name="literature_relation",
+                response_schema=_literature_relation_response_schema(
+                    model_visible_claims
+                ),
+                enable_thinking=False,
             )
         )
         relations_terminalized = False

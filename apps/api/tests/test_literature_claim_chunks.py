@@ -157,6 +157,26 @@ def test_claim_extraction_uses_bounded_narrow_batches() -> None:
         len(request.input_payload["paper_summary_artifact"]["statements"]) <= 8
         for request in model.requests
     )
+    for request in model.requests:
+        assert request.response_schema_name == "literature_claim"
+        assert request.enable_thinking is False
+        schema = request.response_schema
+        assert schema is not None
+        candidate = schema["$defs"]["LiteratureClaimModelCandidate"]
+        statements = request.input_payload["paper_summary_artifact"]["statements"]
+        assert candidate["properties"]["source_statement_id"]["enum"] == [
+            item["statement_id"] for item in statements
+        ]
+        expected_evidence = list(
+            dict.fromkeys(
+                evidence_id
+                for statement in statements
+                for evidence_id in statement["evidence_ids"]
+            )
+        )
+        assert candidate["properties"]["evidence_ids"]["items"]["enum"] == (
+            expected_evidence
+        )
 
 
 def test_claim_extraction_fails_closed_when_batch_coverage_is_incomplete() -> None:

@@ -191,6 +191,33 @@ class ChunkedLiteratureClaimService:
         )
 
 
+def build_literature_claim_response_schema(
+    chunk: ClaimExtractionChunk,
+) -> dict[str, Any]:
+    """Constrain model-authored Claim references to the current Summary batch."""
+
+    schema = LiteratureClaimExtractionOutput.model_json_schema()
+    statement_ids = tuple(
+        item.statement.statement_id for item in chunk.statements
+    )
+    evidence_ids = tuple(
+        dict.fromkeys(
+            evidence_id
+            for item in chunk.statements
+            for evidence_id in item.statement.evidence_ids
+        )
+    )
+    candidate_schema = schema["$defs"]["LiteratureClaimModelCandidate"]
+    candidate_schema["properties"]["source_statement_id"]["enum"] = list(
+        statement_ids
+    )
+    if evidence_ids:
+        candidate_schema["properties"]["evidence_ids"]["items"]["enum"] = list(
+            evidence_ids
+        )
+    return schema
+
+
 def build_claim_extraction_chunks(
     summary: PaperSummaryArtifactContent,
     *,
@@ -451,7 +478,9 @@ def _chunk_call(
             input_payload=payload,
             parameters=dict(parameters),
             response_mode="json",
-            enable_thinking=True,
+            response_schema_name="literature_claim",
+            response_schema=build_literature_claim_response_schema(chunk),
+            enable_thinking=False,
         )
     )
     _validate_model_response(response)
@@ -611,5 +640,6 @@ __all__ = [
     "ClaimChunkViolation",
     "ChunkedLiteratureClaimExecution",
     "ChunkedLiteratureClaimService",
+    "build_literature_claim_response_schema",
     "build_claim_extraction_chunks",
 ]
