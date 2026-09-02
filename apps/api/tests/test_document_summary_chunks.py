@@ -36,6 +36,7 @@ from app.services.model_execution import (
     ModelExecutionRequest,
     ModelExecutionResponse,
 )
+from packages.prompts.registry import PromptRegistry
 
 _CONTENT_HASH = "sha256:" + "b" * 64
 _CONFIG_HASH = "sha256:" + "c" * 64
@@ -526,3 +527,11 @@ def test_chunk_statement_keeps_all_valid_in_chunk_evidence() -> None:
         )
         > 32
     )
+
+
+def test_paper_summary_prompt_declares_validation_feedback_contract() -> None:
+    content = PromptRegistry().get("paper_summary").content
+    assert "validation_feedback" in content
+    assert "schema_issues" in content
+    assert "affected_evidence_ids" in content
+    assert "concise_output" in content

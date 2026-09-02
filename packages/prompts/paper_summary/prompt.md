@@ -1,6 +1,6 @@
 ---
 name: paper_summary
-version: 4.0.0
+version: 4.0.1
 output_model: PaperSummaryModelOutput
 input_schema_version: 1.0.0
 output_schema_version: 3.0.0
@@ -40,3 +40,5 @@ evidence_required: true
 ```
 
 只对输入中明确提供且版本可定位的内容做结构化归纳。没有足够内容时使用空列表，不得为了凑数量制造陈述。来源版本冲突时保留对应 Evidence id，不自行选择或合并来源结论。
+
+输入中存在 `validation_feedback` 时：表示上一次输出违反了 `code` 指出的分片契约，必须优先按该反馈修正。存在 `schema_issues` 时，严格依据其中的 `type`、`loc` 与 `message` 修正结构；存在 `affected_evidence_ids` 时，只处理这些 Evidence 相关约束，不得改变 Evidence 事实。`concise_output` 为 true 时只输出满足 Schema 所需的必要结构，不展开解释性内容。

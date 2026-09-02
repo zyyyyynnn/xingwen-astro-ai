@@ -16,8 +16,8 @@
     "version_number": 1,
     "supersedes_version_id": null,
     "source_mode": "fixture",
-    "content_hash": "sha256:1097f274ce06b35677cee5c5145d3b223e1de0d5a3ca26cbe493c4e052c6233d",
-    "input_hash": "sha256:c3bf1c2a4d76ba3d14976dc3163c9d2f87dc049604bbfa6f961994de812b5d30",
+    "content_hash": "sha256:07e9abdc065ef1b60255af40df58dc52905c785d5021a6f5bbd7eae7e031f982",
+    "input_hash": "sha256:1f5dfaff680778d73ef881e99902ef48aa9eb8bc2d57207f6812cab1e0c49274",
     "created_at": "2026-07-21T08:25:00Z",
     "paper": {
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
@@ -28,7 +28,7 @@
     "summary": {
       "kind": "paper_summary",
       "schema_version": "2.0.0",
-      "summary_id": "summary.3f54de3f5d1ae1cdeda65055",
+      "summary_id": "summary.2a57aa8169706062958aa68f",
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
       "paper": null,
       "benchmark": {
@@ -244,7 +244,7 @@
       ],
       "source_conflicts": [],
       "producer": {
-        "execution_id": "execution.c3bf1c2a4d76ba3d14976dc3",
+        "execution_id": "execution.1f5dfaff680778d73ef881e9",
         "run_id": null,
         "step_key": "summarizing_papers",
         "producer_type": "model",
@@ -257,8 +257,8 @@
         "provider_request_id": null,
         "usage": null,
         "prompt_name": "paper_summary",
-        "prompt_version": "4.0.0",
-        "prompt_hash": "sha256:6b0a4c43898aaf1aaa8d9babff6a6257a069e20eb915813390108eea05d654f4",
+        "prompt_version": "4.0.1",
+        "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
         "parameters_version": "1.0.0",
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
         "input_versions": {
@@ -275,17 +275,17 @@
             }
           ]
         },
-        "input_hash": "sha256:c3bf1c2a4d76ba3d14976dc3163c9d2f87dc049604bbfa6f961994de812b5d30",
+        "input_hash": "sha256:1f5dfaff680778d73ef881e99902ef48aa9eb8bc2d57207f6812cab1e0c49274",
         "model_response_hash": "sha256:68b5aa175b4650259e0addb48331677ce80c59d3f5ddd36f896941f4442bf384",
-        "output_hash": "sha256:3c68e3f0321a5dcbfc70d323c27add1052b7d215c696894185a1d21ff698bc06",
+        "output_hash": "sha256:cda3a3133103b74adc4c2f5b7796b984613298baf590f636a548016b88007b3f",
         "status": "completed",
         "started_at": "2026-07-21T08:25:00Z",
         "finished_at": "2026-07-21T08:25:00Z",
         "latency_ms": 0,
         "error_code": null
       },
-      "input_hash": "sha256:c3bf1c2a4d76ba3d14976dc3163c9d2f87dc049604bbfa6f961994de812b5d30",
-      "output_hash": "sha256:3c68e3f0321a5dcbfc70d323c27add1052b7d215c696894185a1d21ff698bc06"
+      "input_hash": "sha256:1f5dfaff680778d73ef881e99902ef48aa9eb8bc2d57207f6812cab1e0c49274",
+      "output_hash": "sha256:cda3a3133103b74adc4c2f5b7796b984613298baf590f636a548016b88007b3f"
     },
     "cache_audits": [],
     "producer_execution": {
@@ -302,8 +302,8 @@
         "provider_returned_model": null,
         "explicit_revision": null,
         "prompt_name": "paper_summary",
-        "prompt_version": "4.0.0",
-        "prompt_hash": "sha256:6b0a4c43898aaf1aaa8d9babff6a6257a069e20eb915813390108eea05d654f4",
+        "prompt_version": "4.0.1",
+        "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2"
       },
       "parameters": {
@@ -311,8 +311,8 @@
         "top_p": 1
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
-      "input_hash": "sha256:c3bf1c2a4d76ba3d14976dc3163c9d2f87dc049604bbfa6f961994de812b5d30",
-      "output_hash": "sha256:1097f274ce06b35677cee5c5145d3b223e1de0d5a3ca26cbe493c4e052c6233d",
+      "input_hash": "sha256:1f5dfaff680778d73ef881e99902ef48aa9eb8bc2d57207f6812cab1e0c49274",
+      "output_hash": "sha256:07e9abdc065ef1b60255af40df58dc52905c785d5021a6f5bbd7eae7e031f982",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",
@@ -463,7 +463,7 @@
     "content": {
       "kind": "paper_summary",
       "schema_version": "2.0.0",
-      "summary_id": "summary.3f54de3f5d1ae1cdeda65055",
+      "summary_id": "summary.2a57aa8169706062958aa68f",
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
       "paper": null,
       "benchmark": {
@@ -679,7 +679,7 @@
       ],
       "source_conflicts": [],
       "producer": {
-        "execution_id": "execution.c3bf1c2a4d76ba3d14976dc3",
+        "execution_id": "execution.1f5dfaff680778d73ef881e9",
         "run_id": null,
         "step_key": "summarizing_papers",
         "producer_type": "model",
@@ -692,8 +692,8 @@
         "provider_request_id": null,
         "usage": null,
         "prompt_name": "paper_summary",
-        "prompt_version": "4.0.0",
-        "prompt_hash": "sha256:6b0a4c43898aaf1aaa8d9babff6a6257a069e20eb915813390108eea05d654f4",
+        "prompt_version": "4.0.1",
+        "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
         "parameters_version": "1.0.0",
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
         "input_versions": {
@@ -710,20 +710,20 @@
             }
           ]
         },
-        "input_hash": "sha256:c3bf1c2a4d76ba3d14976dc3163c9d2f87dc049604bbfa6f961994de812b5d30",
+        "input_hash": "sha256:1f5dfaff680778d73ef881e99902ef48aa9eb8bc2d57207f6812cab1e0c49274",
         "model_response_hash": "sha256:68b5aa175b4650259e0addb48331677ce80c59d3f5ddd36f896941f4442bf384",
-        "output_hash": "sha256:3c68e3f0321a5dcbfc70d323c27add1052b7d215c696894185a1d21ff698bc06",
+        "output_hash": "sha256:cda3a3133103b74adc4c2f5b7796b984613298baf590f636a548016b88007b3f",
         "status": "completed",
         "started_at": "2026-07-21T08:25:00Z",
         "finished_at": "2026-07-21T08:25:00Z",
         "latency_ms": 0,
         "error_code": null
       },
-      "input_hash": "sha256:c3bf1c2a4d76ba3d14976dc3163c9d2f87dc049604bbfa6f961994de812b5d30",
-      "output_hash": "sha256:3c68e3f0321a5dcbfc70d323c27add1052b7d215c696894185a1d21ff698bc06"
+      "input_hash": "sha256:1f5dfaff680778d73ef881e99902ef48aa9eb8bc2d57207f6812cab1e0c49274",
+      "output_hash": "sha256:cda3a3133103b74adc4c2f5b7796b984613298baf590f636a548016b88007b3f"
     },
-    "content_hash": "sha256:1097f274ce06b35677cee5c5145d3b223e1de0d5a3ca26cbe493c4e052c6233d",
-    "input_hash": "sha256:c3bf1c2a4d76ba3d14976dc3163c9d2f87dc049604bbfa6f961994de812b5d30",
+    "content_hash": "sha256:07e9abdc065ef1b60255af40df58dc52905c785d5021a6f5bbd7eae7e031f982",
+    "input_hash": "sha256:1f5dfaff680778d73ef881e99902ef48aa9eb8bc2d57207f6812cab1e0c49274",
     "source_mode": "fixture",
     "producer": {
       "type": "model",
@@ -734,8 +734,8 @@
       "provider_returned_model": null,
       "explicit_revision": null,
       "prompt_name": "paper_summary",
-      "prompt_version": "4.0.0",
-      "prompt_hash": "sha256:6b0a4c43898aaf1aaa8d9babff6a6257a069e20eb915813390108eea05d654f4",
+      "prompt_version": "4.0.1",
+      "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2"
     },
     "source_snapshot_ids": ["snap_papsum_crossref_01"],
@@ -833,8 +833,8 @@
         "provider_returned_model": null,
         "explicit_revision": null,
         "prompt_name": "paper_summary",
-        "prompt_version": "4.0.0",
-        "prompt_hash": "sha256:6b0a4c43898aaf1aaa8d9babff6a6257a069e20eb915813390108eea05d654f4",
+        "prompt_version": "4.0.1",
+        "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2"
       },
       "parameters": {
@@ -842,8 +842,8 @@
         "top_p": 1
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
-      "input_hash": "sha256:c3bf1c2a4d76ba3d14976dc3163c9d2f87dc049604bbfa6f961994de812b5d30",
-      "output_hash": "sha256:1097f274ce06b35677cee5c5145d3b223e1de0d5a3ca26cbe493c4e052c6233d",
+      "input_hash": "sha256:1f5dfaff680778d73ef881e99902ef48aa9eb8bc2d57207f6812cab1e0c49274",
+      "output_hash": "sha256:07e9abdc065ef1b60255af40df58dc52905c785d5021a6f5bbd7eae7e031f982",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",

@@ -14,9 +14,9 @@
       "output_models": ["LiteratureRelationExtractionOutput"]
     },
     "paper_summary": {
-      "version": "4.0.0",
+      "version": "4.0.1",
       "path": "paper_summary/prompt.md",
-      "content_hash": "sha256:6b0a4c43898aaf1aaa8d9babff6a6257a069e20eb915813390108eea05d654f4",
+      "content_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
       "output_models": ["PaperSummaryModelOutput"]
     },
     "research_contract_planner": {

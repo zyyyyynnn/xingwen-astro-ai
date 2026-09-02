@@ -59,7 +59,11 @@ from services.paper_pipeline.summary import (
 )
 
 #: Governed generation parameters shared by the paper summary model call.
-MODEL_PARAMETERS: dict[str, float | int] = {"temperature": 0.6, "top_p": 0.8}
+MODEL_PARAMETERS: dict[str, float | int] = {
+    "temperature": 0.6,
+    "top_p": 0.8,
+    "max_tokens": 8192,
+}
 
 
 def _summary_parameters_hash(

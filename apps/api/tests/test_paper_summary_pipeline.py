@@ -244,7 +244,7 @@ def test_prompt_registry_resolves_one_hash_pinned_current_definition() -> None:
 
     current = registry.get("paper_summary")
 
-    assert current.version == "4.0.0"
+    assert current.version == "4.0.1"
     assert current.output_models == ("PaperSummaryModelOutput",)
 
 
