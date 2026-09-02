@@ -133,7 +133,6 @@ def _candidate(
         content_hash=INPUT_HASH,
         profile=DocumentParseProfile(
             parser_profile_id="native-default",
-            parser_profile_version="1.0.0",
             native_backend="docling-parse",
             routing_policy_id="native-only",
             resource_policy_id="cpu",
@@ -888,7 +887,6 @@ def test_different_parser_configuration_creates_new_record(
             "profile": {
                 **candidate_payload["profile"],
                 "parser_profile_id": "native-alternate",
-                "parser_profile_version": "2.0.0",
                 "configuration_hash": config_hash,
             },
             "config_hash": config_hash,

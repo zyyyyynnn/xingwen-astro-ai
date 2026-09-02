@@ -401,7 +401,6 @@ def _validate_document_parse_closure(
         or candidate.content_hash != reference.input_content_hash
         or candidate.canonical_output_hash != reference.canonical_output_hash
         or candidate.profile.parser_profile_id != reference.parser_profile_id
-        or candidate.profile.parser_profile_version != reference.parser_profile_version
         or candidate.config_hash != reference.config_hash
         or str(source_snapshot.id) != reference.source_snapshot_id
         or snapshot_reference.source_snapshot_id != reference.source_snapshot_id

@@ -372,11 +372,6 @@
           "title": "Parser Profile Id",
           "type": "string"
         },
-        "parser_profile_version": {
-          "minLength": 1,
-          "title": "Parser Profile Version",
-          "type": "string"
-        },
         "resource_policy_id": {
           "minLength": 1,
           "title": "Resource Policy Id",
@@ -403,7 +398,6 @@
       },
       "required": [
         "parser_profile_id",
-        "parser_profile_version",
         "native_backend",
         "routing_policy_id",
         "resource_policy_id",

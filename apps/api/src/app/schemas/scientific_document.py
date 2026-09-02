@@ -427,7 +427,6 @@ class DocumentParseProfile(BaseModel):
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="DocumentParseProfile")
 
     parser_profile_id: Identifier
-    parser_profile_version: NonEmptyString
     native_backend: NonEmptyString
     visual_backend: NonEmptyString | None = None
     routing_policy_id: NonEmptyString

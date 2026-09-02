@@ -334,10 +334,17 @@
     "BenchmarkParserMode": {
       "enum": [
         "native_only",
-        "hybrid",
-        "paired"
+        "hybrid"
       ],
       "title": "BenchmarkParserMode",
+      "type": "string"
+    },
+    "BenchmarkReportMode": {
+      "enum": [
+        "native_only",
+        "paired"
+      ],
+      "title": "BenchmarkReportMode",
       "type": "string"
     }
   },
@@ -409,7 +416,7 @@
       "type": "string"
     },
     "parser_mode": {
-      "$ref": "#/$defs/BenchmarkParserMode"
+      "$ref": "#/$defs/BenchmarkReportMode"
     },
     "report_id": {
       "maxLength": 128,

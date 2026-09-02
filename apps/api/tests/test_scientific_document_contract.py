@@ -34,7 +34,6 @@ _HASH_D = "sha256:" + "d" * 64
 def _profile() -> DocumentParseProfile:
     return DocumentParseProfile(
         parser_profile_id="p1",
-        parser_profile_version="1.1.0",
         native_backend="native-engine==1.0.0",
         routing_policy_id="native-only",
         resource_policy_id="cpu-capable",

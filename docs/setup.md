@@ -61,10 +61,12 @@ PostgreSQL override，保存前会调用 `/chat/completions`
 | `PADDLEOCR_VL_MODEL_REVISION`      | 空                                    | 远程模型的明确 revision；必须与 Base URL 成对配置           |
 | `PADDLEOCR_VL_LOCAL_BUNDLE`        | 空                                    | 已验证本地模型 bundle 路径                                  |
 | `PADDLEOCR_VL_TIMEOUT_SECONDS`     | `60`                                  | 单页远程视觉解析超时                                        |
+| `DOCUMENT_PARSE_MAX_PAGES`         | `200`                                 | 单文档允许解析的总页数上限                                  |
+| `DOCUMENT_PARSE_MAX_VISUAL_PAGES`  | `2`                                   | 单文档最多执行的视觉解析页数；远程高性能服务可显式提高       |
 
 PaddleOCR-VL 远程配置与本地 bundle 严格互斥：远程模式必须同时设置 Base URL 与
 model revision；本地模式只设置 bundle。两者同时设置会在 Settings 校验阶段直接失败，
-两者均未设置时 native 解析仍可运行，但请求 hybrid/paired 视觉执行会 fail closed。
+两者均未设置时 native 解析仍可运行，但需要视觉后端的 paired benchmark 会 fail closed。
 
 ## 3. Docker Compose 启动
 
@@ -200,6 +202,10 @@ pnpm release-candidate
 选择 HTTP 视觉 backend 时，启动器不加载本地 CPU 模型覆盖层；独立服务由操作者管理，
 门禁不会启动或停止它。API 容器仍通过当前解析器、DocumentParse、Evidence 和 Publisher
 完成科研链路。仅有服务健康检查不代表解析成功，必须保留真实全文解析与下游结果证据。
+RC 不强制对 native text 已充分的 born-digital 页面执行视觉模型；真实 Paddle 路径由
+Scientific Document Parsing Contract 定义的受控 CPU benchmark/evidence 独立证明。
+RC 仍要求视觉 backend 配置可用，并通过 production native-first routing 对真实全文做
+同一 DocumentParse 准入，避免为了测试形式而把每页重复送入高成本视觉推理。
 
 脚本先校验 `HEAD` 与 `RELEASE_CANDIDATE_SOURCE_COMMIT` 完全一致且工作区干净，随后以唯一
 Compose project（`xingwen-rc-<sha8>-<pid>`）`up --build --wait`，安装 Chromium 并执行 live

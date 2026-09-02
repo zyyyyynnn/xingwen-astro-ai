@@ -146,13 +146,14 @@ class DocumentParseExecutionService:
                 "profile": profile.model_dump(mode="json"),
             }
         )
+        native_engine_revision = profile.native_backend.rsplit("==", 1)[-1]
         execution = self._publications.start_producer(
             context,
             step_key=step_key,
             operation_key=operation_key,
             producer_type="algorithm",
             producer_name="scientific-document-parser",
-            producer_version=profile.parser_profile_version,
+            producer_version=native_engine_revision,
             input_hash=parse_input_hash,
             parameters={
                 "parser_profile_id": profile.parser_profile_id,

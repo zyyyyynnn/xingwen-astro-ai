@@ -94,6 +94,15 @@ def test_paddleocr_remote_and_local_backends_are_mutually_exclusive() -> None:
         )
 
 
+def test_visual_page_budget_cannot_exceed_document_page_budget() -> None:
+    with pytest.raises(ValidationError, match="must not exceed"):
+        Settings(
+            _env_file=None,
+            DOCUMENT_PARSE_MAX_PAGES=2,
+            DOCUMENT_PARSE_MAX_VISUAL_PAGES=3,
+        )
+
+
 def test_production_accepts_managed_database_url_without_postgres_password() -> None:
     settings = Settings(
         _env_file=None,

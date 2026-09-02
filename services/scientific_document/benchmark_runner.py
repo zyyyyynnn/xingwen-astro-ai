@@ -1,13 +1,11 @@
 """Reproducible Scientific Document Parsing benchmark runner.
 
-One runner, three explicit modes over the same frozen Golden Set:
+One runner, two explicit modes over the same frozen Golden Set:
 
 - ``native-only``  production parser profile without a configured visual service;
-- ``hybrid``       the production ``HybridScientificDocumentParser`` wired to a real
-                   ``PaddleOcrVlClient`` visual backend (fail-closed: refuses to run
-                   without a configured backend instead of silently degrading);
 - ``paired``       native-only and hybrid passes over the identical manifest in one
-                   comparable ``BenchmarkReport``.
+                   comparable ``BenchmarkReport``; the hybrid half uses the real
+                   configured production visual backend and fails closed when absent.
 
 Fail-closed rules:
 - a committed fixture that is missing is a benchmark error, never a skip;
@@ -15,7 +13,7 @@ Fail-closed rules:
 - the Golden Set content hash covers the complete manifest content except the
   volatile ``generated_at`` timestamp, including every entry and annotation;
 - metrics never claim a capability was measured when it was not;
-- hybrid/paired reports always carry complete visual provenance, and latency is
+- paired reports always carry complete visual provenance, and latency is
   a real monotonic ``time.perf_counter()`` measurement, never an estimate;
 - memory is labelled with its true observation boundary (Python heap via
   ``tracemalloc``), never passed off as process RSS or GPU memory.
@@ -48,6 +46,7 @@ from app.schemas.scientific_document_benchmark import (
     BenchmarkMetricStatus,
     BenchmarkMetricValue,
     BenchmarkParserMode,
+    BenchmarkReportMode,
     BenchmarkReport,
     GoldenSetEntry,
     GoldenSetManifest,
@@ -55,6 +54,7 @@ from app.schemas.scientific_document_benchmark import (
 )
 from app.services.scientific_document.hybrid_parser import (
     HybridScientificDocumentParser,
+    VisualPageResult,
     VisualPageParserPort,
     native_engine_identity,
 )
@@ -68,15 +68,26 @@ SCHEMA_VERSION = "1.2.0"
 _NATIVE_ENGINE, _NATIVE_VERSION = native_engine_identity()
 
 
+@dataclass(frozen=True, slots=True)
+class _VisualParserProvenance:
+    engine_identity: str
+    engine_version: str
+    model_id: str
+    model_revision: str
+    runtime_binding_hash: str
+
+    def parse_page(self, image_bytes: bytes) -> VisualPageResult:
+        raise AssertionError("benchmark provenance identity cannot execute visual parsing")
+
+
 def _config_hash(visual: VisualPageParserPort | None) -> ContentHash:
-    return _config_hash_from_provenance(
-        visual_engine=(visual.engine_identity if visual is not None else None),
-        visual_engine_version=(visual.engine_version if visual is not None else None),
-        visual_model_id=(visual.model_id if visual is not None else None),
-        visual_model_revision=(visual.model_revision if visual is not None else None),
-        visual_runtime_binding_hash=(
-            visual.runtime_binding_hash if visual is not None else None
-        ),
+    profile = HybridScientificDocumentParser(visual_parser=visual).profile
+    return compute_canonical_payload_hash(
+        {
+            "schema_version": SCIENTIFIC_DOCUMENT_SCHEMA_VERSION,
+            "schema_hash": compute_scientific_document_schema_hash(),
+            "parser_profile": profile.model_dump(mode="json"),
+        }
     )
 
 
@@ -88,18 +99,26 @@ def _config_hash_from_provenance(
     visual_model_revision: str | None,
     visual_runtime_binding_hash: str | None,
 ) -> ContentHash:
-    payload = {
-        "schema_version": SCIENTIFIC_DOCUMENT_SCHEMA_VERSION,
-        "schema_hash": compute_scientific_document_schema_hash(),
-        "native_engine": _NATIVE_ENGINE,
-        "native_version": _NATIVE_VERSION,
-        "visual_engine": visual_engine,
-        "visual_engine_version": visual_engine_version,
-        "visual_model_id": visual_model_id,
-        "visual_model_revision": visual_model_revision,
-        "visual_runtime_binding_hash": visual_runtime_binding_hash,
-    }
-    return compute_canonical_payload_hash(payload)
+    if all(
+        value is None
+        for value in (
+            visual_engine,
+            visual_engine_version,
+            visual_model_id,
+            visual_model_revision,
+            visual_runtime_binding_hash,
+        )
+    ):
+        return _config_hash(None)
+    return _config_hash(
+        _VisualParserProvenance(
+            engine_identity=visual_engine or "",
+            engine_version=visual_engine_version or "",
+            model_id=visual_model_id or "",
+            model_revision=visual_model_revision or "",
+            runtime_binding_hash=visual_runtime_binding_hash or "",
+        )
+    )
 
 
 def _load_golden_manifest() -> GoldenSetManifest:
@@ -553,7 +572,7 @@ def _report_input_hash(
 def _build_report(
     *,
     report_id: str,
-    parser_mode: BenchmarkParserMode,
+    parser_mode: BenchmarkReportMode,
     cases: list[BenchmarkCaseResult],
     metrics: tuple[BenchmarkMetricValue, ...],
     manifest: GoldenSetManifest,
@@ -631,7 +650,7 @@ def run_native_only() -> BenchmarkReport:
     )
     return _build_report(
         report_id="scientific_document-native-benchmark",
-        parser_mode=BenchmarkParserMode.native_only,
+        parser_mode=BenchmarkReportMode.native_only,
         cases=cases,
         metrics=metrics,
         manifest=manifest,
@@ -642,64 +661,17 @@ def run_native_only() -> BenchmarkReport:
 
 
 def require_visual_parser() -> VisualPageParserPort:
-    """Require the production visual backend for hybrid benchmark modes."""
+    """Require the production visual backend for the paired benchmark pass."""
     from app.config import settings
 
     visual = build_visual_parser(settings)
     if visual is not None:
         return visual
     raise RuntimeError(
-        "hybrid/paired benchmark requires a configured visual backend: set "
+        "paired benchmark requires a configured visual backend: set "
         "PADDLEOCR_VL_BASE_URL + PADDLEOCR_VL_MODEL_REVISION (official HTTP "
         "service) or PADDLEOCR_VL_LOCAL_BUNDLE (verified official model "
         "bundle for the in-process pipeline)"
-    )
-
-
-def run_hybrid() -> BenchmarkReport:
-    """Real hybrid profile through the production parser and visual client."""
-    visual = require_visual_parser()
-    cases, manifest, annotation_hash, _ = _run_pass(
-        BenchmarkParserMode.hybrid, visual_parser=visual
-    )
-    hybrid_cases = [c for c in cases if c.parser_mode == BenchmarkParserMode.hybrid]
-    locator_status, locator_num, locator_den = _mean_measured(
-        [case.evidence_locator_validity for case in cases]
-    )
-    native_routing = sum(
-        (case.native_routing_coverage or 0.0) for case in hybrid_cases
-    ) / float(len(hybrid_cases))
-    visual_routing = sum(
-        (case.visual_routing_coverage or 0.0) for case in hybrid_cases
-    ) / float(len(hybrid_cases))
-    metrics = (
-        *_mode_quality_metrics("", hybrid_cases),
-        _metric(
-            "native_routing_coverage",
-            BenchmarkMetricStatus.measured,
-            native_routing,
-            1.0,
-        ),
-        _metric(
-            "visual_routing_coverage",
-            BenchmarkMetricStatus.measured,
-            visual_routing,
-            1.0,
-        ),
-        _metric("evidence_locator_validity", locator_status, locator_num, locator_den),
-        _metric("table_structure_recovery", BenchmarkMetricStatus.unsupported),
-        _metric("formula_recovery", BenchmarkMetricStatus.unsupported),
-        _metric("figure_caption_linkage", BenchmarkMetricStatus.unsupported),
-    )
-    return _build_report(
-        report_id="scientific_document-hybrid-benchmark",
-        parser_mode=BenchmarkParserMode.hybrid,
-        cases=cases,
-        metrics=metrics,
-        manifest=manifest,
-        expected_annotation_hash=annotation_hash,
-        config_hash=_config_hash(visual),
-        visual_parser=visual,
     )
 
 
@@ -739,7 +711,7 @@ def run_paired() -> BenchmarkReport:
     )
     return _build_report(
         report_id="scientific_document-paired-benchmark",
-        parser_mode=BenchmarkParserMode.paired,
+        parser_mode=BenchmarkReportMode.paired,
         cases=cases,
         metrics=metrics,
         manifest=manifest,
@@ -755,25 +727,23 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Run the Scientific Document Parsing Contract benchmark "
-            "(native-only, hybrid, or paired compare over one frozen Golden Set)."
+            "(native-only or paired compare over one frozen Golden Set)."
         )
     )
     parser.add_argument("--output", type=Path)
     parser.add_argument(
         "--mode",
-        choices=("native-only", "native_only", "hybrid", "paired"),
+        choices=("native-only", "native_only", "paired"),
         default="native-only",
         help=(
-            "native-only runs without a visual backend; hybrid requires a real "
-            "configured PaddleOCR-VL service; paired emits both passes in one report"
+            "native-only runs without a visual backend; paired emits native and real "
+            "visual-backed passes in one report"
         ),
     )
     args = parser.parse_args()
     mode = args.mode.replace("_", "-")
     if mode == "native-only":
         report = run_native_only()
-    elif mode == "hybrid":
-        report = run_hybrid()
     else:
         report = run_paired()
     content = report.model_dump_json(indent=2) + "\n"

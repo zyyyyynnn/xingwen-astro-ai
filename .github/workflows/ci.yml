@@ -240,7 +240,7 @@ jobs:
           --include BenchmarkReport
           --check
 
-      - name: Run scientific document native baseline benchmark (benchmark dependency group)
+      - name: Run scientific document native benchmark (benchmark dependency group)
         working-directory: .
         env:
           UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/apps/api/.venv
@@ -251,7 +251,6 @@ jobs:
           && uv run --project apps/api python -m services.scientific_document.benchmark_runner
           --output .artifacts/scientific_document-native-benchmark-report.json
           && uv run --project apps/api python scripts/check_scientific_document_benchmark_report.py .artifacts/scientific_document-native-benchmark-report.json
-          && uv run --project apps/api python scripts/check_scientific_document_benchmark_report.py services/scientific_document/evidence/real-paddle-cpu-hybrid.json --require-local-bundle
           && uv run --project apps/api python scripts/check_scientific_document_benchmark_report.py services/scientific_document/evidence/real-paddle-cpu-paired.json --require-local-bundle
 
       - name: Check scientific data integration benchmark contracts

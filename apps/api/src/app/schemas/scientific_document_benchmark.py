@@ -32,6 +32,10 @@ class BenchmarkDataType(StrEnum):
 class BenchmarkParserMode(StrEnum):
     native_only = "native_only"
     hybrid = "hybrid"
+
+
+class BenchmarkReportMode(StrEnum):
+    native_only = "native_only"
     paired = "paired"
 
 
@@ -292,7 +296,7 @@ class BenchmarkReport(BaseModel):
 
     report_id: Identifier
     schema_version: Annotated[str, Field(pattern=r"^[1-9]\d*\.\d+\.\d+$")]
-    parser_mode: BenchmarkParserMode
+    parser_mode: BenchmarkReportMode
     golden_set_manifest_id: Identifier
     golden_set_version: str
     golden_set_content_hash: ContentHash
@@ -335,7 +339,7 @@ class BenchmarkReport(BaseModel):
             self.visual_runtime_binding_hash,
         )
         case_modes = {case.parser_mode for case in self.cases}
-        if self.parser_mode == BenchmarkParserMode.native_only:
+        if self.parser_mode == BenchmarkReportMode.native_only:
             if case_modes - {BenchmarkParserMode.native_only}:
                 raise ValueError("native_only report must contain only native_only cases")
             if any(field is not None for field in visual_fields):
@@ -343,17 +347,13 @@ class BenchmarkReport(BaseModel):
                     "native_only report must not claim visual provenance"
                 )
             return self
-        # hybrid and paired reports describe a real visual execution; a missing
-        # provenance field would make the run unfalsifiable.
+        # Paired reports describe a real visual execution; a missing provenance
+        # field would make the run unfalsifiable.
         if any(field is None for field in visual_fields):
             raise ValueError(
-                f"{self.parser_mode.value} report requires complete visual "
+                "paired report requires complete visual "
                 "provenance (engine, engine version, model id, model revision)"
             )
-        if self.parser_mode == BenchmarkParserMode.hybrid:
-            if case_modes - {BenchmarkParserMode.hybrid}:
-                raise ValueError("hybrid report must contain only hybrid cases")
-            return self
         if case_modes != {
             BenchmarkParserMode.native_only,
             BenchmarkParserMode.hybrid,
@@ -415,6 +415,7 @@ def compute_benchmark_report_hash(report: BenchmarkReport) -> str:
 __all__ = [
     "BenchmarkDataType",
     "BenchmarkParserMode",
+    "BenchmarkReportMode",
     "BenchmarkMetricStatus",
     "GoldenExpectedAnnotation",
     "GoldenSetEntry",

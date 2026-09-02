@@ -615,7 +615,6 @@ def build_document_summary_input_identity(
                 input_content_hash=document_parse.content_hash,
                 canonical_output_hash=document_parse.canonical_output_hash,
                 parser_profile_id=document_parse.profile.parser_profile_id,
-                parser_profile_version=document_parse.profile.parser_profile_version,
                 config_hash=document_parse.config_hash,
             ),
         ),

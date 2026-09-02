@@ -182,6 +182,7 @@ def _configure_database_runtime(
     app.state.document_parser = HybridScientificDocumentParser(
         visual_parser=build_visual_parser(settings),
         max_pages=settings.DOCUMENT_PARSE_MAX_PAGES,
+        max_visual_pages=settings.DOCUMENT_PARSE_MAX_VISUAL_PAGES,
     )
 
     def _resolve_planner() -> ResearchContractPlanner:

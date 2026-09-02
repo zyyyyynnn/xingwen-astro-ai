@@ -117,13 +117,13 @@ def test_native_report_stable_and_passes_checker(tmp_path: Path) -> None:
 
 
 @pytest.mark.scientific_document_native
-def test_hybrid_refuses_to_start_without_configured_backend(
+def test_paired_refuses_to_start_without_configured_backend(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from app.config import settings
     from services.scientific_document.benchmark_runner import (
         require_visual_parser,
-        run_hybrid,
+        run_paired,
     )
 
     monkeypatch.setattr(settings, "PADDLEOCR_VL_BASE_URL", None, raising=False)
@@ -132,7 +132,7 @@ def test_hybrid_refuses_to_start_without_configured_backend(
     with pytest.raises(RuntimeError, match="visual backend"):
         require_visual_parser()
     with pytest.raises(RuntimeError, match="visual backend"):
-        run_hybrid()
+        run_paired()
 
 
 def _paired_report_with_stub() -> object:
@@ -296,72 +296,33 @@ def test_missing_memory_measurement_is_not_reported_as_zero() -> None:
     assert metrics["peak_memory"].rate is None
 
 
-def test_checker_rejects_unproven_hybrid_latency(tmp_path: Path) -> None:
+def test_checker_rejects_paired_without_measured_hybrid_latency(tmp_path: Path) -> None:
     from app.schemas.scientific_document_benchmark import (
-        BenchmarkCaseResult,
-        BenchmarkMetricValue,
         BenchmarkParserMode,
-        BenchmarkReport,
         compute_benchmark_report_hash,
     )
 
-    case = BenchmarkCaseResult(
-        entry_id="gs-x",
-        parser_mode=BenchmarkParserMode.hybrid,
-        document_parse_id="parse_x",
-        overall_quality="accepted",
-        latency_seconds=None,
-        input_hash="sha256:" + "a" * 64,
-        output_hash="sha256:" + "b" * 64,
+    report = _paired_report_with_stub()
+    cases = tuple(
+        case.model_copy(update={"latency_seconds": None})
+        if case.parser_mode == BenchmarkParserMode.hybrid
+        else case
+        for case in report.cases
     )
-
-    def metric(name: str) -> BenchmarkMetricValue:
-        return BenchmarkMetricValue(
-            name=name,
-            status="measured",
-            numerator=1,
-            denominator=1,
-            rate=1.0,
-            version="1.2.0",
-        )
-
-    report = BenchmarkReport(
-        report_id="r-hybrid",
-        schema_version="1.2.0",
-        parser_mode=BenchmarkParserMode.hybrid,
-        golden_set_manifest_id="m",
-        golden_set_version="1.0.0",
-        golden_set_content_hash="sha256:" + "c" * 64,
-        expected_annotation_hash="sha256:" + "d" * 64,
-        native_engine="docling-parse==7.11.0",
-        native_engine_version="7.11.0",
-        visual_engine="PaddleOCR-VL layout-parsing service",
-        visual_engine_version="1.6",
-        visual_model_id="PaddleOCR-VL-1.6-0.9B",
-        visual_model_revision="stub-0",
-        visual_runtime_binding_hash="sha256:" + "f" * 64,
-        config_hash="sha256:" + "e" * 64,
-        metrics=(
-            metric("accepted_rate"),
-            metric("latency"),
-            metric("visual_routing_coverage"),
-        ),
-        cases=(case,),
-        input_hash="sha256:" + "f" * 64,
-        output_hash="sha256:" + "0" * 64,
-        created_at="2026-08-25T00:00:00Z",
+    report = report.model_copy(
+        update={"cases": cases, "output_hash": "sha256:" + "0" * 64}
     )
     report = report.model_copy(
         update={"output_hash": compute_benchmark_report_hash(report)}
     )
-    path = tmp_path / "unproven-hybrid.json"
+    path = tmp_path / "paired-without-hybrid-latency.json"
     path.write_text(report.model_dump_json(), encoding="utf-8")
     result = _run_checker(path)
     assert result.returncode == 1
     assert "latency-measured" in result.stderr
 
 
-def test_checker_rejects_hybrid_without_successful_visual_routing(
+def test_checker_rejects_paired_without_successful_visual_routing(
     tmp_path: Path,
 ) -> None:
     from app.schemas.scientific_document_benchmark import (
@@ -860,22 +821,17 @@ def test_official_html_table_rejects_unbounded_span_before_projection() -> None:
         )
 
 
-@pytest.mark.parametrize(
-    "report_name,expected_mode",
-    (
-        ("real-paddle-cpu-hybrid.json", "hybrid"),
-        ("real-paddle-cpu-paired.json", "paired"),
-    ),
-)
 def test_committed_real_paddle_machine_evidence_passes_checker(
-    report_name: str,
-    expected_mode: str,
 ) -> None:
-    report_path = ROOT / "services/scientific_document/evidence" / report_name
+    report_path = (
+        ROOT
+        / "services/scientific_document/evidence"
+        / "real-paddle-cpu-paired.json"
+    )
     assert report_path.is_file(), f"missing exact-head machine evidence: {report_path}"
 
     payload = json.loads(report_path.read_text(encoding="utf-8"))
-    assert payload["parser_mode"] == expected_mode
+    assert payload["parser_mode"] == "paired"
     assert payload["golden_set_manifest_id"] == "scientific_document-golden-set"
     assert payload["visual_model_id"] == "PaddleOCR-VL-1.6-0.9B"
     assert payload["visual_model_revision"]

@@ -81,7 +81,6 @@ def _parse_candidate(block_count: int) -> DocumentParseCandidate:
         content_hash=_CONTENT_HASH,
         profile=DocumentParseProfile(
             parser_profile_id="chunked-summary-profile",
-            parser_profile_version="1.0.0",
             native_backend="native-engine==1.0.0",
             routing_policy_id="native-only",
             resource_policy_id="cpu-capable",

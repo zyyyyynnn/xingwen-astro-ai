@@ -206,7 +206,6 @@ def _parse(
         content_hash=INPUT_CONTENT_HASH,
         profile=DocumentParseProfile(
             parser_profile_id="native-default",
-            parser_profile_version="1.0.0",
             native_backend="docling-parse",
             routing_policy_id="native-only",
             resource_policy_id="cpu",
@@ -2294,7 +2293,6 @@ def test_postgres_document_provenance_closes_on_persisted_snapshot(
                 payload_semantic_hash=stored_row.payload_semantic_hash,
                 payload_storage_ref=stored_row.payload_storage_ref,
                 parser_profile_id=stored_row.parser_profile_id,
-                parser_profile_version=stored_row.parser_profile_version,
                 native_engine=stored_row.native_engine,
                 native_engine_version=stored_row.native_engine_version,
                 visual_engine=stored_row.visual_engine,

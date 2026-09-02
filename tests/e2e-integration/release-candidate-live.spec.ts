@@ -817,8 +817,10 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
     fullscreen,
     "使用刚关联的完整开放论文重新生成摘要、论点和关系，保留页码、段落定位和证据限制；不得把元数据推断当成全文结论。",
   );
-  // Full-text revisions include page-wise visual inference before model synthesis.
-  const documentRun = await waitForRun(page, documentRunId, 60 * 60_000);
+  // Full-text revisions use the production native-first parser. Visual
+  // inference is selective and bounded when the native text layer is
+  // insufficient; a healthy RC must finish within the normal Run budget.
+  const documentRun = await waitForRun(page, documentRunId);
   const documentRuntime = await readReleaseRuntime(documentRunId);
   expect(documentRun).toMatchObject({
     execution_mode: "live",

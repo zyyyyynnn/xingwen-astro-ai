@@ -1795,7 +1795,6 @@ def test_document_parse_backed_summary_revision_preserves_provenance_and_recompu
         )
         profile = DocumentParseProfile(
             parser_profile_id="native-default",
-            parser_profile_version="1.0.0",
             native_backend="pymupdf",
             visual_backend=None,
             routing_policy_id="native-default",
@@ -1832,7 +1831,6 @@ def test_document_parse_backed_summary_revision_preserves_provenance_and_recompu
         def profile(self) -> DocumentParseProfile:
             return DocumentParseProfile(
                 parser_profile_id="native-default",
-                parser_profile_version="1.0.0",
                 native_backend="pymupdf",
                 visual_backend=None,
                 routing_policy_id="native-default",

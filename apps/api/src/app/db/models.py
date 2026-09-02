@@ -2069,7 +2069,6 @@ class DocumentParseModel(Base):
     payload_semantic_hash: Mapped[str] = mapped_column(String(71), nullable=False)
     payload_storage_ref: Mapped[str] = mapped_column(String(160), nullable=False)
     parser_profile_id: Mapped[str] = mapped_column(String(256), nullable=False)
-    parser_profile_version: Mapped[str] = mapped_column(String(128), nullable=False)
     native_engine: Mapped[str] = mapped_column(String(256), nullable=False)
     native_engine_version: Mapped[str] = mapped_column(String(128), nullable=False)
     visual_engine: Mapped[str | None] = mapped_column(String(256))

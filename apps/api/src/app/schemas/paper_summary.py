@@ -264,7 +264,6 @@ class PaperSummaryDocumentParseReference(BaseModel):
     input_content_hash: ContentHash
     canonical_output_hash: ContentHash
     parser_profile_id: Identifier
-    parser_profile_version: SemanticVersion
     config_hash: ContentHash
 
 

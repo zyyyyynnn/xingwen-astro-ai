@@ -42,9 +42,8 @@ from app.schemas.scientific_document import (
 
 _NATIVE_PACKAGE = "docling-parse"
 _PARSER_PROFILE_ID = "scientific-document-hybrid"
-_PARSER_PROFILE_VERSION = "1.3.0"
 _ROUTING_POLICY_ID = "native-first-page-hybrid"
-_RESOURCE_POLICY_ID = "bounded-document-pages"
+_RESOURCE_POLICY_ID = "bounded-document-and-visual-pages"
 _VISUAL_ENGINE = "PaddleOCR-VL layout-parsing service"
 LOCAL_PADDLE_ENGINE_IDENTITY = (
     "PaddleOCRVL official in-process pipeline (verified local bundle)"
@@ -60,6 +59,15 @@ _MAX_TABLE_ROWS = 512
 _MAX_TABLE_COLUMNS = 256
 _MAX_TABLE_LOGICAL_CELLS = 65_536
 _MAX_VISUAL_GENERATION_TOKENS = 4096
+# Dense native text is sufficient even when a page contains decorative/vector
+# resources; only genuinely sparse structured pages remain eligible for visual
+# recovery. The threshold is deliberately independent from the native-text
+# minimum because these are different admission decisions.
+_DEFAULT_VISUAL_STRUCTURE_NATIVE_CHARACTER_CEILING = 256
+# Real local visual inference is minutes-per-page on CPU. Two pages still cover
+# cross-page scientific tables while bounding worst-case latency for long
+# scanned or graphics-heavy documents; remaining pages stay explicit partial.
+_DEFAULT_MAX_VISUAL_PAGES = 2
 _BLOCK_ATTRIBUTE_NAMES = {
     "block_label": "label",
     "block_content": "content",
@@ -197,22 +205,40 @@ class HybridScientificDocumentParser:
         *,
         visual_parser: VisualPageParserPort | None = None,
         min_native_characters: int = 80,
+        visual_structure_native_character_ceiling: int = (
+            _DEFAULT_VISUAL_STRUCTURE_NATIVE_CHARACTER_CEILING
+        ),
         max_pages: int = 200,
+        max_visual_pages: int = _DEFAULT_MAX_VISUAL_PAGES,
     ) -> None:
-        if min_native_characters < 1 or max_pages < 1:
+        if (
+            min_native_characters < 1
+            or max_pages < 1
+            or max_visual_pages < 1
+        ):
             raise ValueError("document parser limits must be positive")
+        if visual_structure_native_character_ceiling < min_native_characters:
+            raise ValueError(
+                "visual structure native character ceiling must not be below the native minimum"
+            )
         self._visual = visual_parser
         self._min_native_characters = min_native_characters
+        self._visual_structure_native_character_ceiling = (
+            visual_structure_native_character_ceiling
+        )
         self._max_pages = max_pages
+        self._max_visual_pages = max_visual_pages
 
     @property
     def profile(self) -> DocumentParseProfile:
         native_version = version(_NATIVE_PACKAGE)
         configuration = {
-            "profile_version": _PARSER_PROFILE_VERSION,
             "native_engine": f"{_NATIVE_PACKAGE}=={native_version}",
             "visual_engine": (
                 self._visual.engine_identity if self._visual is not None else None
+            ),
+            "visual_engine_version": (
+                self._visual.engine_version if self._visual is not None else None
             ),
             "visual_model_id": self._visual.model_id if self._visual else None,
             "visual_model_revision": (
@@ -222,12 +248,15 @@ class HybridScientificDocumentParser:
                 self._visual.runtime_binding_hash if self._visual else None
             ),
             "min_native_characters": self._min_native_characters,
+            "visual_structure_native_character_ceiling": (
+                self._visual_structure_native_character_ceiling
+            ),
             "max_pages": self._max_pages,
+            "max_visual_pages": self._max_visual_pages,
             "max_document_bytes": _MAX_DOCUMENT_BYTES,
         }
         return DocumentParseProfile(
             parser_profile_id=_PARSER_PROFILE_ID,
-            parser_profile_version=_PARSER_PROFILE_VERSION,
             native_backend=configuration["native_engine"],
             visual_backend=configuration["visual_engine"],
             routing_policy_id=_ROUTING_POLICY_ID,
@@ -453,6 +482,7 @@ class HybridScientificDocumentParser:
         formulas: list[DocumentFormula] = []
         figures: list[DocumentFigure] = []
         unresolved_pages = 0
+        visual_pages_attempted = 0
         for page_count, (page_number, page) in enumerate(
             document.iterate_pages(), start=1
         ):
@@ -474,19 +504,27 @@ class HybridScientificDocumentParser:
                 text_unit=text_unit,
             )
             native_characters = sum(len(block.text or "") for block in native)
-            needs_visual = (
-                native_characters < self._min_native_characters
-                or len(page.bitmap_resources) > 0
-                or len(page.shapes) > 0
+            needs_visual = _should_route_native_page_to_visual(
+                native_characters=native_characters,
+                has_bitmap_resources=bool(page.bitmap_resources),
+                has_vector_shapes=bool(page.shapes),
+                min_native_characters=self._min_native_characters,
+                visual_structure_native_character_ceiling=(
+                    self._visual_structure_native_character_ceiling
+                ),
             )
             page_blocks = native
             page_tables: tuple[DocumentTable, ...] = ()
             page_formulas: tuple[DocumentFormula, ...] = ()
             page_figures: tuple[DocumentFigure, ...] = ()
             if needs_visual:
-                if self._visual is None:
+                if (
+                    self._visual is None
+                    or visual_pages_attempted >= self._max_visual_pages
+                ):
                     unresolved_pages += 1
                 else:
+                    visual_pages_attempted += 1
                     try:
                         image_bytes = _render_page_png(page, text_unit)
                         visual = admit_visual_page_result(
@@ -523,6 +561,29 @@ class HybridScientificDocumentParser:
                 )
             )
         return pages, blocks, tables, formulas, figures, unresolved_pages
+
+
+def _should_route_native_page_to_visual(
+    *,
+    native_characters: int,
+    has_bitmap_resources: bool,
+    has_vector_shapes: bool,
+    min_native_characters: int,
+    visual_structure_native_character_ceiling: int,
+) -> bool:
+    """Route visual inference only when it closes a native-content gap.
+
+    Bitmap/vector presence by itself is not evidence that a born-digital text
+    layer is unusable.  Structured pages get visual treatment only while the
+    native text remains sparse enough that the visual structure can materially
+    recover missing scientific content.
+    """
+
+    if native_characters < min_native_characters:
+        return True
+    if not (has_bitmap_resources or has_vector_shapes):
+        return False
+    return native_characters < visual_structure_native_character_ceiling
 
 
 def _native_page_blocks(

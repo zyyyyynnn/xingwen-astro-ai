@@ -126,6 +126,7 @@ class Settings(BaseSettings):
     PADDLEOCR_VL_LOCAL_BUNDLE: str | None = None
     PADDLEOCR_VL_TIMEOUT_SECONDS: float = Field(default=60.0, gt=0)
     DOCUMENT_PARSE_MAX_PAGES: int = Field(default=200, gt=0, le=1000)
+    DOCUMENT_PARSE_MAX_VISUAL_PAGES: int = Field(default=2, gt=0, le=1000)
 
     # URL fetch is part of Research Input ingestion. Defaults are fail-closed:
     # HTTPS only and no external host until an allowlist is configured.
@@ -235,6 +236,11 @@ class Settings(BaseSettings):
             )
         if paddle_url and not paddle_url.startswith(("http://", "https://")):
             raise ValueError("PADDLEOCR_VL_BASE_URL must use HTTP or HTTPS")
+        if self.DOCUMENT_PARSE_MAX_VISUAL_PAGES > self.DOCUMENT_PARSE_MAX_PAGES:
+            raise ValueError(
+                "DOCUMENT_PARSE_MAX_VISUAL_PAGES must not exceed "
+                "DOCUMENT_PARSE_MAX_PAGES"
+            )
         if self.URL_FETCH_MAX_RESPONSE_BYTES > self.RESEARCH_INPUT_MAX_SIZE_BYTES:
             raise ValueError(
                 "URL_FETCH_MAX_RESPONSE_BYTES must not exceed RESEARCH_INPUT_MAX_SIZE_BYTES"

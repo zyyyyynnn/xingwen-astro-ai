@@ -4257,7 +4257,6 @@ export interface PaperSummaryDocumentParseReference {
   document_parse_id: string;
   input_content_hash: string;
   parser_profile_id: string;
-  parser_profile_version: string;
   research_input_id: string;
   source_snapshot_id: string;
 }
