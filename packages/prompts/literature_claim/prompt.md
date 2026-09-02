@@ -1,6 +1,6 @@
 ---
 name: literature_claim
-version: 1.2.0
+version: 1.2.1
 output_model: LiteratureClaimExtractionOutput
 input_schema_version: 1.0.0
 output_schema_version: 1.0.0
@@ -58,8 +58,4 @@ PaperSummary ArtifactVersion identity，以及当前有界批次中的 Summary s
 自身的 `evidence_ids`；Evidence 对象与 SourceSnapshot 由确定性准入服务在完整
 PaperSummary Authority 中解析。不要生成 Relation、ReasoningTrace 或 Graph。
 
-输入中存在 `validation_feedback` 时：表示上一次输出违反了 `code` 指出的批次约束。
-必须覆盖 `required_statement_ids` 中的每一条 statement，每条 statement 产出 1–4 条
-Claim，`evidence_ids` 只能来自 source statement 自身，并优先修正
-`affected_statement_ids`；`concise_output` 为 true 时只输出必要字段，不展开任何
-解释性内容。
+输入中存在 `validation_feedback` 时：表示上一次输出违反了 `code` 指出的批次约束，必须优先按该反馈修正。存在 `schema_issues` 时，严格依据其中的字段路径（`loc`）、错误类型（`type`）与安全错误说明（`message`）修正 JSON 结构；必须覆盖 `required_statement_ids` 中的每一条 statement，每条 statement 产出 1–4 条 Claim，`evidence_ids` 只能来自 source statement 自身，并优先修正 `affected_statement_ids`；`concise_output` 为 true 时只输出必要字段，不展开任何解释性内容。

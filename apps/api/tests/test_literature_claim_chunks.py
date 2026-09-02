@@ -14,6 +14,7 @@ from app.schemas.paper_summary import (
 )
 from app.services.literature_claim_chunks import (
     CLAIM_CHUNK_BUDGET_EXCEEDED,
+    CLAIM_CHUNK_SCHEMA_INVALID,
     ClaimChunkViolation,
     ChunkedLiteratureClaimService,
 )
@@ -133,7 +134,7 @@ _EXECUTE_KWARGS = {
     "provider": "test-provider",
     "model": "test-model",
     "model_revision": "test-model-revision",
-    "parameters": {"temperature": 0.6, "top_p": 0.8, "max_tokens": 8192},
+    "parameters": {"temperature": 0.6, "top_p": 0.8},
 }
 
 
@@ -361,10 +362,77 @@ def test_split_recovery_counts_a_child_contract_correction() -> None:
     assert result.latency_ms == 85
 
 
+class _SchemaViolatingClaimModel:
+    """Emits an invalid claim structure on first call, then valid on correction."""
+
+    def __init__(self) -> None:
+        self.requests: list[ModelExecutionRequest] = []
+
+    def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
+        self.requests.append(request)
+        artifact = request.input_payload["paper_summary_artifact"]
+        statements = artifact["statements"]
+        if len(self.requests) == 1:
+            # Emit invalid schema: missing required fields in candidate
+            payload = {
+                "schema_version": "1.0.0",
+                "claims": [
+                    {
+                        "source_statement_id": statements[0]["statement_id"],
+                        "text": "Invalid polarity claim",
+                        "normalized_text": "invalid polarity claim",
+                        "claim_type": "finding",
+                        "polarity": "not_a_valid_polarity",
+                        "objects": ["object"],
+                        "evidence_ids": statements[0]["evidence_ids"],
+                    }
+                ],
+            }
+            return _response(payload, len(self.requests))
+        payload = {
+            "schema_version": "1.0.0",
+            "claims": [_claim_payload(statement) for statement in statements],
+        }
+        return _response(payload, len(self.requests))
+
+
+def test_claim_schema_invalid_correction_provides_sanitized_schema_issues() -> None:
+    model = _SchemaViolatingClaimModel()
+
+    result = ChunkedLiteratureClaimService(model).execute(
+        summary=_summary(2), **_EXECUTE_KWARGS
+    )
+
+    assert result.correction_count == 1
+    assert result.split_count == 0
+    assert len(result.extraction.claims) == 2
+    assert len(model.requests) == 2
+    assert "validation_feedback" in model.requests[1].input_payload
+    feedback = model.requests[1].input_payload["validation_feedback"]
+    assert feedback["code"] == CLAIM_CHUNK_SCHEMA_INVALID
+    assert feedback["max_claims_per_statement"] == 4
+    assert feedback["required_statement_ids"] == ["statement.000", "statement.001"]
+    assert "schema_issues" in feedback
+    issues = feedback["schema_issues"]
+    assert len(issues) >= 1
+    assert len(issues) <= 12
+    for issue in issues:
+        assert set(issue.keys()) == {"loc", "type", "message"}
+        assert isinstance(issue["loc"], list)
+        assert isinstance(issue["type"], str)
+        assert isinstance(issue["message"], str)
+        # Ensure schema issues exclude input, raw payload, and URLs
+        assert "input" not in issue
+        assert "url" not in issue
+        assert "payload" not in issue
+        assert "raw" not in issue
+
+
 def test_literature_claim_prompt_declares_claim_budget() -> None:
     prompt = PromptRegistry().get("literature_claim")
 
-    assert prompt.version == "1.2.0"
+    assert prompt.version == "1.2.1"
     assert "1–4 条 Claim" in prompt.content
     assert "不得超过 4 条" in prompt.content
     assert "validation_feedback" in prompt.content
+    assert "schema_issues" in prompt.content

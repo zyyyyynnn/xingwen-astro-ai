@@ -206,6 +206,8 @@ class OpenAICompatibleModelExecutionAdapter:
     def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
         if not self._api_key:
             raise ModelRuntimeUnavailable()
+        if self._qwen_thinking_control:
+            self._validate_qwen_request(request)
 
         client = cast(OpenAI, self._client)
         started = monotonic()
@@ -372,6 +374,19 @@ class OpenAICompatibleModelExecutionAdapter:
             provider_returned_model=raw.model,
             tool_calls=tool_calls,
         )
+
+    @staticmethod
+    def _validate_qwen_request(request: ModelExecutionRequest) -> None:
+        if request.response_schema is not None:
+            if request.enable_thinking:
+                raise ValueError(
+                    "Qwen structured output with response_schema requires enable_thinking=False"
+                )
+            for forbidden in ("max_tokens", "max_completion_tokens"):
+                if forbidden in request.parameters:
+                    raise ValueError(
+                        f"Qwen structured output with response_schema must not specify parameter '{forbidden}'"
+                    )
 
 
 class QwenModelExecutionAdapter(OpenAICompatibleModelExecutionAdapter):

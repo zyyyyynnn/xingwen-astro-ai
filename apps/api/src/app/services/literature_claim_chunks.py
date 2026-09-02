@@ -52,6 +52,9 @@ CLAIM_CHUNK_STATEMENT_UNCOVERED = "CLAIM_CHUNK_STATEMENT_UNCOVERED"
 CLAIM_CHUNK_TRUNCATED = "CLAIM_CHUNK_TRUNCATED"
 
 _MODEL_RESPONSE_TRUNCATED = "MODEL_RESPONSE_TRUNCATED"
+_MAX_SCHEMA_FEEDBACK_ISSUES = 12
+_MAX_SCHEMA_FEEDBACK_TYPE_CHARACTERS = 128
+_MAX_SCHEMA_FEEDBACK_MESSAGE_CHARACTERS = 256
 
 
 class ClaimChunkViolation(ValueError):
@@ -63,6 +66,7 @@ class ClaimChunkViolation(ValueError):
         code: str,
         chunk_id: str,
         affected_statement_ids: tuple[str, ...] = (),
+        schema_issues: tuple[dict[str, Any], ...] = (),
         model_response: ModelExecutionResponse | None = None,
         message: str,
     ) -> None:
@@ -70,6 +74,7 @@ class ClaimChunkViolation(ValueError):
         self.code = code
         self.chunk_id = chunk_id
         self.affected_statement_ids = affected_statement_ids
+        self.schema_issues = schema_issues
         self.model_response = model_response
 
 
@@ -330,6 +335,7 @@ def _execute_chunk_with_bounded_recovery(
                     chunk=chunk,
                     code=violation.code,
                     affected_statement_ids=violation.affected_statement_ids,
+                    schema_issues=violation.schema_issues,
                 ),
             )
         except ClaimChunkViolation as correction_violation:
@@ -428,6 +434,7 @@ def _recover_truncated_chunk(
                         chunk=half,
                         code=violation.code,
                         affected_statement_ids=violation.affected_statement_ids,
+                        schema_issues=violation.schema_issues,
                     ),
                 )
             except ClaimChunkViolation as correction_violation:
@@ -490,6 +497,7 @@ def _chunk_call(
         raise ClaimChunkViolation(
             code=CLAIM_CHUNK_SCHEMA_INVALID,
             chunk_id=chunk.chunk_id,
+            schema_issues=_schema_validation_issues(exc),
             model_response=response,
             message=f"{chunk.chunk_id} model output did not match the Claim schema",
         ) from exc
@@ -500,10 +508,37 @@ def _chunk_call(
             code=exc.code,
             chunk_id=exc.chunk_id,
             affected_statement_ids=exc.affected_statement_ids,
+            schema_issues=exc.schema_issues,
             model_response=response,
             message=str(exc),
         ) from exc
     return response, extraction
+
+
+def _schema_validation_issues(
+    error: ValidationError,
+) -> tuple[dict[str, Any], ...]:
+    """Project bounded, actionable schema diagnostics without model input/output."""
+
+    issues: list[dict[str, Any]] = []
+    for item in error.errors(include_input=False, include_url=False)[
+        :_MAX_SCHEMA_FEEDBACK_ISSUES
+    ]:
+        issues.append(
+            {
+                "loc": [
+                    part if isinstance(part, (str, int)) else str(part)
+                    for part in item.get("loc", ())
+                ],
+                "type": str(item.get("type", "validation_error"))[
+                    :_MAX_SCHEMA_FEEDBACK_TYPE_CHARACTERS
+                ],
+                "message": str(item.get("msg", "invalid value"))[
+                    :_MAX_SCHEMA_FEEDBACK_MESSAGE_CHARACTERS
+                ],
+            }
+        )
+    return tuple(issues)
 
 
 def _chunk_payload(
@@ -527,6 +562,7 @@ def _validation_feedback_payload(
     chunk: ClaimExtractionChunk,
     code: str,
     affected_statement_ids: Iterable[str],
+    schema_issues: tuple[dict[str, Any], ...] = (),
     concise: bool = False,
 ) -> dict[str, Any]:
     payload = dict(base_payload)
@@ -538,6 +574,8 @@ def _validation_feedback_payload(
         "affected_statement_ids": list(affected_statement_ids),
         "max_claims_per_statement": MAX_CLAIMS_PER_STATEMENT,
     }
+    if schema_issues:
+        feedback["schema_issues"] = list(schema_issues)
     if concise:
         feedback["concise_output"] = True
     payload["validation_feedback"] = feedback

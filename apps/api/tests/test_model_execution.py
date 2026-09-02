@@ -210,6 +210,64 @@ def test_qwen_adapter_uses_strict_json_schema_when_requested() -> None:
     }
 
 
+def test_qwen_adapter_fails_closed_when_strict_schema_has_enable_thinking_true() -> None:
+    client = FakeClient(successful_response())
+    adapter = QwenModelExecutionAdapter(
+        api_key="test-secret",
+        base_url="https://dashscope.example/v1",
+        timeout_seconds=3,
+        client=cast(OpenAI, client),
+    )
+    schema = {
+        "type": "object",
+        "properties": {"outcome": {"type": "string"}},
+        "required": ["outcome"],
+        "additionalProperties": False,
+    }
+    invalid = replace(
+        request(),
+        response_schema_name="planner_outcome",
+        response_schema=schema,
+        enable_thinking=True,
+    )
+
+    with pytest.raises(ValueError, match="enable_thinking=False"):
+        adapter.execute(invalid)
+
+    assert len(client.calls) == 0
+
+
+@pytest.mark.parametrize("forbidden_key", ["max_tokens", "max_completion_tokens"])
+def test_qwen_adapter_fails_closed_when_structured_request_specifies_max_tokens(
+    forbidden_key: str,
+) -> None:
+    client = FakeClient(successful_response())
+    adapter = QwenModelExecutionAdapter(
+        api_key="test-secret",
+        base_url="https://dashscope.example/v1",
+        timeout_seconds=3,
+        client=cast(OpenAI, client),
+    )
+    schema = {
+        "type": "object",
+        "properties": {"outcome": {"type": "string"}},
+        "required": ["outcome"],
+        "additionalProperties": False,
+    }
+    invalid = replace(
+        request(),
+        response_schema_name="planner_outcome",
+        response_schema=schema,
+        enable_thinking=False,
+        parameters={"temperature": 0.6, forbidden_key: 8192},
+    )
+
+    with pytest.raises(ValueError, match=forbidden_key):
+        adapter.execute(invalid)
+
+    assert len(client.calls) == 0
+
+
 def test_model_request_requires_complete_json_schema_contract() -> None:
     with pytest.raises(ValueError, match="must be provided together"):
         replace(request(), response_schema_name="planner_outcome")
