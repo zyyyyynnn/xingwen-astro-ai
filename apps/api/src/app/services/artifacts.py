@@ -333,7 +333,10 @@ class ArtifactReadService:
                 created_at=_utc(row.created_at),
                 producer_execution=_producer_execution(producer),
                 source_snapshots=tuple(_source_snapshot(item) for item in snapshots),
-                evidence=tuple(_evidence(item) for item in evidence),
+                evidence=tuple(
+                    _evidence(item, max_items=None if full_content else 500)
+                    for item in evidence
+                ),
                 quality_projection=row.quality_projection,
                 quality_projection_hash=row.quality_projection_hash,
             )
@@ -651,7 +654,9 @@ def _source_snapshot(row: SourceSnapshotModel) -> SourceSnapshotDetail:
     )
 
 
-def _evidence(row: EvidenceModel) -> EvidenceDetail:
+def _evidence(
+    row: EvidenceModel, *, max_items: int | None = 500
+) -> EvidenceDetail:
     quote = None if row.is_restricted else _safe_quote(row.quote_or_value)
     return EvidenceDetail(
         id=str(row.id),
@@ -661,7 +666,11 @@ def _evidence(row: EvidenceModel) -> EvidenceDetail:
         evidence_type=row.evidence_type,
         source_snapshot_id=str(row.source_snapshot_id),
         paper_id=row.paper_id,
-        locator=_sanitize_object(row.locator, max_string=512),
+        locator=_sanitize_object(
+            row.locator,
+            max_string=512,
+            max_items=max_items,
+        ),
         quote_or_value=quote,
         extraction_method=row.extraction_method,
         confidence=row.confidence,

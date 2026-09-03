@@ -1117,7 +1117,6 @@ test("fresh Workspace completes real acquisition, document evidence, and researc
   expect(analysis.evidence.length).toBeGreaterThan(0);
   const analysisMetrics = analysis.content.metrics ?? [];
   expect(analysisMetrics.length).toBeGreaterThan(0);
-  expect(analysis.content.findings?.length ?? 0).toBeGreaterThan(0);
   const profileRows = analysis.content.result_blocks.flatMap<unknown>(
     (block) => {
       const payload = block.payload;

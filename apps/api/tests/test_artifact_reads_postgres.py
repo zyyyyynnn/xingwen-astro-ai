@@ -278,6 +278,9 @@ def read_context(postgres_engine: Engine) -> dict[str, object]:
             source_snapshot_id=snapshot.id,
             locator={
                 "row_key": "TOI-700-d",
+                "upstream_evidence_ids": [
+                    f"upstream-{index}" for index in range(501)
+                ],
                 "cookie": "must-not-leak",
                 "notes": "auth_header=embedded-locator-secret",
             },
@@ -332,6 +335,7 @@ def read_context(postgres_engine: Engine) -> dict[str, object]:
         "app": app,
         "factory": factory,
         "ids": ids,
+        "owner_session_id": owner.id,
         "owner": client(owner_credential),
         "other": client(other_credential),
         "anonymous": client(None),
@@ -376,6 +380,36 @@ def test_http_reads_complete_provenance_and_redact_sensitive_fields(
     assert evidence.status_code == source.status_code == artifact.status_code == 200
     assert evidence.json()["data"]["source_snapshot"]["id"] == str(ids["snapshot"])
     assert artifact.json()["data"]["versions"][0]["id"] == str(ids["version_1"])
+
+
+def test_full_content_keeps_complete_evidence_locator(
+    read_context: dict[str, object],
+) -> None:
+    ids = read_context["ids"]
+    factory = read_context["factory"]
+    owner_session_id = read_context["owner_session_id"]
+    assert isinstance(ids, dict)
+    assert callable(factory)
+    assert isinstance(owner_session_id, str)
+
+    service = ArtifactReadService(factory)
+    bounded = service.get_version(
+        version_id=str(ids["version_1"]),
+        session_id=owner_session_id,
+    )
+    complete = service.get_version(
+        version_id=str(ids["version_1"]),
+        session_id=owner_session_id,
+        full_content=True,
+    )
+    standalone = service.get_evidence(
+        evidence_id=str(ids["evidence"]),
+        session_id=owner_session_id,
+    )
+
+    assert len(bounded.evidence[0].locator["upstream_evidence_ids"]) == 500
+    assert len(standalone.locator["upstream_evidence_ids"]) == 500
+    assert len(complete.evidence[0].locator["upstream_evidence_ids"]) == 501
 
 
 def test_cursor_is_stable_scoped_and_bounded(
