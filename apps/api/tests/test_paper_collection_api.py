@@ -346,7 +346,9 @@ class _Artifacts:
     def __init__(self, collection: PaperCollection) -> None:
         self.collection = collection
 
-    def get_version(self, *, version_id: str, session_id: str) -> ArtifactVersionDetail:
+    def get_version(
+        self, *, version_id: str, session_id: str, full_content: bool = False
+    ) -> ArtifactVersionDetail:
         if session_id != "owner" or version_id != VERSION_ID:
             raise SecurityProblem(
                 status=404,

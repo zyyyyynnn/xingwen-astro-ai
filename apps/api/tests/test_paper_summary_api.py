@@ -407,7 +407,9 @@ class _Artifacts:
             collection=self.collection,
         )
 
-    def get_version(self, *, version_id: str, session_id: str) -> ArtifactVersionDetail:
+    def get_version(
+        self, *, version_id: str, session_id: str, full_content: bool = False
+    ) -> ArtifactVersionDetail:
         if session_id != "owner":
             raise SecurityProblem(
                 status=404,

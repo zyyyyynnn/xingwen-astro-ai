@@ -299,7 +299,9 @@ class _PublishedSummaryArtifacts:
     def __init__(self, version: ArtifactVersionDetail) -> None:
         self._version = version
 
-    def get_version(self, *, version_id: str, session_id: str) -> ArtifactVersionDetail:
+    def get_version(
+        self, *, version_id: str, session_id: str, full_content: bool = False
+    ) -> ArtifactVersionDetail:
         assert version_id == _VERSION_ID
         assert session_id == _SESSION_ID
         return self._version

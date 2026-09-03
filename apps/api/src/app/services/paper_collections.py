@@ -38,7 +38,9 @@ class PaperCollectionReadService:
         self, *, version_id: str, session_id: str
     ) -> PaperCollectionRead:
         version = self._artifacts.get_version(
-            version_id=version_id, session_id=session_id
+            version_id=version_id,
+            session_id=session_id,
+            full_content=True,
         )
         artifact = self._artifacts.get_artifact(
             artifact_id=version.artifact_id, session_id=session_id

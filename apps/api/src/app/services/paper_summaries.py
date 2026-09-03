@@ -100,7 +100,9 @@ class PaperSummaryReadService:
         self, *, version_id: str, session_id: str
     ) -> PaperSummaryRead:
         version = self._artifacts.get_version(
-            version_id=version_id, session_id=session_id
+            version_id=version_id,
+            session_id=session_id,
+            full_content=True,
         )
         artifact = self._artifacts.get_artifact(
             artifact_id=version.artifact_id, session_id=session_id
@@ -298,6 +300,7 @@ class PaperSummaryReadService:
             collection_version = self._artifacts.get_version(
                 version_id=summary.input_versions.paper_collection_version_id,
                 session_id=session_id,
+                full_content=True,
             )
             collection_artifact = self._artifacts.get_artifact(
                 artifact_id=collection_version.artifact_id, session_id=session_id
