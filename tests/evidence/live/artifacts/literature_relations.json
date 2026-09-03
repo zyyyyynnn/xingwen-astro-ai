@@ -1,0 +1,2534 @@
+{
+ "kind": "literature_relations",
+ "artifact_id": "f18ac872-8089-54a1-b730-428cdc0c1ddd",
+ "latest_version_id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+ "versions": [
+  {
+   "version_id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+   "detail": {
+    "id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+    "artifact_id": "f18ac872-8089-54a1-b730-428cdc0c1ddd",
+    "project_id": "049bfd29-4736-43a2-abf5-2885123d8f19",
+    "created_by_run_id": "2c0acb1e-0ee8-4965-a66f-b25e249f556b",
+    "version_number": 2,
+    "schema_version": "1.0.0",
+    "content": {
+     "kind": "literature_relations",
+     "claims": [
+      {
+       "text": "论文第 2 节详细描述了 TIC 的构建以及用于计算各种恒星量的算法;第 3 节描述了 CTL 的构建、CTL 特有参数的附加算法以及 2 分钟步调观测目标选择的优先级方案。",
+       "scope": [
+        "论文第 2 节",
+        "论文第 3 节"
+       ],
+       "status": "accepted",
+       "objects": [
+        "CTL",
+        "TIC"
+       ],
+       "claim_id": "claim.84cd5c752ccb54c92fc100c8",
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "polarity": "positive",
+       "claim_type": "method",
+       "conditions": [],
+       "input_hash": "sha256:eee223760969cefcec5f4e3f411c949a66be358c97a0fbc9f83db8f88354dc74",
+       "qualifiers": [],
+       "fingerprint": "sha256:cd0abca22a4cbab5323f772c706287015b855276f4022aa9429acca7e8f38b92",
+       "limitations": [],
+       "evidence_ids": [
+        "evidence.518994ce6d619808a0bb9bca",
+        "evidence.61fd80d5371139b2af9b2bec",
+        "evidence.6cb6ca9bfedb0dd2aad06b5f",
+        "evidence.aa72ef3bcc83a6ea3dcc3292",
+        "evidence.aaee5868276e6246ce2c7d2c"
+       ],
+       "normalized_text": "论文第 2 节描述了 TIC 的构建及恒星级物理量计算算法;第 3 节描述了 CTL 的构建、CTL 特有参数算法以及 2 分钟步调观测目标选择的优先级方案。",
+       "comparison_basis": "论文章节内容分工",
+       "source_summary_id": "summary.0e6eaac2b728e2ef2f6e6884",
+       "model_response_hash": "sha256:d0df9e42dc12d825346563c45bd4314e88e5da68329a73ed85a6efdc9699fedc",
+       "source_snapshot_ids": [
+        "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2"
+       ],
+       "source_statement_id": "summary.document.methodology.04",
+       "normalization_version": "1.0.0",
+       "producer_execution_id": "execution.eee223760969cefcec5f4e3f",
+       "source_paper_summary_artifact_version_id": "98dd9863-d691-5105-94d4-b982709143ba"
+      },
+      {
+       "text": "为确保包含已知的高价值目标,TIC 和 CTL 曾由一系列特别策划的列表手动填充,包括亮星列表、冷矮星列表、已知行星宿主列表和热亚矮星列表。",
+       "scope": [],
+       "status": "accepted",
+       "objects": [
+        "CTL",
+        "TIC"
+       ],
+       "claim_id": "claim.fd8c00678e80c6cc97a460ab",
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "polarity": "positive",
+       "claim_type": "method",
+       "conditions": [],
+       "input_hash": "sha256:eee223760969cefcec5f4e3f411c949a66be358c97a0fbc9f83db8f88354dc74",
+       "qualifiers": [
+        "曾"
+       ],
+       "fingerprint": "sha256:93d50855a50dd2ba5609f889ce296efa2db8adb05a1e891e7c209078610be63a",
+       "limitations": [],
+       "evidence_ids": [
+        "evidence.45e552e89955d806161a8dce",
+        "evidence.a0b704195ede043bc7585577",
+        "evidence.ad9f2ede4fad807ad037dfc5"
+       ],
+       "normalized_text": "为确保包含已知的高价值目标,TIC 和 CTL 曾由亮星列表、冷矮星列表、已知行星宿主列表和热亚矮星列表等特别策划的列表手动填充。",
+       "comparison_basis": "两者均通过特别策划的列表手动填充以确保包含高价值目标",
+       "source_summary_id": "summary.0e6eaac2b728e2ef2f6e6884",
+       "model_response_hash": "sha256:d0df9e42dc12d825346563c45bd4314e88e5da68329a73ed85a6efdc9699fedc",
+       "source_snapshot_ids": [
+        "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2"
+       ],
+       "source_statement_id": "summary.document.background.12",
+       "normalization_version": "1.0.0",
+       "producer_execution_id": "execution.eee223760969cefcec5f4e3f",
+       "source_paper_summary_artifact_version_id": "98dd9863-d691-5105-94d4-b982709143ba"
+      }
+     ],
+     "evidence": [
+      {
+       "status": "supported",
+       "locator": {
+        "kind": "paper_text",
+        "section": "document",
+        "paragraph": 188,
+        "page_index": 1,
+        "text_range": "0:83",
+        "document_locator": {
+         "bbox": {
+          "x1": 193.44727118000014,
+          "x2": 561.9419274599999,
+          "y1": 420.4325441999993,
+          "y2": 429.1391101227659
+         },
+         "block_id": "p0001-n0066",
+         "text_span": {
+          "end": 83,
+          "start": 0
+         },
+         "page_index": 1,
+         "reading_order": 66
+        },
+        "document_parse_id": "caefabe1-8871-4306-b437-59a84122f6dc",
+        "document_parse_output_hash": "sha256:f4a6f32f050036d52e98ffe9b3d50e203bb7ef37f502b2cf915795db34745462"
+       },
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "source_id": "url_arxiv.org",
+       "evidence_id": "evidence.45e552e89955d806161a8dce",
+       "candidate_id": "658446c1-760b-44cd-8bc0-34ff70af520d",
+       "quote_or_value": "Finally, in order to ensure inclusion of known, high-value targets, the TIC and CTL",
+       "validation_code": "evidence.supported",
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+       "source_snapshot_version": "\"sha256:29abfa7c608703a1d8b7c252886c7af92e67f2d93ea055c5ca595d559c4e2100\"",
+       "source_snapshot_content_hash": "sha256:5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100"
+      },
+      {
+       "status": "supported",
+       "locator": {
+        "kind": "paper_text",
+        "section": "document",
+        "paragraph": 213,
+        "page_index": 1,
+        "text_range": "0:116",
+        "document_locator": {
+         "bbox": {
+          "x1": 50.74000000000012,
+          "x2": 561.94391998,
+          "y1": 557.4195441999992,
+          "y2": 566.1261101227658
+         },
+         "block_id": "p0001-n0091",
+         "text_span": {
+          "end": 116,
+          "start": 0
+         },
+         "page_index": 1,
+         "reading_order": 91
+        },
+        "document_parse_id": "caefabe1-8871-4306-b437-59a84122f6dc",
+        "document_parse_output_hash": "sha256:f4a6f32f050036d52e98ffe9b3d50e203bb7ef37f502b2cf915795db34745462"
+       },
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "source_id": "url_arxiv.org",
+       "evidence_id": "evidence.518994ce6d619808a0bb9bca",
+       "candidate_id": "658446c1-760b-44cd-8bc0-34ff70af520d",
+       "quote_or_value": "targets for 2-minute cadence observations. Finally, Section 4 provides a summary of the contents of the TIC and CTL.",
+       "validation_code": "evidence.supported",
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+       "source_snapshot_version": "\"sha256:29abfa7c608703a1d8b7c252886c7af92e67f2d93ea055c5ca595d559c4e2100\"",
+       "source_snapshot_content_hash": "sha256:5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100"
+      },
+      {
+       "status": "supported",
+       "locator": {
+        "kind": "paper_text",
+        "section": "document",
+        "paragraph": 211,
+        "page_index": 1,
+        "text_range": "0:52",
+        "document_locator": {
+         "bbox": {
+          "x1": 330.47087906000013,
+          "x2": 561.9439199799999,
+          "y1": 532.5125441999992,
+          "y2": 541.2191101227659
+         },
+         "block_id": "p0001-n0089",
+         "text_span": {
+          "end": 52,
+          "start": 0
+         },
+         "page_index": 1,
+         "reading_order": 89
+        },
+        "document_parse_id": "caefabe1-8871-4306-b437-59a84122f6dc",
+        "document_parse_output_hash": "sha256:f4a6f32f050036d52e98ffe9b3d50e203bb7ef37f502b2cf915795db34745462"
+       },
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "source_id": "url_arxiv.org",
+       "evidence_id": "evidence.61fd80d5371139b2af9b2bec",
+       "candidate_id": "658446c1-760b-44cd-8bc0-34ff70af520d",
+       "quote_or_value": "Section 3 describes the construction of the CTL, the",
+       "validation_code": "evidence.supported",
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+       "source_snapshot_version": "\"sha256:29abfa7c608703a1d8b7c252886c7af92e67f2d93ea055c5ca595d559c4e2100\"",
+       "source_snapshot_content_hash": "sha256:5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100"
+      },
+      {
+       "status": "supported",
+       "locator": {
+        "kind": "paper_text",
+        "section": "document",
+        "paragraph": 210,
+        "page_index": 1,
+        "text_range": "0:64",
+        "document_locator": {
+         "bbox": {
+          "x1": 50.74000000000012,
+          "x2": 325.10103766000015,
+          "y1": 532.5125441999992,
+          "y2": 541.2191101227659
+         },
+         "block_id": "p0001-n0088",
+         "text_span": {
+          "end": 64,
+          "start": 0
+         },
+         "page_index": 1,
+         "reading_order": 88
+        },
+        "document_parse_id": "caefabe1-8871-4306-b437-59a84122f6dc",
+        "document_parse_output_hash": "sha256:f4a6f32f050036d52e98ffe9b3d50e203bb7ef37f502b2cf915795db34745462"
+       },
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "source_id": "url_arxiv.org",
+       "evidence_id": "evidence.6cb6ca9bfedb0dd2aad06b5f",
+       "candidate_id": "658446c1-760b-44cd-8bc0-34ff70af520d",
+       "quote_or_value": "and the algorithms used to calculate various stellar quantities.",
+       "validation_code": "evidence.supported",
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+       "source_snapshot_version": "\"sha256:29abfa7c608703a1d8b7c252886c7af92e67f2d93ea055c5ca595d559c4e2100\"",
+       "source_snapshot_content_hash": "sha256:5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100"
+      },
+      {
+       "status": "supported",
+       "locator": {
+        "kind": "paper_text",
+        "section": "document",
+        "paragraph": 189,
+        "page_index": 1,
+        "text_range": "0:119",
+        "document_locator": {
+         "bbox": {
+          "x1": 50.74000000000004,
+          "x2": 561.9359499000001,
+          "y1": 432.8865441999993,
+          "y2": 441.5931101227659
+         },
+         "block_id": "p0001-n0067",
+         "text_span": {
+          "end": 119,
+          "start": 0
+         },
+         "page_index": 1,
+         "reading_order": 67
+        },
+        "document_parse_id": "caefabe1-8871-4306-b437-59a84122f6dc",
+        "document_parse_output_hash": "sha256:f4a6f32f050036d52e98ffe9b3d50e203bb7ef37f502b2cf915795db34745462"
+       },
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "source_id": "url_arxiv.org",
+       "evidence_id": "evidence.a0b704195ede043bc7585577",
+       "candidate_id": "658446c1-760b-44cd-8bc0-34ff70af520d",
+       "quote_or_value": "were manually populated by a set of specially curated lists, including a Bright Star list, a Cool Dwarf list, a list of",
+       "validation_code": "evidence.supported",
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+       "source_snapshot_version": "\"sha256:29abfa7c608703a1d8b7c252886c7af92e67f2d93ea055c5ca595d559c4e2100\"",
+       "source_snapshot_content_hash": "sha256:5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100"
+      },
+      {
+       "status": "supported",
+       "locator": {
+        "kind": "paper_text",
+        "section": "document",
+        "paragraph": 209,
+        "page_index": 1,
+        "text_range": "0:113",
+        "document_locator": {
+         "bbox": {
+          "x1": 59.74000000000012,
+          "x2": 561.9407183600001,
+          "y1": 520.0595441999992,
+          "y2": 528.7661101227658
+         },
+         "block_id": "p0001-n0087",
+         "text_span": {
+          "end": 113,
+          "start": 0
+         },
+         "page_index": 1,
+         "reading_order": 87
+        },
+        "document_parse_id": "caefabe1-8871-4306-b437-59a84122f6dc",
+        "document_parse_output_hash": "sha256:f4a6f32f050036d52e98ffe9b3d50e203bb7ef37f502b2cf915795db34745462"
+       },
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "source_id": "url_arxiv.org",
+       "evidence_id": "evidence.aa72ef3bcc83a6ea3dcc3292",
+       "candidate_id": "658446c1-760b-44cd-8bc0-34ff70af520d",
+       "quote_or_value": "The purpose of this paper is to describe the updated TIC and CTL. Section 2 describes the construction of the TIC",
+       "validation_code": "evidence.supported",
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+       "source_snapshot_version": "\"sha256:29abfa7c608703a1d8b7c252886c7af92e67f2d93ea055c5ca595d559c4e2100\"",
+       "source_snapshot_content_hash": "sha256:5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100"
+      },
+      {
+       "status": "supported",
+       "locator": {
+        "kind": "paper_text",
+        "section": "document",
+        "paragraph": 212,
+        "page_index": 1,
+        "text_range": "0:118",
+        "document_locator": {
+         "bbox": {
+          "x1": 50.74000000000012,
+          "x2": 561.9369461599999,
+          "y1": 544.9655441999993,
+          "y2": 553.6721101227658
+         },
+         "block_id": "p0001-n0090",
+         "text_span": {
+          "end": 118,
+          "start": 0
+         },
+         "page_index": 1,
+         "reading_order": 90
+        },
+        "document_parse_id": "caefabe1-8871-4306-b437-59a84122f6dc",
+        "document_parse_output_hash": "sha256:f4a6f32f050036d52e98ffe9b3d50e203bb7ef37f502b2cf915795db34745462"
+       },
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "source_id": "url_arxiv.org",
+       "evidence_id": "evidence.aaee5868276e6246ce2c7d2c",
+       "candidate_id": "658446c1-760b-44cd-8bc0-34ff70af520d",
+       "quote_or_value": "additional algorithms used for parameters unique to the CTL, and in particular the prioritization scheme for selecting",
+       "validation_code": "evidence.supported",
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+       "source_snapshot_version": "\"sha256:29abfa7c608703a1d8b7c252886c7af92e67f2d93ea055c5ca595d559c4e2100\"",
+       "source_snapshot_content_hash": "sha256:5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100"
+      },
+      {
+       "status": "supported",
+       "locator": {
+        "kind": "paper_text",
+        "section": "document",
+        "paragraph": 190,
+        "page_index": 1,
+        "text_range": "0:91",
+        "document_locator": {
+         "bbox": {
+          "x1": 50.74000000000004,
+          "x2": 458.1894185400001,
+          "y1": 445.3395441999993,
+          "y2": 454.04611012276587
+         },
+         "block_id": "p0001-n0068",
+         "text_span": {
+          "end": 91,
+          "start": 0
+         },
+         "page_index": 1,
+         "reading_order": 68
+        },
+        "document_parse_id": "caefabe1-8871-4306-b437-59a84122f6dc",
+        "document_parse_output_hash": "sha256:f4a6f32f050036d52e98ffe9b3d50e203bb7ef37f502b2cf915795db34745462"
+       },
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "source_id": "url_arxiv.org",
+       "evidence_id": "evidence.ad9f2ede4fad807ad037dfc5",
+       "candidate_id": "658446c1-760b-44cd-8bc0-34ff70af520d",
+       "quote_or_value": "Known Planet Hosts, and a list of Hot Subdwarfs (see Appendix A for a detailed discussion).",
+       "validation_code": "evidence.supported",
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+       "source_snapshot_version": "\"sha256:29abfa7c608703a1d8b7c252886c7af92e67f2d93ea055c5ca595d559c4e2100\"",
+       "source_snapshot_content_hash": "sha256:5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100"
+      }
+     ],
+     "producer": {
+      "run_id": "2c0acb1e-0ee8-4965-a66f-b25e249f556b",
+      "status": "completed",
+      "step_key": "reasoning_literature",
+      "input_hash": "sha256:cb424f5ddf79112cde194ebd5776a08aac055cdaccc4f382a5e40beecfd6cbf9",
+      "latency_ms": 0,
+      "model_name": "qwen3.8-max-0902",
+      "started_at": "2026-09-03T00:58:43.973396Z",
+      "finished_at": "2026-09-03T00:58:43.973396Z",
+      "output_hash": "sha256:095b3e58b3410872f50f0ba00418d3b68046e34e686fcd42e061ae9984343f57",
+      "prompt_hash": "sha256:25d95bc7283ba00c000d300e7d52bd62652089e055241acdffb7ea635f160f59",
+      "prompt_name": "literature_relation",
+      "execution_id": "execution.cb424f5ddf79112cde194ebd",
+      "producer_name": "xingwen.literature_relation",
+      "producer_type": "model",
+      "input_versions": {
+       "project_id": "049bfd29-4736-43a2-abf5-2885123d8f19",
+       "claim_artifact_versions": [
+        {
+         "claim_ids": [
+          "claim.004dbf979dc3a6940edf67a9",
+          "claim.030efb2ef29c6bb278121ef5",
+          "claim.066ae764cf696a3ca795fd16",
+          "claim.067c9ba4e8eb7ca37a18b462",
+          "claim.06fa1526eb976b8932a5b03f",
+          "claim.078ed62abf0f0d20cc5739cb",
+          "claim.07f14cec3bce6a851f2d7e39",
+          "claim.08581e38d2548be63d61ccf8",
+          "claim.09d9ca106f556036560a3d31",
+          "claim.09de8b0cfc72fed41dd5fd26",
+          "claim.0a5c824b1fe51b73501c84d6",
+          "claim.0af08a2c8b7131562b27adcc",
+          "claim.0c1dbb0503c71d044edeb49e",
+          "claim.0c390b824a54db9afccaa720",
+          "claim.0da6fb981e4bcd4163047348",
+          "claim.0efb6b6d30553318e1c087e8",
+          "claim.0fe559ee1124b7ee15c20e25",
+          "claim.13407b994be9f8e8536e9e4a",
+          "claim.13e04ab038175b1a6dd9872b",
+          "claim.17725866a10c16056e801c41",
+          "claim.189cf36169a69e5b378d2816",
+          "claim.18f8fa83c867418fc873f757",
+          "claim.19359a824256ec64dbfab0a7",
+          "claim.199869216fa95c6849f3935a",
+          "claim.19e9f9b0ab3d8fc205df9516",
+          "claim.1ab7c55c1d76d53ecdf2c3fb",
+          "claim.1eb6f6d905279840e9ac8193",
+          "claim.1f464fb3537ecda6890f7d00",
+          "claim.1fa59455ef7547ddaf36368f",
+          "claim.2188b41a3a47046006402469",
+          "claim.21f69616a7af449779939cbe",
+          "claim.22b62fb9d84562f11f6b6415",
+          "claim.26953719fbeb0e55292aace5",
+          "claim.26b6808fc3be688c45035049",
+          "claim.26c0eb3fb78207c20e03bb04",
+          "claim.2902b55ff352658d3d27d086",
+          "claim.2978e696ae05ef0e89afe62b",
+          "claim.29fa74c0288226cb82fb3d9d",
+          "claim.2b4b7a02d93658cb0e8f5399",
+          "claim.2c63ef97e18994860c5fa6dc",
+          "claim.2c9341122dadbfe3977885f4",
+          "claim.2d51be17f8953ba886869c87",
+          "claim.2d6f2dd4c34ce65b538e4684",
+          "claim.2da7d5b1e56ce30a774141fb",
+          "claim.2e491c87c0ead25239152325",
+          "claim.2ee1a61b1daabcb27198475a",
+          "claim.31ffb1aca392c3bb953cc610",
+          "claim.33f9bb201d8baaf134c640f7",
+          "claim.376e39541d916aca49d0972a",
+          "claim.392269b9f3d61f4f841187a1",
+          "claim.3a580d9d743fc9a288bc486b",
+          "claim.3c87bfcf999fe604d922aa6e",
+          "claim.3c9e838282f2a7cc73c5bd48",
+          "claim.3e970f59216c83559e5f8206",
+          "claim.3f28f998d6d6a34bf94b0c6d",
+          "claim.40578d18cbbaf74bc009317d",
+          "claim.4127636f6a733a10cd365184",
+          "claim.42096724e339990aff8f48e3",
+          "claim.42f233fff87e0e9d46f19023",
+          "claim.46355377020cb8da1d4dc067",
+          "claim.484aba27f2230a3ab0a90fd7",
+          "claim.488f35c2a655d8e14502afc5",
+          "claim.4a1a533385531e80b71ee281",
+          "claim.4a783588f88c32ce4995ef7e",
+          "claim.4aec52bebd171cd2ff49b290",
+          "claim.4b14a35e155525a0fe88e9bf",
+          "claim.4b6571da08df6df96e6a5524",
+          "claim.4bdf55e318a6dee0cf294c5e",
+          "claim.4de710ac6064be645e88ee99",
+          "claim.4df43495554c20ad54e774d5",
+          "claim.4e2ac599d0246350c1d0c4bf",
+          "claim.50eaf6dc52d471aab3cf6f5b",
+          "claim.5221b57332d745ea96a97761",
+          "claim.5325e3d0522013ca046f0ae0",
+          "claim.539c4e72726de02084c80eca",
+          "claim.548eecd969c6b5918a6490c2",
+          "claim.55a97f8313b5c9dc62e98f1f",
+          "claim.57c98a5fe6c8f94334a1428b",
+          "claim.580346db0d4662905942c214",
+          "claim.594a85fd469752d7edb1e325",
+          "claim.5a01506dbb33fee3951ba47b",
+          "claim.5abb0a658539621639c7e930",
+          "claim.5b11ffbb2c22eb0ff5169c01",
+          "claim.5ce02b2529707f15a95be70c",
+          "claim.5d7c5b3b5d7a2ab482b3c9d9",
+          "claim.5f216762b4d9c01ceeb4f26a",
+          "claim.622354df08e8e6096c68b8a1",
+          "claim.633b64d7905f85e06904b981",
+          "claim.65204542e8f7a9ae8683c040",
+          "claim.65f4e20a7250d7a713b194f3",
+          "claim.660da0f20914377372a86f05",
+          "claim.66ce77f289f319c2c9d28666",
+          "claim.698927e0605a030780556788",
+          "claim.6befebc933f940c058fde27b",
+          "claim.6c23514452c3cfd865acb82b",
+          "claim.6c284cc921eb13cfcdef8417",
+          "claim.6dbe096aee97ce41de220f24",
+          "claim.6debcea746053a8d364e218b",
+          "claim.6f5562393b850fb43f8bf8ba",
+          "claim.6fd0bd428e0d210dc9e2da0a",
+          "claim.704e9444470d02dd7238751b",
+          "claim.705864e9a4381fb284c84b81",
+          "claim.7072e38acb0d8b49f6696884",
+          "claim.70bceba9688e1058c155e7c3",
+          "claim.70cf67eca13d62963ab4282f",
+          "claim.742fa2e0e3f1f081de8ad626",
+          "claim.74e0af5354b63a270ae103cd",
+          "claim.7540534a2d1892df4ca765e4",
+          "claim.7583f4523611d73598409ce3",
+          "claim.75ed52692808c533ac50859d",
+          "claim.76342030702ad5b9c01d4687",
+          "claim.76aa1b11123654775d32c394",
+          "claim.76de8b8896ddcbf4a263ca16",
+          "claim.7873a198e1299c3c62e2aaa9",
+          "claim.79896af6d7cc69240d32b323",
+          "claim.7b14c9ee4a87fc7c797d0f18",
+          "claim.7b5bef945d4b7baeb6a4823c",
+          "claim.7c1eb4cfd1595f781430b4bd",
+          "claim.7ca7f23405ada1f27b6516cd",
+          "claim.7cefc5df84037c47a44e78ab",
+          "claim.7d616d83a656cf33be3a60e6",
+          "claim.7f25750c64c5ed8a3937cbd6",
+          "claim.81942f49e177d9f8c0060abc",
+          "claim.81c5811cc8289238892dc87a",
+          "claim.81d3ae569baf4945156819a1",
+          "claim.82dbbc3263589658ddffbd44",
+          "claim.833fb91bd529e6c46362c46a",
+          "claim.846f189504fdaad10b565730",
+          "claim.84a6b04174a2a07164f11bfd",
+          "claim.84cd5c752ccb54c92fc100c8",
+          "claim.85b31141c83ce203add15c31",
+          "claim.86d23c030ef433d9f3e42940",
+          "claim.873f840c38899fcce4f17af5",
+          "claim.87aea838a44931f7d36f9667",
+          "claim.87c6942b5017eb6708f7af78",
+          "claim.89e580459ecd46b770540a58",
+          "claim.8bc60d53e2dd02370268070a",
+          "claim.8be0fbb66c49bd28b4670a77",
+          "claim.8c4bda88dc0663c7687f7255",
+          "claim.8cefdca8cc05b8fbb0e7733d",
+          "claim.8d449cdc3f419b8025a7c1a5",
+          "claim.8dc92574aa98d479859e79b8",
+          "claim.8ff47f59fb053e6edf2f7a10",
+          "claim.9280ff21c9e7433fb9bb7277",
+          "claim.9289133941d4c98ff97229eb",
+          "claim.93ea19620682f31145be1065",
+          "claim.952683655cc1590b7212f6b4",
+          "claim.9694ff3ca6691f10f54d394e",
+          "claim.96dfb2d97c1e8b2fec1b1094",
+          "claim.978a70f7317bffe8486fb719",
+          "claim.978c72eaa825e610d192cf43",
+          "claim.97c0bf15ad625815a69dfa85",
+          "claim.9952f0b4e73be08f00466aa5",
+          "claim.99820c609da8fe4b160e9105",
+          "claim.9ab40fc0a259299d39cd845f",
+          "claim.9adead99385217af13bc96f1",
+          "claim.9cf175bc13d0d7ccc6053b72",
+          "claim.9de59bfea920176970eeff51",
+          "claim.9fe4b8d50677ef84d69fd970",
+          "claim.a0a77e32dd80fd94b5d96fb2",
+          "claim.a0bda3721aef52b7a2a220f9",
+          "claim.a2805310179181478392c50b",
+          "claim.a2d57f67946b0e613de4fb57",
+          "claim.a393626a30d2efdf6a17245e",
+          "claim.a4a837be5718b0b286f59165",
+          "claim.a6d0e6a83c34b5a5e834cbd3",
+          "claim.a7644caaedc3e5ef01338b2d",
+          "claim.a7d438e83ea5054d02948075",
+          "claim.a963348bcb219a589be7d0f9",
+          "claim.ab004ce92ef42ccddcd73ef4",
+          "claim.ab4f856458e6bcbc619df107",
+          "claim.ad0b9eedf543d4c23ec41235",
+          "claim.ad3b3aa59e68dc3591ddc1e6",
+          "claim.ad6f084fd4260cbf7ce5aa85",
+          "claim.adf6286a96908a35b5a8e201",
+          "claim.ae0117f129451406564d3908",
+          "claim.ae25141617b06f8a0a7d3e35",
+          "claim.b3ffa0c90a6f1f3def800514",
+          "claim.b61beabf7a2b0470a1badb01",
+          "claim.b7dd28213b240fb80672f881",
+          "claim.b8fb84930233cecebc344192",
+          "claim.b9b424babfddc8e4632b9e1c",
+          "claim.ba032463a8a2b47d84386b00",
+          "claim.babd7a115ff666c120f6ee30",
+          "claim.bac22e48325b68745f0d79fc",
+          "claim.bb9ed15f1845e00112404dea",
+          "claim.bbcf76dd30f2cd542debb7af",
+          "claim.bc90836829fa850d361f37a7",
+          "claim.c107905790c74424196c0853",
+          "claim.c1ded663b797a061d7b28c5d",
+          "claim.c236f2c9b6443081a4bb5d9f",
+          "claim.c2fdc28c7e05a6d96eb66eee",
+          "claim.c481e1f0e6fbbd69490641d2",
+          "claim.c4e6e2ae61f8d4bb6105b084",
+          "claim.c6517b0ae8bfdef5d74ffee6",
+          "claim.c81ba4d784268f25bddc0925",
+          "claim.cab3ba07e380bff3b83f2152",
+          "claim.cac7bec6f5f696a3ce8bf901",
+          "claim.cc827cc0691dbc4c7ca0b268",
+          "claim.cd23550adf3bbc64f8d5c9c1",
+          "claim.ce1d458d46a404420f3c0ef7",
+          "claim.cf32f4a8b31cba4bd3ba91ca",
+          "claim.cf6f15c4f3c2612a3eff50d4",
+          "claim.cfbed6e2c34f68e10892de84",
+          "claim.d32b843b33bbdb4788512690",
+          "claim.d3e1940c49d3beafb0ad3ff4",
+          "claim.d402018fb7bd9cdf86595605",
+          "claim.d423ecff9e9d5a98519607f8",
+          "claim.d4b500332f96e565ab09e491",
+          "claim.d516ed25611634f17347588e",
+          "claim.d57dfcb43cbc9a1c0d84b928",
+          "claim.d942c569be7ced829c3e9446",
+          "claim.d9df1942d85ff3bcc282251f",
+          "claim.dafa88f39f60d6ae3297991c",
+          "claim.db373681aa6bbf8fc8976318",
+          "claim.dcb66b6345461810ae738bdb",
+          "claim.dcd9e15a507a4b3ebafaa81c",
+          "claim.dd6959b29a4981fa158da825",
+          "claim.dd6c2ce21e533a7e65b3f391",
+          "claim.dd9ab3f3d422acf9d350ad4f",
+          "claim.dda4fd465b608ceeacf62c8b",
+          "claim.df498547e3484a525ad0b298",
+          "claim.e06d1667a7cc3f9dbe11790c",
+          "claim.e0a11c0011030c2f4157f4ad",
+          "claim.e0c14261810e9f5bba7a61bb",
+          "claim.e1b930f9da434fee947f4499",
+          "claim.e2819171319c35c5cef3b66a",
+          "claim.e2ad96230b67115b71ba25b3",
+          "claim.e3ba338d55cb61328c538e51",
+          "claim.e4a89a0b934bdc41a940d094",
+          "claim.e4e13b564d2c0872751caf68",
+          "claim.e557009d52ba34e02d2fe706",
+          "claim.e6730ec480b85896421deced",
+          "claim.ec2e7cf451bf824f42c0b783",
+          "claim.ec9b6a5dbba11f016e2461a1",
+          "claim.eca1c6e2053a5d4a56d709fd",
+          "claim.ecb1df0beb40c174bdb273d5",
+          "claim.ed9dc43cfeb6c4ab233d2d0d",
+          "claim.ee5afc9db173292766d72987",
+          "claim.eec885a1dd5ea52be9601980",
+          "claim.efa8bf167c7505447e651b32",
+          "claim.effd96b5c99d47c2701fdf11",
+          "claim.f043cdb9395308e9cba6d86b",
+          "claim.f0eda61353c73d4362b6223b",
+          "claim.f101f68d1f587eef89bbe4a5",
+          "claim.f1d2b2f3c97a8049b4d518ba",
+          "claim.f2ac131a89ba9d9b7acdc1fa",
+          "claim.f5f002eece4b45b8c1475242",
+          "claim.f617c6751444127ff059458f",
+          "claim.f6d0a84988fdc72902087132",
+          "claim.f8fdd003b9c73e5ce01f4404",
+          "claim.f981b2addaa8cc368b575ca8",
+          "claim.f98f10537f6b6d73b7fc58ee",
+          "claim.f990e55f721d718f7a1a5f3d",
+          "claim.fb959e51c72bbdeb8bfaa61f",
+          "claim.fc2b44c346fb9573e6931fa1",
+          "claim.fcf002da4f45ca17a153469c",
+          "claim.fd8c00678e80c6cc97a460ab"
+         ],
+         "project_id": "049bfd29-4736-43a2-abf5-2885123d8f19",
+         "output_hash": "sha256:1bd96a18f2cc0e4f8255afb764429d32ba0ed836009fc5a49529948f63173b0b",
+         "content_hash": "sha256:8aa12cebf99c51458e1a1716bec0da52c80745991d516051c47de1396658728c",
+         "schema_version": "1.0.0",
+         "artifact_version_id": "0958e467-f20a-522e-bb8f-3972c53f1ac9",
+         "source_snapshot_ids": [
+          "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2"
+         ],
+         "paper_summary_artifact_version_ids": [
+          "98dd9863-d691-5105-94d4-b982709143ba"
+         ]
+        }
+       ]
+      },
+      "prompt_version": "2.1.0",
+      "schema_version": "1.0.0",
+      "pairing_version": "1.0.0",
+      "parameters_hash": "sha256:df5f58d8663a8cc4d9943ad96e9ffb5fc168fec61a3bfc51d89c6ae1a0b7d247",
+      "producer_version": "1.0.0",
+      "parameters_version": "1.0.0",
+      "model_response_hash": "sha256:bd5b3d913b3472f27152d35e9acbd61b57b03b036fda030c29778d511df5b38d",
+      "trace_protocol_version": "1.0.0",
+      "confidence_definition_id": "relation_classification_decision_confidence",
+      "comparison_policy_version": "1.0.0",
+      "confidence_calibration_id": "exoplanet_host_star.paper_reasoning.relation_labels",
+      "confidence_calibration_method": "frozen_approved_label_reference",
+      "confidence_definition_version": "1.0.0",
+      "confidence_applicability_scope": "benchmark.exoplanet_host_star.relation_admission_regression",
+      "confidence_calibration_version": "2.0.0",
+      "confidence_acceptance_threshold": 0.9,
+      "confidence_calibration_sample_size": 4,
+      "confidence_calibration_content_hash": "sha256:a315b54f934bb3b37e8273a9a766d5c87bd494089d99d7e82b6920b782e8ad57",
+      "confidence_calibration_scientific_payload_hash": "sha256:1a9969d31f80198f73c008eb78cdba70cb4411570345f0829552da4bcda87db9"
+     },
+     "relations": [
+      {
+       "status": "candidate",
+       "pair_id": "claim_pair.585afa6dae455a507b8e3b0c",
+       "direction": {
+        "basis": "The source claim describes the paper sections detailing TIC and CTL construction, providing documentary support for the target claim's statement that TIC and CTL were manually populated with specially curated lists to ensure high-value targets.",
+        "source_claim_id": "claim.84cd5c752ccb54c92fc100c8",
+        "target_claim_id": "claim.fd8c00678e80c6cc97a460ab"
+       },
+       "conditions": [
+        "construction of TIC and CTL catalogs"
+       ],
+       "confidence": {
+        "basis": [
+         "实时研究输入不属于冻结关系校准样本，无法给出校准置信分数。"
+        ],
+        "status": "not_evaluable",
+        "subject": {
+         "fingerprint": "sha256:0f0223bc483e65e2f1e1dbce21164bb3cfd2b30a2db5167db08a07879b661f2b",
+         "relation_type": "supports",
+         "source_claim_id": "claim.84cd5c752ccb54c92fc100c8",
+         "target_claim_id": "claim.fd8c00678e80c6cc97a460ab",
+         "source_claim_artifact_version_id": "0958e467-f20a-522e-bb8f-3972c53f1ac9",
+         "target_claim_artifact_version_id": "0958e467-f20a-522e-bb8f-3972c53f1ac9"
+        },
+        "decision": "candidate",
+        "assessment_id": "assessment.live_scope.0f0223bc483e65e2f1e1dbce",
+        "definition_id": "relation_classification_decision_confidence",
+        "calibration_id": "exoplanet_host_star.paper_reasoning.relation_labels",
+        "calibration_method": "frozen_approved_label_reference",
+        "definition_version": "1.0.0",
+        "applicability_scope": "benchmark.exoplanet_host_star.relation_admission_regression",
+        "calibration_version": "2.0.0",
+        "acceptance_threshold": 0.9,
+        "score_interpretation": "confidence_in_relation_type_and_admission_decision",
+        "calibration_sample_size": 4,
+        "calibration_content_hash": "sha256:a315b54f934bb3b37e8273a9a766d5c87bd494089d99d7e82b6920b782e8ad57",
+        "calibration_scientific_payload_hash": "sha256:1a9969d31f80198f73c008eb78cdba70cb4411570345f0829552da4bcda87db9"
+       },
+       "input_hash": "sha256:cb424f5ddf79112cde194ebd5776a08aac055cdaccc4f382a5e40beecfd6cbf9",
+       "fingerprint": "sha256:0f0223bc483e65e2f1e1dbce21164bb3cfd2b30a2db5167db08a07879b661f2b",
+       "relation_id": "relation.cd73f2bc9a167cdadc388190",
+       "evidence_ids": [
+        "evidence.45e552e89955d806161a8dce",
+        "evidence.518994ce6d619808a0bb9bca",
+        "evidence.61fd80d5371139b2af9b2bec",
+        "evidence.6cb6ca9bfedb0dd2aad06b5f",
+        "evidence.a0b704195ede043bc7585577",
+        "evidence.aa72ef3bcc83a6ea3dcc3292",
+        "evidence.aaee5868276e6246ce2c7d2c",
+        "evidence.ad9f2ede4fad807ad037dfc5"
+       ],
+       "comparability": {
+        "unit_basis": "Unit comparison is not applicable for a supports relation per policy constraints.",
+        "unit_status": "not_applicable",
+        "metric_basis": "Metric comparison is not applicable for a supports relation per policy constraints.",
+        "object_basis": "Both claims explicitly refer to the TIC and CTL catalogs as their shared scientific objects.",
+        "metric_status": "not_applicable",
+        "object_status": "comparable"
+       },
+       "relation_type": "supports",
+       "review_reason": "literature_relation.review.confidence_not_evaluable",
+       "source_claim_id": "claim.84cd5c752ccb54c92fc100c8",
+       "target_claim_id": "claim.fd8c00678e80c6cc97a460ab",
+       "reasoning_trace_id": "trace.a10bb734d85de6def8aa34b7",
+       "condition_conflicts": [],
+       "model_response_hash": "sha256:bd5b3d913b3472f27152d35e9acbd61b57b03b036fda030c29778d511df5b38d",
+       "source_snapshot_ids": [
+        "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2"
+       ],
+       "producer_execution_id": "execution.cb424f5ddf79112cde194ebd",
+       "condition_uncertainties": [],
+       "scientific_review_status": "pending_scientific_review",
+       "source_claim_artifact_version_id": "0958e467-f20a-522e-bb8f-3972c53f1ac9",
+       "target_claim_artifact_version_id": "0958e467-f20a-522e-bb8f-3972c53f1ac9",
+       "source_paper_summary_artifact_version_id": "98dd9863-d691-5105-94d4-b982709143ba",
+       "target_paper_summary_artifact_version_id": "98dd9863-d691-5105-94d4-b982709143ba"
+      }
+     ],
+     "input_hash": "sha256:cb424f5ddf79112cde194ebd5776a08aac055cdaccc4f382a5e40beecfd6cbf9",
+     "output_hash": "sha256:095b3e58b3410872f50f0ba00418d3b68046e34e686fcd42e061ae9984343f57",
+     "evidence_ids": [
+      "evidence.45e552e89955d806161a8dce",
+      "evidence.518994ce6d619808a0bb9bca",
+      "evidence.61fd80d5371139b2af9b2bec",
+      "evidence.6cb6ca9bfedb0dd2aad06b5f",
+      "evidence.a0b704195ede043bc7585577",
+      "evidence.aa72ef3bcc83a6ea3dcc3292",
+      "evidence.aaee5868276e6246ce2c7d2c",
+      "evidence.ad9f2ede4fad807ad037dfc5"
+     ],
+     "status_counts": {
+      "accepted": 0,
+      "rejected": 0,
+      "candidate": 1
+     },
+     "input_versions": {
+      "project_id": "049bfd29-4736-43a2-abf5-2885123d8f19",
+      "claim_artifact_versions": [
+       {
+        "claim_ids": [
+         "claim.004dbf979dc3a6940edf67a9",
+         "claim.030efb2ef29c6bb278121ef5",
+         "claim.066ae764cf696a3ca795fd16",
+         "claim.067c9ba4e8eb7ca37a18b462",
+         "claim.06fa1526eb976b8932a5b03f",
+         "claim.078ed62abf0f0d20cc5739cb",
+         "claim.07f14cec3bce6a851f2d7e39",
+         "claim.08581e38d2548be63d61ccf8",
+         "claim.09d9ca106f556036560a3d31",
+         "claim.09de8b0cfc72fed41dd5fd26",
+         "claim.0a5c824b1fe51b73501c84d6",
+         "claim.0af08a2c8b7131562b27adcc",
+         "claim.0c1dbb0503c71d044edeb49e",
+         "claim.0c390b824a54db9afccaa720",
+         "claim.0da6fb981e4bcd4163047348",
+         "claim.0efb6b6d30553318e1c087e8",
+         "claim.0fe559ee1124b7ee15c20e25",
+         "claim.13407b994be9f8e8536e9e4a",
+         "claim.13e04ab038175b1a6dd9872b",
+         "claim.17725866a10c16056e801c41",
+         "claim.189cf36169a69e5b378d2816",
+         "claim.18f8fa83c867418fc873f757",
+         "claim.19359a824256ec64dbfab0a7",
+         "claim.199869216fa95c6849f3935a",
+         "claim.19e9f9b0ab3d8fc205df9516",
+         "claim.1ab7c55c1d76d53ecdf2c3fb",
+         "claim.1eb6f6d905279840e9ac8193",
+         "claim.1f464fb3537ecda6890f7d00",
+         "claim.1fa59455ef7547ddaf36368f",
+         "claim.2188b41a3a47046006402469",
+         "claim.21f69616a7af449779939cbe",
+         "claim.22b62fb9d84562f11f6b6415",
+         "claim.26953719fbeb0e55292aace5",
+         "claim.26b6808fc3be688c45035049",
+         "claim.26c0eb3fb78207c20e03bb04",
+         "claim.2902b55ff352658d3d27d086",
+         "claim.2978e696ae05ef0e89afe62b",
+         "claim.29fa74c0288226cb82fb3d9d",
+         "claim.2b4b7a02d93658cb0e8f5399",
+         "claim.2c63ef97e18994860c5fa6dc",
+         "claim.2c9341122dadbfe3977885f4",
+         "claim.2d51be17f8953ba886869c87",
+         "claim.2d6f2dd4c34ce65b538e4684",
+         "claim.2da7d5b1e56ce30a774141fb",
+         "claim.2e491c87c0ead25239152325",
+         "claim.2ee1a61b1daabcb27198475a",
+         "claim.31ffb1aca392c3bb953cc610",
+         "claim.33f9bb201d8baaf134c640f7",
+         "claim.376e39541d916aca49d0972a",
+         "claim.392269b9f3d61f4f841187a1",
+         "claim.3a580d9d743fc9a288bc486b",
+         "claim.3c87bfcf999fe604d922aa6e",
+         "claim.3c9e838282f2a7cc73c5bd48",
+         "claim.3e970f59216c83559e5f8206",
+         "claim.3f28f998d6d6a34bf94b0c6d",
+         "claim.40578d18cbbaf74bc009317d",
+         "claim.4127636f6a733a10cd365184",
+         "claim.42096724e339990aff8f48e3",
+         "claim.42f233fff87e0e9d46f19023",
+         "claim.46355377020cb8da1d4dc067",
+         "claim.484aba27f2230a3ab0a90fd7",
+         "claim.488f35c2a655d8e14502afc5",
+         "claim.4a1a533385531e80b71ee281",
+         "claim.4a783588f88c32ce4995ef7e",
+         "claim.4aec52bebd171cd2ff49b290",
+         "claim.4b14a35e155525a0fe88e9bf",
+         "claim.4b6571da08df6df96e6a5524",
+         "claim.4bdf55e318a6dee0cf294c5e",
+         "claim.4de710ac6064be645e88ee99",
+         "claim.4df43495554c20ad54e774d5",
+         "claim.4e2ac599d0246350c1d0c4bf",
+         "claim.50eaf6dc52d471aab3cf6f5b",
+         "claim.5221b57332d745ea96a97761",
+         "claim.5325e3d0522013ca046f0ae0",
+         "claim.539c4e72726de02084c80eca",
+         "claim.548eecd969c6b5918a6490c2",
+         "claim.55a97f8313b5c9dc62e98f1f",
+         "claim.57c98a5fe6c8f94334a1428b",
+         "claim.580346db0d4662905942c214",
+         "claim.594a85fd469752d7edb1e325",
+         "claim.5a01506dbb33fee3951ba47b",
+         "claim.5abb0a658539621639c7e930",
+         "claim.5b11ffbb2c22eb0ff5169c01",
+         "claim.5ce02b2529707f15a95be70c",
+         "claim.5d7c5b3b5d7a2ab482b3c9d9",
+         "claim.5f216762b4d9c01ceeb4f26a",
+         "claim.622354df08e8e6096c68b8a1",
+         "claim.633b64d7905f85e06904b981",
+         "claim.65204542e8f7a9ae8683c040",
+         "claim.65f4e20a7250d7a713b194f3",
+         "claim.660da0f20914377372a86f05",
+         "claim.66ce77f289f319c2c9d28666",
+         "claim.698927e0605a030780556788",
+         "claim.6befebc933f940c058fde27b",
+         "claim.6c23514452c3cfd865acb82b",
+         "claim.6c284cc921eb13cfcdef8417",
+         "claim.6dbe096aee97ce41de220f24",
+         "claim.6debcea746053a8d364e218b",
+         "claim.6f5562393b850fb43f8bf8ba",
+         "claim.6fd0bd428e0d210dc9e2da0a",
+         "claim.704e9444470d02dd7238751b",
+         "claim.705864e9a4381fb284c84b81",
+         "claim.7072e38acb0d8b49f6696884",
+         "claim.70bceba9688e1058c155e7c3",
+         "claim.70cf67eca13d62963ab4282f",
+         "claim.742fa2e0e3f1f081de8ad626",
+         "claim.74e0af5354b63a270ae103cd",
+         "claim.7540534a2d1892df4ca765e4",
+         "claim.7583f4523611d73598409ce3",
+         "claim.75ed52692808c533ac50859d",
+         "claim.76342030702ad5b9c01d4687",
+         "claim.76aa1b11123654775d32c394",
+         "claim.76de8b8896ddcbf4a263ca16",
+         "claim.7873a198e1299c3c62e2aaa9",
+         "claim.79896af6d7cc69240d32b323",
+         "claim.7b14c9ee4a87fc7c797d0f18",
+         "claim.7b5bef945d4b7baeb6a4823c",
+         "claim.7c1eb4cfd1595f781430b4bd",
+         "claim.7ca7f23405ada1f27b6516cd",
+         "claim.7cefc5df84037c47a44e78ab",
+         "claim.7d616d83a656cf33be3a60e6",
+         "claim.7f25750c64c5ed8a3937cbd6",
+         "claim.81942f49e177d9f8c0060abc",
+         "claim.81c5811cc8289238892dc87a",
+         "claim.81d3ae569baf4945156819a1",
+         "claim.82dbbc3263589658ddffbd44",
+         "claim.833fb91bd529e6c46362c46a",
+         "claim.846f189504fdaad10b565730",
+         "claim.84a6b04174a2a07164f11bfd",
+         "claim.84cd5c752ccb54c92fc100c8",
+         "claim.85b31141c83ce203add15c31",
+         "claim.86d23c030ef433d9f3e42940",
+         "claim.873f840c38899fcce4f17af5",
+         "claim.87aea838a44931f7d36f9667",
+         "claim.87c6942b5017eb6708f7af78",
+         "claim.89e580459ecd46b770540a58",
+         "claim.8bc60d53e2dd02370268070a",
+         "claim.8be0fbb66c49bd28b4670a77",
+         "claim.8c4bda88dc0663c7687f7255",
+         "claim.8cefdca8cc05b8fbb0e7733d",
+         "claim.8d449cdc3f419b8025a7c1a5",
+         "claim.8dc92574aa98d479859e79b8",
+         "claim.8ff47f59fb053e6edf2f7a10",
+         "claim.9280ff21c9e7433fb9bb7277",
+         "claim.9289133941d4c98ff97229eb",
+         "claim.93ea19620682f31145be1065",
+         "claim.952683655cc1590b7212f6b4",
+         "claim.9694ff3ca6691f10f54d394e",
+         "claim.96dfb2d97c1e8b2fec1b1094",
+         "claim.978a70f7317bffe8486fb719",
+         "claim.978c72eaa825e610d192cf43",
+         "claim.97c0bf15ad625815a69dfa85",
+         "claim.9952f0b4e73be08f00466aa5",
+         "claim.99820c609da8fe4b160e9105",
+         "claim.9ab40fc0a259299d39cd845f",
+         "claim.9adead99385217af13bc96f1",
+         "claim.9cf175bc13d0d7ccc6053b72",
+         "claim.9de59bfea920176970eeff51",
+         "claim.9fe4b8d50677ef84d69fd970",
+         "claim.a0a77e32dd80fd94b5d96fb2",
+         "claim.a0bda3721aef52b7a2a220f9",
+         "claim.a2805310179181478392c50b",
+         "claim.a2d57f67946b0e613de4fb57",
+         "claim.a393626a30d2efdf6a17245e",
+         "claim.a4a837be5718b0b286f59165",
+         "claim.a6d0e6a83c34b5a5e834cbd3",
+         "claim.a7644caaedc3e5ef01338b2d",
+         "claim.a7d438e83ea5054d02948075",
+         "claim.a963348bcb219a589be7d0f9",
+         "claim.ab004ce92ef42ccddcd73ef4",
+         "claim.ab4f856458e6bcbc619df107",
+         "claim.ad0b9eedf543d4c23ec41235",
+         "claim.ad3b3aa59e68dc3591ddc1e6",
+         "claim.ad6f084fd4260cbf7ce5aa85",
+         "claim.adf6286a96908a35b5a8e201",
+         "claim.ae0117f129451406564d3908",
+         "claim.ae25141617b06f8a0a7d3e35",
+         "claim.b3ffa0c90a6f1f3def800514",
+         "claim.b61beabf7a2b0470a1badb01",
+         "claim.b7dd28213b240fb80672f881",
+         "claim.b8fb84930233cecebc344192",
+         "claim.b9b424babfddc8e4632b9e1c",
+         "claim.ba032463a8a2b47d84386b00",
+         "claim.babd7a115ff666c120f6ee30",
+         "claim.bac22e48325b68745f0d79fc",
+         "claim.bb9ed15f1845e00112404dea",
+         "claim.bbcf76dd30f2cd542debb7af",
+         "claim.bc90836829fa850d361f37a7",
+         "claim.c107905790c74424196c0853",
+         "claim.c1ded663b797a061d7b28c5d",
+         "claim.c236f2c9b6443081a4bb5d9f",
+         "claim.c2fdc28c7e05a6d96eb66eee",
+         "claim.c481e1f0e6fbbd69490641d2",
+         "claim.c4e6e2ae61f8d4bb6105b084",
+         "claim.c6517b0ae8bfdef5d74ffee6",
+         "claim.c81ba4d784268f25bddc0925",
+         "claim.cab3ba07e380bff3b83f2152",
+         "claim.cac7bec6f5f696a3ce8bf901",
+         "claim.cc827cc0691dbc4c7ca0b268",
+         "claim.cd23550adf3bbc64f8d5c9c1",
+         "claim.ce1d458d46a404420f3c0ef7",
+         "claim.cf32f4a8b31cba4bd3ba91ca",
+         "claim.cf6f15c4f3c2612a3eff50d4",
+         "claim.cfbed6e2c34f68e10892de84",
+         "claim.d32b843b33bbdb4788512690",
+         "claim.d3e1940c49d3beafb0ad3ff4",
+         "claim.d402018fb7bd9cdf86595605",
+         "claim.d423ecff9e9d5a98519607f8",
+         "claim.d4b500332f96e565ab09e491",
+         "claim.d516ed25611634f17347588e",
+         "claim.d57dfcb43cbc9a1c0d84b928",
+         "claim.d942c569be7ced829c3e9446",
+         "claim.d9df1942d85ff3bcc282251f",
+         "claim.dafa88f39f60d6ae3297991c",
+         "claim.db373681aa6bbf8fc8976318",
+         "claim.dcb66b6345461810ae738bdb",
+         "claim.dcd9e15a507a4b3ebafaa81c",
+         "claim.dd6959b29a4981fa158da825",
+         "claim.dd6c2ce21e533a7e65b3f391",
+         "claim.dd9ab3f3d422acf9d350ad4f",
+         "claim.dda4fd465b608ceeacf62c8b",
+         "claim.df498547e3484a525ad0b298",
+         "claim.e06d1667a7cc3f9dbe11790c",
+         "claim.e0a11c0011030c2f4157f4ad",
+         "claim.e0c14261810e9f5bba7a61bb",
+         "claim.e1b930f9da434fee947f4499",
+         "claim.e2819171319c35c5cef3b66a",
+         "claim.e2ad96230b67115b71ba25b3",
+         "claim.e3ba338d55cb61328c538e51",
+         "claim.e4a89a0b934bdc41a940d094",
+         "claim.e4e13b564d2c0872751caf68",
+         "claim.e557009d52ba34e02d2fe706",
+         "claim.e6730ec480b85896421deced",
+         "claim.ec2e7cf451bf824f42c0b783",
+         "claim.ec9b6a5dbba11f016e2461a1",
+         "claim.eca1c6e2053a5d4a56d709fd",
+         "claim.ecb1df0beb40c174bdb273d5",
+         "claim.ed9dc43cfeb6c4ab233d2d0d",
+         "claim.ee5afc9db173292766d72987",
+         "claim.eec885a1dd5ea52be9601980",
+         "claim.efa8bf167c7505447e651b32",
+         "claim.effd96b5c99d47c2701fdf11",
+         "claim.f043cdb9395308e9cba6d86b",
+         "claim.f0eda61353c73d4362b6223b",
+         "claim.f101f68d1f587eef89bbe4a5",
+         "claim.f1d2b2f3c97a8049b4d518ba",
+         "claim.f2ac131a89ba9d9b7acdc1fa",
+         "claim.f5f002eece4b45b8c1475242",
+         "claim.f617c6751444127ff059458f",
+         "claim.f6d0a84988fdc72902087132",
+         "claim.f8fdd003b9c73e5ce01f4404",
+         "claim.f981b2addaa8cc368b575ca8",
+         "claim.f98f10537f6b6d73b7fc58ee",
+         "claim.f990e55f721d718f7a1a5f3d",
+         "claim.fb959e51c72bbdeb8bfaa61f",
+         "claim.fc2b44c346fb9573e6931fa1",
+         "claim.fcf002da4f45ca17a153469c",
+         "claim.fd8c00678e80c6cc97a460ab"
+        ],
+        "project_id": "049bfd29-4736-43a2-abf5-2885123d8f19",
+        "output_hash": "sha256:1bd96a18f2cc0e4f8255afb764429d32ba0ed836009fc5a49529948f63173b0b",
+        "content_hash": "sha256:8aa12cebf99c51458e1a1716bec0da52c80745991d516051c47de1396658728c",
+        "schema_version": "1.0.0",
+        "artifact_version_id": "0958e467-f20a-522e-bb8f-3972c53f1ac9",
+        "source_snapshot_ids": [
+         "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2"
+        ],
+        "paper_summary_artifact_version_ids": [
+         "98dd9863-d691-5105-94d4-b982709143ba"
+        ]
+       }
+      ]
+     },
+     "schema_version": "1.0.0",
+     "reasoning_traces": [
+      {
+       "steps": [
+        {
+         "order": 1,
+         "claim_ids": [
+          "claim.84cd5c752ccb54c92fc100c8",
+          "claim.fd8c00678e80c6cc97a460ab"
+         ],
+         "operation": "identify_premises",
+         "statement": "Identify the premise that Section 2 describes TIC construction and stellar quantity algorithms, while Section 3 describes CTL construction, specific parameter algorithms, and priority schemes, which contextually supports the manual population of these catalogs using curated lists.",
+         "evidence_ids": [
+          "evidence.45e552e89955d806161a8dce",
+          "evidence.518994ce6d619808a0bb9bca",
+          "evidence.61fd80d5371139b2af9b2bec",
+          "evidence.6cb6ca9bfedb0dd2aad06b5f",
+          "evidence.a0b704195ede043bc7585577",
+          "evidence.aa72ef3bcc83a6ea3dcc3292",
+          "evidence.aaee5868276e6246ce2c7d2c",
+          "evidence.ad9f2ede4fad807ad037dfc5"
+         ]
+        },
+        {
+         "order": 2,
+         "claim_ids": [
+          "claim.84cd5c752ccb54c92fc100c8",
+          "claim.fd8c00678e80c6cc97a460ab"
+         ],
+         "operation": "compare_objects",
+         "statement": "Verify that both claims share the same scientific objects, specifically the TIC and CTL catalogs, establishing a comparable basis for the support relation.",
+         "evidence_ids": [
+          "evidence.45e552e89955d806161a8dce",
+          "evidence.518994ce6d619808a0bb9bca"
+         ]
+        },
+        {
+         "order": 3,
+         "claim_ids": [
+          "claim.84cd5c752ccb54c92fc100c8",
+          "claim.fd8c00678e80c6cc97a460ab"
+         ],
+         "operation": "check_conditions",
+         "statement": "Confirm that both claims operate under the shared condition of the construction process of the TIC and CTL catalogs.",
+         "evidence_ids": [
+          "evidence.61fd80d5371139b2af9b2bec",
+          "evidence.a0b704195ede043bc7585577"
+         ]
+        },
+        {
+         "order": 4,
+         "claim_ids": [
+          "claim.84cd5c752ccb54c92fc100c8",
+          "claim.fd8c00678e80c6cc97a460ab"
+         ],
+         "operation": "check_evidence",
+         "statement": "Ensure all evidence IDs from both the source and target claims are accounted for in the trace steps without omission or invention.",
+         "evidence_ids": [
+          "evidence.45e552e89955d806161a8dce",
+          "evidence.518994ce6d619808a0bb9bca",
+          "evidence.61fd80d5371139b2af9b2bec",
+          "evidence.6cb6ca9bfedb0dd2aad06b5f",
+          "evidence.a0b704195ede043bc7585577",
+          "evidence.aa72ef3bcc83a6ea3dcc3292",
+          "evidence.aaee5868276e6246ce2c7d2c",
+          "evidence.ad9f2ede4fad807ad037dfc5"
+         ]
+        },
+        {
+         "order": 5,
+         "claim_ids": [
+          "claim.84cd5c752ccb54c92fc100c8",
+          "claim.fd8c00678e80c6cc97a460ab"
+         ],
+         "operation": "classify_relation",
+         "statement": "Classify the relation as supports because the structural description of the paper sections (source) provides documentary context supporting the historical manual curation methods applied to the TIC and CTL (target).",
+         "evidence_ids": [
+          "evidence.6cb6ca9bfedb0dd2aad06b5f",
+          "evidence.ad9f2ede4fad807ad037dfc5"
+         ]
+        }
+       ],
+       "trace_id": "trace.a10bb734d85de6def8aa34b7",
+       "conflicts": [],
+       "conclusion": "The source claim describing the paper's section layout for TIC and CTL construction provides documentary support for the target claim regarding the manual population of these catalogs using specially curated lists.",
+       "conditions": [
+        "construction of TIC and CTL catalogs"
+       ],
+       "input_hash": "sha256:cb424f5ddf79112cde194ebd5776a08aac055cdaccc4f382a5e40beecfd6cbf9",
+       "limitations": [],
+       "relation_id": "relation.cd73f2bc9a167cdadc388190",
+       "evidence_ids": [
+        "evidence.45e552e89955d806161a8dce",
+        "evidence.518994ce6d619808a0bb9bca",
+        "evidence.61fd80d5371139b2af9b2bec",
+        "evidence.6cb6ca9bfedb0dd2aad06b5f",
+        "evidence.a0b704195ede043bc7585577",
+        "evidence.aa72ef3bcc83a6ea3dcc3292",
+        "evidence.aaee5868276e6246ce2c7d2c",
+        "evidence.ad9f2ede4fad807ad037dfc5"
+       ],
+       "relation_status": "candidate",
+       "premise_claim_ids": [
+        "claim.84cd5c752ccb54c92fc100c8",
+        "claim.fd8c00678e80c6cc97a460ab"
+       ],
+       "model_response_hash": "sha256:bd5b3d913b3472f27152d35e9acbd61b57b03b036fda030c29778d511df5b38d",
+       "producer_execution_id": "execution.cb424f5ddf79112cde194ebd",
+       "trace_protocol_version": "1.0.0",
+       "scientific_review_status": "pending_scientific_review"
+      }
+     ],
+     "evidence_references": [
+      {
+       "side": "source",
+       "status": "supported",
+       "claim_id": "claim.84cd5c752ccb54c92fc100c8",
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "evidence_id": "evidence.518994ce6d619808a0bb9bca",
+       "relation_id": "relation.cd73f2bc9a167cdadc388190",
+       "validation_code": "evidence.supported",
+       "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+       "source_snapshot_version": "\"sha256:29abfa7c608703a1d8b7c252886c7af92e67f2d93ea055c5ca595d559c4e2100\"",
+       "claim_artifact_version_id": "0958e467-f20a-522e-bb8f-3972c53f1ac9",
+       "source_snapshot_content_hash": "sha256:5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100",
+       "paper_summary_artifact_version_id": "98dd9863-d691-5105-94d4-b982709143ba"
+      },
+      {
+       "side": "source",
+       "status": "supported",
+       "claim_id": "claim.84cd5c752ccb54c92fc100c8",
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "evidence_id": "evidence.61fd80d5371139b2af9b2bec",
+       "relation_id": "relation.cd73f2bc9a167cdadc388190",
+       "validation_code": "evidence.supported",
+       "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+       "source_snapshot_version": "\"sha256:29abfa7c608703a1d8b7c252886c7af92e67f2d93ea055c5ca595d559c4e2100\"",
+       "claim_artifact_version_id": "0958e467-f20a-522e-bb8f-3972c53f1ac9",
+       "source_snapshot_content_hash": "sha256:5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100",
+       "paper_summary_artifact_version_id": "98dd9863-d691-5105-94d4-b982709143ba"
+      },
+      {
+       "side": "source",
+       "status": "supported",
+       "claim_id": "claim.84cd5c752ccb54c92fc100c8",
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "evidence_id": "evidence.6cb6ca9bfedb0dd2aad06b5f",
+       "relation_id": "relation.cd73f2bc9a167cdadc388190",
+       "validation_code": "evidence.supported",
+       "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+       "source_snapshot_version": "\"sha256:29abfa7c608703a1d8b7c252886c7af92e67f2d93ea055c5ca595d559c4e2100\"",
+       "claim_artifact_version_id": "0958e467-f20a-522e-bb8f-3972c53f1ac9",
+       "source_snapshot_content_hash": "sha256:5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100",
+       "paper_summary_artifact_version_id": "98dd9863-d691-5105-94d4-b982709143ba"
+      },
+      {
+       "side": "source",
+       "status": "supported",
+       "claim_id": "claim.84cd5c752ccb54c92fc100c8",
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "evidence_id": "evidence.aa72ef3bcc83a6ea3dcc3292",
+       "relation_id": "relation.cd73f2bc9a167cdadc388190",
+       "validation_code": "evidence.supported",
+       "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+       "source_snapshot_version": "\"sha256:29abfa7c608703a1d8b7c252886c7af92e67f2d93ea055c5ca595d559c4e2100\"",
+       "claim_artifact_version_id": "0958e467-f20a-522e-bb8f-3972c53f1ac9",
+       "source_snapshot_content_hash": "sha256:5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100",
+       "paper_summary_artifact_version_id": "98dd9863-d691-5105-94d4-b982709143ba"
+      },
+      {
+       "side": "source",
+       "status": "supported",
+       "claim_id": "claim.84cd5c752ccb54c92fc100c8",
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "evidence_id": "evidence.aaee5868276e6246ce2c7d2c",
+       "relation_id": "relation.cd73f2bc9a167cdadc388190",
+       "validation_code": "evidence.supported",
+       "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+       "source_snapshot_version": "\"sha256:29abfa7c608703a1d8b7c252886c7af92e67f2d93ea055c5ca595d559c4e2100\"",
+       "claim_artifact_version_id": "0958e467-f20a-522e-bb8f-3972c53f1ac9",
+       "source_snapshot_content_hash": "sha256:5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100",
+       "paper_summary_artifact_version_id": "98dd9863-d691-5105-94d4-b982709143ba"
+      },
+      {
+       "side": "target",
+       "status": "supported",
+       "claim_id": "claim.fd8c00678e80c6cc97a460ab",
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "evidence_id": "evidence.45e552e89955d806161a8dce",
+       "relation_id": "relation.cd73f2bc9a167cdadc388190",
+       "validation_code": "evidence.supported",
+       "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+       "source_snapshot_version": "\"sha256:29abfa7c608703a1d8b7c252886c7af92e67f2d93ea055c5ca595d559c4e2100\"",
+       "claim_artifact_version_id": "0958e467-f20a-522e-bb8f-3972c53f1ac9",
+       "source_snapshot_content_hash": "sha256:5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100",
+       "paper_summary_artifact_version_id": "98dd9863-d691-5105-94d4-b982709143ba"
+      },
+      {
+       "side": "target",
+       "status": "supported",
+       "claim_id": "claim.fd8c00678e80c6cc97a460ab",
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "evidence_id": "evidence.a0b704195ede043bc7585577",
+       "relation_id": "relation.cd73f2bc9a167cdadc388190",
+       "validation_code": "evidence.supported",
+       "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+       "source_snapshot_version": "\"sha256:29abfa7c608703a1d8b7c252886c7af92e67f2d93ea055c5ca595d559c4e2100\"",
+       "claim_artifact_version_id": "0958e467-f20a-522e-bb8f-3972c53f1ac9",
+       "source_snapshot_content_hash": "sha256:5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100",
+       "paper_summary_artifact_version_id": "98dd9863-d691-5105-94d4-b982709143ba"
+      },
+      {
+       "side": "target",
+       "status": "supported",
+       "claim_id": "claim.fd8c00678e80c6cc97a460ab",
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "evidence_id": "evidence.ad9f2ede4fad807ad037dfc5",
+       "relation_id": "relation.cd73f2bc9a167cdadc388190",
+       "validation_code": "evidence.supported",
+       "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+       "source_snapshot_version": "\"sha256:29abfa7c608703a1d8b7c252886c7af92e67f2d93ea055c5ca595d559c4e2100\"",
+       "claim_artifact_version_id": "0958e467-f20a-522e-bb8f-3972c53f1ac9",
+       "source_snapshot_content_hash": "sha256:5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100",
+       "paper_summary_artifact_version_id": "98dd9863-d691-5105-94d4-b982709143ba"
+      }
+     ],
+     "source_snapshot_ids": [
+      "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2"
+     ]
+    },
+    "content_hash": "sha256:b9c6a1258ef3ce76caae787f8985ae69b3e8b2766f88edf8ec5910a7fbae5f2f",
+    "input_hash": "sha256:cb424f5ddf79112cde194ebd5776a08aac055cdaccc4f382a5e40beecfd6cbf9",
+    "source_mode": "live",
+    "producer": {
+     "type": "model",
+     "name": "xingwen.literature_relation",
+     "version": "1.0.0",
+     "model_provider": "dashscope",
+     "requested_model": "qwen3.8-max-0902",
+     "provider_returned_model": "qwen3.8-max-0902",
+     "explicit_revision": "qwen3.8-max-0902",
+     "prompt_name": "literature_relation",
+     "prompt_version": "2.1.0",
+     "prompt_hash": "sha256:25d95bc7283ba00c000d300e7d52bd62652089e055241acdffb7ea635f160f59",
+     "parameters_hash": "sha256:df5f58d8663a8cc4d9943ad96e9ffb5fc168fec61a3bfc51d89c6ae1a0b7d247"
+    },
+    "source_snapshot_ids": [
+     "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2"
+    ],
+    "evidence_ids": [
+     "21d5fc67-6928-50b0-97cb-c1ffeb5f4ede",
+     "068d5ac9-7b26-5ef1-badb-a05b8ee41cd2",
+     "243e23e0-7870-5ed8-ab2e-fd6484d3761d",
+     "7e1bc3b5-d553-54bc-93e6-aac2407ef4e1",
+     "fe59da67-0de9-5eda-a485-956c285f6f91",
+     "7c9c5679-08f0-56c7-9b80-a6efb3c1b32f",
+     "91222b33-df4f-525c-b021-819d6f8b45b8",
+     "99534eb4-8021-5bfc-aa81-1349e36d693d",
+     "6a5519eb-7387-5fdd-9357-27e18e13a253",
+     "f240d236-5c3b-5209-8d54-b081a5fde2b0",
+     "d33c3011-f38e-54d1-abd2-ca1e592c69cc",
+     "d20aac40-f100-5235-b6ed-1164c7167069",
+     "31ddd8f5-99a6-52e9-adfb-b531d58d9940",
+     "75a982f1-107d-5e4b-9c54-d669a099e230",
+     "682f1094-b297-5603-a520-1a8512200b22",
+     "1d868803-134d-507e-b7c9-9bc6c985545a"
+    ],
+    "supersedes_version_id": "d89abfb0-5e39-539c-aba3-9bb2d768c10b",
+    "created_at": "2026-09-03T00:58:52.453730Z",
+    "presentation": {
+     "kind": "literature_relations",
+     "summary": null,
+     "facts": [
+      {
+       "label": "关系",
+       "values": [
+        "1 条"
+       ]
+      }
+     ],
+     "sections": [],
+     "entries": [
+      {
+       "key": "relation.cd73f2bc9a167cdadc388190",
+       "title": "论文第 2 节详细描述了 TIC 的构建以及用于计算各种恒星量的算法;第 3 节描述了 CTL 的构建、CTL 特有参数的附加算法以及 2 分钟步调观测目标选择的优先级方案。 → 为确保包含已知的高价值目标,TIC 和 CTL 曾由一系列特别策划的列表手动填充,包括亮星列表、冷矮星列表、已知行星宿主列表和热亚矮星列表。",
+       "external_url": null,
+       "status": "candidate",
+       "assessment": "supports",
+       "paragraphs": [],
+       "facts": [
+        {
+         "label": "成立条件",
+         "values": [
+          "construction of TIC and CTL catalogs"
+         ]
+        },
+        {
+         "label": "方向依据",
+         "values": [
+          "The source claim describes the paper sections detailing TIC and CTL construction, providing documentary support for the target claim's statement that TIC and CTL were manually populated with specially curated lists to ensure high-value targets."
+         ]
+        },
+        {
+         "label": "对象可比性",
+         "values": [
+          "可比较：Both claims explicitly refer to the TIC and CTL catalogs as their shared scientific objects."
+         ]
+        },
+        {
+         "label": "指标可比性",
+         "values": [
+          "不适用：Metric comparison is not applicable for a supports relation per policy constraints."
+         ]
+        },
+        {
+         "label": "单位可比性",
+         "values": [
+          "不适用：Unit comparison is not applicable for a supports relation per policy constraints."
+         ]
+        },
+        {
+         "label": "置信度",
+         "values": [
+          "无法评估"
+         ]
+        },
+        {
+         "label": "待复核原因",
+         "values": [
+          "置信度无法评估"
+         ]
+        }
+       ],
+       "evidence_ids": [
+        "6a5519eb-7387-5fdd-9357-27e18e13a253",
+        "f240d236-5c3b-5209-8d54-b081a5fde2b0",
+        "d33c3011-f38e-54d1-abd2-ca1e592c69cc",
+        "d20aac40-f100-5235-b6ed-1164c7167069",
+        "31ddd8f5-99a6-52e9-adfb-b531d58d9940",
+        "75a982f1-107d-5e4b-9c54-d669a099e230",
+        "682f1094-b297-5603-a520-1a8512200b22",
+        "1d868803-134d-507e-b7c9-9bc6c985545a"
+       ],
+       "reasoning_trace": {
+        "trace_id": "trace.a10bb734d85de6def8aa34b7",
+        "conclusion": "The source claim describing the paper's section layout for TIC and CTL construction provides documentary support for the target claim regarding the manual population of these catalogs using specially curated lists.",
+        "steps": [
+         "Identify the premise that Section 2 describes TIC construction and stellar quantity algorithms, while Section 3 describes CTL construction, specific parameter algorithms, and priority schemes, which contextually supports the manual population of these catalogs using curated lists.",
+         "Verify that both claims share the same scientific objects, specifically the TIC and CTL catalogs, establishing a comparable basis for the support relation.",
+         "Confirm that both claims operate under the shared condition of the construction process of the TIC and CTL catalogs.",
+         "Ensure all evidence IDs from both the source and target claims are accounted for in the trace steps without omission or invention.",
+         "Classify the relation as supports because the structural description of the paper sections (source) provides documentary context supporting the historical manual curation methods applied to the TIC and CTL (target)."
+        ],
+        "facts": [
+         {
+          "label": "成立条件",
+          "values": [
+           "construction of TIC and CTL catalogs"
+          ]
+         }
+        ],
+        "evidence_ids": [
+         "6a5519eb-7387-5fdd-9357-27e18e13a253",
+         "f240d236-5c3b-5209-8d54-b081a5fde2b0",
+         "d33c3011-f38e-54d1-abd2-ca1e592c69cc",
+         "d20aac40-f100-5235-b6ed-1164c7167069",
+         "31ddd8f5-99a6-52e9-adfb-b531d58d9940",
+         "75a982f1-107d-5e4b-9c54-d669a099e230",
+         "682f1094-b297-5603-a520-1a8512200b22",
+         "1d868803-134d-507e-b7c9-9bc6c985545a"
+        ]
+       },
+       "can_adjudicate": true,
+       "relation": {
+        "source_claim": "论文第 2 节详细描述了 TIC 的构建以及用于计算各种恒星量的算法;第 3 节描述了 CTL 的构建、CTL 特有参数的附加算法以及 2 分钟步调观测目标选择的优先级方案。",
+        "target_claim": "为确保包含已知的高价值目标,TIC 和 CTL 曾由一系列特别策划的列表手动填充,包括亮星列表、冷矮星列表、已知行星宿主列表和热亚矮星列表。"
+       }
+      }
+     ],
+     "tables": [],
+     "graph_nodes": [],
+     "graph_edges": []
+    },
+    "producer_execution": {
+     "id": "5ef08045-b04a-4520-a6ab-bf54f4868f49",
+     "run_id": "2c0acb1e-0ee8-4965-a66f-b25e249f556b",
+     "step_key": "reasoning_literature",
+     "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+     "producer": {
+      "type": "model",
+      "name": "xingwen.literature_relation",
+      "version": "1.0.0",
+      "model_provider": "dashscope",
+      "requested_model": "qwen3.8-max-0902",
+      "provider_returned_model": "qwen3.8-max-0902",
+      "explicit_revision": "qwen3.8-max-0902",
+      "prompt_name": "literature_relation",
+      "prompt_version": "2.1.0",
+      "prompt_hash": "sha256:25d95bc7283ba00c000d300e7d52bd62652089e055241acdffb7ea635f160f59",
+      "parameters_hash": "sha256:df5f58d8663a8cc4d9943ad96e9ffb5fc168fec61a3bfc51d89c6ae1a0b7d247"
+     },
+     "parameters": {
+      "top_p": 0.8,
+      "temperature": 0.6
+     },
+     "parameters_hash": "sha256:df5f58d8663a8cc4d9943ad96e9ffb5fc168fec61a3bfc51d89c6ae1a0b7d247",
+     "input_hash": "sha256:cb424f5ddf79112cde194ebd5776a08aac055cdaccc4f382a5e40beecfd6cbf9",
+     "output_hash": "sha256:b9c6a1258ef3ce76caae787f8985ae69b3e8b2766f88edf8ec5910a7fbae5f2f",
+     "status": "completed",
+     "started_at": "2026-09-03T00:57:20.459817Z",
+     "finished_at": "2026-09-03T00:58:48.217884Z",
+     "token_usage": {
+      "total_tokens": 23498,
+      "prompt_tokens": 21942,
+      "completion_tokens": 1556
+     },
+     "latency_ms": 17921,
+     "provider_request_id": "8da8417a-9418-9b46-a0a0-f26e2dd0c0b8",
+     "error_code": null
+    },
+    "source_snapshots": [
+     {
+      "id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+      "source_id": "url_arxiv.org",
+      "source_type": "url_fetch",
+      "retrieved_at": "2026-09-03T00:26:26.420081Z",
+      "query": "https://arxiv.org/pdf/1905.10694",
+      "query_hash": "sha256:20663ea438f0e298e8a441332ca7b59498b969cb961de798e098cbd36079d7f0",
+      "source_version_or_etag": "\"sha256:29abfa7c608703a1d8b7c252886c7af92e67f2d93ea055c5ca595d559c4e2100\"",
+      "content_hash": "sha256:5b78bfb739358af0bcfdca12cdba54c25277cd26d1c4f40523737749bcb2e100",
+      "license_note": "fetched",
+      "cache_version": null,
+      "request_metadata": {
+       "status_code": 200,
+       "response_headers": {
+        "etag": "\"sha256:29abfa7c608703a1d8b7c252886c7af92e67f2d93ea055c5ca595d559c4e2100\"",
+        "content_type": "application/pdf",
+        "last_modified": "Mon, 23 Jan 2023 00:59:46 GMT"
+       }
+      }
+     }
+    ],
+    "evidence": [
+     {
+      "id": "21d5fc67-6928-50b0-97cb-c1ffeb5f4ede",
+      "artifact_version_id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+      "target_type": "claim",
+      "target_id": "claim.84cd5c752ccb54c92fc100c8",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": 1,
+       "range": "0:116",
+       "section": "document",
+       "paragraph": 213,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "evidence.518994ce6d619808a0bb9bca"
+      },
+      "quote_or_value": "targets for 2-minute cadence observations. Finally, Section 4 provides a summary of the contents of the TIC and CTL.",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:58:52.453730Z"
+     },
+     {
+      "id": "068d5ac9-7b26-5ef1-badb-a05b8ee41cd2",
+      "artifact_version_id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+      "target_type": "claim",
+      "target_id": "claim.84cd5c752ccb54c92fc100c8",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": 1,
+       "range": "0:52",
+       "section": "document",
+       "paragraph": 211,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "evidence.61fd80d5371139b2af9b2bec"
+      },
+      "quote_or_value": "Section 3 describes the construction of the CTL, the",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:58:52.453730Z"
+     },
+     {
+      "id": "243e23e0-7870-5ed8-ab2e-fd6484d3761d",
+      "artifact_version_id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+      "target_type": "claim",
+      "target_id": "claim.84cd5c752ccb54c92fc100c8",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": 1,
+       "range": "0:64",
+       "section": "document",
+       "paragraph": 210,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "evidence.6cb6ca9bfedb0dd2aad06b5f"
+      },
+      "quote_or_value": "and the algorithms used to calculate various stellar quantities.",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:58:52.453730Z"
+     },
+     {
+      "id": "7e1bc3b5-d553-54bc-93e6-aac2407ef4e1",
+      "artifact_version_id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+      "target_type": "claim",
+      "target_id": "claim.84cd5c752ccb54c92fc100c8",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": 1,
+       "range": "0:113",
+       "section": "document",
+       "paragraph": 209,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "evidence.aa72ef3bcc83a6ea3dcc3292"
+      },
+      "quote_or_value": "The purpose of this paper is to describe the updated TIC and CTL. Section 2 describes the construction of the TIC",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:58:52.453730Z"
+     },
+     {
+      "id": "fe59da67-0de9-5eda-a485-956c285f6f91",
+      "artifact_version_id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+      "target_type": "claim",
+      "target_id": "claim.84cd5c752ccb54c92fc100c8",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": 1,
+       "range": "0:118",
+       "section": "document",
+       "paragraph": 212,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "evidence.aaee5868276e6246ce2c7d2c"
+      },
+      "quote_or_value": "additional algorithms used for parameters unique to the CTL, and in particular the prioritization scheme for selecting",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:58:52.453730Z"
+     },
+     {
+      "id": "7c9c5679-08f0-56c7-9b80-a6efb3c1b32f",
+      "artifact_version_id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+      "target_type": "claim",
+      "target_id": "claim.fd8c00678e80c6cc97a460ab",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": 1,
+       "range": "0:83",
+       "section": "document",
+       "paragraph": 188,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "evidence.45e552e89955d806161a8dce"
+      },
+      "quote_or_value": "Finally, in order to ensure inclusion of known, high-value targets, the TIC and CTL",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:58:52.453730Z"
+     },
+     {
+      "id": "91222b33-df4f-525c-b021-819d6f8b45b8",
+      "artifact_version_id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+      "target_type": "claim",
+      "target_id": "claim.fd8c00678e80c6cc97a460ab",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": 1,
+       "range": "0:119",
+       "section": "document",
+       "paragraph": 189,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "evidence.a0b704195ede043bc7585577"
+      },
+      "quote_or_value": "were manually populated by a set of specially curated lists, including a Bright Star list, a Cool Dwarf list, a list of",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:58:52.453730Z"
+     },
+     {
+      "id": "99534eb4-8021-5bfc-aa81-1349e36d693d",
+      "artifact_version_id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+      "target_type": "claim",
+      "target_id": "claim.fd8c00678e80c6cc97a460ab",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": 1,
+       "range": "0:91",
+       "section": "document",
+       "paragraph": 190,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "evidence.ad9f2ede4fad807ad037dfc5"
+      },
+      "quote_or_value": "Known Planet Hosts, and a list of Hot Subdwarfs (see Appendix A for a detailed discussion).",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:58:52.453730Z"
+     },
+     {
+      "id": "6a5519eb-7387-5fdd-9357-27e18e13a253",
+      "artifact_version_id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+      "target_type": "relation",
+      "target_id": "relation.cd73f2bc9a167cdadc388190",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": 1,
+       "range": "0:83",
+       "section": "document",
+       "paragraph": 188,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "evidence.45e552e89955d806161a8dce"
+      },
+      "quote_or_value": "Finally, in order to ensure inclusion of known, high-value targets, the TIC and CTL",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:58:52.453730Z"
+     },
+     {
+      "id": "f240d236-5c3b-5209-8d54-b081a5fde2b0",
+      "artifact_version_id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+      "target_type": "relation",
+      "target_id": "relation.cd73f2bc9a167cdadc388190",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": 1,
+       "range": "0:116",
+       "section": "document",
+       "paragraph": 213,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "evidence.518994ce6d619808a0bb9bca"
+      },
+      "quote_or_value": "targets for 2-minute cadence observations. Finally, Section 4 provides a summary of the contents of the TIC and CTL.",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:58:52.453730Z"
+     },
+     {
+      "id": "d33c3011-f38e-54d1-abd2-ca1e592c69cc",
+      "artifact_version_id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+      "target_type": "relation",
+      "target_id": "relation.cd73f2bc9a167cdadc388190",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": 1,
+       "range": "0:52",
+       "section": "document",
+       "paragraph": 211,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "evidence.61fd80d5371139b2af9b2bec"
+      },
+      "quote_or_value": "Section 3 describes the construction of the CTL, the",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:58:52.453730Z"
+     },
+     {
+      "id": "d20aac40-f100-5235-b6ed-1164c7167069",
+      "artifact_version_id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+      "target_type": "relation",
+      "target_id": "relation.cd73f2bc9a167cdadc388190",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": 1,
+       "range": "0:64",
+       "section": "document",
+       "paragraph": 210,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "evidence.6cb6ca9bfedb0dd2aad06b5f"
+      },
+      "quote_or_value": "and the algorithms used to calculate various stellar quantities.",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:58:52.453730Z"
+     },
+     {
+      "id": "31ddd8f5-99a6-52e9-adfb-b531d58d9940",
+      "artifact_version_id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+      "target_type": "relation",
+      "target_id": "relation.cd73f2bc9a167cdadc388190",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": 1,
+       "range": "0:119",
+       "section": "document",
+       "paragraph": 189,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "evidence.a0b704195ede043bc7585577"
+      },
+      "quote_or_value": "were manually populated by a set of specially curated lists, including a Bright Star list, a Cool Dwarf list, a list of",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:58:52.453730Z"
+     },
+     {
+      "id": "75a982f1-107d-5e4b-9c54-d669a099e230",
+      "artifact_version_id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+      "target_type": "relation",
+      "target_id": "relation.cd73f2bc9a167cdadc388190",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": 1,
+       "range": "0:113",
+       "section": "document",
+       "paragraph": 209,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "evidence.aa72ef3bcc83a6ea3dcc3292"
+      },
+      "quote_or_value": "The purpose of this paper is to describe the updated TIC and CTL. Section 2 describes the construction of the TIC",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:58:52.453730Z"
+     },
+     {
+      "id": "682f1094-b297-5603-a520-1a8512200b22",
+      "artifact_version_id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+      "target_type": "relation",
+      "target_id": "relation.cd73f2bc9a167cdadc388190",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": 1,
+       "range": "0:118",
+       "section": "document",
+       "paragraph": 212,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "evidence.aaee5868276e6246ce2c7d2c"
+      },
+      "quote_or_value": "additional algorithms used for parameters unique to the CTL, and in particular the prioritization scheme for selecting",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:58:52.453730Z"
+     },
+     {
+      "id": "1d868803-134d-507e-b7c9-9bc6c985545a",
+      "artifact_version_id": "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+      "target_type": "relation",
+      "target_id": "relation.cd73f2bc9a167cdadc388190",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "3bfffbee-5093-47b4-9ddc-f79ddb2c23d2",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": 1,
+       "range": "0:91",
+       "section": "document",
+       "paragraph": 190,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "evidence.ad9f2ede4fad807ad037dfc5"
+      },
+      "quote_or_value": "Known Planet Hosts, and a list of Hot Subdwarfs (see Appendix A for a detailed discussion).",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:58:52.453730Z"
+     }
+    ]
+   }
+  },
+  {
+   "version_id": "d89abfb0-5e39-539c-aba3-9bb2d768c10b",
+   "detail": {
+    "id": "d89abfb0-5e39-539c-aba3-9bb2d768c10b",
+    "artifact_id": "f18ac872-8089-54a1-b730-428cdc0c1ddd",
+    "project_id": "049bfd29-4736-43a2-abf5-2885123d8f19",
+    "created_by_run_id": "742199a6-8d04-4320-ba12-e3ae1264cb42",
+    "version_number": 1,
+    "schema_version": "1.0.0",
+    "content": {
+     "kind": "literature_relations",
+     "claims": [
+      {
+       "text": "A revised ranking system for prioritizing stars for 2 minute cadence observations is described.",
+       "scope": [],
+       "status": "accepted",
+       "objects": [
+        "ranking system"
+       ],
+       "claim_id": "claim.15e9c41bdc554fdbb9450303",
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "polarity": "positive",
+       "claim_type": "method",
+       "conditions": [
+        "2 minute cadence observations"
+       ],
+       "input_hash": "sha256:83ccb648d392a263278d2d4d014ddc190d2396ada511cbb6b4d7f335cb4f9428",
+       "qualifiers": [],
+       "fingerprint": "sha256:1e5d2fcc8f3a3e0afe07fdd671d20730057c2bad8bfcfb2491c04c883d88894e",
+       "limitations": [],
+       "evidence_ids": [
+        "ev.abstract"
+       ],
+       "normalized_text": "A revised ranking system for prioritizing stars for 2 minute cadence observations is described.",
+       "source_summary_id": "summary.3f753eaf6ee29d06063c24ca",
+       "model_response_hash": "sha256:32bed2fa8682559205d6d5bab3e919e6d87cc4e6d37fbf94031d3a6db28c1c6d",
+       "source_snapshot_ids": [
+        "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b"
+       ],
+       "source_statement_id": "meth.revised_ranking_system",
+       "normalization_version": "1.0.0",
+       "producer_execution_id": "execution.83ccb648d392a263278d2d4d",
+       "source_paper_summary_artifact_version_id": "6fbad9ab-a6fc-5a46-9046-40eb0d3866a5"
+      },
+      {
+       "text": "A revised Candidate Target List (CTL) was assembled using the revised ranking system.",
+       "scope": [],
+       "status": "accepted",
+       "objects": [
+        "Candidate Target List (CTL)"
+       ],
+       "claim_id": "claim.41e93df231c05318c1a431ce",
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "polarity": "positive",
+       "claim_type": "method",
+       "conditions": [],
+       "input_hash": "sha256:83ccb648d392a263278d2d4d014ddc190d2396ada511cbb6b4d7f335cb4f9428",
+       "qualifiers": [],
+       "fingerprint": "sha256:a171637c899aa8adccd818997e93bce2511eddc38c73959a4ad8f052069b6219",
+       "limitations": [],
+       "evidence_ids": [
+        "ev.abstract"
+       ],
+       "normalized_text": "A revised Candidate Target List (CTL) was assembled using the revised ranking system.",
+       "source_summary_id": "summary.3f753eaf6ee29d06063c24ca",
+       "model_response_hash": "sha256:32bed2fa8682559205d6d5bab3e919e6d87cc4e6d37fbf94031d3a6db28c1c6d",
+       "source_snapshot_ids": [
+        "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b"
+       ],
+       "source_statement_id": "meth.ctl_assembly",
+       "normalization_version": "1.0.0",
+       "producer_execution_id": "execution.83ccb648d392a263278d2d4d",
+       "source_paper_summary_artifact_version_id": "6fbad9ab-a6fc-5a46-9046-40eb0d3866a5"
+      }
+     ],
+     "evidence": [
+      {
+       "status": "supported",
+       "locator": {
+        "kind": "paper_text",
+        "section": "abstract",
+        "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
+        "text_range": "0:563"
+       },
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "source_id": "crossref",
+       "evidence_id": "ev.abstract",
+       "candidate_id": "candidate.a63d1a114e45069c03d9d6296a03245f1b572ca9399284c786736819bc585d44",
+       "quote_or_value": "Abstract We describe the catalogs assembled and the algorithms used to populate the revised TESS Input Catalog (TIC), based on the incorporation of the Gaia second data release. We also describe a revised ranking system for prioritizing stars for 2 minute cadence observations, and we assemble a revised Candidate Target List (CTL) using that ranking. The TIC is available on the Mikulski Archive for Space Telescopes server, and an enhanced CTL is available through the Filtergraph data visualization portal system at http://filtergraph.vanderbilt.edu/tess_ctl .",
+       "validation_code": "evidence.supported",
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "source_snapshot_id": "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b",
+       "source_snapshot_version": "sha256:e313d915456490ccde4aa379d462ad2fb4b8549669f5dd3d4fd6cda8d9ffa847",
+       "source_snapshot_content_hash": "sha256:e313d915456490ccde4aa379d462ad2fb4b8549669f5dd3d4fd6cda8d9ffa847"
+      }
+     ],
+     "producer": {
+      "run_id": "742199a6-8d04-4320-ba12-e3ae1264cb42",
+      "status": "completed",
+      "step_key": "reasoning_literature",
+      "input_hash": "sha256:d9aeed7e17b802e71f12922a18dde98c7fc925018171299071cf9742a446138a",
+      "latency_ms": 0,
+      "model_name": "qwen3.8-max-0902",
+      "started_at": "2026-09-03T00:24:33.623283Z",
+      "finished_at": "2026-09-03T00:24:33.623283Z",
+      "output_hash": "sha256:6147158ed278329e2ba413476b8076fb7c95767a581f0a7a8fdba12344d2ff65",
+      "prompt_hash": "sha256:25d95bc7283ba00c000d300e7d52bd62652089e055241acdffb7ea635f160f59",
+      "prompt_name": "literature_relation",
+      "execution_id": "execution.d9aeed7e17b802e71f12922a",
+      "producer_name": "xingwen.literature_relation",
+      "producer_type": "model",
+      "input_versions": {
+       "project_id": "049bfd29-4736-43a2-abf5-2885123d8f19",
+       "claim_artifact_versions": [
+        {
+         "claim_ids": [
+          "claim.15e9c41bdc554fdbb9450303",
+          "claim.41e93df231c05318c1a431ce",
+          "claim.4c7695961b1c69407349ab3a",
+          "claim.58f2ee8fae44ada186ce065c",
+          "claim.a5cbb2035fbf446779a69c73",
+          "claim.e79cc15a7419cf61b3bf61aa"
+         ],
+         "project_id": "049bfd29-4736-43a2-abf5-2885123d8f19",
+         "output_hash": "sha256:fc35270fbcbb2ec8eecf53bfb332b0b45c2a15af73f7afde85b78b1399c82614",
+         "content_hash": "sha256:a926bcac53ea504da6eedf59dad9994b8b1b367dc8afbe55641b68fcbb77564f",
+         "schema_version": "1.0.0",
+         "artifact_version_id": "ca988f48-6a3d-5d83-bc2e-6d777a948e56",
+         "source_snapshot_ids": [
+          "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b"
+         ],
+         "paper_summary_artifact_version_ids": [
+          "6fbad9ab-a6fc-5a46-9046-40eb0d3866a5"
+         ]
+        }
+       ]
+      },
+      "prompt_version": "2.1.0",
+      "schema_version": "1.0.0",
+      "pairing_version": "1.0.0",
+      "parameters_hash": "sha256:df5f58d8663a8cc4d9943ad96e9ffb5fc168fec61a3bfc51d89c6ae1a0b7d247",
+      "producer_version": "1.0.0",
+      "parameters_version": "1.0.0",
+      "model_response_hash": "sha256:0115a65d46016df0c899fab64252fd2fd883124ecf320bd9eb8f7e3897e980ff",
+      "trace_protocol_version": "1.0.0",
+      "confidence_definition_id": "relation_classification_decision_confidence",
+      "comparison_policy_version": "1.0.0",
+      "confidence_calibration_id": "exoplanet_host_star.paper_reasoning.relation_labels",
+      "confidence_calibration_method": "frozen_approved_label_reference",
+      "confidence_definition_version": "1.0.0",
+      "confidence_applicability_scope": "benchmark.exoplanet_host_star.relation_admission_regression",
+      "confidence_calibration_version": "2.0.0",
+      "confidence_acceptance_threshold": 0.9,
+      "confidence_calibration_sample_size": 4,
+      "confidence_calibration_content_hash": "sha256:a315b54f934bb3b37e8273a9a766d5c87bd494089d99d7e82b6920b782e8ad57",
+      "confidence_calibration_scientific_payload_hash": "sha256:1a9969d31f80198f73c008eb78cdba70cb4411570345f0829552da4bcda87db9"
+     },
+     "relations": [
+      {
+       "status": "candidate",
+       "pair_id": "claim_pair.498990cbc103fe3f86856440",
+       "direction": {
+        "basis": "The source claim states that the revised Candidate Target List (CTL) was assembled using the revised ranking system described in the target claim, establishing a derived_from relationship.",
+        "source_claim_id": "claim.41e93df231c05318c1a431ce",
+        "target_claim_id": "claim.15e9c41bdc554fdbb9450303"
+       },
+       "conditions": [
+        "2 minute cadence observations"
+       ],
+       "confidence": {
+        "basis": [
+         "实时研究输入不属于冻结关系校准样本，无法给出校准置信分数。"
+        ],
+        "status": "not_evaluable",
+        "subject": {
+         "fingerprint": "sha256:bd2f3ee08b7973b80539ccb3a697a6a03208ace41bde9fc5f6e639837a6c2ada",
+         "relation_type": "derived_from",
+         "source_claim_id": "claim.41e93df231c05318c1a431ce",
+         "target_claim_id": "claim.15e9c41bdc554fdbb9450303",
+         "source_claim_artifact_version_id": "ca988f48-6a3d-5d83-bc2e-6d777a948e56",
+         "target_claim_artifact_version_id": "ca988f48-6a3d-5d83-bc2e-6d777a948e56"
+        },
+        "decision": "candidate",
+        "assessment_id": "assessment.live_scope.bd2f3ee08b7973b80539ccb3",
+        "definition_id": "relation_classification_decision_confidence",
+        "calibration_id": "exoplanet_host_star.paper_reasoning.relation_labels",
+        "calibration_method": "frozen_approved_label_reference",
+        "definition_version": "1.0.0",
+        "applicability_scope": "benchmark.exoplanet_host_star.relation_admission_regression",
+        "calibration_version": "2.0.0",
+        "acceptance_threshold": 0.9,
+        "score_interpretation": "confidence_in_relation_type_and_admission_decision",
+        "calibration_sample_size": 4,
+        "calibration_content_hash": "sha256:a315b54f934bb3b37e8273a9a766d5c87bd494089d99d7e82b6920b782e8ad57",
+        "calibration_scientific_payload_hash": "sha256:1a9969d31f80198f73c008eb78cdba70cb4411570345f0829552da4bcda87db9"
+       },
+       "input_hash": "sha256:d9aeed7e17b802e71f12922a18dde98c7fc925018171299071cf9742a446138a",
+       "fingerprint": "sha256:bd2f3ee08b7973b80539ccb3a697a6a03208ace41bde9fc5f6e639837a6c2ada",
+       "relation_id": "relation.680e457c7185b6d39be2349e",
+       "evidence_ids": [
+        "ev.abstract"
+       ],
+       "comparability": {
+        "unit_basis": "derived_from is a structural relation and does not compare units.",
+        "unit_status": "not_applicable",
+        "metric_basis": "derived_from is a structural relation and does not compare scientific metrics.",
+        "object_basis": "Both claims share the scientific object of the revised ranking system used for assembling the Candidate Target List (CTL).",
+        "metric_status": "not_applicable",
+        "object_status": "comparable"
+       },
+       "relation_type": "derived_from",
+       "review_reason": "literature_relation.review.confidence_not_evaluable",
+       "source_claim_id": "claim.41e93df231c05318c1a431ce",
+       "target_claim_id": "claim.15e9c41bdc554fdbb9450303",
+       "reasoning_trace_id": "trace.6b93b74378477198c455f423",
+       "condition_conflicts": [],
+       "model_response_hash": "sha256:0115a65d46016df0c899fab64252fd2fd883124ecf320bd9eb8f7e3897e980ff",
+       "source_snapshot_ids": [
+        "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b"
+       ],
+       "producer_execution_id": "execution.d9aeed7e17b802e71f12922a",
+       "condition_uncertainties": [],
+       "scientific_review_status": "pending_scientific_review",
+       "source_claim_artifact_version_id": "ca988f48-6a3d-5d83-bc2e-6d777a948e56",
+       "target_claim_artifact_version_id": "ca988f48-6a3d-5d83-bc2e-6d777a948e56",
+       "source_paper_summary_artifact_version_id": "6fbad9ab-a6fc-5a46-9046-40eb0d3866a5",
+       "target_paper_summary_artifact_version_id": "6fbad9ab-a6fc-5a46-9046-40eb0d3866a5"
+      }
+     ],
+     "input_hash": "sha256:d9aeed7e17b802e71f12922a18dde98c7fc925018171299071cf9742a446138a",
+     "output_hash": "sha256:6147158ed278329e2ba413476b8076fb7c95767a581f0a7a8fdba12344d2ff65",
+     "evidence_ids": [
+      "ev.abstract"
+     ],
+     "status_counts": {
+      "accepted": 0,
+      "rejected": 0,
+      "candidate": 1
+     },
+     "input_versions": {
+      "project_id": "049bfd29-4736-43a2-abf5-2885123d8f19",
+      "claim_artifact_versions": [
+       {
+        "claim_ids": [
+         "claim.15e9c41bdc554fdbb9450303",
+         "claim.41e93df231c05318c1a431ce",
+         "claim.4c7695961b1c69407349ab3a",
+         "claim.58f2ee8fae44ada186ce065c",
+         "claim.a5cbb2035fbf446779a69c73",
+         "claim.e79cc15a7419cf61b3bf61aa"
+        ],
+        "project_id": "049bfd29-4736-43a2-abf5-2885123d8f19",
+        "output_hash": "sha256:fc35270fbcbb2ec8eecf53bfb332b0b45c2a15af73f7afde85b78b1399c82614",
+        "content_hash": "sha256:a926bcac53ea504da6eedf59dad9994b8b1b367dc8afbe55641b68fcbb77564f",
+        "schema_version": "1.0.0",
+        "artifact_version_id": "ca988f48-6a3d-5d83-bc2e-6d777a948e56",
+        "source_snapshot_ids": [
+         "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b"
+        ],
+        "paper_summary_artifact_version_ids": [
+         "6fbad9ab-a6fc-5a46-9046-40eb0d3866a5"
+        ]
+       }
+      ]
+     },
+     "schema_version": "1.0.0",
+     "reasoning_traces": [
+      {
+       "steps": [
+        {
+         "order": 1,
+         "claim_ids": [
+          "claim.15e9c41bdc554fdbb9450303",
+          "claim.41e93df231c05318c1a431ce"
+         ],
+         "operation": "identify_premises",
+         "statement": "Identify that claim.41e93df231c05318c1a431ce describes the assembly of a revised CTL using a revised ranking system, and claim.15e9c41bdc554fdbb9450303 describes the revised ranking system itself for prioritizing stars for 2 minute cadence observations.",
+         "evidence_ids": [
+          "ev.abstract"
+         ]
+        },
+        {
+         "order": 2,
+         "claim_ids": [
+          "claim.15e9c41bdc554fdbb9450303",
+          "claim.41e93df231c05318c1a431ce"
+         ],
+         "operation": "compare_objects",
+         "statement": "Both claims refer to the same scientific object: the revised ranking system utilized in the context of the Candidate Target List (CTL).",
+         "evidence_ids": [
+          "ev.abstract"
+         ]
+        },
+        {
+         "order": 3,
+         "claim_ids": [
+          "claim.15e9c41bdc554fdbb9450303",
+          "claim.41e93df231c05318c1a431ce"
+         ],
+         "operation": "check_conditions",
+         "statement": "The target claim explicitly conditions the ranking system on '2 minute cadence observations'. Since the source claim uses this exact ranking system to assemble the CTL, this condition applies to both claims jointly.",
+         "evidence_ids": [
+          "ev.abstract"
+         ]
+        },
+        {
+         "order": 4,
+         "claim_ids": [
+          "claim.15e9c41bdc554fdbb9450303",
+          "claim.41e93df231c05318c1a431ce"
+         ],
+         "operation": "check_evidence",
+         "statement": "Both claims are supported by the same evidence identifier ev.abstract, confirming they originate from the same literature source and share evidentiary basis.",
+         "evidence_ids": [
+          "ev.abstract"
+         ]
+        },
+        {
+         "order": 5,
+         "claim_ids": [
+          "claim.15e9c41bdc554fdbb9450303",
+          "claim.41e93df231c05318c1a431ce"
+         ],
+         "operation": "classify_relation",
+         "statement": "Because the source claim explicitly states the CTL was assembled 'using' the ranking system described in the target claim, the source methodological output is derived from the target methodological description. This constitutes a derived_from structural relation.",
+         "evidence_ids": [
+          "ev.abstract"
+         ]
+        }
+       ],
+       "trace_id": "trace.6b93b74378477198c455f423",
+       "conflicts": [],
+       "conclusion": "The assembly of the revised Candidate Target List (CTL) in claim.41e93df231c05318c1a431ce is directly derived from the revised ranking system described in claim.15e9c41bdc554fdbb9450303 under the shared condition of 2 minute cadence observations.",
+       "conditions": [
+        "2 minute cadence observations"
+       ],
+       "input_hash": "sha256:d9aeed7e17b802e71f12922a18dde98c7fc925018171299071cf9742a446138a",
+       "limitations": [],
+       "relation_id": "relation.680e457c7185b6d39be2349e",
+       "evidence_ids": [
+        "ev.abstract"
+       ],
+       "relation_status": "candidate",
+       "premise_claim_ids": [
+        "claim.41e93df231c05318c1a431ce",
+        "claim.15e9c41bdc554fdbb9450303"
+       ],
+       "model_response_hash": "sha256:0115a65d46016df0c899fab64252fd2fd883124ecf320bd9eb8f7e3897e980ff",
+       "producer_execution_id": "execution.d9aeed7e17b802e71f12922a",
+       "trace_protocol_version": "1.0.0",
+       "scientific_review_status": "pending_scientific_review"
+      }
+     ],
+     "evidence_references": [
+      {
+       "side": "source",
+       "status": "supported",
+       "claim_id": "claim.41e93df231c05318c1a431ce",
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "evidence_id": "ev.abstract",
+       "relation_id": "relation.680e457c7185b6d39be2349e",
+       "validation_code": "evidence.supported",
+       "source_snapshot_id": "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b",
+       "source_snapshot_version": "sha256:e313d915456490ccde4aa379d462ad2fb4b8549669f5dd3d4fd6cda8d9ffa847",
+       "claim_artifact_version_id": "ca988f48-6a3d-5d83-bc2e-6d777a948e56",
+       "source_snapshot_content_hash": "sha256:e313d915456490ccde4aa379d462ad2fb4b8549669f5dd3d4fd6cda8d9ffa847",
+       "paper_summary_artifact_version_id": "6fbad9ab-a6fc-5a46-9046-40eb0d3866a5"
+      },
+      {
+       "side": "target",
+       "status": "supported",
+       "claim_id": "claim.15e9c41bdc554fdbb9450303",
+       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "evidence_id": "ev.abstract",
+       "relation_id": "relation.680e457c7185b6d39be2349e",
+       "validation_code": "evidence.supported",
+       "source_snapshot_id": "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b",
+       "source_snapshot_version": "sha256:e313d915456490ccde4aa379d462ad2fb4b8549669f5dd3d4fd6cda8d9ffa847",
+       "claim_artifact_version_id": "ca988f48-6a3d-5d83-bc2e-6d777a948e56",
+       "source_snapshot_content_hash": "sha256:e313d915456490ccde4aa379d462ad2fb4b8549669f5dd3d4fd6cda8d9ffa847",
+       "paper_summary_artifact_version_id": "6fbad9ab-a6fc-5a46-9046-40eb0d3866a5"
+      }
+     ],
+     "source_snapshot_ids": [
+      "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b"
+     ]
+    },
+    "content_hash": "sha256:9e809144eb5fb0eb156e0100c8ea06020b10105df732fa26e6e7f3a13459ded7",
+    "input_hash": "sha256:d9aeed7e17b802e71f12922a18dde98c7fc925018171299071cf9742a446138a",
+    "source_mode": "live",
+    "producer": {
+     "type": "model",
+     "name": "xingwen.literature_relation",
+     "version": "1.0.0",
+     "model_provider": "dashscope",
+     "requested_model": "qwen3.8-max-0902",
+     "provider_returned_model": "qwen3.8-max-0902",
+     "explicit_revision": "qwen3.8-max-0902",
+     "prompt_name": "literature_relation",
+     "prompt_version": "2.1.0",
+     "prompt_hash": "sha256:25d95bc7283ba00c000d300e7d52bd62652089e055241acdffb7ea635f160f59",
+     "parameters_hash": "sha256:df5f58d8663a8cc4d9943ad96e9ffb5fc168fec61a3bfc51d89c6ae1a0b7d247"
+    },
+    "source_snapshot_ids": [
+     "e4a60e31-faef-5500-a93f-d4c85235ee79"
+    ],
+    "evidence_ids": [
+     "8efcb89a-bf0e-541d-8c25-5c926715871b",
+     "20c2945f-598d-5afe-8a9f-4383165ccb1e",
+     "2d0b48b8-28b1-5d01-8be6-bab16e3c9cfb"
+    ],
+    "supersedes_version_id": null,
+    "created_at": "2026-09-03T00:24:33.642407Z",
+    "presentation": {
+     "kind": "literature_relations",
+     "summary": null,
+     "facts": [
+      {
+       "label": "关系",
+       "values": [
+        "1 条"
+       ]
+      }
+     ],
+     "sections": [],
+     "entries": [
+      {
+       "key": "relation.680e457c7185b6d39be2349e",
+       "title": "A revised Candidate Target List (CTL) was assembled using the revised ranking system. → A revised ranking system for prioritizing stars for 2 minute cadence observations is described.",
+       "external_url": null,
+       "status": "candidate",
+       "assessment": "derived_from",
+       "paragraphs": [],
+       "facts": [
+        {
+         "label": "成立条件",
+         "values": [
+          "2 minute cadence observations"
+         ]
+        },
+        {
+         "label": "方向依据",
+         "values": [
+          "The source claim states that the revised Candidate Target List (CTL) was assembled using the revised ranking system described in the target claim, establishing a derived_from relationship."
+         ]
+        },
+        {
+         "label": "对象可比性",
+         "values": [
+          "可比较：Both claims share the scientific object of the revised ranking system used for assembling the Candidate Target List (CTL)."
+         ]
+        },
+        {
+         "label": "指标可比性",
+         "values": [
+          "不适用：derived_from is a structural relation and does not compare scientific metrics."
+         ]
+        },
+        {
+         "label": "单位可比性",
+         "values": [
+          "不适用：derived_from is a structural relation and does not compare units."
+         ]
+        },
+        {
+         "label": "置信度",
+         "values": [
+          "无法评估"
+         ]
+        },
+        {
+         "label": "待复核原因",
+         "values": [
+          "置信度无法评估"
+         ]
+        }
+       ],
+       "evidence_ids": [
+        "2d0b48b8-28b1-5d01-8be6-bab16e3c9cfb"
+       ],
+       "reasoning_trace": {
+        "trace_id": "trace.6b93b74378477198c455f423",
+        "conclusion": "The assembly of the revised Candidate Target List (CTL) in claim.41e93df231c05318c1a431ce is directly derived from the revised ranking system described in claim.15e9c41bdc554fdbb9450303 under the shared condition of 2 minute cadence observations.",
+        "steps": [
+         "Identify that claim.41e93df231c05318c1a431ce describes the assembly of a revised CTL using a revised ranking system, and claim.15e9c41bdc554fdbb9450303 describes the revised ranking system itself for prioritizing stars for 2 minute cadence observations.",
+         "Both claims refer to the same scientific object: the revised ranking system utilized in the context of the Candidate Target List (CTL).",
+         "The target claim explicitly conditions the ranking system on '2 minute cadence observations'. Since the source claim uses this exact ranking system to assemble the CTL, this condition applies to both claims jointly.",
+         "Both claims are supported by the same evidence identifier ev.abstract, confirming they originate from the same literature source and share evidentiary basis.",
+         "Because the source claim explicitly states the CTL was assembled 'using' the ranking system described in the target claim, the source methodological output is derived from the target methodological description. This constitutes a derived_from structural relation."
+        ],
+        "facts": [
+         {
+          "label": "成立条件",
+          "values": [
+           "2 minute cadence observations"
+          ]
+         }
+        ],
+        "evidence_ids": [
+         "2d0b48b8-28b1-5d01-8be6-bab16e3c9cfb"
+        ]
+       },
+       "can_adjudicate": true,
+       "relation": {
+        "source_claim": "A revised Candidate Target List (CTL) was assembled using the revised ranking system.",
+        "target_claim": "A revised ranking system for prioritizing stars for 2 minute cadence observations is described."
+       }
+      }
+     ],
+     "tables": [],
+     "graph_nodes": [],
+     "graph_edges": []
+    },
+    "producer_execution": {
+     "id": "9acad31f-c5d0-4a37-b6ef-36f6446cebaa",
+     "run_id": "742199a6-8d04-4320-ba12-e3ae1264cb42",
+     "step_key": "reasoning_literature",
+     "step_attempt_id": "b66ccb70-98d8-4f2b-92f4-a8f4efa76098",
+     "producer": {
+      "type": "model",
+      "name": "xingwen.literature_relation",
+      "version": "1.0.0",
+      "model_provider": "dashscope",
+      "requested_model": "qwen3.8-max-0902",
+      "provider_returned_model": "qwen3.8-max-0902",
+      "explicit_revision": "qwen3.8-max-0902",
+      "prompt_name": "literature_relation",
+      "prompt_version": "2.1.0",
+      "prompt_hash": "sha256:25d95bc7283ba00c000d300e7d52bd62652089e055241acdffb7ea635f160f59",
+      "parameters_hash": "sha256:df5f58d8663a8cc4d9943ad96e9ffb5fc168fec61a3bfc51d89c6ae1a0b7d247"
+     },
+     "parameters": {
+      "top_p": 0.8,
+      "temperature": 0.6
+     },
+     "parameters_hash": "sha256:df5f58d8663a8cc4d9943ad96e9ffb5fc168fec61a3bfc51d89c6ae1a0b7d247",
+     "input_hash": "sha256:d9aeed7e17b802e71f12922a18dde98c7fc925018171299071cf9742a446138a",
+     "output_hash": "sha256:9e809144eb5fb0eb156e0100c8ea06020b10105df732fa26e6e7f3a13459ded7",
+     "status": "completed",
+     "started_at": "2026-09-03T00:24:21.641729Z",
+     "finished_at": "2026-09-03T00:24:33.632569Z",
+     "token_usage": {
+      "total_tokens": 6287,
+      "prompt_tokens": 5277,
+      "completion_tokens": 1010
+     },
+     "latency_ms": 11967,
+     "provider_request_id": "ef0e69bd-d5f7-97a7-88b7-88193923fc99",
+     "error_code": null
+    },
+    "source_snapshots": [
+     {
+      "id": "e4a60e31-faef-5500-a93f-d4c85235ee79",
+      "source_id": "crossref",
+      "source_type": "paper_metadata",
+      "retrieved_at": "2026-09-03T00:23:56.778712Z",
+      "query": "[REDACTED]",
+      "query_hash": "sha256:9099de759f5889f97f215ef836b3d55c67b7bcfa86024c02913c10607d09d9b8",
+      "source_version_or_etag": null,
+      "content_hash": "sha256:e313d915456490ccde4aa379d462ad2fb4b8549669f5dd3d4fd6cda8d9ffa847",
+      "license_note": "Metadata may be retrieved publicly; linked content remains governed by the publisher or repository license. Crossref supplies deposited metadata and links, not a general entitlement to article full text.",
+      "cache_version": null,
+      "request_metadata": {
+       "endpoint": "https://api.crossref.org/works"
+      }
+     }
+    ],
+    "evidence": [
+     {
+      "id": "8efcb89a-bf0e-541d-8c25-5c926715871b",
+      "artifact_version_id": "d89abfb0-5e39-539c-aba3-9bb2d768c10b",
+      "target_type": "claim",
+      "target_id": "claim.15e9c41bdc554fdbb9450303",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "e4a60e31-faef-5500-a93f-d4c85235ee79",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": null,
+       "range": "0:563",
+       "section": "abstract",
+       "paragraph": null,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "ev.abstract"
+      },
+      "quote_or_value": "Abstract We describe the catalogs assembled and the algorithms used to populate the revised TESS Input Catalog (TIC), based on the incorporation of the Gaia second data release. We also describe a revised ranking system for prioritizing stars for 2 minute cadence observations, and we assemble a revised Candidate Target List (CTL) using that ranking. The TIC is available on the Mikulski Archive for Space Telescopes server, and an enhanced CTL is available through the Filtergraph data visualization portal system at http://filtergraph.vanderbilt.edu/tess_ctl .",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:24:33.642407Z"
+     },
+     {
+      "id": "20c2945f-598d-5afe-8a9f-4383165ccb1e",
+      "artifact_version_id": "d89abfb0-5e39-539c-aba3-9bb2d768c10b",
+      "target_type": "claim",
+      "target_id": "claim.41e93df231c05318c1a431ce",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "e4a60e31-faef-5500-a93f-d4c85235ee79",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": null,
+       "range": "0:563",
+       "section": "abstract",
+       "paragraph": null,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "ev.abstract"
+      },
+      "quote_or_value": "Abstract We describe the catalogs assembled and the algorithms used to populate the revised TESS Input Catalog (TIC), based on the incorporation of the Gaia second data release. We also describe a revised ranking system for prioritizing stars for 2 minute cadence observations, and we assemble a revised Candidate Target List (CTL) using that ranking. The TIC is available on the Mikulski Archive for Space Telescopes server, and an enhanced CTL is available through the Filtergraph data visualization portal system at http://filtergraph.vanderbilt.edu/tess_ctl .",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:24:33.642407Z"
+     },
+     {
+      "id": "2d0b48b8-28b1-5d01-8be6-bab16e3c9cfb",
+      "artifact_version_id": "d89abfb0-5e39-539c-aba3-9bb2d768c10b",
+      "target_type": "relation",
+      "target_id": "relation.680e457c7185b6d39be2349e",
+      "evidence_type": "paper_text",
+      "source_snapshot_id": "e4a60e31-faef-5500-a93f-d4c85235ee79",
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "locator": {
+       "kind": "paper_text",
+       "page": null,
+       "range": "0:563",
+       "section": "abstract",
+       "paragraph": null,
+       "metadata_field": null,
+       "source_record_id": "10.3847/1538-3881/ab3467",
+       "summary_evidence_id": "ev.abstract"
+      },
+      "quote_or_value": "Abstract We describe the catalogs assembled and the algorithms used to populate the revised TESS Input Catalog (TIC), based on the incorporation of the Gaia second data release. We also describe a revised ranking system for prioritizing stars for 2 minute cadence observations, and we assemble a revised Candidate Target List (CTL) using that ranking. The TIC is available on the Mikulski Archive for Space Telescopes server, and an enhanced CTL is available through the Filtergraph data visualization portal system at http://filtergraph.vanderbilt.edu/tess_ctl .",
+      "extraction_method": "literature_admission",
+      "confidence": 1.0,
+      "created_at": "2026-09-03T00:24:33.642407Z"
+     }
+    ]
+   }
+  }
+ ]
+}

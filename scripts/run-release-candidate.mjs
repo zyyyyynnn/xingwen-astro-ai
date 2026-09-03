@@ -270,7 +270,4 @@ try {
       `Release Candidate cleanup could not stop isolated project ${projectName}.`,
     );
   }
-  run(process.execPath, ["scripts/build-handoff-manifest.mjs"], {
-    env: runtimeEnvironment,
-  });
 }

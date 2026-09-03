@@ -1,0 +1,1300 @@
+{
+ "kind": "paper_collection",
+ "artifact_id": "906b3690-8b78-5d87-9fb1-4c80be279488",
+ "latest_version_id": "daa08e84-7e5f-5fc2-8387-2371ff1d7ec7",
+ "versions": [
+  {
+   "version_id": "daa08e84-7e5f-5fc2-8387-2371ff1d7ec7",
+   "detail": {
+    "id": "daa08e84-7e5f-5fc2-8387-2371ff1d7ec7",
+    "artifact_id": "906b3690-8b78-5d87-9fb1-4c80be279488",
+    "project_id": "049bfd29-4736-43a2-abf5-2885123d8f19",
+    "created_by_run_id": "742199a6-8d04-4320-ba12-e3ae1264cb42",
+    "version_number": 1,
+    "schema_version": "3.0.0",
+    "content": {
+     "kind": "paper_collection",
+     "query": {
+      "year_to": 2026,
+      "query_id": "query.9099de759f5889f97f215ef8",
+      "year_from": 2019,
+      "pagination": {
+       "max_pages": 1,
+       "page_size": 20,
+       "candidate_limit": 10
+      },
+      "query_hash": "sha256:9099de759f5889f97f215ef836b3d55c67b7bcfa86024c02913c10607d09d9b8",
+      "source_ids": [
+       "crossref"
+      ],
+      "sort_strategy": "source_relevance_then_canonical_tie_breaker",
+      "original_keywords": [
+       "TESS Input Catalog Candidate Target List"
+      ],
+      "source_parameters": {
+       "crossref": {
+        "sort": "relevance",
+        "order": "desc",
+        "filter": "from-pub-date:2019-01-01,until-pub-date:2026-12-31",
+        "select": "DOI,title,author,published,published-print,published-online,URL,resource,alternative-id,abstract",
+        "query.bibliographic": "tess input catalog candidate target list"
+       }
+      },
+      "normalized_keywords": [
+       "tess input catalog candidate target list"
+      ],
+      "original_query_string": "TESS Input Catalog Candidate Target List",
+      "normalized_query_string": "tess input catalog candidate target list",
+      "normalization_rule_version": "1.0.0"
+     },
+     "rules": {
+      "adapter_name": "crossref_rest",
+      "dedupe_version": "1.0.0",
+      "adapter_version": "1.0.0",
+      "ranking_version": "1.0.0",
+      "selection_limit": 10,
+      "selection_version": "1.0.0",
+      "retry_policy_version": "1.0.0",
+      "source_policy_version": "1.0.0",
+      "canonicalization_version": "1.0.0",
+      "query_normalization_version": "1.0.0"
+     },
+     "metrics": {
+      "duplicate_rate": 0.0,
+      "selected_count": 10,
+      "candidate_count": 10,
+      "source_failure_count": 0,
+      "source_execution_count": 1,
+      "duplicate_candidate_count": 0,
+      "source_empty_result_count": 0
+     },
+     "producer": {
+      "run_id": "742199a6-8d04-4320-ba12-e3ae1264cb42",
+      "status": "completed",
+      "step_key": "searching_papers",
+      "input_hash": "sha256:c9208ce593038f92a42458a1e446bd305ac9ac924973158b4040d27eb8b50039",
+      "latency_ms": 1084,
+      "started_at": "2026-09-03T00:23:55.697429Z",
+      "finished_at": "2026-09-03T00:23:56.781926Z",
+      "output_hash": "sha256:7a46aad985a06b5c9b2123bb2fe703b337d21be1bdb658d42288f97f57529583",
+      "execution_id": "producer.b9edd3a75a0bc7dd49082aba",
+      "producer_name": "xingwen.paper_collection",
+      "producer_type": "algorithm",
+      "parameters_hash": "sha256:6df65faf851e5b49088ceb0b33c1302c33ae73549c55d4bf94e05339b9864b8b",
+      "producer_version": "1.0.0"
+     },
+     "candidates": [
+      {
+       "doi": "10.3847/1538-3881/ab3467",
+       "raw": {
+        "doi": "10.3847/1538-3881/ab3467",
+        "url": "https://doi.org/10.3847/1538-3881/ab3467",
+        "year": 2019,
+        "title": "The Revised TESS Input Catalog and Candidate Target List",
+        "authors": [
+         "Keivan G. Stassun",
+         "Ryan J. Oelkers",
+         "Martin Paegert",
+         "Guillermo Torres",
+         "Joshua Pepper",
+         "Nathan De Lee",
+         "Kevin Collins",
+         "David W. Latham",
+         "Philip S. Muirhead",
+         "Jay Chittidi",
+         "Bárbara Rojas-Ayala",
+         "Scott W. Fleming",
+         "Mark E. Rose",
+         "Peter Tenenbaum",
+         "Eric B. Ting",
+         "Stephen R. Kane",
+         "Thomas Barclay",
+         "Jacob L. Bean",
+         "C. E. Brassuer",
+         "David Charbonneau",
+         "Jian Ge",
+         "Jack J. Lissauer",
+         "Andrew W. Mann",
+         "Brian McLean",
+         "Susan Mullally",
+         "Norio Narita",
+         "Peter Plavchan",
+         "George R. Ricker",
+         "Dimitar Sasselov",
+         "S. Seager",
+         "Sanjib Sharma",
+         "Bernie Shiao",
+         "Alessandro Sozzetti",
+         "Dennis Stello",
+         "Roland Vanderspek",
+         "Geoff Wallace",
+         "Joshua N. Winn"
+        ],
+        "abstract": "Abstract We describe the catalogs assembled and the algorithms used to populate the revised TESS Input Catalog (TIC), based on the incorporation of the Gaia second data release. We also describe a revised ranking system for prioritizing stars for 2 minute cadence observations, and we assemble a revised Candidate Target List (CTL) using that ranking. The TIC is available on the Mikulski Archive for Space Telescopes server, and an enhanced CTL is available through the Filtergraph data visualization portal system at http://filtergraph.vanderbilt.edu/tess_ctl .",
+        "source_id": "crossref",
+        "record_hash": "sha256:a8f57772ac3cad96a1dc97fa5b4bdbb83fac408af9932718ca1a4bbaec3692ed",
+        "source_record_id": "10.3847/1538-3881/ab3467",
+        "source_snapshot_id": "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b"
+       },
+       "url": "https://doi.org/10.3847/1538-3881/ab3467",
+       "year": 2019,
+       "title": "The Revised TESS Input Catalog and Candidate Target List",
+       "authors": [
+        "Keivan G. Stassun",
+        "Ryan J. Oelkers",
+        "Martin Paegert",
+        "Guillermo Torres",
+        "Joshua Pepper",
+        "Nathan De Lee",
+        "Kevin Collins",
+        "David W. Latham",
+        "Philip S. Muirhead",
+        "Jay Chittidi",
+        "Bárbara Rojas-Ayala",
+        "Scott W. Fleming",
+        "Mark E. Rose",
+        "Peter Tenenbaum",
+        "Eric B. Ting",
+        "Stephen R. Kane",
+        "Thomas Barclay",
+        "Jacob L. Bean",
+        "C. E. Brassuer",
+        "David Charbonneau",
+        "Jian Ge",
+        "Jack J. Lissauer",
+        "Andrew W. Mann",
+        "Brian McLean",
+        "Susan Mullally",
+        "Norio Narita",
+        "Peter Plavchan",
+        "George R. Ricker",
+        "Dimitar Sasselov",
+        "S. Seager",
+        "Sanjib Sharma",
+        "Bernie Shiao",
+        "Alessandro Sozzetti",
+        "Dennis Stello",
+        "Roland Vanderspek",
+        "Geoff Wallace",
+        "Joshua N. Winn"
+       ],
+       "selected": true,
+       "conflicts": [],
+       "ranking_key": "0.550000|the revised tess input catalog and candidate target list|2019|paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad|candidate.a63d1a114e45069c03d9d6296a03245f1b572ca9399284c786736819bc585d44",
+       "candidate_id": "candidate.a63d1a114e45069c03d9d6296a03245f1b572ca9399284c786736819bc585d44",
+       "dedupe_evidence": [
+        "singleton"
+       ],
+       "relevance_score": 0.45,
+       "normalized_title": "the revised tess input catalog and candidate target list",
+       "selection_reason": "highest ranked representative within selection limit",
+       "canonical_paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "duplicate_group_id": "duplicate.197784fc391b65556493aee219fc96d74333fa7d0455ced6d0d7496023fa1e91",
+       "normalized_authors": [
+        "keivan g stassun",
+        "ryan j oelkers",
+        "martin paegert",
+        "guillermo torres",
+        "joshua pepper",
+        "nathan de lee",
+        "kevin collins",
+        "david w latham",
+        "philip s muirhead",
+        "jay chittidi",
+        "bárbara rojas ayala",
+        "scott w fleming",
+        "mark e rose",
+        "peter tenenbaum",
+        "eric b ting",
+        "stephen r kane",
+        "thomas barclay",
+        "jacob l bean",
+        "c e brassuer",
+        "david charbonneau",
+        "jian ge",
+        "jack j lissauer",
+        "andrew w mann",
+        "brian mclean",
+        "susan mullally",
+        "norio narita",
+        "peter plavchan",
+        "george r ricker",
+        "dimitar sasselov",
+        "s seager",
+        "sanjib sharma",
+        "bernie shiao",
+        "alessandro sozzetti",
+        "dennis stello",
+        "roland vanderspek",
+        "geoff wallace",
+        "joshua n winn"
+       ],
+       "ranking_rule_version": "1.0.0",
+       "selection_rule_version": "1.0.0",
+       "canonical_identity_basis": "doi"
+      },
+      {
+       "doi": "10.3847/1538-4357/adc2fc",
+       "raw": {
+        "doi": "10.3847/1538-4357/adc2fc",
+        "url": "https://doi.org/10.3847/1538-4357/adc2fc",
+        "year": 2025,
+        "title": "A Spatiotemporal Data Cube Approach to Classification of Variable Stars: A Catalog of Candidate Variable Stars from the TESS Full-frame Image Raw Data",
+        "authors": [
+         "Harry Qiang",
+         "Marina Kounkel",
+         "Sally Bass",
+         "Ryan Lingg",
+         "Logan Sizemore",
+         "Dylan Carroll",
+         "Brian Hutchinson",
+         "Keivan G. Stassun"
+        ],
+        "abstract": "Abstract We present a novel technique to identify variable stars in large surveys that performs classification not on the 1D light curves but on the spatiotemporal data cube. Such an approach can allow the model to better discriminate against the systematics in the background flux and consider the variability across the entire point-spread function, which can be advantageous to large surveys such as Transiting Exoplanet Survey Satellite (TESS). We perform a search for eclipsing, pulsating, and rotating variables in TESS full-frame images. This classification was done using a neural network that has been trained on variable stars identified in other surveys. In total we identify 3.1 million candidate variable sources. Although these sources should undergo significant vetting to confirm them using more traditional techniques, through assembling the catalog of the most promising candidates, it should be possible to significantly narrow down the list of light curves of sources that would need to be constructed for such an analysis. With an increasing number of surveys aiming to do photometric monitoring coming online in the future (e.g., LSST), a similar analysis with an improved training set could be advantageous in classifying variable stars.",
+        "source_id": "crossref",
+        "record_hash": "sha256:1aa64000c28c4be632bd334add0ca1abb059cbbc39e7627330c2a6c741c3291a",
+        "source_record_id": "10.3847/1538-4357/adc2fc",
+        "source_snapshot_id": "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b"
+       },
+       "url": "https://doi.org/10.3847/1538-4357/adc2fc",
+       "year": 2025,
+       "title": "A Spatiotemporal Data Cube Approach to Classification of Variable Stars: A Catalog of Candidate Variable Stars from the TESS Full-frame Image Raw Data",
+       "authors": [
+        "Harry Qiang",
+        "Marina Kounkel",
+        "Sally Bass",
+        "Ryan Lingg",
+        "Logan Sizemore",
+        "Dylan Carroll",
+        "Brian Hutchinson",
+        "Keivan G. Stassun"
+       ],
+       "selected": true,
+       "conflicts": [],
+       "ranking_key": "0.675000|a spatiotemporal data cube approach to classification of variable stars a catalog of candidate variable stars from the tess full frame image raw data|2025|paper.4e4b56d1f9328698c6c3d4c9b299bad116454862862e5e27a44c539c01cb1203|candidate.66bab87823b05542790e029ce2c73ee7ecfa25b133b96e38b54210d2ef1653c8",
+       "candidate_id": "candidate.66bab87823b05542790e029ce2c73ee7ecfa25b133b96e38b54210d2ef1653c8",
+       "dedupe_evidence": [
+        "singleton"
+       ],
+       "relevance_score": 0.325,
+       "normalized_title": "a spatiotemporal data cube approach to classification of variable stars a catalog of candidate variable stars from the tess full frame image raw data",
+       "selection_reason": "highest ranked representative within selection limit",
+       "canonical_paper_id": "paper.4e4b56d1f9328698c6c3d4c9b299bad116454862862e5e27a44c539c01cb1203",
+       "duplicate_group_id": "duplicate.3f76cffc83c7f0670ca437fb66531729a508cc864f1ab9d137076446a2e0ca88",
+       "normalized_authors": [
+        "harry qiang",
+        "marina kounkel",
+        "sally bass",
+        "ryan lingg",
+        "logan sizemore",
+        "dylan carroll",
+        "brian hutchinson",
+        "keivan g stassun"
+       ],
+       "ranking_rule_version": "1.0.0",
+       "selection_rule_version": "1.0.0",
+       "canonical_identity_basis": "doi"
+      },
+      {
+       "doi": "10.3847/2515-5172/ae5b91",
+       "raw": {
+        "doi": "10.3847/2515-5172/ae5b91",
+        "url": "https://doi.org/10.3847/2515-5172/ae5b91",
+        "year": 2026,
+        "title": "Gaia DR3 IDs for TESS Input Catalog Targets",
+        "authors": [
+         "Kevin K. Hardegree-Ullman",
+         "Melanie A. Swain",
+         "Jessie L. Christiansen",
+         "Emily A. Gilbert",
+         "Marcy Harbut",
+         "Aurora Y. Kesseli",
+         "Michael B. Lund",
+         "Meca Lynn",
+         "Julian C. van Eyken"
+        ],
+        "abstract": "Abstract The TESS Input Catalog (TIC) was built on Gaia Data Release 2 (DR2). To date, there has not been an update to the TIC to incorporate Gaia Data Release 3 (DR3) IDs. In this Research Note, we outline how we cross-matched the TIC with Gaia DR3 IDs, its immediate applications to exoplanet research, and lessons learned when dealing with such large datasets. A full TIC/Gaia DR3 cross-match table is available for download on the Exoplanet Follow-up Observing Program website, and a Jupyter Notebook with instructions to reproduce the table is available on GitHub.",
+        "source_id": "crossref",
+        "record_hash": "sha256:f6682de498a6c28b9236174f48f26c2686c878d0fc5c09707e48b426f01f27fb",
+        "source_record_id": "10.3847/2515-5172/ae5b91",
+        "source_snapshot_id": "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b"
+       },
+       "url": "https://doi.org/10.3847/2515-5172/ae5b91",
+       "year": 2026,
+       "title": "Gaia DR3 IDs for TESS Input Catalog Targets",
+       "authors": [
+        "Kevin K. Hardegree-Ullman",
+        "Melanie A. Swain",
+        "Jessie L. Christiansen",
+        "Emily A. Gilbert",
+        "Marcy Harbut",
+        "Aurora Y. Kesseli",
+        "Michael B. Lund",
+        "Meca Lynn",
+        "Julian C. van Eyken"
+       ],
+       "selected": true,
+       "conflicts": [],
+       "ranking_key": "0.675000|gaia dr3 ids for tess input catalog targets|2026|paper.6faa39858c115b51bc19c3390469e50bbb18bd7ebe282d245f7626c630411a25|candidate.812be7e5fe3a4fe3b1d5fb011e8cd56a3f618f2d8414f5819a8b0f12d392ca77",
+       "candidate_id": "candidate.812be7e5fe3a4fe3b1d5fb011e8cd56a3f618f2d8414f5819a8b0f12d392ca77",
+       "dedupe_evidence": [
+        "singleton"
+       ],
+       "relevance_score": 0.325,
+       "normalized_title": "gaia dr3 ids for tess input catalog targets",
+       "selection_reason": "highest ranked representative within selection limit",
+       "canonical_paper_id": "paper.6faa39858c115b51bc19c3390469e50bbb18bd7ebe282d245f7626c630411a25",
+       "duplicate_group_id": "duplicate.a807a0d9bb3837d40c822382a73eef4c073d237bee434a772a560aae4d7cff2b",
+       "normalized_authors": [
+        "kevin k hardegree ullman",
+        "melanie a swain",
+        "jessie l christiansen",
+        "emily a gilbert",
+        "marcy harbut",
+        "aurora y kesseli",
+        "michael b lund",
+        "meca lynn",
+        "julian c van eyken"
+       ],
+       "ranking_rule_version": "1.0.0",
+       "selection_rule_version": "1.0.0",
+       "canonical_identity_basis": "doi"
+      },
+      {
+       "doi": "10.3847/1538-3881/ac6bf9",
+       "raw": {
+        "doi": "10.3847/1538-3881/ac6bf9",
+        "url": "https://doi.org/10.3847/1538-3881/ac6bf9",
+        "year": 2022,
+        "title": "The Ariel Target List: The Impact of TESS and the Potential for Characterizing Multiple Planets within a System",
+        "authors": [
+         "Billy Edwards",
+         "Giovanna Tinetti"
+        ],
+        "abstract": "Abstract The ESA Ariel mission has been adopted for launch in 2029 and will conduct a survey of around 1000 exoplanetary atmospheres during its primary mission life. By providing homogeneous data sets with a high signal-to-noise ratio and wide wavelength coverage, Ariel will unveil the atmospheric demographics of these faraway worlds, helping to constrain planet formation and evolution processes on a galactic scale. Ariel seeks to undertake a statistical survey of a diverse population of planets; therefore, the sample of planets from which this selection can be made is of the utmost importance. While many suitable targets have already been found, hundreds more will be discovered before the mission is operational. Previous studies have used predictions of exoplanet detections to forecast the available planet population by the launch date of Ariel, with the most recent noting that the Transiting Exoplanet Survey Satellite (TESS) alone should provide over 1000 potential targets. In this work, we consider the planet candidates found to date by TESS to show that, with the addition of already confirmed planets, Ariel will already have a more than sufficient sample to choose its target list from once these candidates are validated. We showcase the breadth of this population, as well as exploring, for the first time, the ability of Ariel to characterize multiple planets within a single system. Comparative planetology of worlds orbiting the same star, as well as across the wider population, will undoubtedly revolutionize our understanding of planet formation and evolution.",
+        "source_id": "crossref",
+        "record_hash": "sha256:cdfde12925465440fcd3847a2480e0ad54af3df07768b3e2c8bfbf2e30f4882a",
+        "source_record_id": "10.3847/1538-3881/ac6bf9",
+        "source_snapshot_id": "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b"
+       },
+       "url": "https://doi.org/10.3847/1538-3881/ac6bf9",
+       "year": 2022,
+       "title": "The Ariel Target List: The Impact of TESS and the Potential for Characterizing Multiple Planets within a System",
+       "authors": [
+        "Billy Edwards",
+        "Giovanna Tinetti"
+       ],
+       "selected": true,
+       "conflicts": [],
+       "ranking_key": "0.675000|the ariel target list the impact of tess and the potential for characterizing multiple planets within a system|2022|paper.21727841a95e041ee50311b5ceb63eb746563d9dd55188b4c25f88b16ac241dd|candidate.75b9044a8a7b40a28b906300bdbf873fefd4a7a8619ca5b0d20b16dc53d6e1cc",
+       "candidate_id": "candidate.75b9044a8a7b40a28b906300bdbf873fefd4a7a8619ca5b0d20b16dc53d6e1cc",
+       "dedupe_evidence": [
+        "singleton"
+       ],
+       "relevance_score": 0.325,
+       "normalized_title": "the ariel target list the impact of tess and the potential for characterizing multiple planets within a system",
+       "selection_reason": "highest ranked representative within selection limit",
+       "canonical_paper_id": "paper.21727841a95e041ee50311b5ceb63eb746563d9dd55188b4c25f88b16ac241dd",
+       "duplicate_group_id": "duplicate.97cc9da9fb56871c0e7c2f88f2a62cebf78f8f930a6289837e0d787a55291fbc",
+       "normalized_authors": [
+        "billy edwards",
+        "giovanna tinetti"
+       ],
+       "ranking_rule_version": "1.0.0",
+       "selection_rule_version": "1.0.0",
+       "canonical_identity_basis": "doi"
+      },
+      {
+       "doi": "10.3847/1538-3881/abe5a9",
+       "raw": {
+        "doi": "10.3847/1538-3881/abe5a9",
+        "url": "https://doi.org/10.3847/1538-3881/abe5a9",
+        "year": 2021,
+        "title": "Around Which Stars Can TESS Detect Earth-like Planets? The Revised TESS Habitable Zone Catalog",
+        "authors": [
+         "L. Kaltenegger",
+         "J. Pepper",
+         "P. M. Christodoulou",
+         "K. Stassun",
+         "S. Quinn",
+         "C. Burke"
+        ],
+        "abstract": "Abstract In the search for life in the cosmos, NASA’s Transiting Exoplanet Survey Satellite (TESS) mission has already monitored about 74% of the sky for transiting extrasolar planets, including potentially habitable worlds. However, TESS only observed a fraction of the stars long enough to be able to find planets like Earth. We use the primary mission data—the first two years of observations—and identify 4239 stars within 210 pc that TESS observed long enough to see three transits of an exoplanet that receives similar irradiation to Earth: 738 of these stars are located within 30 pc. We provide reliable stellar parameters from the TESS Input Catalog that incorporates Gaia DR2 and also calculate the transit depth and radial velocity semiamplitude for an Earth-analog planet. Of the 4239 stars in the Revised TESS HZ Catalog, 9 are known exoplanet hosts—GJ1061, GJ1132, GJ3512, GJ685, Kepler-42, LHS1815, L98-59, RRCae, and TOI700—around which TESS could identify additional Earth-like planetary companions. Thirty-seven additional stars host yet unconfirmed TESS Objects of Interest: three of these orbit in the habitable zone—TOI203, TOI715, and TOI2298. For a subset of 614 of the 4239 stars, TESS has observed the star long enough to be able to observe planets throughout the full temperate, habitable zone out to the equivalent of Mars’ orbit. Thus, the Revised TESS Habitable Zone Catalog provides a tool for observers to prioritize stars for follow-up observation to discover life in the cosmos. These stars are the best path toward the discovery of habitable planets using the TESS mission data.",
+        "source_id": "crossref",
+        "record_hash": "sha256:a0368f472bc0047ae696617138bdd1f86dc2465072057c8810cb263e97e323cd",
+        "source_record_id": "10.3847/1538-3881/abe5a9",
+        "source_snapshot_id": "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b"
+       },
+       "url": "https://doi.org/10.3847/1538-3881/abe5a9",
+       "year": 2021,
+       "title": "Around Which Stars Can TESS Detect Earth-like Planets? The Revised TESS Habitable Zone Catalog",
+       "authors": [
+        "L. Kaltenegger",
+        "J. Pepper",
+        "P. M. Christodoulou",
+        "K. Stassun",
+        "S. Quinn",
+        "C. Burke"
+       ],
+       "selected": true,
+       "conflicts": [],
+       "ranking_key": "0.716667|around which stars can tess detect earth like planets the revised tess habitable zone catalog|2021|paper.5d29db0a2fe71ea8548b83fb879b52b4a06d48ded35d2f4ef5fc8c9ac3156566|candidate.ce411dac32c7e6f7b2237ffda0db7d58050d95489e910087cb744b13aa8b6e7a",
+       "candidate_id": "candidate.ce411dac32c7e6f7b2237ffda0db7d58050d95489e910087cb744b13aa8b6e7a",
+       "dedupe_evidence": [
+        "singleton"
+       ],
+       "relevance_score": 0.283333,
+       "normalized_title": "around which stars can tess detect earth like planets the revised tess habitable zone catalog",
+       "selection_reason": "highest ranked representative within selection limit",
+       "canonical_paper_id": "paper.5d29db0a2fe71ea8548b83fb879b52b4a06d48ded35d2f4ef5fc8c9ac3156566",
+       "duplicate_group_id": "duplicate.123180f999aaee53fb74d3c42486423704ce8b5d89d42cc9a0d0a69dae80cb5f",
+       "normalized_authors": [
+        "l kaltenegger",
+        "j pepper",
+        "p m christodoulou",
+        "k stassun",
+        "s quinn",
+        "c burke"
+       ],
+       "ranking_rule_version": "1.0.0",
+       "selection_rule_version": "1.0.0",
+       "canonical_identity_basis": "doi"
+      },
+      {
+       "doi": "10.3847/1538-3881/ad29f1",
+       "raw": {
+        "doi": "10.3847/1538-3881/ad29f1",
+        "url": "https://doi.org/10.3847/1538-3881/ad29f1",
+        "year": 2024,
+        "title": "DIAmante TESS AutoRegressive Planet Search (DTARPS). II. Hundreds of New TESS Candidate Exoplanets",
+        "authors": [
+         "Elizabeth J. Melton",
+         "Eric D. Feigelson",
+         "Marco Montalto",
+         "Gabriel A. Caceres",
+         "Andrew W. Rosenswie",
+         "Cullen S. Abelson"
+        ],
+        "abstract": "Abstract The DIAmante TESS AutoRegressive Planet Search for the southern ecliptic hemisphere (DTARPS-S) project seeks to identify photometric transiting planets from 976,814 southern hemisphere stars observed in Year 1 of the TESS mission. This paper follows the methodology developed by Melton et al. (Paper I) using light curves extracted and preprocessed by the DIAmante project. Paper I emerged with a list of 7377 light curves with statistical properties characteristic of transiting planets but dominated by false alarms and false positives. Here a multistage vetting procedure is applied including: centroid motion and crowding metrics, false alarm and false positive reduction, photometric binary elimination, and ephemeris match removal. The vetting produces a catalog of 462 DTARPS-S candidates across the southern ecliptic hemisphere and 310 objects in a spatially incomplete Galactic plane list. 58% were not previously identified as transiting systems. Candidates are flagged for possible blending from nearby stars based on Zwicky Transient Facility data and for possible radial velocity variations based on Gaia satellite data. Orbital periods and planetary radii are refined using astrophysical modeling; the resulting parameters closely match published values for confirmed planets. The DTARPS-S population and astrophysical properties are discussed in Paper III.",
+        "source_id": "crossref",
+        "record_hash": "sha256:3c93d067a274da62e1d24a6a417cf3f541b76676e4d802361fa450eba4c42746",
+        "source_record_id": "10.3847/1538-3881/ad29f1",
+        "source_snapshot_id": "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b"
+       },
+       "url": "https://doi.org/10.3847/1538-3881/ad29f1",
+       "year": 2024,
+       "title": "DIAmante TESS AutoRegressive Planet Search (DTARPS). II. Hundreds of New TESS Candidate Exoplanets",
+       "authors": [
+        "Elizabeth J. Melton",
+        "Eric D. Feigelson",
+        "Marco Montalto",
+        "Gabriel A. Caceres",
+        "Andrew W. Rosenswie",
+        "Cullen S. Abelson"
+       ],
+       "selected": true,
+       "conflicts": [],
+       "ranking_key": "0.716667|diamante tess autoregressive planet search dtarps ii hundreds of new tess candidate exoplanets|2024|paper.ad1e678900115be5d998e1affcc8f71629e8459afe755a462b09a5d037af5201|candidate.03a08b956faf1a04eefc8f54c1fc308e8e4ee484016d1df5002e190f8819d717",
+       "candidate_id": "candidate.03a08b956faf1a04eefc8f54c1fc308e8e4ee484016d1df5002e190f8819d717",
+       "dedupe_evidence": [
+        "singleton"
+       ],
+       "relevance_score": 0.283333,
+       "normalized_title": "diamante tess autoregressive planet search dtarps ii hundreds of new tess candidate exoplanets",
+       "selection_reason": "highest ranked representative within selection limit",
+       "canonical_paper_id": "paper.ad1e678900115be5d998e1affcc8f71629e8459afe755a462b09a5d037af5201",
+       "duplicate_group_id": "duplicate.4da9cc144b28b12be06f5bf645436ef318b197e2d00135c92a99cd7f7917454a",
+       "normalized_authors": [
+        "elizabeth j melton",
+        "eric d feigelson",
+        "marco montalto",
+        "gabriel a caceres",
+        "andrew w rosenswie",
+        "cullen s abelson"
+       ],
+       "ranking_rule_version": "1.0.0",
+       "selection_rule_version": "1.0.0",
+       "canonical_identity_basis": "doi"
+      },
+      {
+       "doi": "10.3847/1538-3881/ac8931",
+       "raw": {
+        "doi": "10.3847/1538-3881/ac8931",
+        "url": "https://doi.org/10.3847/1538-3881/ac8931",
+        "year": 2022,
+        "title": "HD-TESS: An Asteroseismic Catalog of Bright Red Giants within TESS Continuous Viewing Zones",
+        "authors": [
+         "Marc Hon",
+         "James S. Kuszlewicz",
+         "Daniel Huber",
+         "Dennis Stello",
+         "Claudia Reyes"
+        ],
+        "abstract": "Abstract We present HD-TESS, a catalog of 1709 bright ( V ∼ 3–10) red giants from the Henry Draper (HD) Catalog with asteroseismic measurements based on photometry from NASA’s Transiting Exoplanet Survey Satellite (TESS). Using light curves spanning at least 6 months across a single TESS observing cycle, we provide measurements of global asteroseismic parameters ( ν max and Δ ν ) and the evolutionary state for each star in the catalog. We adopt literature values of atmospheric stellar parameters to estimate the masses and radii of the giants in our catalog using asteroseismic scaling relations, and observe that HD-TESS giants on average have larger masses compared to Kepler red giants. Additionally, we present the discovery of oscillations in 99 red giants in astrometric binary systems, including those with subdwarf or white dwarf companions. Finally, we benchmark radii from asteroseismic scaling relations against those measured using long-baseline interferometry for 18 red giants and find that correction factors to the scaling relations improve the agreement between asteroseismic and interferometric radii to approximately 3%.",
+        "source_id": "crossref",
+        "record_hash": "sha256:6915b56f1beccd4cd49622c153de20578205dcf04a44874b27807ab80cd3a462",
+        "source_record_id": "10.3847/1538-3881/ac8931",
+        "source_snapshot_id": "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b"
+       },
+       "url": "https://doi.org/10.3847/1538-3881/ac8931",
+       "year": 2022,
+       "title": "HD-TESS: An Asteroseismic Catalog of Bright Red Giants within TESS Continuous Viewing Zones",
+       "authors": [
+        "Marc Hon",
+        "James S. Kuszlewicz",
+        "Daniel Huber",
+        "Dennis Stello",
+        "Claudia Reyes"
+       ],
+       "selected": true,
+       "conflicts": [],
+       "ranking_key": "0.716667|hd tess an asteroseismic catalog of bright red giants within tess continuous viewing zones|2022|paper.0f32f102426b3b0ec38d5465656be540a93e25d19573211742e5043564db0449|candidate.8f6531d0ef3383b7e461ffd724caa18201100d17e026ca5705d9dfef77e308a1",
+       "candidate_id": "candidate.8f6531d0ef3383b7e461ffd724caa18201100d17e026ca5705d9dfef77e308a1",
+       "dedupe_evidence": [
+        "singleton"
+       ],
+       "relevance_score": 0.283333,
+       "normalized_title": "hd tess an asteroseismic catalog of bright red giants within tess continuous viewing zones",
+       "selection_reason": "highest ranked representative within selection limit",
+       "canonical_paper_id": "paper.0f32f102426b3b0ec38d5465656be540a93e25d19573211742e5043564db0449",
+       "duplicate_group_id": "duplicate.8c2ae3dddbd10f73794a1e1df9e45bf400295f220f73ed67913848ecb65fb79d",
+       "normalized_authors": [
+        "marc hon",
+        "james s kuszlewicz",
+        "daniel huber",
+        "dennis stello",
+        "claudia reyes"
+       ],
+       "ranking_rule_version": "1.0.0",
+       "selection_rule_version": "1.0.0",
+       "canonical_identity_basis": "doi"
+      },
+      {
+       "doi": "10.3847/2515-5172/ad06b9",
+       "raw": {
+        "doi": "10.3847/2515-5172/ad06b9",
+        "url": "https://doi.org/10.3847/2515-5172/ad06b9",
+        "year": 2023,
+        "title": "Identifying SuperWASP Detected Candidate Variables with TESS*",
+        "authors": [
+         "Ai-Ying Zhou"
+        ],
+        "abstract": "Abstract Using Transiting Exoplanet Survey Satellite light curves, I have identified more than 1200 new pulsating variable stars from the SuperWASP-detected but unclassified candidate variables. These include a variety of types of pulsating variable stars, including 125 δ Scuti stars, 235 γ Doradus stars, 302 RR Lyrae stars, and 450+ Mira/SR/IR/LPV variables. I also identified 1300+ rotating variable stars. Additionally, I revealed that 16 of 91 newly identified eclipsing binary systems have pulsating components. These findings will help us to better understand the properties and evolution of pulsating variable stars.",
+        "source_id": "crossref",
+        "record_hash": "sha256:35eed56f7fa9b0c6cae0ef648ecdf0783bb67ccad3c2b2baaee77855550421cd",
+        "source_record_id": "10.3847/2515-5172/ad06b9",
+        "source_snapshot_id": "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b"
+       },
+       "url": "https://doi.org/10.3847/2515-5172/ad06b9",
+       "year": 2023,
+       "title": "Identifying SuperWASP Detected Candidate Variables with TESS*",
+       "authors": [
+        "Ai-Ying Zhou"
+       ],
+       "selected": true,
+       "conflicts": [],
+       "ranking_key": "0.716667|identifying superwasp detected candidate variables with tess|2023|paper.61d2f39e0d62d41a2ac0910b05f6c19b6adb171111a995b2e94fe902a70b5423|candidate.9ae23cb4201a6b224a879e3fb34a621d94211aee25d1c6056ea483fd6430d52c",
+       "candidate_id": "candidate.9ae23cb4201a6b224a879e3fb34a621d94211aee25d1c6056ea483fd6430d52c",
+       "dedupe_evidence": [
+        "singleton"
+       ],
+       "relevance_score": 0.283333,
+       "normalized_title": "identifying superwasp detected candidate variables with tess",
+       "selection_reason": "highest ranked representative within selection limit",
+       "canonical_paper_id": "paper.61d2f39e0d62d41a2ac0910b05f6c19b6adb171111a995b2e94fe902a70b5423",
+       "duplicate_group_id": "duplicate.bc3a4d586ddcf22c8528e30584aef9f6993aec63ffe94da7ef72d1565a07dfde",
+       "normalized_authors": [
+        "ai ying zhou"
+       ],
+       "ranking_rule_version": "1.0.0",
+       "selection_rule_version": "1.0.0",
+       "canonical_identity_basis": "doi"
+      },
+      {
+       "doi": "10.3847/2041-8213/ab0e8d",
+       "raw": {
+        "doi": "10.3847/2041-8213/ab0e8d",
+        "url": "https://doi.org/10.3847/2041-8213/ab0e8d",
+        "year": 2019,
+        "title": "TESS Habitable Zone Star Catalog",
+        "authors": [
+         "L. Kaltenegger",
+         "J. Pepper",
+         "K. Stassun",
+         "R. Oelkers"
+        ],
+        "abstract": "Abstract We present the Transiting Exoplanet Survey Satellite ( TESS ) Habitable Zone Stars Catalog, a list of 1822 nearby stars with a TESS magnitude brighter than T = 12 and reliable distances from Gaia DR2, around which the NASA’s TESS mission can detect transiting planets, which receive Earth-like irradiation. For all those stars TESS is sensitive down to 2 Earth radii transiting planets during one transit. For 408 stars TESS can detect such planets down to 1 Earth-size during one transit. For 1690 stars, TESS has the sensitivity to detect planets down to 1.6 times Earth-size, a commonly used limit for rocky planets in the literature, receiving Earth-analog irradiation. We select stars from the TESS Candidate Target List, based on TESS Input Catalog Version 7. We update their distances using Gaia Data Release 2, and determine whether the stars will be observed for long enough during the 2 yr prime mission to probe their Earth-equivalent orbital distance for transiting planets. We discuss the subset of 227 stars for which TESS can probe the full extent of the Habitable Zone, the full region around a star out to about a Mars-equivalent orbit. Observing the TESS Habitable Zone Catalog Stars will also give us deeper insight into the occurrence rate of planets, out to Earth-analog irradiation as well as in the Habitable Zone, especially around cool stars. We present the stars by decreasing angular separation of the 1 au equivalent distance to provide insights into which stars to prioritize for ground-based follow-up observations with upcoming extremely large telescopes.",
+        "source_id": "crossref",
+        "record_hash": "sha256:b356366b55a89b0e7c10ca408630753f173fe6368d527b8b2faa35ab34a6bf83",
+        "source_record_id": "10.3847/2041-8213/ab0e8d",
+        "source_snapshot_id": "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b"
+       },
+       "url": "https://doi.org/10.3847/2041-8213/ab0e8d",
+       "year": 2019,
+       "title": "TESS Habitable Zone Star Catalog",
+       "authors": [
+        "L. Kaltenegger",
+        "J. Pepper",
+        "K. Stassun",
+        "R. Oelkers"
+       ],
+       "selected": true,
+       "conflicts": [],
+       "ranking_key": "0.716667|tess habitable zone star catalog|2019|paper.be28191280762b87daa102a825d52210d91c9112b3617334af8047628fa7c625|candidate.220db165df1616321fd8502faf8734d9698449e36c64228256fbad9d9f2b7387",
+       "candidate_id": "candidate.220db165df1616321fd8502faf8734d9698449e36c64228256fbad9d9f2b7387",
+       "dedupe_evidence": [
+        "singleton"
+       ],
+       "relevance_score": 0.283333,
+       "normalized_title": "tess habitable zone star catalog",
+       "selection_reason": "highest ranked representative within selection limit",
+       "canonical_paper_id": "paper.be28191280762b87daa102a825d52210d91c9112b3617334af8047628fa7c625",
+       "duplicate_group_id": "duplicate.88edccfde5cd6ea4f45812c8db7222194c658d5806f13f0c966ad4da96bc89f0",
+       "normalized_authors": [
+        "l kaltenegger",
+        "j pepper",
+        "k stassun",
+        "r oelkers"
+       ],
+       "ranking_rule_version": "1.0.0",
+       "selection_rule_version": "1.0.0",
+       "canonical_identity_basis": "doi"
+      },
+      {
+       "doi": "10.51194/inasan.2021.6.2.002",
+       "raw": {
+        "doi": "10.51194/inasan.2021.6.2.002",
+        "url": "https://doi.org/10.51194/inasan.2021.6.2.002",
+        "year": 2021,
+        "title": "TESS observations of KIC 7739728 - a new FK Com type star candidate",
+        "authors": [
+         "И.С. Саванов",
+         "Е.С. Дмитриенко"
+        ],
+        "abstract": "Ранее по данным наблюдений с космическим телескопом “Kepler” нами было показано, что по своим параметрам KIC 7739728 близка к звездам типа FK Com и может рассматриваться, как потенциальный кандидат для включения в число объектов этого типа. В настоящей работе мы провели анализ всех имеющихся для KIC 7739728 данных в архиве миссии TESS (14 и 26 сектора наблюдений). Показано, что кривая блеска этой звезды ярко проявляет свойства регулярной вращательной модуляции и что в период времени между 14 и 26 секторами произошло явление переключения положений долгот активных областей на поверхности звезды (флип-флоп). Рассматриваются аргументы в пользу возможной принадлежности KIC 7739728 к объектам типа FK Com. Using the observations with the Kepler space telescope we found that parameters of KIC 7739728 are close to that ones of the FK Com type stars and that the object can be considered as a potential candidate for inclusion in the number of objects of this type. In this paper we analysed all available data for KIC 7739728 in the TESS mission archive (14 and 26 sectors). It is shown that the light curve of this star clearly exhibits the properties of regular rotational modulation and that in the time interval between 14 and 26 sectors the phenomenon of switching the positions of the longitudes of the active regions on the surface of the star (flip-flop) occurred. The arguments in favour of the possible relation of KIC 7739728 to objects of the FK Com type are considered.",
+        "source_id": "crossref",
+        "record_hash": "sha256:7774b5819d6ef7f88d517695df63914705703c1be22c8f4f46470142025e5a7f",
+        "source_record_id": "10.51194/inasan.2021.6.2.002",
+        "source_snapshot_id": "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b"
+       },
+       "url": "https://doi.org/10.51194/inasan.2021.6.2.002",
+       "year": 2021,
+       "title": "TESS observations of KIC 7739728 - a new FK Com type star candidate",
+       "authors": [
+        "И.С. Саванов",
+        "Е.С. Дмитриенко"
+       ],
+       "selected": true,
+       "conflicts": [],
+       "ranking_key": "0.716667|tess observations of kic 7739728 a new fk com type star candidate|2021|paper.010dcc1f5271c4a1fa9735b52c600b417abad3838bfe9015b1e06043ff096fd4|candidate.1da8e5f911a47745b2f8a241a8ca70f26a2091d81622691ea2371fa6576ea3e5",
+       "candidate_id": "candidate.1da8e5f911a47745b2f8a241a8ca70f26a2091d81622691ea2371fa6576ea3e5",
+       "dedupe_evidence": [
+        "singleton"
+       ],
+       "relevance_score": 0.283333,
+       "normalized_title": "tess observations of kic 7739728 a new fk com type star candidate",
+       "selection_reason": "highest ranked representative within selection limit",
+       "canonical_paper_id": "paper.010dcc1f5271c4a1fa9735b52c600b417abad3838bfe9015b1e06043ff096fd4",
+       "duplicate_group_id": "duplicate.ddedd427341e7a929905b60665f8e2636207df44eda00ee5409c170ec507f83a",
+       "normalized_authors": [
+        "и с саванов",
+        "е с дмитриенко"
+       ],
+       "ranking_rule_version": "1.0.0",
+       "selection_rule_version": "1.0.0",
+       "canonical_identity_basis": "doi"
+      }
+     ],
+     "input_hash": "sha256:c9208ce593038f92a42458a1e446bd305ac9ac924973158b4040d27eb8b50039",
+     "dedupe_rule": "doi_exact > arxiv_exact > title_year_author_match; uncertainty retained",
+     "output_hash": "sha256:7a46aad985a06b5c9b2123bb2fe703b337d21be1bdb658d42288f97f57529583",
+     "ranking_rule": "deterministic lexical relevance with canonical final tie-breaker",
+     "search_input": {
+      "year_to": 2026,
+      "keywords": [
+       "TESS Input Catalog Candidate Target List"
+      ],
+      "year_from": 2019,
+      "input_hash": "sha256:f20484192b7268d6a8e9e65fa1af992536bc3f5629249a2a75d8b5e5d416114b",
+      "source_ids": [
+       "crossref"
+      ],
+      "contract_id": "eb244ee3-3ab6-45be-bf21-021d8eda833c",
+      "access_policy": "metadata_url_only_requires_independent_access_evidence",
+      "content_scope": "bibliographic_metadata",
+      "producer_name": "xingwen.paper_collection",
+      "schema_version": "1.0.0",
+      "candidate_limit": 10,
+      "selection_limit": 10,
+      "stable_ordering": "source_relevance_then_canonical_tie_breaker",
+      "contract_version": 1,
+      "producer_version": "1.0.0",
+      "contract_content_hash": "sha256:e2fce69028a5148db5faf6cd78af7a64697099d9ea336c776c399e1696a95774",
+      "source_policy_version": "1.0.0"
+     },
+     "schema_version": "3.0.0",
+     "acquisition_run": {
+      "status": "completed",
+      "started_at": "2026-09-03T00:23:55.697429Z",
+      "finished_at": "2026-09-03T00:23:56.781926Z",
+      "acquisition_id": "acquisition.d41868f2b5c1012db8db671a",
+      "selected_count": 10,
+      "candidate_count": 10,
+      "source_failure_count": 0,
+      "duplicate_group_count": 10
+     },
+     "duplicate_groups": [
+      {
+       "conflicts": [],
+       "match_basis": [
+        "singleton"
+       ],
+       "candidate_ids": [
+        "candidate.ce411dac32c7e6f7b2237ffda0db7d58050d95489e910087cb744b13aa8b6e7a"
+       ],
+       "canonical_paper_id": "paper.5d29db0a2fe71ea8548b83fb879b52b4a06d48ded35d2f4ef5fc8c9ac3156566",
+       "duplicate_group_id": "duplicate.123180f999aaee53fb74d3c42486423704ce8b5d89d42cc9a0d0a69dae80cb5f"
+      },
+      {
+       "conflicts": [],
+       "match_basis": [
+        "singleton"
+       ],
+       "candidate_ids": [
+        "candidate.a63d1a114e45069c03d9d6296a03245f1b572ca9399284c786736819bc585d44"
+       ],
+       "canonical_paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+       "duplicate_group_id": "duplicate.197784fc391b65556493aee219fc96d74333fa7d0455ced6d0d7496023fa1e91"
+      },
+      {
+       "conflicts": [],
+       "match_basis": [
+        "singleton"
+       ],
+       "candidate_ids": [
+        "candidate.66bab87823b05542790e029ce2c73ee7ecfa25b133b96e38b54210d2ef1653c8"
+       ],
+       "canonical_paper_id": "paper.4e4b56d1f9328698c6c3d4c9b299bad116454862862e5e27a44c539c01cb1203",
+       "duplicate_group_id": "duplicate.3f76cffc83c7f0670ca437fb66531729a508cc864f1ab9d137076446a2e0ca88"
+      },
+      {
+       "conflicts": [],
+       "match_basis": [
+        "singleton"
+       ],
+       "candidate_ids": [
+        "candidate.03a08b956faf1a04eefc8f54c1fc308e8e4ee484016d1df5002e190f8819d717"
+       ],
+       "canonical_paper_id": "paper.ad1e678900115be5d998e1affcc8f71629e8459afe755a462b09a5d037af5201",
+       "duplicate_group_id": "duplicate.4da9cc144b28b12be06f5bf645436ef318b197e2d00135c92a99cd7f7917454a"
+      },
+      {
+       "conflicts": [],
+       "match_basis": [
+        "singleton"
+       ],
+       "candidate_ids": [
+        "candidate.220db165df1616321fd8502faf8734d9698449e36c64228256fbad9d9f2b7387"
+       ],
+       "canonical_paper_id": "paper.be28191280762b87daa102a825d52210d91c9112b3617334af8047628fa7c625",
+       "duplicate_group_id": "duplicate.88edccfde5cd6ea4f45812c8db7222194c658d5806f13f0c966ad4da96bc89f0"
+      },
+      {
+       "conflicts": [],
+       "match_basis": [
+        "singleton"
+       ],
+       "candidate_ids": [
+        "candidate.8f6531d0ef3383b7e461ffd724caa18201100d17e026ca5705d9dfef77e308a1"
+       ],
+       "canonical_paper_id": "paper.0f32f102426b3b0ec38d5465656be540a93e25d19573211742e5043564db0449",
+       "duplicate_group_id": "duplicate.8c2ae3dddbd10f73794a1e1df9e45bf400295f220f73ed67913848ecb65fb79d"
+      },
+      {
+       "conflicts": [],
+       "match_basis": [
+        "singleton"
+       ],
+       "candidate_ids": [
+        "candidate.75b9044a8a7b40a28b906300bdbf873fefd4a7a8619ca5b0d20b16dc53d6e1cc"
+       ],
+       "canonical_paper_id": "paper.21727841a95e041ee50311b5ceb63eb746563d9dd55188b4c25f88b16ac241dd",
+       "duplicate_group_id": "duplicate.97cc9da9fb56871c0e7c2f88f2a62cebf78f8f930a6289837e0d787a55291fbc"
+      },
+      {
+       "conflicts": [],
+       "match_basis": [
+        "singleton"
+       ],
+       "candidate_ids": [
+        "candidate.812be7e5fe3a4fe3b1d5fb011e8cd56a3f618f2d8414f5819a8b0f12d392ca77"
+       ],
+       "canonical_paper_id": "paper.6faa39858c115b51bc19c3390469e50bbb18bd7ebe282d245f7626c630411a25",
+       "duplicate_group_id": "duplicate.a807a0d9bb3837d40c822382a73eef4c073d237bee434a772a560aae4d7cff2b"
+      },
+      {
+       "conflicts": [],
+       "match_basis": [
+        "singleton"
+       ],
+       "candidate_ids": [
+        "candidate.9ae23cb4201a6b224a879e3fb34a621d94211aee25d1c6056ea483fd6430d52c"
+       ],
+       "canonical_paper_id": "paper.61d2f39e0d62d41a2ac0910b05f6c19b6adb171111a995b2e94fe902a70b5423",
+       "duplicate_group_id": "duplicate.bc3a4d586ddcf22c8528e30584aef9f6993aec63ffe94da7ef72d1565a07dfde"
+      },
+      {
+       "conflicts": [],
+       "match_basis": [
+        "singleton"
+       ],
+       "candidate_ids": [
+        "candidate.1da8e5f911a47745b2f8a241a8ca70f26a2091d81622691ea2371fa6576ea3e5"
+       ],
+       "canonical_paper_id": "paper.010dcc1f5271c4a1fa9735b52c600b417abad3838bfe9015b1e06043ff096fd4",
+       "duplicate_group_id": "duplicate.ddedd427341e7a929905b60665f8e2636207df44eda00ee5409c170ec507f83a"
+      }
+     ],
+     "source_snapshots": [
+      {
+       "query": "{\"normalization_rule_version\":\"1.0.0\",\"normalized_keywords\":[\"tess input catalog candidate target list\"],\"normalized_query_string\":\"tess input catalog candidate target list\",\"original_keywords\":[\"TESS Input Catalog Candidate Target List\"],\"original_query_string\":\"TESS Input Catalog Candidate Target List\",\"pagination\":{\"candidate_limit\":10,\"max_pages\":1,\"page_size\":20},\"query_hash\":\"sha256:9099de759f5889f97f215ef836b3d55c67b7bcfa86024c02913c10607d09d9b8\",\"query_id\":\"query.9099de759f5889f97f215ef8\",\"sort_strategy\":\"source_relevance_then_canonical_tie_breaker\",\"source_ids\":[\"crossref\"],\"source_parameters\":{\"crossref\":{\"filter\":\"from-pub-date:2019-01-01,until-pub-date:2026-12-31\",\"order\":\"desc\",\"query.bibliographic\":\"tess input catalog candidate target list\",\"select\":\"DOI,title,author,published,published-print,published-online,URL,resource,alternative-id,abstract\",\"sort\":\"relevance\"}},\"year_from\":2019,\"year_to\":2026}",
+       "source_id": "crossref",
+       "query_hash": "sha256:9099de759f5889f97f215ef836b3d55c67b7bcfa86024c02913c10607d09d9b8",
+       "snapshot_id": "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b",
+       "source_type": "paper_metadata",
+       "content_hash": "sha256:e313d915456490ccde4aa379d462ad2fb4b8549669f5dd3d4fd6cda8d9ffa847",
+       "license_note": "Metadata may be retrieved publicly; linked content remains governed by the publisher or repository license. Crossref supplies deposited metadata and links, not a general entitlement to article full text.",
+       "retrieved_at": "2026-09-03T00:23:56.778712Z",
+       "request_metadata": {
+        "pages": [
+         {
+          "offset": 0,
+          "page_number": 1,
+          "request_hash": "sha256:165b1b77f7d58798e4064e57cbe308d32ec41d23a6ac5c3d710c39ca1f42e549",
+          "response_hash": "sha256:a0db7f2165d3cdc33e5804ecbb5d50c1ee942ef36b09b079669b770e906759fa",
+          "returned_rows": 10,
+          "requested_rows": 10
+         }
+        ],
+        "endpoint": "https://api.crossref.org/works",
+        "data_level": "live_result",
+        "source_mode": "live",
+        "adapter_name": "crossref_rest",
+        "adapter_version": "1.0.0",
+        "pagination_strategy": "offset"
+       }
+      }
+     ],
+     "source_executions": [
+      {
+       "pages": [
+        {
+         "offset": 0,
+         "page_number": 1,
+         "status_code": 200,
+         "request_hash": "sha256:165b1b77f7d58798e4064e57cbe308d32ec41d23a6ac5c3d710c39ca1f42e549",
+         "retrieved_at": "2026-09-03T00:23:56.778712Z",
+         "attempt_count": 1,
+         "response_hash": "sha256:a0db7f2165d3cdc33e5804ecbb5d50c1ee942ef36b09b079669b770e906759fa",
+         "returned_rows": 10,
+         "total_results": 412630,
+         "requested_rows": 10,
+         "rate_limit_metadata": {
+          "date": "Thu, 03 Sep 2026 00:23:56 GMT",
+          "x-api-pool": "public-array",
+          "x-rate-limit-limit": "1",
+          "x-concurrency-limit": "1",
+          "x-rate-limit-interval": "1s"
+         }
+        }
+       ],
+       "status": "completed",
+       "source_id": "crossref",
+       "data_level": "live_result",
+       "pagination": {
+        "max_pages": 1,
+        "page_size": 20,
+        "candidate_limit": 10
+       },
+       "query_hash": "sha256:9099de759f5889f97f215ef836b3d55c67b7bcfa86024c02913c10607d09d9b8",
+       "started_at": "2026-09-03T00:23:55.697777Z",
+       "finished_at": "2026-09-03T00:23:56.779476Z",
+       "retry_count": 0,
+       "source_mode": "live",
+       "candidate_count": 10,
+       "source_snapshot_id": "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b",
+       "request_parameters_hash": "sha256:682b06c253c2957b09cf2549a0dd21795ce86d74784f0e253549128bfb6ce3ac"
+      }
+     ],
+     "selected_paper_ids": [
+      "paper.010dcc1f5271c4a1fa9735b52c600b417abad3838bfe9015b1e06043ff096fd4",
+      "paper.0f32f102426b3b0ec38d5465656be540a93e25d19573211742e5043564db0449",
+      "paper.21727841a95e041ee50311b5ceb63eb746563d9dd55188b4c25f88b16ac241dd",
+      "paper.4e4b56d1f9328698c6c3d4c9b299bad116454862862e5e27a44c539c01cb1203",
+      "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "paper.5d29db0a2fe71ea8548b83fb879b52b4a06d48ded35d2f4ef5fc8c9ac3156566",
+      "paper.61d2f39e0d62d41a2ac0910b05f6c19b6adb171111a995b2e94fe902a70b5423",
+      "paper.6faa39858c115b51bc19c3390469e50bbb18bd7ebe282d245f7626c630411a25",
+      "paper.ad1e678900115be5d998e1affcc8f71629e8459afe755a462b09a5d037af5201",
+      "paper.be28191280762b87daa102a825d52210d91c9112b3617334af8047628fa7c625"
+     ],
+     "source_snapshot_ids": [
+      "snapshot.crossref.6df94f0290ad0e7e1e3c6e2b"
+     ],
+     "potential_duplicates": []
+    },
+    "content_hash": "sha256:559517fb02090962dc0c68df42292073b50e72eac2138fe49b1a6a03ed5eaf72",
+    "input_hash": "sha256:c9208ce593038f92a42458a1e446bd305ac9ac924973158b4040d27eb8b50039",
+    "source_mode": "live",
+    "producer": {
+     "type": "algorithm",
+     "name": "xingwen.paper_collection",
+     "version": "1.0.0",
+     "model_provider": null,
+     "requested_model": null,
+     "provider_returned_model": null,
+     "explicit_revision": null,
+     "prompt_name": null,
+     "prompt_version": null,
+     "prompt_hash": null,
+     "parameters_hash": "sha256:6df65faf851e5b49088ceb0b33c1302c33ae73549c55d4bf94e05339b9864b8b"
+    },
+    "source_snapshot_ids": [
+     "e4a60e31-faef-5500-a93f-d4c85235ee79"
+    ],
+    "evidence_ids": [],
+    "supersedes_version_id": null,
+    "created_at": "2026-09-03T00:23:56.808097Z",
+    "presentation": {
+     "kind": "paper_collection",
+     "summary": null,
+     "facts": [
+      {
+       "label": "检索词",
+       "values": [
+        "tess input catalog candidate target list"
+       ]
+      },
+      {
+       "label": "候选论文",
+       "values": [
+        "10 篇"
+       ]
+      },
+      {
+       "label": "已选论文",
+       "values": [
+        "10 篇"
+       ]
+      }
+     ],
+     "sections": [],
+     "entries": [
+      {
+       "key": "candidate.a63d1a114e45069c03d9d6296a03245f1b572ca9399284c786736819bc585d44",
+       "title": "The Revised TESS Input Catalog and Candidate Target List",
+       "external_url": "https://doi.org/10.3847/1538-3881/ab3467",
+       "status": "selected",
+       "assessment": "相关度 0.45",
+       "paragraphs": [
+        "Keivan G. Stassun、Ryan J. Oelkers、Martin Paegert、Guillermo Torres、Joshua Pepper、Nathan De Lee、Kevin Collins、David W. Latham、Philip S. Muirhead、Jay Chittidi、Bárbara Rojas-Ayala、Scott W. Fleming、Mark E. Rose、Peter Tenenbaum、Eric B. Ting、Stephen R. Kane、Thomas Barclay、Jacob L. Bean、C. E. Brassuer、David Charbonneau、Jian Ge、Jack J. Lissauer、Andrew W. Mann、Brian McLean、Susan Mullally、Norio Narita、Peter Plavchan、George R. Ricker、Dimitar Sasselov、S. Seager、Sanjib Sharma、Bernie Shiao、Alessandro Sozzetti、Dennis Stello、Roland Vanderspek、Geoff Wallace、Joshua N. Winn",
+        "2019",
+        "highest ranked representative within selection limit"
+       ],
+       "facts": [
+        {
+         "label": "DOI",
+         "values": [
+          "10.3847/1538-3881/ab3467"
+         ]
+        }
+       ],
+       "evidence_ids": [],
+       "reasoning_trace": null,
+       "can_adjudicate": null,
+       "relation": null
+      },
+      {
+       "key": "candidate.66bab87823b05542790e029ce2c73ee7ecfa25b133b96e38b54210d2ef1653c8",
+       "title": "A Spatiotemporal Data Cube Approach to Classification of Variable Stars: A Catalog of Candidate Variable Stars from the TESS Full-frame Image Raw Data",
+       "external_url": "https://doi.org/10.3847/1538-4357/adc2fc",
+       "status": "selected",
+       "assessment": "相关度 0.33",
+       "paragraphs": [
+        "Harry Qiang、Marina Kounkel、Sally Bass、Ryan Lingg、Logan Sizemore、Dylan Carroll、Brian Hutchinson、Keivan G. Stassun",
+        "2025",
+        "highest ranked representative within selection limit"
+       ],
+       "facts": [
+        {
+         "label": "DOI",
+         "values": [
+          "10.3847/1538-4357/adc2fc"
+         ]
+        }
+       ],
+       "evidence_ids": [],
+       "reasoning_trace": null,
+       "can_adjudicate": null,
+       "relation": null
+      },
+      {
+       "key": "candidate.812be7e5fe3a4fe3b1d5fb011e8cd56a3f618f2d8414f5819a8b0f12d392ca77",
+       "title": "Gaia DR3 IDs for TESS Input Catalog Targets",
+       "external_url": "https://doi.org/10.3847/2515-5172/ae5b91",
+       "status": "selected",
+       "assessment": "相关度 0.33",
+       "paragraphs": [
+        "Kevin K. Hardegree-Ullman、Melanie A. Swain、Jessie L. Christiansen、Emily A. Gilbert、Marcy Harbut、Aurora Y. Kesseli、Michael B. Lund、Meca Lynn、Julian C. van Eyken",
+        "2026",
+        "highest ranked representative within selection limit"
+       ],
+       "facts": [
+        {
+         "label": "DOI",
+         "values": [
+          "10.3847/2515-5172/ae5b91"
+         ]
+        }
+       ],
+       "evidence_ids": [],
+       "reasoning_trace": null,
+       "can_adjudicate": null,
+       "relation": null
+      },
+      {
+       "key": "candidate.75b9044a8a7b40a28b906300bdbf873fefd4a7a8619ca5b0d20b16dc53d6e1cc",
+       "title": "The Ariel Target List: The Impact of TESS and the Potential for Characterizing Multiple Planets within a System",
+       "external_url": "https://doi.org/10.3847/1538-3881/ac6bf9",
+       "status": "selected",
+       "assessment": "相关度 0.33",
+       "paragraphs": [
+        "Billy Edwards、Giovanna Tinetti",
+        "2022",
+        "highest ranked representative within selection limit"
+       ],
+       "facts": [
+        {
+         "label": "DOI",
+         "values": [
+          "10.3847/1538-3881/ac6bf9"
+         ]
+        }
+       ],
+       "evidence_ids": [],
+       "reasoning_trace": null,
+       "can_adjudicate": null,
+       "relation": null
+      },
+      {
+       "key": "candidate.ce411dac32c7e6f7b2237ffda0db7d58050d95489e910087cb744b13aa8b6e7a",
+       "title": "Around Which Stars Can TESS Detect Earth-like Planets? The Revised TESS Habitable Zone Catalog",
+       "external_url": "https://doi.org/10.3847/1538-3881/abe5a9",
+       "status": "selected",
+       "assessment": "相关度 0.28",
+       "paragraphs": [
+        "L. Kaltenegger、J. Pepper、P. M. Christodoulou、K. Stassun、S. Quinn、C. Burke",
+        "2021",
+        "highest ranked representative within selection limit"
+       ],
+       "facts": [
+        {
+         "label": "DOI",
+         "values": [
+          "10.3847/1538-3881/abe5a9"
+         ]
+        }
+       ],
+       "evidence_ids": [],
+       "reasoning_trace": null,
+       "can_adjudicate": null,
+       "relation": null
+      },
+      {
+       "key": "candidate.03a08b956faf1a04eefc8f54c1fc308e8e4ee484016d1df5002e190f8819d717",
+       "title": "DIAmante TESS AutoRegressive Planet Search (DTARPS). II. Hundreds of New TESS Candidate Exoplanets",
+       "external_url": "https://doi.org/10.3847/1538-3881/ad29f1",
+       "status": "selected",
+       "assessment": "相关度 0.28",
+       "paragraphs": [
+        "Elizabeth J. Melton、Eric D. Feigelson、Marco Montalto、Gabriel A. Caceres、Andrew W. Rosenswie、Cullen S. Abelson",
+        "2024",
+        "highest ranked representative within selection limit"
+       ],
+       "facts": [
+        {
+         "label": "DOI",
+         "values": [
+          "10.3847/1538-3881/ad29f1"
+         ]
+        }
+       ],
+       "evidence_ids": [],
+       "reasoning_trace": null,
+       "can_adjudicate": null,
+       "relation": null
+      },
+      {
+       "key": "candidate.8f6531d0ef3383b7e461ffd724caa18201100d17e026ca5705d9dfef77e308a1",
+       "title": "HD-TESS: An Asteroseismic Catalog of Bright Red Giants within TESS Continuous Viewing Zones",
+       "external_url": "https://doi.org/10.3847/1538-3881/ac8931",
+       "status": "selected",
+       "assessment": "相关度 0.28",
+       "paragraphs": [
+        "Marc Hon、James S. Kuszlewicz、Daniel Huber、Dennis Stello、Claudia Reyes",
+        "2022",
+        "highest ranked representative within selection limit"
+       ],
+       "facts": [
+        {
+         "label": "DOI",
+         "values": [
+          "10.3847/1538-3881/ac8931"
+         ]
+        }
+       ],
+       "evidence_ids": [],
+       "reasoning_trace": null,
+       "can_adjudicate": null,
+       "relation": null
+      },
+      {
+       "key": "candidate.9ae23cb4201a6b224a879e3fb34a621d94211aee25d1c6056ea483fd6430d52c",
+       "title": "Identifying SuperWASP Detected Candidate Variables with TESS*",
+       "external_url": "https://doi.org/10.3847/2515-5172/ad06b9",
+       "status": "selected",
+       "assessment": "相关度 0.28",
+       "paragraphs": [
+        "Ai-Ying Zhou",
+        "2023",
+        "highest ranked representative within selection limit"
+       ],
+       "facts": [
+        {
+         "label": "DOI",
+         "values": [
+          "10.3847/2515-5172/ad06b9"
+         ]
+        }
+       ],
+       "evidence_ids": [],
+       "reasoning_trace": null,
+       "can_adjudicate": null,
+       "relation": null
+      },
+      {
+       "key": "candidate.220db165df1616321fd8502faf8734d9698449e36c64228256fbad9d9f2b7387",
+       "title": "TESS Habitable Zone Star Catalog",
+       "external_url": "https://doi.org/10.3847/2041-8213/ab0e8d",
+       "status": "selected",
+       "assessment": "相关度 0.28",
+       "paragraphs": [
+        "L. Kaltenegger、J. Pepper、K. Stassun、R. Oelkers",
+        "2019",
+        "highest ranked representative within selection limit"
+       ],
+       "facts": [
+        {
+         "label": "DOI",
+         "values": [
+          "10.3847/2041-8213/ab0e8d"
+         ]
+        }
+       ],
+       "evidence_ids": [],
+       "reasoning_trace": null,
+       "can_adjudicate": null,
+       "relation": null
+      },
+      {
+       "key": "candidate.1da8e5f911a47745b2f8a241a8ca70f26a2091d81622691ea2371fa6576ea3e5",
+       "title": "TESS observations of KIC 7739728 - a new FK Com type star candidate",
+       "external_url": "https://doi.org/10.51194/inasan.2021.6.2.002",
+       "status": "selected",
+       "assessment": "相关度 0.28",
+       "paragraphs": [
+        "И.С. Саванов、Е.С. Дмитриенко",
+        "2021",
+        "highest ranked representative within selection limit"
+       ],
+       "facts": [
+        {
+         "label": "DOI",
+         "values": [
+          "10.51194/inasan.2021.6.2.002"
+         ]
+        }
+       ],
+       "evidence_ids": [],
+       "reasoning_trace": null,
+       "can_adjudicate": null,
+       "relation": null
+      }
+     ],
+     "tables": [],
+     "graph_nodes": [],
+     "graph_edges": []
+    },
+    "producer_execution": {
+     "id": "be2973c5-92f2-42e9-9337-63b4173e80af",
+     "run_id": "742199a6-8d04-4320-ba12-e3ae1264cb42",
+     "step_key": "searching_papers",
+     "step_attempt_id": "02cf8319-068d-4f4f-bba4-a7edd6ae6b72",
+     "producer": {
+      "type": "algorithm",
+      "name": "xingwen.paper_collection",
+      "version": "1.0.0",
+      "model_provider": null,
+      "requested_model": null,
+      "provider_returned_model": null,
+      "explicit_revision": null,
+      "prompt_name": null,
+      "prompt_version": null,
+      "prompt_hash": null,
+      "parameters_hash": "sha256:6df65faf851e5b49088ceb0b33c1302c33ae73549c55d4bf94e05339b9864b8b"
+     },
+     "parameters": {
+      "adapter_name": "crossref_rest",
+      "dedupe_version": "1.0.0",
+      "adapter_version": "1.0.0",
+      "ranking_version": "1.0.0",
+      "selection_limit": 10,
+      "selection_version": "1.0.0",
+      "retry_policy_version": "1.0.0",
+      "source_policy_version": "1.0.0",
+      "canonicalization_version": "1.0.0",
+      "query_normalization_version": "1.0.0"
+     },
+     "parameters_hash": "sha256:6df65faf851e5b49088ceb0b33c1302c33ae73549c55d4bf94e05339b9864b8b",
+     "input_hash": "sha256:c9208ce593038f92a42458a1e446bd305ac9ac924973158b4040d27eb8b50039",
+     "output_hash": "sha256:559517fb02090962dc0c68df42292073b50e72eac2138fe49b1a6a03ed5eaf72",
+     "status": "completed",
+     "started_at": "2026-09-03T00:23:55.694368Z",
+     "finished_at": "2026-09-03T00:23:56.797665Z",
+     "token_usage": null,
+     "latency_ms": null,
+     "provider_request_id": null,
+     "error_code": null
+    },
+    "source_snapshots": [
+     {
+      "id": "e4a60e31-faef-5500-a93f-d4c85235ee79",
+      "source_id": "crossref",
+      "source_type": "paper_metadata",
+      "retrieved_at": "2026-09-03T00:23:56.778712Z",
+      "query": "[REDACTED]",
+      "query_hash": "sha256:9099de759f5889f97f215ef836b3d55c67b7bcfa86024c02913c10607d09d9b8",
+      "source_version_or_etag": null,
+      "content_hash": "sha256:e313d915456490ccde4aa379d462ad2fb4b8549669f5dd3d4fd6cda8d9ffa847",
+      "license_note": "Metadata may be retrieved publicly; linked content remains governed by the publisher or repository license. Crossref supplies deposited metadata and links, not a general entitlement to article full text.",
+      "cache_version": null,
+      "request_metadata": {
+       "endpoint": "https://api.crossref.org/works"
+      }
+     }
+    ],
+    "evidence": []
+   }
+  }
+ ]
+}

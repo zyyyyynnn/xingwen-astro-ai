@@ -1,0 +1,486 @@
+{
+ "example": "external_source_failure_bounded_retry",
+ "source_commit": "2dbfdff1b24138a029e98f6d4b8489fa6771294a",
+ "run_id": "30e1b40c-b03d-47e3-b674-c0e4ceda61fe",
+ "execution_mode": "live",
+ "failure_code": "CROSSREF_TIMEOUT",
+ "failure_summary": "文献数据源检索超时或限流，请稍后重试。",
+ "behavior": "searching_papers attempt 1 failed with CROSSREF_TRANSPORT_ERROR; the bounded step retry consumed attempt 2, which ended with CROSSREF_TIMEOUT; the run then terminated honestly with a retryable-source failure and no manufactured results.",
+ "attempts": [
+  {
+   "step": "planning",
+   "attempt_number": 1,
+   "status": "completed",
+   "error_code": null,
+   "retryable": false
+  },
+  {
+   "step": "fetching_data",
+   "attempt_number": 1,
+   "status": "completed",
+   "error_code": null,
+   "retryable": false
+  },
+  {
+   "step": "cleaning_data",
+   "attempt_number": 1,
+   "status": "completed",
+   "error_code": null,
+   "retryable": false
+  },
+  {
+   "step": "searching_papers",
+   "attempt_number": 1,
+   "status": "failed",
+   "error_code": "CROSSREF_TRANSPORT_ERROR",
+   "retryable": true
+  },
+  {
+   "step": "searching_papers",
+   "attempt_number": 2,
+   "status": "failed",
+   "error_code": "CROSSREF_TIMEOUT",
+   "retryable": true
+  }
+ ],
+ "crossref_probe_at_recovery_window": {
+  "http_status": 200,
+  "response_time_seconds": 18.39,
+  "note": "api.crossref.org was degraded (slow responses) when the run executed; arxiv.org was healthy."
+ },
+ "events_tail": null,
+ "restart_recovery_smoke": {
+  "run_id": "30e1b40c-b03d-47e3-b674-c0e4ceda61fe",
+  "mode": "graceful_active_run_drain_and_restart",
+  "restart_requested_at": "2026-09-03T01:25:13.236Z",
+  "before": {
+   "qwen_route": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+   "model_executions": [
+    {
+     "id": "3a9b84a4-0ab1-4da1-9187-1786f6db0a72",
+     "step_key": "planning",
+     "step_attempt_id": "3f9573b7-70ab-476f-ab8c-3005dd44b543",
+     "producer_name": "research_step_agent",
+     "producer_version": "qwen3.8-max-0902",
+     "model_provider": "dashscope",
+     "requested_model": "qwen3.8-max-0902",
+     "provider_returned_model": null,
+     "explicit_revision": "qwen3.8-max-0902",
+     "provider_request_id": null,
+     "prompt_name": "research_step_agent",
+     "prompt_version": "1.4.0",
+     "prompt_hash": "sha256:8d19d110756390fc108e182008efc137c404c399f1f38326abfaa7126c0adf13",
+     "parameters": {
+      "top_p": 0.8,
+      "temperature": 0.6
+     },
+     "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+     "input_hash": "sha256:38bfdf452a8478f295c334c79f662d32984360662a2135aaec4d1e1f0194683c",
+     "output_hash": null,
+     "status": "running",
+     "started_at": "2026-09-03 01:25:08.561480+00:00",
+     "finished_at": null,
+     "token_usage": null,
+     "latency_ms": null,
+     "error_code": null
+    }
+   ],
+   "producer_executions": [
+    {
+     "id": "3a9b84a4-0ab1-4da1-9187-1786f6db0a72",
+     "step_key": "planning",
+     "step_attempt_id": "3f9573b7-70ab-476f-ab8c-3005dd44b543",
+     "producer_type": "model",
+     "producer_name": "research_step_agent",
+     "status": "running",
+     "error_code": null
+    }
+   ],
+   "run": {
+    "id": "30e1b40c-b03d-47e3-b674-c0e4ceda61fe",
+    "status": "planning",
+    "lease_owner": "api-research-run-worker",
+    "lease_generation": 1,
+    "lease_expires_at": "2026-09-03 01:55:08.462418+00:00",
+    "latest_event_sequence": 3,
+    "failure_code": null,
+    "failure_summary": null
+   },
+   "worker": {
+    "state": "accepting",
+    "started_at": "2026-09-03 00:25:03.925528+00:00",
+    "heartbeat_at": "2026-09-03 01:25:12.860391+00:00"
+   },
+   "attempts": [
+    {
+     "id": "3f9573b7-70ab-476f-ab8c-3005dd44b543",
+     "step": "planning",
+     "attempt_number": 1,
+     "status": "running",
+     "error_class": null,
+     "error_code": null,
+     "retryable": false,
+     "upstream_request_id": null
+    }
+   ],
+   "artifact_version_ids": [],
+   "duplicate_publications": 0,
+   "duplicate_completions": 0,
+   "events": {
+    "count": 3,
+    "min": 1,
+    "max": 3
+   },
+   "document_parses": []
+  },
+  "after": {
+   "qwen_route": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+   "model_executions": [
+    {
+     "id": "3a9b84a4-0ab1-4da1-9187-1786f6db0a72",
+     "step_key": "planning",
+     "step_attempt_id": "3f9573b7-70ab-476f-ab8c-3005dd44b543",
+     "producer_name": "research_step_agent",
+     "producer_version": "qwen3.8-max-0902",
+     "model_provider": "dashscope",
+     "requested_model": "qwen3.8-max-0902",
+     "provider_returned_model": "qwen3.8-max-0902",
+     "explicit_revision": "qwen3.8-max-0902",
+     "provider_request_id": "92f5b6a8-4360-97dc-a143-605d6b02a953",
+     "prompt_name": "research_step_agent",
+     "prompt_version": "1.4.0",
+     "prompt_hash": "sha256:8d19d110756390fc108e182008efc137c404c399f1f38326abfaa7126c0adf13",
+     "parameters": {
+      "top_p": 0.8,
+      "temperature": 0.6
+     },
+     "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+     "input_hash": "sha256:38bfdf452a8478f295c334c79f662d32984360662a2135aaec4d1e1f0194683c",
+     "output_hash": "sha256:49c9b9c5376e565369b6ed2269ce21842836639d7688a9f8ca710a26caf475e1",
+     "status": "completed",
+     "started_at": "2026-09-03 01:25:08.561480+00:00",
+     "finished_at": "2026-09-03 01:25:17.183589+00:00",
+     "token_usage": {
+      "total_tokens": 2196,
+      "prompt_tokens": 1545,
+      "completion_tokens": 651
+     },
+     "latency_ms": 8575,
+     "error_code": null
+    },
+    {
+     "id": "5f32aa37-d226-4f17-a60d-00ad464569ec",
+     "step_key": "fetching_data",
+     "step_attempt_id": "931bb836-35fa-4f32-a564-17ff74608693",
+     "producer_name": "research_step_agent",
+     "producer_version": "qwen3.8-max-0902",
+     "model_provider": "dashscope",
+     "requested_model": "qwen3.8-max-0902",
+     "provider_returned_model": "qwen3.8-max-0902",
+     "explicit_revision": "qwen3.8-max-0902",
+     "provider_request_id": "1691ff2f-72d2-98db-941b-78a97ca3bbdc",
+     "prompt_name": "research_step_agent",
+     "prompt_version": "1.4.0",
+     "prompt_hash": "sha256:8d19d110756390fc108e182008efc137c404c399f1f38326abfaa7126c0adf13",
+     "parameters": {
+      "top_p": 0.8,
+      "temperature": 0.6
+     },
+     "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+     "input_hash": "sha256:9096e75c49e32f7197f38924cd952f0a150752dd2102643dee563381934fd8ec",
+     "output_hash": "sha256:884d5d1760f9344738c46357609b4ec88b50238b3f92c16eaf2ed24ba2f22403",
+     "status": "completed",
+     "started_at": "2026-09-03 01:25:17.341129+00:00",
+     "finished_at": "2026-09-03 01:25:23.043742+00:00",
+     "token_usage": {
+      "total_tokens": 1891,
+      "prompt_tokens": 1545,
+      "completion_tokens": 346
+     },
+     "latency_ms": 5688,
+     "error_code": null
+    },
+    {
+     "id": "a119bbc6-ae11-43a1-9e02-6a5cfd2d33bb",
+     "step_key": "cleaning_data",
+     "step_attempt_id": "ca97fc65-9769-4d25-9fdf-4467564d9793",
+     "producer_name": "research_step_agent",
+     "producer_version": "qwen3.8-max-0902",
+     "model_provider": "dashscope",
+     "requested_model": "qwen3.8-max-0902",
+     "provider_returned_model": "qwen3.8-max-0902",
+     "explicit_revision": "qwen3.8-max-0902",
+     "provider_request_id": "d753581d-0f8f-911a-9514-d4aae3c53899",
+     "prompt_name": "research_step_agent",
+     "prompt_version": "1.4.0",
+     "prompt_hash": "sha256:8d19d110756390fc108e182008efc137c404c399f1f38326abfaa7126c0adf13",
+     "parameters": {
+      "top_p": 0.8,
+      "temperature": 0.6
+     },
+     "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+     "input_hash": "sha256:4f6d061192d375db6c1a50e42b1072b7725089cf9ee98a7a6da367a522f31332",
+     "output_hash": "sha256:29f775fb85505ce564e2169e857ddf39ceaaca09ab67809694b0c01f4ff2474b",
+     "status": "completed",
+     "started_at": "2026-09-03 01:25:46.469876+00:00",
+     "finished_at": "2026-09-03 01:25:56.704905+00:00",
+     "token_usage": {
+      "total_tokens": 2279,
+      "prompt_tokens": 1545,
+      "completion_tokens": 734
+     },
+     "latency_ms": 10223,
+     "error_code": null
+    },
+    {
+     "id": "54c670b1-6970-4c50-88d5-1806160fc594",
+     "step_key": "searching_papers",
+     "step_attempt_id": "32b34a0a-8ccd-4131-811f-cc83284cdc42",
+     "producer_name": "research_step_agent",
+     "producer_version": "qwen3.8-max-0902",
+     "model_provider": "dashscope",
+     "requested_model": "qwen3.8-max-0902",
+     "provider_returned_model": "qwen3.8-max-0902",
+     "explicit_revision": "qwen3.8-max-0902",
+     "provider_request_id": "204905f8-5547-9331-90fd-9a9a39ca71e6",
+     "prompt_name": "research_step_agent",
+     "prompt_version": "1.4.0",
+     "prompt_hash": "sha256:8d19d110756390fc108e182008efc137c404c399f1f38326abfaa7126c0adf13",
+     "parameters": {
+      "top_p": 0.8,
+      "temperature": 0.6
+     },
+     "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+     "input_hash": "sha256:d61259c39a0dd8609f36c09ae6033685ed85dcd9a0de358cdce2e91fab996f60",
+     "output_hash": "sha256:47de976210a01695aedd9f530efadfffa15d597e13abd2bab779cb06b007b2c8",
+     "status": "completed",
+     "started_at": "2026-09-03 01:27:47.237841+00:00",
+     "finished_at": "2026-09-03 01:27:54.134708+00:00",
+     "token_usage": {
+      "total_tokens": 2084,
+      "prompt_tokens": 1656,
+      "completion_tokens": 428
+     },
+     "latency_ms": 6891,
+     "error_code": null
+    },
+    {
+     "id": "da531d59-25b7-4eee-9216-a1759d7f310b",
+     "step_key": "searching_papers",
+     "step_attempt_id": "df6648f7-ab4f-487e-a002-4eff1ee1dcc1",
+     "producer_name": "research_step_agent",
+     "producer_version": "qwen3.8-max-0902",
+     "model_provider": "dashscope",
+     "requested_model": "qwen3.8-max-0902",
+     "provider_returned_model": "qwen3.8-max-0902",
+     "explicit_revision": "qwen3.8-max-0902",
+     "provider_request_id": "6ccda26d-f092-9095-a449-36c8d5b35c25",
+     "prompt_name": "research_step_agent",
+     "prompt_version": "1.4.0",
+     "prompt_hash": "sha256:8d19d110756390fc108e182008efc137c404c399f1f38326abfaa7126c0adf13",
+     "parameters": {
+      "top_p": 0.8,
+      "temperature": 0.6
+     },
+     "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+     "input_hash": "sha256:d61259c39a0dd8609f36c09ae6033685ed85dcd9a0de358cdce2e91fab996f60",
+     "output_hash": "sha256:37237f7dd3f91f7bbbbb41db72e811e840153a8429b1275d416100f6b3024a75",
+     "status": "completed",
+     "started_at": "2026-09-03 01:28:39.818264+00:00",
+     "finished_at": "2026-09-03 01:28:48.980114+00:00",
+     "token_usage": {
+      "total_tokens": 2293,
+      "prompt_tokens": 1656,
+      "completion_tokens": 637
+     },
+     "latency_ms": 9147,
+     "error_code": null
+    }
+   ],
+   "producer_executions": [
+    {
+     "id": "3a9b84a4-0ab1-4da1-9187-1786f6db0a72",
+     "step_key": "planning",
+     "step_attempt_id": "3f9573b7-70ab-476f-ab8c-3005dd44b543",
+     "producer_type": "model",
+     "producer_name": "research_step_agent",
+     "status": "completed",
+     "error_code": null
+    },
+    {
+     "id": "5f32aa37-d226-4f17-a60d-00ad464569ec",
+     "step_key": "fetching_data",
+     "step_attempt_id": "931bb836-35fa-4f32-a564-17ff74608693",
+     "producer_type": "model",
+     "producer_name": "research_step_agent",
+     "status": "completed",
+     "error_code": null
+    },
+    {
+     "id": "697742d8-b05e-43c0-a550-199a86b91530",
+     "step_key": "fetching_data",
+     "step_attempt_id": "931bb836-35fa-4f32-a564-17ff74608693",
+     "producer_type": "pipeline",
+     "producer_name": "contract-data-acquisition",
+     "status": "completed",
+     "error_code": null
+    },
+    {
+     "id": "a119bbc6-ae11-43a1-9e02-6a5cfd2d33bb",
+     "step_key": "cleaning_data",
+     "step_attempt_id": "ca97fc65-9769-4d25-9fdf-4467564d9793",
+     "producer_type": "model",
+     "producer_name": "research_step_agent",
+     "status": "completed",
+     "error_code": null
+    },
+    {
+     "id": "e819c14a-2916-41f0-95d7-6ca1fa9235c4",
+     "step_key": "cleaning_data",
+     "step_attempt_id": "ca97fc65-9769-4d25-9fdf-4467564d9793",
+     "producer_type": "algorithm",
+     "producer_name": "data-artifact-dataset",
+     "status": "completed",
+     "error_code": null
+    },
+    {
+     "id": "dfb66557-4833-4b1b-b348-1a08487eb50d",
+     "step_key": "cleaning_data",
+     "step_attempt_id": "ca97fc65-9769-4d25-9fdf-4467564d9793",
+     "producer_type": "algorithm",
+     "producer_name": "data-artifact-field_dictionary",
+     "status": "completed",
+     "error_code": null
+    },
+    {
+     "id": "a6d01529-c485-419f-b836-c176a83eb218",
+     "step_key": "cleaning_data",
+     "step_attempt_id": "ca97fc65-9769-4d25-9fdf-4467564d9793",
+     "producer_type": "algorithm",
+     "producer_name": "data-artifact-source_collection",
+     "status": "completed",
+     "error_code": null
+    },
+    {
+     "id": "54c670b1-6970-4c50-88d5-1806160fc594",
+     "step_key": "searching_papers",
+     "step_attempt_id": "32b34a0a-8ccd-4131-811f-cc83284cdc42",
+     "producer_type": "model",
+     "producer_name": "research_step_agent",
+     "status": "completed",
+     "error_code": null
+    },
+    {
+     "id": "36c6eaad-1c1a-45a0-8b7b-fae8fb09bd02",
+     "step_key": "searching_papers",
+     "step_attempt_id": "32b34a0a-8ccd-4131-811f-cc83284cdc42",
+     "producer_type": "algorithm",
+     "producer_name": "xingwen.paper_collection",
+     "status": "failed",
+     "error_code": "CROSSREF_TRANSPORT_ERROR"
+    },
+    {
+     "id": "da531d59-25b7-4eee-9216-a1759d7f310b",
+     "step_key": "searching_papers",
+     "step_attempt_id": "df6648f7-ab4f-487e-a002-4eff1ee1dcc1",
+     "producer_type": "model",
+     "producer_name": "research_step_agent",
+     "status": "completed",
+     "error_code": null
+    },
+    {
+     "id": "85a35816-c17c-4937-896e-9d52fcf7441b",
+     "step_key": "searching_papers",
+     "step_attempt_id": "df6648f7-ab4f-487e-a002-4eff1ee1dcc1",
+     "producer_type": "algorithm",
+     "producer_name": "xingwen.paper_collection",
+     "status": "failed",
+     "error_code": "CROSSREF_TIMEOUT"
+    }
+   ],
+   "run": {
+    "id": "30e1b40c-b03d-47e3-b674-c0e4ceda61fe",
+    "status": "failed",
+    "lease_owner": null,
+    "lease_generation": 1,
+    "lease_expires_at": null,
+    "latest_event_sequence": 29,
+    "failure_code": "CROSSREF_TIMEOUT",
+    "failure_summary": "文献数据源检索超时或限流，请稍后重试。"
+   },
+   "worker": {
+    "state": "accepting",
+    "started_at": "2026-09-03 01:30:39.080639+00:00",
+    "heartbeat_at": "2026-09-03 01:30:41.662522+00:00"
+   },
+   "attempts": [
+    {
+     "id": "3f9573b7-70ab-476f-ab8c-3005dd44b543",
+     "step": "planning",
+     "attempt_number": 1,
+     "status": "completed",
+     "error_class": null,
+     "error_code": null,
+     "retryable": false,
+     "upstream_request_id": null
+    },
+    {
+     "id": "931bb836-35fa-4f32-a564-17ff74608693",
+     "step": "fetching_data",
+     "attempt_number": 1,
+     "status": "completed",
+     "error_class": null,
+     "error_code": null,
+     "retryable": false,
+     "upstream_request_id": null
+    },
+    {
+     "id": "ca97fc65-9769-4d25-9fdf-4467564d9793",
+     "step": "cleaning_data",
+     "attempt_number": 1,
+     "status": "completed",
+     "error_class": null,
+     "error_code": null,
+     "retryable": false,
+     "upstream_request_id": null
+    },
+    {
+     "id": "32b34a0a-8ccd-4131-811f-cc83284cdc42",
+     "step": "searching_papers",
+     "attempt_number": 1,
+     "status": "failed",
+     "error_class": "AgentActivityError",
+     "error_code": "CROSSREF_TRANSPORT_ERROR",
+     "retryable": true,
+     "upstream_request_id": null
+    },
+    {
+     "id": "df6648f7-ab4f-487e-a002-4eff1ee1dcc1",
+     "step": "searching_papers",
+     "attempt_number": 2,
+     "status": "failed",
+     "error_class": "AgentActivityError",
+     "error_code": "CROSSREF_TIMEOUT",
+     "retryable": true,
+     "upstream_request_id": null
+    }
+   ],
+   "artifact_version_ids": [
+    "48643462-db3c-5ee9-9f04-b1823e0c6d21",
+    "8046ef4e-9a55-5a3e-8408-6cf44d13da4e",
+    "9dfef35b-347d-5dbb-ab8d-634f3cd5cf38"
+   ],
+   "duplicate_publications": 0,
+   "duplicate_completions": 0,
+   "events": {
+    "count": 29,
+    "min": 1,
+    "max": 29
+   },
+   "document_parses": []
+  },
+  "result": "not_verified",
+  "source_commit": "2dbfdff1b24138a029e98f6d4b8489fa6771294a",
+  "generated_at": "2026-09-03T01:30:42.226Z"
+ }
+}

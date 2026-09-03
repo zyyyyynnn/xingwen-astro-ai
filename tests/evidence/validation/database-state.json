@@ -1,0 +1,48 @@
+{
+ "project_id": "049bfd29-4736-43a2-abf5-2885123d8f19",
+ "counts": {
+  "runs": 4,
+  "artifact_versions": 15,
+  "evidence": 10487,
+  "producer_executions": 85,
+  "source_snapshots": 4
+ },
+ "latest_versions": {
+  "dataset": {
+   "id": "7577c13b-c1eb-5cc5-81d0-1d1bcb3bafb4",
+   "version": 1,
+   "source_mode": "live"
+  },
+  "paper_summary": {
+   "id": "98dd9863-d691-5105-94d4-b982709143ba",
+   "version": 2,
+   "source_mode": "live"
+  },
+  "literature_claims": {
+   "id": "0958e467-f20a-522e-bb8f-3972c53f1ac9",
+   "version": 2,
+   "source_mode": "live"
+  },
+  "literature_relations": {
+   "id": "53476783-3f24-5a5c-a6c8-7da59ac95b2e",
+   "version": 3,
+   "created_by_run_id": "1c668872-8d12-4203-95ec-2c67c4cabdee"
+  },
+  "graph": {
+   "id": "949b664e-bf62-5d70-b595-120825b1f133",
+   "version": 3,
+   "created_by_run_id": "1c668872-8d12-4203-95ec-2c67c4cabdee",
+   "integrity_status": "passed"
+  },
+  "analysis_report": {
+   "id": "0d2aef77-a982-42c6-9831-70388d125508",
+   "version": 1,
+   "source_mode": "live",
+   "created_by_run_id": "2cc2e029-7f3c-4cc3-a5d3-7a112bc37858",
+   "metrics": 2,
+   "findings": 0,
+   "evidence_ids": 4,
+   "scientific_read_status": "SCIENTIFIC_ARTIFACT_INTEGRITY"
+  }
+ }
+}

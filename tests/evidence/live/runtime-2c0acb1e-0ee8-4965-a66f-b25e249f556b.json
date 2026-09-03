@@ -1,0 +1,2484 @@
+{
+ "qwen_route": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+ "model_executions": [
+  {
+   "id": "a1dedc63-1e8b-4ea2-b8f7-da8f58b30f7c",
+   "step_key": "planning",
+   "step_attempt_id": "bd5cb2d2-d83c-4b33-8a09-7034222540ae",
+   "producer_name": "research_step_agent",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "5dec8f58-bbaf-963e-bc66-ebfb1233b68b",
+   "prompt_name": "research_step_agent",
+   "prompt_version": "1.4.0",
+   "prompt_hash": "sha256:8d19d110756390fc108e182008efc137c404c399f1f38326abfaa7126c0adf13",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:38bfdf452a8478f295c334c79f662d32984360662a2135aaec4d1e1f0194683c",
+   "output_hash": "sha256:955d844bc083dbe6955dcfe6d633881f35be049df7096382c67c9daf492fec00",
+   "status": "completed",
+   "started_at": "2026-09-03 00:27:30.413406+00:00",
+   "finished_at": "2026-09-03 00:27:38.682991+00:00",
+   "token_usage": {
+    "total_tokens": 2431,
+    "prompt_tokens": 1843,
+    "completion_tokens": 588
+   },
+   "latency_ms": 8258,
+   "error_code": null
+  },
+  {
+   "id": "bb5ea426-47e6-4afa-96e1-620910dfd234",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "research_step_agent",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "9e9995a2-c9af-91f6-8874-ee097d241496",
+   "prompt_name": "research_step_agent",
+   "prompt_version": "1.4.0",
+   "prompt_hash": "sha256:8d19d110756390fc108e182008efc137c404c399f1f38326abfaa7126c0adf13",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:8121cd0c058306feb163e065b134ee9056bfbb6a4cd1cbed79e65d4630cde824",
+   "output_hash": "sha256:f19012c4ce74fa47f724892b0a7b7217a8ae50aac9e72be485f3cd922b9a39a3",
+   "status": "completed",
+   "started_at": "2026-09-03 00:27:38.813871+00:00",
+   "finished_at": "2026-09-03 00:27:43.988974+00:00",
+   "token_usage": {
+    "total_tokens": 2185,
+    "prompt_tokens": 1846,
+    "completion_tokens": 339
+   },
+   "latency_ms": 5168,
+   "error_code": null
+  },
+  {
+   "id": "f20302e2-d0c8-4ed5-b31e-9bbfa8d82559",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "xingwen.paper_summary",
+   "producer_version": "1.0.0",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": null,
+   "prompt_name": "paper_summary",
+   "prompt_version": "4.0.1",
+   "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6,
+    "resume_from_completed_children": true
+   },
+   "parameters_hash": "sha256:df5f58d8663a8cc4d9943ad96e9ffb5fc168fec61a3bfc51d89c6ae1a0b7d247",
+   "input_hash": "sha256:3be3bfdc674551400f5dd376987365151af5ba2936541958a6007a64394274ec",
+   "output_hash": "sha256:8e2da56f86e5560d69ae465b05598adc4641e6ce96493aac31082b276ae4fb58",
+   "status": "completed",
+   "started_at": "2026-09-03 00:27:56.206525+00:00",
+   "finished_at": "2026-09-03 00:41:25.553740+00:00",
+   "token_usage": {
+    "total_tokens": 268875,
+    "prompt_tokens": 195400,
+    "completion_tokens": 73475
+   },
+   "latency_ms": 806042,
+   "error_code": null
+  },
+  {
+   "id": "39714549-4e25-4ac4-9b28-96aae5be845a",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "e21ce7be-5ea4-96ad-aba7-334743588191",
+   "prompt_name": "paper_summary",
+   "prompt_version": "4.0.1",
+   "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:de4a0b43b70c38669824424062ab1187eb972d4e034b8074217bda97e7c56100",
+   "output_hash": "sha256:b180b8415a0fa7fa9254246f1a2a3c697f915fc8533421187b2f25417d04ae64",
+   "status": "completed",
+   "started_at": "2026-09-03 00:27:56.347543+00:00",
+   "finished_at": "2026-09-03 00:28:41.532581+00:00",
+   "token_usage": {
+    "total_tokens": 17387,
+    "prompt_tokens": 13078,
+    "completion_tokens": 4309
+   },
+   "latency_ms": 45180,
+   "error_code": null
+  },
+  {
+   "id": "3b7e2229-11ac-4eee-ba0f-296b42420c87",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "8186dc5b-baf1-9447-980f-2db6ff797250",
+   "prompt_name": "paper_summary",
+   "prompt_version": "4.0.1",
+   "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:768a58a198e1e24cf77c1956212518ac928d492784db7766e754a64d2542d602",
+   "output_hash": "sha256:73b388597eb5973bc8e2906de1f703589180e39130f045805448f415e93aa925",
+   "status": "completed",
+   "started_at": "2026-09-03 00:28:41.552336+00:00",
+   "finished_at": "2026-09-03 00:29:45.825235+00:00",
+   "token_usage": {
+    "total_tokens": 16841,
+    "prompt_tokens": 11747,
+    "completion_tokens": 5094
+   },
+   "latency_ms": 64269,
+   "error_code": null
+  },
+  {
+   "id": "d37b2393-0779-4e9e-b555-ae4a3f7b6f64",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "f7250db2-5c7f-95d3-a125-cb476decd499",
+   "prompt_name": "paper_summary",
+   "prompt_version": "4.0.1",
+   "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:d250c6baebb1f27b31933447b2bfaf0d57d4ef3228e0ead1765c98070c108bda",
+   "output_hash": "sha256:9846106dcae83fe1a2749d7ffdcf69bdd3b2b827ab05b6a9e15bff9859a6bb90",
+   "status": "completed",
+   "started_at": "2026-09-03 00:29:45.895441+00:00",
+   "finished_at": "2026-09-03 00:30:34.999634+00:00",
+   "token_usage": {
+    "total_tokens": 15770,
+    "prompt_tokens": 11790,
+    "completion_tokens": 3980
+   },
+   "latency_ms": 49097,
+   "error_code": null
+  },
+  {
+   "id": "9fce1225-e741-4399-b65b-6a7a7107df1b",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "72a24446-cea7-9e79-834a-aef2bdb67702",
+   "prompt_name": "paper_summary",
+   "prompt_version": "4.0.1",
+   "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:6df9e41a3a03d1d629eacb783ef26f0d1599550597ab25e963b3f89d6f68e3bf",
+   "output_hash": "sha256:45f02fb179a556cfb018bc41d144303ab091a01c1dc8c66fbffad7b972dcca55",
+   "status": "completed",
+   "started_at": "2026-09-03 00:30:35.017986+00:00",
+   "finished_at": "2026-09-03 00:31:31.518763+00:00",
+   "token_usage": {
+    "total_tokens": 17168,
+    "prompt_tokens": 11446,
+    "completion_tokens": 5722
+   },
+   "latency_ms": 56496,
+   "error_code": null
+  },
+  {
+   "id": "95edb35b-2b96-4579-a34f-760a27b5f398",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "0e9fcbea-6ec1-92bf-affb-e6ffea5aa3fa",
+   "prompt_name": "paper_summary",
+   "prompt_version": "4.0.1",
+   "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:3e632a42dcf41bd027639f4379388015a783975a29afd1ae8e22e3f25171d9c9",
+   "output_hash": "sha256:ba8f653ab1f710f2d90bc26c6d85a349bd9a227689e2ebf03ecb166922a189ec",
+   "status": "completed",
+   "started_at": "2026-09-03 00:31:31.550556+00:00",
+   "finished_at": "2026-09-03 00:32:35.258160+00:00",
+   "token_usage": {
+    "total_tokens": 16870,
+    "prompt_tokens": 11527,
+    "completion_tokens": 5343
+   },
+   "latency_ms": 63702,
+   "error_code": null
+  },
+  {
+   "id": "be768d5a-0b45-4c26-9077-21e5efa12a09",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "3ee9d4ae-d090-909e-b7db-3a63d64a3e73",
+   "prompt_name": "paper_summary",
+   "prompt_version": "4.0.1",
+   "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:4010d630f01325f6d9780d53b847eae407f2393bcd618ae9de472c1fdc86806b",
+   "output_hash": "sha256:fa2786030395397a5edf290f81830a53024112da738843a7fc4b76dc7b6a9d04",
+   "status": "completed",
+   "started_at": "2026-09-03 00:32:35.274533+00:00",
+   "finished_at": "2026-09-03 00:33:24.778205+00:00",
+   "token_usage": {
+    "total_tokens": 16377,
+    "prompt_tokens": 11511,
+    "completion_tokens": 4866
+   },
+   "latency_ms": 49499,
+   "error_code": null
+  },
+  {
+   "id": "aadde382-74b5-4391-94e3-302056158edc",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "ee89d724-e63b-9728-98ef-69e85e0e9169",
+   "prompt_name": "paper_summary",
+   "prompt_version": "4.0.1",
+   "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:a86dc3c104d5ec8fddc3c570bfb37837f7e5ebf984bb0f02dd8ea08691c2c27f",
+   "output_hash": "sha256:3f8805408f6add9c4d8880380f40244145388ae0b2cc70f6f44906d2dbde47ca",
+   "status": "completed",
+   "started_at": "2026-09-03 00:33:24.797545+00:00",
+   "finished_at": "2026-09-03 00:33:35.170630+00:00",
+   "token_usage": {
+    "total_tokens": 11894,
+    "prompt_tokens": 11022,
+    "completion_tokens": 872
+   },
+   "latency_ms": 10365,
+   "error_code": null
+  },
+  {
+   "id": "1be28359-dbbc-4627-bac9-0c1a8a5cfb25",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "bc7f39d4-4c87-9e5d-af21-7ae0fde1c9b8",
+   "prompt_name": "paper_summary",
+   "prompt_version": "4.0.1",
+   "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:7793cf3fb99da345058dc313ce30bdf1ec9774c5f5157fc6ae020dfab7cf35c2",
+   "output_hash": "sha256:1b71c07be311d021ee1289fdee0b3e093e7bbd9898c0b97c46f5637b83f07971",
+   "status": "completed",
+   "started_at": "2026-09-03 00:33:35.183432+00:00",
+   "finished_at": "2026-09-03 00:34:27.852697+00:00",
+   "token_usage": {
+    "total_tokens": 16210,
+    "prompt_tokens": 11759,
+    "completion_tokens": 4451
+   },
+   "latency_ms": 52666,
+   "error_code": null
+  },
+  {
+   "id": "1f6005a0-c0df-4ced-9a20-5c3746994148",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "4d7e4503-abfe-9720-af17-7a955dcc6d2e",
+   "prompt_name": "paper_summary",
+   "prompt_version": "4.0.1",
+   "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:831375bd29e896234667cc641d320c0048e6bf1d4fb74a8eeb497c97c5108232",
+   "output_hash": "sha256:be1fb9704e4c75dd0ed9556c8bd74d45810fdd3f25612c501bcf9f4eda32aee6",
+   "status": "completed",
+   "started_at": "2026-09-03 00:34:27.874043+00:00",
+   "finished_at": "2026-09-03 00:35:30.714161+00:00",
+   "token_usage": {
+    "total_tokens": 17105,
+    "prompt_tokens": 11767,
+    "completion_tokens": 5338
+   },
+   "latency_ms": 62834,
+   "error_code": null
+  },
+  {
+   "id": "b4f3f9b0-9c48-4bab-b502-1e764c227193",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "c419a895-9b1d-99f6-b952-0cf2db138a67",
+   "prompt_name": "paper_summary",
+   "prompt_version": "4.0.1",
+   "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:4bbc1f6a0186748ec43551c952831cf51b596bdd6998c2ab4e97dab13fae7f35",
+   "output_hash": "sha256:22d146da8212e4b0aa732aacb62cf261edfe85f38016bb29e2efd6eaf1a3bb90",
+   "status": "completed",
+   "started_at": "2026-09-03 00:35:30.732971+00:00",
+   "finished_at": "2026-09-03 00:36:36.851454+00:00",
+   "token_usage": {
+    "total_tokens": 17506,
+    "prompt_tokens": 10738,
+    "completion_tokens": 6768
+   },
+   "latency_ms": 66115,
+   "error_code": null
+  },
+  {
+   "id": "38f2ce7b-4266-418c-a8d2-45ef1c5d77b9",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "4fbda025-69af-9b52-ac5f-f6150ddd34e0",
+   "prompt_name": "paper_summary",
+   "prompt_version": "4.0.1",
+   "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:2fa4f1dd68e39d142f29eb5625b9049beced741a7969d4ac00bcf19ce3f47809",
+   "output_hash": "sha256:70d0af78a782bb462d1a97d8b526e1c70f99b40414b115ddce3a94095ebbdc0b",
+   "status": "completed",
+   "started_at": "2026-09-03 00:36:36.900916+00:00",
+   "finished_at": "2026-09-03 00:37:50.326530+00:00",
+   "token_usage": {
+    "total_tokens": 17695,
+    "prompt_tokens": 11306,
+    "completion_tokens": 6389
+   },
+   "latency_ms": 73420,
+   "error_code": null
+  },
+  {
+   "id": "a23c82f6-5fab-4dbd-b710-3732d8d285e2",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "1939e928-f36f-9400-96b6-d9d09b40ed84",
+   "prompt_name": "paper_summary",
+   "prompt_version": "4.0.1",
+   "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:0b6dae9256b036da7f1af0617c4a7b9220a3731406a1e8d0e69d55081e9c7e42",
+   "output_hash": "sha256:630ea5b0a203f502fa7e11d74548d0a8ab6c508c2d30e4eeefc8561b96e5da62",
+   "status": "completed",
+   "started_at": "2026-09-03 00:37:50.351411+00:00",
+   "finished_at": "2026-09-03 00:38:45.917552+00:00",
+   "token_usage": {
+    "total_tokens": 17457,
+    "prompt_tokens": 11940,
+    "completion_tokens": 5517
+   },
+   "latency_ms": 55561,
+   "error_code": null
+  },
+  {
+   "id": "894c6343-52d5-4ab0-b653-eb6beead5196",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "59f568a4-75dd-9766-a367-74a97574402b",
+   "prompt_name": "paper_summary",
+   "prompt_version": "4.0.1",
+   "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:0bd5db8e501a4fe3de5ea76296623a8883f180ede7552093018227a3145054e7",
+   "output_hash": "sha256:911278fdbe09d2959048a4d413d7e78c48d581559933d9a77be28bb09e06160c",
+   "status": "completed",
+   "started_at": "2026-09-03 00:38:45.938748+00:00",
+   "finished_at": "2026-09-03 00:39:36.265741+00:00",
+   "token_usage": {
+    "total_tokens": 15620,
+    "prompt_tokens": 11744,
+    "completion_tokens": 3876
+   },
+   "latency_ms": 50322,
+   "error_code": null
+  },
+  {
+   "id": "92e7c8af-91bd-403d-9429-8863c89e2773",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "daf896d3-3fb2-9cfa-8b31-d79a99d0494c",
+   "prompt_name": "paper_summary",
+   "prompt_version": "4.0.1",
+   "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:bde5da3fd78bc663182ef88e93be6fd2845f9f523fe44d781864111d841ffc41",
+   "output_hash": "sha256:8c65f99e0ba789634815b562764976a810c741d8e13e030375355bf5347da56a",
+   "status": "completed",
+   "started_at": "2026-09-03 00:39:36.287573+00:00",
+   "finished_at": "2026-09-03 00:40:07.300681+00:00",
+   "token_usage": {
+    "total_tokens": 13924,
+    "prompt_tokens": 10933,
+    "completion_tokens": 2991
+   },
+   "latency_ms": 31007,
+   "error_code": null
+  },
+  {
+   "id": "07ce5c39-dc02-4fd1-a86c-0a4e0a185b3a",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "d99ee52b-8976-97b6-8fdb-93d97def1dce",
+   "prompt_name": "paper_summary",
+   "prompt_version": "4.0.1",
+   "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:bad4114430e3de4b43fb258454e4316d530743026ebf83b6edb83f1b48329026",
+   "output_hash": "sha256:eef59e5c385a588eae0328680790efd03c438f6ce0a09638820b985fce2d108d",
+   "status": "completed",
+   "started_at": "2026-09-03 00:40:07.321098+00:00",
+   "finished_at": "2026-09-03 00:40:38.593010+00:00",
+   "token_usage": {
+    "total_tokens": 14694,
+    "prompt_tokens": 11418,
+    "completion_tokens": 3276
+   },
+   "latency_ms": 31266,
+   "error_code": null
+  },
+  {
+   "id": "135048c9-8e79-4f2e-b8e5-22f0950613b3",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "7fa72d3c-ca0f-9bf9-a52e-4556019e5b72",
+   "prompt_name": "paper_summary",
+   "prompt_version": "4.0.1",
+   "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:6b27b4bb2ac2982f165bfe4da1613c507a05776fc6f142030d6f920a378514c9",
+   "output_hash": "sha256:a1b25a43040b9ae292a5372d550923c87c21b01e04ba9fe7129306ff59082e09",
+   "status": "completed",
+   "started_at": "2026-09-03 00:40:38.613677+00:00",
+   "finished_at": "2026-09-03 00:41:21.877909+00:00",
+   "token_usage": {
+    "total_tokens": 17527,
+    "prompt_tokens": 12869,
+    "completion_tokens": 4658
+   },
+   "latency_ms": 43260,
+   "error_code": null
+  },
+  {
+   "id": "40fc6a2b-6597-4d0b-997b-30a415140375",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "0cd7be5c-4edb-96a9-8320-941949488f94",
+   "prompt_name": "paper_summary",
+   "prompt_version": "4.0.1",
+   "prompt_hash": "sha256:aacfe56acbe20796cf1c0c484a6d3d5f5fdd915a95c479e6ef74d670064e4e60",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:d1e8f1e5625d1d147144c36ae7e9e032c9cf35464469079d8e61d47233185379",
+   "output_hash": "sha256:81a00ca56ee116d583fdd4c66985f4848286b759ca52df58e7fe0ad17feff3a8",
+   "status": "completed",
+   "started_at": "2026-09-03 00:41:21.895390+00:00",
+   "finished_at": "2026-09-03 00:41:22.884820+00:00",
+   "token_usage": {
+    "total_tokens": 8830,
+    "prompt_tokens": 8805,
+    "completion_tokens": 25
+   },
+   "latency_ms": 983,
+   "error_code": null
+  },
+  {
+   "id": "bf5b6ba8-8b68-4431-adc8-0ef3017372f6",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "research_step_agent",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "0fb8e631-aece-9b26-94a8-4bf783dcac91",
+   "prompt_name": "research_step_agent",
+   "prompt_version": "1.4.0",
+   "prompt_hash": "sha256:8d19d110756390fc108e182008efc137c404c399f1f38326abfaa7126c0adf13",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:4395807d26722317a9a9d8fa96042d47f387e047b5de573ab37c15e17b069104",
+   "output_hash": "sha256:a4779f211b531b84c87548ee702569ecde55fe20b6c1a3dddf11483133f37110",
+   "status": "completed",
+   "started_at": "2026-09-03 00:41:28.900004+00:00",
+   "finished_at": "2026-09-03 00:41:36.918889+00:00",
+   "token_usage": {
+    "total_tokens": 2447,
+    "prompt_tokens": 1849,
+    "completion_tokens": 598
+   },
+   "latency_ms": 8013,
+   "error_code": null
+  },
+  {
+   "id": "c0e81271-34b3-48a5-b583-d8a33a612708",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "xingwen.literature_claim",
+   "producer_version": "1.0.0",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": null,
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6,
+    "resume_from_completed_children": true
+   },
+   "parameters_hash": "sha256:df5f58d8663a8cc4d9943ad96e9ffb5fc168fec61a3bfc51d89c6ae1a0b7d247",
+   "input_hash": "sha256:eee223760969cefcec5f4e3f411c949a66be358c97a0fbc9f83db8f88354dc74",
+   "output_hash": "sha256:8aa12cebf99c51458e1a1716bec0da52c80745991d516051c47de1396658728c",
+   "status": "completed",
+   "started_at": "2026-09-03 00:41:36.943781+00:00",
+   "finished_at": "2026-09-03 00:56:53.637585+00:00",
+   "token_usage": {
+    "total_tokens": 205892,
+    "prompt_tokens": 117398,
+    "completion_tokens": 88494
+   },
+   "latency_ms": 913797,
+   "error_code": null
+  },
+  {
+   "id": "bdc1fc37-d37b-4547-8c2b-551376a70d10",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "3c67434e-0997-9a01-b889-14ad36227981",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:60223df255cf07c1c0f7ec3a778e006fa1df2866338c15eabed4287e48888623",
+   "output_hash": "sha256:7bb71bc4d07ca5b8f9f5ac79214d9456c0cf94a43a59067a7f8052fcdb450389",
+   "status": "completed",
+   "started_at": "2026-09-03 00:41:36.958641+00:00",
+   "finished_at": "2026-09-03 00:41:58.722111+00:00",
+   "token_usage": {
+    "total_tokens": 5350,
+    "prompt_tokens": 2855,
+    "completion_tokens": 2495
+   },
+   "latency_ms": 21759,
+   "error_code": null
+  },
+  {
+   "id": "ff00e8a6-4b31-4004-af57-544fb42249bb",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "7cbf2352-1add-96e2-87f7-b5c5e1d60dac",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:1d47efdce14ef362c7e739cc2e75139d0571d4d66b49671d94a9301bac3dc01b",
+   "output_hash": "sha256:534295511de1c9371a3382682532629ab01c761b86e70a8fef55cfc27f40bdc0",
+   "status": "completed",
+   "started_at": "2026-09-03 00:41:58.736947+00:00",
+   "finished_at": "2026-09-03 00:42:16.873661+00:00",
+   "token_usage": {
+    "total_tokens": 4278,
+    "prompt_tokens": 2332,
+    "completion_tokens": 1946
+   },
+   "latency_ms": 18130,
+   "error_code": null
+  },
+  {
+   "id": "48afd2b9-f237-4833-b0e4-4bf727cfb6f9",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "915d0f75-bdc0-9d7d-ab8f-3f075c2b5689",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:7435701600a9595cdfea82875bf787b45b8b5c0e440b28932eb11dd4d80e840e",
+   "output_hash": "sha256:0c3ac1ec5d985a568e73ef70fff3accee38f7bf52cec07149403a890ce5e93fd",
+   "status": "completed",
+   "started_at": "2026-09-03 00:42:16.892111+00:00",
+   "finished_at": "2026-09-03 00:42:49.775946+00:00",
+   "token_usage": {
+    "total_tokens": 5993,
+    "prompt_tokens": 3183,
+    "completion_tokens": 2810
+   },
+   "latency_ms": 32877,
+   "error_code": null
+  },
+  {
+   "id": "8231916e-76fc-42ba-bb21-07b81050f287",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "c9b00cf6-8e29-9a6f-b077-bf1e3e65e943",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:815071b382ad747220aaf0c3357667c9375faaf0795fcaf80b0f4c0d617edf14",
+   "output_hash": "sha256:eab31d531ae5aab6dcdee7f1de66657eff367dbfc9604b4308d28331eeae273e",
+   "status": "completed",
+   "started_at": "2026-09-03 00:42:49.794033+00:00",
+   "finished_at": "2026-09-03 00:43:12.931875+00:00",
+   "token_usage": {
+    "total_tokens": 4555,
+    "prompt_tokens": 2450,
+    "completion_tokens": 2105
+   },
+   "latency_ms": 23131,
+   "error_code": null
+  },
+  {
+   "id": "56b24c38-db91-43e1-b59c-f9e4e482b937",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "3b8c8080-2c22-9e42-8e67-4d7dee196728",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:e389772c505ec21dfcc355a443af2145226bd1922e684bf71d92ec2bad69c541",
+   "output_hash": "sha256:ea996997ca9466be02f14e8700ab17764038cc1d487a7e0018b16034bb5b0949",
+   "status": "completed",
+   "started_at": "2026-09-03 00:43:12.967562+00:00",
+   "finished_at": "2026-09-03 00:43:34.941462+00:00",
+   "token_usage": {
+    "total_tokens": 4518,
+    "prompt_tokens": 2511,
+    "completion_tokens": 2007
+   },
+   "latency_ms": 21963,
+   "error_code": null
+  },
+  {
+   "id": "fbff426e-f6c6-4cbd-836d-d72ad5d8c8bb",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "6f7c5f57-a39d-91b5-9066-519f0d5937c2",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:47ff74f73813728cb6d1900955c99ff8f114b80449d75104a688dfb4c998c026",
+   "output_hash": "sha256:1df21b231f1cd16a7cc303854dd29d948abb5fc9ffbf2ebf6ac9866833bdb659",
+   "status": "completed",
+   "started_at": "2026-09-03 00:43:34.961139+00:00",
+   "finished_at": "2026-09-03 00:44:03.685725+00:00",
+   "token_usage": {
+    "total_tokens": 6237,
+    "prompt_tokens": 3298,
+    "completion_tokens": 2939
+   },
+   "latency_ms": 28720,
+   "error_code": null
+  },
+  {
+   "id": "d8bee94e-4246-49a7-8f83-9e8b0fe06582",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "41ad88d4-c23d-96aa-91ca-28882dfe437c",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:c20335044dcecb59e838589da340a78cdd0323c34299f1a6f7917abe6ccfdf20",
+   "output_hash": "sha256:05c1f09687cdc390049c1f4e22aa9ca6d3f5a237eb594edc2ae186874b046a6a",
+   "status": "completed",
+   "started_at": "2026-09-03 00:44:03.706995+00:00",
+   "finished_at": "2026-09-03 00:44:26.190418+00:00",
+   "token_usage": {
+    "total_tokens": 4908,
+    "prompt_tokens": 2647,
+    "completion_tokens": 2261
+   },
+   "latency_ms": 22470,
+   "error_code": null
+  },
+  {
+   "id": "a2bf7dab-405e-4041-b511-5334f5f6bbc5",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "4b1ebf11-b4b1-986f-8fb5-73a2f49f58a0",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:fc33be49ec38a05b1679b457b35eb1fdc3f8c184388ae2ebb640a6c9ad48e15d",
+   "output_hash": "sha256:50252e35ac61ea847279e8d92bb2c6ab014e508a7be3e95371ebb905703431d2",
+   "status": "completed",
+   "started_at": "2026-09-03 00:44:26.212348+00:00",
+   "finished_at": "2026-09-03 00:44:52.340177+00:00",
+   "token_usage": {
+    "total_tokens": 5172,
+    "prompt_tokens": 2730,
+    "completion_tokens": 2442
+   },
+   "latency_ms": 26123,
+   "error_code": null
+  },
+  {
+   "id": "7c14aedf-234f-4ed7-b0f8-2879f79c67c0",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "97e37748-269b-9ee8-877f-5939d7288a30",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:313c675600050cc9d0fb9c9df2fbb6004d5f50403a3e4fb6ef8bb4885cb065cf",
+   "output_hash": "sha256:625f9b41720a565bfd01e53e4c4950322682ebbaad1d1a25b8287b25ab419c94",
+   "status": "completed",
+   "started_at": "2026-09-03 00:44:52.355184+00:00",
+   "finished_at": "2026-09-03 00:45:40.039555+00:00",
+   "token_usage": {
+    "total_tokens": 8757,
+    "prompt_tokens": 4452,
+    "completion_tokens": 4305
+   },
+   "latency_ms": 47679,
+   "error_code": null
+  },
+  {
+   "id": "a2509fe1-2115-4eae-8947-73fa592a2171",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "62456910-fdf3-91c2-8071-f35e154a1389",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:dea992362d4066b9bb044c5185b98871e217bae1ccf67602d5d25b420679cc60",
+   "output_hash": "sha256:c47c80fc79baa0663801163b60fad23bd48b45293ce80b05790bafdf60dd519c",
+   "status": "completed",
+   "started_at": "2026-09-03 00:45:40.057150+00:00",
+   "finished_at": "2026-09-03 00:45:58.498398+00:00",
+   "token_usage": {
+    "total_tokens": 6331,
+    "prompt_tokens": 4264,
+    "completion_tokens": 2067
+   },
+   "latency_ms": 18433,
+   "error_code": null
+  },
+  {
+   "id": "141d3d10-f038-4183-81bf-58dfd6219e41",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "ef90e86d-ef83-9b25-b32f-e4f6204fa8fb",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:0d06c27274a263b813b757a66d3d6715396e6e3730088b5e1b572b12dba8bb41",
+   "output_hash": "sha256:9e5c1e958fcb9e165cf66a4497245f9ddb8ff8b21eccf9b4b93574935322f5f5",
+   "status": "completed",
+   "started_at": "2026-09-03 00:45:58.512836+00:00",
+   "finished_at": "2026-09-03 00:46:32.566924+00:00",
+   "token_usage": {
+    "total_tokens": 6946,
+    "prompt_tokens": 3637,
+    "completion_tokens": 3309
+   },
+   "latency_ms": 34047,
+   "error_code": null
+  },
+  {
+   "id": "e1199ab1-dd8c-4777-9b01-58b52d0cc83c",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "9667d96b-0886-98db-9872-058fea71bc87",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:df8624f32ccff692deb500f8d41bf887c977888050922b5f118c539eeacac0ae",
+   "output_hash": "sha256:d3fc7c3d9d24f2f41420bad76cf07c3dde1c8fa863b4a1cdbe188bab7ce7976b",
+   "status": "completed",
+   "started_at": "2026-09-03 00:46:32.591476+00:00",
+   "finished_at": "2026-09-03 00:46:56.811472+00:00",
+   "token_usage": {
+    "total_tokens": 7137,
+    "prompt_tokens": 4557,
+    "completion_tokens": 2580
+   },
+   "latency_ms": 24212,
+   "error_code": null
+  },
+  {
+   "id": "1b7f60c4-7b2e-422f-a7a0-6c2147ffc3cc",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "a0d9ec21-9438-9c34-af2f-2b5a96c25d72",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:2fa551d4f2194be5a66792f0d7b5e2d742a8e370c15fe3bc72dfa184722845ee",
+   "output_hash": "sha256:f4f00c8784dc363195949c7db53cf29b3f993586382a412f92967ddf91feffb1",
+   "status": "completed",
+   "started_at": "2026-09-03 00:46:56.925543+00:00",
+   "finished_at": "2026-09-03 00:47:42.609985+00:00",
+   "token_usage": {
+    "total_tokens": 8471,
+    "prompt_tokens": 4411,
+    "completion_tokens": 4060
+   },
+   "latency_ms": 45679,
+   "error_code": null
+  },
+  {
+   "id": "9d89ba45-e867-40b6-bf92-a65e4d474165",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "d5322e9a-5bcb-9aec-9d44-ebfc05ed7bbd",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:3f9da587425f50629d6731a1a2ecec3fbebc84cbd004bf4f6f3337f04784e90b",
+   "output_hash": "sha256:ac91c26a7c5287990237a22c7ec6a663fb68533a6cf8ee47db47c48496196ffa",
+   "status": "completed",
+   "started_at": "2026-09-03 00:47:42.628291+00:00",
+   "finished_at": "2026-09-03 00:47:59.698186+00:00",
+   "token_usage": {
+    "total_tokens": 4689,
+    "prompt_tokens": 2511,
+    "completion_tokens": 2178
+   },
+   "latency_ms": 17061,
+   "error_code": null
+  },
+  {
+   "id": "d2307ac9-3b7f-48e0-82c8-1183d547fa90",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "fb616b84-b443-9734-bc24-e2e0444a17d8",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:2ebf9cebde0d5e1e6d9cef742588c8116de0ca34c8ada1cd3f1f65021d1d0823",
+   "output_hash": "sha256:c1566ad5bc45e814d37d8480ecea092246607791151b9eb77bda91b7d3bba083",
+   "status": "completed",
+   "started_at": "2026-09-03 00:47:59.715405+00:00",
+   "finished_at": "2026-09-03 00:48:21.158799+00:00",
+   "token_usage": {
+    "total_tokens": 12218,
+    "prompt_tokens": 10377,
+    "completion_tokens": 1841
+   },
+   "latency_ms": 21437,
+   "error_code": null
+  },
+  {
+   "id": "dc847a29-ed80-4bf5-8952-832a34635bcc",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "aba776be-6acd-91f4-a907-c83d33e87f56",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:deebe78d5d9fac54d45de3daefbee7d0bbd0fe2649c3bef5b5311a44d8772d75",
+   "output_hash": "sha256:003c93b513245eecf4aeaff0185595854676f410d235e5b92c638461e2cc55c5",
+   "status": "completed",
+   "started_at": "2026-09-03 00:48:21.179387+00:00",
+   "finished_at": "2026-09-03 00:49:17.667687+00:00",
+   "token_usage": {
+    "total_tokens": 10288,
+    "prompt_tokens": 5251,
+    "completion_tokens": 5037
+   },
+   "latency_ms": 56484,
+   "error_code": null
+  },
+  {
+   "id": "27cd992f-05eb-4552-853c-b89c79d0717e",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "c9ff55cb-6f53-9776-b68f-851f191642b2",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:bae4d15b764e4ac43ff71417277d9b8b585f161a2fcafe0d8151336598f4b888",
+   "output_hash": "sha256:5fc098a05bb240ddd45a4b9922e84e04cc561cc3566515d1aa2b6c69cb9e8de0",
+   "status": "completed",
+   "started_at": "2026-09-03 00:49:17.682095+00:00",
+   "finished_at": "2026-09-03 00:49:35.909626+00:00",
+   "token_usage": {
+    "total_tokens": 4257,
+    "prompt_tokens": 2384,
+    "completion_tokens": 1873
+   },
+   "latency_ms": 18220,
+   "error_code": null
+  },
+  {
+   "id": "0a74450f-9d29-46a3-9043-5c927657e36b",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "b4d0003a-570a-9a46-9eb9-1c5aaa2c9575",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:de281508d5bd6448978902e581fd5e22a5b40448b98183304c959c30bf124476",
+   "output_hash": "sha256:cf776a1971b3a820e88b0d169e2d7e7a5ffdae7029b99476bd87aeabd17e5842",
+   "status": "completed",
+   "started_at": "2026-09-03 00:49:35.936944+00:00",
+   "finished_at": "2026-09-03 00:50:03.157457+00:00",
+   "token_usage": {
+    "total_tokens": 5282,
+    "prompt_tokens": 2903,
+    "completion_tokens": 2379
+   },
+   "latency_ms": 27210,
+   "error_code": null
+  },
+  {
+   "id": "3eccfc65-656f-48a3-a311-d2da4b1ff6a3",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "0bf73c04-ff37-9982-b57f-0f080a3818be",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:b1eb0678ec2c07f537c3a3e1ca947eb83621305d9f5c18f8d82737e0945d6284",
+   "output_hash": "sha256:5cbcb8be87836bebe10374cfdcaa15d8c7281ca9c2b1e8384fb0f419ae47b1d0",
+   "status": "completed",
+   "started_at": "2026-09-03 00:50:03.186932+00:00",
+   "finished_at": "2026-09-03 00:50:25.343384+00:00",
+   "token_usage": {
+    "total_tokens": 4372,
+    "prompt_tokens": 2438,
+    "completion_tokens": 1934
+   },
+   "latency_ms": 22145,
+   "error_code": null
+  },
+  {
+   "id": "256d194f-b374-4dbc-bff8-f908d53cc365",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "df87c431-89d1-9025-91ac-2380a0780703",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:cb130428ac4d165fdca9b2f0e15407287da2649925ac9764a824ebd00cdf9775",
+   "output_hash": "sha256:41e3fb282632714494d769a82f708a9d414e638d543d9aaf1268f7dfb555fbea",
+   "status": "completed",
+   "started_at": "2026-09-03 00:50:25.364978+00:00",
+   "finished_at": "2026-09-03 00:51:01.630953+00:00",
+   "token_usage": {
+    "total_tokens": 8381,
+    "prompt_tokens": 4432,
+    "completion_tokens": 3949
+   },
+   "latency_ms": 36258,
+   "error_code": null
+  },
+  {
+   "id": "83fc680d-0bfb-4d68-bb5e-1494ab23cd39",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "ce4d2d5b-486c-9f51-bc33-2ef6ba3e3192",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:fc06aa680e69db6fae5ef1b0afd36867a861db69c30e6d7afed4f8df697a3f85",
+   "output_hash": "sha256:78a0afba11641a56a0eadbadc7ddd78f80781648c7627795c5250f276c9c3c1b",
+   "status": "completed",
+   "started_at": "2026-09-03 00:51:01.645193+00:00",
+   "finished_at": "2026-09-03 00:51:22.231105+00:00",
+   "token_usage": {
+    "total_tokens": 6468,
+    "prompt_tokens": 4230,
+    "completion_tokens": 2238
+   },
+   "latency_ms": 20581,
+   "error_code": null
+  },
+  {
+   "id": "655e6494-b228-42ee-b4ed-383276d897ad",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "eef75700-d5fc-966c-a548-e12d58f06b6b",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:5591803c4789c6c38f05a80b0848a438d36e322473ac10c5cc4ee38c8b65c3e3",
+   "output_hash": "sha256:cf72bb5741dc623a62ad2cfe263ebf3c0aa8eeb937e6f87307e8e77f545063a3",
+   "status": "completed",
+   "started_at": "2026-09-03 00:51:22.246386+00:00",
+   "finished_at": "2026-09-03 00:51:46.668802+00:00",
+   "token_usage": {
+    "total_tokens": 5683,
+    "prompt_tokens": 3057,
+    "completion_tokens": 2626
+   },
+   "latency_ms": 24417,
+   "error_code": null
+  },
+  {
+   "id": "453a2dc9-50d8-4bdf-bd58-ed36e8337aab",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "3ac019f6-37a8-99a1-bf68-e495f1f9f906",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:158202396202adcd963a343aeb6c159bb28ff7af10d10e2c5980687064b192fd",
+   "output_hash": "sha256:858461f5328152a665abf461b3bbb1691113247b3f307acd9bc2f227f39c7d53",
+   "status": "completed",
+   "started_at": "2026-09-03 00:51:46.687758+00:00",
+   "finished_at": "2026-09-03 00:52:11.215154+00:00",
+   "token_usage": {
+    "total_tokens": 5146,
+    "prompt_tokens": 2806,
+    "completion_tokens": 2340
+   },
+   "latency_ms": 24523,
+   "error_code": null
+  },
+  {
+   "id": "ee036482-0201-456f-ba41-c5077323b73a",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "961d207b-d774-98c1-8e95-651ffdc00923",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:e4b4868b527fbbc6f0119166bf75c455eead4c699a8ecdcf655bbf9b34416c0e",
+   "output_hash": "sha256:f05401f54c9bea6b3968f87a89811feeb7b1c8f21ce789ed8a9af16e44a6717e",
+   "status": "completed",
+   "started_at": "2026-09-03 00:52:11.230202+00:00",
+   "finished_at": "2026-09-03 00:52:27.002219+00:00",
+   "token_usage": {
+    "total_tokens": 3632,
+    "prompt_tokens": 2078,
+    "completion_tokens": 1554
+   },
+   "latency_ms": 15765,
+   "error_code": null
+  },
+  {
+   "id": "64dee809-f0e0-4a8f-b3fc-faf038b7d4a1",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "70c11aa4-e90d-9831-87a8-04554046818d",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:bd49d00891916f4eb7f32210c3a98b10e47fd72f584eb693eb2857f9d3f27adc",
+   "output_hash": "sha256:e9150e5c0f32b879693dd31d06d9a9e4cfd18b1b5aa1826ac81504f3fbadb540",
+   "status": "completed",
+   "started_at": "2026-09-03 00:52:27.018628+00:00",
+   "finished_at": "2026-09-03 00:52:55.373514+00:00",
+   "token_usage": {
+    "total_tokens": 5162,
+    "prompt_tokens": 2644,
+    "completion_tokens": 2518
+   },
+   "latency_ms": 28349,
+   "error_code": null
+  },
+  {
+   "id": "63b00784-6202-4a9f-a364-7bc7cb414f05",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "914a0120-9461-9052-8885-00ef4dc8d09b",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:2ed626091839fc0c8956e6151292e512be6e90efd921f926df1b2a527b0cb62f",
+   "output_hash": "sha256:18e3fd8c64af6d65191318dc5b308c1b9047737f6fb500497637bcdcf44bb019",
+   "status": "completed",
+   "started_at": "2026-09-03 00:52:55.391558+00:00",
+   "finished_at": "2026-09-03 00:53:21.925728+00:00",
+   "token_usage": {
+    "total_tokens": 5406,
+    "prompt_tokens": 2954,
+    "completion_tokens": 2452
+   },
+   "latency_ms": 26528,
+   "error_code": null
+  },
+  {
+   "id": "02123c11-9c8d-487f-a502-9e4f1fb03a7c",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "d2bdae9a-60fe-9173-bb6c-cafc99fdf90f",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:d8d019f168d2717b0e1dff14a0c679be18eaf07cf3db2a8169ea2ebd52c02561",
+   "output_hash": "sha256:966923ed633957267bfd59a8e362b71aac234cda8455d594be39bc3fc6b09df2",
+   "status": "completed",
+   "started_at": "2026-09-03 00:53:21.950358+00:00",
+   "finished_at": "2026-09-03 00:53:55.577280+00:00",
+   "token_usage": {
+    "total_tokens": 7680,
+    "prompt_tokens": 4083,
+    "completion_tokens": 3597
+   },
+   "latency_ms": 33618,
+   "error_code": null
+  },
+  {
+   "id": "0c89a86a-7507-4946-a1be-dd31fa718c03",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "0194189e-cb24-9dcb-a81b-4c451a2fdae5",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:aca80d481868d1400a1b7c56fced40da56549c56a48666b6341b1360ffec0ce2",
+   "output_hash": "sha256:390523dfe6a20b60ae5a82f4783f710ea3888c3602917489317405d45c270992",
+   "status": "completed",
+   "started_at": "2026-09-03 00:53:55.691539+00:00",
+   "finished_at": "2026-09-03 00:54:14.206229+00:00",
+   "token_usage": {
+    "total_tokens": 5691,
+    "prompt_tokens": 4193,
+    "completion_tokens": 1498
+   },
+   "latency_ms": 18510,
+   "error_code": null
+  },
+  {
+   "id": "4f71da77-0d1a-4d68-9996-0cbbdf765d20",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "21d90a72-6381-98b2-9e1e-b6a3aa1b5c13",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:6f0c193b7174ff9366cf17e5a2aa20dc2de10050033e79507eb5a1eb34545774",
+   "output_hash": "sha256:ee1c3d6c0e4318ff824dfd9a89248dd6102985691fe4f111baff9f4bedb858c8",
+   "status": "completed",
+   "started_at": "2026-09-03 00:54:14.223358+00:00",
+   "finished_at": "2026-09-03 00:54:54.127986+00:00",
+   "token_usage": {
+    "total_tokens": 7509,
+    "prompt_tokens": 3949,
+    "completion_tokens": 3560
+   },
+   "latency_ms": 39899,
+   "error_code": null
+  },
+  {
+   "id": "65a99081-aaf8-4c85-adc3-96b47fea449f",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "5242b48d-6f63-90c5-93f9-f9ba26289800",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:634f16061e4056324b1cc6b753cba34b3c2726a8cfdd7e8d31129c32462a571e",
+   "output_hash": "sha256:8d68787c4cf17f35aa4af076af796968eac418b628c1d350f22c62429319387c",
+   "status": "completed",
+   "started_at": "2026-09-03 00:54:54.142826+00:00",
+   "finished_at": "2026-09-03 00:55:23.933848+00:00",
+   "token_usage": {
+    "total_tokens": 6415,
+    "prompt_tokens": 3342,
+    "completion_tokens": 3073
+   },
+   "latency_ms": 29787,
+   "error_code": null
+  },
+  {
+   "id": "bf8306a7-2683-4a7a-a556-ebf1dffda939",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "e1b958c6-e122-94a8-a2f5-d84acbe2fb1d",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:f0ff61de90bb1dc31e1620750226b200b63e62c6f87108d28b3bcb4e14eaf6df",
+   "output_hash": "sha256:5b60247e55588c2433e21138c6f803f6a970ddac5f588af5d90b156109517728",
+   "status": "completed",
+   "started_at": "2026-09-03 00:55:23.947906+00:00",
+   "finished_at": "2026-09-03 00:55:56.560791+00:00",
+   "token_usage": {
+    "total_tokens": 7317,
+    "prompt_tokens": 3843,
+    "completion_tokens": 3474
+   },
+   "latency_ms": 32607,
+   "error_code": null
+  },
+  {
+   "id": "1fa53606-4f09-493e-82ec-a3e55934fb40",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "e6ece2b5-6821-913f-8da4-85585238bf7f",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:3780078c505da485d5a53f72f6d3e75898ca843973fcee0705c8b1ad1f616aee",
+   "output_hash": "sha256:a5d520b2ec9ab0c5d1624db8129f5115c5aa30e9cb2840ce4b8a78f6c1b2c9a0",
+   "status": "completed",
+   "started_at": "2026-09-03 00:55:56.578987+00:00",
+   "finished_at": "2026-09-03 00:56:21.830349+00:00",
+   "token_usage": {
+    "total_tokens": 5169,
+    "prompt_tokens": 2720,
+    "completion_tokens": 2449
+   },
+   "latency_ms": 25247,
+   "error_code": null
+  },
+  {
+   "id": "5ad81af3-e3d1-4258-a3e3-e137a4e81f76",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "abac33a6-146e-954d-bd09-35f5cb3e2ce5",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:01019455c719b18c7922010ffb61e968182d0ee7ec33136577f8e8c9aef97c66",
+   "output_hash": "sha256:6cfa702f9414a7afad2689422be6e3180f10f0633fa7842129b8478b3d4b1865",
+   "status": "completed",
+   "started_at": "2026-09-03 00:56:21.849229+00:00",
+   "finished_at": "2026-09-03 00:56:49.457206+00:00",
+   "token_usage": {
+    "total_tokens": 5060,
+    "prompt_tokens": 2652,
+    "completion_tokens": 2408
+   },
+   "latency_ms": 27603,
+   "error_code": null
+  },
+  {
+   "id": "63912730-2e24-4175-9b26-14b3eeba65f2",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "dashscope-chat-completions",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "571673b2-51c4-9180-8b28-35197218e00c",
+   "prompt_name": "literature_claim",
+   "prompt_version": "1.2.1",
+   "prompt_hash": "sha256:d7719132713eddf1053effe651caa7b3310a960f8e5b64230ae632115e713e34",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:94cd506e2a59b8ddc6a256790be4d18696ef3329dad67893c8b58be6058f890c",
+   "output_hash": "sha256:6b0afa59b9fd905de70e00f5ffbad84daf6ac5d6d33cdadba4d422ee838fca98",
+   "status": "completed",
+   "started_at": "2026-09-03 00:56:49.471394+00:00",
+   "finished_at": "2026-09-03 00:56:51.803897+00:00",
+   "token_usage": {
+    "total_tokens": 1414,
+    "prompt_tokens": 1224,
+    "completion_tokens": 190
+   },
+   "latency_ms": 2325,
+   "error_code": null
+  },
+  {
+   "id": "5ef08045-b04a-4520-a6ab-bf54f4868f49",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_name": "xingwen.literature_relation",
+   "producer_version": "1.0.0",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "8da8417a-9418-9b46-a0a0-f26e2dd0c0b8",
+   "prompt_name": "literature_relation",
+   "prompt_version": "2.1.0",
+   "prompt_hash": "sha256:25d95bc7283ba00c000d300e7d52bd62652089e055241acdffb7ea635f160f59",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:df5f58d8663a8cc4d9943ad96e9ffb5fc168fec61a3bfc51d89c6ae1a0b7d247",
+   "input_hash": "sha256:cb424f5ddf79112cde194ebd5776a08aac055cdaccc4f382a5e40beecfd6cbf9",
+   "output_hash": "sha256:b9c6a1258ef3ce76caae787f8985ae69b3e8b2766f88edf8ec5910a7fbae5f2f",
+   "status": "completed",
+   "started_at": "2026-09-03 00:57:20.459817+00:00",
+   "finished_at": "2026-09-03 00:58:48.217884+00:00",
+   "token_usage": {
+    "total_tokens": 23498,
+    "prompt_tokens": 21942,
+    "completion_tokens": 1556
+   },
+   "latency_ms": 17921,
+   "error_code": null
+  },
+  {
+   "id": "f3daadbb-8a00-41e6-975e-a6f2c691c9b2",
+   "step_key": "building_graph",
+   "step_attempt_id": "91c48d34-a81e-4a86-8ef9-afc036212114",
+   "producer_name": "research_step_agent",
+   "producer_version": "qwen3.8-max-0902",
+   "model_provider": "dashscope",
+   "requested_model": "qwen3.8-max-0902",
+   "provider_returned_model": "qwen3.8-max-0902",
+   "explicit_revision": "qwen3.8-max-0902",
+   "provider_request_id": "a6a0db73-4fff-9fd8-946f-30cdb9dea664",
+   "prompt_name": "research_step_agent",
+   "prompt_version": "1.4.0",
+   "prompt_hash": "sha256:8d19d110756390fc108e182008efc137c404c399f1f38326abfaa7126c0adf13",
+   "parameters": {
+    "top_p": 0.8,
+    "temperature": 0.6
+   },
+   "parameters_hash": "sha256:eb506ba0ba7a987791febb37cab79efcb2e2c8118c77a1289ddb17c7b31a6f2e",
+   "input_hash": "sha256:f415cb4489001f68d0408a9f7857503ae7b9981ce11909fe4229620f1d189072",
+   "output_hash": "sha256:add4e4a7cc880bd22cb580b94f1deec46b2dd1d4a8ef8e82ae7a43d59240a038",
+   "status": "completed",
+   "started_at": "2026-09-03 00:58:53.926170+00:00",
+   "finished_at": "2026-09-03 00:59:00.202920+00:00",
+   "token_usage": {
+    "total_tokens": 2252,
+    "prompt_tokens": 1841,
+    "completion_tokens": 411
+   },
+   "latency_ms": 6265,
+   "error_code": null
+  }
+ ],
+ "producer_executions": [
+  {
+   "id": "a1dedc63-1e8b-4ea2-b8f7-da8f58b30f7c",
+   "step_key": "planning",
+   "step_attempt_id": "bd5cb2d2-d83c-4b33-8a09-7034222540ae",
+   "producer_type": "model",
+   "producer_name": "research_step_agent",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "bb5ea426-47e6-4afa-96e1-620910dfd234",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "research_step_agent",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "7494f954-37a2-4d7f-afd0-9f2462c6974f",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "algorithm",
+   "producer_name": "scientific-document-parser",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "f20302e2-d0c8-4ed5-b31e-9bbfa8d82559",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "xingwen.paper_summary",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "39714549-4e25-4ac4-9b28-96aae5be845a",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "3b7e2229-11ac-4eee-ba0f-296b42420c87",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "d37b2393-0779-4e9e-b555-ae4a3f7b6f64",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "9fce1225-e741-4399-b65b-6a7a7107df1b",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "95edb35b-2b96-4579-a34f-760a27b5f398",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "be768d5a-0b45-4c26-9077-21e5efa12a09",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "aadde382-74b5-4391-94e3-302056158edc",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "1be28359-dbbc-4627-bac9-0c1a8a5cfb25",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "1f6005a0-c0df-4ced-9a20-5c3746994148",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "b4f3f9b0-9c48-4bab-b502-1e764c227193",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "38f2ce7b-4266-418c-a8d2-45ef1c5d77b9",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "a23c82f6-5fab-4dbd-b710-3732d8d285e2",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "894c6343-52d5-4ab0-b653-eb6beead5196",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "92e7c8af-91bd-403d-9429-8863c89e2773",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "07ce5c39-dc02-4fd1-a86c-0a4e0a185b3a",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "135048c9-8e79-4f2e-b8e5-22f0950613b3",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "40fc6a2b-6597-4d0b-997b-30a415140375",
+   "step_key": "summarizing_papers",
+   "step_attempt_id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "bf5b6ba8-8b68-4431-adc8-0ef3017372f6",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "research_step_agent",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "c0e81271-34b3-48a5-b583-d8a33a612708",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "xingwen.literature_claim",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "bdc1fc37-d37b-4547-8c2b-551376a70d10",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "ff00e8a6-4b31-4004-af57-544fb42249bb",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "48afd2b9-f237-4833-b0e4-4bf727cfb6f9",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "8231916e-76fc-42ba-bb21-07b81050f287",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "56b24c38-db91-43e1-b59c-f9e4e482b937",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "fbff426e-f6c6-4cbd-836d-d72ad5d8c8bb",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "d8bee94e-4246-49a7-8f83-9e8b0fe06582",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "a2bf7dab-405e-4041-b511-5334f5f6bbc5",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "7c14aedf-234f-4ed7-b0f8-2879f79c67c0",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "a2509fe1-2115-4eae-8947-73fa592a2171",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "141d3d10-f038-4183-81bf-58dfd6219e41",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "e1199ab1-dd8c-4777-9b01-58b52d0cc83c",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "1b7f60c4-7b2e-422f-a7a0-6c2147ffc3cc",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "9d89ba45-e867-40b6-bf92-a65e4d474165",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "d2307ac9-3b7f-48e0-82c8-1183d547fa90",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "dc847a29-ed80-4bf5-8952-832a34635bcc",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "27cd992f-05eb-4552-853c-b89c79d0717e",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "0a74450f-9d29-46a3-9043-5c927657e36b",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "3eccfc65-656f-48a3-a311-d2da4b1ff6a3",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "256d194f-b374-4dbc-bff8-f908d53cc365",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "83fc680d-0bfb-4d68-bb5e-1494ab23cd39",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "655e6494-b228-42ee-b4ed-383276d897ad",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "453a2dc9-50d8-4bdf-bd58-ed36e8337aab",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "ee036482-0201-456f-ba41-c5077323b73a",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "64dee809-f0e0-4a8f-b3fc-faf038b7d4a1",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "63b00784-6202-4a9f-a364-7bc7cb414f05",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "02123c11-9c8d-487f-a502-9e4f1fb03a7c",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "0c89a86a-7507-4946-a1be-dd31fa718c03",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "4f71da77-0d1a-4d68-9996-0cbbdf765d20",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "65a99081-aaf8-4c85-adc3-96b47fea449f",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "bf8306a7-2683-4a7a-a556-ebf1dffda939",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "1fa53606-4f09-493e-82ec-a3e55934fb40",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "5ad81af3-e3d1-4258-a3e3-e137a4e81f76",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "63912730-2e24-4175-9b26-14b3eeba65f2",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "dashscope-chat-completions",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "5ef08045-b04a-4520-a6ab-bf54f4868f49",
+   "step_key": "reasoning_literature",
+   "step_attempt_id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "producer_type": "model",
+   "producer_name": "xingwen.literature_relation",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "f3daadbb-8a00-41e6-975e-a6f2c691c9b2",
+   "step_key": "building_graph",
+   "step_attempt_id": "91c48d34-a81e-4a86-8ef9-afc036212114",
+   "producer_type": "model",
+   "producer_name": "research_step_agent",
+   "status": "completed",
+   "error_code": null
+  },
+  {
+   "id": "e4a08cf0-55db-4496-ab66-b105154e7d37",
+   "step_key": "building_graph",
+   "step_attempt_id": "91c48d34-a81e-4a86-8ef9-afc036212114",
+   "producer_type": "algorithm",
+   "producer_name": "evidence-graph-pipeline",
+   "status": "completed",
+   "error_code": null
+  }
+ ],
+ "run": {
+  "id": "2c0acb1e-0ee8-4965-a66f-b25e249f556b",
+  "status": "completed",
+  "lease_owner": null,
+  "lease_generation": 1,
+  "lease_expires_at": null,
+  "latest_event_sequence": 26,
+  "failure_code": null,
+  "failure_summary": null
+ },
+ "worker": {
+  "state": "accepting",
+  "started_at": "2026-09-03 00:25:03.925528+00:00",
+  "heartbeat_at": "2026-09-03 01:19:49.735207+00:00"
+ },
+ "attempts": [
+  {
+   "id": "bd5cb2d2-d83c-4b33-8a09-7034222540ae",
+   "step": "planning",
+   "attempt_number": 1,
+   "status": "completed",
+   "error_class": null,
+   "error_code": null,
+   "retryable": false,
+   "upstream_request_id": null
+  },
+  {
+   "id": "d4624766-1768-4a58-b5a8-42f3e7ca37aa",
+   "step": "summarizing_papers",
+   "attempt_number": 1,
+   "status": "completed",
+   "error_class": null,
+   "error_code": null,
+   "retryable": false,
+   "upstream_request_id": null
+  },
+  {
+   "id": "a5449e21-e055-4f2a-b46e-8363e3dc836a",
+   "step": "reasoning_literature",
+   "attempt_number": 1,
+   "status": "completed",
+   "error_class": null,
+   "error_code": null,
+   "retryable": false,
+   "upstream_request_id": null
+  },
+  {
+   "id": "91c48d34-a81e-4a86-8ef9-afc036212114",
+   "step": "building_graph",
+   "attempt_number": 1,
+   "status": "completed",
+   "error_class": null,
+   "error_code": null,
+   "retryable": false,
+   "upstream_request_id": null
+  }
+ ],
+ "artifact_version_ids": [
+  "98dd9863-d691-5105-94d4-b982709143ba",
+  "0958e467-f20a-522e-bb8f-3972c53f1ac9",
+  "eaf97379-bc28-5dd2-bc0c-7655c6dd46eb",
+  "4aacbb8b-80c6-5c1c-99c0-b787003db381"
+ ],
+ "duplicate_publications": 0,
+ "duplicate_completions": 0,
+ "events": {
+  "count": 26,
+  "min": 1,
+  "max": 26
+ },
+ "document_parses": [
+  {
+   "id": "caefabe1-8871-4306-b437-59a84122f6dc",
+   "research_input_id": "658446c1-760b-44cd-8bc0-34ff70af520d",
+   "overall_quality": "accepted",
+   "native_engine": "docling-parse==7.11.0",
+   "visual_engine": "PaddleOCRVL official in-process pipeline (verified local bundle)"
+  }
+ ]
+}

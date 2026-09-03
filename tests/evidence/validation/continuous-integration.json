@@ -1,0 +1,23 @@
+{
+ "source_commit": "2dbfdff1b24138a029e98f6d4b8489fa6771294a",
+ "generated_at": "2026-09-03T00:14:53.239Z",
+ "checks": [
+  {
+   "conclusion": "success",
+   "createdAt": "2026-09-03T00:08:18Z",
+   "headSha": "2dbfdff1b24138a029e98f6d4b8489fa6771294a",
+   "status": "completed",
+   "url": "https://github.com/zyyyyynnn/xingwen-astro-ai/actions/runs/33698187884",
+   "workflowName": "CI"
+  },
+  {
+   "conclusion": "success",
+   "createdAt": "2026-09-03T00:08:16Z",
+   "headSha": "2dbfdff1b24138a029e98f6d4b8489fa6771294a",
+   "status": "completed",
+   "url": "https://github.com/zyyyyynnn/xingwen-astro-ai/actions/runs/33698184885",
+   "workflowName": "CodeQL"
+  }
+ ],
+ "result": "passed"
+}

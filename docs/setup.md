@@ -214,7 +214,6 @@ Compose project（`xingwen-rc-<sha8>-<pid>`）`up --build --wait`，安装 Chrom
 
 每次执行的证据保存在 `.artifacts/release-candidate/<source_commit>/<execution_time>/`：
 NASA 查询、目标选择与来源快照，文献与科学结果，ProducerExecution，活跃任务恢复和浏览器结果。
-同目录的 `handoff-manifest.json` 从根目录能力清单生成，填入精确提交、生成时间和各项实际验证结果；
 缺失或失败的证据保持未验证。运行时 Chromium 与临时文件也位于仓库 `.artifacts/tooling/`。
 
 ## 7. 常见问题
