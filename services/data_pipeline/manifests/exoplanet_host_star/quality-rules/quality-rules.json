@@ -1,20 +1,20 @@
 {
   "rule_set_id": "exoplanet_host_star.data_quality_rules",
   "schema_version": "2.0.0",
-  "version": "2.1.0",
-  "content_hash": "sha256:836409255bc24fa2c21c208d9f78dc472b63e0a44dee3ce72af116f49974ce21",
+  "version": "2.1.1",
+  "content_hash": "sha256:c5cc44fe85088681ff0d82e12dce831103f36841e2878960e09bed0913a24c08",
   "case_manifest_id": "exoplanet_host_star",
-  "case_manifest_version": "3.0.0",
-  "case_manifest_content_hash": "sha256:7bccb7f4bc447afecdffb968f2c85f4e3c5a5f1a3f2f051090a460a66093aeaa",
+  "case_manifest_version": "3.1.0",
+  "case_manifest_content_hash": "sha256:b54798cae527ce55dd1904c8d171d6226f9f298996d71995b561e724204127d8",
   "field_manifest_id": "exoplanet_host_star.fields",
-  "field_manifest_version": "3.0.0",
-  "field_manifest_content_hash": "sha256:a922748dee1a51f616e256d1fe71a7e2b94596bcdfa465906046734bbf90118d",
+  "field_manifest_version": "4.0.0",
+  "field_manifest_content_hash": "sha256:9e4bbfa8e3e094c373c36ead0d18ebe68f64e78d0a79dde7fb36285f8336b9d0",
   "data_artifact_input_schema_version": "1.0.0",
   "data_artifact_candidate_schema_version": "3.0.0",
   "crossmatch_schema_version": "1.0.0",
   "crossmatch_rule_set_id": "exoplanet_host_star.crossmatch_rules",
-  "crossmatch_rule_set_version": "2.0.0",
-  "crossmatch_rule_set_content_hash": "sha256:66e365e1f600aa2a9b4fdec9915d1e9f669057404bd0cbd2ff57227eeeb89247",
+  "crossmatch_rule_set_version": "2.0.1",
+  "crossmatch_rule_set_content_hash": "sha256:33e3d9844eb95bfd1d2ba7dc4848693634eb8452ff50e1d780be51f8fbfa349d",
   "producer_name": "xingwen.data_quality",
   "producer_version": "2.1.0",
   "precision_digits": 28,
@@ -522,7 +522,7 @@
       "observation_key": "dataset.source_scope_completeness",
       "operator": "gte",
       "not_applicable_result": "insufficient",
-      "rule_binding_version": "2.1.0",
+      "rule_binding_version": "2.1.1",
       "input_locator": "research_contract.quality_constraints.source_completeness_min"
     },
     {
@@ -533,7 +533,7 @@
       "observation_key": "dataset.unit_consistency",
       "operator": "gte",
       "not_applicable_result": "pass",
-      "rule_binding_version": "2.1.0",
+      "rule_binding_version": "2.1.1",
       "input_locator": "research_contract.quality_constraints.unit_consistency_min"
     },
     {
@@ -544,7 +544,7 @@
       "observation_key": "dataset.evidence_coverage",
       "operator": "gte",
       "not_applicable_result": "insufficient",
-      "rule_binding_version": "2.1.0",
+      "rule_binding_version": "2.1.1",
       "input_locator": "research_contract.evidence_requirements.minimum_coverage"
     },
     {
@@ -555,7 +555,7 @@
       "observation_key": "contract.unit_policy_canonical",
       "operator": "equals",
       "not_applicable_result": "insufficient",
-      "rule_binding_version": "2.1.0",
+      "rule_binding_version": "2.1.1",
       "input_locator": "research_contract.data_requirements.unit_policy"
     },
     {
@@ -566,7 +566,7 @@
       "observation_key": "candidate.requested_fields_exact",
       "operator": "equals",
       "not_applicable_result": "insufficient",
-      "rule_binding_version": "2.1.0",
+      "rule_binding_version": "2.1.1",
       "input_locator": "research_contract.requested_fields"
     },
     {
@@ -577,7 +577,7 @@
       "observation_key": "candidate.source_scope_allowed",
       "operator": "equals",
       "not_applicable_result": "insufficient",
-      "rule_binding_version": "2.1.0",
+      "rule_binding_version": "2.1.1",
       "input_locator": "research_contract.source_scope.allowed_sources"
     },
     {
@@ -588,7 +588,7 @@
       "observation_key": "candidate.evidence_locator_present",
       "operator": "equals",
       "not_applicable_result": "insufficient",
-      "rule_binding_version": "2.1.0",
+      "rule_binding_version": "2.1.1",
       "input_locator": "research_contract.evidence_requirements.require_locator"
     },
     {
@@ -599,7 +599,7 @@
       "observation_key": "candidate.source_snapshot_present",
       "operator": "equals",
       "not_applicable_result": "insufficient",
-      "rule_binding_version": "2.1.0",
+      "rule_binding_version": "2.1.1",
       "input_locator": "research_contract.evidence_requirements.require_source_snapshot"
     },
     {
@@ -610,7 +610,7 @@
       "observation_key": "candidate.document_source_authorized",
       "operator": "equals",
       "not_applicable_result": "insufficient",
-      "rule_binding_version": "2.1.0",
+      "rule_binding_version": "2.1.1",
       "input_locator": "research_contract.data_requirements.document_source_policy"
     }
   ],

@@ -52,7 +52,6 @@ describe("ArtifactShareDialog", () => {
           projectId={id("project_01")}
           artifactVersionId={id("version_01")}
           artifactTitle="恒星参数"
-          evidenceIds={[id("evidence_01")]}
           open
           onOpenChange={() => undefined}
         />
@@ -67,7 +66,6 @@ describe("ArtifactShareDialog", () => {
       expect.objectContaining({
         title: "恒星参数",
         artifactVersionIds: [id("version_01")],
-        evidenceIds: [id("evidence_01")],
         redactionPolicy: "redacted_public_snapshot",
       }),
     );
@@ -98,7 +96,6 @@ describe("ArtifactShareDialog", () => {
           projectId={id("project_01")}
           artifactVersionId={id("version_01")}
           artifactTitle="恒星参数"
-          evidenceIds={[]}
           open
           onOpenChange={() => undefined}
         />

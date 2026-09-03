@@ -1,3 +1,5 @@
+import { Badge } from "@xingwen/ui";
+
 import { ChoicePrompt } from "./choice-prompt";
 
 export interface ClarificationPromptProps {
@@ -41,9 +43,12 @@ export function ClarificationPrompt({
         className="xw-choice-prompt xw-choice-prompt--answered"
         data-testid={`clarification-answered-${id}`}
       >
-        <p className="xw-choice-prompt__question">{question}</p>
+        <div className="xw-choice-prompt__header">
+          <p className="xw-choice-prompt__question">{question}</p>
+          <Badge variant="secondary">已回答</Badge>
+        </div>
         <div className="xw-choice-prompt__summary">
-          <span className="xw-choice-prompt__badge">你的回答</span>
+          <span className="sr-only">你的回答：</span>
           <span className="xw-choice-prompt__answer">{selectedOption}</span>
         </div>
       </div>

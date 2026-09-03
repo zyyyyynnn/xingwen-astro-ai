@@ -660,9 +660,7 @@ class ResearchApplicationService:
                 # clients poll this read for every owned run.
                 return None
             decision = session.get(RunCheckpointDecisionModel, checkpoint.id)
-            return _run_checkpoint(
-                checkpoint, decision, run_revision=snapshot.revision
-            )
+            return _run_checkpoint(checkpoint, decision, run_revision=snapshot.revision)
 
     def submit_run_checkpoint_decision(
         self,
@@ -1095,6 +1093,9 @@ class ResearchApplicationService:
                 token_usage=planner_result.response.token_usage,
                 latency_ms=planner_result.response.latency_ms,
                 provider_request_id=planner_result.response.provider_request_id,
+                provider_returned_model=(
+                    planner_result.response.provider_returned_model
+                ),
             )
             self._finish_failed_turn(
                 execution_id=execution_id,
@@ -1386,6 +1387,7 @@ class ResearchApplicationService:
             execution.token_usage = error.token_usage
             execution.latency_ms = error.latency_ms
             execution.provider_request_id = error.provider_request_id
+            execution.provider_returned_model = error.provider_returned_model
             execution.error_code = error.code
             execution.error_summary = error.public_message
             execution.finished_at = datetime.now(UTC)
@@ -1536,7 +1538,6 @@ def _active_run_conflict() -> SecurityProblem:
 def _encode_project_cursor(project_id: UUID, *, session_id: str) -> str:
     return _encode_signed_cursor(
         {
-            "v": 1,
             "collection": "research_projects",
             "session_id": session_id,
             "ordering": "created_at.desc,id.desc",
@@ -1551,14 +1552,12 @@ def _decode_project_cursor(cursor: str, *, session_id: str) -> UUID:
         if (
             set(payload)
             != {
-                "v",
                 "collection",
                 "session_id",
                 "ordering",
                 "anchor_id",
                 "signature",
             }
-            or payload["v"] != 1
             or payload["collection"] != "research_projects"
             or payload["session_id"] != session_id
             or payload["ordering"] != "created_at.desc,id.desc"
@@ -1572,7 +1571,6 @@ def _decode_project_cursor(cursor: str, *, session_id: str) -> UUID:
 def _encode_thread_cursor(*, project_id: UUID, sequence: int) -> str:
     return _encode_signed_cursor(
         {
-            "v": 1,
             "collection": "research_thread",
             "project_id": str(project_id),
             "ordering": "sequence.asc",
@@ -1589,14 +1587,12 @@ def _decode_thread_cursor(cursor: str | None, *, project_id: UUID) -> int:
         if (
             set(payload)
             != {
-                "v",
                 "collection",
                 "project_id",
                 "ordering",
                 "sequence",
                 "signature",
             }
-            or payload["v"] != 1
             or payload["collection"] != "research_thread"
             or payload["project_id"] != str(project_id)
             or payload["ordering"] != "sequence.asc"
@@ -1716,6 +1712,7 @@ def _validate_planner_outcome(
             token_usage=response.token_usage,
             latency_ms=response.latency_ms,
             provider_request_id=response.provider_request_id,
+            provider_returned_model=response.provider_returned_model,
         ) from exc
 
 

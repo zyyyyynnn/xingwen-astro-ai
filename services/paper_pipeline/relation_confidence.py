@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from app.schemas.literature_claim import LiteratureClaimCandidate, LiteratureClaimStatus
+from app.schemas.literature_claim import LiteratureClaimCandidate
 from app.schemas.literature_relation import (
     LiteratureRelationConfidenceAssessment,
     LiteratureRelationConfidenceStatus,
@@ -25,6 +25,11 @@ from .constants import (
     RELATION_CONFIDENCE_DEFINITION_ID,
     RELATION_CONFIDENCE_DEFINITION_VERSION,
 )
+from .relation_pairing import (
+    NON_STRUCTURAL_RELATION_TYPES,
+    STRUCTURAL_RELATION_TYPES,
+    build_literature_relation_pairing_policy,
+)
 
 
 def build_live_relation_confidence_assessments(
@@ -41,48 +46,40 @@ def build_live_relation_confidence_assessments(
     the deterministic admission boundary keeps it as a review candidate.
     """
 
-    eligible = tuple(
-        sorted(
-            (
-                claim
-                for claim in claims
-                if claim.status is not LiteratureClaimStatus.rejected
-                and claim.evidence_ids
-            ),
-            key=lambda claim: claim.claim_id,
-        )
-    )
     assessments: dict[str, LiteratureRelationConfidenceAssessment] = {}
-    for source in eligible:
-        for target in eligible:
-            if source.claim_id == target.claim_id:
+    pairing_policy = build_literature_relation_pairing_policy(claims)
+    for pair in pairing_policy.pairs:
+        relation_types = STRUCTURAL_RELATION_TYPES
+        if pair.non_structural_allowed:
+            relation_types = relation_types.union(NON_STRUCTURAL_RELATION_TYPES)
+        for relation_type in LiteratureRelationType:
+            if relation_type not in relation_types:
                 continue
-            for relation_type in LiteratureRelationType:
-                subject = build_literature_relation_confidence_subject(
-                    source_claim_artifact_version_id=claim_artifact_version_id,
-                    source_claim_id=source.claim_id,
-                    target_claim_artifact_version_id=claim_artifact_version_id,
-                    target_claim_id=target.claim_id,
-                    relation_type=relation_type,
-                )
-                assessment_id = f"assessment.live_scope.{subject.fingerprint[7:31]}"
-                assessments[assessment_id] = LiteratureRelationConfidenceAssessment(
-                    assessment_id=assessment_id,
-                    subject=subject,
-                    decision=LiteratureRelationStatus.candidate,
-                    status=LiteratureRelationConfidenceStatus.not_evaluable,
-                    definition_id=RELATION_CONFIDENCE_DEFINITION_ID,
-                    definition_version=RELATION_CONFIDENCE_DEFINITION_VERSION,
-                    calibration_id=RELATION_CONFIDENCE_CALIBRATION_ID,
-                    calibration_version=RELATION_CONFIDENCE_CALIBRATION_VERSION,
-                    calibration_scientific_payload_hash=FROZEN_SCIENTIFIC_PAYLOAD_HASH,
-                    calibration_content_hash=FROZEN_BENCHMARK_CONTENT_HASH,
-                    calibration_sample_size=RELATION_CONFIDENCE_CALIBRATION_SAMPLE_SIZE,
-                    calibration_method=RELATION_CONFIDENCE_CALIBRATION_METHOD,
-                    applicability_scope=RELATION_CONFIDENCE_APPLICABILITY_SCOPE,
-                    acceptance_threshold=RELATION_CONFIDENCE_ACCEPTANCE_THRESHOLD,
-                    basis=("实时研究输入不属于冻结关系校准样本，无法给出校准置信分数。",),
-                )
+            subject = build_literature_relation_confidence_subject(
+                source_claim_artifact_version_id=claim_artifact_version_id,
+                source_claim_id=pair.source_claim_id,
+                target_claim_artifact_version_id=claim_artifact_version_id,
+                target_claim_id=pair.target_claim_id,
+                relation_type=relation_type,
+            )
+            assessment_id = f"assessment.live_scope.{subject.fingerprint[7:31]}"
+            assessments[assessment_id] = LiteratureRelationConfidenceAssessment(
+                assessment_id=assessment_id,
+                subject=subject,
+                decision=LiteratureRelationStatus.candidate,
+                status=LiteratureRelationConfidenceStatus.not_evaluable,
+                definition_id=RELATION_CONFIDENCE_DEFINITION_ID,
+                definition_version=RELATION_CONFIDENCE_DEFINITION_VERSION,
+                calibration_id=RELATION_CONFIDENCE_CALIBRATION_ID,
+                calibration_version=RELATION_CONFIDENCE_CALIBRATION_VERSION,
+                calibration_scientific_payload_hash=FROZEN_SCIENTIFIC_PAYLOAD_HASH,
+                calibration_content_hash=FROZEN_BENCHMARK_CONTENT_HASH,
+                calibration_sample_size=RELATION_CONFIDENCE_CALIBRATION_SAMPLE_SIZE,
+                calibration_method=RELATION_CONFIDENCE_CALIBRATION_METHOD,
+                applicability_scope=RELATION_CONFIDENCE_APPLICABILITY_SCOPE,
+                acceptance_threshold=RELATION_CONFIDENCE_ACCEPTANCE_THRESHOLD,
+                basis=("实时研究输入不属于冻结关系校准样本，无法给出校准置信分数。",),
+            )
     return dict(sorted(assessments.items()))
 
 

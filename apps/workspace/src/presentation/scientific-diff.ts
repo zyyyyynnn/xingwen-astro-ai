@@ -330,13 +330,62 @@ export function buildScientificArtifactDiffSnapshot(
     };
   }
   if (content.kind === "model_evaluation") {
+    const diagnostics = content.diagnostics;
+    const matrix = diagnostics?.confusionMatrix;
+    const metricLabels = {
+      holdout: "测试集",
+      cross_validation: "全样本交叉验证",
+      feature_importance: "特征重要性",
+    };
     return {
-      conclusions: content.metrics.map((metric) =>
-        item(
-          metric.label,
-          `${metric.label}：${metric.value}${metric.unit ? ` ${metric.unit}` : ""}`,
+      conclusions: [
+        ...content.metrics.map((metric) =>
+          item(
+            `metric:${metric.metricKey}`,
+            `${metricLabels[metric.category]} · ${metric.label}：${metric.value}${metric.unit ? ` ${metric.unit}` : ""}`,
+          ),
         ),
-      ),
+        ...content.baselineMetrics.map((metric) =>
+          item(
+            `baseline:${metric.metricKey}`,
+            `基线 · ${metric.label}：${metric.value}${metric.unit ? ` ${metric.unit}` : ""}`,
+          ),
+        ),
+        item(
+          "split",
+          `数据划分：训练 ${content.split.trainFraction}；验证 ${content.split.validationFraction}；测试 ${content.split.testFraction}`,
+        ),
+        ...(content.split.trainCutoff === null
+          ? []
+          : [item("train-cutoff", `训练截止：${content.split.trainCutoff}`)]),
+        ...(diagnostics
+          ? [
+              item(
+                "evaluated-samples",
+                `测试集诊断：${diagnostics.evaluatedSampleCount} 个样本`,
+              ),
+            ]
+          : []),
+        ...(matrix?.rows.flatMap((row, actual) =>
+          row.map((count, predicted) =>
+            item(
+              `confusion:${JSON.stringify([matrix.labels[actual], matrix.labels[predicted]])}`,
+              `混淆计数：${String(matrix.labels[actual])} → ${String(matrix.labels[predicted])}：${count}`,
+            ),
+          ),
+        ) ?? []),
+        ...(diagnostics?.regressionPredictions.map((point, index) => ({
+          key: `prediction:${point.rowId}`,
+          value: `测试样本 ${index + 1}：实际 ${point.actual}；预测 ${point.predicted}`,
+          comparisonValue: JSON.stringify([point.actual, point.predicted]),
+        })) ?? []),
+        ...(diagnostics?.forecast.map((point) =>
+          item(
+            `forecast:${point.step}`,
+            `未来第 ${point.step} 步：${point.predictedValue}`,
+          ),
+        ) ?? []),
+      ],
       evidence: [
         item(
           "model-evidence",
@@ -348,8 +397,31 @@ export function buildScientificArtifactDiffSnapshot(
     };
   }
   if (content.kind === "model_artifact") {
+    const outputKinds = {
+      tensor: "张量",
+      sparse_tensor: "稀疏张量",
+      sequence: "序列",
+      map: "映射",
+      optional: "可选值",
+    };
     return {
-      conclusions: [item("model", `${content.title}：${content.algorithm}`)],
+      conclusions: [
+        item("model", `${content.title}：${content.algorithm}`),
+        item(
+          "model-input",
+          `输入 ${content.inputName}：${content.inputDtype ?? "类型未提供"}；形状 ${JSON.stringify(content.inputShape)}`,
+        ),
+        ...content.outputNames.map((name) => {
+          const metadata = content.outputMetadata[name];
+          return item(
+            `model-output:${name}`,
+            `输出 ${name}：${metadata ? `${outputKinds[metadata.valueKind]}${metadata.dtype ? `；${metadata.dtype}` : ""}${metadata.shape === null ? "" : `；形状 ${JSON.stringify(metadata.shape)}`}` : "元数据未提供"}`,
+          );
+        }),
+        ...Object.entries(content.opsetImports).map(([name, version]) =>
+          item(`opset:${name}`, `算子集 ${name}：${version}`),
+        ),
+      ],
       evidence: [
         item(
           "model-evidence",

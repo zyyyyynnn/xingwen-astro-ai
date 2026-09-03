@@ -1,16 +1,10 @@
 {
-  "schema": "xingwen.agent-upstream.provenance/v2",
-  "description": "Manifest-level OpenHands source identity, exact file mapping, and one frozen aggregate digest for every KEEP_AS_IS source file.",
+  "schema": "xingwen.agent-upstream.provenance",
+  "description": "Manifest-level OpenHands source identity and exact file mapping for every adopted mechanics source file.",
   "manifest_file": "provenance.json",
   "policy_file": "source-policy.json",
-  "rule": "Disk <-> provenance exact 1:1 path equality; every vendored file and local import belongs to the src/root.tsx dependency closure; one keep_as_is_tree_sha256 is frozen in upstream-lock.json for all unmodified source paths; every adopted source-scope entry has a vendored provenance entry.",
-  "manifest_required_fields": [
-    "schema",
-    "generated_by",
-    "source",
-    "keep_as_is_tree_sha256",
-    "entries"
-  ],
+  "rule": "Disk <-> provenance exact 1:1 path equality at the production mechanics root; every vendored file and local import belongs to the mechanics root.tsx dependency closure; every adopted source-scope entry has a vendored provenance entry.",
+  "manifest_required_fields": ["schema", "generated_by", "source", "entries"],
   "source_required_fields": ["repository", "tag", "commit", "license"],
   "required_fields": [
     "upstream_path",
@@ -25,12 +19,11 @@
       "tag": "v1.10.0",
       "commit": "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
       "license": "MIT"
-    },
-    "keep_as_is_tree_sha256": "one frozen 64-char lowercase aggregate sha256 over sorted KEEP_AS_IS path and content pairs"
+    }
   },
   "entry_shape": {
     "upstream_path": "src/... (path within OpenHands repo at the frozen ref; must equal an approved source-scope entry and satisfy source-policy constraints)",
-    "local_path": "apps/workspace/upstream/openhands/src/... (path in Xingwen; must resolve inside that root, no traversal)",
+    "local_path": "apps/workspace/src/mechanics/... (path in Xingwen production mechanics; must resolve inside that root, no traversal)",
     "adoption_class": "KEEP_AS_IS | KEEP_WITH_MINIMAL_PATCH | KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
     "modified": "boolean; false requires KEEP_AS_IS, true requires a patched adoption class and modification_reason",
     "modification_reason": "null when modified=false; non-empty string when modified=true"
@@ -62,6 +55,5 @@
       "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT"
     ]
   },
-  "aggregate_hash_format": "^[0-9a-f]{64}$",
   "source_of_truth": "GitHub official repository + Tag v1.10.0 + 40-char SHA + upstream lock/source policy. Not any local clone."
 }

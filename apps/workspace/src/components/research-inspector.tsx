@@ -1,21 +1,27 @@
 import type { ReactNode } from "react";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
   Badge,
   Button,
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
   Tabs,
   TabsList,
   TabsTrigger,
 } from "@xingwen/ui";
-import {
-  ChevronDown,
-  FileSearch,
-  Layers3,
-  ListChecks,
-  Target,
-} from "@xingwen/ui/icons";
+import { FileSearch, Layers3, ListChecks, Target } from "@xingwen/ui/icons";
 
 import type {
   ResearchContractDraftViewModel,
@@ -58,27 +64,16 @@ export function ResearchInspectorTabs({
       className="research-inspector-tabs min-w-0 flex-1"
       data-testid="research-inspector-tabs"
     >
-      <TabsList className="h-8 justify-start gap-1 border-0 bg-transparent p-0">
-        <TabsTrigger
-          value="overview"
-          className="h-7 gap-1.5 rounded-[var(--oh-radius-md)] px-2.5 text-xs font-medium text-[var(--oh-muted)] hover:bg-[var(--oh-surface-raised)] hover:text-[var(--oh-text)] data-[state=active]:bg-[var(--oh-surface-raised)] data-[state=active]:text-[var(--oh-text)] data-[state=active]:shadow-none"
-        >
-          <Layers3 className="size-3.5" aria-hidden="true" />
+      <TabsList variant="line">
+        <TabsTrigger value="overview">
+          <Layers3 data-icon="inline-start" aria-hidden="true" />
           研究概览
         </TabsTrigger>
-        <TabsTrigger
-          value="results"
-          className="h-7 gap-1.5 rounded-[var(--oh-radius-md)] px-2.5 text-xs font-medium text-[var(--oh-muted)] hover:bg-[var(--oh-surface-raised)] hover:text-[var(--oh-text)] data-[state=active]:bg-[var(--oh-surface-raised)] data-[state=active]:text-[var(--oh-text)] data-[state=active]:shadow-none"
-        >
-          <ListChecks className="size-3.5" aria-hidden="true" />
+        <TabsTrigger value="results">
+          <ListChecks data-icon="inline-start" aria-hidden="true" />
           研究结果
           {resultCount > 0 ? (
-            <Badge
-              variant="secondary"
-              className="ui-text-label h-4 min-w-4 px-1"
-            >
-              {resultCount}
-            </Badge>
+            <Badge variant="secondary">{resultCount}</Badge>
           ) : null}
         </TabsTrigger>
       </TabsList>
@@ -104,104 +99,86 @@ export function DockedWorkspacePanel({
       data-active-tab={activeTab}
     >
       {activeTab === "overview" ? (
-        <div className="docked-workspace-content__stack flex flex-col gap-5 py-3">
-          <Collapsible
-            defaultOpen
-            className="docked-workspace-section group/goal"
-          >
-            <CollapsibleTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                className="flex h-auto w-full items-center justify-between gap-2 p-0 text-left font-normal hover:bg-transparent"
-                aria-label="折叠或展开研究目标与范围"
-              >
-                <h3 className="docked-workspace-section__title">
-                  <Target
-                    className="size-4 text-[var(--oh-muted)]"
-                    aria-hidden="true"
-                  />
-                  研究目标与范围
-                </h3>
-                <ChevronDown
-                  className="xw-disclosure-chevron size-3.5 text-[var(--oh-muted)] group-data-[state=open]/goal:rotate-180"
-                  aria-hidden="true"
-                />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
+        <Accordion
+          type="multiple"
+          defaultValue={["goal", "plan"]}
+          className="docked-workspace-content__stack"
+        >
+          <AccordionItem value="goal" className="docked-workspace-section">
+            <AccordionTrigger>
+              <span className="docked-workspace-section__title">
+                <Target data-icon="inline-start" aria-hidden="true" />
+                研究目标与范围
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
               <p className="docked-workspace-section__body">
                 {contract?.researchGoal ??
                   draft?.intent ??
                   "研究助手生成协议后，研究边界会显示在这里。"}
               </p>
-            </CollapsibleContent>
-          </Collapsible>
+            </AccordionContent>
+          </AccordionItem>
 
-          <Collapsible
-            defaultOpen
-            className="docked-workspace-section group/plan"
-          >
-            <CollapsibleTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                className="flex h-auto w-full items-center justify-between gap-2 p-0 text-left font-normal hover:bg-transparent"
-                aria-label="折叠或展开研究计划"
-              >
-                <div className="flex items-center gap-2">
-                  <h3 className="docked-workspace-section__title">
-                    <ListChecks
-                      className="size-4 text-[var(--oh-muted)]"
-                      aria-hidden="true"
-                    />
-                    研究计划
-                  </h3>
-                  <span className="docked-workspace-section__meta">
-                    {presentation.statusLabel}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {presentation.planItems.length > 0 ? (
-                    <span className="docked-workspace-section__meta">
-                      {presentation.planItems.length} 项
-                    </span>
-                  ) : null}
-                  <ChevronDown
-                    className="xw-disclosure-chevron size-3.5 text-[var(--oh-muted)] group-data-[state=open]/plan:rotate-180"
-                    aria-hidden="true"
-                  />
-                </div>
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
+          <AccordionItem value="plan" className="docked-workspace-section">
+            <AccordionTrigger>
+              <span className="docked-workspace-section__heading">
+                <span className="docked-workspace-section__title">
+                  <ListChecks data-icon="inline-start" aria-hidden="true" />
+                  研究计划
+                </span>
+                <Badge variant="secondary">
+                  {presentation.statusLabel} · {presentation.planItems.length}{" "}
+                  项
+                </Badge>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
               <ol className="docked-workspace-plan">
                 {presentation.planItems.map((item) => (
                   <li key={item.id} data-status={item.status}>
-                    <ResearchPlanStatusIcon status={item.status} />
-                    <span>{item.label}</span>
+                    <Item size="sm">
+                      <ItemMedia>
+                        <ResearchPlanStatusIcon status={item.status} />
+                      </ItemMedia>
+                      <ItemContent>
+                        <ItemTitle>{item.label}</ItemTitle>
+                        {item.detail ? (
+                          <ItemDescription>{item.detail}</ItemDescription>
+                        ) : null}
+                      </ItemContent>
+                    </Item>
                   </li>
                 ))}
               </ol>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       ) : null}
 
       {activeTab === "results"
         ? (resultPanel ?? (
-            <div className="docked-workspace-empty">
-              <FileSearch aria-hidden="true" />
-              <p>研究完成后，产物会显示在这里。</p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="small"
-                onClick={() => setTab("overview")}
-              >
-                返回研究概览
-              </Button>
-            </div>
+            <Empty className="docked-workspace-empty">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <FileSearch aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle>尚无研究结果</EmptyTitle>
+                <EmptyDescription>
+                  协议确认并开始运行后，研究产物会按依赖顺序显示在这里。
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="small"
+                  onClick={() => setTab("overview")}
+                >
+                  返回研究概览
+                </Button>
+              </EmptyContent>
+            </Empty>
           ))
         : null}
     </div>

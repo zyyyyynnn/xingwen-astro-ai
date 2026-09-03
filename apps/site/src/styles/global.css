@@ -186,12 +186,6 @@ a {
   line-height: 1.6;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .hero-video {
-    display: none;
-  }
-}
-
 @media (max-width: 56rem) {
   .home-content__row {
     grid-template-columns: 1fr;

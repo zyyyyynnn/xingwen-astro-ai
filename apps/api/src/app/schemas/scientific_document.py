@@ -65,6 +65,11 @@ def is_supported_scientific_document_input(
         return mime_type == "application/pdf"
     if input_type is ResearchInputType.image:
         return mime_type in SCIENTIFIC_DOCUMENT_IMAGE_MIME_TYPES
+    if input_type is ResearchInputType.url:
+        return (
+            mime_type == "application/pdf"
+            or mime_type in SCIENTIFIC_DOCUMENT_IMAGE_MIME_TYPES
+        )
     return False
 
 
@@ -422,7 +427,6 @@ class DocumentParseProfile(BaseModel):
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="DocumentParseProfile")
 
     parser_profile_id: Identifier
-    parser_profile_version: NonEmptyString
     native_backend: NonEmptyString
     visual_backend: NonEmptyString | None = None
     routing_policy_id: NonEmptyString

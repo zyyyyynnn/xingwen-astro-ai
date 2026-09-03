@@ -2,6 +2,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
   ArtifactVersionSummary,
   DomainEntityId,
+  PublicArtifactPresentation,
+  RelationAdjudicationDecision,
   RevisionPlan,
 } from "@xingwen/domain";
 import type {
@@ -14,37 +16,41 @@ import {
   AlertDescription,
   Button,
   Dialog,
-  DialogClose,
   DialogContent,
-  DialogTitle,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  RadioGroup,
+  RadioGroupItem,
   Sheet,
   SheetContent,
   SheetDescription,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
   Skeleton,
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
   Textarea,
 } from "@xingwen/ui";
-import { ArrowLeft, ChevronDown, Share2 } from "@xingwen/ui/icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
+import type { CreateRevisionFeedbackVariables } from "../application/mutations";
 import { artifactKindLabel } from "../presentation/artifact-presentation-labels";
 import {
   resolveArtifactRenderer,
   type ArtifactRendererDescriptor,
+  type RevisionIntent,
 } from "../presentation/artifact-renderer-registry";
 import { ArtifactEvidenceSheet } from "./artifact-evidence-sheet";
 import { ArtifactShareDialog } from "./artifact-share-dialog";
+import { ArtifactLayoutFrame, ArtifactWorkspaceHeader } from "./result-layout";
 
 export interface ArtifactFullscreenWorkspaceProps {
   readonly runtime: WorkspaceRuntimeBoundaries;
@@ -106,61 +112,6 @@ export function describeArtifactLineage(
   return { description: description || null, predecessor };
 }
 
-function VersionSelector({
-  versions,
-  selectedVersionId,
-  onSelect,
-}: {
-  readonly versions: readonly ArtifactVersionSummary[];
-  readonly selectedVersionId: DomainEntityId;
-  readonly onSelect: (versionId: DomainEntityId) => void;
-}) {
-  const ordered = [...versions].sort(
-    (left, right) => right.versionNumber - left.versionNumber,
-  );
-  const selected =
-    ordered.find((version) => version.id === selectedVersionId) ?? null;
-  if (ordered.length === 0 || selected === null) return null;
-  const isCurrent = ordered[0]?.id === selected.id;
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="small"
-          aria-haspopup="listbox"
-          className="ui-text-label flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
-          data-testid="artifact-version-selector"
-        >
-          <span>{isCurrent ? "当前结果" : "历史结果"}</span>
-          <span>{versionTimestamp(selected.createdAt)}</span>
-          <ChevronDown aria-hidden="true" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-56">
-        {ordered.map((version) => {
-          const current = ordered[0]?.id === version.id;
-          const active = version.id === selected.id;
-          return (
-            <DropdownMenuItem
-              key={version.id}
-              onClick={() => {
-                if (!active) onSelect(version.id);
-              }}
-              className={active ? "font-medium" : undefined}
-            >
-              <span>{current ? "当前结果" : "历史结果"}</span>
-              <span className="ui-text-label ml-auto pl-4 text-muted-foreground">
-                {versionTimestamp(version.createdAt)}
-              </span>
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 function ArtifactDiffSheet({
   runtime,
   projectId,
@@ -197,7 +148,7 @@ function ArtifactDiffSheet({
   const baselineQuery = useQuery({
     ...runtime.application.queries.artifactVersion(
       projectId,
-      effectiveBaselineVersionId as DomainEntityId,
+      effectiveBaselineVersionId ?? currentVersion.id,
     ),
     enabled: open && effectiveBaselineVersionId !== null,
   });
@@ -217,36 +168,46 @@ function ArtifactDiffSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="result-side-sheet">
-        <SheetHeader>
+        <SheetHeader className="result-side-sheet__header">
           <SheetTitle>比较研究结果</SheetTitle>
           <SheetDescription>
             查看研究契约、来源集合与科学内容的变化。
           </SheetDescription>
         </SheetHeader>
         <div className="result-sheet-body">
-          <div className="scientific-diff-controls">
-            <label>
-              <span>作为比较基准的历史结果</span>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="scientific-diff-baseline">
+                作为比较基准的历史结果
+              </FieldLabel>
               <Select
                 value={effectiveBaselineVersionId ?? undefined}
                 onValueChange={(value) =>
                   setBaselineVersionId(value as DomainEntityId)
                 }
               >
-                <SelectTrigger aria-label="选择比较基准">
+                <SelectTrigger
+                  id="scientific-diff-baseline"
+                  aria-label="选择比较基准"
+                  disabled={candidates.length === 0}
+                >
                   <SelectValue placeholder="选择历史结果" />
                 </SelectTrigger>
                 <SelectContent>
-                  {candidates.map((candidate) => (
-                    <SelectItem key={candidate.id} value={candidate.id}>
-                      历史结果 · {versionTimestamp(candidate.createdAt)}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {candidates.map((candidate) => (
+                      <SelectItem key={candidate.id} value={candidate.id}>
+                        历史结果 · {versionTimestamp(candidate.createdAt)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
-            </label>
-            <p>当前结果 · {versionTimestamp(currentVersion.createdAt)}</p>
-          </div>
+              <FieldDescription>
+                当前结果 · {versionTimestamp(currentVersion.createdAt)}
+              </FieldDescription>
+            </Field>
+          </FieldGroup>
           {currentRunQuery.isError ? (
             <Alert variant="destructive">
               <AlertDescription>
@@ -271,7 +232,11 @@ function ArtifactDiffSheet({
               ) : null}
             </section>
           ) : null}
-          {baselineQuery.isPending ? (
+          {effectiveBaselineVersionId === null ? (
+            <p className="scientific-artifact__empty">
+              当前结果还没有可比较的历史版本。
+            </p>
+          ) : baselineQuery.isPending ? (
             <p aria-busy="true">正在读取历史结果…</p>
           ) : baselineQuery.isError ? (
             <Alert variant="destructive">
@@ -308,6 +273,91 @@ function revisionImpact(plan: RevisionPlan): {
   return { recompute: labels("recompute"), reuse: labels("reuse") };
 }
 
+export type RevisionMode =
+  | { readonly kind: "artifact_correction" }
+  | {
+      readonly kind: "relation_adjudication";
+      /** Entry-level primary actions preselect the relation and decision. */
+      readonly prefillRelationId?: DomainEntityId;
+      readonly prefillDecision?: RelationAdjudicationDecision;
+    }
+  | {
+      readonly kind: "relation_correction";
+      readonly relationId: DomainEntityId;
+    }
+  | { readonly kind: "trace_correction"; readonly traceId: DomainEntityId };
+
+export interface CandidateRelationOption {
+  readonly relationId: DomainEntityId;
+  readonly title: string;
+}
+
+export function toCandidateRelationOptions(
+  presentation: PublicArtifactPresentation | null | undefined,
+): CandidateRelationOption[] {
+  if (!presentation || presentation.kind !== "literature_relations") {
+    return [];
+  }
+  return presentation.entries
+    .filter((entry) => entry.canAdjudicate === true)
+    .map((entry) => ({
+      relationId: entry.key as DomainEntityId,
+      title: entry.title,
+    }));
+}
+
+export function selectGlobalRevisionMode(): RevisionMode {
+  return { kind: "artifact_correction" };
+}
+
+export function revisionModeFromIntent(intent: RevisionIntent): RevisionMode {
+  if (intent.kind === "relation_adjudication") {
+    return {
+      kind: "relation_adjudication",
+      prefillRelationId: intent.relationId,
+      prefillDecision: intent.decision,
+    };
+  }
+  return intent;
+}
+
+function revisionModeCopy(mode: RevisionMode): {
+  readonly title: string;
+  readonly description: string;
+  readonly placeholder: string;
+} {
+  switch (mode.kind) {
+    case "artifact_correction":
+      return {
+        title: "基于此结果重新分析",
+        description:
+          "新约束会形成修订计划；确认后创建派生研究，不修改当前结果或原研究。",
+        placeholder: "例如：加入刚上传的新论文，并重新核对核心结论。",
+      };
+    case "relation_adjudication":
+      return {
+        title: "审定候选关系",
+        description:
+          "选择候选关系与审定结论，并说明审定理由；理由将作为该关系的审定依据进入证据链。",
+        placeholder: "例如：该关系有明确证据支持，接受其进入证据图谱。",
+      };
+    case "relation_correction":
+      return {
+        title: "重新分析此关系",
+        description:
+          "说明希望如何重新分析这条关系；确认后创建派生研究，不修改当前结果或原研究。",
+        placeholder: "例如：请重新核对此关系的证据与方向。",
+      };
+    case "trace_correction":
+      return {
+        title: "重新分析此推导",
+        description:
+          "说明希望如何重新分析这条推导；确认后创建派生研究，不修改当前结果或原研究。",
+        placeholder: "例如：请重新检查此推导的关键步骤。",
+      };
+  }
+}
+
 function RevisionSheet({
   runtime,
   projectId,
@@ -315,6 +365,8 @@ function RevisionSheet({
   artifactVersionId,
   versionNumber,
   parentRunRevision,
+  mode,
+  candidateRelations,
   open,
   onOpenChange,
   onRevisionStarted,
@@ -325,12 +377,30 @@ function RevisionSheet({
   readonly artifactVersionId: DomainEntityId;
   readonly versionNumber: number;
   readonly parentRunRevision: number;
+  readonly mode: RevisionMode;
+  readonly candidateRelations: readonly CandidateRelationOption[];
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onRevisionStarted: () => void;
 }) {
+  const copy = revisionModeCopy(mode);
   const [requestedChange, setRequestedChange] = useState("");
+  const [selectedRelationId, setSelectedRelationId] =
+    useState<DomainEntityId | null>(
+      mode.kind === "relation_adjudication"
+        ? (mode.prefillRelationId ?? candidateRelations[0]?.relationId ?? null)
+        : null,
+    );
+  const [selectedDecision, setSelectedDecision] =
+    useState<RelationAdjudicationDecision>(
+      mode.kind === "relation_adjudication" && mode.prefillDecision
+        ? mode.prefillDecision
+        : "accepted",
+    );
   const [plan, setPlan] = useState<RevisionPlan | null>(null);
+  const selectedCandidate = candidateRelations.find(
+    (candidate) => candidate.relationId === selectedRelationId,
+  );
   const feedbackMutation = useMutation(
     runtime.application.mutations.revisionFeedbackCreate(),
   );
@@ -344,14 +414,47 @@ function RevisionSheet({
   const createPlan = async () => {
     const change = requestedChange.trim();
     if (!change) return;
-    const feedback = await feedbackMutation.mutateAsync({
-      projectId,
+    const base = {
       artifactId,
       artifactVersionId,
       expectedVersionNumber: versionNumber,
       summary: change.slice(0, 200),
       requestedChange: change,
-    });
+    } as const;
+    let variables: CreateRevisionFeedbackVariables;
+    switch (mode.kind) {
+      case "artifact_correction":
+        variables = { ...base, kind: "artifact_correction" };
+        break;
+      case "relation_adjudication":
+        if (selectedRelationId === null) return;
+        variables = {
+          ...base,
+          kind: "relation_adjudication",
+          relationId: selectedRelationId,
+          decision: selectedDecision,
+        };
+        break;
+      case "relation_correction":
+        variables = {
+          ...base,
+          kind: "relation_correction",
+          relationId: mode.relationId,
+        };
+        break;
+      case "trace_correction":
+        variables = {
+          ...base,
+          kind: "trace_correction",
+          traceId: mode.traceId,
+        };
+        break;
+      default: {
+        const _exhaustive: never = mode;
+        throw new Error(`Unsupported revision mode: ${String(_exhaustive)}`);
+      }
+    }
+    const feedback = await feedbackMutation.mutateAsync(variables);
     const nextPlan = await planMutation.mutateAsync({
       projectId,
       feedbackId: feedback.id,
@@ -385,39 +488,118 @@ function RevisionSheet({
       }}
     >
       <SheetContent side="right" className="result-side-sheet">
-        <SheetHeader>
-          <SheetTitle>基于此结果重新分析</SheetTitle>
-          <SheetDescription>
-            新约束会形成修订计划；确认后创建派生研究，不修改当前结果或原研究。
-          </SheetDescription>
+        <SheetHeader className="result-side-sheet__header">
+          <SheetTitle>{copy.title}</SheetTitle>
+          <SheetDescription>{copy.description}</SheetDescription>
         </SheetHeader>
         <div className="result-sheet-body">
           {plan === null ? (
-            <>
-              <label className="result-form-field">
-                <span>希望调整什么？</span>
+            <FieldGroup className="result-sheet-form">
+              {mode.kind === "relation_adjudication" ? (
+                <>
+                  <Field>
+                    <FieldLabel
+                      htmlFor={
+                        mode.prefillRelationId ? undefined : "revision-relation"
+                      }
+                    >
+                      候选关系
+                    </FieldLabel>
+                    {mode.prefillRelationId && selectedCandidate ? (
+                      <div className="revision-relation-summary">
+                        <strong>{selectedCandidate.title}</strong>
+                      </div>
+                    ) : (
+                      <Select
+                        value={selectedRelationId ?? undefined}
+                        onValueChange={(value) =>
+                          setSelectedRelationId(value as DomainEntityId)
+                        }
+                      >
+                        <SelectTrigger
+                          id="revision-relation"
+                          className="result-sheet-control"
+                        >
+                          <SelectValue placeholder="选择候选关系" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {candidateRelations.map((candidate) => (
+                              <SelectItem
+                                key={candidate.relationId}
+                                value={candidate.relationId}
+                              >
+                                {candidate.title}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </Field>
+                  <Field>
+                    <FieldLabel>审定结论</FieldLabel>
+                    <RadioGroup
+                      aria-label="选择关系审定结论"
+                      value={selectedDecision}
+                      onValueChange={(value) =>
+                        setSelectedDecision(
+                          value as RelationAdjudicationDecision,
+                        )
+                      }
+                      className="revision-decision-options"
+                    >
+                      <div className="revision-decision-option">
+                        <RadioGroupItem
+                          id="revision-decision-accepted"
+                          value="accepted"
+                        />
+                        <label htmlFor="revision-decision-accepted">
+                          <strong>接受并进入图谱</strong>
+                          <span>
+                            纳入证据图谱，并保留当前核验依据与人工审定记录。
+                          </span>
+                        </label>
+                      </div>
+                      <div className="revision-decision-option">
+                        <RadioGroupItem
+                          id="revision-decision-rejected"
+                          value="rejected"
+                        />
+                        <label htmlFor="revision-decision-rejected">
+                          <strong>拒绝且不进入图谱</strong>
+                          <span>保留审定记录，但不发布为已接受关系。</span>
+                        </label>
+                      </div>
+                    </RadioGroup>
+                  </Field>
+                </>
+              ) : null}
+              <Field>
+                <FieldLabel htmlFor="revision-request">
+                  {mode.kind === "relation_adjudication"
+                    ? "审定理由"
+                    : "希望调整什么？"}
+                </FieldLabel>
                 <Textarea
+                  id="revision-request"
                   value={requestedChange}
                   onChange={(event) => setRequestedChange(event.target.value)}
-                  placeholder="例如：加入刚上传的新论文，并重新核对核心结论。"
+                  placeholder={copy.placeholder}
                   maxLength={4000}
+                  className="result-sheet-textarea"
                 />
-              </label>
-              <Button
-                onClick={() => void createPlan()}
-                disabled={
-                  !requestedChange.trim() ||
-                  feedbackMutation.isPending ||
-                  planMutation.isPending
-                }
-              >
-                生成修订计划
-              </Button>
-            </>
+                <FieldDescription>
+                  {mode.kind === "relation_adjudication"
+                    ? "填写可公开核验的依据后，才能生成修订计划。"
+                    : "说明需要重算、补充或纠正的具体内容。"}
+                </FieldDescription>
+              </Field>
+            </FieldGroup>
           ) : (
             <section className="revision-plan-impact">
               <div>
-                <h3 className="font-medium">修订计划</h3>
+                <h3>修订计划</h3>
                 {revisionImpact(plan).recompute.length > 0 ? (
                   <p>
                     将重新生成：{revisionImpact(plan).recompute.join("、")}。
@@ -434,12 +616,6 @@ function RevisionSheet({
                   </AlertDescription>
                 </Alert>
               ) : null}
-              <Button
-                onClick={() => void confirmPlan()}
-                disabled={confirmMutation.isPending}
-              >
-                确认并创建派生研究
-              </Button>
             </section>
           )}
           {error ? (
@@ -448,6 +624,29 @@ function RevisionSheet({
             </Alert>
           ) : null}
         </div>
+        <SheetFooter className="result-side-sheet__footer">
+          {plan === null ? (
+            <Button
+              onClick={() => void createPlan()}
+              disabled={
+                !requestedChange.trim() ||
+                (mode.kind === "relation_adjudication" &&
+                  selectedRelationId === null) ||
+                feedbackMutation.isPending ||
+                planMutation.isPending
+              }
+            >
+              生成修订计划
+            </Button>
+          ) : (
+            <Button
+              onClick={() => void confirmPlan()}
+              disabled={plan.conflicts.length > 0 || confirmMutation.isPending}
+            >
+              确认并创建派生研究
+            </Button>
+          )}
+        </SheetFooter>
       </SheetContent>
     </Sheet>
   );
@@ -463,7 +662,8 @@ export function ArtifactFullscreenWorkspace({
   const openerRef = useRef<HTMLElement | null>(null);
   const [selectedEvidenceId, setSelectedEvidenceId] =
     useState<DomainEntityId | null>(null);
-  const [revisionOpen, setRevisionOpen] = useState(false);
+  const [revisionMode, setRevisionMode] = useState<RevisionMode | null>(null);
+  const [revisionOpenNonce, setRevisionOpenNonce] = useState(0);
   const [diffOpen, setDiffOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [paperPageRequest, setPaperPageRequest] = useState<{
@@ -505,6 +705,20 @@ export function ArtifactFullscreenWorkspace({
     ),
     enabled: parentRunId !== null,
   });
+  const candidateRelations = useMemo<CandidateRelationOption[]>(
+    () => toCandidateRelationOptions(versionQuery.data?.presentation),
+    [versionQuery.data],
+  );
+
+  const openRevisionSheet = () => {
+    setRevisionMode(selectGlobalRevisionMode());
+    setRevisionOpenNonce((nonce) => nonce + 1);
+  };
+
+  const handleObjectRevision = (intent: RevisionIntent) => {
+    setRevisionMode(revisionModeFromIntent(intent));
+    setRevisionOpenNonce((nonce) => nonce + 1);
+  };
 
   const isLoading =
     versionQuery.isPending || (artifactId !== null && artifactQuery.isPending);
@@ -528,84 +742,37 @@ export function ArtifactFullscreenWorkspace({
         }}
         showCloseButton={false}
       >
-        <header
-          className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-4 py-2"
-          data-testid="artifact-fullscreen-header"
-        >
-          <div className="artifact-fullscreen-header__identity flex min-w-0 flex-wrap items-center gap-3">
-            <DialogClose asChild>
-              <Button
-                variant="ghost"
-                size="small"
-                className="ui-text-label flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
-              >
-                <ArrowLeft aria-hidden="true" />
-                <span>返回研究</span>
-              </Button>
-            </DialogClose>
-            <div className="h-4 w-px bg-border" />
-            <DialogTitle className="min-w-0 max-w-md truncate font-serif text-[length:var(--font-size-ui-heading)] font-semibold leading-[var(--line-height-ui-heading)] text-foreground">
-              {artifact?.title ?? "研究结果"}
-            </DialogTitle>
-            {artifactId !== null && versions.length > 1 ? (
-              <VersionSelector
-                versions={versions}
-                selectedVersionId={artifactVersionId}
-                onSelect={(nextVersionId) =>
-                  onOpenArtifactVersion?.(nextVersionId)
-                }
-              />
-            ) : null}
-          </div>
-          <div className="artifact-fullscreen-header__actions flex flex-wrap items-center justify-end gap-2">
-            {descriptor?.capabilities.evidence && evidenceIds.length > 0 ? (
-              <Button
-                size="small"
-                variant="ghost"
-                onClick={() => setSelectedEvidenceId(evidenceIds[0] ?? null)}
-              >
-                证据
-              </Button>
-            ) : null}
-            {descriptor?.capabilities.compare && versions.length > 1 ? (
-              <Button
-                size="small"
-                variant="ghost"
-                onClick={() => setDiffOpen(true)}
-              >
-                比较结果
-              </Button>
-            ) : null}
-            {descriptor?.capability === "supported" && artifact && version ? (
-              <Button
-                size="small"
-                variant="ghost"
-                onClick={() => setShareOpen(true)}
-              >
-                <Share2 aria-hidden="true" />
-                分享
-              </Button>
-            ) : null}
-            {descriptor?.capabilities.revision &&
-            version &&
-            parentRunQuery.data ? (
-              <Button
-                size="small"
-                variant="ghost"
-                onClick={() => setRevisionOpen(true)}
-              >
-                基于此结果重新分析
-              </Button>
-            ) : null}
-          </div>
-        </header>
+        <ArtifactWorkspaceHeader
+          title={artifact?.title ?? "研究结果"}
+          artifactVersionId={artifactVersionId}
+          versions={versions}
+          onSelectVersion={(nextVersionId) =>
+            onOpenArtifactVersion?.(nextVersionId)
+          }
+          hasEvidence={Boolean(
+            descriptor?.capabilities.evidence && evidenceIds.length > 0,
+          )}
+          onOpenEvidence={() => setSelectedEvidenceId(evidenceIds[0] ?? null)}
+          canCompare={Boolean(
+            descriptor?.capabilities.compare && versions.length > 1,
+          )}
+          onOpenCompare={() => setDiffOpen(true)}
+          canShare={Boolean(
+            descriptor?.capability === "supported" && artifact && version,
+          )}
+          onOpenShare={() => setShareOpen(true)}
+          canRevise={Boolean(
+            descriptor?.capabilities.revision && version && parentRunQuery.data,
+          )}
+          onOpenRevision={openRevisionSheet}
+        />
 
-        <main className="min-h-0 flex-1 overflow-hidden">
+        <main className="min-h-0 flex-1 overflow-hidden flex flex-col">
           {isLoading ? (
             <div className="flex h-full flex-col items-center justify-center p-8">
               <Skeleton className="mb-4 h-8 w-1/3" />
               <Skeleton className="h-64 w-2/3" />
-              <p className="ui-text-body mt-4 text-muted-foreground">
+              <p className="ui-text-body mt-4 artifact-fullscreen__loading">
                 正在载入研究结果…
               </p>
             </div>
@@ -617,17 +784,24 @@ export function ArtifactFullscreenWorkspace({
               </Alert>
             </div>
           ) : null}
-          {!isLoading && !error && artifact && version ? (
+          {!isLoading && !error && artifact && version && descriptor ? (
             FullscreenRenderer ? (
-              <FullscreenRenderer
-                key={version.id}
-                runtime={runtime}
-                projectId={projectId}
-                artifact={artifact}
-                version={version}
-                onSelectEvidence={setSelectedEvidenceId}
-                paperPageRequest={paperPageRequest}
-              />
+              <ArtifactLayoutFrame
+                key={String(artifactVersionId)}
+                mode={descriptor.layoutMode}
+                scrollKey={String(artifactVersionId)}
+              >
+                <FullscreenRenderer
+                  key={version.id}
+                  runtime={runtime}
+                  projectId={projectId}
+                  artifact={artifact}
+                  version={version}
+                  onSelectEvidence={setSelectedEvidenceId}
+                  onRequestRevision={handleObjectRevision}
+                  paperPageRequest={paperPageRequest}
+                />
+              </ArtifactLayoutFrame>
             ) : (
               <Alert className="m-6">
                 <AlertDescription>当前结果类型暂时无法显示。</AlertDescription>
@@ -639,6 +813,7 @@ export function ArtifactFullscreenWorkspace({
         <ArtifactEvidenceSheet
           runtime={runtime}
           projectId={projectId}
+          artifactVersionId={artifactVersionId}
           evidenceId={selectedEvidenceId}
           open={selectedEvidenceId !== null}
           onOpenChange={(open) => {
@@ -667,21 +842,25 @@ export function ArtifactFullscreenWorkspace({
             projectId={projectId}
             artifactVersionId={version.id}
             artifactTitle={artifact.title}
-            evidenceIds={evidenceIds}
             open={shareOpen}
             onOpenChange={setShareOpen}
           />
         ) : null}
-        {version && parentRunQuery.data ? (
+        {artifact && version && parentRunQuery.data ? (
           <RevisionSheet
+            key={revisionOpenNonce}
             runtime={runtime}
             projectId={projectId}
             artifactId={version.artifactId}
             artifactVersionId={version.id}
             versionNumber={version.versionNumber}
             parentRunRevision={parentRunQuery.data.revision}
-            open={revisionOpen}
-            onOpenChange={setRevisionOpen}
+            mode={revisionMode ?? { kind: "artifact_correction" }}
+            candidateRelations={candidateRelations}
+            open={revisionMode !== null}
+            onOpenChange={(open) => {
+              if (!open) setRevisionMode(null);
+            }}
             onRevisionStarted={onClose}
           />
         ) : null}

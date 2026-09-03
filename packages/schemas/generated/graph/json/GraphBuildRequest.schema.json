@@ -119,9 +119,9 @@
           "type": "integer"
         },
         "max_input_versions": {
-          "default": 3,
-          "maximum": 3,
-          "minimum": 1,
+          "default": 256,
+          "maximum": 256,
+          "minimum": 2,
           "title": "Max Input Versions",
           "type": "integer"
         },
@@ -413,6 +413,17 @@
     "layout_hint": {
       "$ref": "#/$defs/GraphLayoutHint"
     },
+    "literature_claims_artifact_version_ids": {
+      "items": {
+        "maxLength": 36,
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        "type": "string"
+      },
+      "maxItems": 253,
+      "minItems": 1,
+      "title": "Literature Claims Artifact Version Ids",
+      "type": "array"
+    },
     "literature_relations_artifact_version_id": {
       "maxLength": 36,
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
@@ -437,6 +448,7 @@
   },
   "required": [
     "project_id",
+    "literature_claims_artifact_version_ids",
     "literature_relations_artifact_version_id",
     "scope",
     "progressive"

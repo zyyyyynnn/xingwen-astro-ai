@@ -62,7 +62,7 @@
   "hard_rules": [
     "One Workspace shell and one entrypoint.",
     "Approved mechanics are recorded independently from the actual import closure.",
-    "Every vendored source file is reachable from src/root.tsx.",
+    "Every vendored source file is reachable from the workspace mechanics root.tsx.",
     "Every local import in the vendored closure resolves on disk.",
     "No compatibility layer or dormant upstream facade.",
     "Every adapted file records its frozen upstream path and modification reason.",
@@ -72,5 +72,5 @@
     "requirement": "Every adopted source-scope entry has a real vendored file in the single entrypoint closure.",
     "dispositions": ["VENDORED", "SURGICALLY_ADAPTED"]
   },
-  "provenance_contract": "provenance.json provides exact disk mapping and one frozen aggregate digest for KEEP_AS_IS files; import-closure checks derive reachability from src/root.tsx."
+  "provenance_contract": "provenance.json provides the exact disk mapping of the adopted mechanics files; import-closure checks derive reachability from the mechanics root.tsx."
 }

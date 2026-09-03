@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import timedelta
+from datetime import timezone
 import logging
 from typing import Any, Callable
 from uuid import UUID
@@ -18,6 +18,7 @@ from app.db.models import (
     ResearchRunModel,
 )
 from app.schemas.core import ResearchContract
+from app.schemas.enums import UpstreamFailureClass
 from app.schemas.manifest import ManifestBundle
 from app.schemas.scientific_capabilities import capability_for
 from app.services.content_storage import ContentStorage
@@ -56,8 +57,15 @@ from app.workflow.store import (
 )
 from app.services.research_thread import append_assistant_message
 from packages.prompts.registry import PromptRegistry
-from services.paper_pipeline.errors import PaperSearchExecutionError
+from services.paper_pipeline.errors import (
+    LiteratureAdmissionExecutionError,
+    LiteratureClaimExecutionError,
+    LiteratureRelationLocalError,
+    PaperSearchExecutionError,
+    PaperSummaryExecutionError,
+)
 from services.data_pipeline.revision import DataRevisionError, DataRevisionErrorCode
+from services.data_pipeline.sources.base import SourceFailure
 from services.paper_pipeline.live_collection import LivePaperCollectionRunner
 
 LOGGER = logging.getLogger(__name__)
@@ -84,6 +92,18 @@ _STEP_STARTED_MESSAGES = {
 }
 
 
+def _source_failure_public_message(error: SourceFailure) -> str:
+    if error.classification is UpstreamFailureClass.rate_limited:
+        return "外部科研数据源请求受限，请稍后重试。"
+    if error.classification in (
+        UpstreamFailureClass.timeout,
+        UpstreamFailureClass.transport,
+        UpstreamFailureClass.upstream_server,
+    ):
+        return "外部科研数据源暂时不可用，请稍后重试。"
+    return "外部科研数据源返回了无法接受的结果，本次执行终止。"
+
+
 def _step_started_message(*, step_key: str, skill_id: str | None) -> str:
     """Render one public start message from the frozen RunStep identity."""
 
@@ -98,7 +118,6 @@ _RETRYABLE_MODEL_FAILURE_CODES: frozenset[str] = frozenset(
         "MODEL_PROVIDER_TIMEOUT",
         "MODEL_RATE_LIMITED",
         "MODEL_PROVIDER_UNAVAILABLE",
-        "MODEL_ACCESS_UNAVAILABLE",
     }
 )
 
@@ -173,17 +192,20 @@ class ResearchRunWorker:
             configured_capacity=1,
         )
         draining = worker_state.state == "draining"
-        while not self._stop.is_set():
-            if not draining:
-                run_ids = await asyncio.to_thread(self._queued_run_ids)
-                for run_id in run_ids:
-                    try:
-                        await self.execute_run(run_id)
-                    except Exception:
-                        LOGGER.exception(
-                            "ResearchRun execution failed",
-                            extra={"run_id": str(run_id)},
-                        )
+        active_run: asyncio.Task[None] | None = None
+        while not self._stop.is_set() or active_run is not None:
+            if active_run is not None and active_run.done():
+                try:
+                    await active_run
+                except Exception as error:
+                    LOGGER.error(
+                        "ResearchRun execution failed",
+                        extra={
+                            "run_id": active_run.get_name(),
+                            "error_class": type(error).__name__,
+                        },
+                    )
+                active_run = None
             try:
                 snapshot = await asyncio.to_thread(
                     self._workers.heartbeat, self._worker_id
@@ -191,10 +213,20 @@ class ResearchRunWorker:
                 draining = snapshot.state == "draining"
             except RuntimeError:
                 draining = True
-            try:
-                await asyncio.wait_for(self._stop.wait(), timeout=0.5)
-            except TimeoutError:
-                pass
+            if active_run is None and not draining and not self._stop.is_set():
+                run_ids = await asyncio.to_thread(self._queued_run_ids)
+                if run_ids and not self._stop.is_set():
+                    run_id = run_ids[0]
+                    active_run = asyncio.create_task(
+                        self.execute_run(run_id), name=str(run_id)
+                    )
+            if active_run is not None:
+                await asyncio.wait((active_run,), timeout=0.5)
+            elif not self._stop.is_set():
+                try:
+                    await asyncio.wait_for(self._stop.wait(), timeout=0.5)
+                except TimeoutError:
+                    pass
         try:
             await asyncio.to_thread(self._workers.mark_stopped, self._worker_id)
         except RuntimeError:
@@ -221,7 +253,7 @@ class ResearchRunWorker:
         lease = self._store.acquire_lease(
             run_id,
             owner=self._worker_id,
-            lease_duration=timedelta(minutes=30),
+            lease_duration=self._executor.lease_duration,
             expected_status=snapshot.status,
             expected_revision=snapshot.revision,
         )
@@ -288,13 +320,15 @@ class ResearchRunWorker:
                             attempt,
                             lease,
                         )
-                    except Exception:
-                        LOGGER.exception(
+                    except Exception as error:
+                        LOGGER.error(
                             "ResearchRun step execution failed",
                             extra={
                                 "run_id": str(run_id),
                                 "step_key": step_key,
                                 "attempt_id": str(attempt.attempt_id),
+                                "error_class": type(error).__name__,
+                                "error_code": self._classify_failure(error).error_code,
                             },
                         )
                         raise
@@ -425,13 +459,18 @@ class ResearchRunWorker:
             contract = session.get(ResearchContractModel, run.contract_id)
             if project is None or contract is None:
                 raise ValueError("ResearchRun ownership is incomplete")
+            contract_created_at = (
+                contract.created_at.astimezone(timezone.utc)
+                if contract.created_at.tzinfo is not None
+                else contract.created_at.replace(tzinfo=timezone.utc)
+            )
             contract_value = ResearchContract(
                 id=str(contract.id),
                 project_id=str(contract.project_id),
                 version=contract.version,
                 content_hash=contract.content_hash,
                 created_from_draft_id=str(contract.created_from_draft_id),
-                created_at=contract.created_at,
+                created_at=contract_created_at,
                 **contract.content,
             )
             revision = self._revision_contexts.load(
@@ -451,6 +490,7 @@ class ResearchRunWorker:
                     non_data_recompute_step_keys=(
                         revision.non_data_recompute_step_keys
                     ),
+                    relation_adjudications=revision.relation_adjudications,
                 )
             # Fixed pipeline steps need their stable primary Artifact targets
             # before execution. A Gaia SourceTable is assembled by the
@@ -507,6 +547,16 @@ class ResearchRunWorker:
 
     @staticmethod
     def _classify_failure(error: Exception) -> FailureDecision:
+        decision = ResearchRunWorker._classify_failure_cause(error)
+        LOGGER.warning(
+            "ResearchRun step failure classified: error_code=%s retryable=%s",
+            decision.error_code,
+            decision.retryable,
+        )
+        return decision
+
+    @staticmethod
+    def _classify_failure_cause(error: Exception) -> FailureDecision:
         activity_error = error if isinstance(error, AgentActivityError) else None
         cause = activity_error.cause if activity_error is not None else error
         activity_fields = {
@@ -521,12 +571,47 @@ class ResearchRunWorker:
                 retryable=cause.retryable,
                 **activity_fields,
             )
+        if isinstance(cause, LiteratureAdmissionExecutionError):
+            return FailureDecision(
+                error_code=cause.code,
+                public_message=cause.public_message,
+                retryable=cause.retryable,
+                **activity_fields,
+            )
+        if isinstance(cause, SourceFailure):
+            return FailureDecision(
+                error_code=cause.code,
+                public_message=_source_failure_public_message(cause),
+                retryable=cause.retryable,
+                **activity_fields,
+            )
         if isinstance(cause, ModelExecutionError):
             return FailureDecision(
                 error_code=cause.code,
                 public_message=cause.public_message,
                 retryable=cause.code in _RETRYABLE_MODEL_FAILURE_CODES,
                 upstream_request_id=cause.provider_request_id,
+                **activity_fields,
+            )
+        if isinstance(cause, LiteratureClaimExecutionError):
+            return FailureDecision(
+                error_code=cause.code,
+                public_message=cause.public_message,
+                retryable=False,
+                **activity_fields,
+            )
+        if isinstance(cause, PaperSummaryExecutionError):
+            return FailureDecision(
+                error_code=cause.code,
+                public_message=cause.public_message,
+                retryable=cause.retryable,
+                **activity_fields,
+            )
+        if isinstance(cause, LiteratureRelationLocalError):
+            return FailureDecision(
+                error_code=cause.code,
+                public_message=cause.public_message,
+                retryable=False,
                 **activity_fields,
             )
         if isinstance(cause, DataRevisionError):

@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { exoplanetHostStarFixture } from "../src/fixture/exoplanet-host-star";
 import type { FixtureBundle } from "../src/fixture/bundle";
+import { dataArtifactReads } from "../src/fixture/formal-artifacts";
 import { createFixtureRepositories } from "../src/fixture-adapter";
+import { createFixtureDataArtifactRepository } from "../src/data-artifact-repository";
 import { FixtureSemanticError, FixtureValidationError } from "../src/errors";
 import { ConflictError, NotFoundError } from "../src/errors";
 
@@ -23,6 +25,174 @@ const EXPECTED_CONTRACT_HASH =
 const ALL_ZERO_HASH = "sha256:" + "0".repeat(64);
 
 describe("Fixture adapter — provenance and semantics", () => {
+  it("uses entity identifiers rather than the last coordinate in a crossmatch identity", async () => {
+    const source = dataArtifactReads[0]!;
+    const row = source.dataset.rows[0]!;
+    if (!("logical_key" in row.row_authority))
+      throw new Error("crossmatch row required");
+    const authority = row.row_authority;
+    const values = [
+      { field_id: "star.name", normalized_value: "gj 806" },
+      { field_id: "star.tic_id", normalized_value: "TIC 239332587" },
+      { field_id: "system.right_ascension", normalized_value: "311.2697" },
+      { field_id: "system.declination", normalized_value: "44.500235" },
+    ].map((value) => ({ ...value, normalization_rule_version: "1.0.0" }));
+    for (const identityValues of [values, [...values].reverse()]) {
+      const repository = createFixtureDataArtifactRepository([
+        {
+          ...source,
+          dataset: {
+            ...source.dataset,
+            rows: [
+              {
+                ...row,
+                row_authority: {
+                  ...authority,
+                  entity_level: "host_star",
+                  canonical_row_identity: {
+                    ...authority.canonical_row_identity,
+                    entity_level: "host_star",
+                    member_entities: [
+                      {
+                        entity_level: "host_star",
+                        identity_values: identityValues,
+                      },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      ]);
+      const mapped = await repository.getDataset(
+        source.artifact_version_id as never,
+      );
+      expect(mapped.rows[0]?.identity).toBe("gj 806");
+      expect(mapped.rows[0]?.sourceSnapshotIds).toEqual(
+        row.source_snapshot_ids,
+      );
+      expect(mapped.rows[0]?.evidenceIds).toEqual(row.evidence_ids);
+      expect(mapped.rows[0]?.cells).toHaveLength(row.fields.length);
+    }
+  });
+
+  it("labels numeric TOI identities as catalogue identifiers", async () => {
+    const source = dataArtifactReads[0]!;
+    const row = source.dataset.rows[0]!;
+    if (!("logical_key" in row.row_authority))
+      throw new Error("crossmatch row required");
+    const authority = row.row_authority;
+    const repository = createFixtureDataArtifactRepository([
+      {
+        ...source,
+        dataset: {
+          ...source.dataset,
+          rows: [
+            {
+              ...row,
+              fields: row.fields.filter(
+                (field) => field.canonical_field_id !== "planet.toi_id",
+              ),
+              row_authority: {
+                ...authority,
+                canonical_row_identity: {
+                  ...authority.canonical_row_identity,
+                  member_entities: [
+                    {
+                      entity_level: "planet_candidate",
+                      identity_values: [
+                        {
+                          field_id: "planet.toi_id",
+                          normalized_value: "455.01",
+                          normalization_rule_version: "1.0.0",
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+    const mapped = await repository.getDataset(
+      source.artifact_version_id as never,
+    );
+    expect(mapped.rows[0]?.identity).toBe("TOI-455.01");
+  });
+
+  it("maps Dataset cell pipeline Evidence references to persisted Evidence ids", async () => {
+    const source = dataArtifactReads[0]!;
+    const sourceRow = source.dataset.rows[0]!;
+    const pipelineEvidenceId = "evidence.transformation.fixture-cell";
+    const persistedEvidenceId = source.evidence[0]!.id;
+    const read = {
+      ...source,
+      evidence: [source.evidence[0]!],
+      dataset: {
+        ...source.dataset,
+        evidence_ids: [pipelineEvidenceId],
+        rows: [
+          {
+            ...sourceRow,
+            fields: sourceRow.fields.map((field, index) =>
+              index === 0
+                ? {
+                    ...field,
+                    transformation_evidence_ids: [pipelineEvidenceId],
+                  }
+                : field,
+            ),
+          },
+          ...source.dataset.rows.slice(1),
+        ],
+      },
+    };
+    const repository = createFixtureDataArtifactRepository([read]);
+
+    const dataset = await repository.getDataset(
+      source.artifact_version_id as never,
+    );
+
+    expect(dataset.rows[0]!.cells[0]!.evidenceIds).toEqual([
+      persistedEvidenceId,
+    ]);
+  });
+
+  it("rejects a Dataset cell Evidence reference without a persisted binding", async () => {
+    const source = dataArtifactReads[0]!;
+    const sourceRow = source.dataset.rows[0]!;
+    const read = {
+      ...source,
+      dataset: {
+        ...source.dataset,
+        rows: [
+          {
+            ...sourceRow,
+            fields: sourceRow.fields.map((field, index) =>
+              index === 0
+                ? {
+                    ...field,
+                    transformation_evidence_ids: [
+                      "evidence.transformation.unbound",
+                    ],
+                  }
+                : field,
+            ),
+          },
+          ...source.dataset.rows.slice(1),
+        ],
+      },
+    };
+    const repository = createFixtureDataArtifactRepository([read]);
+
+    await expect(
+      repository.getDataset(source.artifact_version_id as never),
+    ).rejects.toMatchObject({ code: "SCHEMA_VALIDATION_FAILED" });
+  });
+
   it("reports demo_replay execution mode and fixture source mode", () => {
     const { state } = repos.provenance;
     expect(state.executionMode).toBe("demo_replay");
@@ -33,8 +203,9 @@ describe("Fixture adapter — provenance and semantics", () => {
 
   it("reports evidence completeness from the fixture", () => {
     const { state } = repos.provenance;
-    expect(state.evidenceCompleteness.covered).toBe(7);
-    expect(state.evidenceCompleteness.total).toBe(7);
+    const evidenceCount = exoplanetHostStarFixture.data.evidence.length;
+    expect(state.evidenceCompleteness.covered).toBe(evidenceCount);
+    expect(state.evidenceCompleteness.total).toBe(evidenceCount);
   });
 });
 
@@ -71,7 +242,8 @@ describe("Fixture adapter — reads map DTO to domain", () => {
 
   it("lists artifacts produced by a run and reads detail projections", async () => {
     const artifacts = await repos.artifacts.listByRun(RUN_ID);
-    expect(artifacts).toHaveLength(8);
+    expect(artifacts).toHaveLength(9);
+    expect(artifacts.some((artifact) => artifact.kind === "export")).toBe(true);
     const artifact = await repos.artifacts.getArtifact("art_graph_01" as never);
     expect(artifact!.kind).toBe("graph");
     const version = await repos.artifacts.getVersion(
@@ -84,6 +256,50 @@ describe("Fixture adapter — reads map DTO to domain", () => {
     expect(version!).not.toHaveProperty("content");
     const evidence = await repos.artifacts.getEvidence("evd_01" as never);
     expect(evidence!.evidenceType).toBe("database_query");
+  });
+
+  it("serves a TAN-projected FITS fixture that the WWT renderer can open", async () => {
+    const artifactVersionId = "artv_c_fits_01" as never;
+    const review = await repos.scientificArtifacts.getReview(artifactVersionId);
+    expect("content" in review).toBe(true);
+    if (!("content" in review) || review.content.kind !== "visualization") {
+      throw new Error("Expected the FITS fixture to be a visualization read");
+    }
+    if (review.content.spec.mode !== "fits_image") {
+      throw new Error("Expected the FITS fixture to use fits_image mode");
+    }
+    const bytes = await repos.scientificArtifacts.getContent(
+      artifactVersionId,
+      review.content.spec.contentHash,
+    );
+    const header = new TextDecoder("ascii").decode(bytes.slice(0, 2880));
+    expect(header).toContain("CTYPE1");
+    expect(header).toContain("'RA---TAN'");
+    expect(header).toContain("CTYPE2");
+    expect(header).toContain("'DEC--TAN'");
+  });
+
+  it("serves WWT table fixtures as CRLF-delimited CSV", async () => {
+    const artifactVersionId = "artv_c_wwt_01" as never;
+    const review = await repos.scientificArtifacts.getReview(artifactVersionId);
+    if (!("content" in review) || review.content.kind !== "visualization") {
+      throw new Error("Expected the WWT fixture to be a visualization read");
+    }
+    if (review.content.spec.mode !== "wwt_scene") {
+      throw new Error("Expected the WWT fixture to use wwt_scene mode");
+    }
+    const tableLayer = review.content.spec.tableLayers[0];
+    expect(tableLayer).toBeDefined();
+    const bytes = await repos.scientificArtifacts.getContent(
+      artifactVersionId,
+      tableLayer!.contentHash,
+    );
+    const csv = new TextDecoder().decode(bytes);
+    const rows = csv.split("\r\n");
+    expect(rows[0]).toBe("ra,dec,phot_g_mean_mag");
+    expect(rows).toHaveLength(42);
+    expect(rows.at(-1)).toBe("");
+    expect(csv.replaceAll("\r\n", "")).not.toContain("\n");
   });
 
   it("reads paper collection version metadata from its rich immutable version", async () => {
@@ -317,7 +533,6 @@ describe("Fixture adapter — share create resolves a frozen public projection",
   const request = {
     title: "Public dataset evidence",
     artifactVersionIds: ["artv_dataset_01" as never],
-    evidenceIds: ["evd_01" as never],
     redactionPolicy: "redacted_public_snapshot" as const,
     expiresAt: "2026-07-22T09:00:00Z" as never,
   };
@@ -342,7 +557,12 @@ describe("Fixture adapter — share create resolves a frozen public projection",
     expect(publicContent).not.toContain("source_snapshot_id");
     expect(publicContent).not.toContain("input_hash");
     expect(publicContent).not.toContain("producer");
-    expect(publicShare!.evidence).toHaveLength(1);
+    expect(publicShare!.evidence.map((item) => item.id)).toEqual(
+      publicShare!.artifactVersions[0]!.evidenceIds,
+    );
+    expect(created.evidenceIds).toEqual(
+      publicShare!.artifactVersions[0]!.evidenceIds,
+    );
     expect(publicShare!.evidence[0]!.id).toBe("evd_01");
     expect(
       Object.keys(publicShare!.evidence[0]!.source.requestMetadata).every(
@@ -391,10 +611,7 @@ describe("Fixture adapter — share create resolves a frozen public projection",
     };
     const fresh = createFixtureRepositories(bundle);
     await expect(
-      fresh.shares.create(PROJECT_ID, {
-        ...request,
-        evidenceIds: ["evd_01" as never],
-      }),
+      fresh.shares.create(PROJECT_ID, request),
     ).rejects.toBeInstanceOf(FixtureValidationError);
   });
 
@@ -405,12 +622,6 @@ describe("Fixture adapter — share create resolves a frozen public projection",
       artifactVersionIds: Array.from(
         { length: 101 },
         (_, index) => `artv_${index}` as never,
-      ),
-    },
-    {
-      evidenceIds: Array.from(
-        { length: 501 },
-        (_, index) => `evd_${index}` as never,
       ),
     },
     { redactionPolicy: "private" as never },

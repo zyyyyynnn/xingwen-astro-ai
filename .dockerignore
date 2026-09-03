@@ -18,5 +18,7 @@ services/*
 !services/graph_pipeline/**
 !services/paper_pipeline/
 !services/paper_pipeline/**
+!services/scientific_document/
+!services/scientific_document/**
 !services/scientific_skills/
 !services/scientific_skills/**

@@ -8,8 +8,11 @@ an ArtifactVersion or advance a successful Step outside the Publisher's atomic b
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable
+from contextlib import suppress
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Generic, TypeVar
 from uuid import UUID
 
@@ -51,8 +54,16 @@ class PersistentWorkflowExecutionError(RuntimeError):
 class PersistentWorkflowExecutor(Generic[StepResultT, CommitResultT]):
     """Execute one lease-fenced Step without holding a database transaction."""
 
-    def __init__(self, store: PersistentWorkflowStore) -> None:
+    def __init__(
+        self,
+        store: PersistentWorkflowStore,
+        *,
+        lease_duration: timedelta = timedelta(minutes=30),
+    ) -> None:
+        if lease_duration <= timedelta(0):
+            raise ValueError("lease duration must be positive")
         self.store = store
+        self.lease_duration = lease_duration
 
     async def execute_step(
         self,
@@ -82,7 +93,9 @@ class PersistentWorkflowExecutor(Generic[StepResultT, CommitResultT]):
         )
 
         try:
-            result = await runner(attempt)
+            result = await self._run_with_lease(
+                runner=runner, attempt=attempt, lease=lease
+            )
         except WorkflowCheckpointRequested:
             raise
         except Exception as cause:
@@ -100,6 +113,41 @@ class PersistentWorkflowExecutor(Generic[StepResultT, CommitResultT]):
         # A committer failure is not rewritten here because it may need transaction
         # reconciliation before the Attempt can safely be marked failed.
         return await commit_success(attempt, lease, result)
+
+    async def _run_with_lease(
+        self,
+        *,
+        runner: Callable[[AttemptHandle], Awaitable[StepResultT]],
+        attempt: AttemptHandle,
+        lease: LeaseGrant,
+    ) -> StepResultT:
+        async def renew() -> None:
+            await asyncio.to_thread(
+                self.store.heartbeat_lease,
+                lease.run_id,
+                token=lease.token,
+                generation=lease.generation,
+                lease_duration=self.lease_duration,
+                expected_status=attempt.run_status,
+                expected_revision=attempt.run_revision,
+            )
+
+        await renew()
+        task = asyncio.create_task(runner(attempt))
+        try:
+            while True:
+                done, _ = await asyncio.wait(
+                    (task,),
+                    timeout=min(60.0, self.lease_duration.total_seconds() / 3),
+                )
+                if done:
+                    return await task
+                await renew()
+        finally:
+            if not task.done():
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
 
     def _record_failure(
         self,

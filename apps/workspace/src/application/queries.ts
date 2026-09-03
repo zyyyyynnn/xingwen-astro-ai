@@ -327,20 +327,26 @@ export function createWorkspaceQueries({
           // version surfaces as a typed NotFound.
           repositories.paperSummary.getDocumentSource(artifactVersionId),
       }),
-    evidence: (projectId: DomainEntityId, evidenceId: DomainEntityId) =>
+    evidence: (
+      projectId: DomainEntityId,
+      expectedArtifactVersionId: DomainEntityId,
+      evidenceId: DomainEntityId,
+    ) =>
       queryOptions({
-        queryKey: workspaceQueryKeys.evidence(projectId, evidenceId),
+        queryKey: workspaceQueryKeys.evidence(
+          projectId,
+          expectedArtifactVersionId,
+          evidenceId,
+        ),
         queryFn: async (): Promise<EvidenceViewModel> => {
           const evidence = await requireEntity("Evidence", evidenceId, () =>
             repositories.artifacts.getEvidence(evidenceId),
           );
-          const version = await requireEntity(
-            "ArtifactVersion",
-            evidence.artifactVersionId,
-            () => repositories.artifacts.getVersion(evidence.artifactVersionId),
-          );
-          if (version.projectId) {
-            requireProjectOwnership("Evidence", projectId, version.projectId);
+          // Ownership is already proven by the caller's authorized version
+          // read; re-reading that version would only re-fetch its heavyweight
+          // content, so the pin is asserted instead.
+          if (evidence.artifactVersionId !== expectedArtifactVersionId) {
+            throw new EntityNotFoundError("Evidence", evidenceId);
           }
           return researchAdapter.toEvidenceViewModel(evidence);
         },

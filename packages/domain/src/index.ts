@@ -187,6 +187,7 @@ export type {
   ModelBinaryReview,
   ModelDiagnosticVisualizationReview,
   ModelEvaluationReviewContent,
+  ModelEvaluationMetricReview,
   ModelSplitReview,
   ModelTrainingInputReview,
   PeriodogramPeakReview,
@@ -259,6 +260,7 @@ export type {
   PublicPresentationGraphNode,
   PublicPresentationParagraph,
   PublicPresentationSection,
+  PublicPresentationTable,
   PublicPresentationTrace,
 } from "./share-snapshot";
 
@@ -295,6 +297,7 @@ export type {
   LiteratureReasoningTraceStepReview,
   LiteratureRelationComparabilityReview,
   LiteratureRelationConfidenceReview,
+  LiteratureRelationAdjudicationReview,
   LiteratureRelationDirectionReview,
   LiteratureRelationReview,
   LiteratureRelationsArtifactReview,
@@ -322,7 +325,9 @@ export type {
 export type {
   FeedbackCategory,
   FeedbackTargetType,
+  RelationAdjudicationDecision,
   RevisionConflict,
+  RevisionFeedbackIntent,
   RevisionPlan,
   RevisionVersionDecision,
   UserFeedback,

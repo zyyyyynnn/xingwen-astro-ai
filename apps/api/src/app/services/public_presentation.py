@@ -14,6 +14,7 @@ from app.schemas.core import (
     PublicPresentationGraphEdge,
     PublicPresentationGraphNode,
     PublicPresentationParagraph,
+    PublicPresentationRelation,
     PublicPresentationSection,
     PublicPresentationTable,
     PublicPresentationTableCell,
@@ -30,7 +31,10 @@ from app.schemas.data_artifacts import (
 )
 from app.schemas.graph_artifact import GraphArtifactCandidate
 from app.schemas.literature_claim import LiteratureClaimsCandidate
-from app.schemas.literature_relation import LiteratureRelationsCandidate
+from app.schemas.literature_relation import (
+    LiteratureRelationsCandidate,
+    literature_relation_adjudicable,
+)
 from app.schemas.paper_collection import PaperCollection
 from app.schemas.paper_summary import PaperSummaryArtifactContent
 from app.schemas.scientific_skills import (
@@ -291,6 +295,104 @@ _SPLIT_STRATEGY_LABELS = {
     "entity": "实体隔离划分",
     "time": "时间顺序划分",
 }
+
+
+def _model_diagnostic_tables(
+    content: ModelEvaluationArtifactContent,
+) -> tuple[PublicPresentationTable, ...]:
+    diagnostics = content.diagnostics
+    if diagnostics is None:
+        return ()
+    tables: list[PublicPresentationTable] = []
+    matrix = diagnostics.confusion_matrix
+    if matrix is not None:
+        pairs = [
+            (actual, predicted, count)
+            for actual, row in zip(matrix.labels, matrix.rows, strict=True)
+            for predicted, count in zip(matrix.labels, row, strict=True)
+        ]
+        tables.append(
+            PublicPresentationTable(
+                title="混淆矩阵（实际类别 → 预测类别）",
+                columns=(
+                    PublicPresentationTableColumn(key="predicted", label="预测类别"),
+                    PublicPresentationTableColumn(key="count", label="样本数"),
+                ),
+                rows=tuple(
+                    PublicPresentationTableRow(
+                        key=f"pair.{index}",
+                        identity=str(actual),
+                        cells=(
+                            PublicPresentationTableCell(
+                                column_key="predicted", value=str(predicted)
+                            ),
+                            PublicPresentationTableCell(
+                                column_key="count", value=str(count)
+                            ),
+                        ),
+                    )
+                    for index, (actual, predicted, count) in enumerate(
+                        pairs[:_PRESENTATION_TABLE_ROW_LIMIT]
+                    )
+                ),
+                total_row_count=len(pairs),
+                total_column_count=2,
+            )
+        )
+    predictions = diagnostics.regression_predictions
+    if predictions:
+        tables.append(
+            PublicPresentationTable(
+                title=f"测试集预测明细（{len(predictions)} / {diagnostics.evaluated_sample_count} 个样本）",
+                columns=(
+                    PublicPresentationTableColumn(key="actual", label="实际值"),
+                    PublicPresentationTableColumn(key="predicted", label="预测值"),
+                ),
+                rows=tuple(
+                    PublicPresentationTableRow(
+                        key=point.row_id,
+                        identity=f"样本 {index + 1}",
+                        cells=(
+                            PublicPresentationTableCell(
+                                column_key="actual", value=str(point.actual)
+                            ),
+                            PublicPresentationTableCell(
+                                column_key="predicted", value=str(point.predicted)
+                            ),
+                        ),
+                    )
+                    for index, point in enumerate(
+                        predictions[:_PRESENTATION_TABLE_ROW_LIMIT]
+                    )
+                ),
+                total_row_count=len(predictions),
+                total_column_count=2,
+            )
+        )
+    if diagnostics.forecast:
+        tables.append(
+            PublicPresentationTable(
+                title="未来递归预测（按观测顺序）",
+                columns=(
+                    PublicPresentationTableColumn(key="predicted", label="预测值"),
+                ),
+                rows=tuple(
+                    PublicPresentationTableRow(
+                        key=f"step.{point.step}",
+                        identity=f"未来第 {point.step} 步",
+                        cells=(
+                            PublicPresentationTableCell(
+                                column_key="predicted", value=str(point.predicted_value)
+                            ),
+                        ),
+                    )
+                    for point in diagnostics.forecast[:_PRESENTATION_TABLE_ROW_LIMIT]
+                ),
+                total_row_count=len(diagnostics.forecast),
+                total_column_count=1,
+            )
+        )
+    return tuple(tables)
 
 
 def build_artifact_presentation(
@@ -607,6 +709,11 @@ def build_artifact_presentation(
                     ),
                     status=relation.status.value,
                     assessment=relation.relation_type.value,
+                    can_adjudicate=literature_relation_adjudicable(relation),
+                    relation=PublicPresentationRelation(
+                        source_claim=claims[str(relation.source_claim_id)],
+                        target_claim=claims[str(relation.target_claim_id)],
+                    ),
                     facts=_facts(
                         _fact("成立条件", *relation.conditions),
                         _fact("条件冲突", *relation.condition_conflicts),
@@ -663,6 +770,7 @@ def build_artifact_presentation(
                     ),
                     reasoning_trace=(
                         PublicPresentationTrace(
+                            trace_id=trace.trace_id,
                             conclusion=trace.conclusion,
                             steps=tuple(step.statement for step in trace.steps),
                             facts=_facts(
@@ -852,8 +960,14 @@ def build_artifact_presentation(
         )
     if artifact_kind is ArtifactKind.model_evaluation:
         content = ModelEvaluationArtifactContent.model_validate_json(serialized_content)
+        metric_prefixes = {
+            "holdout": "",
+            "cross_validation": "全样本交叉验证 · ",
+            "feature_importance": "特征重要性 · ",
+        }
         return PublicArtifactPresentation(
             kind=artifact_kind,
+            tables=_model_diagnostic_tables(content),
             facts=(
                 *_facts(
                     _fact("任务", _token_label(content.task_kind, _TASK_KIND_LABELS)),
@@ -891,7 +1005,7 @@ def build_artifact_presentation(
                 ),
                 *tuple(
                     PublicPresentationFact(
-                        label=metric.label,
+                        label=f"{metric_prefixes[metric.category]}{metric.label}",
                         values=(
                             f"{metric.value}{f' {metric.unit}' if metric.unit else ''}",
                         ),
@@ -928,14 +1042,31 @@ def build_artifact_presentation(
                 _fact("任务", _token_label(content.task_kind, _TASK_KIND_LABELS)),
                 _fact("算法", content.algorithm),
                 _fact("输入", content.input_name),
+                _fact("输入类型", content.input_dtype),
                 _fact(
                     "输入形状",
                     " × ".join(
-                        "batch" if value is None else str(value)
+                        "未定维度" if value is None else str(value)
                         for value in content.input_shape
                     ),
                 ),
                 _fact("输出", *content.output_names),
+                *(
+                    _fact(
+                        f"输出 {name}",
+                        {
+                            "tensor": "张量",
+                            "sparse_tensor": "稀疏张量",
+                            "sequence": "序列",
+                            "map": "映射",
+                            "optional": "可选值",
+                        }[metadata.value_kind],
+                        metadata.dtype,
+                        None if metadata.shape is None else str(list(metadata.shape)),
+                    )
+                    for name, metadata in content.output_metadata.items()
+                    if metadata is not None
+                ),
                 _fact("目标字段", content.target_field),
                 _fact("特征字段", *content.feature_fields),
             ),

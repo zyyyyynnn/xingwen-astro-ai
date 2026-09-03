@@ -13,7 +13,7 @@ Router -> Application Service -> Persistent Workflow Executor
        -> Step Adapter -> Pipeline -> Publisher
 ```
 
-Application Service 从已确认 Contract 的 `output_requirements` 确定性编译最小前置依赖闭包，并创建冻结该有序 RunStep 集合的 `queued` Run。Executor 只消费已冻结的 RunStep，不重新推导、扩展或由模型生成第二份 Plan。每个 Step 内部由 Qwen Agent 对该 Step 唯一注册的服务端工具给出一次公开分析并触发执行；服务端校验工具身份与公开分析文本后执行工具并把 Observation 写入公开 Activity。模型不能选择未注册工具、改变冻结 Step 顺序、授予新来源、扩大预算或绕过 Artifact 准入。Pipeline 只返回 typed candidate，Publisher 在准入通过后原子发布 ArtifactVersion 并推进 Step。创建 Run 或初始 Event 不代表执行已经发生。
+Application Service 从已确认 Contract 的 `output_requirements` 确定性编译最小前置依赖闭包，并创建冻结该有序 RunStep 集合的 `queued` Run。Executor 只消费已冻结的 RunStep，不重新推导、扩展或由模型生成第二份 Plan。正常路径中，每个 Step 由 Qwen Agent 对该 Step 唯一注册的服务端工具给出一次公开分析并触发执行；服务端校验工具身份与公开分析文本后执行工具并把 Observation 写入公开 Activity。若这次仅用于解释/编排的 Agent 调用发生 provider/transport 失败，或返回的工具调用未通过唯一工具契约校验，失败/拒绝的 ProducerExecution 仍按事实持久化，随后由服务端生成确定性的公开分析并执行同一个已冻结、已授权的唯一主工具；该 fallback 不新增模型调用、不改变工具、输入、来源、预算或科研准入，也不得用于替代 PaperSummary、Claim、Relation 等科学模型输出。模型不能选择未注册工具、改变冻结 Step 顺序、授予新来源、扩大预算或绕过 Artifact 准入。Pipeline 只返回 typed candidate，Publisher 在准入通过后原子发布 ArtifactVersion 并推进 Step。创建 Run 或初始 Event 不代表执行已经发生。
 
 执行协调分两层：ResearchRunWorker 只负责 poll、lease、step loop、Attempt、bounded retry orchestration、Publisher 提交与终态转换；StepRuntime 是薄分发层，只把每个冻结 RunStep 派发给对应的专职 Step Service（数据、论文检索/总结、文献推理、图谱），科学语义唯一保存在 `services/` 各 Pipeline（含契约门控的实时数据获取与文献检索），共享的 ProducerExecution 发布生命周期由 step publication 层唯一关闭。Run 依赖闭包唯一 Owner 是冻结的 RunStep chain（RunPlan）；Worker 不持有第二份 Artifact dependency closure，Artifact 名称映射只服务用户可读标题，不决定依赖。
 
@@ -57,10 +57,13 @@ Planner 只有在持久化明确的输入请求后才能从 `planning` 进入 `w
 - `GET /api/runs/{id}` 返回权威快照；RunEvent 仅用于按 `sequence` 恢复增量通知，且不得超过 `latest_event_sequence`。
 - 状态写入使用 `expected_status + expected_revision` 条件更新。
 - 同一 Run 只允许一个有效 lease；lease 绑定 token、owner、expiry 与递增 generation。
+- Executor 在 Step 执行期间通过同一 Workflow Store 定期续租；续租保持 Attempt 的 revision 与 token/generation，不推进状态或事件。租约失效或取消后停止执行协调，晚到结果仍由 Publisher 围栏拒绝。
+- Worker 的容量心跳在活跃 Run 与正常排空期间持续更新；排空等待当前 Run 结束，并停止领取后续 Run。
 - RunEvent 是项目私有消息流的唯一增量事实：`activity_id` 标识一个逻辑操作，`activity_kind / activity_phase / activity_name / step_key / progress / content / details / artifact_version_ids / occurred_at` 表达分析、工具调用、Observation、重试、产物与终态。同一工具的运行、Observation 与产物提交必须使用同一个 `activity_id` 原位演化，不得写成开始/完成两条重复流水账。
-- 每个服务端冻结 Step 只进行一次模型决策：模型通过唯一注册主工具的结构化参数生成简体中文公开分析（`public_analysis`），并选择该工具；主工具成功返回 Observation 后由服务端完成 Step，不再通过额外模型调用请求 `finish_step`。研究协议与前序产物作为任务上下文直接提供，不重复播报无独立决策价值的读取动作。
-- `public_analysis` 以 `reasoning` Activity 持久化；模型响应前先写同一 `activity_id` 的运行态，结构化参数验证通过后原位更新为完成态。Provider 私有 `reasoning_content` 不进入 RunEvent、Research Thread、ShareSnapshot、Export 或正式 Artifact Renderer。ReasoningTrace 仍是证据绑定的正式产物，与步骤级公开分析是两个边界。
+- 每个服务端冻结 Step 在正常路径至多进行一次模型决策：模型通过唯一注册主工具的结构化参数生成简体中文公开分析（`public_analysis`），并选择该工具；主工具成功返回 Observation 后由服务端完成 Step，不再通过额外模型调用请求 `finish_step`。解释/编排调用失败或被契约拒绝时不做第二次模型尝试，而是生成确定性的公开分析后继续执行唯一授权主工具。研究协议与前序产物作为任务上下文直接提供，不重复播报无独立决策价值的读取动作。
+- `public_analysis` 以 `reasoning` Activity 持久化；模型路径在响应前先写同一 `activity_id` 的运行态，结构化参数验证通过后原位更新为完成态；fallback 路径以同一 Activity 明确标记 deterministic source。Provider 私有 `reasoning_content` 不进入 RunEvent、Research Thread、ShareSnapshot、Export 或正式 Artifact Renderer。ReasoningTrace 仍是证据绑定的正式产物，与步骤级公开分析是两个边界。
 - 工具 Activity 只记录注册工具的稳定名称、经过领域过滤的参数、来源与结果摘要；凭据、原始传输响应和内部错误堆栈不得写入 RunEvent。
+- Worker 失败日志保留 Run、Step、Attempt 和错误分类；模型输出校验错误隐藏输入内容，私有 provider payload 不进入日志。
 
 ## 4.1 消息边界
 

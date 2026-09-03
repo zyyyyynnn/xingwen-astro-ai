@@ -273,6 +273,7 @@ export function toArtifactVersionMetadataViewModel(
     sourceMode: version.sourceMode,
     createdAt: version.createdAt,
     presentation: version.presentation,
+    evidence: version.evidence?.map(toEvidenceViewModel),
     provenance: {
       contentHash: version.contentHash,
       inputHash: version.inputHash,
@@ -560,6 +561,12 @@ function toRelationViewModel(relation: LiteratureRelationReview) {
     conditionConflicts: [...relation.conditionConflicts],
     conditionUncertainties: [...relation.conditionUncertainties],
     confidence: relation.confidence ? { ...relation.confidence } : null,
+    adjudication: relation.adjudication
+      ? {
+          ...relation.adjudication,
+          basis: [...relation.adjudication.basis],
+        }
+      : null,
     evidenceIds: [...relation.evidenceIds],
     sourceSnapshotIds: [...relation.sourceSnapshotIds],
     sourceClaim: toClaimReferenceViewModel(relation.sourceClaim),

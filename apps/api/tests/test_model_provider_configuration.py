@@ -26,6 +26,7 @@ from app.services.model_provider_configuration import (
     ModelRuntimeRegistry,
     ModelRuntimeSnapshot,
     RegistryModelExecutionPort,
+    deployment_runtime,
 )
 
 
@@ -40,7 +41,7 @@ class UnconfiguredPort:
 def fallback_runtime(*, configured: bool = False) -> ModelRuntimeSnapshot:
     return ModelRuntimeSnapshot(
         port=UnconfiguredPort(),
-        provider="qwen",
+        provider="dashscope",
         requested_model="qwen3.8-max",
         explicit_revision=None,
         revision=0,
@@ -130,10 +131,27 @@ def test_configuration_is_verified_encrypted_and_installed_globally() -> None:
     assert stored is not None
     assert "secret-key-1234" not in stored.encrypted_api_key
     assert registry.snapshot().requested_model == "qwen3.8-max"
-    assert registry.snapshot().provider == "qwen"
+    assert registry.snapshot().provider == "dashscope"
 
 
-def test_model_id_is_not_limited_to_repository_test_baselines() -> None:
+@pytest.mark.parametrize("model", ["", "   "])
+def test_deployment_with_credentials_but_no_model_is_unconfigured(model: str) -> None:
+    runtime = deployment_runtime(
+        api_key="test-key",
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        model=model,
+        explicit_revision=None,
+        timeout_seconds=3,
+        max_retries=0,
+    )
+    assert runtime.source is None
+    assert runtime.provider == "dashscope"
+    assert runtime.requested_model == ""
+    with pytest.raises(ModelRuntimeUnavailable):
+        runtime.port.execute(object())
+
+
+def test_model_id_is_selected_by_runtime_configuration() -> None:
     configuration, _store, registry, tested = service()
 
     status = configuration.configure(request(model="qwen-plus"), expected_revision=0)

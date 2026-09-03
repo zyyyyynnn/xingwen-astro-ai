@@ -1,6 +1,6 @@
 import type { DomainEntityId } from "@xingwen/domain";
 import { Button } from "@xingwen/ui";
-import { FileSearch } from "@xingwen/ui/icons";
+import { Quote } from "@xingwen/ui/icons";
 
 export function EvidenceLinks({
   evidenceIds,
@@ -15,23 +15,23 @@ export function EvidenceLinks({
   const visible = evidenceIds.slice(0, 3);
   return (
     <div
-      className="evidence-links flex flex-wrap items-center gap-1.5 mt-2"
+      className="evidence-links mt-3 flex flex-wrap items-center gap-2"
       aria-label={label}
     >
       {visible.map((evidenceId, index) => (
         <Button
           key={evidenceId}
           type="button"
-          variant="ghost"
-          size="small"
+          variant="secondary"
+          size="xsmall"
           onClick={() => onSelectEvidence(evidenceId)}
         >
-          <FileSearch data-icon="inline-start" aria-hidden="true" />
-          证据 {index + 1}
+          <Quote data-icon="inline-start" aria-hidden="true" />
+          查看证据 {index + 1}
         </Button>
       ))}
       {evidenceIds.length > visible.length ? (
-        <span className="text-xs text-[var(--oh-muted)]">
+        <span className="text-xs text-[var(--color-ink-secondary)]">
           另有 {evidenceIds.length - visible.length} 条
         </span>
       ) : null}

@@ -15,6 +15,7 @@ from app.schemas.core import (
     ArtifactVersionDetail,
     EvidenceDetail,
     EvidenceRead,
+    ProducerExecutionDetail,
     ResearchArtifactDetail,
     SourceSnapshotDetail,
 )
@@ -25,6 +26,7 @@ from app.schemas.data_artifacts import (
 )
 from app.schemas.data_quality import DataQualityProjection
 from app.schemas.graph_artifact import GraphIntegrityStage, GraphRejectionReason
+from app.schemas.literature_claim import LiteratureClaimsCandidate
 from app.schemas.literature_relation import LiteratureRelationsCandidate
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
@@ -41,6 +43,7 @@ from services.graph_pipeline.ports import (
     PublishedDatasetVersion,
     PublishedFieldDictionaryVersion,
     PublishedGraphInputs,
+    PublishedLiteratureClaimsVersion,
     PublishedLiteratureRelationsVersion,
     StoredPipelineEvidenceBinding,
     graph_input_security_error,
@@ -86,6 +89,7 @@ _Candidate = TypeVar(
     "_Candidate",
     DatasetArtifactCandidate,
     FieldDictionaryArtifactCandidate,
+    LiteratureClaimsCandidate,
     LiteratureRelationsCandidate,
 )
 
@@ -183,6 +187,16 @@ class ArtifactVersionGraphInputReadAdapter:
                 "selection must be an exact GraphInputVersionSelection",
                 path="input_versions",
             )
+        claims = tuple(
+            self._literature_claims_envelope(
+                self._read_version(
+                    version_id=version_id,
+                    project_id=selection.project_id,
+                    expected_kind="literature_claims",
+                )
+            )
+            for version_id in selection.literature_claims_artifact_version_ids
+        )
         literature_version = self._read_version(
             version_id=selection.literature_relations_artifact_version_id,
             project_id=selection.project_id,
@@ -219,6 +233,7 @@ class ArtifactVersionGraphInputReadAdapter:
 
         return PublishedGraphInputs(
             selection=selection,
+            literature_claims=claims,
             literature_relations=literature,
             data=data,
         )
@@ -335,18 +350,57 @@ class ArtifactVersionGraphInputReadAdapter:
         version: ArtifactVersionDetail,
     ) -> PublishedLiteratureRelationsVersion:
         candidate = _candidate(version, LiteratureRelationsCandidate)
+        source_bindings, evidence_bindings = self._literature_provenance(
+            version,
+            candidate,
+        )
+        return PublishedLiteratureRelationsVersion(
+            pins=_pins(version, candidate),
+            candidate=candidate,
+            source_snapshot_bindings=source_bindings,
+            evidence_bindings=evidence_bindings,
+            scientific_producer_execution=(
+                self._literature_scientific_producer_execution(version, candidate)
+            ),
+        )
+
+    def _literature_claims_envelope(
+        self,
+        version: ArtifactVersionDetail,
+    ) -> PublishedLiteratureClaimsVersion:
+        candidate = _candidate(version, LiteratureClaimsCandidate)
+        source_bindings, evidence_bindings = self._literature_provenance(
+            version,
+            candidate,
+        )
+        return PublishedLiteratureClaimsVersion(
+            pins=_pins(version, candidate),
+            candidate=candidate,
+            source_snapshot_bindings=source_bindings,
+            evidence_bindings=evidence_bindings,
+        )
+
+    def _literature_provenance(
+        self,
+        version: ArtifactVersionDetail,
+        candidate: LiteratureClaimsCandidate | LiteratureRelationsCandidate,
+    ) -> tuple[
+        tuple[PersistedSourceSnapshotBinding, ...],
+        tuple[PersistedEvidenceBinding, ...],
+    ]:
         source_bindings = _literature_source_bindings(version, candidate)
         restrictions = self._restriction_facts(
             project_id=version.project_id,
             evidence_ids=tuple(item.id for item in version.evidence),
         )
-        candidate_evidence = {
-            item.evidence_id: item for item in candidate.evidence
-        }
+        candidate_evidence = {item.evidence_id: item for item in candidate.evidence}
         evidence_bindings: list[PersistedEvidenceBinding] = []
         for evidence in version.evidence:
             pipeline_id = evidence.locator.get("summary_evidence_id")
-            if not isinstance(pipeline_id, str) or pipeline_id not in candidate_evidence:
+            if (
+                not isinstance(pipeline_id, str)
+                or pipeline_id not in candidate_evidence
+            ):
                 raise _evidence_error(
                     "Literature Evidence lacks governed summary_evidence_id mapping",
                     reason=GraphRejectionReason.evidence_inconsistent,
@@ -370,12 +424,64 @@ class ArtifactVersionGraphInputReadAdapter:
                     is_restricted=restrictions[evidence.id].is_restricted,
                 )
             )
-        return PublishedLiteratureRelationsVersion(
-            pins=_pins(version, candidate),
-            candidate=candidate,
-            source_snapshot_bindings=source_bindings,
-            evidence_bindings=tuple(evidence_bindings),
-        )
+        return source_bindings, tuple(evidence_bindings)
+
+    def _literature_scientific_producer_execution(
+        self,
+        version: ArtifactVersionDetail,
+        candidate: LiteratureRelationsCandidate,
+    ) -> ProducerExecutionDetail | None:
+        if not any(item.adjudication is not None for item in candidate.relations):
+            return None
+
+        current_version = version
+        current_candidate = candidate
+        visited = {version.id}
+        while any(
+            item.adjudication is not None for item in current_candidate.relations
+        ):
+            if current_version.producer_execution.producer.type != "algorithm":
+                raise _artifact_error(
+                    "adjudicated LiteratureRelations must be published by an algorithm execution",
+                    reason=GraphRejectionReason.producer_execution_mismatch,
+                    path=f"input_versions.{current_version.id}.producer_execution",
+                )
+            predecessor_id = current_version.supersedes_version_id
+            if predecessor_id is None or predecessor_id in visited:
+                raise _artifact_error(
+                    "adjudicated LiteratureRelations has no valid predecessor version",
+                    reason=GraphRejectionReason.provenance_version_mismatch,
+                    path=f"input_versions.{current_version.id}.supersedes_version_id",
+                )
+            if not any(
+                item.adjudication is not None
+                and item.adjudication.baseline_relation_artifact_version_id
+                == predecessor_id
+                for item in current_candidate.relations
+            ):
+                raise _artifact_error(
+                    "adjudication does not bind the superseded LiteratureRelations version",
+                    reason=GraphRejectionReason.provenance_version_mismatch,
+                    path=f"input_versions.{current_version.id}.adjudication",
+                )
+            predecessor = self._read_version(
+                version_id=predecessor_id,
+                project_id=version.project_id,
+                expected_kind="literature_relations",
+            )
+            if predecessor.artifact_id != version.artifact_id:
+                raise _artifact_error(
+                    "LiteratureRelations producer lineage crosses artifacts",
+                    reason=GraphRejectionReason.cross_version_reference,
+                    path=f"input_versions.{predecessor_id}.artifact_id",
+                )
+            visited.add(predecessor_id)
+            current_version = predecessor
+            current_candidate = _candidate(
+                predecessor,
+                LiteratureRelationsCandidate,
+            )
+        return current_version.producer_execution
 
     def _data_provenance(
         self,
@@ -444,10 +550,8 @@ class ArtifactVersionGraphInputReadAdapter:
             if (
                 read.id != binding.persisted_evidence_id
                 or read.artifact_version_id != version.id
-                or read.source_snapshot_id
-                != binding.persisted_source_snapshot_id
-                or read.source_snapshot.id
-                != binding.persisted_source_snapshot_id
+                or read.source_snapshot_id != binding.persisted_source_snapshot_id
+                or read.source_snapshot.id != binding.persisted_source_snapshot_id
                 or read.target_type != binding.pipeline_target_type
                 or read.target_id != binding.pipeline_target_id
                 or read.locator != binding.pipeline_locator
@@ -521,9 +625,7 @@ class ArtifactVersionGraphInputReadAdapter:
         persisted_bindings = tuple(
             PersistedEvidenceBinding(
                 pipeline_evidence_id=binding.pipeline_evidence_id,
-                pipeline_evidence_content_hash=(
-                    binding.pipeline_evidence_content_hash
-                ),
+                pipeline_evidence_content_hash=(binding.pipeline_evidence_content_hash),
                 pipeline_source_snapshot_id=binding.pipeline_source_snapshot_id,
                 pipeline_target_type=binding.pipeline_target_type,
                 pipeline_target_id=binding.pipeline_target_id,
@@ -531,9 +633,7 @@ class ArtifactVersionGraphInputReadAdapter:
                 evidence=_evidence_detail(
                     evidence_reads[binding.persisted_evidence_id]
                 ),
-                is_restricted=restrictions[
-                    binding.persisted_evidence_id
-                ].is_restricted,
+                is_restricted=restrictions[binding.persisted_evidence_id].is_restricted,
             )
             for binding in bindings
         )
@@ -601,19 +701,14 @@ def _candidate(
 
 
 def _quality_projection(version: ArtifactVersionDetail) -> DataQualityProjection:
-    if (
-        version.quality_projection is None
-        or version.quality_projection_hash is None
-    ):
+    if version.quality_projection is None or version.quality_projection_hash is None:
         raise _artifact_error(
             "data ArtifactVersion requires a persisted Data Quality Evaluation projection",
             reason=GraphRejectionReason.input_version_unpublished,
             path=f"input_versions.{version.id}.quality_projection",
         )
     try:
-        projection = DataQualityProjection.model_validate(
-            version.quality_projection
-        )
+        projection = DataQualityProjection.model_validate(version.quality_projection)
     except ValidationError as exc:
         raise _artifact_error(
             "persisted Data Quality Evaluation projection is not schema-valid",
@@ -633,6 +728,7 @@ def _pins(
     version: ArtifactVersionDetail,
     candidate: DatasetArtifactCandidate
     | FieldDictionaryArtifactCandidate
+    | LiteratureClaimsCandidate
     | LiteratureRelationsCandidate,
 ) -> PublishedArtifactVersionPins:
     return PublishedArtifactVersionPins(
@@ -651,7 +747,7 @@ def _pins(
 
 def _literature_source_bindings(
     version: ArtifactVersionDetail,
-    candidate: LiteratureRelationsCandidate,
+    candidate: LiteratureClaimsCandidate | LiteratureRelationsCandidate,
 ) -> tuple[PersistedSourceSnapshotBinding, ...]:
     references: dict[str, tuple[str, str, str]] = {}
     for evidence in candidate.evidence:

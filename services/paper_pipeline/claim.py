@@ -80,6 +80,50 @@ class PaperSummaryArtifactVersionInput:
     content: PaperSummaryArtifactContent
 
 
+def build_literature_claim_input_identity(
+    *,
+    paper_summary_artifact_version_id: str,
+    paper_id: str,
+    paper_summary_versions: Mapping[str, PaperSummaryArtifactVersionInput],
+    model_name: str,
+    parameters: Mapping[str, ParameterValue],
+    parameters_version: str = CLAIM_PARAMETERS_VERSION,
+    prompt_registry: PromptRegistry | None = None,
+) -> tuple[LiteratureClaimInputVersions, str, str]:
+    """Build the parent Claim execution identity before any provider call."""
+
+    prompts = prompt_registry or PromptRegistry()
+    prompt = prompts.get("literature_claim")
+    safe_parameters = _validate_parameters(parameters)
+    parameters_hash = compute_canonical_payload_hash(
+        {
+            "parameters_version": parameters_version,
+            "parameters": safe_parameters,
+        }
+    )
+    summary_version = paper_summary_versions.get(paper_summary_artifact_version_id)
+    input_versions = _input_versions(
+        requested_version_id=paper_summary_artifact_version_id,
+        requested_paper_id=paper_id,
+        summary_version=summary_version,
+    )
+    input_hash = compute_canonical_payload_hash(
+        {
+            "input_versions": input_versions.model_dump(mode="json", exclude_none=True),
+            "prompt_name": prompt.name,
+            "prompt_version": prompt.version,
+            "prompt_hash": prompt.content_hash,
+            "model_name": model_name,
+            "parameters_version": parameters_version,
+            "parameters_hash": parameters_hash,
+            "producer_version": CLAIM_PRODUCER_VERSION,
+            "schema_version": CLAIM_SCHEMA_VERSION,
+            "normalization_version": CLAIM_NORMALIZATION_VERSION,
+        }
+    )
+    return input_versions, input_hash, parameters_hash
+
+
 class LiteratureClaimPipeline:
     """Admit Claim model output without publishing or advancing ResearchRun."""
 
@@ -109,36 +153,17 @@ class LiteratureClaimPipeline:
         existing_claim_fingerprints: frozenset[str] = frozenset(),
     ) -> LiteratureClaimAdmissionResult:
         prompt = self.prompt_registry.get("literature_claim")
-        safe_parameters = _validate_parameters(parameters)
-        parameters_hash = compute_canonical_payload_hash(
-            {
-                "parameters_version": parameters_version,
-                "parameters": safe_parameters,
-            }
-        )
-        summary_version = paper_summary_versions.get(
-            paper_summary_artifact_version_id
-        )
-        input_versions = _input_versions(
-            requested_version_id=paper_summary_artifact_version_id,
-            requested_paper_id=paper_id,
-            summary_version=summary_version,
-        )
-        input_hash = compute_canonical_payload_hash(
-            {
-                "input_versions": input_versions.model_dump(
-                    mode="json", exclude_none=True
-                ),
-                "prompt_name": prompt.name,
-                "prompt_version": prompt.version,
-                "prompt_hash": prompt.content_hash,
-                "model_name": model_name,
-                "parameters_version": parameters_version,
-                "parameters_hash": parameters_hash,
-                "producer_version": CLAIM_PRODUCER_VERSION,
-                "schema_version": CLAIM_SCHEMA_VERSION,
-                "normalization_version": CLAIM_NORMALIZATION_VERSION,
-            }
+        summary_version = paper_summary_versions.get(paper_summary_artifact_version_id)
+        input_versions, input_hash, parameters_hash = (
+            build_literature_claim_input_identity(
+                paper_summary_artifact_version_id=(paper_summary_artifact_version_id),
+                paper_id=paper_id,
+                paper_summary_versions=paper_summary_versions,
+                model_name=model_name,
+                parameters=parameters,
+                parameters_version=parameters_version,
+                prompt_registry=self.prompt_registry,
+            )
         )
         raw_response_hash = compute_canonical_payload_hash(model_response)
         now = self._now()
@@ -186,10 +211,7 @@ class LiteratureClaimPipeline:
             {
                 "schema_version": extraction.schema_version,
                 "claims": sorted(
-                    (
-                        _canonical_response_candidate(item)
-                        for item in extraction.claims
-                    ),
+                    (_canonical_response_candidate(item) for item in extraction.claims),
                     key=compute_canonical_payload_hash,
                 ),
             }
@@ -215,18 +237,14 @@ class LiteratureClaimPipeline:
             "output_hash": "sha256:" + "0" * 64,
             "status": "completed",
         }
-        evidence_ids = tuple(
-            sorted({item.evidence_id for item in evidence_references})
-        )
+        evidence_ids = tuple(sorted({item.evidence_id for item in evidence_references}))
         snapshot_ids = tuple(
             sorted({item.source_snapshot_id for item in evidence_references})
         )
         candidate_payload = {
             "kind": "literature_claims",
             "schema_version": CLAIM_SCHEMA_VERSION,
-            "input_versions": input_versions.model_dump(
-                mode="json", exclude_none=True
-            ),
+            "input_versions": input_versions.model_dump(mode="json", exclude_none=True),
             "claims": [
                 item.model_dump(mode="json", exclude_none=True) for item in records
             ],
@@ -310,13 +328,17 @@ def _admit_claims(
     tuple[LiteratureClaimEvidenceReference, ...],
 ]:
     summary = None if summary_version is None else summary_version.content
-    summary_evidence = {} if summary is None else {
-        item.evidence_id: item for item in summary.evidence
-    }
-    summary_snapshots = {} if summary is None else {
-        item.source_snapshot_id: item
-        for item in summary.input_versions.source_snapshots
-    }
+    summary_evidence = (
+        {} if summary is None else {item.evidence_id: item for item in summary.evidence}
+    )
+    summary_snapshots = (
+        {}
+        if summary is None
+        else {
+            item.source_snapshot_id: item
+            for item in summary.input_versions.source_snapshots
+        }
+    )
     evidence_exists = (
         frozenset(summary_evidence)
         if available_evidence_ids is None
@@ -327,9 +349,11 @@ def _admit_claims(
         if available_source_snapshot_ids is None
         else available_source_snapshot_ids
     )
-    statements = {} if summary is None else {
-        item.statement_id: item for item in summary.statements()
-    }
+    statements = (
+        {}
+        if summary is None
+        else {item.statement_id: item for item in summary.statements()}
+    )
     ordered = tuple(
         sorted(
             extraction.claims,
@@ -341,9 +365,7 @@ def _admit_claims(
     seen = set(existing_claim_fingerprints)
     records: list[LiteratureClaimCandidate] = []
     retained_evidence: dict[str, PaperSummaryEvidence] = {}
-    retained_references: dict[
-        tuple[str, str], LiteratureClaimEvidenceReference
-    ] = {}
+    retained_references: dict[tuple[str, str], LiteratureClaimEvidenceReference] = {}
     occurrence_by_fingerprint: dict[str, int] = {}
     for model_candidate in ordered:
         normalized, normalization_safe = _normalize_candidate(model_candidate)
@@ -380,14 +402,10 @@ def _admit_claims(
 
         if summary_version is None:
             stage = LiteratureClaimFailureStage.input
-            reason = (
-                LiteratureClaimRejectionReason.input_artifact_version_unknown
-            )
+            reason = LiteratureClaimRejectionReason.input_artifact_version_unknown
         elif summary_version.schema_version not in SUPPORTED_SUMMARY_SCHEMA_VERSIONS:
             stage = LiteratureClaimFailureStage.input
-            reason = (
-                LiteratureClaimRejectionReason.input_schema_version_unsupported
-            )
+            reason = LiteratureClaimRejectionReason.input_schema_version_unsupported
         elif not model_candidate.evidence_ids:
             stage = LiteratureClaimFailureStage.evidence
             reason = LiteratureClaimRejectionReason.evidence_missing
@@ -407,8 +425,7 @@ def _admit_claims(
         else:
             statement = statements.get(model_candidate.source_statement_id)
             if (
-                summary_version.artifact_version_id
-                != requested_summary_version_id
+                summary_version.artifact_version_id != requested_summary_version_id
                 or not _ownership_matches(
                     summary=summary,
                     requested_paper_id=requested_paper_id,
@@ -637,13 +654,9 @@ def _status_counts(
     records: tuple[LiteratureClaimCandidate, ...],
 ) -> LiteratureClaimStatusCounts:
     return LiteratureClaimStatusCounts(
-        accepted=sum(
-            item.status is LiteratureClaimStatus.accepted for item in records
-        ),
+        accepted=sum(item.status is LiteratureClaimStatus.accepted for item in records),
         candidate=sum(
             item.status is LiteratureClaimStatus.candidate for item in records
         ),
-        rejected=sum(
-            item.status is LiteratureClaimStatus.rejected for item in records
-        ),
+        rejected=sum(item.status is LiteratureClaimStatus.rejected for item in records),
     )

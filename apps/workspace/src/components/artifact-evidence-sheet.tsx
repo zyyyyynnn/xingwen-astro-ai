@@ -20,6 +20,7 @@ import {
 export function ArtifactEvidenceSheet({
   runtime,
   projectId,
+  artifactVersionId,
   evidenceId,
   open,
   onOpenChange,
@@ -27,6 +28,7 @@ export function ArtifactEvidenceSheet({
 }: {
   readonly runtime: WorkspaceRuntimeBoundaries;
   readonly projectId: DomainEntityId;
+  readonly artifactVersionId: DomainEntityId;
   readonly evidenceId: DomainEntityId | null;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
@@ -35,6 +37,7 @@ export function ArtifactEvidenceSheet({
   const query = useQuery({
     ...runtime.application.queries.evidence(
       projectId,
+      artifactVersionId,
       evidenceId as DomainEntityId,
     ),
     enabled: open && evidenceId !== null,
@@ -45,15 +48,15 @@ export function ArtifactEvidenceSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="artifact-evidence-sheet overflow-y-auto"
+        className="artifact-evidence-sheet result-side-sheet"
       >
-        <SheetHeader>
+        <SheetHeader className="result-side-sheet__header">
           <SheetTitle>研究证据</SheetTitle>
           <SheetDescription>
             查看这一结论对应的真实来源与定位信息。
           </SheetDescription>
         </SheetHeader>
-        <div className="space-y-5 px-4 pb-6 text-sm">
+        <div className="result-sheet-body">
           {query.isPending ? <Skeleton className="h-36 w-full" /> : null}
           {query.isError ? (
             <Alert variant="destructive">

@@ -1983,7 +1983,9 @@
             }
           ],
           "evidence_ids": [],
-          "reasoning_trace": null
+          "reasoning_trace": null,
+          "can_adjudicate": null,
+          "relation": null
         },
         {
           "key": "candidate.02ce823d0f143321d28cc5559795fe8bbc1c15e39e6323ad845e71c123cbcedb",
@@ -2015,7 +2017,9 @@
             }
           ],
           "evidence_ids": [],
-          "reasoning_trace": null
+          "reasoning_trace": null,
+          "can_adjudicate": null,
+          "relation": null
         },
         {
           "key": "candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488",
@@ -2039,7 +2043,9 @@
             }
           ],
           "evidence_ids": [],
-          "reasoning_trace": null
+          "reasoning_trace": null,
+          "can_adjudicate": null,
+          "relation": null
         },
         {
           "key": "candidate.3583c307e03702c060c706e7fe3aa39cac4afed4c3e1f47eded9d2adcc8f415a",
@@ -2063,7 +2069,9 @@
             }
           ],
           "evidence_ids": [],
-          "reasoning_trace": null
+          "reasoning_trace": null,
+          "can_adjudicate": null,
+          "relation": null
         },
         {
           "key": "candidate.c46a7e7bc6d500bbdd3d1a4dcabb15fa2db8ca4d67fccef4c2b56816d7dc0c0e",
@@ -2091,7 +2099,9 @@
             }
           ],
           "evidence_ids": [],
-          "reasoning_trace": null
+          "reasoning_trace": null,
+          "can_adjudicate": null,
+          "relation": null
         },
         {
           "key": "candidate.b2abb7b70b542ae94f90f3f305d5b8222df8e4ce6b1777ebab159daa3bac781c",
@@ -2111,7 +2121,9 @@
             }
           ],
           "evidence_ids": [],
-          "reasoning_trace": null
+          "reasoning_trace": null,
+          "can_adjudicate": null,
+          "relation": null
         },
         {
           "key": "candidate.e3ff8c08ef3c48d0df02ea937ad554396bf724680a747f47a8bb5e3e1c27ec9b",
@@ -2126,7 +2138,9 @@
           ],
           "facts": [],
           "evidence_ids": [],
-          "reasoning_trace": null
+          "reasoning_trace": null,
+          "can_adjudicate": null,
+          "relation": null
         }
       ],
       "tables": [],

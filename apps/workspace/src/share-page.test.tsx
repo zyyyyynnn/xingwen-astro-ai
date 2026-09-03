@@ -69,6 +69,8 @@ const snapshot: PublicShareSnapshot = {
             facts: [],
             evidenceIds: [],
             reasoningTrace: null,
+            canAdjudicate: null,
+            relation: null,
           },
         ],
         tables: [
@@ -227,9 +229,7 @@ describe("PublicShareView", () => {
     );
 
     const dossier = screen.getByRole("list", { name: "科学结果档案" });
-    fireEvent.click(
-      within(dossier).getByRole("button", { name: "查看证据 2" }),
-    );
+    fireEvent.click(within(dossier).getByRole("button", { name: "证据 2" }));
 
     expect(screen.getByRole("heading", { name: "证据 2" })).toBeVisible();
     expect(screen.getByText("Second frozen evidence.")).toBeVisible();
@@ -267,6 +267,8 @@ describe("PublicShareView", () => {
                     facts: [],
                     evidenceIds: [],
                     reasoningTrace: null,
+                    canAdjudicate: false,
+                    relation: null,
                   },
                 ],
                 tables: [],
@@ -282,7 +284,11 @@ describe("PublicShareView", () => {
     );
 
     expect(screen.getByText("比较方法 · 发现 · 正向")).toBeVisible();
-    expect(screen.getByText("已纳入结论")).toBeVisible();
+    expect(
+      within(screen.getByTestId("literature-entry-relation-1")).getByText(
+        "已纳入",
+      ),
+    ).toBeVisible();
     for (const token of [
       "compares_method",
       "accepted",

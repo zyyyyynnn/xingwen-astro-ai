@@ -50,12 +50,21 @@ DocumentParserPort.parse_document(
 ```
 
 调用方提供并负责 `source_type`、`mime_type` 与输入内容身份；解析器不得猜测。
-生产 hybrid adapter 可先使用 native PDF text/geometry，再把需要视觉能力的页
-路由到已配置的 visual service。缺少视觉配置或调用失败时必须显式返回
-`partial`/`unsupported`，不能伪造结构或数值。
+科学文档准入接受上传的 PDF / 支持的图像，以及经受控 URL 摄取、按实际字节确认同类 MIME 的文档。URL 输入保留 `type=url` 与 `source_type=url_fetch` 来源身份；研读和原文读取使用已存储的不可变内容、项目所有权及统一 MIME 准入。
+生产 hybrid adapter 先使用 native PDF text/geometry，再只把 native 内容确实
+不足的页路由到已配置的 visual service。bitmap/vector resource 的存在本身不构成
+视觉推理理由；只有 native text 低于基础可用阈值，或页面同时存在视觉结构且 native
+text 仍处于受限的稀疏区间时，才允许 visual routing。基础 native 可用阈值与 structured
+page 的稀疏上限是两个独立的 parser policy 参数，并共同写入 `configuration_hash`，避免普通 born-digital 论文因
+分隔线、矢量图或图片资源被逐页重复视觉解析。
 
-`DocumentParseProfile.routing_policy_id` 与 `resource_policy_id` 保存策略
-身份；`parser_profile_version` 只表示 parser profile 的技术版本。
+昂贵的 visual inference 还必须受单文档 page budget 约束，并把预算写入 parser
+profile。预算耗尽、缺少视觉配置或视觉调用失败时，对仍有 native 内容的页面保留其
+native blocks，同时把整篇 parse 明确降为 `partial`；不得无限执行视觉模型，也不得
+把未执行区域伪装成已解析结构或数值。
+
+`DocumentParseProfile.routing_policy_id` 与 `resource_policy_id` 保存策略身份；
+完整 parser 配置由 `configuration_hash` 固定，不再维护独立的内部 profile 版本线。
 
 ## 3. Quality semantics
 
@@ -81,10 +90,27 @@ textual payload。
 左上角原点、x 向右、y 向下的绝对 PDF points；不使用 0..1 归一化。未知几何
 使用 `None`，不能用零矩形代替。
 
+`page_index` 按 PDF 物理页序从 0 开始。解析适配层转换底层库的页号，展示层在
+用户可见页码中加 1；page、block、table、formula、figure 与 Evidence 共享该约定。
+
 HTML table 只提供 enclosing table/block geometry 时，各 `DocumentTableCell.bbox`
 必须为 `None`，不能把 enclosing bbox 复制成伪 cell geometry。由该 cell 派生的
 `DocumentLocator` 仍绑定真实 `table_id`/`cell_id`，其 `bbox` 明确回退到 enclosing
 table block bbox；这样既保留可核验的 region locator，也不虚构 cell-level 坐标。
+
+表格 block 的 `text` 从 canonical cells 按真实行列生成纯文本，不保留供应商
+HTML 标记。合并单元格只在 anchor 位置输出一次，覆盖位置保持空白；数值、单位
+与不确定性不改写。摘要和展示消费同一 block text，Evidence text span 定位到该
+不可变文本；单元格级科学数据准入继续使用 table/cell locator。
+
+视觉 block 的展示包装转换为可读纯文本，保留科学内容；未知标记保留供下游安全
+校验拒绝，不通过删去未知内容绕过准入。Figure 保留真实 region geometry；图片占位 HTML 的路径、属性与通用 alt 标签
+不作为正文或图注。没有识别到可读文本时，figure text/caption 为 `None`、quality
+为 partial。独立 figure/table caption 保持 caption block，参与正常文本 Evidence。
+
+长文摘要按文档顺序合并相邻段落与短章节，在字符数和 Evidence 条目数预算内
+分片；章节标题不单独强制触发模型调用。每条 Evidence 保留原章节、页码与文本
+定位，分片携带所覆盖章节的有序提示，聚合结果继续校验分片内引用闭包。
 
 `cell_id` 必须同时有 `table_id`；`text_span` 必须同时有 `block_id`。持久化
 层必须在 immutable parse 上重新验证 locator，确认 page、block、table、cell
@@ -156,26 +182,29 @@ identity。CPU 与 GPU profile 的证据必须独立，未验证能力必须明�
 geometry locator 与 deterministic input/output hash。未测能力必须保持显式状态，
 不能表示成零覆盖率。
 
-Runner 提供三种显式模式，消费同一冻结 Golden Set：`native-only`（无视觉后端）、
-`hybrid`（必须配置真实 PaddleOCR-VL layout-parsing 服务，或已由 committed asset
-manifest 完整校验的 local bundle；远程 URL+revision 与 local bundle 严格互斥，
-缺配置时拒绝启动，绝不把降级运行标成 hybrid）与 `paired`（同一 manifest 的两种模式合并为一份可
-对比报告，逐 mode 携带 accepted/partial/unsupported、anchor recovery、
-routing coverage 与延迟/内存均值指标）。测量诚实性由契约强制：latency 取自
+Runner 对外只提供两个有独立价值的模式：`native-only` 用于快速验证无视觉后端的
+生产解析路径；`paired` 在同一冻结 Golden Set 上依次执行 native-only 与真实 hybrid
+parser，并合并为唯一可对比报告。paired 必须配置真实 PaddleOCR-VL
+layout-parsing 服务，或已由 committed asset manifest 完整校验的 local bundle；远程
+URL+revision 与 local bundle 严格互斥，缺配置时拒绝启动。报告逐 mode 携带
+accepted/partial/unsupported、anchor recovery、routing coverage 与延迟/内存均值指标。
+测量诚实性由契约强制：latency 取自
 单调时钟实测；`peak_memory_bytes` 必须携带真实观测口径
 （`python_heap_tracemalloc`），不得冒充进程 RSS 或 GPU 内存；GPU 未执行必须
-记为 `not_run`/`deferred`；hybrid/paired 报告必须携带完整 visual provenance，
+记为 `not_run`/`deferred`；paired 报告必须携带完整 visual provenance，
 且 `scripts/check_scientific_document_benchmark_report.py` 对缺少实测 hybrid
 case、latency、provenance，或没有任何成功 visual routing 的自述直接失败。报告 identity hash 排除 wall-clock
 与计时噪声字段，同输入重复运行保持稳定。真实 Paddle invocation 属受控集成证据，
 公共 CI 只验证 schema、deterministic parser tests 与已产出报告的
 provenance/hash 契约。
 
-受控 real Paddle CPU 执行的 hybrid/paired machine reports 固化在
-`services/scientific_document/evidence/`。报告输入的 publication assets 是
+受控 real Paddle CPU 执行的 paired machine report 是
+`services/scientific_document/evidence/` 下唯一 tracked visual benchmark evidence；
+它在同一冻结 Golden Set 上同时记录 native-only 与 hybrid 两种执行。报告输入的
+publication assets 是
 `source_mode=fixture`，模型推理、routing、latency 与 output 则来自真实 production
-hybrid adapter；因此这些 Artifact/evidence 不得标记为 `live`。CI 对两份报告执行
-同一个 fail-closed checker，使任意 exact checkout 都能复核 model/revision、
+hybrid adapter；因此这些 Artifact/evidence 不得标记为 `live`。CI 对唯一 paired report 执行
+fail-closed checker，使任意 exact checkout 都能复核 model/revision、
 config/input/output hash、case-level latency 与成功 visual routing。
 
 API 只暴露一个 `HybridScientificDocumentParser` 与一个 DocumentParse persistence

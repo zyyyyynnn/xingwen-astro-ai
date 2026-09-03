@@ -6,6 +6,82 @@ import { createTestRuntime } from "../test/runtime";
 const PROJECT_ID = asEntityId("proj_01JEXAMPLE");
 const VERSION_ID = asEntityId("artv_papsum_01");
 
+describe("Workspace Evidence queries", () => {
+  const DATASET_VERSION_ID = asEntityId("artv_dataset_01");
+  const GRAPH_VERSION_ID = asEntityId("artv_graph_01");
+
+  async function firstEvidenceId(
+    runtime: ReturnType<typeof createTestRuntime>,
+  ) {
+    const version =
+      await runtime.repositories.artifacts.getVersion(DATASET_VERSION_ID);
+    const evidenceId = version?.evidenceIds[0];
+    if (!evidenceId) throw new Error("Fixture Evidence is missing.");
+    return evidenceId;
+  }
+
+  it("reads Evidence once and never re-reads its ArtifactVersion", async () => {
+    const runtime = createTestRuntime();
+    const evidenceId = await firstEvidenceId(runtime);
+    const getEvidence = vi.spyOn(runtime.repositories.artifacts, "getEvidence");
+    const getVersion = vi.spyOn(runtime.repositories.artifacts, "getVersion");
+    getVersion.mockClear();
+
+    const evidence = await runtime.queryClient.fetchQuery(
+      runtime.application.queries.evidence(
+        PROJECT_ID,
+        DATASET_VERSION_ID,
+        evidenceId,
+      ),
+    );
+
+    expect(evidence.id).toBe(evidenceId);
+    expect(evidence.artifactVersionId).toBe(DATASET_VERSION_ID);
+    expect(getEvidence).toHaveBeenCalledTimes(1);
+    expect(getVersion).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when Evidence belongs to another ArtifactVersion", async () => {
+    const runtime = createTestRuntime();
+    const evidenceId = await firstEvidenceId(runtime);
+    const evidence =
+      await runtime.repositories.artifacts.getEvidence(evidenceId);
+    if (!evidence) throw new Error("Fixture Evidence is missing.");
+    vi.spyOn(runtime.repositories.artifacts, "getEvidence").mockResolvedValue({
+      ...evidence,
+      artifactVersionId: asEntityId("artv_graph_01"),
+    });
+
+    await expect(
+      runtime.queryClient.fetchQuery(
+        runtime.application.queries.evidence(
+          PROJECT_ID,
+          DATASET_VERSION_ID,
+          evidenceId,
+        ),
+      ),
+    ).rejects.toMatchObject({ name: "EntityNotFoundError" });
+  });
+
+  it("keeps fixture Graph Evidence pinned to the Graph ArtifactVersion", async () => {
+    const runtime = createTestRuntime();
+    const version =
+      await runtime.repositories.artifacts.getVersion(GRAPH_VERSION_ID);
+    const evidenceId = version?.evidenceIds[0];
+    if (!evidenceId) throw new Error("Fixture Graph Evidence is missing.");
+
+    const evidence = await runtime.queryClient.fetchQuery(
+      runtime.application.queries.evidence(
+        PROJECT_ID,
+        GRAPH_VERSION_ID,
+        evidenceId,
+      ),
+    );
+
+    expect(evidence.artifactVersionId).toBe(GRAPH_VERSION_ID);
+  });
+});
+
 describe("Workspace ArtifactVersion queries", () => {
   it("returns the exact requested PaperSummary version", async () => {
     const runtime = createTestRuntime();

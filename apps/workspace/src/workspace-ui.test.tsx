@@ -10,11 +10,11 @@ import { parseEntityId, type DomainEntityId } from "@xingwen/domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  OpenHandsWorkspaceRoot,
+  WorkspaceMechanicsRoot,
   type ResearchWorkspaceRuntime,
-} from "../upstream/openhands/src/root";
-import { useCommandMenuStore } from "../upstream/openhands/src/stores/command-menu-store";
-import { useSidebarStore } from "../upstream/openhands/src/stores/sidebar-store";
+} from "./mechanics/root";
+import { useCommandMenuStore } from "./mechanics/stores/command-menu-store";
+import { useSidebarStore } from "./mechanics/stores/sidebar-store";
 import { createTestRuntime } from "./test/runtime";
 import { WorkspaceEntry } from "./workspace-host";
 
@@ -120,7 +120,7 @@ describe("Workspace product UI", () => {
       threadPanel: <p>研究 Thread 内容</p>,
       inspectorPanel: <p>Research Inspector 内容</p>,
     };
-    render(<OpenHandsWorkspaceRoot runtime={runtime} />);
+    render(<WorkspaceMechanicsRoot runtime={runtime} />);
 
     expect(screen.getByText("研究 Thread 内容")).toBeInTheDocument();
     expect(screen.getByText("Research Inspector 内容")).toBeInTheDocument();

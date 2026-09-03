@@ -30,7 +30,11 @@ class _VisualParser:
     model_revision = "test-revision"
     runtime_binding_hash = "sha256:" + "f" * 64
 
+    def __init__(self) -> None:
+        self.calls = 0
+
     def parse_page(self, image_bytes: bytes) -> VisualPageResult:
+        self.calls += 1
         assert image_bytes.startswith(b"\x89PNG")
         return VisualPageResult(
             width_pixels=595,
@@ -74,6 +78,8 @@ def test_scanned_page_routes_to_visual_parser_and_preserves_structure() -> None:
         DocumentBlockKind.figure,
     }
     assert all(block.parser_backend is ParserBackend.visual for block in parsed.blocks)
+    assert [page.page_index for page in parsed.pages] == [0]
+    assert all(block.page_index == 0 for block in parsed.blocks)
     assert parsed.tables[0].rows[1][1].text == "1.2"
     assert parsed.formulas[0].latex == "F = ma"
     assert parsed.figures[0].caption == "图 1：光变曲线"
@@ -97,6 +103,40 @@ def test_born_digital_structured_page_routes_to_visual_canonicalization() -> Non
     assert parsed.formulas
     assert parsed.figures
     assert all(block.parser_backend is ParserBackend.visual for block in parsed.blocks)
+
+
+def test_structured_page_with_sufficient_native_text_skips_visual_parser() -> None:
+    visual = _VisualParser()
+    parsed = HybridScientificDocumentParser(
+        visual_parser=visual,
+        visual_structure_native_character_ceiling=100,
+    ).parse_document(_input("golden_complex_table.pdf"))
+
+    assert visual.calls == 0
+    assert parsed.overall_quality is DocumentParseQuality.accepted
+    assert parsed.blocks
+    assert all(block.parser_backend is ParserBackend.native for block in parsed.blocks)
+
+
+def test_visual_page_budget_bounds_expensive_inference_and_marks_partial() -> None:
+    visual = _VisualParser()
+    parser = HybridScientificDocumentParser(
+        visual_parser=visual,
+        max_visual_pages=1,
+    )
+
+    parsed = parser.parse_document(_input("golden_cross_page_table.pdf"))
+
+    assert visual.calls == 1
+    assert parsed.overall_quality is DocumentParseQuality.partial
+    assert any(
+        block.page_index == 0 and block.parser_backend is ParserBackend.visual
+        for block in parsed.blocks
+    )
+    assert any(
+        block.page_index == 1 and block.parser_backend is ParserBackend.native
+        for block in parsed.blocks
+    )
 
 
 def test_document_image_uses_the_same_canonical_visual_contract() -> None:

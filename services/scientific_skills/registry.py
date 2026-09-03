@@ -207,7 +207,7 @@ def build_scientific_skill_registry(
     return ScientificSkillRegistry(
         ScientificSkillDefinition(
             skill_id=skill_id,
-            revision="1.2.0",
+            revision="1.3.0" if skill_id is ScientificSkillId.data_profile else "1.2.0",
             phase=str(descriptor["phase"]),
             label=str(descriptor["label"]),
             description=str(descriptor["description"]),

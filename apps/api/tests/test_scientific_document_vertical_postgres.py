@@ -171,7 +171,6 @@ class _StubSummaryModel:
             "discussion": [],
             "limitations": [],
             "research_questions": [],
-            "evidence_ids": [evidence_id],
         }
         return ModelExecutionResponse(
             payload=payload,
@@ -385,7 +384,7 @@ def chain(postgres_engine: Engine, tmp_path_factory) -> VerticalChain:
         version=contract_model.version,
         content_hash=contract_model.content_hash,
         created_from_draft_id=str(contract_model.created_from_draft_id),
-        created_at=contract_model.created_at or NOW,
+        created_at=(contract_model.created_at or NOW).astimezone(UTC),
         **payload,
     )
     context = RunStepContext(
@@ -422,7 +421,7 @@ def chain(postgres_engine: Engine, tmp_path_factory) -> VerticalChain:
         operation_key="document_parse:vertical",
         producer_type="algorithm",
         producer_name="scientific-document-parser",
-        producer_version=profile.parser_profile_version,
+        producer_version=profile.native_backend.rsplit("==", 1)[-1],
         input_hash=parse_input_hash,
         parameters={
             "parser_profile_id": profile.parser_profile_id,
@@ -847,7 +846,7 @@ def test_real_visual_document_publishes_coherent_data_artifact_bundle(
         operation_key="document_parse:real_visual",
         producer_type="algorithm",
         producer_name="scientific-document-parser",
-        producer_version=parser.profile.parser_profile_version,
+        producer_version=parser.profile.native_backend.rsplit("==", 1)[-1],
         input_hash=parse_input_hash,
         parameters={
             "parser_profile_id": parser.profile.parser_profile_id,

@@ -38,6 +38,18 @@
           "default": null,
           "title": "Assessment"
         },
+        "can_adjudicate": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Can Adjudicate"
+        },
         "evidence_ids": {
           "default": [],
           "items": {
@@ -87,6 +99,17 @@
           "anyOf": [
             {
               "$ref": "#/$defs/PublicPresentationTrace"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "relation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PublicPresentationRelation"
             },
             {
               "type": "null"
@@ -253,6 +276,28 @@
         "text"
       ],
       "title": "PublicPresentationParagraph",
+      "type": "object"
+    },
+    "PublicPresentationRelation": {
+      "additionalProperties": false,
+      "description": "The two published claims connected by a literature relation.",
+      "properties": {
+        "source_claim": {
+          "minLength": 1,
+          "title": "Source Claim",
+          "type": "string"
+        },
+        "target_claim": {
+          "minLength": 1,
+          "title": "Target Claim",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_claim",
+        "target_claim"
+      ],
+      "title": "PublicPresentationRelation",
       "type": "object"
     },
     "PublicPresentationSection": {
@@ -484,9 +529,16 @@
           },
           "title": "Steps",
           "type": "array"
+        },
+        "trace_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Trace Id",
+          "type": "string"
         }
       },
       "required": [
+        "trace_id",
         "conclusion",
         "steps"
       ],

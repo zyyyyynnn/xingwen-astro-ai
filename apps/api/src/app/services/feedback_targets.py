@@ -8,7 +8,15 @@ from pydantic import ValidationError
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import ArtifactKind, ExportArtifactContent
-from app.schemas.revision import CreateUserFeedbackRequest, FeedbackTargetType
+from app.schemas.literature_relation import (
+    LiteratureRelationReviewReason,
+    LiteratureRelationStatus,
+)
+from app.schemas.revision import (
+    CreateUserFeedbackRequest,
+    FeedbackCategory,
+    FeedbackTargetType,
+)
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
 from app.services.data_artifacts import DataArtifactReadService
@@ -251,11 +259,20 @@ class FeedbackTargetAuthority:
                 )
             elif target_type is FeedbackTargetType.relation:
                 self._require_kind(artifact_kind, "literature_relations")
-                await self._literature.get_relation(
+                relation = await self._literature.get_relation(
                     version_id=version_id,
                     relation_id=target_id,
                     session_id=session_id,
                 )
+                if request.category is FeedbackCategory.adjudication and (
+                    relation.relation.status is not LiteratureRelationStatus.candidate
+                    or relation.relation.review_reason
+                    not in {
+                        LiteratureRelationReviewReason.confidence_not_evaluable,
+                        LiteratureRelationReviewReason.confidence_below_threshold,
+                    }
+                ):
+                    raise _invalid_target()
             elif target_type is FeedbackTargetType.trace:
                 self._require_kind(artifact_kind, "literature_relations")
                 await self._literature.get_reasoning_trace(

@@ -29,6 +29,7 @@ function mapFeedback(dto: UserFeedbackDto): UserFeedback {
     targetId: asEntityId(dto.target_id),
     targetLocator: dto.target_locator,
     category: dto.category,
+    adjudicationDecision: dto.adjudication_decision ?? null,
     summary: dto.summary,
     requestedChange: dto.requested_change,
     createdAt: dto.created_at,
@@ -77,18 +78,69 @@ function mapPlan(dto: RevisionPlanDto): RevisionPlan {
 export function createRevisionRepository(http: HttpClient): RevisionRepository {
   return {
     async createFeedback(input): Promise<UserFeedback> {
-      const body: CreateUserFeedbackRequest = {
-        expected_version_number: input.expectedVersionNumber,
-        target_type: "artifact_version",
-        target_id: input.artifactVersionId,
-        target_locator: {
-          artifact_id: input.artifactId,
-          artifact_version_id: input.artifactVersionId,
-        },
-        category: "correction",
-        summary: input.summary,
-        requested_change: input.requestedChange,
-      };
+      const body: CreateUserFeedbackRequest = (() => {
+        switch (input.kind) {
+          case "artifact_correction":
+            return {
+              expected_version_number: input.expectedVersionNumber,
+              target_type: "artifact_version" as const,
+              target_id: input.artifactVersionId,
+              target_locator: {
+                artifact_id: input.artifactId,
+                artifact_version_id: input.artifactVersionId,
+              },
+              category: "correction" as const,
+              summary: input.summary,
+              requested_change: input.requestedChange,
+            };
+          case "relation_correction":
+            return {
+              expected_version_number: input.expectedVersionNumber,
+              target_type: "relation" as const,
+              target_id: input.relationId,
+              target_locator: {
+                artifact_version_id: input.artifactVersionId,
+                relation_id: input.relationId,
+              },
+              category: "correction" as const,
+              summary: input.summary,
+              requested_change: input.requestedChange,
+            };
+          case "trace_correction":
+            return {
+              expected_version_number: input.expectedVersionNumber,
+              target_type: "trace" as const,
+              target_id: input.traceId,
+              target_locator: {
+                artifact_version_id: input.artifactVersionId,
+                trace_id: input.traceId,
+              },
+              category: "correction" as const,
+              summary: input.summary,
+              requested_change: input.requestedChange,
+            };
+          case "relation_adjudication":
+            return {
+              expected_version_number: input.expectedVersionNumber,
+              target_type: "relation" as const,
+              target_id: input.relationId,
+              target_locator: {
+                artifact_version_id: input.artifactVersionId,
+                relation_id: input.relationId,
+              },
+              category: "adjudication" as const,
+              adjudication_decision: input.decision,
+              summary: input.summary,
+              requested_change: input.requestedChange,
+            };
+          default: {
+            const _exhaustive: never = input;
+            throw new Error(
+              `Unsupported revision intent: ${String(_exhaustive)}`,
+            );
+          }
+        }
+      })();
       const payload = await http.post<unknown>(
         `/api/artifact-versions/${seg(input.artifactVersionId)}/feedback`,
         body,

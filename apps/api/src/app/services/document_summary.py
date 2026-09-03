@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import json
 from typing import Any
 
@@ -10,15 +10,18 @@ from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.paper_summary import (
     PaperSummaryAdmissionResult,
     PaperSummaryEvidenceCandidate,
+    PaperSummaryModelOutput,
     PaperSummaryModelUsage,
     PaperSummaryPaperMetadata,
     PaperSummarySourceSnapshotReference,
 )
 from app.schemas.scientific_document import DocumentParseCandidate
 from app.services.model_execution import (
+    ModelExecutionError,
     ModelExecutionPort,
     ModelExecutionRequest,
     ModelExecutionResponse,
+    model_execution_failure_response,
 )
 from packages.prompts.registry import PromptRegistry
 from services.paper_pipeline.summary import (
@@ -70,6 +73,19 @@ class PreparedDocumentSummary:
     model_request: ModelExecutionRequest
     input_hash: str
     parameters_hash: str
+
+
+def build_paper_summary_response_schema(
+    allowed_evidence_ids: tuple[str, ...],
+) -> dict[str, Any]:
+    """Constrain model-authored Evidence references to the current input."""
+
+    schema = PaperSummaryModelOutput.model_json_schema()
+    allowed = tuple(dict.fromkeys(allowed_evidence_ids))
+    if allowed:
+        statement_schema = schema["$defs"]["PaperSummaryStatementCandidate"]
+        statement_schema["properties"]["evidence_ids"]["items"]["enum"] = list(allowed)
+    return schema
 
 
 class DocumentSummaryService:
@@ -153,6 +169,11 @@ class DocumentSummaryService:
             prompt=prompt.content,
             input_payload=input_payload,
             parameters=request.parameters,
+            response_schema_name="paper_summary",
+            response_schema=build_paper_summary_response_schema(
+                tuple(item.evidence_id for item in evidence)
+            ),
+            enable_thinking=False,
         )
         _, input_hash, parameters_hash = build_document_summary_input_identity(
             document_parse=request.document_parse,
@@ -181,9 +202,34 @@ class DocumentSummaryService:
         producer_execution_id: str | None = None,
     ) -> DocumentSummaryExecution:
         request = prepared.request
-        response = self._models.execute(prepared.model_request)
-        _validate_model_response(response)
-        usage = _model_usage(response.token_usage)
+        observed_responses: list[ModelExecutionResponse] = []
+        try:
+            response = self._models.execute(prepared.model_request)
+            _validate_model_response(response)
+        except ModelExecutionError as exc:
+            if exc.code != "MODEL_RESPONSE_TRUNCATED":
+                raise
+            failed_response = model_execution_failure_response(exc)
+            if failed_response is not None:
+                observed_responses.append(failed_response)
+            response = self._models.execute(
+                replace(
+                    prepared.model_request,
+                    input_payload={
+                        **prepared.model_request.input_payload,
+                        "validation_feedback": {
+                            "code": "DOCUMENT_SUMMARY_TRUNCATED",
+                            "concise_output": True,
+                        },
+                    },
+                )
+            )
+            _validate_model_response(response)
+        observed_responses.append(response)
+        aggregate_response = _aggregate_model_responses(
+            tuple(observed_responses), final_response=response
+        )
+        usage = _model_usage(aggregate_response.token_usage)
         admission = self._pipeline.admit_document(
             document_parse=request.document_parse,
             document_parse_id=request.document_parse_id,
@@ -198,10 +244,10 @@ class DocumentSummaryService:
             model_name=request.model,
             model_revision=request.model_revision,
             provider=request.provider,
-            provider_returned_model=response.provider_returned_model,
-            provider_request_id=response.provider_request_id,
+            provider_returned_model=aggregate_response.provider_returned_model,
+            provider_request_id=aggregate_response.provider_request_id,
             usage=usage,
-            latency_ms=response.latency_ms,
+            latency_ms=aggregate_response.latency_ms,
             parameters=request.parameters,
             evidence_candidates=prepared.evidence_candidates,
             run_id=request.run_id,
@@ -211,10 +257,10 @@ class DocumentSummaryService:
             raise ValueError("prepared summary input identity drifted during admission")
         return DocumentSummaryExecution(
             admission=admission,
-            model_response=response,
-            provider_request_id=response.provider_request_id,
+            model_response=aggregate_response,
+            provider_request_id=aggregate_response.provider_request_id,
             token_usage=usage,
-            latency_ms=response.latency_ms,
+            latency_ms=aggregate_response.latency_ms,
         )
 
 
@@ -239,6 +285,49 @@ def _model_usage(payload: dict[str, Any] | None) -> PaperSummaryModelUsage | Non
     return PaperSummaryModelUsage.model_validate(values)
 
 
+def _aggregate_model_responses(
+    responses: tuple[ModelExecutionResponse, ...],
+    *,
+    final_response: ModelExecutionResponse,
+) -> ModelExecutionResponse:
+    if len(responses) == 1:
+        return final_response
+    usage_keys = ("prompt_tokens", "completion_tokens", "total_tokens")
+    usage_totals = dict.fromkeys(usage_keys, 0)
+    usage_complete = True
+    returned_models: list[str] = []
+    returned_models_complete = True
+    for response in responses:
+        if response.token_usage is None:
+            usage_complete = False
+        else:
+            for key in usage_keys:
+                value = response.token_usage.get(key)
+                if not isinstance(value, int) or isinstance(value, bool):
+                    usage_complete = False
+                else:
+                    usage_totals[key] += value
+        if response.provider_returned_model is None:
+            returned_models_complete = False
+        else:
+            returned_models.append(response.provider_returned_model)
+    returned_model = (
+        returned_models[0]
+        if returned_models_complete
+        and returned_models
+        and len(set(returned_models)) == 1
+        else None
+    )
+    return ModelExecutionResponse(
+        payload=final_response.payload,
+        output_hash=final_response.output_hash,
+        token_usage=usage_totals if usage_complete else None,
+        latency_ms=sum(response.latency_ms for response in responses),
+        provider_request_id=None,
+        provider_returned_model=returned_model,
+    )
+
+
 __all__ = [
     "DocumentSummaryExecution",
     "DocumentSummaryInputTooLargeError",
@@ -247,4 +336,5 @@ __all__ = [
     "MAX_SINGLE_EXECUTION_EVIDENCE_CHARACTERS",
     "MAX_SINGLE_EXECUTION_EVIDENCE_ITEMS",
     "PreparedDocumentSummary",
+    "build_paper_summary_response_schema",
 ]

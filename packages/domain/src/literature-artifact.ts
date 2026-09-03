@@ -82,6 +82,14 @@ export interface LiteratureRelationConfidenceReview {
   readonly acceptanceThreshold: number;
 }
 
+export interface LiteratureRelationAdjudicationReview {
+  readonly decision: "accepted" | "rejected";
+  readonly basis: readonly string[];
+  readonly feedbackId: DomainEntityId;
+  readonly baselineArtifactVersionId: DomainEntityId;
+  readonly baselineRelationId: DomainEntityId;
+}
+
 export interface LiteratureReasoningTraceStepReview {
   readonly order: number;
   readonly operation: string;
@@ -119,6 +127,7 @@ export interface LiteratureRelationReview {
   readonly conditionConflicts: readonly string[];
   readonly conditionUncertainties: readonly string[];
   readonly confidence: LiteratureRelationConfidenceReview | null;
+  readonly adjudication: LiteratureRelationAdjudicationReview | null;
   readonly evidenceIds: readonly DomainEntityId[];
   readonly sourceSnapshotIds: readonly DomainEntityId[];
   readonly sourceClaim: LiteratureClaimReferenceReview | null;
@@ -126,6 +135,7 @@ export interface LiteratureRelationReview {
   readonly reasoningTrace: LiteratureReasoningTraceReview | null;
   readonly failureStage: string | null;
   readonly rejectionReason: string | null;
+  readonly reviewReason: string | null;
 }
 
 export interface LiteratureRelationsArtifactReview extends LiteratureArtifactVersionReview {

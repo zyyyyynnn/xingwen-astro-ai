@@ -377,6 +377,53 @@ def test_url_ingestion_records_provenance_without_content(
     assert detail["url"] == "https://example.com/data.csv"
 
 
+@pytest.mark.parametrize(
+    ("fixture", "mime_type", "readable"),
+    (("sample.pdf", "application/pdf", True), ("sample.csv", "text/csv", False)),
+)
+def test_fetched_document_content_uses_owned_immutable_storage(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+    fixture: str,
+    mime_type: str,
+    readable: bool,
+) -> None:
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id)
+    content = FIXTURES_BYTES[fixture]
+    _stub_fetch(app, content=content, mime=mime_type)
+    response = client.post(
+        "/api/research-inputs",
+        json={
+            "project_id": "proj_01",
+            "type": "url",
+            "url": "https://example.com/data.csv",
+        },
+        headers=_headers(csrf_token),
+    )
+    assert response.status_code == 201
+
+    async def unexpected_fetch(*_args: object) -> None:
+        pytest.fail("Content reads must use stored bytes, not fetch the source again")
+
+    _install_fetcher(app, unexpected_fetch)
+    content_url = response.headers["location"] + "/content"
+    retrieved = client.get(content_url)
+    if readable:
+        assert retrieved.status_code == 200
+        assert retrieved.content == content
+        assert retrieved.headers["content-type"] == mime_type
+        assert retrieved.headers["cache-control"] == "no-store"
+        assert retrieved.headers["content-disposition"] == "inline"
+        assert retrieved.headers["x-content-type-options"] == "nosniff"
+    else:
+        assert retrieved.status_code == 409
+        assert retrieved.json()["code"] == "RESEARCH_INPUT_CONTENT_NOT_READABLE"
+
+    foreign = TestClient(app, base_url="https://testserver")
+    assert foreign.post("/api/sessions").status_code == 201
+    assert foreign.get(content_url).status_code == 404
+
+
 def test_url_policy_denial_maps_to_422(
     app_and_client: tuple[FastAPI, TestClient, str, str],
 ) -> None:

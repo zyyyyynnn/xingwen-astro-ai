@@ -6,7 +6,7 @@ Checks that the benchmark genuinely ran with no silent skips:
 - at least one case ran (no silent skip / empty report);
 - every fixture case carries a real ``output_hash`` and ``input_hash``;
 - declared metrics include the measured coverage metrics;
-- hybrid/paired reports carry complete visual provenance, at least one really
+- paired reports carry complete visual provenance, at least one really
   executed (latency-measured) hybrid case, and measured routing/latency
   metrics — a self-declared hybrid measurement without them fails closed;
 - device claims never infer a GPU result from a CPU run.
@@ -23,6 +23,7 @@ from app.schemas.scientific_document_benchmark import (
     BenchmarkDeviceStatus,
     BenchmarkMetricStatus,
     BenchmarkParserMode,
+    BenchmarkReportMode,
     BenchmarkReport,
 )
 
@@ -73,8 +74,8 @@ def _current_authority_errors(
     }
     expected_modes = (
         (BenchmarkParserMode.native_only, BenchmarkParserMode.hybrid)
-        if report.parser_mode == BenchmarkParserMode.paired
-        else (report.parser_mode,)
+        if report.parser_mode == BenchmarkReportMode.paired
+        else (BenchmarkParserMode.native_only,)
     )
     expected_cases = Counter(
         (entry_id, mode) for entry_id in fixture_entries for mode in expected_modes
@@ -95,7 +96,7 @@ def _current_authority_errors(
                 "does not match the current fixture"
             )
 
-    if report.parser_mode != BenchmarkParserMode.native_only and (
+    if report.parser_mode == BenchmarkReportMode.paired and (
         require_local_bundle or report.visual_engine == LOCAL_PADDLE_ENGINE_IDENTITY
     ):
         assets = load_asset_manifest()
@@ -112,7 +113,7 @@ def _current_authority_errors(
             or report.visual_runtime_binding_hash != assets["bundle_digest"]
         ):
             errors.append(
-                "hybrid report does not match the current verified local Paddle bundle"
+                "paired report does not match the current verified local Paddle bundle"
             )
 
     expected_config_hash = _config_hash_from_provenance(
@@ -182,21 +183,21 @@ def main() -> int:
                 f"case {case.entry_id} reports memory without its observation basis"
             )
 
-    if report.parser_mode == BenchmarkParserMode.native_only:
+    if report.parser_mode == BenchmarkReportMode.native_only:
         metric_names = {m.name for m in report.metrics}
         for required in ("accepted_rate", "native_routing_coverage"):
             if required not in metric_names:
                 errors.append(f"benchmark report missing metric {required}")
     else:
-        # A self-declared visual execution must prove it happened: complete
-        # provenance, at least one executed (latency-measured) hybrid case, and
-        # measured coverage plus latency metrics. Anything less fails closed.
+        # The paired visual execution must prove it happened: complete provenance,
+        # at least one executed (latency-measured) hybrid case, and measured
+        # coverage plus latency metrics. Anything less fails closed.
         if (
             not report.visual_engine
             or not report.visual_model_id
             or not report.visual_model_revision
         ):
-            errors.append(f"{report.parser_mode.value} report lacks visual provenance")
+            errors.append("paired report lacks visual provenance")
         hybrid_cases = [
             case
             for case in report.cases
@@ -207,8 +208,8 @@ def main() -> int:
         ]
         if not executed_hybrid:
             errors.append(
-                f"{report.parser_mode.value} report has no latency-measured "
-                "hybrid case; visual execution is unproven"
+                "paired report has no latency-measured hybrid case; "
+                "visual execution is unproven"
             )
         successfully_routed = [
             case
@@ -218,26 +219,16 @@ def main() -> int:
         ]
         if not successfully_routed:
             errors.append(
-                f"{report.parser_mode.value} report has no hybrid case with "
-                "successful visual routing"
+                "paired report has no hybrid case with successful visual routing"
             )
-        if report.parser_mode == BenchmarkParserMode.paired:
-            if not _measured_metric(report, "native_only_accepted_rate") or (
-                not _measured_metric(report, "hybrid_accepted_rate")
-            ):
-                errors.append("paired report missing per-mode accepted_rate metrics")
-            if not _measured_metric(report, "hybrid_latency"):
-                errors.append("paired report missing measured hybrid_latency metric")
-        else:
-            if not _measured_metric(report, "accepted_rate"):
-                errors.append("hybrid report missing measured accepted_rate metric")
-            if not _measured_metric(report, "latency"):
-                errors.append("hybrid report missing measured latency metric")
+        if not _measured_metric(report, "native_only_accepted_rate") or (
+            not _measured_metric(report, "hybrid_accepted_rate")
+        ):
+            errors.append("paired report missing per-mode accepted_rate metrics")
+        if not _measured_metric(report, "hybrid_latency"):
+            errors.append("paired report missing measured hybrid_latency metric")
         if not _measured_metric(report, "visual_routing_coverage"):
-            errors.append(
-                f"{report.parser_mode.value} report missing measured "
-                "visual_routing_coverage metric"
-            )
+            errors.append("paired report missing measured visual_routing_coverage metric")
 
     if errors:
         print("\n".join(errors), file=sys.stderr)

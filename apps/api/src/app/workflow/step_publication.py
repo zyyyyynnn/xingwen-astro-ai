@@ -16,8 +16,8 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
-from typing import Callable, Protocol, cast
+from dataclasses import dataclass, field, replace
+from typing import Any, Callable, Protocol, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from pydantic import BaseModel
@@ -34,7 +34,10 @@ from app.schemas.data_artifacts import (
     SourceTableArtifactAuthority,
 )
 from app.schemas.literature_claim import LiteratureClaimsCandidate
-from app.schemas.literature_relation import LiteratureRelationsCandidate
+from app.schemas.literature_relation import (
+    LiteratureRelationAdjudication,
+    LiteratureRelationsCandidate,
+)
 from app.schemas.paper_collection import PaperCollection
 from app.schemas.paper_summary import PaperSummaryArtifactContent
 from app.services.model_execution import (
@@ -43,6 +46,7 @@ from app.services.model_execution import (
     ModelExecutionPort,
     ModelExecutionRequest,
     ModelExecutionResponse,
+    model_execution_failure_response,
 )
 from app.workflow.publisher import (
     AdmittedArtifactCandidate,
@@ -93,6 +97,9 @@ class RunStepContext:
     data_revision: DataRevisionExecutionInput | None = None
     data_recompute_step_key: str | None = None
     non_data_recompute_step_keys: frozenset[str] = frozenset()
+    relation_adjudications: dict[str, LiteratureRelationAdjudication] = field(
+        default_factory=dict
+    )
     paper_collection: PaperCollection | None = None
     paper_summary: PaperSummaryArtifactContent | None = None
     literature_claims: LiteratureClaimsCandidate | None = None
@@ -732,23 +739,12 @@ class TrackedStepModelExecutionPort:
         try:
             response = base.execute(request)
         except ModelExecutionError as error:
+            failure_response = model_execution_failure_response(error)
             self._publications.finish_producer(
                 execution.id,
                 status="failed",
                 output_hash=error.output_hash,
-                response=(
-                    ModelExecutionResponse(
-                        payload={},
-                        output_hash=error.output_hash or ("sha256:" + "0" * 64),
-                        token_usage=error.token_usage,
-                        latency_ms=error.latency_ms or 0,
-                        provider_request_id=error.provider_request_id,
-                    )
-                    if error.latency_ms is not None
-                    or error.token_usage is not None
-                    or error.provider_request_id is not None
-                    else None
-                ),
+                response=failure_response,
                 error_code=error.code,
             )
             raise
@@ -837,23 +833,12 @@ class TrackedStepModelExecutionPort:
         try:
             response = base.execute(request)
         except ModelExecutionError as error:
+            failure_response = model_execution_failure_response(error)
             self._publications.finish_producer(
                 execution.id,
                 status="failed",
                 output_hash=error.output_hash,
-                response=(
-                    ModelExecutionResponse(
-                        payload={},
-                        output_hash=error.output_hash or ("sha256:" + "0" * 64),
-                        token_usage=error.token_usage,
-                        latency_ms=error.latency_ms or 0,
-                        provider_request_id=error.provider_request_id,
-                    )
-                    if error.latency_ms is not None
-                    or error.token_usage is not None
-                    or error.provider_request_id is not None
-                    else None
-                ),
+                response=failure_response,
                 error_code=error.code,
                 error_hash=compute_canonical_payload_hash({"error": error.code}),
             )
@@ -1077,6 +1062,9 @@ class StepModelCaller:
         producer_name: str | None = None,
         producer_version: str | None = None,
         parameters_hash: str | None = None,
+        response_schema_name: str | None = None,
+        response_schema: dict[str, Any] | None = None,
+        enable_thinking: bool = True,
     ) -> tuple[str, ModelExecutionResponse, UUID]:
         prompt = self._prompts.get(prompt_name)
         request = ModelExecutionRequest(
@@ -1090,7 +1078,9 @@ class StepModelCaller:
             input_payload=dict(input_payload),
             parameters=dict(parameters),
             response_mode="json",
-            enable_thinking=False,
+            response_schema_name=response_schema_name,
+            response_schema=response_schema,
+            enable_thinking=enable_thinking,
         )
         response, execution_id = (
             self._model_port.start_named(

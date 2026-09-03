@@ -90,7 +90,6 @@ class _Model:
             "discussion": [],
             "limitations": [],
             "research_questions": [],
-            "evidence_ids": [evidence_id],
         }
         output_hash = compute_canonical_payload_hash(payload)
         if self.tamper_hash:
@@ -152,7 +151,6 @@ def _parse_candidate() -> DocumentParseCandidate:
         content_hash=_CONTENT_HASH,
         profile=DocumentParseProfile(
             parser_profile_id="document-summary-profile",
-            parser_profile_version="1.0.0",
             native_backend="native-engine==1.0.0",
             routing_policy_id="native-only",
             resource_policy_id="cpu-capable",
@@ -301,7 +299,9 @@ class _PublishedSummaryArtifacts:
     def __init__(self, version: ArtifactVersionDetail) -> None:
         self._version = version
 
-    def get_version(self, *, version_id: str, session_id: str) -> ArtifactVersionDetail:
+    def get_version(
+        self, *, version_id: str, session_id: str, full_content: bool = False
+    ) -> ArtifactVersionDetail:
         assert version_id == _VERSION_ID
         assert session_id == _SESSION_ID
         return self._version
@@ -413,6 +413,14 @@ def test_document_summary_prepares_exact_identity_before_model_execution() -> No
 
     assert model.request is None
     assert prepared.input_hash.startswith("sha256:")
+    assert prepared.model_request.response_schema_name == "paper_summary"
+    assert prepared.model_request.enable_thinking is False
+    schema = prepared.model_request.response_schema
+    assert schema is not None
+    statement_schema = schema["$defs"]["PaperSummaryStatementCandidate"]
+    assert statement_schema["properties"]["evidence_ids"]["items"]["enum"] == [
+        item.evidence_id for item in prepared.evidence_candidates
+    ]
     result = service.execute_prepared(
         prepared,
         producer_execution_id="execution.document-summary.fixed",

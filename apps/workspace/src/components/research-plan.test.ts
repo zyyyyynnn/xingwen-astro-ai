@@ -168,4 +168,28 @@ describe("deriveResearchPresentation", () => {
     expect(nonCurrent.state).toBe(current.state);
     expect(nonCurrent.statusLabel).toBe(current.statusLabel);
   });
+
+  it("shows a failed run as failed instead of a completed preparation step", () => {
+    const presentation = deriveResearchPresentation({
+      project: {
+        ...project,
+        activeContractId: "contract-1",
+        latestRunId: "run-1",
+      } as unknown as ProjectViewModel,
+      run: {
+        id: "run-1",
+        status: "failed",
+        failure: {
+          code: "SOURCE_TIMEOUT",
+          summary: "来源连接超时。",
+        },
+      } as never,
+    });
+
+    expect(presentation.planItems[2]).toMatchObject({
+      label: "执行研究",
+      status: "failed",
+      detail: "来源连接超时。",
+    });
+  });
 });

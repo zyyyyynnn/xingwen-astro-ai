@@ -20,6 +20,7 @@ import {
   taxonomyLabel,
   type ScientificContentSurface,
 } from "./scientific-content/shared";
+import { LiteratureReviewWorkspace } from "./literature-review-workspace";
 import { ScientificTable } from "./scientific-table";
 
 export function PresentationEvidenceActions({
@@ -47,12 +48,14 @@ export function PresentationEvidenceActions({
           onClick={() => onSelectEvidence(evidenceId)}
         >
           <Quote aria-hidden="true" />
-          查看证据 {ordinal}
+          证据 {ordinal}
         </Button>
       ))}
     </div>
   );
 }
+
+import { ScientificDossier, ScientificFactGrid } from "./result-layout";
 
 export function PresentationFacts({
   facts,
@@ -61,14 +64,12 @@ export function PresentationFacts({
 }) {
   if (facts.length === 0) return null;
   return (
-    <dl className="dossier__facts">
-      {facts.map((fact) => (
-        <div key={fact.label}>
-          <dt>{fact.label}</dt>
-          <dd>{fact.values.join("；")}</dd>
-        </div>
-      ))}
-    </dl>
+    <ScientificFactGrid
+      facts={facts.map((fact) => ({
+        label: fact.label,
+        value: fact.values,
+      }))}
+    />
   );
 }
 
@@ -199,44 +200,73 @@ export function PresentationGraphRelationships({
   const labels = new Map(nodes.map((node) => [node.key, node.label]));
   const interactive = onSelectRelationship !== undefined;
   return (
-    <ol
-      className={interactive ? "graph-workspace__list" : "graph-fallback-list"}
-      aria-label={interactive ? "关系图列表替代视图" : "证据关系列表"}
-    >
-      {edges.map((edge) => {
-        const content = (
-          <>
-            <span>{labels.get(edge.sourceKey) ?? "起点未公开"}</span>
-            <span aria-hidden="true">→</span>
-            <span>{labels.get(edge.targetKey) ?? "终点未公开"}</span>
-            <small>{taxonomyLabel(edge.kind)}</small>
-          </>
-        );
-        return (
-          <li key={edge.key}>
-            {onSelectRelationship ? (
-              <Button
-                variant={selectedKey === edge.key ? "secondary" : "ghost"}
-                onClick={() => onSelectRelationship(edge.key)}
-              >
-                {content}
-              </Button>
-            ) : (
-              <p>{content}</p>
-            )}
-            {!interactive ? (
-              <PresentationEvidenceActions
-                evidenceIds={edge.evidenceIds}
-                onSelectEvidence={onSelectEvidence}
-                evidenceOrdinal={evidenceOrdinal}
-              />
-            ) : null}
-          </li>
-        );
-      })}
-    </ol>
+    <div className={interactive ? "graph-workspace__list-view" : undefined}>
+      {interactive ? (
+        <div className="graph-workspace__list-header" aria-hidden="true">
+          <span>起点</span>
+          <span />
+          <span>终点</span>
+          <span>关系类型</span>
+        </div>
+      ) : null}
+      <ol
+        className={
+          interactive ? "graph-workspace__list" : "graph-fallback-list"
+        }
+        aria-label={interactive ? "关系图列表替代视图" : "证据关系列表"}
+      >
+        {edges.map((edge) => {
+          const content = (
+            <>
+              <span>{labels.get(edge.sourceKey) ?? "起点未公开"}</span>
+              <span aria-hidden="true">→</span>
+              <span>{labels.get(edge.targetKey) ?? "终点未公开"}</span>
+              <small>{taxonomyLabel(edge.kind)}</small>
+            </>
+          );
+          return (
+            <li key={edge.key}>
+              {onSelectRelationship ? (
+                <Button
+                  variant={selectedKey === edge.key ? "secondary" : "ghost"}
+                  aria-pressed={selectedKey === edge.key}
+                  onClick={() => onSelectRelationship(edge.key)}
+                >
+                  {content}
+                </Button>
+              ) : (
+                <p>{content}</p>
+              )}
+              {!interactive ? (
+                <PresentationEvidenceActions
+                  evidenceIds={edge.evidenceIds}
+                  onSelectEvidence={onSelectEvidence}
+                  evidenceOrdinal={evidenceOrdinal}
+                />
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
+
+export type PresentationRevisionIntent =
+  | {
+      readonly kind: "relation_correction";
+      readonly relationId: DomainEntityId;
+    }
+  | {
+      readonly kind: "trace_correction";
+      readonly traceId: DomainEntityId;
+    }
+  | {
+      /** Candidate adjudication intent with the review decision preselected. */
+      readonly kind: "relation_adjudication";
+      readonly relationId: DomainEntityId;
+      readonly decision: "accepted" | "rejected";
+    };
 
 export function ArtifactPresentationContent({
   title,
@@ -245,6 +275,8 @@ export function ArtifactPresentationContent({
   onSelectEvidence,
   evidenceOrdinal,
   showHeader = true,
+  onRequestRevision,
+  sectionIdPrefix = "presentation-section",
 }: {
   readonly title: string;
   readonly presentation: PublicArtifactPresentation;
@@ -252,12 +284,31 @@ export function ArtifactPresentationContent({
   readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
   readonly evidenceOrdinal?: (evidenceId: DomainEntityId) => number | null;
   readonly showHeader?: boolean;
+  readonly onRequestRevision?: (intent: PresentationRevisionIntent) => void;
+  readonly sectionIdPrefix?: string;
 }) {
+  if (
+    presentation.kind === "literature_claims" ||
+    presentation.kind === "literature_relations"
+  ) {
+    return (
+      <LiteratureReviewWorkspace
+        title={title}
+        presentation={presentation}
+        showTitle={showHeader}
+        onSelectEvidence={onSelectEvidence}
+        evidenceOrdinal={evidenceOrdinal}
+        onRequestRevision={onRequestRevision}
+      />
+    );
+  }
+
   const count =
     presentation.entries.length ||
     presentation.graphNodes.length ||
     presentation.sections.length ||
     presentation.facts.length;
+  const entries = presentation.entries;
   return (
     <article
       className={`scientific-artifact scientific-artifact--${presentation.kind}`}
@@ -277,8 +328,12 @@ export function ArtifactPresentationContent({
         presentation={presentation}
         onSelectEvidence={onSelectEvidence}
       />
-      {presentation.sections.map((section) => (
-        <section className="scientific-artifact__section" key={section.title}>
+      {presentation.sections.map((section, sectionIndex) => (
+        <section
+          className="scientific-artifact__section"
+          id={`${sectionIdPrefix}-${sectionIndex + 1}`}
+          key={section.title}
+        >
           <h3>{section.title}</h3>
           {section.paragraphs.map((paragraph, index) => (
             <div
@@ -303,53 +358,92 @@ export function ArtifactPresentationContent({
           ))}
         </section>
       ))}
-      {presentation.entries.length > 0 ? (
+      {entries.length > 0 ? (
         <ol className="candidate-dossier" aria-label="科学结果档案">
-          {presentation.entries.map((entry) => {
+          {entries.map((entry) => {
             const externalUrl = safeExternalUrl(entry.externalUrl);
-            return (
-              <li key={entry.key}>
-                <article className="dossier__entry" data-status={entry.status}>
-                  <header className="dossier__entry-header">
-                    <div>
-                      {entry.status ? (
-                        <p className="dossier__status">
-                          {reviewStatusLabel(entry.status)}
-                        </p>
-                      ) : null}
-                      <h4>
-                        {externalUrl ? (
-                          <Link href={externalUrl} external>
-                            {entry.title}
-                          </Link>
-                        ) : (
-                          entry.title
-                        )}
-                      </h4>
-                    </div>
-                    {entry.assessment ? (
-                      <p className="dossier__assessment">
-                        {presentationAssessment(entry.assessment)}
-                      </p>
+            const reasoningTrace = entry.reasoningTrace;
+            const factItems = entry.facts.map((f) => ({
+              label: f.label,
+              value: f.values,
+            }));
+
+            const evidenceNode = (
+              <PresentationEvidenceActions
+                evidenceIds={entry.evidenceIds}
+                onSelectEvidence={onSelectEvidence}
+                evidenceOrdinal={evidenceOrdinal}
+              />
+            );
+
+            const bodyNode = (
+              <>
+                {externalUrl ? (
+                  <div className="text-xs">
+                    <Link
+                      href={externalUrl}
+                      external
+                      className="hover:underline"
+                    >
+                      查看原文链接
+                    </Link>
+                  </div>
+                ) : null}
+                {entry.paragraphs.map((paragraph, index) => (
+                  <p
+                    key={`${entry.key}:paragraph:${index}`}
+                    className="text-sm leading-relaxed"
+                  >
+                    {paragraph}
+                  </p>
+                ))}
+                {reasoningTrace ? (
+                  <div className="scientific-reasoning__actions">
+                    {onRequestRevision ? (
+                      <Button
+                        size="small"
+                        variant="ghost"
+                        className="mb-2 text-xs"
+                        onClick={() =>
+                          onRequestRevision({
+                            kind: "trace_correction",
+                            traceId: reasoningTrace.traceId,
+                          })
+                        }
+                      >
+                        重新分析此推导
+                      </Button>
                     ) : null}
-                  </header>
-                  {entry.paragraphs.map((paragraph, index) => (
-                    <p key={`${entry.key}:paragraph:${index}`}>{paragraph}</p>
-                  ))}
-                  <PresentationFacts facts={entry.facts} />
-                  <PresentationEvidenceActions
-                    evidenceIds={entry.evidenceIds}
-                    onSelectEvidence={onSelectEvidence}
-                    evidenceOrdinal={evidenceOrdinal}
-                  />
-                  {entry.reasoningTrace ? (
                     <PresentationTrace
-                      trace={entry.reasoningTrace}
+                      trace={reasoningTrace}
                       onSelectEvidence={onSelectEvidence}
                       evidenceOrdinal={evidenceOrdinal}
                     />
-                  ) : null}
-                </article>
+                  </div>
+                ) : null}
+              </>
+            );
+
+            return (
+              <li key={entry.key}>
+                <ScientificDossier
+                  status={entry.status}
+                  statusLabel={
+                    entry.status ? reviewStatusLabel(entry.status) : null
+                  }
+                  category={
+                    entry.assessment
+                      ? presentationAssessment(entry.assessment)
+                      : null
+                  }
+                  title={entry.title}
+                  facts={factItems}
+                  evidenceActions={evidenceNode}
+                  className="dossier__entry"
+                  testId={`dossier-entry-${entry.key}`}
+                >
+                  {bodyNode}
+                </ScientificDossier>
               </li>
             );
           })}

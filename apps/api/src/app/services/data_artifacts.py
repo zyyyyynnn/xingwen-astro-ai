@@ -247,9 +247,7 @@ class DataArtifactReadService:
             item=record,
         )
 
-    def render_public_dataset_csv(
-        self, *, version_id: str, session_id: str
-    ) -> bytes:
+    def render_public_dataset_csv(self, *, version_id: str, session_id: str) -> bytes:
         """Render one exact Dataset through the export serializer without private export state."""
 
         dataset = self.get_dataset(version_id=version_id, session_id=session_id)
@@ -439,8 +437,7 @@ def _validate_dataset_provenance(
                 ) or (
                     transformation.authority.admission_id
                     != candidate.authority.admission_id
-                    or transformation.authority.row_id
-                    != transformation.dataset_row_id
+                    or transformation.authority.row_id != transformation.dataset_row_id
                     or transformation.locator.source_snapshot_id
                     != candidate.authority.source_snapshot_id
                 ):
@@ -473,12 +470,8 @@ def _validate_dataset_provenance(
         identity = crossmatch_identity.get(pipeline_id)
         if evidence is None or identity is None:
             raise _schema_problem()
-        left_source_ids = {
-            item.source_snapshot_id for item in evidence.left_locators
-        }
-        right_source_ids = {
-            item.source_snapshot_id for item in evidence.right_locators
-        }
+        left_source_ids = {item.source_snapshot_id for item in evidence.left_locators}
+        right_source_ids = {item.source_snapshot_id for item in evidence.right_locators}
         if (
             len(left_source_ids) != 1
             or len(right_source_ids) != 1
@@ -755,7 +748,9 @@ def _render_export(
             _csv_cell(values.get(field.field_id), field.data_type) for field in fields
         ]
         writer.writerow(
-            public_values if visibility == "public_share" else [row.row_id, *public_values]
+            public_values
+            if visibility == "public_share"
+            else [row.row_id, *public_values]
         )
     return (
         output.getvalue().encode("utf-8"),
@@ -782,7 +777,6 @@ def _csv_cell(value: Any, data_type: DataType | None = None) -> Any:
 
 def _encode_cursor(*, version_id: str, row_id: str) -> str:
     payload = {
-        "v": 2,
         "version_id": version_id,
         "row_id": row_id,
         "ordering": _ROW_ORDERING,
@@ -805,8 +799,7 @@ def _decode_cursor(value: str, *, version_id: str) -> str:
         payload = json.loads(base64.b64decode(padded, altchars=b"-_", validate=True))
         if (
             set(payload)
-            != {"v", "version_id", "row_id", "ordering", "query_scope", "signature"}
-            or payload["v"] != 2
+            != {"version_id", "row_id", "ordering", "query_scope", "signature"}
             or payload["version_id"] != version_id
             or payload["ordering"] != _ROW_ORDERING
             or payload["query_scope"] != _ROW_QUERY_SCOPE

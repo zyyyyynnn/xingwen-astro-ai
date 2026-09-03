@@ -440,7 +440,8 @@ def test_adoption_manifest_declares_exact_import_roots() -> None:
     assert roots == {"docling_parse", "paddleocr", "paddlex", "paddle"}
 
 
-def test_gpu_profile_cannot_reuse_cpu_live_evidence() -> None:
+@pytest.mark.parametrize("profile_id", ("cpu", "gpu"))
+def test_runtime_profile_requires_independent_live_evidence(profile_id: str) -> None:
     from services.scientific_document.adoption_contract import UpstreamAdoptionManifest
 
     data = json.loads(ADOPTION.read_text(encoding="utf-8"))
@@ -449,14 +450,40 @@ def test_gpu_profile_cannot_reuse_cpu_live_evidence() -> None:
         for entry in data["entries"]
         if entry["capability"] == "visual_ocr_layout_table_formula"
     )
-    gpu = next(profile for profile in visual["runtime_profiles"] if profile["profile_id"] == "gpu")
-    gpu.update(
+    profile = next(
+        item for item in visual["runtime_profiles"] if item["profile_id"] == profile_id
+    )
+    profile.update(
         status="approved",
         probe_evidence="live",
         initialization_completed=True,
         predict_executed=True,
+        python_version=None,
+        fixture_id=None,
+        fixture_sha256=None,
+        result_boundary=None,
     )
     with pytest.raises(ValidationError):
+        UpstreamAdoptionManifest.model_validate(data)
+
+
+def test_approved_visual_capability_requires_a_verified_runtime() -> None:
+    from services.scientific_document.adoption_contract import UpstreamAdoptionManifest
+
+    data = json.loads(ADOPTION.read_text(encoding="utf-8"))
+    visual = next(
+        entry
+        for entry in data["entries"]
+        if entry["capability"] == "visual_ocr_layout_table_formula"
+    )
+    for profile in visual["runtime_profiles"]:
+        profile.update(
+            status="deferred",
+            probe_evidence="not_run",
+            initialization_completed=False,
+            predict_executed=False,
+        )
+    with pytest.raises(ValidationError, match="requires a verified runtime"):
         UpstreamAdoptionManifest.model_validate(data)
 
 

@@ -142,6 +142,31 @@ def test_production_registry_is_an_exact_fail_closed_skill_catalog() -> None:
     assert len(registry.skill_ids) == len(ScientificSkillId)
 
 
+def test_data_profile_distinguishes_absent_fields_from_explicit_nulls() -> None:
+    result = build_scientific_skill_registry().execute(
+        _request(
+            ScientificSkillId.data_profile,
+            {
+                "rows": [
+                    {"star.temperature": 3600},
+                    {"planet.period": 2.616235},
+                    {"planet.period": None},
+                ]
+            },
+        )
+    )
+    fields = {item["field"]: item for item in result.output["fields"]}
+    period = fields["planet.period"]
+    assert period["null_count"] == 1
+    assert period["non_null_count"] == 1
+    assert period["present_count"] == 2
+    assert period["absent_count"] == 1
+    assert period["numeric_summary"]["count"] == 1
+    assert period["numeric_summary"]["mean"] == 2.616235
+    assert fields["star.temperature"]["null_count"] == 0
+    assert fields["star.temperature"]["absent_count"] == 2
+
+
 @pytest.mark.parametrize(
     ("skill_id", "parameters", "output_key"),
     [
@@ -644,7 +669,7 @@ def test_scientific_publication_source_mode_preserves_non_live_origins(
 ) -> None:
     outcome = SimpleNamespace(
         task=SimpleNamespace(skill_id=ScientificSkillId.data_profile),
-        result=SimpleNamespace(output={"acquisition": {"source_mode": source_mode}})
+        result=SimpleNamespace(output={"acquisition": {"source_mode": source_mode}}),
     )
 
     assert _publication_source_mode(outcome) == expected
@@ -653,7 +678,7 @@ def test_scientific_publication_source_mode_preserves_non_live_origins(
 def test_scientific_publication_source_mode_rejects_unknown_origin() -> None:
     outcome = SimpleNamespace(
         task=SimpleNamespace(skill_id=ScientificSkillId.data_profile),
-        result=SimpleNamespace(output={"acquisition": {"source_mode": "mock"}})
+        result=SimpleNamespace(output={"acquisition": {"source_mode": "mock"}}),
     )
 
     with pytest.raises(ValueError, match="source_mode is unknown"):
@@ -671,7 +696,9 @@ def test_scientific_publication_source_mode_rejects_missing_gaia_provenance() ->
 
 
 @pytest.mark.anyio
-async def test_gaia_unsupported_dataset_field_rejects_before_resolver_or_executor() -> None:
+async def test_gaia_unsupported_dataset_field_rejects_before_resolver_or_executor() -> (
+    None
+):
     class _NeverCalledExecutor:
         def __init__(self) -> None:
             self.calls = 0
@@ -1274,11 +1301,44 @@ async def test_step_adapter_materializes_an_onnx_model_binary() -> None:
     assert evaluation.split.field == "object_id"
     assert evaluation.split.cross_validation_folds == 5
     assert evaluation.split.train_cutoff is None
+    assert evaluation.diagnostics is not None
+    assert evaluation.diagnostics.confusion_matrix is not None
+    assert (
+        sum(sum(row) for row in evaluation.diagnostics.confusion_matrix.rows)
+        == evaluation.diagnostics.evaluated_sample_count
+    )
+    assert not evaluation.diagnostics.regression_predictions
+    metric_by_key = {metric.metric_key: metric for metric in evaluation.metrics}
+    assert metric_by_key["accuracy"].category == "holdout"
+    assert metric_by_key["cv_accuracy_mean"].category == "cross_validation"
+    assert metric_by_key["cv_accuracy_mean"].label == "准确率 · 均值"
+    assert any(metric.category == "feature_importance" for metric in evaluation.metrics)
+    baseline_by_key = {
+        metric.metric_key: metric for metric in evaluation.baseline_metrics
+    }
+    for metric in evaluation.metrics:
+        if metric.metric_key in baseline_by_key:
+            assert baseline_by_key[metric.metric_key].metric_id != metric.metric_id
+            assert (
+                baseline_by_key[metric.metric_key].optimization == metric.optimization
+            )
     assert any(
         "never cross the train/test boundary" in item for item in evaluation.limitations
     )
     assert model.limitations == evaluation.limitations
     assert model.input_shape[0] is None
+    assert model.input_dtype == "FLOAT"
+    assert set(model.output_metadata) == set(model.output_names)
+    label_metadata = model.output_metadata[model.output_names[0]]
+    probability_metadata = model.output_metadata[model.output_names[1]]
+    assert label_metadata is not None
+    assert label_metadata.value_kind == "tensor"
+    assert label_metadata.dtype == "STRING"
+    assert label_metadata.shape == (None,)
+    assert probability_metadata is not None
+    assert probability_metadata.value_kind == "sequence"
+    assert probability_metadata.dtype is None
+    assert probability_metadata.shape is None
     assert model.opset_imports
     assert storage.content[model.model_binary.content_hash]
 
@@ -1294,6 +1354,11 @@ async def test_step_adapter_materializes_an_onnx_model_binary() -> None:
     assert evaluation_facts["训练数据"] == ("研究数据集",)
     assert evaluation_facts["划分方式"] == ("实体隔离划分",)
     assert {"算法版本", "训练输入", "随机种子"}.isdisjoint(evaluation_facts)
+    assert evaluation_presentation.tables[0].title.startswith("混淆矩阵")
+    assert (
+        sum(int(row.cells[1].value) for row in evaluation_presentation.tables[0].rows)
+        == evaluation.diagnostics.evaluated_sample_count
+    )
 
     model_presentation = build_artifact_presentation(
         ArtifactKind.model_artifact,
@@ -1303,6 +1368,86 @@ async def test_step_adapter_materializes_an_onnx_model_binary() -> None:
     model_facts = {fact.label: fact.values for fact in model_presentation.facts}
     assert model_facts["算法"] == ("random_forest",)
     assert {"状态", "算法版本", "运行依赖"}.isdisjoint(model_facts)
+
+
+@pytest.mark.anyio
+async def test_forecast_publishes_cutoff_baseline_and_original_test_rows() -> None:
+    adapter = ScientificStepAdapter(
+        build_scientific_skill_registry(),
+        content_storage=_MemoryStorage(),
+        source_recorder=_SourceRecorder(),
+    )
+    rows = [
+        {"row_id": f"epoch.{index}", "time": index, "flux": 1 + 0.01 * sin(index)}
+        for index in range(50)
+    ]
+
+    async def resolve(_: ScientificTaskInput) -> Sequence[ScientificInputBinding]:
+        return (
+            ScientificInputBinding(
+                ref_id=DATASET_VERSION_ID,
+                kind="artifact_version",
+                parameters={"rows": rows},
+                source_references=(
+                    ScientificSourceReference(
+                        source_snapshot_id=SNAPSHOT_ID, content_hash=HASH
+                    ),
+                ),
+                evidence_ids=(EVIDENCE_ID,),
+            ),
+        )
+
+    output = await adapter.execute(
+        task_id="task.primary",
+        project_id=PROJECT_ID,
+        run_id=RUN_ID,
+        contract=_contract(
+            skill_id=ScientificSkillId.time_series_forecast,
+            output=("model_evaluation", "model_artifact"),
+            input_refs=[DATASET_VERSION_ID],
+            parameters={
+                "time_field": "time",
+                "target_field": "flux",
+                "lags": 4,
+                "horizon": 3,
+            },
+        ),
+        resolve_inputs=resolve,
+    )
+    evaluation, model = output.artifact_candidates
+    assert isinstance(evaluation, ModelEvaluationArtifactContent)
+    assert isinstance(model, ModelArtifactContent)
+    assert evaluation.split.strategy == "time"
+    assert evaluation.split.field == "time"
+    assert evaluation.split.train_cutoff == 39
+    assert evaluation.split.random_seed is None
+    assert evaluation.feature_fields == ("lag_4", "lag_3", "lag_2", "lag_1")
+    diagnostics = evaluation.diagnostics
+    assert diagnostics is not None
+    assert diagnostics.evaluated_sample_count == 10
+    assert diagnostics.confusion_matrix is None
+    assert [point.row_id for point in diagnostics.regression_predictions] == [
+        row["row_id"] for row in rows[40:]
+    ]
+    assert [point.actual for point in diagnostics.regression_predictions] == [
+        row["flux"] for row in rows[40:]
+    ]
+    assert [point.step for point in diagnostics.forecast] == [1, 2, 3]
+    baseline = {metric.metric_key: metric for metric in evaluation.baseline_metrics}
+    expected_mae = (
+        sum(
+            abs(rows[index]["flux"] - rows[index - 1]["flux"])
+            for index in range(40, 50)
+        )
+        / 10
+    )
+    assert baseline["mean_absolute_error"].value == pytest.approx(expected_mae)
+    assert baseline["mean_absolute_error"].optimization == "minimize"
+    assert model.input_shape == (None, 4)
+    presentation = build_artifact_presentation(
+        ArtifactKind.model_evaluation, evaluation.model_dump(mode="json"), ()
+    )
+    assert [table.total_row_count for table in presentation.tables] == [10, 3]
 
 
 @pytest.mark.anyio

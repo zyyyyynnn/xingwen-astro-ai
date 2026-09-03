@@ -33,10 +33,12 @@ from app.schemas.research_input import (
     RESEARCH_INPUT_NOT_FOUND,
     UPLOAD_SOURCE_TYPE,
     URL_FETCH_BLOCKED,
+    URL_FETCH_SOURCE_TYPE,
     ResearchInputCreate,
     ResearchInputStatus,
     ResearchInputType,
 )
+from app.schemas.scientific_document import is_supported_scientific_document_input
 from app.security import SecurityProblem
 from app.services.content_storage import ContentStorage, sha256_content_hash
 from app.services.image_dataset import validate_image_dataset_archive
@@ -122,7 +124,7 @@ class ResearchInputIngestionService:
     async def read_content(
         self, *, session_id: str, input_id: str
     ) -> tuple[bytes, str, str | None]:
-        """Return ``(content, mime_type, filename)`` for one owned file input.
+        """Return stored bytes for one owned upload or fetched scientific document.
 
         Browser-safe content read for an accepted, file-backed input owned by
         the current session. The bytes come from the same immutable
@@ -141,13 +143,21 @@ class ResearchInputIngestionService:
             )
         if (
             record.status is not ResearchInputStatus.accepted
-            or record.source_type != UPLOAD_SOURCE_TYPE
+            or not (
+                record.source_type == UPLOAD_SOURCE_TYPE
+                or (
+                    record.source_type == URL_FETCH_SOURCE_TYPE
+                    and is_supported_scientific_document_input(
+                        input_type=record.type, mime_type=record.mime_type
+                    )
+                )
+            )
         ):
             raise SecurityProblem(
                 status=409,
                 code=RESEARCH_INPUT_CONTENT_NOT_READABLE,
                 title="Research input content not readable",
-                detail="Only accepted file uploads expose readable content",
+                detail="Only accepted uploads and fetched scientific documents expose readable content",
             )
         content = await self._storage.retrieve(record.content_hash)
         if content is None:

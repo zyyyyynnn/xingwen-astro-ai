@@ -136,24 +136,30 @@ function AttachmentStrip({
       {items.map((item) => (
         <div
           key={item.id}
-          className="min-w-0 max-w-full rounded-[var(--oh-radius-md)] border border-[var(--oh-border)] bg-[var(--oh-surface-raised)] px-2.5 py-1.5 text-xs text-[var(--oh-text)]"
+          className="min-w-0 max-w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-hover)] px-2.5 py-1.5 text-xs text-[var(--color-ink-primary)]"
           data-status={item.status}
         >
           <div className="flex min-w-0 items-center gap-2">
             {item.status === "uploading" ? (
               <Loader2
-                className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none"
+                className="size-[var(--icon-size-sm)] shrink-0 animate-spin motion-reduce:animate-none"
                 aria-hidden="true"
               />
             ) : item.status === "uploaded" ? (
-              <Check className="size-3.5 shrink-0" aria-hidden="true" />
+              <Check
+                className="size-[var(--icon-size-sm)] shrink-0"
+                aria-hidden="true"
+              />
             ) : (
-              <FileText className="size-3.5 shrink-0" aria-hidden="true" />
+              <FileText
+                className="size-[var(--icon-size-sm)] shrink-0"
+                aria-hidden="true"
+              />
             )}
             <span className="min-w-0 truncate" title={item.filename}>
               {item.filename}
             </span>
-            <span className="shrink-0 text-[var(--oh-muted)]">
+            <span className="shrink-0 text-[var(--color-ink-secondary)]">
               {formatBytes(item.sizeBytes)}
             </span>
             {item.status === "failed" ? (
@@ -163,25 +169,27 @@ function AttachmentStrip({
                 onClick={() => onRetry(item.id)}
                 className="h-6 gap-1 px-2"
               >
-                <RotateCcw className="size-3.5" aria-hidden="true" />
+                <RotateCcw aria-hidden="true" />
                 重试
               </Button>
             ) : null}
             {item.removable ? (
               <Button
                 variant="ghost"
-                size="icon"
+                size="icon-xsmall"
                 aria-label={`移除 ${item.filename}`}
                 disabled={item.status === "uploading"}
                 onClick={() => onRemove(item.id)}
-                className="size-6"
               >
-                <X className="size-3.5" aria-hidden="true" />
+                <X aria-hidden="true" />
               </Button>
             ) : null}
           </div>
           {item.errorMessage ? (
-            <p className="mt-1 max-w-72 text-xs text-destructive" role="alert">
+            <p
+              className="mt-1 max-w-72 text-xs research-attachment__error"
+              role="alert"
+            >
               {item.errorMessage}
             </p>
           ) : null}
@@ -512,9 +520,9 @@ export function useResearchAttachments({
         size="small"
         onClick={() => inputRef.current?.click()}
         aria-label="添加研究资料"
-        className="gap-1 text-xs text-[var(--oh-muted)]"
+        className="gap-1 text-xs text-[var(--color-ink-secondary)]"
       >
-        <Paperclip className="size-3.5" aria-hidden="true" />
+        <Paperclip aria-hidden="true" />
         附件
       </Button>
     </>

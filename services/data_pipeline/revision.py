@@ -8,6 +8,8 @@ from enum import StrEnum
 from typing import Literal
 from uuid import UUID
 
+from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.artifact_publication import canonical_artifact_content_payload
 from app.schemas.crossmatch import (
     CrossmatchRuleSet,
     CrossmatchSourceInput,
@@ -485,7 +487,9 @@ def _validate_baseline_payload(
     }
     if any(
         baselines[kind].candidate_content_hash
-        != compute_data_artifact_public_payload_hash(candidates[kind])
+        != compute_canonical_payload_hash(
+            canonical_artifact_content_payload(candidates[kind])
+        )
         for kind in _KINDS
     ):
         raise DataRevisionError(

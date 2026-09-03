@@ -1,6 +1,7 @@
 import { asEntityId } from "@xingwen/domain";
 import { describe, expect, it } from "vitest";
 
+import { ValidationError } from "../src/errors";
 import { HttpClient } from "../src/http-client";
 import { createResearchInputRepository } from "../src/research-input-repository";
 import type { SessionManager } from "../src/session";
@@ -73,5 +74,44 @@ describe("ResearchInputRepository", () => {
     expect(requestHeaders?.get("Idempotency-Key")).toBe(
       "research-input-test-1",
     );
+  });
+
+  it("maps a rejected research-input media type to validation", async () => {
+    const fetchImpl = (async () =>
+      new Response(
+        JSON.stringify({
+          type: "https://xingwen.example/errors/research-input-mime-rejected",
+          title: "Research input rejected",
+          status: 415,
+          detail: "Declared media type does not match the uploaded content.",
+          code: "RESEARCH_INPUT_MIME_REJECTED",
+          errors: [],
+        }),
+        {
+          status: 415,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      )) as typeof fetch;
+    const repository = createResearchInputRepository(
+      new HttpClient({
+        baseUrl: "http://test.local",
+        fetchImpl,
+        session: makeSession(),
+      }),
+    );
+
+    await expect(
+      repository.create({
+        projectId: PROJECT_ID,
+        type: "pdf",
+        file: new Blob(["not a PDF"]),
+        filename: "mismatched.pdf",
+        mimeType: "application/pdf",
+        idempotencyKey: "research-input-test-2",
+      }),
+    ).rejects.toMatchObject<Partial<ValidationError>>({
+      name: "ValidationError",
+      code: "RESEARCH_INPUT_MIME_REJECTED",
+    });
   });
 });

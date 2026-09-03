@@ -123,10 +123,10 @@ class ResearchContractPlanner:
             prompt=prompt.content,
             input_payload=input_payload,
             parameters={
-                "temperature": 0.6,
-                "top_p": 0.8,
+                "temperature": 0,
+                "top_p": 1,
             },
-            enable_thinking=False,
+            enable_thinking=True,
         )
         return request
 
@@ -142,6 +142,7 @@ class ResearchContractPlanner:
                 token_usage=response.token_usage,
                 latency_ms=response.latency_ms,
                 provider_request_id=response.provider_request_id,
+                provider_returned_model=response.provider_returned_model,
             ) from exc
         if output.outcome == "draft_ready":
             try:
@@ -158,6 +159,7 @@ class ResearchContractPlanner:
                     token_usage=response.token_usage,
                     latency_ms=response.latency_ms,
                     provider_request_id=response.provider_request_id,
+                    provider_returned_model=response.provider_returned_model,
                 ) from exc
         return PlannerResult(output=output, request=request, response=response)
 

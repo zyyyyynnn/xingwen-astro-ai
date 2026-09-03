@@ -1688,6 +1688,7 @@
       },
       "CreateShareSnapshotRequest": {
         "additionalProperties": false,
+        "description": "Select immutable results; their complete Evidence scope is server-owned.",
         "properties": {
           "artifact_version_ids": {
             "items": {
@@ -1698,17 +1699,6 @@
             "maxItems": 100,
             "minItems": 1,
             "title": "Artifact Version Ids",
-            "type": "array"
-          },
-          "evidence_ids": {
-            "default": [],
-            "items": {
-              "maxLength": 128,
-              "minLength": 1,
-              "type": "string"
-            },
-            "maxItems": 500,
-            "title": "Evidence Ids",
             "type": "array"
           },
           "expires_at": {
@@ -1740,6 +1730,16 @@
       "CreateUserFeedbackRequest": {
         "additionalProperties": false,
         "properties": {
+          "adjudication_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RelationAdjudicationDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "category": {
             "$ref": "#/components/schemas/FeedbackCategory"
           },
@@ -4730,7 +4730,8 @@
           "omission",
           "evidence",
           "quality",
-          "interpretation"
+          "interpretation",
+          "adjudication"
         ],
         "title": "FeedbackCategory",
         "type": "string"
@@ -5703,6 +5704,7 @@
           },
           "kind": {
             "enum": [
+              "literature_claims",
               "literature_relations",
               "dataset",
               "field_dictionary"
@@ -5906,9 +5908,9 @@
             "type": "integer"
           },
           "max_input_versions": {
-            "default": 3,
-            "maximum": 3.0,
-            "minimum": 1.0,
+            "default": 256,
+            "maximum": 256.0,
+            "minimum": 2.0,
             "title": "Max Input Versions",
             "type": "integer"
           },
@@ -6183,6 +6185,7 @@
       },
       "GraphInputRole": {
         "enum": [
+          "literature_claims",
           "literature_relations",
           "dataset",
           "field_dictionary"
@@ -6203,8 +6206,8 @@
             "items": {
               "$ref": "#/components/schemas/GraphArtifactVersionReference"
             },
-            "maxItems": 3,
-            "minItems": 1,
+            "maxItems": 256,
+            "minItems": 2,
             "title": "Versions",
             "type": "array"
           }
@@ -6232,7 +6235,7 @@
             "type": "integer"
           },
           "input_version_count": {
-            "maximum": 3.0,
+            "maximum": 256.0,
             "minimum": 1.0,
             "title": "Input Version Count",
             "type": "integer"
@@ -8121,9 +8124,80 @@
         "title": "LiteratureReasoningTraceStepCandidate",
         "type": "object"
       },
+      "LiteratureRelationAdjudication": {
+        "additionalProperties": false,
+        "description": "Immutable user decision bound to one exact Relation subject.",
+        "properties": {
+          "adjudication_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Adjudication Id",
+            "type": "string"
+          },
+          "baseline_relation_artifact_version_id": {
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Baseline Relation Artifact Version Id",
+            "type": "string"
+          },
+          "baseline_relation_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Baseline Relation Id",
+            "type": "string"
+          },
+          "basis": {
+            "items": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Basis",
+            "type": "array"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/LiteratureRelationStatus"
+          },
+          "feedback_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Feedback Hash",
+            "type": "string"
+          },
+          "feedback_id": {
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Feedback Id",
+            "type": "string"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/LiteratureRelationConfidenceSubject"
+          }
+        },
+        "required": [
+          "adjudication_id",
+          "subject",
+          "decision",
+          "feedback_id",
+          "feedback_hash",
+          "baseline_relation_artifact_version_id",
+          "baseline_relation_id",
+          "basis"
+        ],
+        "title": "LiteratureRelationAdjudication",
+        "type": "object"
+      },
       "LiteratureRelationCandidate": {
         "additionalProperties": false,
         "properties": {
+          "adjudication": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LiteratureRelationAdjudication"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "comparability": {
             "$ref": "#/components/schemas/LiteratureRelationComparabilityCandidate"
           },
@@ -8992,6 +9066,19 @@
               }
             ]
           },
+          "input_dtype": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Dtype"
+          },
           "input_hash": {
             "pattern": "^sha256:[0-9a-f]{64}$",
             "title": "Input Hash",
@@ -9059,6 +9146,25 @@
             "pattern": "^sha256:[0-9a-f]{64}$",
             "title": "Output Hash",
             "type": "string"
+          },
+          "output_metadata": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ModelOutputMetadata"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "minProperties": 1,
+            "propertyNames": {
+              "maxLength": 128,
+              "minLength": 1
+            },
+            "title": "Output Metadata",
+            "type": "object"
           },
           "output_names": {
             "items": {
@@ -9131,7 +9237,9 @@
           "target_field",
           "model_binary",
           "input_name",
+          "input_dtype",
           "output_names",
+          "output_metadata",
           "input_shape",
           "opset_imports",
           "dependency_revisions",
@@ -9183,6 +9291,49 @@
           "media_type"
         ],
         "title": "ModelBinaryReference",
+        "type": "object"
+      },
+      "ModelConfusionMatrix": {
+        "additionalProperties": false,
+        "properties": {
+          "labels": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "minItems": 2,
+            "title": "Labels",
+            "type": "array"
+          },
+          "rows": {
+            "items": {
+              "items": {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "labels",
+          "rows"
+        ],
+        "title": "ModelConfusionMatrix",
         "type": "object"
       },
       "ModelDiagnosticVisualizationSpec": {
@@ -9239,7 +9390,7 @@
           "baseline_metrics": {
             "default": [],
             "items": {
-              "$ref": "#/components/schemas/ScientificMetric"
+              "$ref": "#/components/schemas/ModelEvaluationMetric"
             },
             "title": "Baseline Metrics",
             "type": "array"
@@ -9253,6 +9404,16 @@
             },
             "title": "Diagnostic Visualization Ids",
             "type": "array"
+          },
+          "diagnostics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelEvaluationDiagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "evaluation_id": {
             "maxLength": 128,
@@ -9312,7 +9473,7 @@
           },
           "metrics": {
             "items": {
-              "$ref": "#/components/schemas/ScientificMetric"
+              "$ref": "#/components/schemas/ModelEvaluationMetric"
             },
             "minItems": 1,
             "title": "Metrics",
@@ -9399,6 +9560,223 @@
           "output_hash"
         ],
         "title": "ModelEvaluationArtifactContent",
+        "type": "object"
+      },
+      "ModelEvaluationDiagnostics": {
+        "additionalProperties": false,
+        "properties": {
+          "confusion_matrix": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelConfusionMatrix"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evaluated_sample_count": {
+            "minimum": 1.0,
+            "title": "Evaluated Sample Count",
+            "type": "integer"
+          },
+          "forecast": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ModelForecastPoint"
+            },
+            "maxItems": 10000,
+            "title": "Forecast",
+            "type": "array"
+          },
+          "regression_predictions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ModelRegressionPrediction"
+            },
+            "maxItems": 256,
+            "title": "Regression Predictions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "evaluated_sample_count"
+        ],
+        "title": "ModelEvaluationDiagnostics",
+        "type": "object"
+      },
+      "ModelEvaluationMetric": {
+        "additionalProperties": false,
+        "description": "Stable metric semantics, independent of the identity of one measurement.",
+        "properties": {
+          "category": {
+            "enum": [
+              "holdout",
+              "cross_validation",
+              "feature_importance"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "evidence_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "label": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "metric_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Metric Id",
+            "type": "string"
+          },
+          "metric_key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Metric Key",
+            "type": "string"
+          },
+          "optimization": {
+            "enum": [
+              "maximize",
+              "minimize",
+              "none"
+            ],
+            "title": "Optimization",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "metric_id",
+          "label",
+          "value",
+          "metric_key",
+          "optimization",
+          "category"
+        ],
+        "title": "ModelEvaluationMetric",
+        "type": "object"
+      },
+      "ModelForecastPoint": {
+        "additionalProperties": false,
+        "properties": {
+          "predicted_value": {
+            "title": "Predicted Value",
+            "type": "number"
+          },
+          "step": {
+            "minimum": 1.0,
+            "title": "Step",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "step",
+          "predicted_value"
+        ],
+        "title": "ModelForecastPoint",
+        "type": "object"
+      },
+      "ModelOutputMetadata": {
+        "additionalProperties": false,
+        "description": "Value metadata read from an exported ONNX graph output.",
+        "properties": {
+          "dtype": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dtype"
+          },
+          "shape": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "maxLength": 4000,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shape"
+          },
+          "value_kind": {
+            "enum": [
+              "tensor",
+              "sequence",
+              "map",
+              "optional",
+              "sparse_tensor"
+            ],
+            "title": "Value Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value_kind",
+          "dtype",
+          "shape"
+        ],
+        "title": "ModelOutputMetadata",
         "type": "object"
       },
       "ModelProviderConfigurationSource": {
@@ -9535,6 +9913,32 @@
         ],
         "title": "ModelProviderPreset",
         "type": "string"
+      },
+      "ModelRegressionPrediction": {
+        "additionalProperties": false,
+        "properties": {
+          "actual": {
+            "title": "Actual",
+            "type": "number"
+          },
+          "predicted": {
+            "title": "Predicted",
+            "type": "number"
+          },
+          "row_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Row Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "row_id",
+          "actual",
+          "predicted"
+        ],
+        "title": "ModelRegressionPrediction",
+        "type": "object"
       },
       "ModelSplitReference": {
         "additionalProperties": false,
@@ -11652,11 +12056,6 @@
             "title": "Parser Profile Id",
             "type": "string"
           },
-          "parser_profile_version": {
-            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
-            "title": "Parser Profile Version",
-            "type": "string"
-          },
           "research_input_id": {
             "maxLength": 36,
             "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
@@ -11678,7 +12077,6 @@
           "input_content_hash",
           "canonical_output_hash",
           "parser_profile_id",
-          "parser_profile_version",
           "config_hash"
         ],
         "title": "PaperSummaryDocumentParseReference",
@@ -13495,6 +13893,17 @@
             ],
             "title": "Assessment"
           },
+          "can_adjudicate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Can Adjudicate"
+          },
           "evidence_ids": {
             "default": [],
             "items": {
@@ -13543,6 +13952,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/PublicPresentationTrace"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "relation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicPresentationRelation"
               },
               {
                 "type": "null"
@@ -13706,6 +14125,28 @@
           "text"
         ],
         "title": "PublicPresentationParagraph",
+        "type": "object"
+      },
+      "PublicPresentationRelation": {
+        "additionalProperties": false,
+        "description": "The two published claims connected by a literature relation.",
+        "properties": {
+          "source_claim": {
+            "minLength": 1,
+            "title": "Source Claim",
+            "type": "string"
+          },
+          "target_claim": {
+            "minLength": 1,
+            "title": "Target Claim",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_claim",
+          "target_claim"
+        ],
+        "title": "PublicPresentationRelation",
         "type": "object"
       },
       "PublicPresentationSection": {
@@ -13934,9 +14375,16 @@
             },
             "title": "Steps",
             "type": "array"
+          },
+          "trace_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Trace Id",
+            "type": "string"
           }
         },
         "required": [
+          "trace_id",
           "conclusion",
           "steps"
         ],
@@ -14503,6 +14951,14 @@
         ],
         "title": "RawSourceRecordReference",
         "type": "object"
+      },
+      "RelationAdjudicationDecision": {
+        "enum": [
+          "accepted",
+          "rejected"
+        ],
+        "title": "RelationAdjudicationDecision",
+        "type": "string"
       },
       "RepairCandidateCoordinate": {
         "additionalProperties": false,
@@ -20448,6 +20904,16 @@
       "UserFeedback": {
         "additionalProperties": false,
         "properties": {
+          "adjudication_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RelationAdjudicationDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "artifact_id": {
             "maxLength": 128,
             "minLength": 1,

@@ -22,7 +22,7 @@
    - 基准执行绑定 `benchmark` 引用，不携带 `search_input`；
    - `scenario_id` 不用于生产 ResearchContract。
 
-两者互斥，生产与基准输入通过同一底层 canonical query normalizer 保证语义一致性。PaperCollection 3.0.0 validates that search input, normalized query, execution rules, producer identity, source executions and source snapshots describe the same search execution; aggregate hashes do not substitute for cross-object provenance equality.
+两者互斥，生产与基准输入通过同一底层 canonical query normalizer 保证语义一致性。PaperCollection 校验 search input、normalized query、execution rules、producer identity、source executions 与 source snapshots 共同描述同一次检索执行。
 
 ## 2. 数据流
 
@@ -125,6 +125,13 @@ PaperSummary Prompt 只能通过 `packages/prompts/registry.json` / `registry.py
 
 Summary 只接收已选定的 PaperCollection paper identity。JSON/schema/Evidence 三层验证分别失败关闭；finding/limitation 的 `supported | unsupported | unverifiable` 科研语义保留，不能因模型输出而自动提升为支持事实。
 
+模型输出包含七个章节的陈述数组，每条陈述携带自己的 Evidence 引用；同一条陈述
+重复引用同一个 Evidence 时，服务按首次出现顺序归一化。总 Evidence
+清单由服务从逐条引用计算去重排序并集；分片引用必须属于当前分片，发布内容继续
+校验陈述、Evidence、SourceSnapshot 与文档定位的一致性。
+
+研读按集合排名优先使用已有可解析全文的已选论文；其余情况下使用排名最高的已选论文元数据。全文绑定固定到当前 PaperCollection ArtifactVersion 与 canonical paper identity，文档解析、摘要和下游结论沿同一 ResearchRun/Publisher 链生成。多个全文已关联时，集合排名决定当前报告的研读对象。
+
 ## 9. Publisher handoff
 
 PaperCollection/PaperSummary Pipeline 只产生 typed content/candidate。ArtifactVersion、Evidence 与 persisted SourceSnapshot 的发布必须走统一 Publisher；Pipeline 不写数据库版本、不推进 Run state，也不在 Router 中复制科研算法。
@@ -136,6 +143,8 @@ PaperCollection/PaperSummary Pipeline 只产生 typed content/candidate。Artifa
 选中的 `PaperCandidate` 通过 API bridge 进入既有 ResearchInput ingestion。该 bridge 先闭合
 ArtifactVersion → PaperCandidate → SourceSnapshot 的 search provenance，随后对于需要创建/绑定全文
 ResearchInput 的请求，再独立要求 `PaperCandidateAccessEvidence` 证明 lawful access。
+
+用户从论文结果页的“关联全文”进入共享表单，选择开放全文链接或已上传文档。开放链接需填写来源类别、许可或开放依据及说明页面；获取完成后呈现真实摄取状态，通过结果页重新分析生成文档证据。应用层统一负责幂等重试与项目资料缓存刷新，Repository 负责请求与契约映射。
 
 明确：PaperCollection search publication 不生成 literature Evidence。PaperSummary / Literature reasoning
 才拥有并发布 literature Evidence。metadata-only 只记录不可变 candidate + snapshot provenance 以及无法证明访问/受限等原因，不创建 ResearchInput。公开访问 URL 只作为摄取请求输入，实际字节、MIME、大小、SSRF、重定向、内容哈希、CAS、ownership 与 idempotency 均由 ResearchInput 边界负责。Fixture、recorded、cached 和 synthetic candidate 不得被呈现为 Live 或创建新的 ResearchInput。

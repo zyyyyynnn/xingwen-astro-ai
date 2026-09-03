@@ -1108,6 +1108,79 @@ class ImageTrainingSpecification(BaseModel):
         return self
 
 
+class ModelEvaluationMetric(ScientificMetric):
+    """Stable metric semantics, independent of the identity of one measurement."""
+
+    metric_key: Identifier
+    optimization: Literal["maximize", "minimize", "none"]
+    category: Literal["holdout", "cross_validation", "feature_importance"]
+
+
+class ModelConfusionMatrix(BaseModel):
+    model_config = MODEL_CONFIG
+
+    labels: tuple[
+        str | int | Annotated[float, Field(allow_inf_nan=False)] | bool, ...
+    ] = Field(min_length=2)
+    rows: tuple[tuple[Annotated[int, Field(ge=0, strict=True)], ...], ...]
+
+    @model_validator(mode="after")
+    def validate_matrix(self) -> Self:
+        if len(self.rows) != len(self.labels) or any(
+            len(row) != len(self.labels) or any(value < 0 for value in row)
+            for row in self.rows
+        ):
+            raise ValueError("confusion matrix must be square with nonnegative counts")
+        _require_unique(self.labels, "confusion matrix label")
+        return self
+
+
+class ModelRegressionPrediction(BaseModel):
+    model_config = MODEL_CONFIG
+
+    row_id: Identifier
+    actual: float = Field(allow_inf_nan=False)
+    predicted: float = Field(allow_inf_nan=False)
+
+
+class ModelForecastPoint(BaseModel):
+    model_config = MODEL_CONFIG
+
+    step: int = Field(ge=1, strict=True)
+    predicted_value: float = Field(allow_inf_nan=False)
+
+
+class ModelEvaluationDiagnostics(BaseModel):
+    model_config = MODEL_CONFIG
+
+    evaluated_sample_count: int = Field(ge=1, strict=True)
+    confusion_matrix: ModelConfusionMatrix | None = None
+    regression_predictions: tuple[ModelRegressionPrediction, ...] = Field(
+        default=(), max_length=256
+    )
+    forecast: tuple[ModelForecastPoint, ...] = Field(default=(), max_length=10_000)
+
+    @model_validator(mode="after")
+    def validate_diagnostics(self) -> Self:
+        if (
+            self.confusion_matrix is not None
+            and sum(sum(row) for row in self.confusion_matrix.rows)
+            != self.evaluated_sample_count
+        ):
+            raise ValueError("confusion matrix must account for every evaluated sample")
+        if len(self.regression_predictions) > self.evaluated_sample_count:
+            raise ValueError("prediction sample cannot exceed the evaluation partition")
+        _require_unique(
+            tuple(point.row_id for point in self.regression_predictions),
+            "diagnostic row",
+        )
+        if tuple(point.step for point in self.forecast) != tuple(
+            range(1, len(self.forecast) + 1)
+        ):
+            raise ValueError("forecast steps must be contiguous and start at one")
+        return self
+
+
 class ModelEvaluationArtifactContent(BaseModel):
     """Reproducible evaluation metadata for a bounded scientific model task."""
 
@@ -1126,8 +1199,9 @@ class ModelEvaluationArtifactContent(BaseModel):
     feature_fields: tuple[Identifier, ...] = Field(min_length=1)
     target_field: Identifier
     split: ModelSplitReference
-    metrics: tuple[ScientificMetric, ...] = Field(min_length=1)
-    baseline_metrics: tuple[ScientificMetric, ...] = ()
+    metrics: tuple[ModelEvaluationMetric, ...] = Field(min_length=1)
+    baseline_metrics: tuple[ModelEvaluationMetric, ...] = ()
+    diagnostics: ModelEvaluationDiagnostics | None = None
     skill_execution: ScientificSkillExecution
     model_binary: ModelBinaryReference | None = None
     diagnostic_visualization_ids: tuple[Identifier, ...] = ()
@@ -1169,6 +1243,39 @@ class ModelEvaluationArtifactContent(BaseModel):
             raise ValueError("target_field cannot also be a feature field")
         all_metrics = (*self.metrics, *self.baseline_metrics)
         _require_unique(
+            tuple(item.metric_key for item in self.metrics), "model metric key"
+        )
+        _require_unique(
+            tuple(item.metric_key for item in self.baseline_metrics),
+            "baseline metric key",
+        )
+        metrics_by_key = {item.metric_key: item for item in self.metrics}
+        if any(
+            item.metric_key not in metrics_by_key
+            or (
+                item.optimization != metrics_by_key[item.metric_key].optimization
+                or item.unit != metrics_by_key[item.metric_key].unit
+                or item.category != metrics_by_key[item.metric_key].category
+            )
+            for item in self.baseline_metrics
+        ):
+            raise ValueError("baseline metrics must match model metric semantics")
+        if self.diagnostics is not None:
+            classification = self.task_kind in {
+                ModelTaskKind.classification,
+                ModelTaskKind.time_series_classification,
+                ModelTaskKind.image_classification,
+            }
+            if classification and self.diagnostics.regression_predictions:
+                raise ValueError("classification cannot declare regression predictions")
+            if not classification and self.diagnostics.confusion_matrix is not None:
+                raise ValueError("regression cannot declare a confusion matrix")
+            if (
+                self.task_kind is not ModelTaskKind.forecast
+                and self.diagnostics.forecast
+            ):
+                raise ValueError("only forecast tasks can declare future predictions")
+        _require_unique(
             tuple(item.metric_id for item in all_metrics), "model metric id"
         )
         _validate_artifact_evidence(
@@ -1208,6 +1315,31 @@ class ModelArtifactStatus(StrEnum):
     revoked = "revoked"
 
 
+class ModelOutputMetadata(BaseModel):
+    """Value metadata read from an exported ONNX graph output."""
+
+    model_config = MODEL_CONFIG
+
+    value_kind: Literal["tensor", "sequence", "map", "optional", "sparse_tensor"]
+    dtype: NonEmptyString | None
+    shape: tuple[int | NonEmptyString | None, ...] | None
+
+    @model_validator(mode="after")
+    def validate_value_type(self) -> Self:
+        if self.value_kind in {"tensor", "sparse_tensor"}:
+            if self.dtype is None:
+                raise ValueError("ONNX tensor output requires its declared dtype")
+        elif self.dtype is not None or self.shape is not None:
+            raise ValueError(
+                "non-tensor ONNX outputs do not have a tensor dtype or shape"
+            )
+        if self.shape is not None and any(
+            isinstance(axis, int) and axis < 0 for axis in self.shape
+        ):
+            raise ValueError("dynamic output axes use a symbolic name or null")
+        return self
+
+
 class ModelArtifactContent(BaseModel):
     """Safe, immutable ONNX model and its inference contract."""
 
@@ -1229,7 +1361,9 @@ class ModelArtifactContent(BaseModel):
     target_field: Identifier
     model_binary: ModelBinaryReference
     input_name: Identifier
+    input_dtype: NonEmptyString | None
     output_names: tuple[Identifier, ...] = Field(min_length=1)
+    output_metadata: dict[Identifier, ModelOutputMetadata | None] = Field(min_length=1)
     input_shape: tuple[int | None, ...] = Field(min_length=2)
     opset_imports: dict[Identifier, int] = Field(min_length=1)
     dependency_revisions: tuple[NonEmptyString, ...] = Field(min_length=1)
@@ -1265,6 +1399,10 @@ class ModelArtifactContent(BaseModel):
             raise ValueError("model Artifact accepts only ONNX binaries")
         _require_unique(self.feature_fields, "model feature field")
         _require_unique(self.output_names, "model output name")
+        if set(self.output_metadata) != set(self.output_names):
+            raise ValueError(
+                "ONNX output metadata must match the declared output names"
+            )
         _require_unique(self.dependency_revisions, "model dependency revision")
         if self.target_field in self.feature_fields:
             raise ValueError("target_field cannot also be a feature field")

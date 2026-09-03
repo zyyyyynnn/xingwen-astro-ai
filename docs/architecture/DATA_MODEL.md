@@ -73,12 +73,15 @@ UserFeedback 固定当前 ArtifactVersion 与对象定位；RevisionPlan 固定�
 ## 4. Artifact、Evidence 与来源
 
 - ResearchArtifact 表示逻辑产物；ArtifactVersion 是不可变内容快照，保存 version number、canonical hashes、source mode、ProducerExecution 与 Evidence identity。
+- Model Artifact 的输入类型、输出值类型/形状与 opset 由模型导出 Producer 从 ONNX graph 读取并随版本发布；输出 metadata 的键必须与声明的输出名闭合。非张量输出不声明张量 dtype/shape，未物化的演示模型使用空 metadata 值，前端只展示已提供的事实。
+- Model Evaluation 按独立的测量 identity 保存模型与基线指标，以相同语义键、类别、单位和优化方向配对。留出集指标、全样本交叉验证与训练集杂质重要性分别呈现，不把线性系数归一化为通用贡献比例。测试集诊断保存实际计算的混淆计数或带原始行引用的预测样本；矩阵计数必须覆盖整个测试集。时间划分保持同一时间戳的观测不跨越训练/测试边界；预测保存训练截止点、留出集单步评估和按观测顺序编号的未来递归预测，不推断时间戳或置信区间。诊断数值、基线和模型输入/输出元数据进入已有版本比较与公开展示路径。
 - Evidence 必须绑定具体 ArtifactVersion 与 SourceSnapshot，并提供 target、locator、值或短引文、extraction method 与 confidence。
 - SourceSnapshot 保存一次真实或录制来源读取的查询、内容哈希、抓取时间、许可与脱敏元数据。
 - ResearchInput 是受控摄取后的不可变内容引用；稳定生命周期区分 `accepted`、`unsupported_processing` 与 `failed_ingestion`。摄取写入只在成功时创建 `accepted` 资源，失败通过 Problem Details 返回，不伪造失败资源。
 - DocumentParse 是 Project-owned、ResearchInput-backed 的内部不可变预处理 derivative，不是公开 ResearchArtifact 或 ArtifactVersion kind。其逻辑身份固定输入内容、parser/profile/model/config revision 与 Canonical output hash；完整 Canonical payload 使用原子 content-addressed storage，PostgreSQL 只保存身份、ownership、SourceSnapshot、ProducerExecution 与安全内容引用。
 - Upload ResearchInput 在首次正式解析持久化时按需生成只含 ResearchInput identity、content hash 与安全 provenance 的 SourceSnapshot，不复制 PDF、图片或全文。
 - DocumentParseLocator 固定同 Project 的一个 DocumentParse 与 SourceSnapshot；page、block、bbox、text span、table 与 cell 必须在该 Parse 内闭合，dangling、cross-parse 与 cross-project 引用均拒绝。
+- 长文摘要以有界 Evidence 摘录为分块单位，保留每个原始段落的全部 text span 和阅读顺序；摘要调用与最终准入使用同一证据集合，不用整段正文替代精确引文。
 
 ## 5. Evidence Graph
 

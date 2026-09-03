@@ -27,6 +27,16 @@ function collectRuntimeErrors(page: Page) {
   return errors;
 }
 
+async function openThreadArtifact(
+  page: Page,
+  versionId: string | undefined,
+): Promise<void> {
+  if (!versionId) throw new Error("Expected a published artifact version id.");
+  const result = page.getByTestId(`artifact-result-${versionId}`);
+  await expect(result).toBeVisible();
+  await result.getByRole("button", { name: /^打开：/u }).click();
+}
+
 async function startProject(page: Page, goal: string): Promise<string> {
   await page.goto("/workspace");
   await page.getByRole("textbox", { name: "输入研究消息" }).fill(goal);
@@ -73,7 +83,7 @@ test("real worker closes the reasoning chain into an operable evidence graph", a
         try {
           response = await fetch(url, { credentials: "include", ...init });
         } catch (error) {
-          throw new Error(`network ${url}: ${(error as Error).message}`);
+          throw new Error(`network ${url}`, { cause: error });
         }
         if (!response.ok) {
           throw new Error(
@@ -171,14 +181,9 @@ test("real worker closes the reasoning chain into an operable evidence graph", a
   const fullscreen = page.getByTestId("artifact-fullscreen-workspace");
 
   // Claims dossier renders human statements with verifiable evidence actions.
-  await page
-    .getByTestId(`artifact-result-${artifactVersionIds.literature_claims}`)
-    .getByRole("button", { name: "查看完整结果" })
-    .click();
-  await expect(
-    fullscreen.getByRole("list", { name: "科学结果档案" }),
-  ).toBeVisible();
-  await fullscreen.getByRole("button", { name: "查看证据 1" }).first().click();
+  await openThreadArtifact(page, artifactVersionIds.literature_claims);
+  const claimsWorkspace = fullscreen.locator("article.literature-review");
+  await claimsWorkspace.getByRole("button", { name: "证据 1" }).first().click();
   await expect(page.getByRole("heading", { name: "研究证据" })).toBeVisible();
   await expect(page.getByText("来源内容", { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
@@ -186,10 +191,7 @@ test("real worker closes the reasoning chain into an operable evidence graph", a
 
   // The graph is operable: keyboard edge selection opens auditable public
   // reasoning with its evidence context.
-  await page
-    .getByTestId(`artifact-result-${artifactVersionIds.graph}`)
-    .getByRole("button", { name: "查看完整结果" })
-    .click();
+  await openThreadArtifact(page, artifactVersionIds.graph);
   const graphCanvas = fullscreen.getByLabel("可交互科学关系图");
   await expect(graphCanvas).toBeVisible();
   const firstEdge = graphCanvas.locator(".react-flow__edge").first();
@@ -207,8 +209,9 @@ test("real worker closes the reasoning chain into an operable evidence graph", a
     name: "关系图列表替代视图",
   });
   await expect(listFallback).toBeVisible();
-  await listFallback.getByRole("button").first().click();
-  await expect(fullscreen.getByText("公开推导", { exact: true })).toBeVisible();
+  const selectedRelationship = listFallback.getByRole("button").first();
+  await selectedRelationship.click();
+  await expect(selectedRelationship).toHaveAttribute("aria-pressed", "true");
 
   expect(failedResponses).toEqual([]);
   expect(runtimeErrors).toEqual([]);
@@ -236,7 +239,7 @@ test("fixture dataset result stays readable with row-level evidence", async ({
         try {
           response = await fetch(url, { credentials: "include", ...init });
         } catch (error) {
-          throw new Error(`network ${url}: ${(error as Error).message}`);
+          throw new Error(`network ${url}`, { cause: error });
         }
         if (!response.ok) {
           throw new Error(
@@ -301,23 +304,18 @@ test("fixture dataset result stays readable with row-level evidence", async ({
   expect(datasetVersionId).toBeTruthy();
 
   await page.reload();
+  const datasetResult = page.getByTestId(`artifact-result-${datasetVersionId}`);
   await expect(
-    page.getByRole("heading", { name: "Exoplanet host-star dataset" }),
+    datasetResult.getByText("Exoplanet host-star dataset", { exact: true }),
   ).toBeVisible();
-  await page
-    .getByTestId(`artifact-result-${datasetVersionId}`)
-    .getByRole("button", { name: "查看完整结果" })
-    .click();
+  await openThreadArtifact(page, datasetVersionId);
   const fullscreen = page.getByTestId("artifact-fullscreen-workspace");
   await expect(fullscreen).toBeVisible();
 
   // Human-readable canonical values, never raw JSON payloads.
   const bodyText = (await fullscreen.innerText()).replace(/\s+/gu, " ");
   expect(bodyText).not.toMatch(/\{"schema_version"/u);
-  await fullscreen
-    .getByRole("button", { name: /查看证据 \d+/ })
-    .first()
-    .click();
+  await fullscreen.getByTitle("查看该数值的证据").first().click();
   await expect(page.getByRole("heading", { name: "研究证据" })).toBeVisible();
   await expect(page.getByText("来源内容", { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");

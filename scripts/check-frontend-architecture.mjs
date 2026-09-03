@@ -241,8 +241,7 @@ const uiSourceFiles = listedFiles.filter(
 const applicationPresentationSourceFiles = listedFiles.filter(
   (file) =>
     (file.startsWith("apps/site/src/") ||
-      file.startsWith("apps/workspace/src/") ||
-      file.startsWith("apps/workspace/upstream/openhands/src/")) &&
+      file.startsWith("apps/workspace/src/")) &&
     /\.(?:astro|css|ts|tsx)$/u.test(file) &&
     !/\.(?:test|spec)\.(?:ts|tsx)$/u.test(file),
 );
@@ -263,6 +262,71 @@ for (const file of uiSourceFiles) {
         `${file} uses forbidden ${forbiddenToken} tokens; @xingwen/ui must consume core semantic tokens.`,
       );
     }
+  }
+}
+
+const workspaceProductionPresentationFiles = listedFiles.filter(
+  (file) =>
+    file.startsWith("apps/workspace/src/") &&
+    /\.(?:css|ts|tsx)$/u.test(file) &&
+    !/\.(?:test|spec)\.(?:ts|tsx)$/u.test(file),
+);
+
+// Shared components consume design-tokens CSS, not a Tailwind semantic theme.
+// These color keys have no @theme authority and therefore generate no utility.
+const missingThemeColorAliasPattern =
+  /(?<![\w-])(?:text|bg|border(?:-[trblxyse])?|ring(?:-offset)?|divide|outline|fill|stroke|shadow|from|via|to)-(?:foreground|background|(?:primary|secondary|accent|muted|destructive|card|popover)(?:-foreground)?|surface(?:-muted)?|input|ring|border|chart-[1-5]|sidebar(?:-(?:foreground|primary(?:-foreground)?|accent(?:-foreground)?|border|ring))?)(?![\w-])/gu;
+
+for (const file of [
+  ...uiSourceFiles,
+  ...workspaceProductionPresentationFiles,
+]) {
+  const content = readFileSync(resolve(root, file), "utf8");
+  for (const match of content.matchAll(missingThemeColorAliasPattern)) {
+    const line = content.slice(0, match.index).split("\n").length;
+    failures.push(
+      `${file}:${line} uses ${match[0]} without a Tailwind theme authority; use the owning UI variant or token-backed component CSS.`,
+    );
+  }
+}
+
+const missingThemeColorAliasFixtures = [
+  [
+    true,
+    'className="hover:bg-muted/50 data-[state=on]:text-accent-foreground"',
+  ],
+  [true, 'className="focus-visible:ring-ring/50 border-input"'],
+  [true, 'className="[&>a:hover]:text-primary ring-offset-background"'],
+  [true, "@apply bg-popover border-border;"],
+  [
+    false,
+    'className="flex min-w-0 gap-0 bg-transparent text-inherit fill-current"',
+  ],
+  [
+    false,
+    'className="text-[var(--color-ink-secondary)] bg-[var(--color-surface)]"',
+  ],
+  [
+    false,
+    "color: var(--color-ink-primary); border-color: var(--color-border);",
+  ],
+  [false, 'className="xw-item__text-primary"'],
+];
+for (const [shouldMatch, content] of missingThemeColorAliasFixtures) {
+  if (
+    [...content.matchAll(missingThemeColorAliasPattern)].length > 0 !==
+    shouldMatch
+  ) {
+    failures.push("Missing Tailwind semantic theme alias self-test failed.");
+  }
+}
+
+for (const file of workspaceProductionPresentationFiles) {
+  const content = readFileSync(resolve(root, file), "utf8");
+  if (content.includes("--oh-")) {
+    failures.push(
+      `${file} uses forbidden legacy --oh- tokens; apps/workspace/src production must consume semantic design tokens.`,
+    );
   }
 }
 
@@ -648,7 +712,7 @@ if (
 for (const file of sourceFiles.filter(
   (entry) =>
     entry.startsWith("apps/") &&
-    !entry.startsWith("apps/workspace/upstream/openhands/src/") &&
+    !entry.startsWith("apps/workspace/src/mechanics/") &&
     !/\.(?:test|spec)\.(?:ts|tsx)$/u.test(entry),
 )) {
   const content = readFileSync(resolve(root, file), "utf8");
@@ -999,7 +1063,7 @@ for (const file of workspaceProductionFiles) {
 const workspaceZustandStoreFiles = sourceFiles.filter(
   (entry) =>
     (entry.startsWith("apps/workspace/src/stores/") ||
-      entry.startsWith("apps/workspace/upstream/openhands/src/stores/")) &&
+      entry.startsWith("apps/workspace/src/mechanics/stores/")) &&
     !/\.(?:test|spec)\.(?:ts|tsx)$/u.test(entry),
 );
 const serverStateStorePattern =
@@ -1153,12 +1217,10 @@ if (
 }
 
 const workspaceShellRoots = listedFiles.filter(
-  (entry) => entry === "apps/workspace/upstream/openhands/src/root.tsx",
+  (entry) => entry === "apps/workspace/src/mechanics/root.tsx",
 );
 if (workspaceShellRoots.length !== 1) {
-  failures.push(
-    "Workspace must have exactly one source-adopted OpenHands product root.",
-  );
+  failures.push("Workspace must have exactly one current mechanics root.");
 }
 
 const workspaceHostPath = "apps/workspace/src/workspace-host.tsx";
@@ -1166,9 +1228,9 @@ if (!listedFiles.includes(workspaceHostPath)) {
   failures.push("Workspace host composition file is missing.");
 } else {
   const workspaceHost = readFileSync(resolve(root, workspaceHostPath), "utf8");
-  if (!workspaceHost.includes("OpenHandsWorkspaceRoot")) {
+  if (!workspaceHost.includes("WorkspaceMechanicsRoot")) {
     failures.push(
-      "Workspace host must mount the single source-adopted OpenHands root.",
+      "Workspace host must mount the single current mechanics root.",
     );
   }
 }

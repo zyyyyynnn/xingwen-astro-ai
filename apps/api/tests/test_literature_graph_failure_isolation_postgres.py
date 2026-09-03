@@ -60,6 +60,36 @@ class _FailureScriptedModel(base._RevisionScriptedModel):
         return super().execute(request)
 
 
+class _AdmissionRejectOnceModel(_FailureScriptedModel):
+    """Return one schema-valid relation that deterministic admission rejects."""
+
+    def __init__(self, factory) -> None:
+        super().__init__(factory)
+        self._reject_next_relation = True
+
+    def execute(self, request):  # noqa: ANN001 - mirrors base signature
+        response = super().execute(request)
+        if request.prompt_name != "literature_relation" or not self._reject_next_relation:
+            return response
+
+        self._reject_next_relation = False
+        relation = dict(response.payload["relations"][0])
+        relation["conditions"] = ()
+        trace = relation.get("trace")
+        if trace is not None:
+            relation["trace"] = {**trace, "conditions": ()}
+        payload = {**response.payload, "relations": (relation,)}
+        return base.ModelExecutionResponse(
+            payload=payload,
+            output_hash=base.canonical_request_hash(payload),
+            token_usage=response.token_usage,
+            latency_ms=response.latency_ms,
+            provider_request_id=response.provider_request_id,
+            provider_returned_model=response.provider_returned_model,
+            tool_calls=response.tool_calls,
+        )
+
+
 def _create_pending_chain(engine: Engine, model) -> dict[str, object]:
     """Author Project/Contract/Run through real services without executing."""
     factory = base.session_factory(engine)
@@ -242,6 +272,29 @@ def test_relation_model_failure_isolates_published_prefix_and_recovers(
     assert _latest_pointer(harness, "literature_relations") is not None
     graph_latest = _latest_pointer(harness, "graph")
     assert graph_latest is not None
+
+
+def test_relation_admission_rejection_retries_within_the_same_run(
+    postgres_engine: Engine, confidence_provider
+) -> None:
+    model = _AdmissionRejectOnceModel(base.session_factory(postgres_engine))
+    harness = _create_pending_chain(postgres_engine, model)
+    store: PersistentWorkflowStore = harness["store"]
+
+    run_id = harness["create_run"]()
+    asyncio.run(harness["make_worker"]().execute_run(run_id))
+
+    snapshot = store.load_snapshot(run_id)
+    assert snapshot.status == "completed", snapshot.failure_summary
+    reasoning = next(step for step in snapshot.steps if step.key == "reasoning_literature")
+    assert len(reasoning.attempts) == 2
+    assert reasoning.attempts[0].status == "failed"
+    assert reasoning.attempts[0].error_code == "LITERATURE_RELATION_REJECTED"
+    assert reasoning.attempts[0].retryable is True
+    assert reasoning.attempts[1].status == "completed"
+    assert model.call_counts["literature_relation"] == 2
+    assert _latest_pointer(harness, "literature_relations") is not None
+    assert _latest_pointer(harness, "graph") is not None
 
 
 def test_graph_integrity_failure_keeps_reasoning_pointers(

@@ -470,7 +470,6 @@ def _relation_fixture(
             "conflicts": [],
             "conclusion": relation.rejection_reason or trace.steps[-1].statement,
         },
-        "confidence_assessment_id": assessment_id,
     }
     versions = {
         source.artifact_version_id: source.version,
@@ -537,8 +536,6 @@ def _negative_cases(
     trace_unsafe["trace"]["steps"][0]["statement"] = (
         "Expose private reasoning token-by-token."
     )
-    confidence_undefined = deepcopy(base)
-    confidence_undefined["confidence_assessment_id"] = None
     unsupported_confidence = fixture.confidence.model_copy(
         update={"definition_version": "9.9.9"}
     )
@@ -705,7 +702,8 @@ def _negative_cases(
         _negative_case(
             case_id="rejection.confidence_undefined",
             fixture=fixture,
-            payload=confidence_undefined,
+            payload=base,
+            confidence_assessments={},
             expected_stage=LiteratureRelationFailureStage.confidence,
             expected_reason=LiteratureRelationRejectionReason.confidence_undefined,
         ),
@@ -795,6 +793,9 @@ def _negative_case(
     version_ids: tuple[str, ...] | None = None,
     versions: dict[str, LiteratureClaimsArtifactVersionInput] | None = None,
     confidence: LiteratureRelationConfidenceAssessment | None = None,
+    confidence_assessments: dict[
+        str, LiteratureRelationConfidenceAssessment
+    ] | None = None,
     available_paper_summary_artifact_version_ids: frozenset[str] | None = None,
     existing_relation_fingerprints: frozenset[str] = frozenset(),
 ) -> LiteratureRelationBenchmarkEvaluationCase:
@@ -805,6 +806,7 @@ def _negative_case(
         version_ids=version_ids,
         versions=versions,
         confidence=confidence,
+        confidence_assessments=confidence_assessments,
         available_paper_summary_artifact_version_ids=(
             available_paper_summary_artifact_version_ids
         ),
@@ -830,6 +832,9 @@ def _admit(
     version_ids: tuple[str, ...] | None = None,
     versions: dict[str, LiteratureClaimsArtifactVersionInput] | None = None,
     confidence: LiteratureRelationConfidenceAssessment | None = None,
+    confidence_assessments: dict[
+        str, LiteratureRelationConfidenceAssessment
+    ] | None = None,
     available_paper_summary_artifact_version_ids: frozenset[str] | None = None,
     existing_relation_fingerprints: frozenset[str] = frozenset(),
 ) -> LiteratureRelationAdmissionResult:
@@ -847,9 +852,11 @@ def _admit(
         ),
         model_name=_REPLAY_MODEL_NAME,
         parameters=_REPLAY_PARAMETERS,
-        confidence_assessments={
-            selected_confidence.assessment_id: selected_confidence
-        },
+        confidence_assessments=(
+            {selected_confidence.assessment_id: selected_confidence}
+            if confidence_assessments is None
+            else confidence_assessments
+        ),
         available_paper_summary_artifact_version_ids=(
             available_paper_summary_artifact_version_ids
         ),

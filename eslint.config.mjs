@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { URL } from "node:url";
 
 import eslint from "@eslint/js";
 import astro from "eslint-plugin-astro";
@@ -46,6 +47,14 @@ export default tseslint.config(
       "react-hooks": reactHooks,
     },
     rules: reactHooks.configs.flat.recommended.rules,
+  },
+  {
+    files: ["scripts/**/*.mjs", "tests/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
   },
   {
     files: ["apps/workspace/**/*.{ts,tsx}", "tests/e2e/**/*.ts"],

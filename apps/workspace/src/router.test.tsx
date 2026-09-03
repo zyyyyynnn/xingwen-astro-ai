@@ -113,7 +113,11 @@ describe("Workspace routes", () => {
       "artifact-result-artv_papsum_01",
     );
     expect(resultBlock).toBeInTheDocument();
-    expect(within(resultBlock).getByText("查看完整结果")).toBeInTheDocument();
+    expect(
+      within(resultBlock).getByRole("button", {
+        name: "打开：核心文献研读报告",
+      }),
+    ).toBeInTheDocument();
     expect(within(resultBlock).queryByText("演示数据")).not.toBeInTheDocument();
     expect(within(resultBlock).queryByText(/^v\d+$/u)).not.toBeInTheDocument();
     expect(
@@ -126,7 +130,7 @@ describe("Workspace routes", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("未支持的研究产物")).not.toBeInTheDocument();
     const openButton = within(resultBlock).getByRole("button", {
-      name: "查看完整结果",
+      name: "打开：核心文献研读报告",
     });
     openButton.focus();
     fireEvent.click(openButton);
@@ -362,7 +366,7 @@ describe("Workspace routes", () => {
 
     expect(
       await screen.findByTestId("missing-project-notice"),
-    ).toHaveTextContent("这个研究已不存在。");
+    ).toHaveTextContent("这个研究不存在");
     expect(history.location.pathname).toBe("/workspace");
     expect(
       screen.queryByRole("heading", { name: "页面载入失败" }),

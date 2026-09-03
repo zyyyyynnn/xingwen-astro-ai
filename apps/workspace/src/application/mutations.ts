@@ -1,5 +1,6 @@
 import { mutationOptions, type QueryClient } from "@tanstack/react-query";
 import type {
+  AcquirePaperFullTextInput,
   CreateResearchProjectInput,
   CreateResearchInputInput,
   RepositorySet,
@@ -13,6 +14,7 @@ import type {
   CreateShareSnapshotRequest,
   DomainEntityId,
   ExecutionMode,
+  RevisionFeedbackIntent,
   RunCheckpointDecisionRequest,
 } from "@xingwen/domain";
 import type {
@@ -38,6 +40,7 @@ interface WorkspaceMutationDependencies {
     | "revisions"
     | "modelProvider"
     | "shares"
+    | "paperAcquisition"
   >;
   readonly researchAdapter: ResearchAdapter;
   readonly queryClient: QueryClient;
@@ -45,6 +48,10 @@ interface WorkspaceMutationDependencies {
 }
 
 const MAX_PENDING_IDEMPOTENCY_KEYS = 64;
+
+type DistributiveOmit<T, K extends keyof T> = T extends unknown
+  ? Omit<T, K>
+  : never;
 
 export function mergeResearchThreadEntries(
   current: readonly ResearchThreadEntryViewModel[] | undefined,
@@ -154,14 +161,23 @@ export interface BindResearchInputToDraftVariables {
   readonly draftId: DomainEntityId;
 }
 
-export interface CreateRevisionFeedbackVariables {
+export type AttachPaperFullTextVariables = {
   readonly projectId: DomainEntityId;
-  readonly artifactId: DomainEntityId;
-  readonly artifactVersionId: DomainEntityId;
-  readonly expectedVersionNumber: number;
-  readonly summary: string;
-  readonly requestedChange: string;
-}
+} & (
+  | ({ readonly mode: "open_access" } & Omit<
+      AcquirePaperFullTextInput,
+      "idempotencyKey"
+    >)
+  | ({ readonly mode: "uploaded" } & Omit<
+      Parameters<RepositorySet["paperAcquisition"]["bindResearchInput"]>[0],
+      "idempotencyKey"
+    >)
+);
+
+export type CreateRevisionFeedbackVariables = DistributiveOmit<
+  RevisionFeedbackIntent,
+  "idempotencyKey"
+>;
 
 export interface CreateRevisionPlanVariables {
   readonly projectId: DomainEntityId;
@@ -271,6 +287,33 @@ export function createWorkspaceMutations({
         mutationFn: ({ projectId, request }: CreateShareVariables) =>
           repositories.shares.create(projectId, request),
       }),
+    paperFullTextAttach: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "paper", "full-text"],
+        retry: false,
+        mutationFn: (variables: AttachPaperFullTextVariables) => {
+          const idempotencyKey = idempotency.keyFor(
+            "paper.full-text",
+            variables,
+          );
+          return variables.mode === "open_access"
+            ? repositories.paperAcquisition.acquireFullText({
+                ...variables,
+                idempotencyKey,
+              })
+            : repositories.paperAcquisition.bindResearchInput({
+                ...variables,
+                idempotencyKey,
+              });
+        },
+        onSuccess: (_result, variables) => {
+          idempotency.complete("paper.full-text", variables);
+          void queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.researchInputs(variables.projectId),
+            exact: true,
+          });
+        },
+      }),
     researchInputCreate: () =>
       mutationOptions({
         mutationKey: ["workspace", "research-input", "create"],
@@ -317,11 +360,7 @@ export function createWorkspaceMutations({
         retry: false,
         mutationFn: (variables: CreateRevisionFeedbackVariables) =>
           repositories.revisions.createFeedback({
-            artifactId: variables.artifactId,
-            artifactVersionId: variables.artifactVersionId,
-            expectedVersionNumber: variables.expectedVersionNumber,
-            summary: variables.summary,
-            requestedChange: variables.requestedChange,
+            ...variables,
             idempotencyKey: idempotency.keyFor(
               "revision.feedback.create",
               variables,

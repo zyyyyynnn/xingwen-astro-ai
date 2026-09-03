@@ -1,8 +1,7 @@
 # syntax=docker/dockerfile:1.7
-# 后端镜像：python:3.13-slim + uv
-# AGENTS 红线：后端容器基线为 python:3.13-slim，依赖由 uv 管理
+# Backend image: pinned CPython 3.13 patch line with uv-managed dependencies.
 
-FROM python:3.13-slim
+FROM python:3.13.13-slim AS api-base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -12,37 +11,47 @@ ENV PYTHONUNBUFFERED=1 \
     UV_PYTHON_INSTALL_DIR=/opt/uv-python \
     UV_LINK_MODE=copy
 
-# 安装 uv（通过 pip，避免 Docker 构建环境访问 github 受限）
+# Install the repository-governed uv version without a GitHub binary dependency.
 RUN pip install --no-cache-dir uv==0.7.8 && uv --version
 
 WORKDIR /app
 
-# Compose 以仓库根目录为 build context，便于只读挂入权威 Case/Field Manifest。
-# 先复制依赖清单，利用 Docker 层缓存。
+# Compose uses the repository root as build context.
 COPY apps/api/pyproject.toml apps/api/uv.lock ./
 
-# 先同步依赖以保留缓存层；源码复制后再安装当前项目本身。
+# Preserve a stable dependency cache before copying application sources.
 RUN uv sync --frozen --no-install-project
 
-# 复制当前应用源码（schema one-shot service 与运行时共用同一镜像）
+# Schema one-shot and API runtime use the same current application image.
 COPY apps/api/src ./src
 COPY packages/prompts ./packages/prompts
 COPY services/data_pipeline ./services/data_pipeline
 COPY services/paper_pipeline ./services/paper_pipeline
 COPY services/graph_pipeline ./services/graph_pipeline
+COPY services/scientific_document ./services/scientific_document
 COPY services/scientific_skills ./services/scientific_skills
 
-# 安装当前 API distribution，使运行时 package metadata 与实际项目版本同源。
 RUN uv sync --frozen
 
-# Integration bootstrap 属于 API image 的显式运行边界；构建时即验证本地 Pipeline 包完整。
-RUN PYTHONPATH=/app/src:/app uv run python -c "import app.test_support.bootstrap; import services.data_pipeline.crossmatch; import services.scientific_skills"
+# Validate every local production package required by the runtime image.
+RUN PYTHONPATH=/app/src:/app uv run python -c "import app.test_support.bootstrap; import services.data_pipeline.crossmatch; import services.scientific_document.model_asset_contract; import services.scientific_skills"
 
-# 把 .venv/bin 加入 PATH，uvicorn 直接可用
-# PYTHONPATH 同时包含 API 的 src layout 与冻结数据流水线包。
 ENV PATH="/app/.venv/bin:${PATH}" \
     PYTHONPATH="/app/src:/app"
 
 EXPOSE 8000
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# Optional heavyweight visual runtime. The default API image remains native/HTTP
+# capable; operators selecting the verified local model bundle build this target.
+FROM api-base AS api-visual
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends \
+        libgl1 \
+        libglib2.0-0t64 \
+        libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+RUN uv sync --frozen --group visual
+
+FROM api-base AS api

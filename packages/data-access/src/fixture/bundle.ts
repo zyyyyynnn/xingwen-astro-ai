@@ -21,6 +21,7 @@ import type {
   PaperCollectionRead as PaperCollectionReadDto,
   PaperSummaryRead as PaperSummaryReadDto,
   PublicArtifactPresentation,
+  ScientificArtifactRead as ScientificArtifactReadDto,
   SourceCollectionArtifactRead,
   ResearchArtifactDto,
   ResearchContractDto,
@@ -29,7 +30,7 @@ import type {
   ResearchRunDto,
   RunEventDto,
 } from "@xingwen/contracts";
-import type { Evidence } from "@xingwen/domain";
+import type { Evidence, ResearchThreadEntry } from "@xingwen/domain";
 
 type DataArtifactRead =
   | DatasetArtifactRead
@@ -56,6 +57,8 @@ export interface FixturePaperSummary {
 
 export interface FixtureBundleData {
   readonly projects: readonly ResearchProjectDto[];
+  /** Public research conversation entries shown on the primary thread path. */
+  readonly threadEntries: readonly ResearchThreadEntry[];
   readonly contractDrafts: readonly ResearchContractDraftDto[];
   readonly contracts: readonly ResearchContractDto[];
   readonly runs: readonly ResearchRunDto[];
@@ -77,6 +80,8 @@ export interface FixtureBundleData {
   readonly graphArtifactReads: readonly GraphArtifactRead[];
   readonly graphNodeReads: readonly GraphNodeRead[];
   readonly graphEdgeReads: readonly GraphEdgeRead[];
+  /** Formal typed Scientific reads shared by fixture and HTTP mappers. */
+  readonly scientificArtifactReads?: readonly ScientificArtifactReadDto[];
   /** Frozen positive-contract presentations keyed by ArtifactVersion id. */
   readonly artifactPresentations: Readonly<
     Record<string, PublicArtifactPresentation>

@@ -355,7 +355,7 @@ Schema/协议真正机器版本。内部结果版本继续使用自然语言表�
 - Overlay 关闭后恢复焦点；
 - Resize 提供键盘替代。
 
-正式视觉验收覆盖 Light Web：1440×900、1280×800、1024×768。Reduced Motion、键盘、Focus 与 Screen Reader 是正式要求。
+正式视觉验收覆盖 Light Web：1440×900、1280×800。Reduced Motion、键盘、Focus 与 Screen Reader 是正式要求。
 
 ## 16. 产品语言
 

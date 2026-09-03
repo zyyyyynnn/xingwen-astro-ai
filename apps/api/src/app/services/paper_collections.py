@@ -34,8 +34,14 @@ class PaperCollectionReadService:
     def __init__(self, artifacts: ArtifactReadService) -> None:
         self._artifacts = artifacts
 
-    def get_collection(self, *, version_id: str, session_id: str) -> PaperCollectionRead:
-        version = self._artifacts.get_version(version_id=version_id, session_id=session_id)
+    def get_collection(
+        self, *, version_id: str, session_id: str
+    ) -> PaperCollectionRead:
+        version = self._artifacts.get_version(
+            version_id=version_id,
+            session_id=session_id,
+            full_content=True,
+        )
         artifact = self._artifacts.get_artifact(
             artifact_id=version.artifact_id, session_id=session_id
         )
@@ -93,7 +99,9 @@ class PaperCollectionReadService:
         selected = candidates[start : start + limit]
         has_more = start + len(selected) < len(candidates)
         next_cursor = (
-            _encode_cursor(version_id=detail.artifact_version_id, key=_candidate_key(selected[-1]))
+            _encode_cursor(
+                version_id=detail.artifact_version_id, key=_candidate_key(selected[-1])
+            )
             if selected and has_more
             else None
         )
@@ -140,7 +148,9 @@ class PaperCollectionReadService:
         groups = {
             item.duplicate_group_id: item for item in detail.collection.duplicate_groups
         }
-        snapshot = _snapshot_projection_map(detail).get(candidate.raw.source_snapshot_id)
+        snapshot = _snapshot_projection_map(detail).get(
+            candidate.raw.source_snapshot_id
+        )
         group = groups.get(candidate.duplicate_group_id)
         if group is None or snapshot is None:
             raise _provenance_problem()
@@ -160,8 +170,7 @@ class PaperCollectionReadService:
             raise _schema_problem() from exc
         if (
             version.schema_version != collection.schema_version
-            or version.content_hash
-            != compute_canonical_payload_hash(version.content)
+            or version.content_hash != compute_canonical_payload_hash(version.content)
             or version.input_hash != collection.input_hash
             or version.producer_execution.parameters_hash
             != collection.producer.parameters_hash
@@ -194,7 +203,8 @@ class PaperCollectionReadService:
     def _require_available(collection: PaperCollection) -> None:
         if collection.acquisition_run.status == "failed":
             failures = tuple(
-                item for item in collection.source_executions
+                item
+                for item in collection.source_executions
                 if item.status is PaperSourceExecutionStatus.failed
             )
             if any(
@@ -229,9 +239,7 @@ def _candidate_key(candidate: PaperCollectionCandidate) -> tuple[str, str, str]:
 def _snapshot_projection_map(
     detail: PaperCollectionRead,
 ) -> dict[str, SourceSnapshotDetail]:
-    return _snapshot_projection_map_from(
-        detail.collection, detail.source_snapshots
-    )
+    return _snapshot_projection_map_from(detail.collection, detail.source_snapshots)
 
 
 def _snapshot_projection_map_from(
@@ -247,7 +255,9 @@ def _snapshot_projection_map_from(
         persisted_by_fingerprint[fingerprint] = snapshot
     result: dict[str, SourceSnapshotDetail] = {}
     for snapshot in collection.source_snapshots:
-        persisted = persisted_by_fingerprint.get(_content_snapshot_fingerprint(snapshot))
+        persisted = persisted_by_fingerprint.get(
+            _content_snapshot_fingerprint(snapshot)
+        )
         if persisted is None:
             raise _provenance_problem()
         result[snapshot.snapshot_id] = persisted
@@ -279,7 +289,6 @@ def _persisted_snapshot_fingerprint(snapshot: SourceSnapshotDetail) -> tuple[Any
 def _encode_cursor(*, version_id: str, key: tuple[str, str, str]) -> str:
     payload = json.dumps(
         {
-            "v": 1,
             "version_id": version_id,
             "ranking_key": key[0],
             "canonical_paper_id": key[1],
@@ -298,14 +307,13 @@ def _decode_cursor(value: str, *, version_id: str) -> tuple[str, str, str]:
         padded = value + "=" * (-len(value) % 4)
         payload = json.loads(base64.b64decode(padded, altchars=b"-_", validate=True))
         if set(payload) != {
-            "v",
             "version_id",
             "ranking_key",
             "canonical_paper_id",
             "candidate_id",
         }:
             raise ValueError
-        if payload["v"] != 1 or payload["version_id"] != version_id:
+        if payload["version_id"] != version_id:
             raise ValueError
         key = (
             payload["ranking_key"],
@@ -315,7 +323,13 @@ def _decode_cursor(value: str, *, version_id: str) -> tuple[str, str, str]:
         if not all(isinstance(item, str) and item for item in key):
             raise ValueError
         return key
-    except (binascii.Error, TypeError, ValueError, UnicodeError, json.JSONDecodeError) as exc:
+    except (
+        binascii.Error,
+        TypeError,
+        ValueError,
+        UnicodeError,
+        json.JSONDecodeError,
+    ) as exc:
         raise _invalid_cursor() from exc
 
 

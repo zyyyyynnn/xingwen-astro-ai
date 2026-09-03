@@ -1,0 +1,43 @@
+{
+ "source_commit": "a8679a66341d10cd9b578cffe81524f230a0bc20",
+ "ci": {
+  "status": "success",
+  "run": 33720523203
+ },
+ "codeql": {
+  "status": "success",
+  "run": 33720520622
+ },
+ "desktop": {
+  "1440x900": {
+   "passed": 5,
+   "failed": 0
+  },
+  "1280x800": {
+   "passed": 5,
+   "failed": 0
+  }
+ },
+ "paper_fullscreen": {
+  "elapsed_ms": 6361,
+  "pre_open_generic_artifact_version_requests": 0,
+  "opened_generic_artifact_version": "98dd9863-d691-5105-94d4-b982709143ba"
+ },
+ "paper_export": {
+  "markdown_http_status": 200
+ },
+ "public_share": {
+  "create_http_status": 201,
+  "read_http_status": 200
+ },
+ "relation_adjudication": {
+  "run_id": "1c668872-8d12-4203-95ec-2c67c4cabdee",
+  "status": "completed"
+ },
+ "data_profile": {
+  "run_id": "2cc2e029-7f3c-4cc3-a5d3-7a112bc37858",
+  "status": "completed",
+  "analysis_artifact_version_id": "0d2aef77-a982-42c6-9831-70388d125508",
+  "scientific_read_status": "SCIENTIFIC_ARTIFACT_INTEGRITY"
+ }
+}

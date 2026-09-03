@@ -1,4 +1,5 @@
 import type { ContentHash, VisualizationReviewContent } from "@xingwen/domain";
+import { Badge } from "@xingwen/ui";
 
 import { ScientificChart } from "../scientific-chart";
 import { WwtSceneControls } from "../wwt-scene-controls";
@@ -94,7 +95,61 @@ function FitsImageSummary({
       </>
     );
   }
-  return <WwtViewport spec={spec} loadContent={loadContent} />;
+  return (
+    <div className="observation-workspace observation-workspace--fits">
+      <div className="observation-workspace__body">
+        <div className="observation-workspace__canvas">
+          <WwtViewport spec={spec} loadContent={loadContent} />
+        </div>
+        <aside
+          className="observation-workspace__inspector"
+          aria-label="FITS 图像状态"
+        >
+          <header className="observation-workspace__inspector-header">
+            <div>
+              <h3>FITS 图像切片</h3>
+            </div>
+          </header>
+
+          <section>
+            <h4>显示参数</h4>
+            <dl className="observation-workspace__facts">
+              <div>
+                <dt>像素拉伸</dt>
+                <dd>{STRETCH_LABELS[spec.stretch]}</dd>
+              </div>
+              <div>
+                <dt>色表</dt>
+                <dd>{spec.colorMap}</dd>
+              </div>
+              <div>
+                <dt>交互引擎</dt>
+                <dd>WorldWide Telescope</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section>
+            <h4>研究上下文</h4>
+            <dl className="observation-workspace__facts">
+              <div>
+                <dt>来源快照</dt>
+                <dd>{content.sourceSnapshotIds.length} 个</dd>
+              </div>
+              <div>
+                <dt>核验依据</dt>
+                <dd>{content.evidenceIds.length} 条</dd>
+              </div>
+              <div>
+                <dt>科学处理</dt>
+                <dd>{content.skillExecutions.length} 个步骤</dd>
+              </div>
+            </dl>
+          </section>
+        </aside>
+      </div>
+    </div>
+  );
 }
 
 function WwtSceneSummary({
@@ -189,7 +244,9 @@ export function VisualizationContent({
       {!enhancementOnly ? (
         <ScientificContentHeader
           title={content.title || title}
-          subtitle={`可视化 · ${sourceModeLabel(sourceMode)}`}
+          subtitle={
+            <Badge variant="secondary">{sourceModeLabel(sourceMode)}</Badge>
+          }
         />
       ) : null}
       {!enhancementOnly && content.description ? (

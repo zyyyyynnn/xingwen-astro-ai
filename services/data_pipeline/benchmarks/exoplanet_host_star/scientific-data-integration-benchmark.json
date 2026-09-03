@@ -1,7 +1,7 @@
 {
   "benchmark_id": "exoplanet_host_star.scientific_data_integration_benchmark",
-  "version": "2.1.0",
-  "content_hash": "sha256:945058c3b70c43c932e59303b6e31c2239a8d5240f3176e89abe7fae883c18ae",
+  "version": "2.1.1",
+  "content_hash": "sha256:57803a71824e8d512fcaef09658620444ebb3c21b96b3a048c6f24e2defdd1e4",
   "data_level": "synthetic_fixture_plus_recorded_response",
   "provenance_note": "Frozen integration corpus over independently adjudicated synthetic crossmatch records and hash-pinned Recorded TOI/PS acquisition fixtures. Expected retrievals are scored only after the existing production adapters replay their fixture transports; field values, entity pairs, conflicts, unit outcomes, and repair dispositions remain independent frozen adjudications. Production output is observed but never copied into truth.",
   "adjudication_source": "The pinned TOI and PS recorded acquisition fixtures, crossmatch benchmark corpus, field manifest, mapping rules, and unit catalog, independently reviewed as frozen fixture contracts",
@@ -22,11 +22,11 @@
     "failure_recovery": "exact_expected_failures / frozen_failure_injections"
   },
   "crossmatch_benchmark_id": "exoplanet_host_star.crossmatch_benchmark",
-  "crossmatch_benchmark_version": "2.0.0",
-  "crossmatch_benchmark_content_hash": "sha256:5824e2c093e670cd6b00c18aac7e74e53bd4aa63daf02eadeafe1e7d2828e75c",
+  "crossmatch_benchmark_version": "2.0.1",
+  "crossmatch_benchmark_content_hash": "sha256:4e61e115e69be939eb2bf29e290ee83fcbaafab59c4964a4334ae0ad3bbb47b1",
   "rule_set_id": "exoplanet_host_star.crossmatch_rules",
-  "rule_set_version": "2.0.0",
-  "rule_set_content_hash": "sha256:66e365e1f600aa2a9b4fdec9915d1e9f669057404bd0cbd2ff57227eeeb89247",
+  "rule_set_version": "2.0.1",
+  "rule_set_content_hash": "sha256:33e3d9844eb95bfd1d2ba7dc4848693634eb8452ff50e1d780be51f8fbfa349d",
   "cases": [
     {
       "case_id": "int.exact_one_to_one",
@@ -58,21 +58,21 @@
         {
           "side": "left",
           "source_id": "nasa_exoplanet_archive.toi",
-          "source_snapshot_id": "snapshot.nasa-toi.e9ce26a8760a7bf42d47377a",
-          "source_snapshot_content_hash": "sha256:5088ff9bc27109de7742bcef89c5d6c3033146510beafbcceedc7af33bd034ba",
-          "query_hash": "sha256:bb6deb337eacb15ddd68b942abdda52442de78a8b67e4021037960c27c6a2859",
+          "source_snapshot_id": "snapshot.nasa-toi.98cd58e09b14c693236355da",
+          "source_snapshot_content_hash": "sha256:ffc375433dd5f486af572ff4f7d5f3a2f6576d65caf901aa021385d77428c3f4",
+          "query_hash": "sha256:930e3a8b9b23a9f0d0f9af12b8bae75051b2f2084856faab6492ecb915544c03",
           "fixture_id": "fixture.nasa-toi.first-page.2026-07-22",
-          "fixture_content_hash": "sha256:2303943c13a7ee985b412ff2e73cf900268fbc904983e783aff3bf5d7f928949",
+          "fixture_content_hash": "sha256:d26e753e7bdfe7d8b068d5752b81499997c92822ff0ca5267d8d59e98740fbc5",
           "row_key": [["toi", "1000.01"]]
         },
         {
           "side": "right",
           "source_id": "nasa_exoplanet_archive.ps",
-          "source_snapshot_id": "snapshot.nasa-ps.42e7e7a0142553765af546f2",
-          "source_snapshot_content_hash": "sha256:e41328b8d61850461d353398532262596df2bfebbebeede7080e2ccb00809094",
-          "query_hash": "sha256:8beeda393f1d407e18401b54377f1dda810bdc17f0abae89ff233b43a335fde2",
+          "source_snapshot_id": "snapshot.nasa-ps.75f72251c5ddf081f5bb0c38",
+          "source_snapshot_content_hash": "sha256:448897e7be23fda511ac0e4016679a13ad4bf5b296b4dec4b0403dbfd52f3647",
+          "query_hash": "sha256:074e139027a0b791812c2f323f31485433795a1d27822578d02dbb2c67aed37e",
           "fixture_id": "fixture.nasa-ps.by-tic-first-page.2026-07-30",
-          "fixture_content_hash": "sha256:abd53480378d9b1a51610247350e090ed0cfe922a8fb660cf420b5e4663004c3",
+          "fixture_content_hash": "sha256:a4d2e9a120c624466fbb446bc9807e034af7d36c4604729d22b3886175f173eb",
           "row_key": [
             ["pl_name", "TOI-1243 b"],
             ["pl_refname", "<a refstr=EXOFOP href=https://exofop.ipac.caltech.edu/tess/view_toi.php target=ref>ExoFOP</a>"]

@@ -1,5 +1,4 @@
 import {
-  useMutation,
   useQuery,
   useQueries,
   type UseQueryOptions,
@@ -23,22 +22,23 @@ import type {
 import {
   Alert,
   AlertDescription,
-  Button,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
   Skeleton,
 } from "@xingwen/ui";
-import { ArrowRight } from "@xingwen/ui/icons";
-import { useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { PackageCheck } from "@xingwen/ui/icons";
+import type { ComponentType, ReactNode } from "react";
 
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
 import { ArtifactExportActions } from "../components/artifact-export-actions";
-import { ArtifactPresentationContent } from "../components/scientific-presentation";
+import type { PresentationRevisionIntent } from "../components/scientific-presentation";
 import { DataArtifactRenderer } from "../components/data-artifact-renderer";
+import { PaperCollectionWorkspace } from "../components/paper-collection-workspace";
 import { PaperResultWorkspace } from "../components/paper-result-workspace";
+import { PaperSummaryExportActions } from "../components/paper-summary-export-actions";
 import { ScientificArtifactRenderer } from "../components/scientific-artifact-renderer";
 import { ScientificDiffView } from "../components/scientific-diff-view";
 import { artifactKindLabel } from "./artifact-presentation-labels";
@@ -58,6 +58,9 @@ import {
   type ScientificDiffSnapshot,
 } from "./scientific-diff";
 
+import { ResultPreview } from "../components/result-layout/result-preview";
+import { ArtifactToolbar } from "../components/result-layout/artifact-toolbar";
+
 export type ArtifactContentFamily =
   | "data"
   | "paper_summary"
@@ -65,7 +68,8 @@ export type ArtifactContentFamily =
   | "literature"
   | "graph"
   | "scientific";
-export type ArtifactLayoutMode = "reading" | "wide" | "immersive";
+export type ArtifactLayoutMode =
+  "reading" | "wide" | "data" | "graph" | "immersive";
 
 export interface ArtifactRendererCapabilities {
   readonly evidence: boolean;
@@ -91,12 +95,15 @@ export interface ArtifactThreadRendererProps {
   readonly onOpen: (() => void) | null;
 }
 
+export type RevisionIntent = PresentationRevisionIntent;
+
 export interface ArtifactFullscreenRendererProps {
   readonly runtime: WorkspaceRuntimeBoundaries;
   readonly projectId: DomainEntityId;
   readonly artifact: ResearchArtifactViewModel;
   readonly version: ArtifactVersionMetadataViewModel;
   readonly onSelectEvidence: (evidenceId: DomainEntityId) => void;
+  readonly onRequestRevision?: (intent: RevisionIntent) => void;
   readonly paperPageRequest?: {
     readonly pageIndex: number;
     readonly nonce: number;
@@ -155,12 +162,19 @@ export function UnsupportedArtifactPresentation({
 }) {
   if (descriptor.unsupportedPresentation === null) return null;
   return (
-    <Alert>
-      <AlertDescription>
-        <strong>{descriptor.unsupportedPresentation.title}</strong>
-        <p>{descriptor.unsupportedPresentation.description}</p>
-      </AlertDescription>
-    </Alert>
+    <div className="flex min-h-0 flex-1 items-center justify-center px-6 py-10">
+      <Empty className="min-h-72 w-full max-w-3xl">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <PackageCheck aria-hidden="true" />
+          </EmptyMedia>
+          <EmptyTitle>{descriptor.unsupportedPresentation.title}</EmptyTitle>
+          <EmptyDescription>
+            {descriptor.unsupportedPresentation.description}
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    </div>
   );
 }
 
@@ -186,37 +200,18 @@ function ThreadResultBlock({
   summary,
   onOpen,
 }: ArtifactThreadRendererProps) {
+  const isReviewAction = artifact.kind === "literature_relations";
   return (
-    <div
-      className="xw-result-block my-2 rounded-lg border border-border/70 bg-background p-4"
-      data-testid={`artifact-result-${versionId}`}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 items-start gap-3">
-          <div className="min-w-0">
-            <h3 className="truncate text-sm font-medium text-foreground">
-              {artifact.title}
-            </h3>
-            {summary ? (
-              <p className="ui-text-label mt-1 line-clamp-2 text-muted-foreground">
-                {summary}
-              </p>
-            ) : null}
-          </div>
-        </div>
-        {onOpen ? (
-          <Button
-            size="small"
-            variant="ghost"
-            className="shrink-0 gap-1.5 text-xs"
-            onClick={onOpen}
-          >
-            查看完整结果
-            <ArrowRight className="size-3.5" aria-hidden="true" />
-          </Button>
-        ) : null}
-      </div>
-    </div>
+    <ResultPreview
+      artifactId={artifact.id}
+      versionId={versionId}
+      kind={artifact.kind}
+      kindLabel={artifactKindLabel(artifact.kind)}
+      title={artifact.title}
+      summary={summary}
+      actionLabel={isReviewAction ? "审查结果" : "打开"}
+      onOpen={onOpen}
+    />
   );
 }
 
@@ -354,14 +349,26 @@ function defineRenderer<
       enabled: currentRunQuery.data !== undefined,
     });
     const baselineEvidenceQueries = useQueries({
-      queries: props.baselineVersion.provenance.evidenceIds.map((evidenceId) =>
-        props.runtime.application.queries.evidence(props.projectId, evidenceId),
-      ),
+      queries: props.baselineVersion.evidence
+        ? []
+        : props.baselineVersion.provenance.evidenceIds.map((evidenceId) =>
+            props.runtime.application.queries.evidence(
+              props.projectId,
+              props.baselineVersion.id,
+              evidenceId,
+            ),
+          ),
     });
     const currentEvidenceQueries = useQueries({
-      queries: props.currentVersion.provenance.evidenceIds.map((evidenceId) =>
-        props.runtime.application.queries.evidence(props.projectId, evidenceId),
-      ),
+      queries: props.currentVersion.evidence
+        ? []
+        : props.currentVersion.provenance.evidenceIds.map((evidenceId) =>
+            props.runtime.application.queries.evidence(
+              props.projectId,
+              props.currentVersion.id,
+              evidenceId,
+            ),
+          ),
     });
     const baselineSourceQueries = useQueries({
       queries: props.baselineVersion.provenance.sourceSnapshotIds.map(
@@ -434,12 +441,16 @@ function defineRenderer<
 
     const baselineSnapshot = definition.buildDiffSnapshot(baselineQuery.data);
     const currentSnapshot = definition.buildDiffSnapshot(currentQuery.data);
-    const baselineEvidence = baselineEvidenceQueries.flatMap((query) =>
-      query.data ? [query.data] : [],
-    );
-    const currentEvidence = currentEvidenceQueries.flatMap((query) =>
-      query.data ? [query.data] : [],
-    );
+    const baselineEvidence =
+      props.baselineVersion.evidence ??
+      baselineEvidenceQueries.flatMap((query) =>
+        query.data ? [query.data] : [],
+      );
+    const currentEvidence =
+      props.currentVersion.evidence ??
+      currentEvidenceQueries.flatMap((query) =>
+        query.data ? [query.data] : [],
+      );
     const baselineSources = baselineSourceQueries.flatMap((query) =>
       query.data ? [query.data] : [],
     );
@@ -496,12 +507,16 @@ const commonCapabilities: ArtifactRendererCapabilities = {
   compare: true,
 };
 
-function data(kind: DataArtifactKind, displayPriority: number) {
+function data(
+  kind: DataArtifactKind,
+  displayPriority: number,
+  layoutMode: ArtifactLayoutMode = "wide",
+) {
   return defineRenderer({
     kind,
     contentFamily: "data",
     displayPriority,
-    layoutMode: "wide",
+    layoutMode,
     capabilities: { ...commonCapabilities, download: true },
     load: ({ runtime, projectId, version }) =>
       runtime.application.queries.dataArtifact(projectId, version.id, kind),
@@ -513,32 +528,30 @@ function data(kind: DataArtifactKind, displayPriority: number) {
       projectId,
       onSelectEvidence,
     }) => (
-      <div className="scientific-result-fullscreen space-y-4">
-        <ArtifactExportActions
-          runtime={runtime}
-          projectId={projectId}
-          artifactVersionId={version.id}
-          artifactKind={kind}
-          artifactTitle={artifact.title}
+      <div className="scientific-result-fullscreen flex h-full min-h-0 flex-col gap-0">
+        <ArtifactToolbar
+          right={
+            <ArtifactExportActions
+              runtime={runtime}
+              projectId={projectId}
+              artifactVersionId={version.id}
+              artifactKind={kind}
+              artifactTitle={artifact.title}
+            />
+          }
         />
-        <ArtifactPresentationContent
-          presentation={version.presentation}
-          title={artifact.title}
-          surface="fullscreen"
-          onSelectEvidence={onSelectEvidence}
-          showHeader={false}
-        />
-        <DataArtifactRenderer
-          review={viewModel}
-          title={artifact.title}
-          surface="fullscreen"
-          onSelectEvidence={(ids) => {
-            const first = ids[0];
-            if (first) onSelectEvidence(first);
-          }}
-          showSummary={false}
-          enhancementOnly={kind === "dataset"}
-        />
+        <div className="min-h-0 flex-1 overflow-y-auto pt-4">
+          <DataArtifactRenderer
+            review={viewModel}
+            title={artifact.title}
+            surface="fullscreen"
+            showSummary={false}
+            onSelectEvidence={(ids) => {
+              const first = ids[0];
+              if (first) onSelectEvidence(first);
+            }}
+          />
+        </div>
       </div>
     ),
     textFallback: (viewModel: DataArtifactReviewViewModel) =>
@@ -552,6 +565,7 @@ function PaperSummaryFullscreen({
   projectId,
   artifact,
   version,
+  viewModel,
   onSelectEvidence,
   paperPageRequest,
 }: LoadedRendererProps<PaperSummaryReview>) {
@@ -574,6 +588,17 @@ function PaperSummaryFullscreen({
       documentUrl={documentUrl}
       documentKind={documentSource.data?.documentKind ?? null}
       requestedPage={paperPageRequest}
+      paperMeta={{
+        title: viewModel.paper.title,
+        authors: viewModel.paper.authors,
+        year: viewModel.paper.year,
+      }}
+      toolbar={
+        <PaperSummaryExportActions
+          runtime={runtime}
+          artifactVersionId={version.id}
+        />
+      }
       className="h-full w-full"
     />
   );
@@ -593,140 +618,22 @@ const paperSummary = defineRenderer({
   buildDiffSnapshot: buildPaperSummaryDiffSnapshot,
 });
 
-function PaperCollectionFullscreen({
-  runtime,
-  projectId,
-  artifact,
-  version,
-  viewModel,
-  onSelectEvidence,
-}: LoadedRendererProps<PaperAcquisitionReviewViewModel>) {
-  const inputs = useQuery(
-    runtime.application.queries.researchInputs(projectId),
-  );
-  const documentInputs = useMemo(
-    () =>
-      (inputs.data ?? []).filter(
-        (input) =>
-          input.type === "pdf" ||
-          input.type === "image" ||
-          input.mimeType === "application/pdf" ||
-          ["image/jpeg", "image/png", "image/tiff", "image/webp"].includes(
-            input.mimeType ?? "",
-          ),
-      ),
-    [inputs.data],
-  );
-  const selectedCandidate = viewModel.candidates.find(
-    (candidate) => candidate.selection.kind === "selected",
-  );
-  const [selectedInputId, setSelectedInputId] = useState<DomainEntityId | null>(
-    null,
-  );
-  const binding = useMutation({
-    mutationFn: async (researchInputId: DomainEntityId) => {
-      const input = documentInputs.find((item) => item.id === researchInputId);
-      if (!input || !selectedCandidate?.url) {
-        throw new Error("缺少可绑定的科研文档或论文来源地址");
-      }
-      await runtime.repositories.paperAcquisition.bindResearchInput({
-        artifactVersionId: version.id,
-        candidateId: selectedCandidate.candidateId,
-        canonicalPaperId: selectedCandidate.canonicalPaperId,
-        researchInputId: input.id,
-        researchInputContentHash: input.contentHash,
-        evidenceUrl: selectedCandidate.url,
-        idempotencyKey: globalThis.crypto.randomUUID(),
-      });
-    },
-  });
-
-  return (
-    <div className="space-y-4 p-5">
-      {selectedCandidate ? (
-        <section className="rounded-md border border-border p-4">
-          <h3 className="ui-text-heading font-medium">绑定已上传论文全文</h3>
-          <p className="ui-text-label mt-1 text-muted-foreground">
-            将一个已上传 PDF 或论文图像明确绑定到《{selectedCandidate.title}
-            》，后续修订将基于固定全文版本生成可定位证据。
-          </p>
-          {documentInputs.length > 0 ? (
-            <div className="mt-3 flex flex-wrap items-end gap-2">
-              <label className="ui-text-label grid min-w-0 gap-1">
-                已上传科研文档
-                <Select
-                  value={selectedInputId ?? ""}
-                  onValueChange={(value) =>
-                    setSelectedInputId(value as DomainEntityId)
-                  }
-                >
-                  <SelectTrigger aria-label="选择已上传科研文档">
-                    <SelectValue placeholder="选择一份科研文档" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {documentInputs.map((input) => (
-                      <SelectItem key={input.id} value={input.id}>
-                        {input.filename ?? "未命名科研文档"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </label>
-              <Button
-                type="button"
-                size="small"
-                disabled={selectedInputId === null || binding.isPending}
-                onClick={() => {
-                  if (selectedInputId) binding.mutate(selectedInputId);
-                }}
-              >
-                {binding.isPending ? "正在绑定" : "绑定到所选论文"}
-              </Button>
-            </div>
-          ) : (
-            <p className="ui-text-label mt-3 text-muted-foreground">
-              当前项目尚未上传受支持的科研文档。请先在研究输入区上传 PDF
-              或论文图像。
-            </p>
-          )}
-          {binding.isSuccess ? (
-            <p className="ui-text-label mt-2 text-foreground" role="status">
-              全文绑定已保存；可通过修订运行重新生成全文证据摘要。
-            </p>
-          ) : null}
-          {binding.isError ? (
-            <Alert className="mt-2" variant="destructive">
-              <AlertDescription>
-                {
-                  runtime.researchAdapter.toPublicApplicationError(
-                    binding.error,
-                  ).safeMessage
-                }
-              </AlertDescription>
-            </Alert>
-          ) : null}
-        </section>
-      ) : null}
-      <ArtifactPresentationContent
-        presentation={version.presentation}
-        title={artifact.title}
-        surface="fullscreen"
-        onSelectEvidence={onSelectEvidence}
-        showHeader={false}
-      />
-    </div>
-  );
-}
-
 const paperCollection = defineRenderer({
   kind: "paper_collection",
   contentFamily: "paper_collection",
   displayPriority: 20,
-  layoutMode: "reading",
+  layoutMode: "wide",
   capabilities: commonCapabilities,
   load: ({ runtime, projectId, version }) =>
     runtime.application.queries.paperAcquisition(projectId, version.id),
-  fullscreen: (props) => <PaperCollectionFullscreen {...props} />,
+  fullscreen: ({ runtime, projectId, version, viewModel }) => (
+    <PaperCollectionWorkspace
+      runtime={runtime}
+      projectId={projectId}
+      version={version}
+      review={viewModel}
+    />
+  ),
   textFallback: (viewModel: PaperAcquisitionReviewViewModel) =>
     `论文集合，候选 ${viewModel.candidates.length} 篇。`,
   buildDiffSnapshot: buildPaperCollectionDiffSnapshot,
@@ -734,12 +641,16 @@ const paperCollection = defineRenderer({
 
 type LiteratureKind = "literature_claims" | "literature_relations";
 
-function literature(kind: LiteratureKind, displayPriority: number) {
+function literature(
+  kind: LiteratureKind,
+  displayPriority: number,
+  layoutMode: ArtifactLayoutMode = "wide",
+) {
   return defineRenderer({
     kind,
     contentFamily: "literature",
     displayPriority,
-    layoutMode: "wide",
+    layoutMode,
     capabilities: commonCapabilities,
     load: ({ runtime, projectId, version }) =>
       runtime.application.queries.literatureArtifact(
@@ -747,7 +658,13 @@ function literature(kind: LiteratureKind, displayPriority: number) {
         version.id,
         kind,
       ),
-    fullscreen: ({ viewModel, artifact, version, onSelectEvidence }) => (
+    fullscreen: ({
+      viewModel,
+      artifact,
+      version,
+      onSelectEvidence,
+      onRequestRevision,
+    }) => (
       <div className="scientific-result-fullscreen">
         <ScientificArtifactRenderer
           review={viewModel}
@@ -755,6 +672,7 @@ function literature(kind: LiteratureKind, displayPriority: number) {
           title={artifact.title}
           surface="fullscreen"
           onSelectEvidence={onSelectEvidence}
+          onRequestRevision={onRequestRevision}
         />
       </div>
     ),
@@ -767,12 +685,12 @@ const graph = defineRenderer({
   kind: "graph",
   contentFamily: "graph",
   displayPriority: 60,
-  layoutMode: "wide",
+  layoutMode: "graph",
   capabilities: commonCapabilities,
   load: ({ runtime, projectId, version }) =>
     runtime.application.queries.graphArtifact(projectId, version.id),
   fullscreen: ({ viewModel, artifact, version, onSelectEvidence }) => (
-    <div className="scientific-result-fullscreen">
+    <div className="scientific-result-fullscreen h-full">
       <ScientificArtifactRenderer
         review={viewModel}
         presentation={version.presentation}
@@ -897,17 +815,17 @@ function scientific(
 const ARTIFACT_RENDERER_DESCRIPTORS = [
   paperSummary,
   paperCollection,
-  data("dataset", 30),
-  data("field_dictionary", 40),
-  data("source_collection", 50),
+  data("dataset", 30, "data"),
+  data("field_dictionary", 40, "wide"),
+  data("source_collection", 50, "reading"),
   scientific("analysis_report", 52, "reading"),
   scientific("visualization", 54, "wide"),
   scientific("spectrum", 56, "wide"),
   scientific("light_curve", 58, "wide"),
   scientific("model_evaluation", 62, "wide"),
-  scientific("model_artifact", 64, "reading"),
-  literature("literature_claims", 70),
-  literature("literature_relations", 80),
+  scientific("model_artifact", 64, "wide"),
+  literature("literature_claims", 70, "wide"),
+  literature("literature_relations", 80, "wide"),
   graph,
   exportUnsupported,
 ] satisfies readonly ArtifactRendererDescriptor[];

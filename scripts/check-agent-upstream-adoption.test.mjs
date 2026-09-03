@@ -14,7 +14,6 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { computeSelectedTreeSha256 } from "./agent-upstream-provenance.mjs";
 import { checkAgentUpstreamAdoption } from "./check-agent-upstream-adoption.mjs";
 import { generateAgentUpstreamProvenance } from "./generate-agent-upstream-provenance.mjs";
 
@@ -41,6 +40,11 @@ const ADOPTED_CLASSIFICATIONS = new Set([
   "REQUIRED_TRANSITIVE",
   "PARTIAL_SURGICAL",
 ]);
+const MECHANICS_ROOT = "apps/workspace/src/mechanics";
+
+function mechanicsLocalPath(upstreamPath) {
+  return `${MECHANICS_ROOT}/${upstreamPath.slice("src/".length)}`;
+}
 
 function freshRepo() {
   const root = mkdtempSync(join(tmpdir(), "agent-upstream-gate-"));
@@ -111,7 +115,7 @@ function alignScopeToEntries(root, entries) {
 }
 
 function writeSource(root, upstreamPath, content) {
-  const localPath = `${UPSTREAM_ROOT}/${upstreamPath}`;
+  const localPath = mechanicsLocalPath(upstreamPath);
   const absolute = join(root, localPath);
   mkdirSync(dirname(absolute), { recursive: true });
   writeFileSync(absolute, content, "utf8");
@@ -120,7 +124,7 @@ function writeSource(root, upstreamPath, content) {
 
 function provenanceEntry({
   upstreamPath,
-  localPath = `${UPSTREAM_ROOT}/${upstreamPath}`,
+  localPath = mechanicsLocalPath(upstreamPath),
   modified = false,
   adoptionClass = modified ? "KEEP_WITH_MINIMAL_PATCH" : "KEEP_AS_IS",
   modificationReason = modified
@@ -138,22 +142,12 @@ function provenanceEntry({
 
 function saveProvenance(root, entries, overrides = {}) {
   alignScopeToEntries(root, entries);
-  const sourceDirectory = join(root, UPSTREAM_ROOT, "src");
-  const keepAsIsPaths = entries
-    .filter((entry) => entry.adoption_class === "KEEP_AS_IS")
-    .map((entry) => entry.upstream_path.slice("src/".length));
-  const keepAsIsDigest = computeSelectedTreeSha256(
-    sourceDirectory,
-    keepAsIsPaths,
-  );
   const lock = load(root, "upstream-lock.json");
-  lock.keep_as_is_tree_sha256 = keepAsIsDigest;
   save(root, "upstream-lock.json", lock);
   save(root, "provenance.json", {
-    schema: "xingwen.agent-upstream.provenance/v2",
+    schema: "xingwen.agent-upstream.provenance",
     generated_by: "test",
     source: SOURCE,
-    keep_as_is_tree_sha256: keepAsIsDigest,
     entries,
     ...overrides,
   });
@@ -188,10 +182,14 @@ function assertFail(root, pattern, message) {
   );
 }
 
-test("metadata-only root passes", () => {
+test("metadata-only root fails closed when the mechanics root is missing", () => {
   const root = freshRepo();
   try {
-    assertPass(root, "metadata-only root");
+    assertFail(
+      root,
+      /production mechanics root missing/u,
+      "metadata-only root must fail closed",
+    );
   } finally {
     cleanup(root);
   }
@@ -232,7 +230,7 @@ for (const [field, value] of [
       const lock = load(root, "upstream-lock.json");
       lock[field] = value;
       save(root, "upstream-lock.json", lock);
-      assertFail(root, /G2|G3|mismatch/u, `lock ${field}`);
+      assertFail(root, /must be|mismatch/u, `lock ${field}`);
     } finally {
       cleanup(root);
     }
@@ -279,21 +277,6 @@ test("provenance requires the manifest object shape", () => {
     const { entry } = createSingleFileFixture(root);
     save(root, "provenance.json", [entry]);
     assertFail(root, /manifest object contract/u, "invalid manifest shape");
-  } finally {
-    cleanup(root);
-  }
-});
-
-test("the frozen KEEP_AS_IS aggregate detects source drift", () => {
-  const root = freshRepo();
-  try {
-    const { localPath } = createSingleFileFixture(root);
-    writeFileSync(
-      join(root, localPath),
-      "export const root = false;\n",
-      "utf8",
-    );
-    assertFail(root, /frozen upstream aggregate digest/u, "tree drift");
   } finally {
     cleanup(root);
   }
@@ -347,39 +330,7 @@ test("provenance generation rejects source outside the entrypoint closure", () =
 
     assert.throws(
       () => generateAgentUpstreamProvenance(root),
-      /outside the src\/root\.tsx dependency closure/u,
-    );
-  } finally {
-    cleanup(root);
-  }
-});
-
-test("provenance generation cannot legitimize KEEP_AS_IS drift", () => {
-  const root = freshRepo();
-  try {
-    const rootEntry = provenanceEntry({
-      upstreamPath: "src/root.tsx",
-      localPath: writeSource(
-        root,
-        "src/root.tsx",
-        'import "#/stores/command-menu-store";\nexport const root = true;\n',
-      ),
-      modified: true,
-      adoptionClass: "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
-    });
-    const storePath = "src/stores/command-menu-store.ts";
-    const storeEntry = provenanceEntry({
-      upstreamPath: storePath,
-      localPath: writeSource(root, storePath, "export const store = true;\n"),
-    });
-    saveProvenance(root, [rootEntry, storeEntry]);
-    writeFileSync(
-      join(root, storeEntry.local_path),
-      "export const changed = true;\n",
-    );
-    assert.throws(
-      () => generateAgentUpstreamProvenance(root),
-      /differs from the aggregate digest frozen/u,
+      /outside the .*root\.tsx dependency closure/u,
     );
   } finally {
     cleanup(root);
@@ -509,7 +460,7 @@ test("every vendored file must be reachable from the workspace root", () => {
     saveProvenance(root, entries);
     assertFail(
       root,
-      /outside the src\/root\.tsx dependency closure/u,
+      /outside the .*root\.tsx dependency closure/u,
       "import closure",
     );
   } finally {

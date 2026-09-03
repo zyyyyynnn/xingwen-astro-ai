@@ -1,0 +1,30 @@
+[
+ {
+  "id": "6aa83994-1ef4-4dd3-b259-ce74c5708dbe",
+  "provider": "dashscope",
+  "requested_model": "qwen3.8-max-0902",
+  "provider_returned_model": "qwen3.8-max-0902",
+  "explicit_revision": "qwen3.8-max-0902",
+  "prompt_name": "research_contract_planner",
+  "prompt_version": "1.7.1",
+  "prompt_hash": "sha256:5cb531e50a54182d3dc96bc2fb53e5938a4b798d67e5b7ca68e7d6f9a58b09ca",
+  "input_hash": "sha256:6d2fd5c6f33f0a3874a8a19a3c2e1a0671b91008e7f2bd21383fae4f0dd87fed",
+  "output_hash": "sha256:33c01559e17438cdf83a99d77ca2db9c34af2af0714b6a2f9e9297ae164ede22",
+  "parameters_hash": "sha256:bb1d14fa2894535f7246d004118088cfa74a05aec759b5a0a38d03ff95ad1edf",
+  "parameters_snapshot": {
+   "top_p": 1,
+   "temperature": 0
+  },
+  "status": "succeeded",
+  "token_usage": {
+   "total_tokens": 13552,
+   "prompt_tokens": 8125,
+   "completion_tokens": 5427
+  },
+  "latency_ms": 131877,
+  "provider_request_id": "a0948bd5-eeff-9dbe-9f07-aa7e61b9b00b",
+  "error_code": null,
+  "created_at": "2026-09-03 00:19:37.750228+00:00",
+  "finished_at": "2026-09-03 00:21:49.668997+00:00"
+ }
+]

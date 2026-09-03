@@ -32,6 +32,11 @@ const MESSAGE_FILES = [
   "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
 ];
 const DISCLOSURE_PATH = MESSAGE_FILES.at(-1);
+const MECHANICS = "apps/workspace/src/mechanics";
+
+function mechanicsPath(upstreamPath) {
+  return `${MECHANICS}/${upstreamPath.slice("src/".length)}`;
+}
 
 function freshRepo() {
   const root = mkdtempSync(join(tmpdir(), "agent-upstream-policy-"));
@@ -41,9 +46,10 @@ function freshRepo() {
     cpSync(join(UPSTREAM_ABS, file), join(target, file));
   }
   for (const file of MESSAGE_FILES) {
-    const destination = join(target, file);
+    const rel = mechanicsPath(file);
+    const destination = join(root, rel);
     mkdirSync(dirname(destination), { recursive: true });
-    cpSync(join(UPSTREAM_ABS, file), destination);
+    cpSync(join(REPO_ROOT, rel), destination);
   }
   return root;
 }
@@ -147,7 +153,7 @@ test("foreign OpenHands runtime path cannot enter provenance", () => {
     save(root, "provenance.json", provenance);
     assertFail(
       root,
-      /foreign OpenHands runtime path must not be vendored/u,
+      /foreign OpenHands runtime path must not be adopted/u,
       "foreign runtime",
     );
   } finally {
@@ -158,7 +164,7 @@ test("foreign OpenHands runtime path cannot enter provenance", () => {
 test("CollapsibleThinking must preserve the public analysis preview", () => {
   const root = freshRepo();
   try {
-    const file = join(root, UPSTREAM, DISCLOSURE_PATH);
+    const file = join(root, mechanicsPath(DISCLOSURE_PATH));
     const source = readFileSync(file, "utf8").replace("{content}", "{label}");
     writeFileSync(file, source, "utf8");
     assertFail(

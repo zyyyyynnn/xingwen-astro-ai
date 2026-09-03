@@ -281,14 +281,13 @@ def test_share_freezes_redacted_scope_and_never_lists_token_material() -> None:
     app.state.snapshot_store.register_evidence(
         project_id="proj_01",
         projection=_evidence().model_copy(
-            update={"id": "ev_02", "quote_or_value": "not selected"}
+            update={"id": "ev_02", "quote_or_value": "Second frozen measurement"}
         ),
     )
     expires_at = datetime.now(UTC) + timedelta(hours=1)
     payload = {
         "title": "Public dataset evidence",
         "artifact_version_ids": ["artv_01"],
-        "evidence_ids": ["ev_01"],
         "redaction_policy": "redacted_public_snapshot",
         "expires_at": expires_at.isoformat(),
     }
@@ -344,9 +343,8 @@ def test_share_freezes_redacted_scope_and_never_lists_token_material() -> None:
         "graph_edges": [],
     }
     assert "content" not in public_data["artifact_versions"][0]
-    assert public_data["artifact_versions"][0]["evidence_ids"] == ["ev_01"]
-    assert [item["id"] for item in public_data["evidence"]] == ["ev_01"]
-    assert "ev_02" not in public.text
+    assert public_data["artifact_versions"][0]["evidence_ids"] == ["ev_01", "ev_02"]
+    assert [item["id"] for item in public_data["evidence"]] == ["ev_01", "ev_02"]
     assert public_data["evidence"][0]["quote_or_value"] == "TOI-700"
     assert public_data["evidence"][0]["source"]["source_id"] == "gaia"
     assert "project_id" not in public_data
@@ -385,7 +383,6 @@ def test_public_dataset_export_is_frozen_allowlisted_and_non_enumerating() -> No
         json={
             "title": "Frozen CSV",
             "artifact_version_ids": ["artv_01"],
-            "evidence_ids": ["ev_01"],
             "redaction_policy": "redacted_public_snapshot",
             "expires_at": expires_at.isoformat(),
         },
@@ -457,7 +454,6 @@ def test_public_export_authorization_expires_without_revealing_the_version() -> 
         request=CreateShareSnapshotRequest(
             title="Expiring export",
             artifact_version_ids=("artv_01",),
-            evidence_ids=("ev_01",),
             redaction_policy="redacted_public_snapshot",
             expires_at=NOW + timedelta(minutes=1),
         ),
@@ -521,7 +517,51 @@ def test_share_create_has_an_independent_per_session_rate_limit() -> None:
     assert limited.headers["retry-after"] == limited.headers["ratelimit-reset"]
 
 
-def test_share_rejects_cross_project_versions_and_unselected_evidence() -> None:
+def test_share_freezes_all_version_evidence_without_client_enumeration() -> None:
+    store = InMemorySnapshotStore()
+    store.register_project(project_id="proj_01", owner_session_id="sess_01")
+    evidence = tuple(
+        _evidence().model_copy(update={"id": f"ev_{index}"}) for index in range(982)
+    )
+    store.register_artifact_version(
+        project_id="proj_01",
+        projection=_version().model_copy(
+            update={"evidence_ids": tuple(item.id for item in evidence)}
+        ),
+    )
+    for item in evidence:
+        store.register_evidence(project_id="proj_01", projection=item)
+    created = store.create_share(
+        project_id="proj_01",
+        session_id="sess_01",
+        now=NOW,
+        request=CreateShareSnapshotRequest(
+            title="Complete scientific result",
+            artifact_version_ids=("artv_01",),
+            redaction_policy="redacted_public_snapshot",
+            expires_at=NOW + timedelta(days=1),
+        ),
+    )
+    public = store.resolve_public_share(raw_token=created.share_token, now=NOW)
+    assert len(public.evidence) == 982
+    assert set(created.evidence_ids) == {item.id for item in evidence}
+    assert public.artifact_versions[0].evidence_ids == created.evidence_ids
+
+
+def test_share_request_cannot_override_the_server_owned_evidence_scope() -> None:
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        CreateShareSnapshotRequest.model_validate(
+            {
+                "title": "Frozen result",
+                "artifact_version_ids": ["artv_01"],
+                "evidence_ids": ["ev_other"],
+                "redaction_policy": "redacted_public_snapshot",
+                "expires_at": NOW + timedelta(hours=1),
+            }
+        )
+
+
+def test_share_rejects_cross_project_versions_and_misbound_evidence() -> None:
     store = InMemorySnapshotStore()
     store.register_project(project_id="proj_01", owner_session_id="sess_01")
     store.register_project(project_id="proj_02", owner_session_id="sess_01")
@@ -532,7 +572,6 @@ def test_share_rejects_cross_project_versions_and_unselected_evidence() -> None:
     request = CreateShareSnapshotRequest(
         title="Invalid scope",
         artifact_version_ids=("artv_01",),
-        evidence_ids=(),
         redaction_policy="redacted_public_snapshot",
         expires_at=NOW + timedelta(hours=1),
     )
@@ -563,11 +602,15 @@ def test_share_rejects_cross_project_versions_and_unselected_evidence() -> None:
         },
     )
     store.register_evidence(project_id="proj_01", projection=unrelated)
+    store.register_artifact_version(
+        project_id="proj_01",
+        projection=_version().model_copy(update={"evidence_ids": ("ev_02",)}),
+    )
     with pytest.raises(SecurityProblem) as invalid_scope:
         service.create_share(
             project_id="proj_01",
             session_id="sess_01",
-            request=request.model_copy(update={"evidence_ids": ("ev_02",)}),
+            request=request,
             now=NOW,
         )
     assert invalid_scope.value.status == 422
@@ -593,13 +636,14 @@ def test_share_requires_and_revalidates_presentation_evidence_closure() -> None:
             )
         }
     )
-    store.register_artifact_version(project_id="proj_01", projection=version)
+    store.register_artifact_version(
+        project_id="proj_01", projection=version.model_copy(update={"evidence_ids": ()})
+    )
     store.register_evidence(project_id="proj_01", projection=_evidence())
     service = SnapshotService(store)
     request = CreateShareSnapshotRequest(
         title="Evidence closure",
         artifact_version_ids=(version.id,),
-        evidence_ids=(),
         redaction_policy="redacted_public_snapshot",
         expires_at=NOW + timedelta(hours=1),
     )
@@ -613,10 +657,11 @@ def test_share_requires_and_revalidates_presentation_evidence_closure() -> None:
         )
     assert missing.value.code == "SHARE_SCOPE_INVALID"
 
+    store.register_artifact_version(project_id="proj_01", projection=version)
     created = service.create_share(
         project_id="proj_01",
         session_id="sess_01",
-        request=request.model_copy(update={"evidence_ids": ("ev_01",)}),
+        request=request,
         now=NOW,
     )
     record = store._shares[created.id]
@@ -644,6 +689,7 @@ def test_expired_and_invalid_share_tokens_have_identical_public_errors() -> None
     store = InMemorySnapshotStore()
     store.register_project(project_id="proj_01", owner_session_id="sess_01")
     store.register_artifact_version(project_id="proj_01", projection=_version())
+    store.register_evidence(project_id="proj_01", projection=_evidence())
     service = SnapshotService(store)
     created = service.create_share(
         project_id="proj_01",
@@ -671,6 +717,7 @@ def test_private_share_cursor_is_stable_and_invalid_cursor_is_rejected() -> None
     store = InMemorySnapshotStore()
     store.register_project(project_id="proj_01", owner_session_id="sess_01")
     store.register_artifact_version(project_id="proj_01", projection=_version())
+    store.register_evidence(project_id="proj_01", projection=_evidence())
     service = SnapshotService(store)
     request = CreateShareSnapshotRequest(
         title="Share",

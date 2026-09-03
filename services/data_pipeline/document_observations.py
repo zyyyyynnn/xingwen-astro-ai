@@ -50,6 +50,7 @@ from app.schemas.manifest import (
     ManifestBundle,
     NullReason,
     normalize_document_alias_label,
+    normalize_document_unit_token,
 )
 from app.schemas.scientific_document import (
     DocumentBBox,
@@ -57,6 +58,7 @@ from app.schemas.scientific_document import (
     DocumentParseCandidate,
     DocumentParseQuality,
     DocumentTable,
+    DocumentTableCell,
     ScientificDataExtractionCandidate,
     TextSpan,
 )
@@ -427,7 +429,7 @@ class _Draft:
         return None
 
     def _parse_value(self) -> DocumentObservationAdmissionCode | None:
-        text = self.raw_text.strip()
+        text = _normalize_numeric_text(self.raw_text)
         lowered = normalize_document_alias_label(text)
         null_tokens = {
             normalize_document_alias_label(token) for token in self.rules.null_tokens
@@ -577,12 +579,11 @@ class _Resolver:
         )
         units_by_id = {unit.unit_id: unit for unit in manifests.field_manifest.units}
         self._unit_ids = frozenset(units_by_id)
-        self._unit_labels = {
-            normalize_document_alias_label(unit.label): unit_id
+        self._unit_tokens = {
+            normalize_document_unit_token(token): unit_id
             for unit_id, unit in units_by_id.items()
-        }
-        self._unit_symbols = {
-            unit.symbol: unit_id for unit_id, unit in units_by_id.items()
+            for token in (unit.label, unit.symbol, *unit.document_aliases)
+            if token != ""
         }
         self._quantity_kinds = {
             unit_id: unit.quantity_kind for unit_id, unit in units_by_id.items()
@@ -609,7 +610,7 @@ class _Resolver:
                 self._alias_index.setdefault(key, []).append(field)
 
     def fields_for_label(self, label: str) -> list[FieldDefinition]:
-        normalized = normalize_document_alias_label(label)
+        normalized = normalize_document_alias_label(_unwrap_math_label(label))
         stripped = re.sub(r"\s*[\[(].*?[\])]\s*$", "", normalized).strip()
         for candidate in (normalized, stripped):
             matched = self._alias_index.get(candidate)
@@ -633,9 +634,7 @@ class _Resolver:
         if cleaned in self._unit_ids:
             unit_id = cleaned
         else:
-            unit_id = self._unit_labels.get(normalize_document_alias_label(cleaned))
-            if unit_id is None:
-                unit_id = self._unit_symbols.get(cleaned)
+            unit_id = self._unit_tokens.get(normalize_document_unit_token(cleaned))
         if unit_id is None:
             return None
         if self._quantity_kinds[unit_id] != self._quantity_kinds[field.canonical_unit]:
@@ -643,6 +642,18 @@ class _Resolver:
         if len(self._conversion_rule_ids[field.field_id][unit_id]) != 1:
             return None
         return unit_id
+
+
+def _unwrap_math_label(label: str) -> str:
+    stripped = label.strip()
+    if len(stripped) >= 2 and stripped.startswith("$") and stripped.endswith("$"):
+        return stripped[1:-1].strip()
+    return stripped
+
+
+def _normalize_numeric_text(value: str) -> str:
+    stripped = _unwrap_math_label(value)
+    return " ".join(stripped.replace(r"\pm", "±").split())
 
 
 class _EntityIndex:
@@ -736,6 +747,23 @@ class _TableLayout:
     columns: tuple[_TableColumn, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class _TransposedEntityColumn:
+    """One entity carried by a header column in a transposed scientific table."""
+
+    column_index: int
+    entity_token: str
+    header_quality: DocumentParseQuality
+
+
+@dataclass(frozen=True, slots=True)
+class _TransposedTableLayout:
+    """Header entities used when parameters are rows and objects are columns."""
+
+    header_index: int
+    entity_columns: tuple[_TransposedEntityColumn, ...]
+
+
 class _Extractor:
     """Canonical table/text readers producing raw drafts."""
 
@@ -758,8 +786,16 @@ class _Extractor:
         if not table.rows:
             return []
         layout = self._table_layout(table)
-        if layout is None:
+        if layout is not None:
+            return self._row_oriented_table_drafts(table, layout)
+        transposed_layout = self._transposed_table_layout(table)
+        if transposed_layout is None:
             return []
+        return self._transposed_table_drafts(table, transposed_layout)
+
+    def _row_oriented_table_drafts(
+        self, table: DocumentTable, layout: _TableLayout
+    ) -> list[_Draft]:
         columns = {item.column_index: item for item in layout.columns}
         entity_column = layout.entity_column
         entity_header = columns[entity_column]
@@ -819,6 +855,90 @@ class _Extractor:
                 drafts.append(draft)
         return drafts
 
+    def _transposed_table_drafts(
+        self,
+        table: DocumentTable,
+        layout: _TransposedTableLayout,
+    ) -> list[_Draft]:
+        drafts: list[_Draft] = []
+        for body_row in table.rows[layout.header_index + 1 :]:
+            field_cells: list[
+                tuple[
+                    DocumentTableCell,
+                    str,
+                    str | None,
+                    tuple[FieldDefinition, ...],
+                ]
+            ] = []
+            for cell in body_row:
+                if cell.quality is DocumentParseQuality.unsupported:
+                    continue
+                label = (cell.text or "").strip()
+                if label == "":
+                    continue
+                base, unit_token = self._resolver.split_header_unit(label)
+                matches = tuple(
+                    sorted(
+                        self._resolver.fields_for_label(base),
+                        key=lambda field: field.field_id,
+                    )
+                )
+                if matches:
+                    field_cells.append((cell, label, unit_token, matches))
+            if len(field_cells) != 1:
+                continue
+            field_cell, label, unit_token, field_candidates = field_cells[0]
+            cells_by_column = {cell.column_index: cell for cell in body_row}
+            for entity_column in layout.entity_columns:
+                value_cell = cells_by_column.get(entity_column.column_index)
+                if (
+                    value_cell is None
+                    or value_cell.quality is DocumentParseQuality.unsupported
+                ):
+                    continue
+                value = (value_cell.text or "").strip()
+                if value == "":
+                    continue
+                quality = _observation_region_quality(
+                    table.quality,
+                    entity_column.header_quality,
+                    field_cell.quality,
+                    value_cell.quality,
+                )
+                drafts.append(
+                    _Draft(
+                        context=self._context,
+                        resolver=self._resolver,
+                        entities=self._entities,
+                        rules=self._rules,
+                        locator=DocumentLocator(
+                            page_index=table.page_index,
+                            block_id=table.block_id,
+                            bbox=(
+                                value_cell.bbox
+                                if value_cell.bbox is not None
+                                else self._block_bboxes.get(table.block_id or "")
+                            ),
+                            table_id=table.table_id,
+                            cell_id=value_cell.cell_id,
+                        ),
+                        parse_quality=quality,
+                        raw_text=value,
+                        header_context=label,
+                        header_unit_token=unit_token,
+                        entity_token=entity_column.entity_token,
+                        row_context=(
+                            (f"row:{field_cell.row_index}", label),
+                            (
+                                f"col:{entity_column.column_index}",
+                                entity_column.entity_token,
+                            ),
+                        ),
+                        field_candidates=field_candidates,
+                    )
+                )
+        return drafts
+
     def _table_layout(self, table: DocumentTable) -> _TableLayout | None:
         for index, row in enumerate(table.rows):
             columns: list[_TableColumn] = []
@@ -853,6 +973,34 @@ class _Extractor:
                     header_index=index,
                     entity_column=entity_column,
                     columns=tuple(columns),
+                )
+        return None
+
+    def _transposed_table_layout(
+        self, table: DocumentTable
+    ) -> _TransposedTableLayout | None:
+        for index, row in enumerate(table.rows):
+            entity_columns: list[_TransposedEntityColumn] = []
+            for cell in row:
+                token = (cell.text or "").strip()
+                if (
+                    not cell.is_header
+                    or token == ""
+                    or cell.quality is DocumentParseQuality.unsupported
+                    or self._entities.object_type_for_token(token) is None
+                ):
+                    continue
+                entity_columns.append(
+                    _TransposedEntityColumn(
+                        column_index=cell.column_index,
+                        entity_token=token,
+                        header_quality=cell.quality,
+                    )
+                )
+            if entity_columns:
+                return _TransposedTableLayout(
+                    header_index=index,
+                    entity_columns=tuple(entity_columns),
                 )
         return None
 

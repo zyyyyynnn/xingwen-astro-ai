@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from multiprocessing.process import BaseProcess
 from pathlib import Path
 from time import sleep
 from uuid import uuid4
@@ -32,6 +33,7 @@ def anyio_backend() -> str:
 @pytest.mark.anyio
 async def test_process_executor_hard_terminates_a_timed_out_skill(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     marker = tmp_path / "child-status.txt"
     registry = ScientificSkillRegistry(
@@ -56,8 +58,22 @@ async def test_process_executor_hard_terminates_a_timed_out_skill(
         budget=ScientificSkillBudget(timeout_seconds=1),
     )
 
-    with pytest.raises(TimeoutError, match="exceeded 1s"):
-        await ScientificSkillProcessExecutor(registry).execute(request)
+    executor = ScientificSkillProcessExecutor(registry)
+    process_type = executor._context.Process
+    children: list[BaseProcess] = []
 
-    sleep(1.5)
-    assert marker.read_text(encoding="utf-8") == "started"
+    def tracked_process(**kwargs: object) -> BaseProcess:
+        child = process_type(**kwargs)
+        children.append(child)
+        return child
+
+    monkeypatch.setattr(executor._context, "Process", tracked_process)
+    with pytest.raises(TimeoutError, match="exceeded 1s"):
+        await executor.execute(request)
+
+    assert len(children) == 1
+    assert not children[0].is_alive()
+    assert children[0].exitcode is not None and children[0].exitcode != 0
+    # The budget includes interpreter startup, which may consume the whole second.
+    if marker.exists():
+        assert marker.read_text(encoding="utf-8") == "started"

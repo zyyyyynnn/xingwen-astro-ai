@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -7,7 +8,7 @@ from typing import Any, cast
 
 import httpx2
 import pytest
-from openai import APIStatusError, OpenAI
+from openai import APIConnectionError, APIStatusError, OpenAI
 
 import app.services.model_execution as model_execution_module
 from app.schemas.core import ArtifactKind, ResearchProject
@@ -102,6 +103,7 @@ def successful_response() -> Any:  # noqa: ANN401
     return SimpleNamespace(
         id="req_123",
         _request_id="provider-123",
+        model="qwen3.8-max",
         choices=[
             SimpleNamespace(
                 message=SimpleNamespace(
@@ -169,6 +171,108 @@ def test_qwen_adapter_uses_the_sdk_route_and_exact_snapshot(
     assert response.provider_request_id == "provider-123"
 
 
+def test_qwen_adapter_uses_strict_json_schema_when_requested() -> None:
+    client = FakeClient(successful_response())
+    adapter = QwenModelExecutionAdapter(
+        api_key="test-secret",
+        base_url="https://dashscope.example/v1",
+        timeout_seconds=3,
+        client=cast(OpenAI, client),
+    )
+    schema = {
+        "type": "object",
+        "properties": {"outcome": {"type": "string"}},
+        "required": ["outcome"],
+        "additionalProperties": False,
+    }
+    structured = replace(
+        request(),
+        response_schema_name="planner_outcome",
+        response_schema=schema,
+        enable_thinking=False,
+    )
+
+    adapter.execute(structured)
+
+    assert client.calls[0]["response_format"] == {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "planner_outcome",
+            "strict": True,
+            "schema": schema,
+        },
+    }
+    assert structured.parameters_hash == request().parameters_hash
+    assert structured.input_hash != request().input_hash
+    assert client.calls[0]["extra_body"] == {
+        "enable_thinking": False,
+        "preserve_thinking": False,
+    }
+
+
+def test_qwen_adapter_fails_closed_when_strict_schema_has_enable_thinking_true() -> None:
+    client = FakeClient(successful_response())
+    adapter = QwenModelExecutionAdapter(
+        api_key="test-secret",
+        base_url="https://dashscope.example/v1",
+        timeout_seconds=3,
+        client=cast(OpenAI, client),
+    )
+    schema = {
+        "type": "object",
+        "properties": {"outcome": {"type": "string"}},
+        "required": ["outcome"],
+        "additionalProperties": False,
+    }
+    invalid = replace(
+        request(),
+        response_schema_name="planner_outcome",
+        response_schema=schema,
+        enable_thinking=True,
+    )
+
+    with pytest.raises(ValueError, match="enable_thinking=False"):
+        adapter.execute(invalid)
+
+    assert len(client.calls) == 0
+
+
+@pytest.mark.parametrize("forbidden_key", ["max_tokens", "max_completion_tokens"])
+def test_qwen_adapter_fails_closed_when_structured_request_specifies_max_tokens(
+    forbidden_key: str,
+) -> None:
+    client = FakeClient(successful_response())
+    adapter = QwenModelExecutionAdapter(
+        api_key="test-secret",
+        base_url="https://dashscope.example/v1",
+        timeout_seconds=3,
+        client=cast(OpenAI, client),
+    )
+    schema = {
+        "type": "object",
+        "properties": {"outcome": {"type": "string"}},
+        "required": ["outcome"],
+        "additionalProperties": False,
+    }
+    invalid = replace(
+        request(),
+        response_schema_name="planner_outcome",
+        response_schema=schema,
+        enable_thinking=False,
+        parameters={"temperature": 0.6, forbidden_key: 8192},
+    )
+
+    with pytest.raises(ValueError, match=forbidden_key):
+        adapter.execute(invalid)
+
+    assert len(client.calls) == 0
+
+
+def test_model_request_requires_complete_json_schema_contract() -> None:
+    with pytest.raises(ValueError, match="must be provided together"):
+        replace(request(), response_schema_name="planner_outcome")
+
+
 def test_generic_openai_compatible_adapter_omits_qwen_private_arguments() -> None:
     client = FakeClient(successful_response())
     adapter = OpenAICompatibleModelExecutionAdapter(
@@ -180,6 +284,34 @@ def test_generic_openai_compatible_adapter_omits_qwen_private_arguments() -> Non
 
     adapter.execute(request())
 
+    assert "extra_body" not in client.calls[0]
+
+
+def test_generic_openai_compatible_adapter_keeps_json_object_for_typed_requests() -> None:
+    client = FakeClient(successful_response())
+    adapter = OpenAICompatibleModelExecutionAdapter(
+        api_key="test-secret",
+        base_url="https://api.openai.example/v1",
+        timeout_seconds=3,
+        client=cast(OpenAI, client),
+    )
+    schema = {
+        "type": "object",
+        "properties": {"outcome": {"type": "string"}},
+        "required": ["outcome"],
+        "additionalProperties": False,
+    }
+
+    adapter.execute(
+        replace(
+            request(),
+            response_schema_name="planner_outcome",
+            response_schema=schema,
+            enable_thinking=False,
+        )
+    )
+
+    assert client.calls[0]["response_format"] == {"type": "json_object"}
     assert "extra_body" not in client.calls[0]
 
 
@@ -226,6 +358,25 @@ def test_qwen_adapter_maps_provider_failures_without_leaking_body(
 
     assert captured.value.code == code
     assert "do-not-return" not in captured.value.public_message
+    assert captured.value.latency_ms is not None
+
+
+def test_qwen_adapter_maps_connection_failure_to_retryable_provider_unavailable() -> None:
+    provider_request = httpx2.Request(
+        "POST", "https://dashscope.example/compatible-mode/v1/chat/completions"
+    )
+    client = FakeClient(error=APIConnectionError(request=provider_request))
+    adapter = QwenModelExecutionAdapter(
+        api_key="test-secret",
+        base_url="https://dashscope.example/v1",
+        timeout_seconds=3,
+        client=cast(OpenAI, client),
+    )
+
+    with pytest.raises(ModelExecutionError) as captured:
+        adapter.execute(request())
+
+    assert captured.value.code == "MODEL_PROVIDER_UNAVAILABLE"
     assert captured.value.latency_ms is not None
 
 
@@ -285,6 +436,32 @@ def test_qwen_adapter_keeps_safe_execution_metadata_for_invalid_content() -> Non
     }
     assert captured.value.latency_ms is not None
     assert captured.value.provider_request_id == "provider-123"
+    assert captured.value.provider_returned_model == "qwen3.8-max"
+
+
+def test_qwen_adapter_classifies_length_finish_as_truncation_with_safe_metadata() -> None:
+    response = successful_response()
+    response.choices[0].finish_reason = "length"
+    response.model = "qwen3.8-max"
+    client = FakeClient(response)
+    adapter = QwenModelExecutionAdapter(
+        api_key="test-secret",
+        base_url="https://dashscope.example/v1",
+        timeout_seconds=3,
+        client=cast(OpenAI, client),
+    )
+
+    with pytest.raises(ModelExecutionError) as captured:
+        adapter.execute(request())
+
+    assert captured.value.code == "MODEL_RESPONSE_TRUNCATED"
+    assert captured.value.output_hash is not None
+    assert captured.value.token_usage == {
+        "prompt_tokens": 10,
+        "completion_tokens": 12,
+    }
+    assert captured.value.latency_ms is not None
+    assert captured.value.provider_request_id == "provider-123"
 
 
 def test_planner_rejects_untyped_model_payload() -> None:
@@ -301,6 +478,7 @@ def test_planner_rejects_untyped_model_payload() -> None:
                 token_usage=None,
                 latency_ms=1,
                 provider_request_id=None,
+                provider_returned_model="planner-returned-model",
             )
 
     planner = ResearchContractPlanner(
@@ -319,9 +497,19 @@ def test_planner_rejects_untyped_model_payload() -> None:
         )
 
     assert captured.value.code == "MODEL_RESPONSE_INVALID"
+    assert captured.value.provider_returned_model == "planner-returned-model"
 
 
-def test_planner_rejects_typed_draft_outside_manifest_catalog() -> None:
+@pytest.mark.parametrize(
+    ("requested_fields", "output_requirements"),
+    [
+        (["invented.observation_bias"], ["dataset"]),
+        (["star.tic_id"], ["dataset", "analysis_report"]),
+    ],
+)
+def test_planner_rejects_inadmissible_draft(
+    requested_fields: list[str], output_requirements: list[str]
+) -> None:
     class Port:
         def execute(self, _request: ModelExecutionRequest):
             from app.services.model_execution import ModelExecutionResponse
@@ -338,10 +526,10 @@ def test_planner_rejects_typed_draft_outside_manifest_catalog() -> None:
                             "unit_policy": "canonical",
                             "document_source_policy": "disabled",
                         },
-                        "requested_fields": ["invented.observation_bias"],
+                        "requested_fields": requested_fields,
                         "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
                         "paper_search_scope": {},
-                        "output_requirements": ["dataset"],
+                        "output_requirements": output_requirements,
                         "evidence_requirements": {},
                         "quality_constraints": {},
                     },
@@ -350,6 +538,7 @@ def test_planner_rejects_typed_draft_outside_manifest_catalog() -> None:
                 token_usage=None,
                 latency_ms=1,
                 provider_request_id=None,
+                provider_returned_model="planner-returned-model",
             )
 
     planner = ResearchContractPlanner(
@@ -368,6 +557,7 @@ def test_planner_rejects_typed_draft_outside_manifest_catalog() -> None:
         )
 
     assert captured.value.code == "MODEL_RESPONSE_INVALID"
+    assert captured.value.provider_returned_model == "planner-returned-model"
 
 
 def test_planner_uses_the_registered_prompt_and_identified_output_contract() -> None:
@@ -390,6 +580,8 @@ def test_planner_uses_the_registered_prompt_and_identified_output_contract() -> 
     )
 
     output_contract = request_value.input_payload["output_contract"]
+    assert request_value.parameters == {"temperature": 0, "top_p": 1}
+    assert request_value.enable_thinking is True
     assert output_contract["name"] == "PlannerOutcome"
     rendered_schema = str(output_contract["json_schema"])
     assert "question_id" in rendered_schema

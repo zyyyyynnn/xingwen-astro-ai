@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import type { DomainEntityId } from "@xingwen/domain";
 import type {
   DataArtifactFieldDefinitionViewModel,
@@ -6,8 +7,33 @@ import type {
   FieldDictionaryArtifactReviewViewModel,
   SourceCollectionArtifactReviewViewModel,
 } from "@xingwen/research-adapter";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+  Badge,
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  Input,
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@xingwen/ui";
+import { Database, Library, Search, SearchCheck } from "@xingwen/ui/icons";
 
-import { ScientificTable } from "./scientific-table";
+import { formatScientificUnit, ScientificTable } from "./scientific-table";
+import { ArtifactMetadataStrip, ArtifactToolbar } from "./result-layout";
 
 export type DataArtifactSurface = "fullscreen";
 
@@ -31,46 +57,120 @@ function fieldLabel(field: DataArtifactFieldDefinitionViewModel): string {
   return field.meaningZh || field.labelEn || "未命名字段";
 }
 
-function ArtifactMetadata({
-  review,
+const SOURCE_LABELS: Readonly<Record<string, string>> = {
+  "nasa_exoplanet_archive.toi": "NASA Exoplanet Archive · TOI 目录",
+  "nasa_exoplanet_archive.ps": "NASA Exoplanet Archive · 行星系统目录",
+  "nasa_exoplanet_archive.pscomppars":
+    "NASA Exoplanet Archive · 行星系统综合参数",
+  gaia_dr3: "Gaia DR3",
+  simbad: "SIMBAD 天体数据库",
+};
+
+function sourceLabel(sourceId: string | null): string {
+  if (!sourceId) return "未提供来源名称";
+  return SOURCE_LABELS[sourceId] ?? sourceId.replaceAll("_", " ");
+}
+
+const DATA_LEVEL_LABELS: Readonly<Record<string, string>> = {
+  fixture: "演示数据",
+  seed: "种子数据",
+  live: "实时来源",
+  live_result: "实时结果",
+  cached: "缓存来源",
+  recorded: "录制来源",
+  recorded_response: "录制响应",
+};
+
+const COMPLETION_LABELS: Readonly<Record<string, string>> = {
+  complete: "已完成",
+  completed: "已完成",
+  partial: "部分完成",
+  pending: "待处理",
+  failed: "处理失败",
+  skipped: "已跳过",
+};
+
+const DATA_TYPE_LABELS: Readonly<Record<string, string>> = {
+  string: "文本",
+  number: "数值",
+  integer: "整数",
+  boolean: "布尔值",
+  datetime: "日期时间",
+};
+
+const ENTITY_LEVEL_LABELS: Readonly<Record<string, string>> = {
+  host_star: "宿主恒星",
+  planet_assertion: "行星记录",
+  planet_candidate: "候选体",
+  source_table: "来源记录",
+};
+
+function DatasetRowsTable({
+  columns,
+  rows,
   surface,
+  onSelectEvidence,
 }: {
-  readonly review: DataArtifactReviewViewModel;
+  readonly columns: DatasetArtifactReviewViewModel["columns"];
+  readonly rows: DatasetArtifactReviewViewModel["rows"];
   readonly surface: DataArtifactSurface;
+  readonly onSelectEvidence?: (evidenceIds: readonly DomainEntityId[]) => void;
 }) {
-  const retrievedAt = review.sourceSnapshots
-    .map((snapshot) => snapshot.retrievedAt)
-    .sort()
-    .at(-1);
+  const limits = SURFACE_LIMITS[surface];
+  const projectedFields = new Set(
+    rows.flatMap((row) => row.cells.map((cell) => cell.canonicalFieldId)),
+  );
+  const visibleColumns = columns.filter((column) => {
+    if (!projectedFields.has(column.fieldId)) return false;
+    return !rows.every((row) => {
+      const identity = row.identity;
+      const cell = row.cells.find(
+        (candidate) => candidate.canonicalFieldId === column.fieldId,
+      );
+      return identity !== "" && String(cell?.value ?? "") === identity;
+    });
+  });
   return (
-    <dl className="data-artifact__metadata flex flex-wrap gap-4 text-xs text-[var(--oh-muted)] my-2">
-      <div>
-        <dt className="inline font-medium">来源：</dt>
-        <dd className="inline">
-          {review.sourceSnapshots.length > 0
-            ? `已记录 ${review.sourceSnapshots.length} 个来源快照`
-            : "未提供"}
-        </dd>
-      </div>
-      {retrievedAt ? (
-        <div>
-          <dt className="inline font-medium">获取时间：</dt>
-          <dd className="inline">{retrievedAt}</dd>
-        </div>
-      ) : null}
-      <div>
-        <dt className="inline font-medium">质量状态：</dt>
-        <dd className="inline">
-          {review.quality.status === "pass" ? "已校验" : "质量状态未知"}
-        </dd>
-      </div>
-      {surface === "fullscreen" && review.evidenceIds.length > 0 ? (
-        <div>
-          <dt className="inline font-medium">关联证据：</dt>
-          <dd className="inline">{review.evidenceIds.length} 条</dd>
-        </div>
-      ) : null}
-    </dl>
+    <ScientificTable
+      caption="研究数据集中的规范化字段与数据行"
+      columns={visibleColumns.map((column) => ({
+        key: String(column.fieldId),
+        label: fieldLabel(column),
+        unit: column.canonicalUnit || null,
+        variant:
+          column.dataType === "number" || column.dataType === "integer"
+            ? ("numeric" as const)
+            : ("identity" as const),
+      }))}
+      rows={rows.map((row) => ({
+        id: String(row.rowId),
+        identity: row.identity,
+        cells: Object.fromEntries(
+          visibleColumns.map((column) => {
+            const cell = row.cells.find(
+              (item) => item.canonicalFieldId === column.fieldId,
+            );
+            return [
+              String(column.fieldId),
+              cell
+                ? {
+                    value: cell.value,
+                    unit: cell.unit,
+                    status:
+                      cell.status === "declared_null" ? "missing" : cell.status,
+                    reason: cell.reason,
+                    evidenceIds: cell.evidenceIds,
+                  }
+                : { value: "不适用" },
+            ];
+          }),
+        ),
+      }))}
+      maxRows={limits.rows}
+      maxColumns={limits.columns}
+      showIdentity
+      onSelectEvidence={onSelectEvidence}
+    />
   );
 }
 
@@ -83,36 +183,45 @@ function DatasetTable({
   readonly surface: DataArtifactSurface;
   readonly onSelectEvidence?: (evidenceIds: readonly DomainEntityId[]) => void;
 }) {
-  const limits = SURFACE_LIMITS[surface];
+  const groups = new Map<
+    string,
+    DatasetArtifactReviewViewModel["rows"][number][]
+  >();
+  for (const row of review.rows) {
+    const rows = groups.get(row.entityLevel);
+    if (rows) rows.push(row);
+    else groups.set(row.entityLevel, [row]);
+  }
+  if (groups.size < 2) {
+    return (
+      <DatasetRowsTable
+        columns={review.columns}
+        rows={review.rows}
+        surface={surface}
+        onSelectEvidence={onSelectEvidence}
+      />
+    );
+  }
   return (
-    <ScientificTable
-      caption="研究数据集中的规范化字段与数据行"
-      columns={review.columns.map((column) => ({
-        key: String(column.fieldId),
-        label: fieldLabel(column),
-        unit: column.canonicalUnit || null,
-      }))}
-      rows={review.rows.map((row) => ({
-        id: String(row.rowId),
-        identity: row.identity,
-        cells: Object.fromEntries(
-          row.cells.map((cell) => [
-            String(cell.canonicalFieldId),
-            {
-              value: cell.value,
-              unit: cell.unit,
-              status: cell.status === "declared_null" ? "missing" : cell.status,
-              reason: cell.reason,
-              evidenceIds: cell.evidenceIds,
-            },
-          ]),
-        ),
-      }))}
-      maxRows={limits.rows}
-      maxColumns={limits.columns}
-      showIdentity
-      onSelectEvidence={onSelectEvidence}
-    />
+    <Tabs defaultValue={review.rows[0]?.entityLevel}>
+      <TabsList aria-label="数据对象类型">
+        {[...groups].map(([level, rows]) => (
+          <TabsTrigger key={level} value={level}>
+            {ENTITY_LEVEL_LABELS[level] ?? "数据记录"} {rows.length}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      {[...groups].map(([level, rows]) => (
+        <TabsContent key={level} value={level}>
+          <DatasetRowsTable
+            columns={review.columns}
+            rows={rows}
+            surface={surface}
+            onSelectEvidence={onSelectEvidence}
+          />
+        </TabsContent>
+      ))}
+    </Tabs>
   );
 }
 
@@ -122,46 +231,61 @@ function DatasetRenderer({
   surface,
   onSelectEvidence,
   showSummary = true,
-  enhancementOnly = false,
 }: {
   readonly review: DatasetArtifactReviewViewModel;
   readonly title: string;
   readonly surface: DataArtifactSurface;
   readonly onSelectEvidence?: (evidenceIds: readonly DomainEntityId[]) => void;
   readonly showSummary?: boolean;
-  readonly enhancementOnly?: boolean;
 }) {
-  if (enhancementOnly) {
-    return <ArtifactMetadata review={review} surface={surface} />;
-  }
+  const retrievedAt = review.sourceSnapshots
+    .map((snapshot) => snapshot.retrievedAt)
+    .sort()
+    .at(-1);
+
   return (
     <article
-      className="data-artifact data-artifact--dataset"
+      className="data-artifact data-artifact--dataset flex flex-col gap-3 min-h-0 flex-1"
       data-surface={surface}
     >
       {showSummary ? (
-        <header className="data-artifact__header mb-2">
-          <h3 className="text-sm font-semibold text-[var(--oh-foreground)]">
-            {title}
-          </h3>
-          <p className="text-xs text-[var(--oh-muted)] mt-0.5">
-            数据表 · {review.rowCount} 行 · {review.fieldCount} 个字段
-            {review.conflictCount > 0 ? ` · 冲突 ${review.conflictCount}` : ""}
-          </p>
+        <header className="data-artifact__header">
+          <h3 className="font-serif text-lg font-semibold">{title}</h3>
         </header>
       ) : null}
-      <ArtifactMetadata review={review} surface={surface} />
-      {review.rows.length > 0 && review.columns.length > 0 ? (
-        <DatasetTable
-          review={review}
-          surface={surface}
-          onSelectEvidence={onSelectEvidence}
-        />
-      ) : (
-        <p className="text-xs text-[var(--oh-muted)] py-4 text-center">
-          当前版本没有可展示的数据行或字段。
-        </p>
-      )}
+
+      <ArtifactMetadataStrip
+        sourceCount={review.sourceSnapshots.length}
+        sourceMode={review.sourceMode}
+        retrievedAt={retrievedAt}
+        qualityStatus={review.quality.status}
+        recordCount={review.rowCount}
+        fieldCount={review.fieldCount}
+        evidenceCount={review.evidenceIds.length}
+        statusBadge={
+          review.conflictCount > 0
+            ? {
+                label: `存在 ${review.conflictCount} 处冲突`,
+                variant: "destructive",
+              }
+            : null
+        }
+      />
+
+      <div className="min-h-0 flex-1 overflow-auto">
+        {review.rows.length > 0 && review.columns.length > 0 ? (
+          <DatasetTable
+            key={review.artifactVersionId}
+            review={review}
+            surface={surface}
+            onSelectEvidence={onSelectEvidence}
+          />
+        ) : (
+          <div className="data-artifact__empty">
+            当前版本没有可展示的数据行或字段。
+          </div>
+        )}
+      </div>
     </article>
   );
 }
@@ -172,74 +296,13 @@ function fieldSourceLabel(field: DataArtifactFieldDefinitionViewModel): string {
     : "未提供";
 }
 
-function FieldDictionaryTable({
-  review,
-  surface,
-}: {
-  readonly review: FieldDictionaryArtifactReviewViewModel;
-  readonly surface: DataArtifactSurface;
-}) {
-  const fields = review.fieldDefinitions.slice(
-    0,
-    SURFACE_LIMITS[surface].fields,
-  );
-  return (
-    <div className="data-artifact__table-scroll overflow-x-auto my-2 border rounded border-[var(--oh-border)]">
-      <table className="ui-text-body w-full text-left border-collapse">
-        <caption className="sr-only">规范字段定义、单位与来源映射</caption>
-        <thead>
-          <tr className="border-b bg-[var(--oh-surface-subtle)] border-[var(--oh-border)]">
-            <th scope="col" className="p-2 font-medium">
-              字段
-            </th>
-            <th scope="col" className="p-2 font-medium">
-              含义
-            </th>
-            <th scope="col" className="p-2 font-medium">
-              类型 / 单位
-            </th>
-            <th scope="col" className="p-2 font-medium">
-              来源映射
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[var(--oh-border)]">
-          {fields.map((field) => (
-            <tr
-              key={field.fieldId}
-              className="hover:bg-[var(--oh-surface-subtle)]"
-            >
-              <th
-                scope="row"
-                className="p-2 font-medium text-[var(--oh-foreground)]"
-              >
-                {fieldLabel(field)}
-              </th>
-              <td className="p-2 text-[var(--oh-muted)]">
-                {field.description || "未提供字段描述。"}
-              </td>
-              <td className="p-2">
-                {field.dataType}
-                {field.canonicalUnit ? ` · ${field.canonicalUnit}` : ""}
-                <div className="ui-text-label mt-0.5 text-[var(--oh-muted)]">
-                  {field.required ? "必填" : "可选"} ·{" "}
-                  {field.nullable ? "可为空" : "不可为空"}
-                </div>
-              </td>
-              <td className="p-2 text-[var(--oh-muted)]">
-                {fieldSourceLabel(field)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {review.fieldDefinitions.length > fields.length ? (
-        <p className="p-2 text-xs text-[var(--oh-muted)] bg-[var(--oh-surface-subtle)] border-t border-[var(--oh-border)]">
-          当前显示前 {fields.length} / {review.fieldDefinitions.length} 个字段。
-        </p>
-      ) : null}
-    </div>
-  );
+function fieldRoleLabels(
+  field: DataArtifactFieldDefinitionViewModel,
+): readonly string[] {
+  return [
+    ...(field.objectIdentityKey ? ["对象标识"] : []),
+    ...(field.crossmatchKey ? ["交叉匹配键"] : []),
+  ];
 }
 
 function FieldDictionaryRenderer({
@@ -253,90 +316,159 @@ function FieldDictionaryRenderer({
   readonly surface: DataArtifactSurface;
   readonly showSummary?: boolean;
 }) {
+  const [filterQuery, setFilterQuery] = useState("");
+  const retrievedAt = review.sourceSnapshots
+    .map((snapshot) => snapshot.retrievedAt)
+    .sort()
+    .at(-1);
+
+  const filteredFields = useMemo(() => {
+    const query = filterQuery.trim().toLowerCase();
+    if (!query) return review.fieldDefinitions;
+    return review.fieldDefinitions.filter(
+      (field) =>
+        field.labelEn.toLowerCase().includes(query) ||
+        field.meaningZh.toLowerCase().includes(query) ||
+        field.description.toLowerCase().includes(query) ||
+        String(field.fieldId).includes(query),
+    );
+  }, [review.fieldDefinitions, filterQuery]);
+
+  const displayedFields = filteredFields.slice(
+    0,
+    SURFACE_LIMITS[surface].fields,
+  );
+
   return (
     <article
-      className="data-artifact data-artifact--field-dictionary"
+      className="data-artifact data-artifact--field-dictionary flex flex-col gap-3 min-h-0 flex-1"
       data-surface={surface}
     >
       {showSummary ? (
-        <header className="data-artifact__header mb-2">
-          <h3 className="text-sm font-semibold text-[var(--oh-foreground)]">
-            {title}
-          </h3>
-          <p className="text-xs text-[var(--oh-muted)] mt-0.5">
-            字段字典 · {review.fieldDefinitions.length} 个字段
-          </p>
+        <header className="data-artifact__header">
+          <h3 className="font-serif text-lg font-semibold">{title}</h3>
         </header>
       ) : null}
-      <ArtifactMetadata review={review} surface={surface} />
-      {review.fieldDefinitions.length > 0 ? (
-        <FieldDictionaryTable review={review} surface={surface} />
-      ) : (
-        <p className="text-xs text-[var(--oh-muted)] py-4 text-center">
-          当前版本没有可展示的字段定义。
-        </p>
-      )}
-    </article>
-  );
-}
 
-function SourceCollectionTable({
-  review,
-  surface,
-}: {
-  readonly review: SourceCollectionArtifactReviewViewModel;
-  readonly surface: DataArtifactSurface;
-}) {
-  const members = review.members.slice(0, SURFACE_LIMITS[surface].fields);
-  return (
-    <div className="data-artifact__table-scroll overflow-x-auto my-2 border rounded border-[var(--oh-border)]">
-      <table className="ui-text-body w-full text-left border-collapse">
-        <caption className="sr-only">数据产物使用的来源与记录数量</caption>
-        <thead>
-          <tr className="border-b bg-[var(--oh-surface-subtle)] border-[var(--oh-border)]">
-            <th scope="col" className="p-2 font-medium">
-              来源
-            </th>
-            <th scope="col" className="p-2 font-medium">
-              数据级别
-            </th>
-            <th scope="col" className="p-2 font-medium">
-              记录数量
-            </th>
-            <th scope="col" className="p-2 font-medium">
-              完成状态
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[var(--oh-border)]">
-          {members.map((member) => (
-            <tr
-              key={`${member.sourceSnapshotId}-${member.side}`}
-              className="hover:bg-[var(--oh-surface-subtle)]"
-            >
-              <th
-                scope="row"
-                className="p-2 font-medium text-[var(--oh-foreground)]"
-              >
-                {member.sourceId ?? "未提供来源名称"}
-              </th>
-              <td className="p-2 text-[var(--oh-muted)]">{member.dataLevel}</td>
-              <td className="p-2">
-                {member.rawRecordCount === null ? "—" : member.rawRecordCount}
-              </td>
-              <td className="p-2 text-[var(--oh-muted)]">
-                {member.completionStatus}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {review.members.length > members.length ? (
-        <p className="p-2 text-xs text-[var(--oh-muted)] bg-[var(--oh-surface-subtle)] border-t border-[var(--oh-border)]">
-          当前显示前 {members.length} / {review.members.length} 个来源成员。
-        </p>
-      ) : null}
-    </div>
+      <ArtifactMetadataStrip
+        sourceCount={review.sourceSnapshots.length}
+        sourceMode={review.sourceMode}
+        retrievedAt={retrievedAt}
+        qualityStatus={review.quality.status}
+        fieldCount={review.fieldDefinitions.length}
+        evidenceCount={review.evidenceIds.length}
+      />
+
+      <ArtifactToolbar
+        left={
+          <div className="field-dictionary__search relative min-w-64 max-w-sm">
+            <Search
+              className="pointer-events-none absolute left-2.5 top-1/2 size-[var(--icon-size-sm)] -translate-y-1/2 field-dictionary__search-icon"
+              data-testid="field-dictionary-search-icon"
+              aria-hidden="true"
+            />
+            <Input
+              type="search"
+              placeholder="搜索字段名称、含义或标识…"
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              className="field-dictionary__search-input h-8 text-xs"
+            />
+          </div>
+        }
+        right={
+          <span className="field-dictionary__count">
+            共 {filteredFields.length} 个字段定义
+          </span>
+        }
+      />
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {displayedFields.length > 0 ? (
+          <Accordion
+            type="multiple"
+            defaultValue={
+              displayedFields[0] ? [String(displayedFields[0].fieldId)] : []
+            }
+            className="field-dictionary__list"
+          >
+            {displayedFields.map((field) => {
+              const unit = formatScientificUnit(field.canonicalUnit);
+              const roles = fieldRoleLabels(field);
+              return (
+                <AccordionItem
+                  key={field.fieldId}
+                  value={String(field.fieldId)}
+                  className="field-dictionary__item"
+                >
+                  <AccordionTrigger className="field-dictionary__trigger">
+                    <span className="field-dictionary__identity">
+                      <span className="field-dictionary__name">
+                        {fieldLabel(field)}
+                      </span>
+                      <span className="field-dictionary__english">
+                        {field.labelEn || "标准字段"}
+                      </span>
+                    </span>
+                    <span className="field-dictionary__traits">
+                      {[
+                        ...roles,
+                        `${DATA_TYPE_LABELS[field.dataType] ?? field.dataType}${unit ? ` · ${unit}` : ""}`,
+                        field.required ? "必填" : "可选",
+                      ].join(" · ")}
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="field-dictionary__content">
+                    <p className="field-dictionary__description">
+                      {field.description ||
+                        field.meaningZh ||
+                        "未提供字段描述。"}
+                    </p>
+                    <dl className="field-dictionary__facts">
+                      <div>
+                        <dt>空值约束</dt>
+                        <dd>{field.nullable ? "允许空值" : "必须提供值"}</dd>
+                      </div>
+                      <div>
+                        <dt>来源映射</dt>
+                        <dd>{fieldSourceLabel(field)}</dd>
+                      </div>
+                      <div>
+                        <dt>适用对象</dt>
+                        <dd>{field.objectType.replaceAll("_", " ")}</dd>
+                      </div>
+                    </dl>
+                    {field.sourceAliases.length > 0 ? (
+                      <div className="field-dictionary__aliases">
+                        {field.sourceAliases.map((alias) => (
+                          <span
+                            key={`${alias.sourceId}:${alias.sourceTable}:${alias.rawField}`}
+                          >
+                            {sourceLabel(alias.sourceId)} · {alias.rawField}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
+        ) : (
+          <Empty className="data-artifact__empty">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Search aria-hidden="true" />
+              </EmptyMedia>
+              <EmptyTitle>没有匹配的字段</EmptyTitle>
+              <EmptyDescription>
+                尝试搜索中文含义、英文名称或标准字段标识。
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        )}
+      </div>
+    </article>
   );
 }
 
@@ -351,41 +483,148 @@ function SourceCollectionRenderer({
   readonly surface: DataArtifactSurface;
   readonly showSummary?: boolean;
 }) {
+  const retrievedAt = review.sourceSnapshots
+    .map((snapshot) => snapshot.retrievedAt)
+    .sort()
+    .at(-1);
+
+  const members = review.members.slice(0, SURFACE_LIMITS[surface].fields);
+  const mixesRecordedAndFixtureSources =
+    review.members.some((member) => member.sourceMode === "recorded") &&
+    review.members.some((member) => member.sourceMode === "fixture");
+
   return (
     <article
-      className="data-artifact data-artifact--source-collection"
+      className="data-artifact data-artifact--source-collection flex flex-col gap-3 min-h-0"
       data-surface={surface}
     >
       {showSummary ? (
-        <header className="data-artifact__header mb-2">
-          <h3 className="text-sm font-semibold text-[var(--oh-foreground)]">
-            {title}
-          </h3>
-          <p className="text-xs text-[var(--oh-muted)] mt-0.5">
-            来源集合 · {review.members.length} 个来源成员
-          </p>
+        <header className="data-artifact__header">
+          <h3 className="font-serif text-lg font-semibold">{title}</h3>
         </header>
       ) : null}
-      <div
-        className="data-artifact__summary flex flex-wrap gap-3 text-xs text-[var(--oh-muted)] my-1.5 p-2 bg-[var(--oh-surface-subtle)] rounded"
-        aria-label="来源集合质量摘要"
-      >
-        <span>已对齐 {review.alignedRecordCount} 项</span>
-        {review.conflictRecordCount > 0 ? (
-          <span className="text-[var(--oh-danger)]">
-            冲突 {review.conflictRecordCount} 项
-          </span>
-        ) : null}
-        <span>待核验 {review.reviewRequiredRecordCount} 项</span>
-      </div>
-      <ArtifactMetadata review={review} surface={surface} />
-      {review.members.length > 0 ? (
-        <SourceCollectionTable review={review} surface={surface} />
-      ) : (
-        <p className="text-xs text-[var(--oh-muted)] py-4 text-center">
-          当前版本只返回来源快照引用，尚未提供来源成员明细。
+
+      <ArtifactMetadataStrip
+        sourceCount={review.members.length}
+        sourceMode={review.sourceMode}
+        retrievedAt={retrievedAt}
+        qualityStatus={review.quality.status}
+        recordCount={review.alignedRecordCount}
+        evidenceCount={review.evidenceIds.length}
+        statusBadge={
+          review.conflictRecordCount > 0
+            ? {
+                label: `冲突 ${review.conflictRecordCount} 项`,
+                variant: "destructive",
+              }
+            : null
+        }
+      />
+
+      <dl className="source-collection__metrics">
+        <div>
+          <dt>已对齐记录</dt>
+          <dd>{review.alignedRecordCount}</dd>
+        </div>
+        <div>
+          <dt>待人工审查</dt>
+          <dd>{review.reviewRequiredRecordCount}</dd>
+        </div>
+        <div>
+          <dt>不确定匹配</dt>
+          <dd>{review.inconclusiveRecordCount}</dd>
+        </div>
+        <div
+          data-state={review.conflictRecordCount > 0 ? "attention" : "clear"}
+        >
+          <dt>来源冲突</dt>
+          <dd>{review.conflictRecordCount}</dd>
+        </div>
+      </dl>
+
+      {mixesRecordedAndFixtureSources ? (
+        <p className="source-collection__note">
+          差异统计来自参与对齐的录制响应；标记为演示数据的来源只覆盖接入结构，不计入科研比较。
         </p>
-      )}
+      ) : null}
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {members.length > 0 ? (
+          <ItemGroup className="source-collection__grid" role="list">
+            {members.map((member) => {
+              const complete = ["complete", "completed"].includes(
+                member.completionStatus ?? "",
+              );
+              const role =
+                member.side === "left"
+                  ? "主目录"
+                  : member.side === "right"
+                    ? "交叉核验"
+                    : "研究来源";
+              const SourceIcon =
+                member.side === "left"
+                  ? Database
+                  : member.side === "right"
+                    ? SearchCheck
+                    : Library;
+              return (
+                <Item
+                  key={`${member.sourceSnapshotId}-${member.side}`}
+                  role="listitem"
+                  variant="default"
+                  className="source-collection__item"
+                >
+                  <ItemMedia
+                    className="source-collection__item-icon"
+                    data-role={member.side ?? "source"}
+                  >
+                    <SourceIcon aria-hidden="true" />
+                  </ItemMedia>
+                  <ItemContent>
+                    <div className="source-collection__item-meta">
+                      <span>{role}</span>
+                      <Badge variant={complete ? "secondary" : "outline"}>
+                        {member.completionStatus
+                          ? (COMPLETION_LABELS[member.completionStatus] ??
+                            "状态未知")
+                          : "状态未知"}
+                      </Badge>
+                    </div>
+                    <ItemTitle>{sourceLabel(member.sourceId)}</ItemTitle>
+                    <ItemDescription>
+                      {member.licenseNote || "来源许可信息未提供。"}
+                    </ItemDescription>
+                    <div className="source-collection__item-facts">
+                      <span>
+                        {member.rawRecordCount === null
+                          ? "记录数未提供"
+                          : `${member.rawRecordCount} 条原始记录`}
+                      </span>
+                      <span>
+                        {member.dataLevel
+                          ? (DATA_LEVEL_LABELS[member.dataLevel] ?? "来源数据")
+                          : "来源数据"}
+                      </span>
+                    </div>
+                  </ItemContent>
+                </Item>
+              );
+            })}
+          </ItemGroup>
+        ) : (
+          <Empty className="data-artifact__empty">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Database aria-hidden="true" />
+              </EmptyMedia>
+              <EmptyTitle>来源成员尚未展开</EmptyTitle>
+              <EmptyDescription>
+                当前版本只返回来源快照引用，尚未提供来源成员明细。
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        )}
+      </div>
     </article>
   );
 }
@@ -396,7 +635,6 @@ export function DataArtifactRenderer({
   surface,
   onSelectEvidence,
   showSummary = true,
-  enhancementOnly = false,
 }: DataArtifactRendererProps) {
   if (review.kind === "dataset") {
     return (
@@ -406,7 +644,6 @@ export function DataArtifactRenderer({
         surface={surface}
         onSelectEvidence={onSelectEvidence}
         showSummary={showSummary}
-        enhancementOnly={enhancementOnly}
       />
     );
   }

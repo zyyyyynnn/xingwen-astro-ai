@@ -6,9 +6,11 @@ import type {
 import { describe, expect, it } from "vitest";
 
 import {
+  mapArtifactVersionMetadata,
   mapDomainContractInputToDto,
   mapResearchContractDraft,
 } from "../src/mapping";
+import { exoplanetHostStarFixture } from "../src/fixture/exoplanet-host-star";
 
 function contractInputDto(): ResearchContractInputDto {
   return {
@@ -212,5 +214,39 @@ describe("scientific task contract mapping", () => {
         expires_at: "2026-08-19T00:00:00Z",
       }),
     ).toThrow(/not JSON-compatible/u);
+  });
+});
+
+describe("mapArtifactVersionMetadata inline evidence", () => {
+  const bundle = exoplanetHostStarFixture;
+
+  it("keeps an absent inline evidence list absent instead of empty", () => {
+    const [version] = bundle.data.artifactVersions;
+    if (!version) throw new Error("Fixture ArtifactVersion is missing.");
+
+    const mapped = mapArtifactVersionMetadata(
+      version,
+      bundle.data.artifactPresentations[version.id],
+    );
+
+    expect(mapped.evidence).toBeUndefined();
+    expect(mapped.evidenceIds.length).toBeGreaterThan(0);
+  });
+
+  it("maps the inline evidence list a detail read actually carries", () => {
+    const detail = bundle.data.paperSummaries[0]?.version;
+    if (!detail) throw new Error("Fixture PaperSummary version is missing.");
+    // Precondition: this detail read is the one that embeds real Evidence, so
+    // the Diff fallback must not treat it as absent.
+    expect(detail.evidence.length).toBeGreaterThan(0);
+
+    const mapped = mapArtifactVersionMetadata(
+      detail,
+      bundle.data.artifactPresentations[detail.id],
+    );
+
+    expect(mapped.evidence?.map((item) => item.id)).toEqual(
+      detail.evidence.map((item) => asEntityId(item.id)),
+    );
   });
 });

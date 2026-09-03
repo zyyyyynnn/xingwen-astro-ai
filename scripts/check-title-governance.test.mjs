@@ -56,7 +56,7 @@ test("validatePrTitle rejects task-like and ungoverned api scopes", () => {
 
 test("validateIssueTemplate accepts current repository templates", async () => {
   const { readFile } = await import("node:fs/promises");
-  for (const name of ["bug.md", "chore.md", "feature.md", "gate.md"]) {
+  for (const name of ["bug.md", "chore.md", "feature.md"]) {
     const content = await readFile(
       join(".github", "ISSUE_TEMPLATE", name),
       "utf8",

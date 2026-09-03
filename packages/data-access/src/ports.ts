@@ -41,6 +41,7 @@ import type {
   ResearchProject,
   ResearchPlanningCatalog,
   ResearchRun,
+  RevisionFeedbackIntent,
   RevisionPlan,
   ScientificArtifactReview,
   UserFeedback,
@@ -278,6 +279,7 @@ export interface CreateResearchInputInput {
  */
 export interface PaperAcquisitionRepository {
   getReview(artifactVersionId: DomainEntityId): Promise<PaperAcquisitionReview>;
+  acquireFullText(input: AcquirePaperFullTextInput): Promise<ResearchInputRef>;
   bindResearchInput(input: {
     readonly artifactVersionId: DomainEntityId;
     readonly candidateId: DomainEntityId;
@@ -286,7 +288,19 @@ export interface PaperAcquisitionRepository {
     readonly researchInputContentHash: string;
     readonly evidenceUrl: string;
     readonly idempotencyKey: string;
-  }): Promise<void>;
+  }): Promise<ResearchInputRef>;
+}
+
+export interface AcquirePaperFullTextInput {
+  readonly artifactVersionId: DomainEntityId;
+  readonly candidateId: DomainEntityId;
+  readonly canonicalPaperId: DomainEntityId;
+  readonly accessUrl: string;
+  readonly accessKind:
+    "publisher_open_access" | "repository_open_access" | "author_provided";
+  readonly license: string;
+  readonly evidenceUrl: string;
+  readonly idempotencyKey: string;
 }
 
 /**
@@ -308,6 +322,10 @@ export interface PaperSummaryRepository {
   getDocumentSource(
     artifactVersionId: DomainEntityId,
   ): Promise<PaperSummaryDocumentSourceReview>;
+  export(
+    artifactVersionId: DomainEntityId,
+    format: "json" | "markdown",
+  ): Promise<ArtifactExportDownload>;
 }
 
 /** Deep, version-pinned reads for the three typed data Artifact kinds. */
@@ -361,17 +379,10 @@ export interface ScientificArtifactRepository {
   ): Promise<ArrayBuffer>;
 }
 
-export interface CreateRevisionInput {
-  readonly artifactId: DomainEntityId;
-  readonly artifactVersionId: DomainEntityId;
-  readonly expectedVersionNumber: number;
-  readonly summary: string;
-  readonly requestedChange: string;
-  readonly idempotencyKey: string;
-}
+export type { RevisionFeedbackIntent };
 
 export interface RevisionRepository {
-  createFeedback(input: CreateRevisionInput): Promise<UserFeedback>;
+  createFeedback(input: RevisionFeedbackIntent): Promise<UserFeedback>;
   createPlan(input: {
     readonly projectId: DomainEntityId;
     readonly feedbackId: DomainEntityId;

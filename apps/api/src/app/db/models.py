@@ -1097,6 +1097,7 @@ class UserFeedbackModel(TimestampMixin, Base):
     target_id: Mapped[str] = mapped_column(String(128), nullable=False)
     target_locator: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     category: Mapped[str] = mapped_column(String(32), nullable=False)
+    adjudication_decision: Mapped[str | None] = mapped_column(String(16))
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     requested_change: Mapped[str] = mapped_column(Text, nullable=False)
     feedback_hash: Mapped[str] = mapped_column(String(71), nullable=False)
@@ -1135,8 +1136,15 @@ class UserFeedbackModel(TimestampMixin, Base):
             name="target_type",
         ),
         CheckConstraint(
-            "category IN ('correction','omission','evidence','quality','interpretation')",
+            "category IN ('correction','omission','evidence','quality','interpretation',"
+            "'adjudication')",
             name="category",
+        ),
+        CheckConstraint(
+            "(category = 'adjudication' AND target_type = 'relation' "
+            "AND adjudication_decision IN ('accepted','rejected')) OR "
+            "(category <> 'adjudication' AND adjudication_decision IS NULL)",
+            name="adjudication_shape",
         ),
         Index(
             "ix_user_feedback_project_created",
@@ -2061,7 +2069,6 @@ class DocumentParseModel(Base):
     payload_semantic_hash: Mapped[str] = mapped_column(String(71), nullable=False)
     payload_storage_ref: Mapped[str] = mapped_column(String(160), nullable=False)
     parser_profile_id: Mapped[str] = mapped_column(String(256), nullable=False)
-    parser_profile_version: Mapped[str] = mapped_column(String(128), nullable=False)
     native_engine: Mapped[str] = mapped_column(String(256), nullable=False)
     native_engine_version: Mapped[str] = mapped_column(String(128), nullable=False)
     visual_engine: Mapped[str | None] = mapped_column(String(256))

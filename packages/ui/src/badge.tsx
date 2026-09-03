@@ -2,7 +2,8 @@ import type { ComponentProps } from "react";
 
 import { cn } from "#utils";
 
-export type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
+export type BadgeVariant =
+  "default" | "secondary" | "destructive" | "outline" | "ghost";
 
 export function Badge({
   className,

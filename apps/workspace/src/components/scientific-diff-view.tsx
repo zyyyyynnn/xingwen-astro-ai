@@ -1,3 +1,11 @@
+import { useState } from "react";
+import {
+  Button,
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+} from "@xingwen/ui";
 import type { ScientificDiffResult } from "../presentation/scientific-diff";
 
 const CATEGORY_LABELS = {
@@ -26,46 +34,94 @@ export function ScientificDiffView({ results }: ScientificDiffViewProps) {
 
   if (changedCategories.length === 0) {
     return (
-      <div className="scientific-diff-empty" role="status">
-        <h3>没有发现科学内容变化</h3>
-        <p>所选结果的研究契约、来源与科学内容保持一致。</p>
-      </div>
+      <Empty role="status">
+        <EmptyHeader>
+          <EmptyTitle>没有发现科学内容变化</EmptyTitle>
+          <EmptyDescription>
+            所选结果的研究契约、来源与科学内容保持一致。
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 
   return (
     <div className="scientific-diff" aria-label="科学结果变化">
       {changedCategories.map((result) => (
-        <section className="scientific-diff-category" key={result.category}>
-          <h3>{CATEGORY_LABELS[result.category]}</h3>
-          <ul className="scientific-diff-list">
-            {result.changes.map((change) => (
-              <li
-                className="scientific-diff-change"
-                key={`${result.category}:${change.key}`}
-              >
-                <p className="scientific-diff-change-kind">
-                  {CHANGE_LABELS[change.kind]}
-                </p>
-                {change.kind === "changed" ? (
-                  <div className="scientific-diff-before-after">
-                    <div>
-                      <span>原有内容</span>
-                      <p>{change.before}</p>
-                    </div>
-                    <div>
-                      <span>当前内容</span>
-                      <p>{change.after}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <p>{change.after ?? change.before}</p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
+        <ScientificDiffCategoryView key={result.category} result={result} />
       ))}
     </div>
+  );
+}
+
+function ScientificDiffCategoryView({
+  result,
+}: {
+  readonly result: ScientificDiffResult;
+}) {
+  const [requestedPage, setPage] = useState(0);
+  const pageSize = 50;
+  const pages = Math.ceil(result.changes.length / pageSize);
+  const page = Math.min(requestedPage, pages - 1);
+  return (
+    <section className="scientific-diff-category">
+      <h3>
+        {CATEGORY_LABELS[result.category]} · {result.changes.length} 项变化
+      </h3>
+      <ul className="scientific-diff-list">
+        {result.changes
+          .slice(page * pageSize, (page + 1) * pageSize)
+          .map((change) => (
+            <li
+              className="scientific-diff-change"
+              key={`${result.category}:${change.key}`}
+            >
+              <p className="scientific-diff-change-kind">
+                {CHANGE_LABELS[change.kind]}
+              </p>
+              {change.kind === "changed" ? (
+                <div className="scientific-diff-before-after">
+                  <div>
+                    <span>原有内容</span>
+                    <p>{change.before}</p>
+                  </div>
+                  <div>
+                    <span>当前内容</span>
+                    <p>{change.after}</p>
+                  </div>
+                </div>
+              ) : (
+                <p>{change.after ?? change.before}</p>
+              )}
+            </li>
+          ))}
+      </ul>
+      {pages > 1 ? (
+        <nav
+          className="scientific-diff-pagination"
+          aria-label={`${CATEGORY_LABELS[result.category]}变化分页`}
+        >
+          <Button
+            variant="secondary"
+            size="small"
+            disabled={page === 0}
+            onClick={() => setPage(page - 1)}
+          >
+            上一页
+          </Button>
+          <span role="status">
+            第 {page + 1} / {pages} 页
+          </span>
+          <Button
+            variant="secondary"
+            size="small"
+            disabled={page + 1 === pages}
+            onClick={() => setPage(page + 1)}
+          >
+            下一页
+          </Button>
+        </nav>
+      ) : null}
+    </section>
   );
 }

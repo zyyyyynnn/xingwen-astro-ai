@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-/** Policy gate for the frozen OpenHands mechanics and local Agent event seam. */
+/** Policy gate for the frozen OpenHands source and current Workspace mechanics. */
 
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const UPSTREAM_ROOT = "apps/workspace/upstream/openhands";
+const METADATA_ROOT = "apps/workspace/upstream/openhands";
+const SOURCE_ROOT = "apps/workspace/src/mechanics";
 const POLICY_FILE = "source-policy.json";
 const EXACT_IDENTITY = Object.freeze({
   product: "OpenHands",
@@ -37,6 +38,18 @@ function readJson(root, relativePath) {
   const path = resolve(root, relativePath);
   if (!existsSync(path)) return null;
   return JSON.parse(readFileSync(path, "utf8"));
+}
+
+function localMechanicsPath(upstreamPath) {
+  if (
+    typeof upstreamPath !== "string" ||
+    !upstreamPath.startsWith("src/") ||
+    upstreamPath.includes("..") ||
+    upstreamPath.includes("\\")
+  ) {
+    return null;
+  }
+  return `${SOURCE_ROOT}/${upstreamPath.slice("src/".length)}`;
 }
 
 function sameStringSet(actual, expected) {
@@ -113,8 +126,7 @@ function validateScope(scope, policy, failures) {
       "source-scope foreign runtime exclusion inventory is missing.",
     );
   }
-  const adopted = policy.public_step_analysis.adopted_mechanics;
-  for (const path of adopted) {
+  for (const path of policy.public_step_analysis.adopted_mechanics) {
     if (!files.some((entry) => entry?.upstream_path === path)) {
       failures.push(
         `adopted reasoning mechanic is absent from source-scope: ${path}.`,
@@ -124,7 +136,7 @@ function validateScope(scope, policy, failures) {
 }
 
 function validateProvenance(root, scope, failures) {
-  const provenance = readJson(root, `${UPSTREAM_ROOT}/provenance.json`);
+  const provenance = readJson(root, `${METADATA_ROOT}/provenance.json`);
   if (!provenance || !Array.isArray(provenance.entries)) {
     failures.push("provenance.json is missing or malformed.");
     return;
@@ -133,28 +145,37 @@ function validateProvenance(root, scope, failures) {
     provenance.entries.map((entry) => [entry.upstream_path, entry]),
   );
   const disclosure = byPath.get(DISCLOSURE_PATH);
-  if (!disclosure || disclosure.modified !== true) {
+  if (
+    !disclosure ||
+    disclosure.modified !== true ||
+    disclosure.local_path !== localMechanicsPath(DISCLOSURE_PATH)
+  ) {
     failures.push(
-      "CollapsibleThinking provenance must record a modified adoption.",
+      "CollapsibleThinking provenance must bind the modified upstream source to the current mechanics path.",
     );
   }
   for (const path of scope.policy_sets.foreign_runtime_excluded) {
     if (byPath.has(path)) {
       failures.push(
-        `foreign OpenHands runtime path must not be vendored: ${path}.`,
+        `foreign OpenHands runtime path must not be adopted: ${path}.`,
       );
     }
   }
 }
 
 function validateLocalSeam(root, failures) {
-  const files = [
-    `${UPSTREAM_ROOT}/src/components/conversation-events/chat/event-message.tsx`,
-    `${UPSTREAM_ROOT}/src/components/conversation-events/chat/group-events.ts`,
-    `${UPSTREAM_ROOT}/src/components/conversation-events/chat/messages.tsx`,
-    `${UPSTREAM_ROOT}/${DISCLOSURE_PATH}`,
+  const upstreamPaths = [
+    "src/components/conversation-events/chat/event-message.tsx",
+    "src/components/conversation-events/chat/group-events.ts",
+    "src/components/conversation-events/chat/messages.tsx",
+    DISCLOSURE_PATH,
   ];
-  for (const relativePath of files) {
+  for (const upstreamPath of upstreamPaths) {
+    const relativePath = localMechanicsPath(upstreamPath);
+    if (relativePath === null) {
+      failures.push(`invalid adopted mechanics path: ${upstreamPath}.`);
+      continue;
+    }
     const path = resolve(root, relativePath);
     if (!existsSync(path)) {
       failures.push(
@@ -171,18 +192,22 @@ function validateLocalSeam(root, failures) {
       }
     }
   }
-  const thinkingPath = resolve(root, UPSTREAM_ROOT, DISCLOSURE_PATH);
-  if (existsSync(thinkingPath)) {
-    const content = readFileSync(thinkingPath, "utf8");
-    for (const required of [
-      "CollapsibleThinking",
-      "CollapsibleContent",
-      "{content}",
-    ]) {
-      if (!content.includes(required)) {
-        failures.push(
-          `CollapsibleThinking public analysis composition is missing ${required}.`,
-        );
+
+  const disclosurePath = localMechanicsPath(DISCLOSURE_PATH);
+  if (disclosurePath !== null) {
+    const absolutePath = resolve(root, disclosurePath);
+    if (existsSync(absolutePath)) {
+      const content = readFileSync(absolutePath, "utf8");
+      for (const required of [
+        "CollapsibleThinking",
+        "CollapsibleContent",
+        "{content}",
+      ]) {
+        if (!content.includes(required)) {
+          failures.push(
+            `CollapsibleThinking public analysis composition is missing ${required}.`,
+          );
+        }
       }
     }
   }
@@ -192,13 +217,14 @@ function validateLocalSeam(root, failures) {
 export function checkAgentUpstreamPolicy(root) {
   const failures = [];
   const notes = [];
-  const lock = readJson(root, `${UPSTREAM_ROOT}/upstream-lock.json`);
-  const scope = readJson(root, `${UPSTREAM_ROOT}/source-scope.json`);
-  const policy = readJson(root, `${UPSTREAM_ROOT}/${POLICY_FILE}`);
+  const lock = readJson(root, `${METADATA_ROOT}/upstream-lock.json`);
+  const scope = readJson(root, `${METADATA_ROOT}/source-scope.json`);
+  const policy = readJson(root, `${METADATA_ROOT}/${POLICY_FILE}`);
   if (!lock) failures.push("Missing upstream-lock.json.");
   if (!scope) failures.push("Missing source-scope.json.");
   if (!policy) failures.push(`Missing ${POLICY_FILE}.`);
   if (failures.length) return { failures, notes };
+
   validateIdentity(lock, "upstream-lock", failures);
   validatePolicy(policy, failures);
   validateScope(scope, policy, failures);

@@ -6,7 +6,14 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuTrigger,
+  Input,
 } from "@xingwen/ui";
+import {
+  ChevronDown,
+  ChevronUp,
+  Search,
+  TableProperties,
+} from "@xingwen/ui/icons";
 import { useMemo, useState } from "react";
 
 export type ScientificTableScalar = string | number | boolean | null;
@@ -15,6 +22,8 @@ export interface ScientificTableColumn {
   readonly key: string;
   readonly label: string;
   readonly unit?: string | null;
+  /** Layout intent drives the column's minimum width; defaults to "numeric" heuristics on value type. */
+  readonly variant?: "identity" | "numeric" | "descriptive";
 }
 
 export interface ScientificTableCell {
@@ -37,6 +46,56 @@ function displayValue(value: ScientificTableScalar): string {
   return String(value);
 }
 
+const COLUMN_MIN_WIDTH: Record<
+  NonNullable<ScientificTableColumn["variant"]>,
+  string
+> = {
+  identity: "scientific-table__column--identity",
+  numeric: "scientific-table__column--numeric",
+  descriptive: "scientific-table__column--descriptive",
+};
+
+const UNIT_LABELS: Readonly<Record<string, string>> = {
+  none: "",
+  dimensionless: "",
+  earth_radius: "R⊕",
+  earth_mass: "M⊕",
+  solar_radius: "R☉",
+  solar_mass: "M☉",
+  jupiter_radius: "R♃",
+  jupiter_mass: "M♃",
+  r_earth: "R⊕",
+  m_earth: "M⊕",
+  r_sun: "R☉",
+  m_sun: "M☉",
+  k: "K",
+  kelvin: "K",
+  day: "天",
+  days: "天",
+  dex: "dex",
+  degree: "°",
+  degrees: "°",
+};
+
+export function formatScientificUnit(unit: string | null | undefined): string {
+  if (!unit) return "";
+  const normalized = unit.trim().replace(/^_+/u, "").toLowerCase();
+  return UNIT_LABELS[normalized] ?? unit.replace(/^_+/u, "");
+}
+
+function columnMinWidthClass(
+  column: ScientificTableColumn,
+  sampleValues: readonly ScientificTableScalar[],
+): string {
+  if (column.variant) {
+    return COLUMN_MIN_WIDTH[column.variant];
+  }
+  const numeric = sampleValues.some(
+    (value) => typeof value === "number" || typeof value === "boolean",
+  );
+  return numeric ? COLUMN_MIN_WIDTH.numeric : COLUMN_MIN_WIDTH.identity;
+}
+
 function Cell({ cell }: { readonly cell: ScientificTableCell | undefined }) {
   if (!cell) return <>—</>;
   if (cell.status === "missing") return <>—</>;
@@ -45,20 +104,21 @@ function Cell({ cell }: { readonly cell: ScientificTableCell | undefined }) {
       <span className="inline-flex items-center gap-1">
         <Badge variant="destructive">未解析</Badge>
         {cell.reason ? (
-          <small className="ui-text-label text-[var(--oh-muted)]">
+          <small className="ui-text-label text-[var(--color-ink-secondary)]">
             {cell.reason}
           </small>
         ) : null}
       </span>
     );
   }
+  const unit = formatScientificUnit(cell.unit);
   return (
     <span>
       {displayValue(cell.value)}
-      {cell.unit ? (
-        <small className="ui-text-label text-[var(--oh-muted)]">
+      {unit ? (
+        <small className="ui-text-label text-[var(--color-ink-secondary)]">
           {" "}
-          {cell.unit}
+          {unit}
         </small>
       ) : null}
     </span>
@@ -94,9 +154,21 @@ export function ScientificTable({
     key: string;
     direction: "asc" | "desc";
   } | null>(null);
+  const [query, setQuery] = useState("");
   const columns = allColumns.filter((column) => !hiddenFields.has(column.key));
   const rows = useMemo(() => {
-    const bounded = suppliedRows.slice(0, maxRows);
+    const normalizedQuery = query.trim().toLocaleLowerCase("zh-Hans");
+    const filtered = normalizedQuery
+      ? suppliedRows.filter((row) =>
+          [
+            row.identity ?? "",
+            ...Object.values(row.cells).map((cell) => displayValue(cell.value)),
+          ].some((value) =>
+            value.toLocaleLowerCase("zh-Hans").includes(normalizedQuery),
+          ),
+        )
+      : suppliedRows;
+    const bounded = filtered.slice(0, maxRows);
     if (sort === null) return bounded;
     return [...bounded].sort((left, right) => {
       const a = left.cells[sort.key]?.value ?? "";
@@ -108,7 +180,7 @@ export function ScientificTable({
           : numeric;
       return sort.direction === "asc" ? comparison : -comparison;
     });
-  }, [maxRows, sort, suppliedRows]);
+  }, [maxRows, query, sort, suppliedRows]);
 
   const toggleSort = (key: string) => {
     setSort((current) => {
@@ -126,65 +198,114 @@ export function ScientificTable({
     });
   };
 
+  // Column layout intent comes from what the data actually holds, not a
+  // uniform 1fr squeeze that forces vertical CJK headers.
+  const columnWidthClass = new Map<string, string>();
+  for (const column of allColumns) {
+    const samples = suppliedRows
+      .slice(0, 8)
+      .map((row) => row.cells[column.key]?.value ?? null);
+    columnWidthClass.set(column.key, columnMinWidthClass(column, samples));
+  }
+  const identityWidthClass = COLUMN_MIN_WIDTH.identity;
+
   return (
-    <div className="scientific-table overflow-x-auto my-2 border rounded border-[var(--oh-border)]">
-      <div className="flex justify-end border-b border-[var(--oh-border)] bg-[var(--oh-surface-subtle)] p-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="small" variant="ghost">
-              选择列
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="max-h-72 overflow-y-auto">
-            {allColumns.map((column) => (
-              <DropdownMenuCheckboxItem
-                key={column.key}
-                checked={!hiddenFields.has(column.key)}
-                onCheckedChange={() => toggleColumn(column.key)}
-              >
-                {column.label}
-                {column.unit ? ` (${column.unit})` : ""}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+    <div className="scientific-table my-2 overflow-x-auto bg-[var(--color-surface)]">
+      <div className="scientific-table__toolbar">
+        <div className="scientific-table__search">
+          <Search aria-hidden="true" />
+          <Input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索当前数据…"
+            aria-label="搜索当前数据"
+          />
+        </div>
+        <div className="scientific-table__toolbar-actions">
+          <span className="scientific-table__scroll-hint">
+            {query
+              ? `${rows.length} 条匹配`
+              : `${totalRowCount} 行 · ${columns.length} 列`}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="small" variant="secondary">
+                <TableProperties aria-hidden="true" />
+                选择列
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="max-h-72 overflow-y-auto"
+            >
+              {allColumns.map((column) => (
+                <DropdownMenuCheckboxItem
+                  key={column.key}
+                  checked={!hiddenFields.has(column.key)}
+                  onCheckedChange={() => toggleColumn(column.key)}
+                >
+                  {column.label}
+                  {formatScientificUnit(column.unit)
+                    ? ` (${formatScientificUnit(column.unit)})`
+                    : ""}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
-      <table className="ui-text-body w-full text-left border-collapse">
+      <table className="ui-text-body w-full min-w-max text-left border-collapse">
         <caption className="sr-only">{caption}</caption>
-        <thead>
-          <tr className="border-b bg-[var(--oh-surface-subtle)] border-[var(--oh-border)]">
+        <thead className="scientific-table__head sticky top-0">
+          <tr className="border-b bg-[var(--color-surface-muted)] border-[var(--color-border)]">
             {showIdentity ? (
-              <th scope="col" className="p-2 font-medium">
+              <th
+                scope="col"
+                className={`scientific-table__identity p-2 ${identityWidthClass}`}
+              >
                 标识 / 主体
               </th>
             ) : null}
             {columns.map((column) => (
-              <th scope="col" key={column.key} className="p-2 font-medium">
+              <th
+                scope="col"
+                key={column.key}
+                className={`p-2 font-medium whitespace-nowrap ${columnWidthClass.get(column.key) ?? ""}`}
+              >
                 <Button
                   variant="ghost"
-                  size="small"
-                  className="ui-text-body h-auto p-0 font-medium text-inherit"
+                  size="inline"
+                  aria-label={
+                    formatScientificUnit(column.unit)
+                      ? `${column.label} (${formatScientificUnit(column.unit)})`
+                      : column.label
+                  }
                   onClick={() => toggleSort(column.key)}
                 >
-                  {column.label}
-                  {column.unit ? ` (${column.unit})` : ""}
-                  {sort?.key === column.key
-                    ? sort.direction === "asc"
-                      ? " ↑"
-                      : " ↓"
-                    : ""}
+                  <span>{column.label}</span>
+                  {formatScientificUnit(column.unit) ? (
+                    <small>{formatScientificUnit(column.unit)}</small>
+                  ) : null}
+                  {sort?.key === column.key ? (
+                    sort.direction === "asc" ? (
+                      <ChevronUp aria-hidden="true" />
+                    ) : (
+                      <ChevronDown aria-hidden="true" />
+                    )
+                  ) : null}
                 </Button>
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-[var(--oh-border)]">
+        <tbody className="divide-y divide-[var(--color-border)]">
           {rows.map((row) => (
-            <tr key={row.id} className="hover:bg-[var(--oh-surface-subtle)]">
+            <tr key={row.id} className="hover:bg-[var(--color-surface-muted)]">
               {showIdentity ? (
                 <th
                   scope="row"
-                  className="p-2 font-normal text-[var(--oh-muted)]"
+                  className={`scientific-table__identity p-2 whitespace-nowrap ${identityWidthClass}`}
                 >
                   {row.identity || "未命名记录"}
                 </th>
@@ -192,13 +313,20 @@ export function ScientificTable({
               {columns.map((column) => {
                 const cell = row.cells[column.key];
                 const evidenceIds = cell?.evidenceIds ?? [];
+                const numericCell =
+                  column.variant === "numeric" ||
+                  typeof cell?.value === "number" ||
+                  typeof cell?.value === "boolean";
                 return (
-                  <td key={column.key} className="p-2">
+                  <td
+                    key={column.key}
+                    className={`p-2 ${numericCell ? "tabular-nums" : ""}`}
+                  >
                     {evidenceIds.length > 0 && onSelectEvidence ? (
                       <Button
                         variant="ghost"
-                        size="small"
-                        className="ui-text-body h-auto p-0 text-inherit"
+                        size="inline"
+                        className="underline-offset-2 hover:underline focus-visible:underline"
                         title="查看该数值的证据"
                         onClick={() => onSelectEvidence(evidenceIds)}
                       >
@@ -215,7 +343,7 @@ export function ScientificTable({
         </tbody>
       </table>
       {totalRowCount > rows.length || totalColumnCount > allColumns.length ? (
-        <p className="ui-text-label p-2 text-[var(--oh-muted)] bg-[var(--oh-surface-subtle)] border-t border-[var(--oh-border)]">
+        <p className="ui-text-label p-2 text-[var(--color-ink-secondary)] bg-[var(--color-surface-muted)] border-t border-[var(--color-border)]">
           {totalRowCount > rows.length
             ? `显示前 ${rows.length} / ${totalRowCount} 行`
             : `${totalRowCount} 行`}

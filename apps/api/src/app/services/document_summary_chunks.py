@@ -19,6 +19,8 @@ from dataclasses import dataclass
 import json
 from typing import Any
 
+from pydantic import ValidationError
+
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.paper_summary import (
     PaperSummaryAdmissionResult,
@@ -27,21 +29,20 @@ from app.schemas.paper_summary import (
     PaperSummaryModelUsage,
     PaperSummarySectionKind,
 )
-from app.schemas.scientific_document import (
-    DocumentBlockKind,
-    DocumentParseQuality,
-)
 from app.services.document_summary import (
     DocumentSummaryExecution,
     DocumentSummaryService,
     ExecuteDocumentSummaryRequest,
     MAX_SINGLE_EXECUTION_EVIDENCE_CHARACTERS,
     MAX_SINGLE_EXECUTION_EVIDENCE_ITEMS,
+    build_paper_summary_response_schema,
 )
 from app.services.model_execution import (
+    ModelExecutionError,
     ModelExecutionPort,
     ModelExecutionRequest,
     ModelExecutionResponse,
+    model_execution_failure_response,
 )
 from packages.prompts.registry import PromptRegistry
 from services.paper_pipeline.summary import (
@@ -57,11 +58,38 @@ from services.paper_pipeline.summary_chunks import (
     reduce_chunk_sections,
 )
 
-_MAX_STATEMENTS_PER_FIELD_PER_CHUNK = 32
+
+DOCUMENT_SUMMARY_CHUNK_SCHEMA_INVALID = "DOCUMENT_SUMMARY_CHUNK_SCHEMA_INVALID"
+DOCUMENT_SUMMARY_CHUNK_EVIDENCE_OUT_OF_SCOPE = (
+    "DOCUMENT_SUMMARY_CHUNK_EVIDENCE_OUT_OF_SCOPE"
+)
+DOCUMENT_SUMMARY_CHUNK_TRUNCATED = "DOCUMENT_SUMMARY_CHUNK_TRUNCATED"
+
+_MODEL_RESPONSE_TRUNCATED = "MODEL_RESPONSE_TRUNCATED"
+_MAX_SCHEMA_FEEDBACK_ISSUES = 12
+_MAX_SCHEMA_FEEDBACK_TYPE_CHARACTERS = 128
+_MAX_SCHEMA_FEEDBACK_MESSAGE_CHARACTERS = 256
 
 
-class ChunkEvidenceViolationError(ValueError):
-    """A chunk output cited Evidence identity outside its own chunk."""
+class SummaryChunkViolation(ValueError):
+    """Typed, stable Summary chunk-contract violation after bounded recovery."""
+
+    def __init__(
+        self,
+        *,
+        code: str,
+        chunk_id: str,
+        affected_evidence_ids: tuple[str, ...] = (),
+        schema_issues: tuple[dict[str, Any], ...] = (),
+        model_response: ModelExecutionResponse | None = None,
+        message: str,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.chunk_id = chunk_id
+        self.affected_evidence_ids = affected_evidence_ids
+        self.schema_issues = schema_issues
+        self.model_response = model_response
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,6 +101,8 @@ class ChunkedDocumentSummaryExecution:
     chunk_provider_returned_models: tuple[str | None, ...]
     token_usage: PaperSummaryModelUsage | None
     latency_ms: int
+    correction_count: int = 0
+    split_count: int = 0
 
 
 def fits_single_execution(
@@ -124,35 +154,43 @@ class ChunkedDocumentSummaryService:
         request: ExecuteDocumentSummaryRequest,
         evidence: tuple[PaperSummaryEvidenceCandidate, ...],
     ) -> ChunkedDocumentSummaryExecution:
-        chunks = _build_chunks(request, evidence)
-        chunk_outputs: list[PaperSummaryModelOutput] = []
+        chunks = _build_chunks(evidence)
+        chunk_sections: list[dict[str, tuple[SectionStatement, ...]]] = []
         request_ids: list[str | None] = []
         returned_models: list[str | None] = []
         usage_totals = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         usage_complete = True
         latency_total = 0
+        correction_total = 0
+        split_total = 0
         for chunk in chunks:
-            response = self._models.execute(
-                _chunk_request(self._prompts, request, chunk, evidence)
+            responses, sections, corrections, splits = (
+                _execute_summary_chunk_with_bounded_recovery(
+                    self._models,
+                    prompts=self._prompts,
+                    request=request,
+                    chunk=chunk,
+                    evidence=evidence,
+                )
             )
-            _validate_chunk_response(response)
-            if response.token_usage is None:
-                usage_complete = False
-            else:
-                for key in usage_totals:
-                    value = response.token_usage.get(key)
-                    if not isinstance(value, int) or isinstance(value, bool):
-                        usage_complete = False
-                    else:
-                        usage_totals[key] += value
-            latency_total += response.latency_ms
-            request_ids.append(response.provider_request_id)
-            returned_models.append(response.provider_returned_model)
-            output = PaperSummaryModelOutput.model_validate(response.payload)
-            _enforce_chunk_evidence_allowlist(chunk, output)
-            chunk_outputs.append(output)
+            correction_total += corrections
+            split_total += splits
+            for response in responses:
+                if response.token_usage is None:
+                    usage_complete = False
+                else:
+                    for key in usage_totals:
+                        value = response.token_usage.get(key)
+                        if not isinstance(value, int) or isinstance(value, bool):
+                            usage_complete = False
+                        else:
+                            usage_totals[key] += value
+                latency_total += response.latency_ms
+                request_ids.append(response.provider_request_id)
+                returned_models.append(response.provider_returned_model)
+            chunk_sections.append(sections)
 
-        merged_payload = _reduce_chunk_outputs(chunks, chunk_outputs)
+        merged_payload = _reduce_chunk_outputs(chunks, chunk_sections)
         model_response = json.dumps(
             merged_payload,
             ensure_ascii=False,
@@ -202,6 +240,8 @@ class ChunkedDocumentSummaryService:
                 else None
             ),
             latency_ms=latency_total,
+            correction_count=correction_total,
+            split_count=split_total,
         )
 
 
@@ -215,47 +255,30 @@ def _consensus_returned_model(models: list[str | None]) -> str | None:
 
 
 def _build_chunks(
-    request: ExecuteDocumentSummaryRequest,
     evidence: tuple[PaperSummaryEvidenceCandidate, ...],
 ) -> tuple[SummaryChunk, ...]:
-    """Project parse blocks into chunks with per-block Evidence identity."""
+    """Chunk canonical Evidence excerpts, including every span of a large block.
 
-    first_evidence_by_block: dict[str, str] = {}
-    for candidate in evidence:
-        locator = candidate.locator.document_locator
-        if locator is None or locator.block_id is None:
-            continue
-        first_evidence_by_block.setdefault(locator.block_id, candidate.evidence_id)
-
+    Chunk units use Evidence identity: original page/block/span identity remains
+    on each candidate's locator. No full block is paired with just its first quote.
+    """
     blocks: list[ChunkDocumentBlock] = []
-    section: str | None = None
-    ordered = sorted(
-        request.document_parse.blocks,
-        key=lambda block: (
-            block.page_index,
-            block.reading_order if block.reading_order is not None else 0,
-            block.block_id,
-        ),
-    )
-    for block in ordered:
-        if block.kind is DocumentBlockKind.heading and block.text:
-            section = block.text[:512]
-        if (
-            block.kind is DocumentBlockKind.reference
-            or block.text is None
-            or block.quality is DocumentParseQuality.unsupported
-        ):
-            continue
+    for order, candidate in enumerate(evidence):
+        locator = candidate.locator.document_locator
+        if locator is None or locator.text_span is None:
+            raise ValueError("document chunk evidence requires a precise text span")
         blocks.append(
             ChunkDocumentBlock(
-                block_id=block.block_id,
-                page_index=block.page_index,
-                text=block.text,
-                section=section,
-                reading_order=block.reading_order,
+                block_id=candidate.evidence_id,
+                page_index=locator.page_index,
+                reading_order=order,
+                section=candidate.locator.section,
+                text=candidate.quote_or_value,
             )
         )
-    return build_summary_chunks(blocks, first_evidence_by_block)
+    return build_summary_chunks(
+        blocks, {item.evidence_id: item.evidence_id for item in evidence}
+    )
 
 
 def _chunk_request(
@@ -263,6 +286,7 @@ def _chunk_request(
     request: ExecuteDocumentSummaryRequest,
     chunk: SummaryChunk,
     evidence: tuple[PaperSummaryEvidenceCandidate, ...],
+    validation_feedback: dict[str, Any] | None = None,
 ) -> ModelExecutionRequest:
     prompt = prompts.get("paper_summary")
     chunk_evidence = set(chunk.evidence_ids)
@@ -288,10 +312,11 @@ def _chunk_request(
                     for evidence_id in chunk.evidence_ids
                     if evidence_id in evidence_by_id
                 ],
-                "text": chunk.text,
             },
         },
     }
+    if validation_feedback is not None:
+        input_payload["validation_feedback"] = validation_feedback
     return ModelExecutionRequest(
         provider=request.provider,
         requested_model=request.model,
@@ -302,6 +327,9 @@ def _chunk_request(
         prompt=prompt.content,
         input_payload=input_payload,
         parameters=dict(request.parameters),
+        response_schema_name="paper_summary",
+        response_schema=build_paper_summary_response_schema(chunk.evidence_ids),
+        enable_thinking=False,
     )
 
 
@@ -318,48 +346,62 @@ def _enforce_chunk_evidence_allowlist(
 ) -> None:
     allowed = set(chunk.evidence_ids)
     for statement in output.statements():
-        if len(statement.evidence_ids) > _MAX_STATEMENTS_PER_FIELD_PER_CHUNK:
-            raise ValueError(f"{chunk.chunk_id} statement exceeds the evidence budget")
         unknown = set(statement.evidence_ids) - allowed
         if unknown:
-            raise ChunkEvidenceViolationError(
-                f"{chunk.chunk_id} references evidence ids outside its chunk: "
-                f"{sorted(unknown)}"
+            raise SummaryChunkViolation(
+                code=DOCUMENT_SUMMARY_CHUNK_EVIDENCE_OUT_OF_SCOPE,
+                chunk_id=chunk.chunk_id,
+                affected_evidence_ids=tuple(sorted(unknown)),
+                message=(
+                    f"{chunk.chunk_id} references evidence ids outside its chunk: "
+                    f"{sorted(unknown)}"
+                ),
             )
+
+
+def _chunk_sections(
+    output: PaperSummaryModelOutput,
+) -> dict[str, tuple[SectionStatement, ...]]:
+    return {
+        section.value: tuple(
+            SectionStatement(
+                text=statement.text,
+                evidence_ids=statement.evidence_ids,
+            )
+            for statement in getattr(output, section.value)
+        )
+        for section in PaperSummarySectionKind
+    }
+
+
+def _merged_half_sections(
+    left: dict[str, tuple[SectionStatement, ...]],
+    right: dict[str, tuple[SectionStatement, ...]],
+) -> dict[str, tuple[SectionStatement, ...]]:
+    return {section: left[section] + right[section] for section in left}
 
 
 def _reduce_chunk_outputs(
     chunks: tuple[SummaryChunk, ...],
-    chunk_outputs: list[PaperSummaryModelOutput],
+    chunk_sections: list[dict[str, tuple[SectionStatement, ...]]],
 ) -> dict[str, Any]:
     """Use the canonical seven-section reducer for the final model payload."""
 
-    if len(chunks) != len(chunk_outputs):
+    if len(chunks) != len(chunk_sections):
         raise ValueError("chunk output count does not match the frozen chunk plan")
     reduced = reduce_chunk_sections(
         tuple(
             ChunkSectionExtraction(
                 chunk_id=chunk.chunk_id,
                 chunk_evidence_ids=chunk.evidence_ids,
-                sections={
-                    section.value: tuple(
-                        SectionStatement(
-                            text=statement.text,
-                            evidence_ids=statement.evidence_ids,
-                        )
-                        for statement in getattr(output, section.value)
-                    )
-                    for section in PaperSummarySectionKind
-                },
+                sections=sections,
             )
-            for chunk, output in zip(chunks, chunk_outputs, strict=True)
+            for chunk, sections in zip(chunks, chunk_sections, strict=True)
         )
     )
     payload: dict[str, Any] = {section.section: [] for section in reduced}
-    all_evidence: set[str] = set()
     for section in reduced:
         for index, statement in enumerate(section.statements, start=1):
-            all_evidence.update(statement.evidence_ids)
             payload[section.section].append(
                 {
                     "statement_id": (f"summary.document.{section.section}.{index:02d}"),
@@ -367,15 +409,251 @@ def _reduce_chunk_outputs(
                     "evidence_ids": list(statement.evidence_ids),
                 }
             )
-    payload["evidence_ids"] = sorted(all_evidence)
     # Validate the merged shape before admission (fail closed on any drift).
     PaperSummaryModelOutput.model_validate(payload)
     return payload
 
 
+def _execute_summary_chunk_with_bounded_recovery(
+    models: ModelExecutionPort,
+    *,
+    prompts: PromptRegistry,
+    request: ExecuteDocumentSummaryRequest,
+    chunk: SummaryChunk,
+    evidence: tuple[PaperSummaryEvidenceCandidate, ...],
+) -> tuple[
+    tuple[ModelExecutionResponse, ...],
+    dict[str, tuple[SectionStatement, ...]],
+    int,
+    int,
+]:
+    def run(
+        target: SummaryChunk,
+        feedback: dict[str, Any] | None,
+    ) -> tuple[ModelExecutionResponse, PaperSummaryModelOutput]:
+        response = models.execute(
+            _chunk_request(prompts, request, target, evidence, feedback)
+        )
+        _validate_chunk_response(response)
+        try:
+            output = PaperSummaryModelOutput.model_validate(response.payload)
+        except ValidationError as exc:
+            raise SummaryChunkViolation(
+                code=DOCUMENT_SUMMARY_CHUNK_SCHEMA_INVALID,
+                chunk_id=target.chunk_id,
+                schema_issues=_schema_validation_issues(exc),
+                model_response=response,
+                message=f"{target.chunk_id} model output did not match the Summary schema",
+            ) from exc
+        try:
+            _enforce_chunk_evidence_allowlist(target, output)
+        except SummaryChunkViolation as exc:
+            raise SummaryChunkViolation(
+                code=exc.code,
+                chunk_id=exc.chunk_id,
+                affected_evidence_ids=exc.affected_evidence_ids,
+                model_response=response,
+                message=str(exc),
+            ) from exc
+        return response, output
+
+    try:
+        response, output = run(chunk, None)
+        return (response,), _chunk_sections(output), 0, 0
+    except ModelExecutionError as exc:
+        if exc.code != _MODEL_RESPONSE_TRUNCATED:
+            raise
+        failed_response = model_execution_failure_response(exc)
+        return _recover_truncated_summary_chunk(
+            run=run,
+            chunk=chunk,
+            evidence=evidence,
+            prior_responses=(() if failed_response is None else (failed_response,)),
+        )
+    except SummaryChunkViolation as violation:
+        try:
+            response, output = run(
+                chunk,
+                _chunk_validation_feedback(
+                    chunk,
+                    code=violation.code,
+                    affected_evidence_ids=violation.affected_evidence_ids,
+                    schema_issues=violation.schema_issues,
+                ),
+            )
+        except SummaryChunkViolation as correction_violation:
+            raise correction_violation from violation
+        except ModelExecutionError as correction_error:
+            if correction_error.code == _MODEL_RESPONSE_TRUNCATED:
+                raise SummaryChunkViolation(
+                    code=DOCUMENT_SUMMARY_CHUNK_TRUNCATED,
+                    chunk_id=chunk.chunk_id,
+                    affected_evidence_ids=violation.affected_evidence_ids,
+                    model_response=model_execution_failure_response(correction_error),
+                    message=f"{chunk.chunk_id} correction response was truncated",
+                ) from violation
+            raise
+        observed = (
+            () if violation.model_response is None else (violation.model_response,)
+        ) + (response,)
+        return observed, _chunk_sections(output), 1, 0
+
+
+def _recover_truncated_summary_chunk(
+    *,
+    run,
+    chunk: SummaryChunk,
+    evidence: tuple[PaperSummaryEvidenceCandidate, ...],
+    prior_responses: tuple[ModelExecutionResponse, ...] = (),
+) -> tuple[
+    tuple[ModelExecutionResponse, ...],
+    dict[str, tuple[SectionStatement, ...]],
+    int,
+    int,
+]:
+    if len(chunk.block_ids) < 2:
+        try:
+            response, output = run(
+                chunk,
+                _chunk_validation_feedback(
+                    chunk,
+                    code=DOCUMENT_SUMMARY_CHUNK_TRUNCATED,
+                    affected_evidence_ids=tuple(chunk.block_ids),
+                    concise=True,
+                ),
+            )
+        except ModelExecutionError as exc:
+            if exc.code == _MODEL_RESPONSE_TRUNCATED:
+                raise SummaryChunkViolation(
+                    code=DOCUMENT_SUMMARY_CHUNK_TRUNCATED,
+                    chunk_id=chunk.chunk_id,
+                    affected_evidence_ids=tuple(chunk.block_ids),
+                    model_response=model_execution_failure_response(exc),
+                    message=(
+                        f"{chunk.chunk_id} single-block output remained truncated"
+                    ),
+                ) from exc
+            raise
+        return prior_responses + (response,), _chunk_sections(output), 1, 0
+
+    middle = (len(chunk.block_ids) + 1) // 2
+    text_by_id = {item.evidence_id: item.quote_or_value for item in evidence}
+    halves = tuple(
+        SummaryChunk(
+            chunk_id=f"{chunk.chunk_id}{suffix}",
+            order=chunk.order,
+            section_hint=chunk.section_hint,
+            block_ids=ids,
+            evidence_ids=ids,
+            text="\n\n".join(text_by_id.get(item, "") for item in ids),
+        )
+        for suffix, ids in zip(
+            ("L", "R"),
+            (chunk.block_ids[:middle], chunk.block_ids[middle:]),
+            strict=True,
+        )
+    )
+    responses: list[ModelExecutionResponse] = list(prior_responses)
+    half_sections: list[dict[str, tuple[SectionStatement, ...]]] = []
+    correction_count = 0
+    for half in halves:
+        try:
+            response, output = run(half, None)
+        except ModelExecutionError as exc:
+            if exc.code == _MODEL_RESPONSE_TRUNCATED:
+                raise SummaryChunkViolation(
+                    code=DOCUMENT_SUMMARY_CHUNK_TRUNCATED,
+                    chunk_id=half.chunk_id,
+                    affected_evidence_ids=tuple(half.block_ids),
+                    model_response=model_execution_failure_response(exc),
+                    message=(
+                        f"{half.chunk_id} remained truncated at the split depth limit"
+                    ),
+                ) from exc
+            raise
+        except SummaryChunkViolation as violation:
+            correction_count += 1
+            if violation.model_response is not None:
+                responses.append(violation.model_response)
+            try:
+                response, output = run(
+                    half,
+                    _chunk_validation_feedback(
+                        half,
+                        code=violation.code,
+                        affected_evidence_ids=violation.affected_evidence_ids,
+                        schema_issues=violation.schema_issues,
+                    ),
+                )
+            except SummaryChunkViolation as correction_violation:
+                raise correction_violation from violation
+            except ModelExecutionError as correction_error:
+                if correction_error.code == _MODEL_RESPONSE_TRUNCATED:
+                    raise SummaryChunkViolation(
+                        code=DOCUMENT_SUMMARY_CHUNK_TRUNCATED,
+                        chunk_id=half.chunk_id,
+                        affected_evidence_ids=violation.affected_evidence_ids,
+                        model_response=model_execution_failure_response(
+                            correction_error
+                        ),
+                        message=f"{half.chunk_id} correction response was truncated",
+                    ) from violation
+                raise
+        responses.append(response)
+        half_sections.append(_chunk_sections(output))
+    merged = _merged_half_sections(half_sections[0], half_sections[1])
+    return tuple(responses), merged, correction_count, 1
+
+
+def _schema_validation_issues(
+    error: ValidationError,
+) -> tuple[dict[str, Any], ...]:
+    """Project bounded, actionable schema diagnostics without model input/output."""
+
+    issues: list[dict[str, Any]] = []
+    for item in error.errors(include_input=False, include_url=False)[
+        :_MAX_SCHEMA_FEEDBACK_ISSUES
+    ]:
+        issues.append(
+            {
+                "loc": [
+                    part if isinstance(part, (str, int)) else str(part)
+                    for part in item.get("loc", ())
+                ],
+                "type": str(item.get("type", "validation_error"))[
+                    :_MAX_SCHEMA_FEEDBACK_TYPE_CHARACTERS
+                ],
+                "message": str(item.get("msg", "invalid value"))[
+                    :_MAX_SCHEMA_FEEDBACK_MESSAGE_CHARACTERS
+                ],
+            }
+        )
+    return tuple(issues)
+
+
+def _chunk_validation_feedback(
+    chunk: SummaryChunk,
+    *,
+    code: str,
+    affected_evidence_ids: tuple[str, ...],
+    schema_issues: tuple[dict[str, Any], ...] = (),
+    concise: bool = False,
+) -> dict[str, Any]:
+    feedback: dict[str, Any] = {
+        "code": code,
+        "required_evidence_ids": list(chunk.evidence_ids),
+        "affected_evidence_ids": list(affected_evidence_ids),
+    }
+    if schema_issues:
+        feedback["schema_issues"] = list(schema_issues)
+    if concise:
+        feedback["concise_output"] = True
+    return feedback
+
+
 __all__ = [
-    "ChunkEvidenceViolationError",
     "ChunkedDocumentSummaryExecution",
     "ChunkedDocumentSummaryService",
+    "SummaryChunkViolation",
     "fits_single_execution",
 ]

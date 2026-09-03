@@ -212,7 +212,7 @@ function ProductMultiSelect({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
+                size="icon-xsmall"
                 disabled={disabled}
                 aria-label={`移除${optionLabel(options, value)}`}
                 onClick={() => toggle(value)}
@@ -290,7 +290,7 @@ function TagInput({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
+                size="icon-xsmall"
                 disabled={disabled}
                 aria-label={`移除 ${value}`}
                 onClick={() =>
@@ -912,7 +912,7 @@ function ResearchContractFormSurface({
                       计划执行的科学任务
                     </FieldLegend>
                     <FieldDescription>
-                      以下任务已由规划阶段授权，确认后随研究执行，本表单不提供编辑。
+                      确认后将执行以下分析。需要调整分析方式时，请返回研究对话说明。
                     </FieldDescription>
                     <ul className="research-contract-form__scientific-tasks">
                       {draft.contract.scientificTasks.map((task) => {

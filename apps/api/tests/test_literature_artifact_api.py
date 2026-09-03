@@ -25,6 +25,7 @@ from app.security import SecurityProblem
 from app.services.literature_artifacts import (
     LiteratureArtifactReadService,
     _encode_cursor,
+    _require_retained_claims_match_upstream,
     _relation_snapshot_references,
     _validate_relation_endpoint_versions,
 )
@@ -119,6 +120,29 @@ def test_relation_and_trace_http_reads_return_complete_associations(
     assert "chain_of_thought" not in trace_response.text
     assert "raw_model_response" not in trace_response.text
     assert trace.trace.model_response_hash.startswith("sha256:")
+
+
+def test_relation_provenance_accepts_retained_claim_subset() -> None:
+    fixture = build_literature_fixture()
+    version = fixture.artifacts.versions[fixture.relation_version_id]
+    candidate = LiteratureRelationsCandidate.model_validate(version.content)
+    retained = {item.claim_id: item for item in candidate.claims}
+    unused = candidate.claims[0].model_copy(update={"claim_id": "claim.unused"})
+
+    _require_retained_claims_match_upstream(
+        candidate.claims,
+        upstream_claims={**retained, unused.claim_id: unused},
+    )
+
+    mismatched = candidate.claims[0].model_copy(
+        update={"normalized_text": "mismatched frozen Claim"}
+    )
+    with pytest.raises(SecurityProblem) as exc_info:
+        _require_retained_claims_match_upstream(
+            candidate.claims,
+            upstream_claims={**retained, mismatched.claim_id: mismatched},
+        )
+    assert exc_info.value.code == "PROVENANCE_SCOPE_VIOLATION"
 
 
 def test_relation_status_filter_and_cursor_scope_are_bound(

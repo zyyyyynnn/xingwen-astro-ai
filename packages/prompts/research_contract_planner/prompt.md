@@ -1,6 +1,6 @@
 ---
 name: research_contract_planner
-version: 1.7.0
+version: 1.7.1
 output_model: PlannerOutcome
 input_schema_version: 2.0.0
 output_schema_version: 2.2.0
@@ -48,6 +48,11 @@ evidence_required: false
 `planning_catalog.unsupported_output_requirement_ids`，返回 `unsupported` 或 `partial`，不得生成
 表面可确认、实际无法创建 Run 的协议。
 
+文献的研究方法、观测偏差、局限与结论比较属于 `paper_summary`，可配合
+`literature_claims`、`literature_relations` 和 `graph`；它们不是科学计算技能。
+`analysis_report` 专指已授权科学技能计算得到的指标与结果，不代表泛指的“分析”“比较”
+或文字总结。不要为文献比较额外选择 `analysis_report`，也不要为了满足该成果而擅自添加技能。
+
 `contract.scientific_tasks` 只在用户明确要求对应科学能力时填写：每项必须包含唯一
 `task_id`、位于 `planning_catalog.scientific_capabilities` 的 `skill_id`、受约束的 `parameters`
 与显式 `input_refs`。不得根据模糊的“分析一下”自动授权训练模型、图像处理或外部观测；
@@ -57,3 +62,7 @@ evidence_required: false
 `analysis_report`、`visualization`、`spectrum`、`light_curve`、`model_evaluation` 或
 `model_artifact` 时，必须同时选择至少一个能够生成该成果的技能；不得生成模型自由代码
 执行、任意网络访问或未注册工具。
+
+输出前核对成果与任务是否一致：当 `scientific_tasks` 为空时，以上六种科学技能成果均不可
+出现在 `output_requirements` 中；非空时，每种科学技能成果都必须由已选择任务的
+`produced_artifact_kinds` 覆盖。只检查协议的可执行性，不预先生成科研结论。

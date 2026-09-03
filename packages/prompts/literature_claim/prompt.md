@@ -1,6 +1,6 @@
 ---
 name: literature_claim
-version: 1.0.1
+version: 1.2.1
 output_model: LiteratureClaimExtractionOutput
 input_schema_version: 1.0.0
 output_schema_version: 1.0.0
@@ -21,12 +21,22 @@ evidence_required: true
   `claim_type`、`polarity`、`objects`、`metric`、`unit`、`conditions`、`scope`、
   `limitations`、`qualifiers`、`uncertainty`、`comparison_basis` 和
   `evidence_ids`。
+- `objects`、`conditions`、`scope`、`limitations`、`qualifiers` 和
+  `evidence_ids` 必须始终是 JSON 数组；没有对应内容时使用空数组。`metric`、
+  `unit`、`uncertainty` 和 `comparison_basis` 必须是 JSON 字符串或 `null`。
+- `objects` 默认只保留一个能够代表该断言的主要科研对象，不把数据来源、条件、
+  方法和指标重复列为对象。只有 statement 明确比较多个科研对象时才允许多个
+  `objects`，且此时 `comparison_basis` 必须是说明比较口径的非空字符串；单对象时
+  `comparison_basis` 为 `null`。
 - `claim_type` 只使用契约枚举；finding、method、dataset、limitation 分别保持原
   Summary statement 的科研角色。
 - 每条 Claim 只引用一个明确的 Summary statement，并且每个 `evidence_id` 必须
   来自该 statement 自己的 Evidence。
 - 对每个包含 Evidence 的独立 Summary statement 分别判断并抽取其中可验证的科学
-  断言；不得只挑选其中一条代表性陈述，也不得为增加数量拆分或改写不存在的断言。
+  断言；当前输入是完整 Artifact 的一个有界 statement 批次，必须覆盖该批次的每条
+  statement，不得只挑选代表性陈述，也不得为增加数量拆分或改写不存在的断言。
+- 每个带 Evidence 的 statement 产生 1–4 条 Claim；任一 statement 的 Claim 总量
+  不得超过 4 条，也不得为细粒度而拆出额外 Claim。
 - 不得把对象、指标、数据集、样本或实验条件不可比较的多个结果合并成一条
   Claim。多对象比较必须提供明确 `comparison_basis`，否则拆分为多条 Claim。
 - `normalized_text` 只能做保守、可复核的规范表达；必须保留结论方向、否定关系、
@@ -38,12 +48,14 @@ evidence_required: true
 
 ## 输入边界
 
-PaperSummary ArtifactVersion、paper identity、Summary statements、Evidence 和
-SourceSnapshot：
+PaperSummary ArtifactVersion identity，以及当前有界批次中的 Summary statements：
 
 ```json
 {{ paper_summary_artifact }}
 ```
 
-只抽取能够回到上述版本化输入的 Claim。不要生成 Relation、ReasoningTrace 或
-Graph。
+只抽取能够回到上述版本化输入的 Claim。Evidence id 只能来自对应 statement
+自身的 `evidence_ids`；Evidence 对象与 SourceSnapshot 由确定性准入服务在完整
+PaperSummary Authority 中解析。不要生成 Relation、ReasoningTrace 或 Graph。
+
+输入中存在 `validation_feedback` 时：表示上一次输出违反了 `code` 指出的批次约束，必须优先按该反馈修正。存在 `schema_issues` 时，严格依据其中的字段路径（`loc`）、错误类型（`type`）与安全错误说明（`message`）修正 JSON 结构；必须覆盖 `required_statement_ids` 中的每一条 statement，每条 statement 产出 1–4 条 Claim，`evidence_ids` 只能来自 source statement 自身，并优先修正 `affected_statement_ids`；`concise_output` 为 true 时只输出必要字段，不展开任何解释性内容。

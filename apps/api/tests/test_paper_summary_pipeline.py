@@ -24,6 +24,7 @@ from app.schemas.paper_summary import (
 )
 from app.schemas.core import ArtifactVersion
 from app.workflow.publisher import PublicationAdmissionError, admit_artifact_candidate
+from app.workflow.steps.paper_steps import _evidence_candidates
 from packages.prompts.registry import (
     PromptRegistry,
     PromptRegistryError,
@@ -159,11 +160,13 @@ def _model_output(
     limitation_evidence_ids: tuple[str, ...] = (),
 ) -> str:
     payload = {
-        "background": [{
-            "statement_id": "summary_statement.goal",
-            "text": "Establish the TESS mission scope for nearby bright stars.",
-            "evidence_ids": [evidence_id],
-        }],
+        "background": [
+            {
+                "statement_id": "summary_statement.goal",
+                "text": "Establish the TESS mission scope for nearby bright stars.",
+                "evidence_ids": [evidence_id],
+            }
+        ],
         "methodology": [],
         "dataset": [],
         "experiments": [
@@ -182,7 +185,6 @@ def _model_output(
             }
         ],
         "research_questions": [],
-        "evidence_ids": sorted({evidence_id, *limitation_evidence_ids}),
     }
     return json.dumps(payload, ensure_ascii=False, sort_keys=True)
 
@@ -203,16 +205,47 @@ def _admit(
     )
 
 
+def test_acquired_abstract_is_available_as_supported_summary_evidence() -> None:
+    collection = _collection()
+    original = collection.candidates[0]
+    abstract = (
+        "The mission searches nearby bright stars for transiting planets and "
+        "reports a validated catalog of candidates."
+    )
+    candidate = original.model_copy(
+        update={"raw": original.raw.model_copy(update={"abstract": abstract})}
+    )
+
+    evidence = _evidence_candidates(candidate)
+    abstract_evidence = next(
+        item for item in evidence if item.evidence_id == "ev.abstract"
+    )
+    result = PaperSummaryPipeline(clock=lambda: FIXED_TIME).admit(
+        paper_collection=collection.model_copy(
+            update={"candidates": (candidate, *collection.candidates[1:])}
+        ),
+        paper_collection_version_id="11111111-1111-4111-8111-111111111111",
+        paper_id=candidate.canonical_paper_id,
+        model_response=_model_output(evidence_id="ev.abstract"),
+        model_name="qwen.fixture.1",
+        parameters=SAFE_PARAMETERS,
+        evidence_candidates=evidence,
+    )
+
+    assert abstract_evidence.locator.kind == "paper_text"
+    assert abstract_evidence.locator.section == "abstract"
+    assert abstract_evidence.accessible_excerpt == abstract
+    assert result.summary is not None
+    assert result.summary.evidence[0].status is PaperSummarySupportStatus.supported
+
+
 def test_prompt_registry_resolves_one_hash_pinned_current_definition() -> None:
     registry = PromptRegistry()
 
     current = registry.get("paper_summary")
 
-    assert current.version == "3.0.0"
+    assert current.version == "4.0.1"
     assert current.output_models == ("PaperSummaryModelOutput",)
-    assert current.content_hash == (
-        "sha256:758c9277003b9597514721ce359738219b7ba154ab0a924cb5b9600cef0b6323"
-    )
 
 
 def test_prompt_registry_rejects_in_place_version_mutation(tmp_path: Path) -> None:
@@ -287,9 +320,46 @@ def test_model_output_schema_requires_all_core_fields_without_defaults() -> None
                 "background": [],
                 "experiments": [],
                 "limitations": [],
-                "evidence_ids": [],
             }
         )
+
+
+def test_model_evidence_union_is_derived_from_statement_references() -> None:
+    payload = json.loads(
+        _model_output(evidence_id="evidence.z", limitation_evidence_ids=("evidence.a",))
+    )
+    output = PaperSummaryModelOutput.model_validate(payload)
+
+    assert output.evidence_ids == ("evidence.a", "evidence.z")
+    assert "evidence_ids" not in output.model_dump()
+    assert "evidence_ids" not in output.model_json_schema()["properties"]
+    assert output.background[0].evidence_ids == ("evidence.z",)
+
+
+def test_model_repeated_citations_are_normalized_without_changing_references() -> None:
+    payload = json.loads(_model_output(evidence_id="evidence.z"))
+    payload["background"][0]["evidence_ids"] = [
+        "evidence.z",
+        "evidence.a",
+        "evidence.z",
+        "evidence.a",
+    ]
+
+    output = PaperSummaryModelOutput.model_validate(payload)
+
+    assert output.background[0].evidence_ids == ("evidence.z", "evidence.a")
+    assert output.evidence_ids == ("evidence.a", "evidence.z")
+
+
+def test_model_schema_errors_do_not_echo_private_provider_content() -> None:
+    payload = json.loads(_model_output())
+    payload["background"][0]["text"] = "<div>PRIVATE_PROVIDER_CONTENT</div>"
+
+    with pytest.raises(ValidationError) as caught:
+        PaperSummaryModelOutput.model_validate(payload)
+
+    assert "background.0.text" in str(caught.value)
+    assert "PRIVATE_PROVIDER_CONTENT" not in str(caught.value)
 
 
 def test_valid_output_becomes_publisher_ready_summary_with_per_item_evidence() -> None:
@@ -433,7 +503,6 @@ def test_schema_failure_is_rejected_after_json_parse() -> None:
             "experiments": [],
             "discussion": [],
             "limitations": [],
-            "research_questions": [],
         }
     )
 
@@ -466,7 +535,9 @@ def test_unavailable_source_text_marks_finding_unverifiable() -> None:
     result = _admit(collection, _model_output(), (evidence,))
 
     assert result.summary is not None
-    assert result.summary.experiments[0].status is PaperSummarySupportStatus.unverifiable
+    assert (
+        result.summary.experiments[0].status is PaperSummarySupportStatus.unverifiable
+    )
     assert (
         result.summary.evidence[0].validation_code == "evidence.source_text_unavailable"
     )
@@ -480,7 +551,9 @@ def test_unknown_evidence_reference_is_unverifiable_and_not_published_as_evidenc
     result = _admit(collection, _model_output(), ())
 
     assert result.summary is not None
-    assert result.summary.experiments[0].status is PaperSummarySupportStatus.unverifiable
+    assert (
+        result.summary.experiments[0].status is PaperSummarySupportStatus.unverifiable
+    )
     assert result.summary.experiments[0].evidence_ids == ()
     assert result.summary.evidence == ()
 
@@ -518,7 +591,9 @@ def test_evidence_cannot_cross_candidate_or_snapshot_provenance() -> None:
     result = _admit(collection, _model_output(), (invalid_evidence,))
 
     assert result.summary is not None
-    assert result.summary.experiments[0].status is PaperSummarySupportStatus.unverifiable
+    assert (
+        result.summary.experiments[0].status is PaperSummarySupportStatus.unverifiable
+    )
     assert result.summary.evidence == ()
 
 
@@ -533,7 +608,9 @@ def test_evidence_locator_source_url_must_match_the_paper_acquisition_candidate(
     result = _admit(collection, _model_output(), (evidence,))
 
     assert result.summary is not None
-    assert result.summary.experiments[0].status is PaperSummarySupportStatus.unverifiable
+    assert (
+        result.summary.experiments[0].status is PaperSummarySupportStatus.unverifiable
+    )
     assert result.summary.evidence[0].validation_code == (
         "evidence.source_url_unverifiable"
     )
@@ -677,7 +754,6 @@ def test_paper_benchmark_reports_not_available_for_empty_evidence_denominator() 
     payload["background"] = []
     payload["experiments"] = []
     payload["limitations"] = []
-    payload["evidence_ids"] = []
     admission = _admit(collection, json.dumps(payload), ())
     benchmark = load_frozen_benchmark()
     benchmark_summary_id = benchmark.paper_summaries[0].summary_id

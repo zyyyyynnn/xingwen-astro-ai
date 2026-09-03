@@ -27,6 +27,7 @@ import type {
 } from "@xingwen/contracts";
 import type {
   ContentHash,
+  ArtifactExportDownload,
   DomainEntityId,
   PaperSummaryEvidenceLocator,
   PaperSummaryEvidenceReview,
@@ -343,6 +344,19 @@ export function createPaperSummaryRepository(
         payload,
       );
       return assemblePaperSummaryDocumentSource(read);
+    },
+    async export(artifactVersionId, format): Promise<ArtifactExportDownload> {
+      const extension = format === "markdown" ? "md" : "json";
+      return {
+        bytes: await http.getArrayBuffer(
+          `/api/artifact-versions/${seg(artifactVersionId)}/paper-summary/export?export_format=${format}`,
+        ),
+        fileName: `paper-summary-${artifactVersionId}.${extension}`,
+        mediaType:
+          format === "markdown"
+            ? "text/markdown; charset=utf-8"
+            : "application/json",
+      };
     },
   };
 }

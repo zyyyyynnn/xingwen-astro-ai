@@ -110,23 +110,6 @@ def _authorized_public_dataset_version(
     return version
 
 
-def _scope_share_versions(
-    versions: tuple[PublicArtifactVersion, ...],
-    evidence: tuple[PublicEvidence, ...],
-) -> tuple[PublicArtifactVersion, ...]:
-    frozen_ids = {item.id for item in evidence}
-    return tuple(
-        version.model_copy(
-            update={
-                "evidence_ids": tuple(
-                    item for item in version.evidence_ids if item in frozen_ids
-                )
-            }
-        )
-        for version in versions
-    )
-
-
 def _require_share_evidence_closure(
     versions: tuple[PublicArtifactVersion, ...],
     evidence: tuple[PublicEvidence, ...],
@@ -273,12 +256,7 @@ class InMemorySnapshotStore:
                     detail="Share expiry must be in the future",
                 )
             versions = self._share_versions(project_id, request.artifact_version_ids)
-            evidence = self._share_evidence(
-                project_id,
-                request.evidence_ids,
-                allowed_version_ids=set(request.artifact_version_ids),
-            )
-            versions = _scope_share_versions(versions, evidence)
+            evidence = self._share_evidence(project_id, versions)
             _require_share_evidence_closure(versions, evidence)
             share_id = _new_id("share")
             raw_token = secrets.token_urlsafe(SHARE_TOKEN_BYTES)
@@ -288,7 +266,7 @@ class InMemorySnapshotStore:
                 project_id=project_id,
                 title=request.title,
                 artifact_version_ids=request.artifact_version_ids,
-                evidence_ids=request.evidence_ids,
+                evidence_ids=tuple(item.id for item in evidence),
                 redaction_policy=request.redaction_policy,
                 status=ShareStatus.active,
                 created_at=now,
@@ -500,24 +478,15 @@ class InMemorySnapshotStore:
     def _share_evidence(
         self,
         project_id: str,
-        evidence_ids: tuple[str, ...],
-        *,
-        allowed_version_ids: set[str],
+        versions: tuple[PublicArtifactVersion, ...],
     ) -> tuple[PublicEvidence, ...]:
-        projections = tuple(
-            self._require_evidence(project_id, item) for item in evidence_ids
-        )
-        if any(
-            projection.artifact_version_id not in allowed_version_ids
-            for projection in projections
-        ):
-            raise SecurityProblem(
-                status=422,
-                code="SHARE_SCOPE_INVALID",
-                title="Invalid share scope",
-                detail="Shared Evidence must belong to a selected ArtifactVersion",
-            )
-        return projections
+        projections: list[PublicEvidence] = []
+        for version in versions:
+            evidence = self._authority.public_version_evidence(project_id, version.id)
+            if evidence is None:
+                raise _not_found("EVIDENCE_NOT_FOUND")
+            projections.extend(evidence)
+        return tuple(projections)
 
     @staticmethod
     def _snapshot_status(snapshot: ShareSnapshot, now: datetime) -> ShareSnapshot:
@@ -640,12 +609,7 @@ class PersistentSnapshotStore(InMemorySnapshotStore):
                 lock=True,
             )
             versions = self._share_versions(project_id, request.artifact_version_ids)
-            evidence = self._share_evidence(
-                project_id,
-                request.evidence_ids,
-                allowed_version_ids=set(request.artifact_version_ids),
-            )
-            versions = _scope_share_versions(versions, evidence)
+            evidence = self._share_evidence(project_id, versions)
             _require_share_evidence_closure(versions, evidence)
             row = ShareSnapshotModel(
                 id=_new_id("share"),
@@ -654,7 +618,7 @@ class PersistentSnapshotStore(InMemorySnapshotStore):
                 token_hash=_hash_token(raw_token),
                 title=request.title,
                 artifact_version_ids=list(request.artifact_version_ids),
-                evidence_ids=list(request.evidence_ids),
+                evidence_ids=[item.id for item in evidence],
                 redaction_policy=request.redaction_policy.value,
                 status="active",
                 artifact_versions=[item.model_dump(mode="json") for item in versions],

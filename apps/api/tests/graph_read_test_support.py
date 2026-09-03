@@ -39,6 +39,7 @@ from app.schemas.literature_relation import (
 from graph_pipeline_test_support import (
     LiteratureGraphFixture,
     ExactPublishedGraphInputReader,
+    _published_literature_claims_version,
     _published_literature_version,
     _uuid_ready_claim_inputs,
     stable_uuid,
@@ -54,6 +55,7 @@ from services.graph_pipeline.pipeline import GraphPipeline
 from services.graph_pipeline.ports import (
     GraphInputVersionSelection,
     PublishedGraphInputs,
+    PublishedLiteratureClaimsVersion,
 )
 from services.paper_pipeline.benchmark import load_frozen_benchmark
 from services.paper_pipeline.claim_benchmark_cases import _build_claim_fixture
@@ -152,8 +154,13 @@ def build_graph_read_fixture() -> GraphReadFixture:
         relation_version_id=RELATION_VERSION_ID,
         reverse_bindings=False,
     )
+    published_claims = _published_claim_versions(
+        claim_inputs=claims,
+        relations_candidate=relations_candidate,
+    )
     graph_fixture = _graph_fixture(
         published=published,
+        published_claims=published_claims,
         relations_candidate=relations_candidate,
         accepted_relation_id=accepted_relation.relation_id,
     )
@@ -171,13 +178,11 @@ def build_graph_read_fixture() -> GraphReadFixture:
             _rebound(_summary_version(version_id, summary)),
             "paper_summary",
         )
-    for item in claims.values():
+    for item in published_claims:
         _register(
             versions,
             artifacts,
-            _rebound(
-                _claim_version(item.version.artifact_version_id, item.version.content)
-            ),
+            _claim_version_for_graph_input(item),
             "literature_claims",
         )
     _register(
@@ -263,6 +268,7 @@ def _summary_contents(benchmark: object) -> dict[str, object]:
 def _graph_fixture(
     *,
     published: object,
+    published_claims: tuple[PublishedLiteratureClaimsVersion, ...],
     relations_candidate: LiteratureRelationsCandidate,
     accepted_relation_id: str,
 ) -> LiteratureGraphFixture:
@@ -278,10 +284,14 @@ def _graph_fixture(
     target_claim = claims[relation.target_claim_id]
     selection = GraphInputVersionSelection(
         project_id=PROJECT_ID,
+        literature_claims_artifact_version_ids=tuple(
+            sorted(item.pins.artifact_version_id for item in published_claims)
+        ),
         literature_relations_artifact_version_id=RELATION_VERSION_ID,
     )
     inputs = PublishedGraphInputs(
         selection=selection,
+        literature_claims=published_claims,
         literature_relations=published,  # type: ignore[arg-type]
     )
     scope = GraphBuildScope(
@@ -309,6 +319,58 @@ def _graph_fixture(
         target_claim_id=target_claim.claim_id,
         source_paper_id=source_claim.paper_id,
         target_paper_id=target_claim.paper_id,
+    )
+
+
+def _published_claim_versions(
+    *,
+    claim_inputs: dict[str, object],
+    relations_candidate: LiteratureRelationsCandidate,
+) -> tuple[PublishedLiteratureClaimsVersion, ...]:
+    candidates_by_version = {
+        item.version.artifact_version_id: item.version.content
+        for item in claim_inputs.values()
+    }
+    return tuple(
+        _published_literature_claims_version(
+            candidate=candidates_by_version[reference.artifact_version_id],
+            project_id=PROJECT_ID,
+            claim_version_id=reference.artifact_version_id,
+            reverse_bindings=False,
+        )
+        for reference in relations_candidate.input_versions.claim_artifact_versions
+    )
+
+
+def _claim_version_for_graph_input(
+    published: PublishedLiteratureClaimsVersion,
+) -> ArtifactVersionDetail:
+    base = _rebound(
+        _claim_version(
+            published.pins.artifact_version_id,
+            published.candidate,
+        ),
+        artifact_id=published.pins.artifact_id,
+    )
+    execution = published.pins.producer_execution
+    return base.model_copy(
+        update={
+            "created_by_run_id": execution.run_id,
+            "producer": execution.producer,
+            "source_mode": published.pins.source_mode,
+            "producer_execution": execution,
+            "source_snapshots": tuple(
+                item.source_snapshot for item in published.source_snapshot_bindings
+            ),
+            "evidence": tuple(item.evidence for item in published.evidence_bindings),
+            "source_snapshot_ids": tuple(
+                item.persisted_source_snapshot_id
+                for item in published.source_snapshot_bindings
+            ),
+            "evidence_ids": tuple(
+                item.persisted_evidence_id for item in published.evidence_bindings
+            ),
+        }
     )
 
 
@@ -510,6 +572,19 @@ def build_multi_relation_graph_read_fixture() -> GraphReadFixture:
         relation_version_id=RELATION_VERSION_ID,
         reverse_bindings=False,
     )
+    claim_candidates_by_version = {
+        item.version.artifact_version_id: item.version.content
+        for item in claims.values()
+    }
+    published_claims = tuple(
+        _published_literature_claims_version(
+            candidate=claim_candidates_by_version[reference.artifact_version_id],
+            project_id=PROJECT_ID,
+            claim_version_id=reference.artifact_version_id,
+            reverse_bindings=False,
+        )
+        for reference in rc_multi.input_versions.claim_artifact_versions
+    )
 
     claims_map = {item.claim_id: item for item in rc_multi.claims}
     scope = GraphBuildScope(
@@ -533,10 +608,14 @@ def build_multi_relation_graph_read_fixture() -> GraphReadFixture:
     )
     selection = GraphInputVersionSelection(
         project_id=PROJECT_ID,
+        literature_claims_artifact_version_ids=tuple(
+            sorted(item.pins.artifact_version_id for item in published_claims)
+        ),
         literature_relations_artifact_version_id=RELATION_VERSION_ID,
     )
     inputs = PublishedGraphInputs(
         selection=selection,
+        literature_claims=published_claims,
         literature_relations=published,
     )
     reader = ExactPublishedGraphInputReader(inputs)
@@ -571,13 +650,11 @@ def build_multi_relation_graph_read_fixture() -> GraphReadFixture:
             _rebound(_summary_version(version_id, summary)),
             "paper_summary",
         )
-    for item in claims.values():
+    for item in published_claims:
         _register(
             versions,
             artifacts,
-            _rebound(
-                _claim_version(item.version.artifact_version_id, item.version.content)
-            ),
+            _claim_version_for_graph_input(item),
             "literature_claims",
         )
     _register(

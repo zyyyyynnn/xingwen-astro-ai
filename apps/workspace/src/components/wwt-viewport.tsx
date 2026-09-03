@@ -39,6 +39,7 @@ export function WwtViewport(props: WwtViewportProps) {
   const { spec, loadContent } = props;
   const hostRef = useRef<HTMLDivElement>(null);
   const loadContentRef = useRef(loadContent);
+  const sessionRef = useRef<ReturnType<typeof openWwtSession> | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [message, setMessage] = useState("正在初始化 WorldWide Telescope");
   const [readback, setReadback] = useState<WwtSceneReadback | null>(null);
@@ -59,8 +60,19 @@ export function WwtViewport(props: WwtViewportProps) {
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    let active = true;
     const session = openWwtSession(host);
+    sessionRef.current = session;
+    return () => {
+      if (sessionRef.current === session) sessionRef.current = null;
+      session.close();
+    };
+  }, [attempt]);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    const session = sessionRef.current;
+    if (!host || !session) return;
+    let active = true;
     setState("loading");
     setReadback(null);
     setCaptureState("idle");
@@ -71,6 +83,21 @@ export function WwtViewport(props: WwtViewportProps) {
         loadContent: (contentHash) => loadContentRef.current(contentHash),
         onProgress: (nextMessage) => {
           if (active) setMessage(nextMessage);
+        },
+        onReadback: (next) => {
+          if (!active) return;
+          setReadback((current) =>
+            current?.centerCoordinates?.raHours ===
+              next.centerCoordinates?.raHours &&
+            current?.centerCoordinates?.decDegrees ===
+              next.centerCoordinates?.decDegrees &&
+            current?.fieldOfViewDegrees === next.fieldOfViewDegrees &&
+            current?.cameraRollDegrees === next.cameraRollDegrees &&
+            current?.currentTime?.slice(0, 19) ===
+              next.currentTime?.slice(0, 19)
+              ? current
+              : next,
+          );
         },
         onAsyncError: (error) => {
           if (!active) return;
@@ -99,7 +126,6 @@ export function WwtViewport(props: WwtViewportProps) {
       });
     return () => {
       active = false;
-      session.close();
     };
   }, [attempt, label, spec]);
 
@@ -131,7 +157,12 @@ export function WwtViewport(props: WwtViewportProps) {
   };
 
   return (
-    <figure className="wwt-viewport" aria-busy={state === "loading"}>
+    <figure
+      className="wwt-viewport"
+      data-testid="wwt-viewport"
+      data-state={state}
+      aria-busy={state === "loading"}
+    >
       <div
         ref={hostRef}
         className="wwt-viewport__canvas"
@@ -139,6 +170,31 @@ export function WwtViewport(props: WwtViewportProps) {
         aria-label={label}
         tabIndex={0}
       />
+      {state === "ready" && readback !== null ? (
+        <dl className="wwt-viewport__readback" aria-label="WWT 实际状态读取">
+          {readback.centerCoordinates === null ? null : (
+            <div>
+              <dt>实际中心</dt>
+              <dd>
+                RA {readback.centerCoordinates.raHours.toFixed(4)}h · Dec{" "}
+                {readback.centerCoordinates.decDegrees.toFixed(4)}°
+              </dd>
+            </div>
+          )}
+          {readback.fieldOfViewDegrees === null ? null : (
+            <div>
+              <dt>实际视场</dt>
+              <dd>{readback.fieldOfViewDegrees.toFixed(3)}°</dd>
+            </div>
+          )}
+          {readback.currentTime === null ? null : (
+            <div>
+              <dt>实际时间</dt>
+              <dd>{readback.currentTime.slice(0, 19).replace("T", " ")} UTC</dd>
+            </div>
+          )}
+        </dl>
+      ) : null}
       {state === "loading" ? (
         <figcaption data-state={state}>
           <Spinner aria-hidden="true" />
@@ -262,37 +318,6 @@ export function WwtViewport(props: WwtViewportProps) {
                 </dd>
               </div>
             </dl>
-            {readback !== null ? (
-              <dl aria-label="WWT 实际状态读取">
-                {readback.centerCoordinates === null ? null : (
-                  <div>
-                    <dt>实际中心</dt>
-                    <dd>
-                      RA {readback.centerCoordinates.raHours.toFixed(4)}h · Dec{" "}
-                      {readback.centerCoordinates.decDegrees.toFixed(4)}°
-                    </dd>
-                  </div>
-                )}
-                {readback.fieldOfViewDegrees === null ? null : (
-                  <div>
-                    <dt>实际视场</dt>
-                    <dd>{readback.fieldOfViewDegrees.toFixed(4)}°</dd>
-                  </div>
-                )}
-                {readback.cameraRollDegrees === null ? null : (
-                  <div>
-                    <dt>实际滚转</dt>
-                    <dd>{readback.cameraRollDegrees.toFixed(4)}°</dd>
-                  </div>
-                )}
-                {readback.currentTime === null ? null : (
-                  <div>
-                    <dt>实际时间</dt>
-                    <dd>{readback.currentTime}</dd>
-                  </div>
-                )}
-              </dl>
-            ) : null}
             {spec.fitsLayers.length > 0 ? (
               <table>
                 <caption>WWT FITS 图层</caption>

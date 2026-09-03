@@ -1,0 +1,774 @@
+import { expect, test, type Page } from "@playwright/test";
+import { resolve } from "node:path";
+
+const SHOT_DIR =
+  process.env.VISUAL_SHOT_DIR || resolve(".artifacts/visual-acceptance/shots");
+
+const PROJECT_A = "/workspace/proj_01JEXAMPLE";
+const PROJECT_B = "/workspace/proj_toi_transit";
+const PROJECT_C = "/workspace/proj_l9859_spectroscopy";
+const PROJECT_WAITING = "/workspace/proj_waiting_demo";
+const PROJECT_FAILED = "/workspace/proj_failed_demo";
+
+async function settle(page: Page, ms = 800): Promise<void> {
+  await page.waitForLoadState("networkidle").catch(() => undefined);
+  await page.waitForTimeout(ms);
+}
+
+async function shot(page: Page, name: string): Promise<void> {
+  await page.evaluate(() => document.fonts.ready);
+  await page.screenshot({
+    path: `${SHOT_DIR}/${name}.png`,
+    animations: "disabled",
+  });
+  console.log(`[shot] ${name}.png`);
+}
+
+async function openProject(
+  page: Page,
+  projectUrl = PROJECT_A,
+  wait = 1200,
+): Promise<void> {
+  await page.goto(projectUrl);
+  await expect(page.getByTestId("root-layout")).toBeVisible();
+  await settle(page, wait);
+}
+
+async function openArtifactFromThread(
+  page: Page,
+  versionId: string,
+): Promise<void> {
+  const result = page.getByTestId(`artifact-result-${versionId}`);
+  await expect(result).toBeVisible();
+  await result.getByRole("button", { name: /打开|审查结果/ }).click();
+  await expect(page.getByTestId("artifact-fullscreen-workspace")).toBeVisible();
+}
+
+async function returnToResearch(page: Page): Promise<void> {
+  const fullscreen = page.getByTestId("artifact-fullscreen-workspace");
+  await fullscreen.getByRole("button", { name: /返回研究/ }).click();
+  await expect(fullscreen).toBeHidden();
+}
+
+test.describe("workspace shell & navigation", () => {
+  test("index entry, sidebar states, command menu, model provider", async ({
+    page,
+  }) => {
+    await page.goto("/workspace");
+    await expect(page.getByTestId("root-layout")).toBeVisible();
+    await settle(page, 1000);
+    await shot(page, "01_workspace-index");
+
+    await page.getByRole("button", { name: "收起侧栏" }).click();
+    await settle(page, 500);
+    await shot(page, "02_sidebar-collapsed");
+    await page.getByRole("button", { name: "展开侧栏" }).click();
+    await settle(page, 500);
+
+    await page.getByTestId("command-menu-trigger").click();
+    await settle(page, 400);
+    await shot(page, "03_command-menu");
+    await page.keyboard.press("Escape");
+    await settle(page, 300);
+
+    await page.getByRole("button", { name: /模型服务/ }).click();
+    await expect(page.getByRole("dialog", { name: "模型服务" })).toBeVisible();
+    await settle(page, 400);
+    await shot(page, "04_model-provider-dialog");
+    const removeProvider = page.getByRole("button", {
+      name: "移除工作台配置",
+    });
+    await expect(removeProvider).toBeVisible();
+    await removeProvider.click();
+    await expect(
+      page.getByRole("alertdialog", { name: "移除工作台模型配置？" }),
+    ).toBeVisible();
+    await shot(page, "04b_model-provider-remove-confirm");
+    await page.keyboard.press("Escape");
+    await settle(page, 300);
+    await page.keyboard.press("Escape");
+    await settle(page, 300);
+  });
+
+  test("project context menu and rename dialog", async ({ page }) => {
+    await page.goto("/workspace");
+    await expect(page.getByTestId("root-layout")).toBeVisible();
+    await settle(page, 700);
+    await page
+      .getByRole("button", {
+        name: "Exoplanet host-star integration 项目操作",
+      })
+      .click();
+    await expect(page.getByRole("menuitem", { name: "重命名" })).toBeVisible();
+    await shot(page, "05_project-context-menu");
+    await page.getByRole("menuitem", { name: "重命名" }).click();
+    await expect(
+      page.getByRole("dialog", { name: "重命名研究项目" }),
+    ).toBeVisible();
+    await shot(page, "06_project-rename-dialog");
+  });
+});
+
+test.describe("project workspace overview and message stream", () => {
+  test("overview, inspector tabs, protocol dialog", async ({ page }) => {
+    await openProject(page);
+
+    const resultsTab = page.getByRole("tab", { name: "研究结果" });
+    await expect(resultsTab).toBeVisible();
+    await resultsTab.click();
+    await settle(page, 700);
+    await shot(page, "12_inspector-results");
+    await page.getByRole("tab", { name: "研究概览" }).click();
+    await settle(page, 500);
+
+    const protocolButton = page
+      .getByRole("button", { name: /研究协议/ })
+      .first();
+    await expect(protocolButton).toBeVisible();
+    await protocolButton.click();
+    await settle(page, 600);
+    await shot(page, "13_protocol-review-dialog");
+    await page.keyboard.press("Escape");
+    await settle(page, 300);
+  });
+
+  test("project B overview lists catalog replay results", async ({ page }) => {
+    await openProject(page, PROJECT_B);
+    await shot(page, "11_project-b-overview");
+
+    const resultsTab = page.getByRole("tab", { name: "研究结果" });
+    await expect(resultsTab).toBeVisible();
+    await resultsTab.click();
+    await settle(page, 700);
+    await expect(
+      page.getByText("TOI-1233.04 公开目录参数核验与界面能力样例").first(),
+    ).toBeVisible();
+    await expect(
+      page.getByText("TOI-1233.04 目录参数驱动的光变界面样例").first(),
+    ).toBeVisible();
+    await shot(page, "11b_project-b-results");
+  });
+
+  test("project C overview lists recorded spectroscopy results", async ({
+    page,
+  }) => {
+    await openProject(page, PROJECT_C);
+    await shot(page, "12_project-c-overview");
+
+    const resultsTab = page.getByRole("tab", { name: "研究结果" });
+    await expect(resultsTab).toBeVisible();
+    await resultsTab.click();
+    await settle(page, 700);
+    await expect(
+      page.getByText("L 98-59 公开 HARPS 一维光谱", { exact: true }).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByText("L 98-59 WWT 天球场景", { exact: true }).first(),
+    ).toBeVisible();
+    await shot(page, "12b_project-c-results");
+  });
+
+  test("waiting and failed research states", async ({ page }) => {
+    await openProject(page, PROJECT_WAITING);
+    await expect(
+      page.getByRole("heading", {
+        name: "TIC-307210830 观测协议待确认",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("为了确定观测协议边界", { exact: false }),
+    ).toBeVisible();
+    await shot(page, "14_project-waiting-state");
+
+    await openProject(page, PROJECT_FAILED);
+    await expect(page.getByText("研究遇到问题")).toBeVisible();
+    await expect(page.getByText("执行研究")).toBeVisible();
+    await shot(page, "15_project-failed-state");
+  });
+
+  test("unknown project route fails closed", async ({ page }) => {
+    await page.goto("/workspace/project-does-not-exist");
+    await expect(page.getByTestId("root-layout")).toBeVisible();
+    await expect(
+      page.getByText(/未找到|不存在|无法读取/).first(),
+    ).toBeVisible();
+    await shot(page, "16_project-not-found");
+  });
+
+  test("message stream scroll anchors", async ({ page }) => {
+    await openProject(page);
+    const stream = page.getByTestId("agent-message-stream");
+    await expect(stream).toBeVisible();
+    await expect(
+      stream.getByText("整合系外行星候选体与宿主星参数", { exact: false }),
+    ).toBeVisible();
+    await expect(
+      stream.getByText("我已整理研究目标与来源范围", { exact: false }),
+    ).toBeVisible();
+
+    await stream.evaluate((el) => {
+      let scroller: HTMLElement | null = el;
+      while (scroller && scroller !== document.body) {
+        const overflow = window.getComputedStyle(scroller).overflowY;
+        if (overflow === "auto" || overflow === "scroll") {
+          scroller.scrollTop = 0;
+          break;
+        }
+        scroller = scroller.parentElement;
+      }
+    });
+    await settle(page, 400);
+    await shot(page, "11_message-stream-top");
+
+    await stream.evaluate((el) => {
+      let scroller: HTMLElement | null = el;
+      while (scroller && scroller !== document.body) {
+        const overflow = window.getComputedStyle(scroller).overflowY;
+        if (overflow === "auto" || overflow === "scroll") {
+          scroller.scrollTop = Math.floor(scroller.scrollHeight / 2);
+          break;
+        }
+        scroller = scroller.parentElement;
+      }
+    });
+    await settle(page, 400);
+    await shot(page, "11b_message-stream-mid");
+
+    await stream.evaluate((el) => {
+      let scroller: HTMLElement | null = el;
+      while (scroller && scroller !== document.body) {
+        const overflow = window.getComputedStyle(scroller).overflowY;
+        if (overflow === "auto" || overflow === "scroll") {
+          scroller.scrollTop = scroller.scrollHeight;
+          break;
+        }
+        scroller = scroller.parentElement;
+      }
+    });
+    await settle(page, 400);
+    await shot(page, "11c_message-stream-bottom");
+  });
+});
+
+const FORMAL_ARTIFACTS: ReadonlyArray<readonly [string, string]> = [
+  ["20_artifact-dataset", "artv_dataset_01"],
+  ["22_artifact-field-dictionary", "artv_fdict_01"],
+  ["23_artifact-source-collection", "artv_srccol_01"],
+  ["24_artifact-paper-collection", "11111111-1111-4111-8111-111111111111"],
+  ["30_artifact-literature-claims", "artv_claims_01"],
+  ["31_artifact-literature-relations", "artv_rels_01"],
+  ["36_artifact-graph", "artv_graph_01"],
+];
+
+test.describe("fullscreen formal artifact workspaces", () => {
+  test("Scenario A traverses every formal result through the research thread", async ({
+    page,
+  }) => {
+    await openProject(page, PROJECT_A);
+    for (const [name, versionId] of FORMAL_ARTIFACTS) {
+      await openArtifactFromThread(page, versionId);
+      await settle(page, name.includes("graph") ? 2500 : 900);
+      await assertNoFatalError(page);
+
+      if (versionId === "artv_fdict_01") {
+        const searchInput = page.getByPlaceholder("搜索字段名称、含义或标识…");
+        const searchIcon = page.getByTestId("field-dictionary-search-icon");
+        const [inputBox, iconBox, paddingStart] = await Promise.all([
+          searchInput.boundingBox(),
+          searchIcon.boundingBox(),
+          searchInput.evaluate((element) =>
+            Number.parseFloat(getComputedStyle(element).paddingInlineStart),
+          ),
+        ]);
+        if (!inputBox || !iconBox) {
+          throw new Error("字段字典搜索控件未形成可测量布局。");
+        }
+        expect(paddingStart).toBeGreaterThanOrEqual(32);
+        expect(inputBox.x + paddingStart).toBeGreaterThanOrEqual(
+          iconBox.x + iconBox.width + 4,
+        );
+      }
+      await shot(page, name);
+
+      if (versionId === "artv_dataset_01") {
+        const scroller = page.locator(".scientific-table").first();
+        await scroller.evaluate((element) => {
+          const identity = element.querySelector<HTMLElement>(
+            "thead .scientific-table__identity",
+          );
+          const headers = [
+            ...element.querySelectorAll<HTMLElement>(
+              "thead th:not(.scientific-table__identity)",
+            ),
+          ];
+          const identityWidth = identity?.getBoundingClientRect().width ?? 0;
+          const maxScroll = element.scrollWidth - element.clientWidth;
+          const alignedStops = headers
+            .map((header) => header.offsetLeft - identityWidth)
+            .filter((offset) => offset > 0 && offset <= maxScroll);
+          element.scrollLeft = alignedStops.at(-1) ?? maxScroll;
+        });
+        expect(
+          await scroller.evaluate((element) => element.scrollLeft > 0),
+        ).toBe(true);
+        await shot(page, "21_artifact-dataset-horizontal-scroll");
+      }
+
+      if (versionId === "artv_rels_01") {
+        const candidate = page.getByTestId("literature-entry-rel_03");
+        await candidate.scrollIntoViewIfNeeded();
+        await candidate.click();
+        const reviewContext = page.locator(".literature-review__context");
+        await expect(
+          reviewContext.getByRole("button", { name: "接受并进入图谱" }),
+        ).toBeVisible();
+        await reviewContext
+          .getByRole("button", { name: "接受并进入图谱" })
+          .click();
+        const adjudicationSheet = page.getByRole("dialog", {
+          name: "审定候选关系",
+        });
+        await expect(adjudicationSheet).toBeVisible();
+        await expect(
+          adjudicationSheet.getByRole("radiogroup", {
+            name: "选择关系审定结论",
+          }),
+        ).toContainText("接受并进入图谱");
+        await shot(page, "32_relation-candidate-actions");
+        await page.keyboard.press("Escape");
+        await expect(adjudicationSheet).toBeHidden();
+
+        const accepted = page.getByTestId("literature-entry-rel_01");
+        await accepted.scrollIntoViewIfNeeded();
+        await accepted.click();
+        await expect(
+          accepted.getByText("已纳入", { exact: true }),
+        ).toBeVisible();
+        await expect(
+          reviewContext.getByRole("button", { name: "接受并进入图谱" }),
+        ).toHaveCount(0);
+        await shot(page, "33_relation-accepted");
+        await reviewContext
+          .getByRole("button", { name: "公开推导与限制" })
+          .click();
+        await expect(
+          reviewContext.getByText("比对冻结响应", { exact: false }),
+        ).toBeVisible();
+        await shot(page, "34_relation-reasoning-trace");
+      }
+
+      await returnToResearch(page);
+    }
+  });
+
+  test("data column chooser, evidence sheet, revision sheet, and export fallback", async ({
+    page,
+  }) => {
+    await page.goto(`${PROJECT_A}?artifactVersionId=artv_dataset_01`);
+    const fullscreen = page.getByTestId("artifact-fullscreen-workspace");
+    await expect(fullscreen).toBeVisible();
+    await settle(page, 700);
+
+    await page.getByRole("button", { name: "选择列" }).click();
+    await expect(page.getByRole("menu")).toBeVisible();
+    await shot(page, "25_dataset-column-chooser");
+    await page.keyboard.press("Escape");
+
+    await fullscreen.getByRole("button", { name: "证据", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: /证据/ })).toBeVisible();
+    await shot(page, "26_evidence-sheet");
+    await page.keyboard.press("Escape");
+
+    await fullscreen
+      .getByRole("button", { name: "基于此结果重新分析" })
+      .click();
+    await expect(
+      page.getByRole("dialog", { name: "基于此结果重新分析" }),
+    ).toBeVisible();
+    await shot(page, "27_revision-sheet");
+    await page.keyboard.press("Escape");
+
+    await returnToResearch(page);
+    await openArtifactFromThread(page, "artv_export_01");
+    await expect(page.getByText("暂不支持预览此类结果")).toBeVisible();
+    await shot(page, "28_export-unsupported");
+  });
+});
+
+test.describe("paper summary reading workspace", () => {
+  test("normal path: report, real PDF, evidence jump", async ({ page }) => {
+    await openProject(page, PROJECT_A);
+    await openArtifactFromThread(page, "artv_papsum_01");
+    const fullscreen = page.getByTestId("artifact-fullscreen-workspace");
+    await expect(fullscreen).toBeVisible();
+
+    await expect(
+      page.getByRole("heading", {
+        name: "The Revised TESS Input Catalog and Candidate Target List",
+      }),
+    ).toBeVisible();
+    const viewer = page.getByTestId("paper-pdf-viewer").first();
+    await expect(viewer).toBeVisible();
+    await expect
+      .poll(async () => Number(await viewer.getAttribute("data-num-pages")), {
+        timeout: 30_000,
+      })
+      .toBeGreaterThan(0);
+    await expect(
+      page.getByTestId("paper-pdf-page").first().locator("canvas"),
+    ).toBeVisible();
+    await expect(viewer).toHaveAttribute("data-rendered-page", "1", {
+      timeout: 30_000,
+    });
+    await shot(page, "24a_paper-summary-report");
+    await viewer.getByRole("button", { name: "下一页" }).click();
+    await expect(viewer).toHaveAttribute("data-rendered-page", "2");
+    await shot(page, "24b_paper-summary-with-pdf");
+
+    await fullscreen
+      .locator(".xw-paper-report:visible")
+      .getByRole("button", { name: /证据/ })
+      .nth(1)
+      .click();
+    await page.getByRole("button", { name: "在论文中查看" }).click();
+    await expect(viewer).toContainText("5 /");
+    await expect(viewer).toHaveAttribute("data-rendered-page", "5", {
+      timeout: 30_000,
+    });
+    await shot(page, "24c_paper-evidence-jump");
+  });
+});
+
+/**
+ * Per-capability assertions each required screenshot must pass before capture
+ * (spec §60/§61/§78: a visible fullscreen shell is never enough).
+ */
+const FATAL_ERROR_MARKERS = [
+  "操作暂时不可用",
+  "载入失败",
+  "暂时无法显示",
+  "当前结果类型暂时无法显示",
+] as const;
+
+async function assertNoFatalError(page: Page) {
+  const fullscreen = page.getByTestId("artifact-fullscreen-workspace");
+  for (const marker of FATAL_ERROR_MARKERS) {
+    const count = await fullscreen.getByText(marker, { exact: false }).count();
+    if (count > 0) {
+      throw new Error(
+        `Scientific screenshot would capture an error page: "${marker}" found`,
+      );
+    }
+  }
+}
+
+test.describe("graph selected-object inspector", () => {
+  test("37_graph-selected-node and 38_graph-selected-relation", async ({
+    page,
+  }) => {
+    await openProject(page, PROJECT_A);
+    await openArtifactFromThread(page, "artv_graph_01");
+    const fullscreen = page.getByTestId("artifact-fullscreen-workspace");
+    await settle(page, 2500);
+
+    // Selected node → side inspector shows the node's scientific identity.
+    const firstNode = fullscreen.locator(".react-flow__node").first();
+    await expect(firstNode).toBeVisible();
+    await firstNode.click();
+    await expect(
+      fullscreen.locator(".graph-workspace__side-inspector"),
+    ).toBeVisible();
+    await expect(
+      fullscreen
+        .locator(".graph-workspace__side-inspector")
+        .getByRole("heading"),
+    ).toContainText(/研究对象|研究目标|指标|行星|宿主/);
+    await shot(page, "37_graph-selected-node");
+
+    // Selected edge → inspector shows relation details (spec §43).
+    const firstEdge = fullscreen.locator(".react-flow__edge").first();
+    const edgeBox = await firstEdge.boundingBox();
+    expect(edgeBox, "关系边必须具有可点击几何区域").not.toBeNull();
+    await page.mouse.click(
+      edgeBox!.x + edgeBox!.width / 2,
+      edgeBox!.y + edgeBox!.height / 2,
+    );
+    await settle(page, 600);
+    await expect(
+      fullscreen.locator(".graph-workspace__side-inspector"),
+    ).toContainText(/关系|可比性|公开推导/);
+    await shot(page, "38_graph-selected-relation");
+
+    await fullscreen.getByRole("tab", { name: "列表" }).click();
+    await expect(
+      fullscreen
+        .getByRole("tabpanel")
+        .getByText(/关系|目录|主张/)
+        .first(),
+    ).toBeVisible();
+    await shot(page, "39_graph-list-view");
+
+    await fullscreen
+      .getByRole("searchbox", { name: "按名称筛选研究对象" })
+      .fill("不存在的研究对象");
+    await expect(
+      fullscreen.getByText("当前筛选下没有可核验关系。"),
+    ).toBeVisible();
+    await shot(page, "39b_graph-empty-filter");
+  });
+});
+
+test.describe("fullscreen scientific artifact workspaces", () => {
+  test("Scenario B traverses analysis, chart, light curve, evaluation and model", async ({
+    page,
+  }) => {
+    await openProject(page, PROJECT_B);
+
+    await openArtifactFromThread(page, "artv_b_analysis_01");
+    await assertNoFatalError(page);
+    await expect(
+      page.getByText("TOI-1233", { exact: false }).first(),
+    ).toBeVisible();
+    await shot(page, "50_analysis-report");
+    await returnToResearch(page);
+
+    await openArtifactFromThread(page, "artv_b_chart_01");
+    await assertNoFatalError(page);
+    const chart = page.locator('.scientific-chart__canvas[data-state="ready"]');
+    await expect(chart).toBeVisible();
+    const chartSvg = chart.locator("svg");
+    await expect(chartSvg).toBeVisible();
+    expect((await chartSvg.boundingBox())?.width ?? 0).toBeGreaterThan(240);
+    await shot(page, "51_scientific-chart");
+    await returnToResearch(page);
+
+    await openArtifactFromThread(page, "artv_b_lc_01");
+    await assertNoFatalError(page);
+    await expect(
+      page.getByRole("tab", { name: /确定性演示序列/ }),
+    ).toBeVisible();
+    await shot(page, "53_light-curve-time-series");
+    await page.getByRole("tab", { name: /相位展示/ }).click();
+    await expect(page.getByText("轨道相位 Orbital Phase")).toBeVisible();
+    await shot(page, "54_light-curve-phase-folded");
+    await page.getByRole("tab", { name: /目录周期标记/ }).click();
+    await expect(
+      page.getByText("目录周期标记", { exact: false }).first(),
+    ).toBeVisible();
+    await shot(page, "55_light-curve-periodogram");
+    await page.getByRole("button", { name: /目录周期记录/ }).click();
+    await expect(
+      page.getByRole("columnheader", { name: /周期/ }),
+    ).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: /FAP/ })).toHaveCount(
+      0,
+    );
+    const peakTable = page.getByRole("table").last();
+    await peakTable.scrollIntoViewIfNeeded();
+    await expect(peakTable.getByText("3.7959")).toBeVisible();
+    await shot(page, "55b_light-curve-peaks-expanded");
+    await returnToResearch(page);
+
+    await openArtifactFromThread(page, "artv_b_modeval_01");
+    await assertNoFatalError(page);
+    await expect(
+      page.getByText("基线", { exact: false }).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByText("界面状态覆盖，非训练运行", { exact: true }),
+    ).toBeVisible();
+    await shot(page, "56_model-evaluation");
+    await returnToResearch(page);
+
+    await openArtifactFromThread(page, "artv_b_model_01");
+    await assertNoFatalError(page);
+    await expect(
+      page.getByText("ONNX", { exact: false }).first(),
+    ).toBeVisible();
+    await expect(page.getByText("不可部署", { exact: true })).toBeVisible();
+    await expect(page.getByText(/sha256:/i)).toHaveCount(0);
+    await shot(page, "57_model-artifact");
+    await page.getByRole("button", { name: "技术校验信息" }).click();
+    await expect(page.getByText("内容校验值")).toBeVisible();
+    await shot(page, "57b_model-artifact-technical-popover");
+    await page.keyboard.press("Escape");
+  });
+
+  test("Scenario C traverses spectrum, FITS and WWT ready/interaction states", async ({
+    page,
+  }) => {
+    await openProject(page, PROJECT_C);
+
+    await openArtifactFromThread(page, "artv_c_analysis_01");
+    await assertNoFatalError(page);
+    await shot(page, "49_l9859-analysis-report");
+    await returnToResearch(page);
+
+    await openArtifactFromThread(page, "artv_c_spec_01");
+    await assertNoFatalError(page);
+    await expect(
+      page.getByText("L 98-59", { exact: false }).first(),
+    ).toBeVisible();
+    await shot(page, "52_spectrum");
+    await returnToResearch(page);
+
+    await openArtifactFromThread(page, "artv_c_fits_01");
+    await assertNoFatalError(page);
+    await expect(page.getByTestId("wwt-viewport")).toHaveAttribute(
+      "data-state",
+      "ready",
+      { timeout: 30_000 },
+    );
+    await shot(page, "58_fits-ready");
+    await returnToResearch(page);
+
+    await openArtifactFromThread(page, "artv_c_wwt_01");
+    await assertNoFatalError(page);
+    const viewport = page.getByTestId("wwt-viewport");
+    await expect(viewport).toHaveAttribute("data-state", "ready", {
+      timeout: 30_000,
+    });
+    await shot(page, "59_wwt-ready");
+    await page.getByRole("button", { name: "坐标网格" }).click();
+    const gridToggle = page.getByRole("menuitemcheckbox", { name: /银道网格/ });
+    await expect(gridToggle).toBeVisible();
+    await gridToggle.click();
+    await expect(viewport).toHaveAttribute("data-state", "ready", {
+      timeout: 30_000,
+    });
+    await page.getByRole("button", { name: "坐标网格" }).click();
+    await expect(
+      page.getByRole("menuitemcheckbox", { name: /银道网格/ }),
+    ).toHaveAttribute("aria-checked", "true");
+    await settle(page, 600);
+    await shot(page, "60_wwt-grid-interaction");
+    await page.keyboard.press("Escape");
+
+    await page.getByRole("button", { name: "定位与视角" }).click();
+    await expect(page.getByLabel("中心赤经（小时）")).toBeVisible();
+    await shot(page, "61_wwt-coordinate-popover");
+    await page.keyboard.press("Escape");
+
+    await page.getByRole("button", { name: "观测点" }).click();
+    await expect(page.getByLabel("观测点纬度（度）")).toBeVisible();
+    await shot(page, "62_wwt-observer-popover");
+    await page.keyboard.press("Escape");
+
+    await page.getByRole("button", { name: "时间设置" }).click();
+    await expect(page.getByLabel("时间模式")).toBeVisible();
+    await shot(page, "63_wwt-time-popover");
+    await page.keyboard.press("Escape");
+
+    await page.getByRole("button", { name: "数据图层" }).click();
+    await expect(
+      page.getByRole("menuitemcheckbox", { name: "FITS 图层 1" }),
+    ).toBeVisible();
+    await shot(page, "64_wwt-data-layers-menu");
+  });
+});
+
+test.describe("share flow and public pages", () => {
+  test("share dialog, link creation, and public share pages", async ({
+    page,
+  }) => {
+    await page.goto(`${PROJECT_A}?artifactVersionId=artv_dataset_01`);
+    await expect(
+      page.getByTestId("artifact-fullscreen-workspace"),
+    ).toBeVisible();
+    await settle(page, 1000);
+
+    const shareButton = page
+      .getByRole("button", { name: "分享", exact: true })
+      .first();
+    await expect(shareButton).toBeVisible();
+    await shareButton.click();
+    const dialog = page.getByRole("dialog", { name: "分享研究结果" });
+    await expect(dialog).toBeVisible();
+    await settle(page, 400);
+    await shot(page, "40_share-dialog");
+
+    await page.getByRole("button", { name: "创建链接" }).click();
+    const shareLink = page.getByLabel("分享链接");
+    await expect(shareLink).toHaveValue(/\/share\/[^/]+$/);
+    await settle(page, 400);
+    await shot(page, "41_share-dialog-with-link");
+
+    const createdShareUrl = await shareLink.inputValue();
+    await page.evaluate((pathname) => {
+      window.history.pushState({}, "", pathname);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }, new URL(createdShareUrl).pathname);
+    await expect(page.locator(".public-share-page")).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: "系外行星宿主星数据集 (40 颗)",
+        level: 1,
+      }),
+    ).toBeVisible();
+    await expect(page.getByText(/创建分享时冻结的公开副本/)).toBeVisible();
+    await expect(page.getByText("共享结果当前不可用")).toHaveCount(0);
+    await settle(page, 1500);
+    await shot(page, "42_created-public-share");
+
+    // Test invalid / revoked public share
+    await page.goto("/share/token_invalid_revoked");
+    await expect(page.getByText("共享结果当前不可用")).toBeVisible();
+    await settle(page, 1000);
+    await shot(page, "43_invalid-public-share");
+  });
+});
+
+test.describe("responsive viewports", () => {
+  test("1440 and 1280 widths", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openProject(page, PROJECT_A, 1000);
+    await shot(page, "80_viewport-1440x900");
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await settle(page, 600);
+    await shot(page, "81_viewport-1280x800");
+  });
+});
+
+test.describe("desktop accessibility NFR", () => {
+  test("long fullscreen dossier content is scroll-reachable", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 600 });
+    await page.goto(`${PROJECT_A}?artifactVersionId=artv_claims_01`);
+    await expect(
+      page.getByTestId("artifact-fullscreen-workspace"),
+    ).toBeVisible();
+    await settle(page, 1500);
+
+    const scrollState = await page.evaluate(() => {
+      const dialog = document.querySelector(
+        '[data-testid="artifact-fullscreen-workspace"]',
+      );
+      if (!dialog) return { hasScroller: false, reachedBottom: false };
+      let scroller: HTMLElement | null = null;
+      dialog.querySelectorAll<HTMLElement>("*").forEach((el) => {
+        if (scroller) return;
+        const overflowY = window.getComputedStyle(el).overflowY;
+        if (
+          (overflowY === "auto" || overflowY === "scroll") &&
+          el.scrollHeight > el.clientHeight + 1
+        ) {
+          scroller = el;
+        }
+      });
+      if (!scroller) return { hasScroller: false, reachedBottom: false };
+      scroller.scrollTop = scroller.scrollHeight;
+      return {
+        hasScroller: true,
+        reachedBottom:
+          scroller.scrollTop + scroller.clientHeight >=
+          scroller.scrollHeight - 2,
+      };
+    });
+    expect(scrollState.hasScroller).toBe(true);
+    expect(scrollState.reachedBottom).toBe(true);
+    await settle(page, 400);
+    await shot(page, "71_long-content-scrolled-bottom");
+  });
+});

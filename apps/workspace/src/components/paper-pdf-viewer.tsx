@@ -11,6 +11,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
+import PdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import {
   useCallback,
   useEffect,
@@ -20,10 +21,9 @@ import {
   type Ref,
 } from "react";
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url,
-).toString();
+pdfjs.GlobalWorkerOptions.workerSrc = PdfjsWorkerUrl;
+
+const PDF_LOAD_OPTIONS = { withCredentials: true };
 
 export interface PaperPdfViewerHandle {
   /** Jump to an exact PDF page. `pageIndex` is 0-based. */
@@ -59,6 +59,10 @@ export function PaperPdfViewer({
   );
   const [pageNumber, setPageNumber] = useState(1);
   const [numPages, setNumPages] = useState(0);
+  const [renderedPage, setRenderedPage] = useState<{
+    readonly src: string;
+    readonly pageNumber: number;
+  } | null>(null);
   const [scale, setScale] = useState(1);
   const [fitMode, setFitMode] = useState<FitMode>("width");
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
@@ -98,6 +102,7 @@ export function PaperPdfViewer({
   const onLoadSuccess = (pdf: PDFDocumentProxy) => {
     setDocumentProxy(pdf);
     setNumPages(pdf.numPages);
+    setRenderedPage(null);
     setLoadError(null);
     const pending = pendingPageRef.current;
     if (pending !== null) {
@@ -136,7 +141,7 @@ export function PaperPdfViewer({
   if (!src) {
     return (
       <div
-        className={`xw-pdf-viewer-empty flex h-full flex-col items-center justify-center p-6 text-center text-muted-foreground ${className}`}
+        className={`xw-pdf-viewer-empty flex h-full flex-col items-center justify-center p-6 text-center ${className}`}
         data-testid="paper-pdf-unavailable"
       >
         <p className="text-sm font-medium">全文当前不可用</p>
@@ -156,11 +161,17 @@ export function PaperPdfViewer({
 
   return (
     <section
-      className={`xw-pdf-viewer-container flex h-full min-h-0 w-full flex-col bg-background ${className}`}
+      className={`xw-pdf-viewer-container flex h-full min-h-0 w-full flex-col ${className}`}
       data-testid="paper-pdf-viewer"
+      data-num-pages={numPages}
+      data-rendered-page={
+        renderedPage?.src === src && renderedPage.pageNumber === pageNumber
+          ? pageNumber
+          : ""
+      }
       aria-label="论文原文"
     >
-      <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-border px-2 py-2">
+      <div className="xw-pdf-toolbar">
         <Button
           variant="ghost"
           size="icon"
@@ -168,9 +179,9 @@ export function PaperPdfViewer({
           disabled={pageNumber <= 1}
           onClick={() => setPageNumber((current) => Math.max(1, current - 1))}
         >
-          <ChevronLeft className="size-4" aria-hidden="true" />
+          <ChevronLeft aria-hidden="true" />
         </Button>
-        <span className="min-w-20 text-center text-xs text-muted-foreground">
+        <span className="xw-pdf-toolbar__page-count">
           {numPages > 0 ? `${pageNumber} / ${numPages}` : "— / —"}
         </span>
         <Button
@@ -182,9 +193,9 @@ export function PaperPdfViewer({
             setPageNumber((current) => Math.min(numPages, current + 1))
           }
         >
-          <ChevronRight className="size-4" aria-hidden="true" />
+          <ChevronRight aria-hidden="true" />
         </Button>
-        <span className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
+        <span className="xw-pdf-toolbar__divider" aria-hidden="true" />
         <Button
           variant="ghost"
           size="icon"
@@ -194,7 +205,7 @@ export function PaperPdfViewer({
             setScale((current) => Math.max(0.5, current - 0.1));
           }}
         >
-          <ZoomOut className="size-4" aria-hidden="true" />
+          <ZoomOut aria-hidden="true" />
         </Button>
         <Button
           variant="ghost"
@@ -205,7 +216,7 @@ export function PaperPdfViewer({
             setScale((current) => Math.min(3, current + 0.1));
           }}
         >
-          <ZoomIn className="size-4" aria-hidden="true" />
+          <ZoomIn aria-hidden="true" />
         </Button>
         <Button
           variant={fitMode === "width" ? "secondary" : "ghost"}
@@ -221,7 +232,8 @@ export function PaperPdfViewer({
         >
           适合页面
         </Button>
-        <div className="ml-auto flex min-w-56 items-center gap-1.5">
+        <div className="xw-pdf-toolbar__search">
+          <Search aria-hidden="true" />
           <Input
             value={query}
             onChange={(event) => setQuery(event.currentTarget.value)}
@@ -232,62 +244,71 @@ export function PaperPdfViewer({
             aria-label="搜索论文全文"
           />
           <Button
-            variant="ghost"
+            variant="secondary"
             size="icon"
             aria-label="搜索"
             disabled={searching || !query.trim()}
             onClick={() => void runSearch()}
           >
-            <Search className="size-4" aria-hidden="true" />
+            <Search aria-hidden="true" />
           </Button>
           <a
             href={src}
             download
-            className={buttonClassName({ variant: "ghost", size: "icon" })}
+            className={buttonClassName({
+              variant: "secondary",
+              size: "icon",
+            })}
             aria-label="下载论文原文"
           >
-            <Download className="size-4" aria-hidden="true" />
+            <Download aria-hidden="true" />
           </a>
         </div>
       </div>
       {searchMessage ? (
-        <p
-          className="shrink-0 border-b border-border px-3 py-1.5 text-xs text-muted-foreground"
-          role="status"
-        >
+        <p className="xw-pdf-viewer__status" role="status">
           {searchMessage}
         </p>
       ) : null}
       <div
         ref={viewportRef}
-        className="min-h-0 flex-1 overflow-auto bg-muted/20 p-4"
+        className="xw-pdf-viewer__viewport min-h-0 flex-1 overflow-auto p-4"
       >
         <Document
           file={src}
-          options={{ withCredentials: true }}
+          options={PDF_LOAD_OPTIONS}
           onLoadSuccess={onLoadSuccess}
           onLoadError={() => setLoadError("论文原文载入失败，请稍后重试。")}
           loading={
-            <div className="mx-auto max-w-3xl" aria-busy="true">
-              <Skeleton className="h-12 w-3/4 mb-2" />
-              <Skeleton className="h-[60vh] w-full" />
+            <div
+              className="xw-pdf-viewer__loading"
+              role="status"
+              aria-busy="true"
+            >
+              <p>正在加载论文原文…</p>
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-[var(--workspace-result-pdf-loading-block-size)] w-full" />
             </div>
           }
           error={
-            <div className="mx-auto max-w-xl py-12 text-center text-sm text-muted-foreground">
+            <div className="xw-pdf-viewer__error mx-auto max-w-xl py-12 text-center text-sm">
               {loadError ?? "论文原文载入失败，请稍后重试。"}
             </div>
           }
         >
-          <Page
-            pageNumber={pageNumber}
-            width={pageWidth}
-            height={pageHeight}
-            scale={fitMode === null ? scale : undefined}
-            renderTextLayer
-            renderAnnotationLayer
-            className="mx-auto shadow-sm"
-          />
+          <div data-testid="paper-pdf-page">
+            <Page
+              pageNumber={pageNumber}
+              width={pageWidth}
+              height={pageHeight}
+              scale={fitMode === null ? scale : undefined}
+              renderTextLayer
+              renderAnnotationLayer
+              onRenderSuccess={() => setRenderedPage({ src, pageNumber })}
+              className="mx-auto shadow-sm"
+            />
+          </div>
         </Document>
       </div>
     </section>

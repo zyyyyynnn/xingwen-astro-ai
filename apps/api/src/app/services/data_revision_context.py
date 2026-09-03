@@ -29,6 +29,11 @@ from app.schemas.data_quality import DataQualityProjection
 from app.schemas.core import ResearchContract
 from app.schemas.enums import SourceMode
 from app.schemas.manifest import ManifestBundle
+from app.schemas.literature_relation import (
+    LiteratureRelationAdjudication,
+    LiteratureRelationsCandidate,
+    literature_relation_adjudicable,
+)
 from app.services.artifacts import ArtifactReadService
 from app.services.data_artifact_build_inputs import (
     DataArtifactBuildInputReplayError,
@@ -65,6 +70,7 @@ class RevisionRunContext:
     data_execution: DataRevisionExecutionInput | None
     data_recompute_step_key: str | None
     non_data_recompute_step_keys: frozenset[str]
+    relation_adjudications: dict[str, LiteratureRelationAdjudication]
 
 
 class DataRevisionContextLoader:
@@ -216,6 +222,11 @@ class DataRevisionContextLoader:
                 for item in non_data_recompute_decisions
                 if item.step_key is not None
             )
+            relation_adjudications = _relation_adjudications(
+                session=session,
+                feedback_links=feedback_links,
+                feedback_by_id=feedback_by_id,
+            )
             if not data_decisions:
                 return RevisionRunContext(
                     artifacts={item.artifact_kind: item.artifact_id for item in decisions},
@@ -226,6 +237,7 @@ class DataRevisionContextLoader:
                     data_execution=None,
                     data_recompute_step_key=None,
                     non_data_recompute_step_keys=non_data_recompute_step_keys,
+                    relation_adjudications=relation_adjudications,
                 )
             if set(data_decisions) != set(_DATA_KINDS):
                 raise DataRevisionError(
@@ -478,7 +490,66 @@ class DataRevisionContextLoader:
             data_execution=data_execution,
             data_recompute_step_key=data_recompute_step_key,
             non_data_recompute_step_keys=non_data_recompute_step_keys,
+            relation_adjudications=relation_adjudications,
         )
+
+
+def _relation_adjudications(
+    *,
+    session: Session,
+    feedback_links: tuple[RevisionPlanFeedbackModel, ...],
+    feedback_by_id: dict[UUID, UserFeedbackModel],
+) -> dict[str, LiteratureRelationAdjudication]:
+    adjudications: dict[str, LiteratureRelationAdjudication] = {}
+    for link in feedback_links:
+        feedback = feedback_by_id[link.feedback_id]
+        if feedback.category != "adjudication":
+            continue
+        if (
+            feedback.target_type != "relation"
+            or feedback.adjudication_decision not in {"accepted", "rejected"}
+        ):
+            raise DataRevisionError(
+                DataRevisionErrorCode.replan_required,
+                "the confirmed Relation adjudication is incomplete",
+            )
+        version = session.get(
+            ArtifactVersionModel, feedback.baseline_artifact_version_id
+        )
+        if version is None:
+            raise DataRevisionError(
+                DataRevisionErrorCode.replan_required,
+                "the adjudicated Relation baseline is unavailable",
+            )
+        try:
+            candidate = LiteratureRelationsCandidate.model_validate(version.content)
+            relation = next(
+                item
+                for item in candidate.relations
+                if item.relation_id == feedback.target_id
+            )
+        except (ValueError, StopIteration) as exc:
+            raise DataRevisionError(
+                DataRevisionErrorCode.replan_required,
+                "the adjudicated Relation no longer matches its baseline",
+            ) from exc
+        if not literature_relation_adjudicable(relation):
+            raise DataRevisionError(
+                DataRevisionErrorCode.replan_required,
+                "only confidence-gated Relation candidates can be adjudicated",
+            )
+        adjudication_id = f"adjudication.{feedback.id.hex}"
+        adjudications[adjudication_id] = LiteratureRelationAdjudication(
+            adjudication_id=adjudication_id,
+            subject=relation.confidence.subject,
+            decision=feedback.adjudication_decision,
+            feedback_id=str(feedback.id),
+            feedback_hash=feedback.feedback_hash,
+            baseline_relation_artifact_version_id=str(version.id),
+            baseline_relation_id=relation.relation_id,
+            basis=(feedback.summary,),
+        )
+    return adjudications
 
 
 def _manifest_compatible(

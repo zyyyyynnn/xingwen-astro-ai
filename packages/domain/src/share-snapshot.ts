@@ -65,7 +65,6 @@ export interface ShareSnapshotCreated extends ShareSnapshot {
 export interface CreateShareSnapshotRequest {
   readonly title: NonEmptyString;
   readonly artifactVersionIds: readonly DomainEntityId[];
-  readonly evidenceIds: readonly DomainEntityId[];
   readonly expiresAt: UtcIsoTimestamp;
   readonly redactionPolicy: ShareRedactionPolicy;
 }
@@ -81,6 +80,7 @@ export interface PublicPresentationFact {
 }
 
 export interface PublicPresentationTrace {
+  readonly traceId: DomainEntityId;
   readonly conclusion: NonEmptyString;
   readonly steps: readonly NonEmptyString[];
   readonly facts: readonly PublicPresentationFact[];
@@ -97,6 +97,11 @@ export interface PublicPresentationEntry {
   readonly facts: readonly PublicPresentationFact[];
   readonly evidenceIds: readonly DomainEntityId[];
   readonly reasoningTrace: PublicPresentationTrace | null;
+  readonly canAdjudicate: boolean | null;
+  readonly relation: {
+    readonly sourceClaim: NonEmptyString;
+    readonly targetClaim: NonEmptyString;
+  } | null;
 }
 
 export interface PublicPresentationSection {

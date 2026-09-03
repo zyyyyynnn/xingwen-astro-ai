@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-import asyncio
 
-from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.enums import (
     PaperDataLevel,
     PaperSourceExecutionStatus,
     SourceMode,
     UpstreamFailureClass,
 )
-from app.schemas.paper_collection import PaperCollectionCandidate
+from app.schemas.paper_collection import PaperCollection, PaperCollectionCandidate
+from app.services.research_input_store import ResearchInputRecord
 from app.schemas.paper_summary import (
     PaperSummaryAdmissionStatus,
     PaperSummaryEvidenceCandidate,
@@ -19,18 +18,24 @@ from app.schemas.paper_summary import (
     PaperSummaryPaperMetadata,
     PaperSummarySourceSnapshotReference,
 )
-from app.schemas.scientific_document import DocumentParseInput, DocumentParseQuality
+from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.scientific_document import DocumentParseQuality
 from app.services.artifacts import ArtifactReadService
-from app.services.content_storage import ContentStorage
 from app.services.paper_collections import PaperCollectionReadService
-from app.services.document_parse_store import (
-    DocumentParseService,
-    PersistDocumentParseRequest,
+from app.services.document_summary import (
+    ExecuteDocumentSummaryRequest,
+    build_paper_summary_response_schema,
 )
-from app.services.document_summary import ExecuteDocumentSummaryRequest
-from app.services.document_summary_chunks import ChunkedDocumentSummaryService
+from app.services.document_summary_chunks import (
+    ChunkedDocumentSummaryService,
+    SummaryChunkViolation,
+)
+from app.services.model_execution import ModelExecutionError
 from app.services.paper_candidate_inputs import PaperCandidateInputReadService
-from app.services.scientific_document.ports import DocumentParserPort
+from app.workflow.document_parse_execution import (
+    DocumentInputSource,
+    DocumentParseExecutionService,
+)
 from app.workflow.publisher import admit_artifact_candidate
 from app.workflow.step_publication import (
     PreparedStep,
@@ -40,7 +45,10 @@ from app.workflow.step_publication import (
     step_uuid,
 )
 from app.workflow.store import AttemptHandle, LeaseGrant
-from services.paper_pipeline.errors import PaperSearchExecutionError
+from services.paper_pipeline.errors import (
+    PaperSearchExecutionError,
+    PaperSummaryExecutionError,
+)
 from services.paper_pipeline.live_collection import LivePaperCollectionRunner
 from services.paper_pipeline.mapper import build_paper_search_input
 from services.paper_pipeline.constants import (
@@ -54,7 +62,10 @@ from services.paper_pipeline.summary import (
 )
 
 #: Governed generation parameters shared by the paper summary model call.
-MODEL_PARAMETERS: dict[str, float | int] = {"temperature": 0.6, "top_p": 0.8}
+MODEL_PARAMETERS: dict[str, float | int] = {
+    "temperature": 0.6,
+    "top_p": 0.8,
+}
 
 
 def _summary_parameters_hash(
@@ -85,22 +96,10 @@ _RETRYABLE_SOURCE_FAILURES = frozenset(
 )
 
 
-def _selected_candidate(
-    collection,
-) -> PaperCollectionCandidate:
-    """Pick the summarized paper: first selected, non-synthetic candidate."""
-
-    return next(
-        candidate
-        for candidate in collection.candidates
-        if candidate.selected and candidate.raw.synthetic_note is None
-    )
-
-
 def _evidence_candidates(
     candidate: PaperCollectionCandidate,
 ) -> tuple[PaperSummaryEvidenceCandidate, ...]:
-    """Anchor summary Evidence on the candidate's real bibliographic record."""
+    """Anchor summary Evidence on the candidate's acquired source record."""
 
     if candidate.raw.url is None:
         raise ValueError("paper summary candidate must carry a source url")
@@ -123,6 +122,22 @@ def _evidence_candidates(
             **anchor,
         )
     ]
+    if candidate.raw.abstract is not None:
+        quote = candidate.raw.abstract[:4000]
+        items.append(
+            PaperSummaryEvidenceCandidate(
+                evidence_id="ev.abstract",
+                locator=PaperSummaryEvidenceLocator(
+                    kind="paper_text",
+                    source_url=candidate.raw.url,
+                    section="abstract",
+                    text_range=f"0:{len(quote)}",
+                ),
+                quote_or_value=quote,
+                accessible_excerpt=candidate.raw.abstract,
+                **anchor,
+            )
+        )
     if candidate.raw.year is not None:
         items.append(
             PaperSummaryEvidenceCandidate(
@@ -161,16 +176,12 @@ class PaperStepService:
         publications: StepPublicationFactory,
         collection_runner: LivePaperCollectionRunner | None = None,
         paper_inputs: PaperCandidateInputReadService | None = None,
-        content_storage: ContentStorage | None = None,
-        document_parser: DocumentParserPort | None = None,
-        document_parses: DocumentParseService | None = None,
+        document_parse_execution: DocumentParseExecutionService | None = None,
     ) -> None:
         self._publications = publications
         self._collection_runner = collection_runner or LivePaperCollectionRunner()
         self._paper_inputs = paper_inputs
-        self._content_storage = content_storage
-        self._document_parser = document_parser
-        self._document_parses = document_parses
+        self._document_parse_execution = document_parse_execution
 
     def search(
         self,
@@ -328,16 +339,10 @@ class PaperStepService:
             raise ValueError("paper_collection must be prepared first")
         if collection_version_id is None:
             raise ValueError("paper_collection must be published first")
-        candidate = _selected_candidate(collection)
-        full_text = (
-            self._paper_inputs.accepted_research_input(
-                session_id=context.session_id,
-                project_id=str(context.project_id),
-                paper_collection_version_id=str(collection_version_id),
-                canonical_paper_id=candidate.canonical_paper_id,
-            )
-            if self._paper_inputs is not None
-            else None
+        candidate, full_text = self._resolve_summary_source(
+            collection,
+            context=context,
+            collection_version_id=str(collection_version_id),
         )
         if full_text is not None:
             return self._summarize_document(
@@ -372,6 +377,11 @@ class PaperStepService:
             producer_name=SUMMARY_PRODUCER_NAME,
             producer_version=SUMMARY_PRODUCER_VERSION,
             parameters_hash=_summary_parameters_hash(MODEL_PARAMETERS),
+            response_schema_name="paper_summary",
+            response_schema=build_paper_summary_response_schema(
+                tuple(item.evidence_id for item in evidence_candidates)
+            ),
+            enable_thinking=False,
         )
         result = PaperSummaryPipeline().admit(
             paper_collection=collection,
@@ -390,13 +400,24 @@ class PaperStepService:
             result.admission_status is not PaperSummaryAdmissionStatus.accepted
             or result.summary is None
         ):
+            rejection_code = f"PAPER_SUMMARY_{result.failure_stage or 'REJECTED'}"
             model_caller.reject(
                 execution_id,
                 input_hash=None,
                 response=response,
-                error_code=f"PAPER_SUMMARY_{result.failure_stage or 'REJECTED'}",
+                error_code=rejection_code,
             )
-            raise ValueError(f"论文总结未通过准入: {result.failure_stage}")
+            raise PaperSummaryExecutionError(
+                code=rejection_code,
+                public_message="论文总结未通过准入校验，请稍后重试。",
+                retryable=(
+                    result.failure_stage is not None
+                    and (
+                        "json" in str(result.failure_stage)
+                        or "schema" in str(result.failure_stage)
+                    )
+                ),
+            )
         summary = result.summary
         summary_version_id = step_uuid(
             str(context.run_id), "artifact-version:paper_summary"
@@ -439,6 +460,33 @@ class PaperStepService:
             ),
         )
 
+    def _resolve_summary_source(
+        self,
+        collection: PaperCollection,
+        *,
+        context: RunStepContext,
+        collection_version_id: str,
+    ) -> tuple[PaperCollectionCandidate, ResearchInputRecord | None]:
+        """Prefer a selected paper with full text, preserving collection ranking."""
+        selected = tuple(
+            candidate
+            for candidate in collection.candidates
+            if candidate.selected and candidate.raw.synthetic_note is None
+        )
+        if not selected:
+            raise ValueError("论文集合没有可研读的已选文献")
+        if self._paper_inputs is not None:
+            for candidate in selected:
+                document = self._paper_inputs.accepted_research_input(
+                    session_id=context.session_id,
+                    project_id=str(context.project_id),
+                    paper_collection_version_id=collection_version_id,
+                    canonical_paper_id=candidate.canonical_paper_id,
+                )
+                if document is not None:
+                    return candidate, document
+        return selected[0], None
+
     def _summarize_document(
         self,
         context: RunStepContext,
@@ -448,84 +496,24 @@ class PaperStepService:
         lease: LeaseGrant,
         model_caller: StepModelCaller,
         candidate: PaperCollectionCandidate,
-        research_input: object,
+        research_input: ResearchInputRecord,
     ) -> PreparedStep:
-        if (
-            self._content_storage is None
-            or self._document_parser is None
-            or self._document_parses is None
-        ):
+        if self._document_parse_execution is None:
             raise ValueError("全文论文总结需要生产文档解析运行时")
-        content_hash = str(getattr(research_input, "content_hash"))
-        content = asyncio.run(self._content_storage.retrieve(content_hash))
-        if content is None:
-            raise ValueError("已绑定论文全文的不可变内容不存在")
-        parse_input = DocumentParseInput(
-            research_input_id=str(getattr(research_input, "id")),
-            content_hash=content_hash,
-            source_type=str(getattr(research_input, "source_type")),
-            mime_type=str(getattr(research_input, "mime_type") or "application/pdf"),
-            filename=getattr(research_input, "filename"),
-            input_bytes=content,
-        )
-        profile = self._document_parser.profile
-        parse_input_hash = compute_canonical_payload_hash(
-            {
-                "input": parse_input.model_dump(
-                    mode="json", exclude_none=True, exclude={"input_bytes"}
-                ),
-                "profile": profile.model_dump(mode="json"),
-            }
-        )
-        parse_execution = self._publications.start_producer(
+        parsed = self._document_parse_execution.execute(
             context,
             step_key=step_key,
-            operation_key=f"document_parse:{candidate.canonical_paper_id}",
-            producer_type="algorithm",
-            producer_name="scientific-document-parser",
-            producer_version=profile.parser_profile_version,
-            input_hash=parse_input_hash,
-            parameters={
-                "parser_profile_id": profile.parser_profile_id,
-                "routing_policy_id": profile.routing_policy_id,
-            },
-            parameters_hash=profile.configuration_hash,
             attempt=attempt,
             lease=lease,
+            source=DocumentInputSource.from_record(research_input),
+            operation_key=f"document_parse:paper:{candidate.canonical_paper_id}",
         )
-        try:
-            document = self._document_parser.parse_document(parse_input)
-        except Exception:
-            self._publications.finish_producer(
-                parse_execution.id,
-                status="failed",
-                error_code="DOCUMENT_PARSE_FAILED",
-            )
-            raise
-        self._publications.finish_producer(
-            parse_execution.id,
-            status="completed",
-            output_hash=document.canonical_output_hash,
-        )
-        parse_record = asyncio.run(
-            self._document_parses.persist(
-                PersistDocumentParseRequest(
-                    project_id=context.project_id,
-                    run_id=context.run_id,
-                    run_step_id=attempt.run_step_id,
-                    producer_execution_id=parse_execution.id,
-                    parse_input_hash=parse_input_hash,
-                    candidate=document,
-                )
-            )
-        )
+        document = parsed.candidate
+        parse_record = parsed.record
         if document.overall_quality is DocumentParseQuality.unsupported:
             raise ValueError("当前解析器无法可靠读取所选论文全文")
 
-        snapshot = self._document_parses.source_snapshot(
-            project_id=context.project_id,
-            document_parse_id=parse_record.id,
-        )
+        snapshot = parsed.source_snapshot
         snapshot_reference = PaperSummarySourceSnapshotReference(
             source_snapshot_id=str(snapshot.id),
             source_id=snapshot.source_id,
@@ -602,6 +590,24 @@ class PaperStepService:
         )
         try:
             result = ChunkedDocumentSummaryService(model_execution).execute(request)
+        except SummaryChunkViolation as exc:
+            self._publications.finish_producer(
+                summary_execution.id,
+                status="failed",
+                error_code=exc.code,
+            )
+            raise PaperSummaryExecutionError(
+                code=exc.code,
+                public_message="论文总结未通过批次契约校验。",
+                retryable=False,
+            ) from exc
+        except ModelExecutionError as exc:
+            self._publications.finish_producer(
+                summary_execution.id,
+                status="failed",
+                error_code=exc.code,
+            )
+            raise
         except Exception:
             self._publications.finish_producer(
                 summary_execution.id,
@@ -621,7 +627,11 @@ class PaperStepService:
                 response=result.model_response,
                 error_code="DOCUMENT_SUMMARY_REJECTED",
             )
-            raise ValueError("论文全文总结未通过证据准入")
+            raise PaperSummaryExecutionError(
+                code="DOCUMENT_SUMMARY_REJECTED",
+                public_message="论文全文总结未通过证据准入。",
+                retryable=False,
+            )
         summary = result.admission.summary
         source_bindings, evidence_bindings = self._publications.paper_summary_bindings(
             context,
@@ -646,17 +656,17 @@ class PaperStepService:
             output_hash=admitted.content_hash,
             response=result.model_response,
         )
-        for evidence in summary.evidence:
-            locator = evidence.locator.document_locator
-            if locator is None:
-                continue
-            asyncio.run(
-                self._document_parses.persist_locator(
-                    project_id=context.project_id,
-                    document_parse_id=parse_record.id,
-                    source_snapshot_id=snapshot.id,
-                    locator=locator,
-                )
+        document_locators = tuple(
+            evidence.locator.document_locator
+            for evidence in summary.evidence
+            if evidence.locator.document_locator is not None
+        )
+        if document_locators:
+            self._document_parse_execution.persist_locators(
+                project_id=context.project_id,
+                document_parse_id=parse_record.id,
+                source_snapshot_id=snapshot.id,
+                locators=document_locators,
             )
         publication = self._publications.publication(
             context,

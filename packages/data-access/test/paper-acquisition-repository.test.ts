@@ -10,6 +10,8 @@
 
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
+import { asEntityId } from "@xingwen/domain";
+import { computeCanonicalJsonHash } from "../src/contract-hash";
 
 import { createFixtureRepositories } from "../src/fixture-adapter";
 import { createHttpRepositories } from "../src/http-adapter";
@@ -36,6 +38,101 @@ import {
 } from "./http-helpers";
 
 const VERSION_ID = "11111111-1111-4111-8111-111111111111" as never;
+
+describe("paper full text acquisition", () => {
+  const input = {
+    artifactVersionId: VERSION_ID,
+    candidateId: asEntityId("candidate-paper"),
+    canonicalPaperId: asEntityId("doi:paper"),
+    accessUrl: "https://PUBLISHER.example/article.pdf#page=2",
+    accessKind: "publisher_open_access" as const,
+    license: "CC BY 4.0",
+    evidenceUrl: "https://publisher.example/article",
+    idempotencyKey: "acquire-paper",
+  };
+
+  it("binds the exact URL resource to its access evidence and preserves the ingestion outcome", async () => {
+    const repos = setupHttpRepos();
+    const resourceHash = await computeCanonicalJsonHash({
+      resource_type: "access_url",
+      url: "https://publisher.example/article.pdf",
+    });
+    httpServer.use(
+      http.post(
+        `${TEST_BASE_URL}/api/artifact-versions/:version/paper-candidates/:candidate/research-input`,
+        async ({ request }) => {
+          const body = await request.json();
+          expect(body).toMatchObject({
+            mode: "open_access_url",
+            access_url: "https://publisher.example/article.pdf",
+            access_evidence: {
+              kind: "publisher_open_access",
+              license: "CC BY 4.0",
+              evidence_url: input.evidenceUrl,
+              canonical_paper_id: input.canonicalPaperId,
+              resource_type: "access_url",
+              resource_identity_hash: resourceHash,
+            },
+          });
+          expect(request.headers.get("Idempotency-Key")).toBe(
+            input.idempotencyKey,
+          );
+          return HttpResponse.json(
+            envelope({
+              id: "binding-paper",
+              project_id: "project-paper",
+              paper_collection_version_id: VERSION_ID,
+              candidate_id: input.candidateId,
+              canonical_paper_id: input.canonicalPaperId,
+              candidate_source_snapshot_id: "source-paper",
+              mode: "open_access_url",
+              outcome: "accepted",
+              source_collection_status: "completed",
+              created_at: "2026-08-31T00:00:00Z",
+              research_input: {
+                id: "input-paper",
+                type: "url",
+                source_type: "https",
+                content_hash: `sha256:${"a".repeat(64)}`,
+                created_at: "2026-08-31T00:00:00Z",
+                size_bytes: 42,
+                mime_type: "text/html",
+                filename: null,
+                source_snapshot_id: "source-input",
+                status: "unsupported_processing",
+              },
+            }),
+          );
+        },
+      ),
+    );
+    expect(await repos.paperAcquisition.acquireFullText(input)).toMatchObject({
+      id: "input-paper",
+      status: "unsupported_processing",
+      mimeType: "text/html",
+    });
+  });
+
+  it("rejects unsafe input URLs before sending an acquisition request", async () => {
+    const repos = setupHttpRepos();
+    for (const accessUrl of [
+      "not a URL",
+      "http://publisher.example/paper.pdf",
+      "https://user:secret@publisher.example/paper.pdf",
+    ]) {
+      await expect(
+        repos.paperAcquisition.acquireFullText({ ...input, accessUrl }),
+      ).rejects.toMatchObject({ code: "PAPER_ACCESS_NOT_PROVEN" });
+    }
+  });
+
+  it("does not turn a fixture collection into a live acquisition", async () => {
+    const repos = createFixtureRepositories(exoplanetHostStarFixture);
+    await expect(
+      repos.paperAcquisition.acquireFullText(input),
+    ).rejects.toMatchObject({ code: "PAPER_SOURCE_MODE_NOT_LIVE" });
+  });
+});
 
 function setupHttpRepos() {
   httpServer.use(...defaultHandlers);

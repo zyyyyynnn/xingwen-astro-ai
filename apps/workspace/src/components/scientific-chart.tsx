@@ -21,10 +21,7 @@ const MARK_TYPES = {
   area: "area",
 } as const;
 
-function resolveTokenColor(
-  token: ChartVisualizationReview["series"][number]["colorToken"],
-): string {
-  const variable = TOKEN_VARIABLES[token];
+function resolveCssColor(variable: string): string {
   const source = getComputedStyle(document.documentElement)
     .getPropertyValue(variable)
     .trim();
@@ -36,10 +33,8 @@ function resolveTokenColor(
   if (!context) throw new Error("浏览器无法解析图表颜色 Token");
   context.fillStyle = source;
   context.fillRect(0, 0, 1, 1);
-  const [red = 0, green = 0, blue = 0] = context.getImageData(0, 0, 1, 1).data;
-  return `${String.fromCodePoint(35)}${[red, green, blue]
-    .map((value) => value.toString(16).padStart(2, "0"))
-    .join("")}`;
+  const rgba = context.getImageData(0, 0, 1, 1).data;
+  return `#${Array.from(rgba, (channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function axisLabel(
@@ -72,12 +67,49 @@ function axisEncoding(
  * Raw or user-provided Vega specs are never accepted; no expressions are
  * emitted, so the renderer cannot evaluate arbitrary code.
  */
-function buildVegaLiteSpec(chart: ChartVisualizationReview): TopLevelSpec {
+function buildVegaLiteSpec(
+  chart: ChartVisualizationReview,
+  containerWidth: number,
+  container: HTMLElement,
+): TopLevelSpec {
+  const style = getComputedStyle(container);
+  const height = Number.parseFloat(style.minHeight);
+  const fontSize = Number.parseFloat(style.fontSize);
+  const requestedWeight = Number(
+    getComputedStyle(document.documentElement).getPropertyValue(
+      "--font-weight-ui-emphasis",
+    ),
+  );
+  const titleFontWeight = (
+    [100, 200, 300, 400, 500, 600, 700, 800, 900] as const
+  ).find((weight) => weight === requestedWeight);
+  if (
+    titleFontWeight === undefined ||
+    ![height, fontSize].every((value) => Number.isFinite(value) && value > 0)
+  ) {
+    throw new Error("主题缺少图表尺寸或字体 Token");
+  }
+  const border = resolveCssColor("--color-border");
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v6.json",
-    width: "container",
-    height: 320,
+    autosize: { type: "fit", contains: "padding", resize: true },
+    width: Math.max(1, Math.floor(containerWidth)),
+    height,
     background: "transparent",
+    config: {
+      font: style.fontFamily,
+      view: { stroke: null },
+      axis: {
+        domain: false,
+        gridColor: border,
+        tickColor: border,
+        labelColor: resolveCssColor("--color-ink-secondary"),
+        titleColor: resolveCssColor("--color-ink-primary"),
+        labelFontSize: fontSize,
+        titleFontSize: fontSize,
+        titleFontWeight,
+      },
+    },
     layer: chart.series.map((series) => ({
       data: {
         values: series.points.map((point) => ({ x: point.x, y: point.y })),
@@ -89,7 +121,7 @@ function buildVegaLiteSpec(chart: ChartVisualizationReview): TopLevelSpec {
       encoding: {
         x: axisEncoding(chart.xAxis, "x"),
         y: axisEncoding(chart.yAxis, "y"),
-        color: { value: resolveTokenColor(series.colorToken) },
+        color: { value: resolveCssColor(TOKEN_VARIABLES[series.colorToken]) },
       },
       name: series.label,
     })),
@@ -119,33 +151,55 @@ export function ScientificChart({
     if (!container) return;
     let finalized: { finalize: () => void } | null = null;
     let active = true;
+    let renderRevision = 0;
+    let animationFrame = 0;
     setState("loading");
-    void (async () => {
+
+    const render = async (containerWidth: number) => {
+      const revision = ++renderRevision;
       try {
         const [{ default: embed }, spec] = await Promise.all([
           import("vega-embed"),
-          Promise.resolve(buildVegaLiteSpec(chart)),
+          Promise.resolve(buildVegaLiteSpec(chart, containerWidth, container)),
         ]);
-        if (!active) return;
-        container.textContent = "";
+        if (!active || revision !== renderRevision) return;
+        finalized?.finalize();
+        container.replaceChildren();
         const result = await embed(container, spec, {
           actions: false,
           renderer: "svg",
         });
-        if (!active) {
+        if (!active || revision !== renderRevision) {
           result.finalize();
           return;
         }
         finalized = result;
         setState("ready");
       } catch (error) {
-        if (!active) return;
+        if (!active || revision !== renderRevision) return;
         setState("error");
         setMessage(error instanceof Error ? error.message : "科学图表渲染失败");
       }
-    })();
+    };
+
+    const scheduleRender = () => {
+      cancelAnimationFrame(animationFrame);
+      animationFrame = requestAnimationFrame(() => {
+        const width = container.getBoundingClientRect().width;
+        if (width <= 0) return;
+        setState("loading");
+        setMessage("正在渲染科学图表");
+        void render(width);
+      });
+    };
+
+    const observer = new ResizeObserver(scheduleRender);
+    observer.observe(container);
+    scheduleRender();
     return () => {
       active = false;
+      observer.disconnect();
+      cancelAnimationFrame(animationFrame);
       finalized?.finalize();
     };
   }, [chart]);
@@ -156,13 +210,32 @@ export function ScientificChart({
   );
   return (
     <figure className="scientific-chart" aria-label={title}>
+      <ul className="scientific-chart__legend" aria-label="图例">
+        {chart.series.map((series) => (
+          <li key={series.seriesId}>
+            <span
+              className="scientific-chart__legend-swatch"
+              data-mark={series.mark}
+              style={{ color: `var(${TOKEN_VARIABLES[series.colorToken]})` }}
+              aria-hidden="true"
+            />
+            <span>{series.label}</span>
+          </li>
+        ))}
+      </ul>
       <div
         ref={containerRef}
         className="scientific-chart__canvas"
+        data-state={state}
         role="img"
         aria-label={`${title}：${chart.series.length} 条序列，共 ${totalPoints} 个数据点`}
         aria-busy={state === "loading"}
       />
+      {state === "loading" ? (
+        <figcaption className="scientific-chart__status" role="status">
+          {message}
+        </figcaption>
+      ) : null}
       {state === "error" ? (
         <figcaption role="alert">
           {message}，请查看下方表格替代视图。

@@ -5,8 +5,19 @@ import type {
   DomainEntityId,
   PublicShareSnapshot,
 } from "@xingwen/domain";
-import { Button, Link, Spinner } from "@xingwen/ui";
-import { Download, Share2 } from "@xingwen/ui/icons";
+import {
+  Button,
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  Link,
+  Spinner,
+  buttonClassName,
+} from "@xingwen/ui";
+import { CircleSlash2, Download, Quote, Share2 } from "@xingwen/ui/icons";
 
 import { ArtifactPresentationContent } from "./components/scientific-presentation";
 import {
@@ -79,21 +90,39 @@ function PublicShareUnavailable({
       className="public-share-page public-share-page--boundary"
       aria-live="polite"
     >
-      <p className="public-share-page__brand">星文智析 · 只读共享</p>
-      <h1>共享结果当前不可用</h1>
-      <p>该链接可能无效、已撤销或已过期。</p>
-      {inFlight ? (
-        <div className="route-loading" role="status">
-          <Spinner aria-hidden="true" />
-          <span>正在载入共享结果</span>
-        </div>
-      ) : null}
-      <div className="action-row">
-        <Button variant="secondary" onClick={onRetry} disabled={inFlight}>
-          重试
-        </Button>
-        <Link href="/workspace">返回工作台</Link>
-      </div>
+      <Empty className="public-share-boundary__empty border-0 bg-transparent">
+        <EmptyHeader>
+          <p className="public-share-page__brand">星文智析 · 只读共享</p>
+          <EmptyMedia variant="icon">
+            {inFlight ? (
+              <Spinner aria-hidden="true" />
+            ) : (
+              <CircleSlash2 aria-hidden="true" />
+            )}
+          </EmptyMedia>
+          <EmptyTitle>
+            {inFlight ? "正在载入共享结果" : "共享结果当前不可用"}
+          </EmptyTitle>
+          <EmptyDescription>
+            {inFlight
+              ? "正在核验只读链接及其冻结版本。"
+              : "该链接可能无效、已撤销或已过期。原研究结果不会因此受到影响。"}
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Button variant="primary" onClick={onRetry} disabled={inFlight}>
+              重试
+            </Button>
+            <a
+              href="/workspace"
+              className={buttonClassName({ variant: "secondary" })}
+            >
+              返回工作台
+            </a>
+          </div>
+        </EmptyContent>
+      </Empty>
     </main>
   );
 }
@@ -146,6 +175,8 @@ export function PublicShareView({
   const renderer = selectedVersion
     ? resolveArtifactRenderer(selectedVersion.kind)
     : null;
+  const showSelectedResultHeader =
+    orderedVersions.length > 1 || snapshot.title !== selectedVersion?.title;
 
   const copyShareLink = async () => {
     try {
@@ -181,7 +212,11 @@ export function PublicShareView({
               {formatDate(snapshot.expiresAt)}
             </p>
           </div>
-          <Button variant="secondary" onClick={() => void copyShareLink()}>
+          <Button
+            variant="secondary"
+            className="shrink-0 whitespace-nowrap"
+            onClick={() => void copyShareLink()}
+          >
             <Share2 aria-hidden="true" />
             复制链接
           </Button>
@@ -227,6 +262,35 @@ export function PublicShareView({
             </nav>
           ) : null}
           <section className="public-share-result" aria-label="共享科研结果">
+            {renderer.capability === "supported" &&
+            selectedVersion.kind === "dataset" &&
+            onDownloadDatasetCsv ? (
+              <div
+                className="public-share-result__header"
+                data-mode={showSelectedResultHeader ? "actions" : "summary"}
+              >
+                {!showSelectedResultHeader ? (
+                  <div>
+                    <p>共享数据集</p>
+                    <h2>数据概览</h2>
+                  </div>
+                ) : null}
+                <div className="public-share-result__toolbar">
+                  <Button
+                    size="small"
+                    variant="secondary"
+                    disabled={downloadState === "pending"}
+                    onClick={() => void downloadDatasetCsv()}
+                  >
+                    <Download data-icon="inline-start" aria-hidden="true" />
+                    {downloadState === "pending" ? "正在下载" : "下载 CSV"}
+                  </Button>
+                  {downloadState === "error" ? (
+                    <p role="alert">下载失败，请重试。</p>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
             {renderer.capability === "unsupported" ? (
               <UnsupportedArtifactPresentation descriptor={renderer} />
             ) : (
@@ -234,30 +298,13 @@ export function PublicShareView({
                 title={selectedVersion.title}
                 presentation={selectedVersion.presentation}
                 surface="fullscreen"
+                showHeader={showSelectedResultHeader}
                 onSelectEvidence={setSelectedEvidenceId}
                 evidenceOrdinal={(evidenceId) =>
                   evidenceOrdinals.get(evidenceId) ?? null
                 }
               />
             )}
-            {renderer.capability === "supported" &&
-            selectedVersion.kind === "dataset" &&
-            onDownloadDatasetCsv ? (
-              <div className="public-share-export">
-                <Button
-                  size="small"
-                  variant="secondary"
-                  disabled={downloadState === "pending"}
-                  onClick={() => void downloadDatasetCsv()}
-                >
-                  <Download aria-hidden="true" />
-                  {downloadState === "pending" ? "正在下载" : "下载 CSV"}
-                </Button>
-                {downloadState === "error" ? (
-                  <p role="alert">下载失败，请重试。</p>
-                ) : null}
-              </div>
-            ) : null}
             {selectedVersion.evidenceIds.length > 0 ? (
               <section
                 className="public-share-evidence-links"
@@ -278,6 +325,7 @@ export function PublicShareView({
                         variant="secondary"
                         onClick={() => setSelectedEvidenceId(evidenceId)}
                       >
+                        <Quote data-icon="inline-start" aria-hidden="true" />
                         查看证据 {number}
                       </Button>
                     );

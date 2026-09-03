@@ -838,6 +838,114 @@ def test_persistent_executor_records_adapter_failure_after_begin_transaction(
     assert current.steps[0].attempts[0].retryable is True
 
 
+def test_executor_renews_long_step_lease_and_persists_failure(
+    postgres_engine: Engine,
+) -> None:
+    store, snapshot = _create_run(postgres_engine)
+    lease = store.acquire_lease(
+        snapshot.id,
+        owner="long-step-executor",
+        lease_duration=timedelta(seconds=1),
+        expected_status="queued",
+        expected_revision=snapshot.revision,
+    )
+    executor = PersistentWorkflowExecutor(store, lease_duration=timedelta(seconds=1))
+
+    async def runner(_: object) -> object:
+        await asyncio.sleep(1.5)
+        raise ValueError("invalid scientific result")
+
+    async def commit_success(*_: object) -> object:
+        raise AssertionError("failed result cannot publish")
+
+    with pytest.raises(PersistentWorkflowExecutionError):
+        asyncio.run(
+            executor.execute_step(
+                run_id=snapshot.id,
+                step_key="planning",
+                attempt_idempotency_key="long-step",
+                lease=lease,
+                expected_status="queued",
+                expected_revision=lease.revision,
+                public_message="Planning",
+                runner=runner,
+                commit_success=commit_success,
+                classify_failure=lambda _: FailureDecision(
+                    error_code="SCIENTIFIC_RESULT_INVALID",
+                    public_message="Scientific result could not be validated",
+                    retryable=False,
+                ),
+            )
+        )
+
+    current = store.load_snapshot(snapshot.id)
+    assert current.status == "failed"
+    assert current.steps[0].attempts[0].status == "failed"
+    assert current.steps[0].failure_code == "SCIENTIFIC_RESULT_INVALID"
+
+
+def test_executor_stops_after_cancellation_without_publishing_late_results(
+    postgres_engine: Engine,
+) -> None:
+    store, snapshot = _create_run(postgres_engine)
+    lease = store.acquire_lease(
+        snapshot.id,
+        owner="cancelled-step-executor",
+        lease_duration=timedelta(seconds=1),
+        expected_status="queued",
+        expected_revision=snapshot.revision,
+    )
+    executor = PersistentWorkflowExecutor(store, lease_duration=timedelta(seconds=1))
+
+    async def exercise() -> None:
+        started = asyncio.Event()
+        stopped = asyncio.Event()
+
+        async def runner(_: object) -> object:
+            started.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                stopped.set()
+
+        async def commit_success(*_: object) -> object:
+            raise AssertionError("cancelled executor cannot publish")
+
+        task = asyncio.create_task(
+            executor.execute_step(
+                run_id=snapshot.id,
+                step_key="planning",
+                attempt_idempotency_key="cancelled-long-step",
+                lease=lease,
+                expected_status="queued",
+                expected_revision=lease.revision,
+                public_message="Planning",
+                runner=runner,
+                commit_success=commit_success,
+                classify_failure=lambda _: FailureDecision(
+                    error_code="STEP_FAILED",
+                    public_message="Step failed",
+                    retryable=False,
+                ),
+            )
+        )
+        await asyncio.wait_for(started.wait(), timeout=3)
+        current = store.load_snapshot(snapshot.id)
+        store.cancel_run(
+            snapshot.id,
+            expected_status=current.status,
+            expected_revision=current.revision,
+        )
+        with pytest.raises(PersistentWorkflowExecutionError):
+            await asyncio.wait_for(task, timeout=3)
+        assert stopped.is_set()
+
+    asyncio.run(exercise())
+    current = store.load_snapshot(snapshot.id)
+    assert current.status == "cancelled"
+    assert current.steps[0].attempts[0].status == "cancelled"
+
+
 def test_failed_run_rejects_late_results_and_snapshot_cursor_recovers(
     postgres_engine: Engine,
 ) -> None:

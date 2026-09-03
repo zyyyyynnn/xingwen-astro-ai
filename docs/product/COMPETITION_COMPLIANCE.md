@@ -20,7 +20,7 @@ confirmed Contract
 
 ## 2. 合格模型
 
-参赛主案例的合格模型必须是 Qwen，并通过 Alibaba Cloud Model Studio / Bailian 或比赛官网明确认可的路径调用。提交证据不得使用浮动 latest。
+参赛主案例的合格模型必须是 Qwen，并通过 Alibaba Cloud Model Studio / Bailian 或比赛官网明确认可的路径调用。模型由服务端运行环境显式选择，记录 requested model 与 provider 返回的真实模型身份。显式 revision 可选，提供时与声明的模型身份一致；浮动别名的 revision 为 null，其可复现边界以当次调用事实为准。
 
 合格调用必须能够复核：provider 与官方接入路径、model name/version/revision、Prompt name/version/hash、Contract/input hash、参数、调用时间与运行环境、脱敏 request/call proof、response/output hash、Schema/Evidence admission、ProducerExecution 与最终 ArtifactVersion。
 
@@ -63,4 +63,4 @@ Live、Cached、Recorded、Fixture、Benchmark 与 Revision 必须清楚区分�
 - 可复现命令与稳定入口；
 - secrets、私有 reasoning 与个人数据的脱敏说明。
 
-无法复核 provider/model/revision/call proof 或无法回到 Evidence/provenance 的结论必须标为未证实，不能进入完成性宣传。
+无法复核 provider、实际模型身份、调用证明或无法回到 Evidence/provenance 的结论必须标为未证实，不能进入完成性宣传。只有实际声明并核对过的 revision 才进入提交证据。

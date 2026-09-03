@@ -246,6 +246,7 @@ export interface ArtifactVersionMetadataViewModel {
   readonly createdAt: UtcIsoTimestamp;
   readonly provenance: ArtifactVersionProvenanceViewModel;
   readonly presentation: PublicArtifactPresentation;
+  readonly evidence?: readonly EvidenceViewModel[];
 }
 
 export interface DatabaseCellLocatorViewModel {

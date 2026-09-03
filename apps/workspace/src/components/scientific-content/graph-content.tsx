@@ -6,6 +6,8 @@ import {
   MarkerType,
   Position,
   ReactFlow,
+  useReactFlow,
+  useStore,
   type Edge,
   type Node,
   type NodeProps,
@@ -19,10 +21,12 @@ import type {
 import { workspaceGraphGeometry } from "@xingwen/design-tokens";
 import type { GraphArtifactReviewViewModel } from "@xingwen/research-adapter";
 import {
+  Badge,
   Button,
   Input,
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -32,7 +36,7 @@ import {
   TabsTrigger,
 } from "@xingwen/ui";
 import { Quote, Target } from "@xingwen/ui/icons";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import {
   comparabilityLabel,
@@ -46,6 +50,17 @@ import "@xyflow/react/dist/style.css";
 
 const INITIAL_NODE_BUDGET = 60;
 const NODE_BUDGET_INCREMENT = 60;
+const OVERVIEW_FIT_OPTIONS = { padding: 0.08, maxZoom: 1.25 };
+
+function GraphCanvasFit() {
+  const { fitView } = useReactFlow();
+  const width = useStore((state) => state.width);
+  const height = useStore((state) => state.height);
+  useEffect(() => {
+    if (width > 0 && height > 0) void fitView(OVERVIEW_FIT_OPTIONS);
+  }, [fitView, height, width]);
+  return null;
+}
 
 interface ResolvedGraphGeometry {
   readonly nodeInlineSize: number;
@@ -164,7 +179,7 @@ function ScientificNode({ data, selected }: NodeProps<ScientificGraphNode>) {
     >
       <Handle type="target" position={Position.Left} />
       <span>{data.typeLabel}</span>
-      <strong>{data.label}</strong>
+      <strong title={data.label}>{data.label}</strong>
       <Handle type="source" position={Position.Right} />
     </div>
   );
@@ -184,6 +199,7 @@ function layoutElements(
   graph.setGraph({
     rankdir: "LR",
     nodesep: geometry.nodeSeparation,
+    edgesep: geometry.nodeSeparation,
     ranksep: geometry.rankSeparation,
   });
   for (const node of nodes) {
@@ -270,12 +286,14 @@ function GraphFilters({
           <SelectValue placeholder="全部对象类别" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">全部对象类别</SelectItem>
-          {availableNodeTypes.map((value) => (
-            <SelectItem key={value} value={value}>
-              {taxonomyLabel(value)}
-            </SelectItem>
-          ))}
+          <SelectGroup>
+            <SelectItem value="all">全部对象类别</SelectItem>
+            {availableNodeTypes.map((value) => (
+              <SelectItem key={value} value={value}>
+                {taxonomyLabel(value)}
+              </SelectItem>
+            ))}
+          </SelectGroup>
         </SelectContent>
       </Select>
       <Select value={edgeType} onValueChange={onEdgeTypeChange}>
@@ -283,12 +301,14 @@ function GraphFilters({
           <SelectValue placeholder="全部关系类别" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">全部关系类别</SelectItem>
-          {availableEdgeTypes.map((value) => (
-            <SelectItem key={value} value={value}>
-              {taxonomyLabel(value)}
-            </SelectItem>
-          ))}
+          <SelectGroup>
+            <SelectItem value="all">全部关系类别</SelectItem>
+            {availableEdgeTypes.map((value) => (
+              <SelectItem key={value} value={value}>
+                {taxonomyLabel(value)}
+              </SelectItem>
+            ))}
+          </SelectGroup>
         </SelectContent>
       </Select>
     </div>
@@ -340,6 +360,17 @@ function EdgeDetails({
             <div>
               <dt>成立条件</dt>
               <dd>{relation.conditions.join("；")}</dd>
+            </div>
+          ) : null}
+          {relation.adjudication ? (
+            <div>
+              <dt>人工审定</dt>
+              <dd>
+                {relation.adjudication.decision === "accepted"
+                  ? "已接受"
+                  : "已拒绝"}
+                ：{relation.adjudication.basis.join("；")}
+              </dd>
             </div>
           ) : null}
           {trace ? (
@@ -398,7 +429,6 @@ function EdgeDetails({
 export function GraphContent({
   review,
   presentation,
-  title,
   surface,
   onSelectEvidence,
 }: {
@@ -469,6 +499,14 @@ export function GraphContent({
     presentableEdges.find((edge) => edge.edgeId === selectedEdgeId) ?? null;
   const selectedNode =
     review.nodes.find((node) => node.nodeId === selectedNodeId) ?? null;
+  const selectedNodeConnectionCount = selectedNode
+    ? presentableEdges.filter(
+        (edge) =>
+          edge.sourceNodeId === selectedNode.nodeId ||
+          edge.targetNodeId === selectedNode.nodeId,
+      ).length
+    : 0;
+  const hasSelection = selectedEdge !== null || selectedNode !== null;
   const hiddenUnsafeEdgeCount = review.edges.length - presentableEdges.length;
   const visibleNodeKeys = new Set(
     visibleNodes.map((node) => String(node.nodeId)),
@@ -483,16 +521,22 @@ export function GraphContent({
     visibleEdgeKeys.has(edge.key),
   );
 
+  const selectedCanvasNodes = useMemo(
+    () =>
+      selectedEdge
+        ? [selectedEdge.sourceNodeId, selectedEdge.targetNodeId]
+            .filter((value): value is DomainEntityId => value !== null)
+            .map((id) => ({ id }))
+        : selectedNode
+          ? [{ id: selectedNode.nodeId }]
+          : [],
+    [selectedEdge, selectedNode],
+  );
+
   const focusSelection = () => {
-    const id = selectedEdgeId ?? selectedNodeId;
-    if (!instance || !id) return;
-    const nodes = selectedEdge
-      ? [selectedEdge.sourceNodeId, selectedEdge.targetNodeId]
-          .filter((value): value is DomainEntityId => value !== null)
-          .map((nodeId) => ({ id: nodeId }))
-      : [{ id }];
+    if (!instance || selectedCanvasNodes.length === 0) return;
     void instance.fitView({
-      nodes,
+      nodes: selectedCanvasNodes,
       padding: graphGeometry?.focusPadding ?? 0,
     });
   };
@@ -508,127 +552,183 @@ export function GraphContent({
         aria-hidden="true"
       />
       <ScientificContentHeader
-        title={title}
-        subtitle={`可核验证据关系，${presentableEdges.length} 条`}
+        title="证据关系网络"
+        subtitle="选择研究对象或关系，核验公开推导与来源证据。"
       />
-      {hiddenUnsafeEdgeCount > 0 ? (
-        <p className="graph-workspace__notice">
-          有 {hiddenUnsafeEdgeCount} 条关系因证据或公开推导不完整而未显示。
-        </p>
-      ) : null}
-      <GraphFilters
-        query={query}
-        onQueryChange={setQuery}
-        nodeType={nodeType}
-        onNodeTypeChange={setNodeType}
-        edgeType={edgeType}
-        onEdgeTypeChange={setEdgeType}
-        nodeTypes={unique(review.nodes.map((node) => node.nodeType)).sort()}
-        edgeTypes={unique(presentableEdges.map((edge) => edge.edgeType)).sort()}
-      />
+      <div className="graph-workspace__summary" aria-label="图谱摘要">
+        <span>{review.nodes.length} 个研究对象</span>
+        <span>{presentableEdges.length} 条公开关系</span>
+        <span>
+          {review.integrity.findings.length === 0
+            ? "完整性校验通过"
+            : `${review.integrity.findings.length} 项完整性提示`}
+        </span>
+        {hiddenUnsafeEdgeCount > 0 ? (
+          <span className="graph-workspace__notice">
+            {hiddenUnsafeEdgeCount} 条关系因证据或公开推导不完整而隐藏
+          </span>
+        ) : null}
+      </div>
       <Tabs defaultValue="canvas" className="graph-workspace">
         <div className="graph-workspace__toolbar">
           <TabsList aria-label="关系图展示方式">
             <TabsTrigger value="canvas">关系图</TabsTrigger>
             <TabsTrigger value="list">列表</TabsTrigger>
           </TabsList>
-          {selectedEdgeId || selectedNodeId ? (
-            <Button size="small" variant="ghost" onClick={focusSelection}>
-              <Target aria-hidden="true" />
+          <GraphFilters
+            query={query}
+            onQueryChange={setQuery}
+            nodeType={nodeType}
+            onNodeTypeChange={setNodeType}
+            edgeType={edgeType}
+            onEdgeTypeChange={setEdgeType}
+            nodeTypes={unique(review.nodes.map((node) => node.nodeType)).sort()}
+            edgeTypes={unique(
+              presentableEdges.map((edge) => edge.edgeType),
+            ).sort()}
+          />
+          {hasSelection ? (
+            <Button size="small" variant="secondary" onClick={focusSelection}>
+              <Target data-icon="inline-start" aria-hidden="true" />
               聚焦选择
             </Button>
           ) : null}
         </div>
         <TabsContent value="canvas" className="graph-workspace__canvas-panel">
-          {graphGeometry === null ? (
-            <p className="graph-workspace__empty" aria-busy="true">
-              正在适配关系图布局…
-            </p>
-          ) : elements.nodes.length > 0 ? (
-            <ReactFlow<ScientificGraphNode, ScientificGraphEdge>
-              nodes={elements.nodes.map((node) => ({
-                ...node,
-                selected: node.id === selectedNodeId,
-              }))}
-              edges={elements.edges.map((edge) => ({
-                ...edge,
-                selected: edge.id === selectedEdgeId,
-              }))}
-              nodeTypes={nodeTypes}
-              onInit={setInstance}
-              onNodeClick={(_event, node) => {
-                setSelectedNodeId(node.id as DomainEntityId);
-                setSelectedEdgeId(null);
-              }}
-              onEdgeClick={(_event, edge) => {
-                setSelectedEdgeId(edge.id as DomainEntityId);
-                setSelectedNodeId(null);
-              }}
-              onNodesChange={(changes) => {
-                const selection = changes.find(
-                  (change) => change.type === "select" && change.selected,
-                );
-                if (selection?.type === "select") {
-                  setSelectedNodeId(selection.id as DomainEntityId);
-                  setSelectedEdgeId(null);
-                } else if (
-                  changes.some(
-                    (change) =>
-                      change.type === "select" &&
-                      change.id === selectedNodeId &&
-                      !change.selected,
-                  )
-                ) {
-                  setSelectedNodeId(null);
-                }
-              }}
-              onEdgesChange={(changes) => {
-                const selection = changes.find(
-                  (change) => change.type === "select" && change.selected,
-                );
-                if (selection?.type === "select") {
-                  setSelectedEdgeId(selection.id as DomainEntityId);
-                  setSelectedNodeId(null);
-                } else if (
-                  changes.some(
-                    (change) =>
-                      change.type === "select" &&
-                      change.id === selectedEdgeId &&
-                      !change.selected,
-                  )
-                ) {
-                  setSelectedEdgeId(null);
-                }
-              }}
-              onPaneClick={() => {
-                setSelectedNodeId(null);
-                setSelectedEdgeId(null);
-              }}
-              nodesDraggable={false}
-              nodesConnectable={false}
-              elementsSelectable
-              nodesFocusable
-              edgesFocusable
-              disableKeyboardA11y={false}
-              deleteKeyCode={null}
-              fitView
-              aria-label="可交互科学关系图"
-              ariaLabelConfig={{
-                "node.a11yDescription.default":
-                  "按回车或空格选择研究对象，按 Escape 取消选择。",
-                "edge.a11yDescription.default":
-                  "按回车或空格选择关系，按 Escape 取消选择。",
-                "controls.ariaLabel": "关系图视图控制",
-              }}
-            >
-              <Background />
-              <Controls showInteractive={false} />
-            </ReactFlow>
-          ) : (
-            <p className="graph-workspace__empty">
-              当前筛选下没有可展示的研究对象。
-            </p>
-          )}
+          <div
+            className="graph-workspace__canvas-inspector-split"
+            data-has-selection={hasSelection || undefined}
+          >
+            <div className="graph-workspace__canvas-holder">
+              {graphGeometry === null ? (
+                <p className="graph-workspace__empty" aria-busy="true">
+                  正在适配关系图布局…
+                </p>
+              ) : elements.nodes.length > 0 ? (
+                <ReactFlow<ScientificGraphNode, ScientificGraphEdge>
+                  nodes={elements.nodes.map((node) => ({
+                    ...node,
+                    selected: node.id === selectedNodeId,
+                  }))}
+                  edges={elements.edges.map((edge) => ({
+                    ...edge,
+                    selected: edge.id === selectedEdgeId,
+                  }))}
+                  nodeTypes={nodeTypes}
+                  onInit={setInstance}
+                  onNodeClick={(_event, node) => {
+                    setSelectedNodeId(node.id as DomainEntityId);
+                    setSelectedEdgeId(null);
+                  }}
+                  onEdgeClick={(_event, edge) => {
+                    setSelectedEdgeId(edge.id as DomainEntityId);
+                    setSelectedNodeId(null);
+                  }}
+                  onNodesChange={(changes) => {
+                    const selection = changes.find(
+                      (change) => change.type === "select" && change.selected,
+                    );
+                    if (selection?.type === "select") {
+                      setSelectedNodeId(selection.id as DomainEntityId);
+                      setSelectedEdgeId(null);
+                    } else if (
+                      changes.some(
+                        (change) =>
+                          change.type === "select" &&
+                          change.id === selectedNodeId &&
+                          !change.selected,
+                      )
+                    ) {
+                      setSelectedNodeId(null);
+                    }
+                  }}
+                  onEdgesChange={(changes) => {
+                    const selection = changes.find(
+                      (change) => change.type === "select" && change.selected,
+                    );
+                    if (selection?.type === "select") {
+                      setSelectedEdgeId(selection.id as DomainEntityId);
+                      setSelectedNodeId(null);
+                    } else if (
+                      changes.some(
+                        (change) =>
+                          change.type === "select" &&
+                          change.id === selectedEdgeId &&
+                          !change.selected,
+                      )
+                    ) {
+                      setSelectedEdgeId(null);
+                    }
+                  }}
+                  onPaneClick={() => {
+                    setSelectedNodeId(null);
+                    setSelectedEdgeId(null);
+                  }}
+                  nodesDraggable={false}
+                  nodesConnectable={false}
+                  elementsSelectable
+                  nodesFocusable
+                  edgesFocusable
+                  disableKeyboardA11y={false}
+                  deleteKeyCode={null}
+                  fitView
+                  fitViewOptions={OVERVIEW_FIT_OPTIONS}
+                  aria-label="可交互科学关系图"
+                  ariaLabelConfig={{
+                    "node.a11yDescription.default":
+                      "按回车或空格选择研究对象，按 Escape 取消选择。",
+                    "edge.a11yDescription.default":
+                      "按回车或空格选择关系，按 Escape 取消选择。",
+                    "controls.ariaLabel": "关系图视图控制",
+                  }}
+                >
+                  <GraphCanvasFit />
+                  <Background />
+                  <Controls showInteractive={false} />
+                </ReactFlow>
+              ) : (
+                <p className="graph-workspace__empty">
+                  当前筛选下没有可展示的研究对象。
+                </p>
+              )}
+            </div>
+            {hasSelection ? (
+              <div className="graph-workspace__side-inspector">
+                {selectedEdge ? (
+                  <EdgeDetails
+                    edge={selectedEdge}
+                    nodeLabelById={nodeLabelById}
+                    onSelectEvidence={onSelectEvidence}
+                  />
+                ) : selectedNode ? (
+                  <aside
+                    className="graph-workspace__selection"
+                    aria-live="polite"
+                  >
+                    <header>
+                      <Badge variant="secondary">
+                        {taxonomyLabel(selectedNode.nodeType)}
+                      </Badge>
+                      <h4>{selectedNode.label || "未命名研究对象"}</h4>
+                    </header>
+                    <dl>
+                      <div>
+                        <dt>可核验关系</dt>
+                        <dd>{selectedNodeConnectionCount} 条</dd>
+                      </div>
+                      <div>
+                        <dt>冻结结果版本</dt>
+                        <dd>{selectedNode.versionBindings.length} 个</dd>
+                      </div>
+                    </dl>
+                    <p>
+                      选择与此对象连接的关系，可继续查看公开推导与来源证据。
+                    </p>
+                  </aside>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         </TabsContent>
         <TabsContent value="list">
           {presentationEdges.length > 0 ? (
@@ -656,21 +756,6 @@ export function GraphContent({
         >
           显示更多研究对象
         </Button>
-      ) : null}
-      {selectedEdge ? (
-        <EdgeDetails
-          edge={selectedEdge}
-          nodeLabelById={nodeLabelById}
-          onSelectEvidence={onSelectEvidence}
-        />
-      ) : selectedNode ? (
-        <aside className="graph-workspace__selection" aria-live="polite">
-          <header>
-            <p>{taxonomyLabel(selectedNode.nodeType)}</p>
-            <h4>{selectedNode.label || "未命名研究对象"}</h4>
-          </header>
-          <p>选择与此对象连接的关系，可继续查看公开推导与来源证据。</p>
-        </aside>
       ) : null}
     </article>
   );

@@ -294,7 +294,6 @@ def test_share_freeze_private_list_redaction_and_revoke(
         json={
             "title": "Real Compose and Browser Integration gap share",
             "artifact_version_ids": [version_id],
-            "evidence_ids": list(evidence_ids),
             "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
             "redaction_policy": "redacted_public_snapshot",
         },

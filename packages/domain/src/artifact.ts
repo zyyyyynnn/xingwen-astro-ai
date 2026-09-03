@@ -8,6 +8,7 @@
  */
 
 import type { ArtifactKind, SourceMode } from "./enums";
+import type { Evidence } from "./evidence";
 import type { DomainEntityId } from "./identifiers";
 import type { PublicArtifactPresentation } from "./share-snapshot";
 import type {
@@ -91,6 +92,8 @@ export interface ArtifactVersionMetadata extends ArtifactVersionSummary {
   readonly producer: ProducerReference;
   readonly sourceSnapshotIds: readonly DomainEntityId[];
   readonly evidenceIds: readonly DomainEntityId[];
+  /** Immutable Evidence embedded by the ArtifactVersion detail read. */
+  readonly evidence?: readonly Evidence[];
   /** Canonical positive-contract presentation shared by private and public UI. */
   readonly presentation: PublicArtifactPresentation;
 }

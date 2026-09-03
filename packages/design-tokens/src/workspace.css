@@ -17,25 +17,63 @@
   --workspace-sidebar-row-block-size: var(--control-size-md);
 
   --workspace-content-max-inline-size: 44rem;
+  --workspace-route-content-max-inline-size: 42rem;
+  --workspace-empty-max-inline-size: 26rem;
+  --workspace-entry-starter-block-size: 5.25rem;
+  --workspace-loading-skeleton-block-size: 5.5rem;
+  --workspace-context-empty-block-size: 22rem;
+  --workspace-panel-empty-block-size: 16rem;
+  --workspace-result-skeleton-block-size: 8rem;
   --workspace-min-inline-size: 1024px;
+
+  /* Research Contract and reading-dialog geometry. */
+  --workspace-contract-form-max-inline-size: 48rem;
+  --workspace-contract-popover-inline-size: 31rem;
+  --workspace-contract-dialog-inline-size: 54rem;
+  --workspace-contract-editor-inline-size: 60rem;
+  --workspace-contract-editor-block-size: 44rem;
+  --workspace-contract-dialog-max-block-size: 46rem;
+  --workspace-paper-dialog-inline-size: 56rem;
+  --workspace-paper-dialog-block-size: 52rem;
+  --workspace-paper-content-max-inline-size: 52rem;
+  --workspace-inspector-content-max-block-size: 20rem;
+  --workspace-inspector-protocol-max-block-size: 12rem;
+  --workspace-status-indicator-size: var(--space-2);
+  --workspace-metadata-label-inline-size: 5rem;
+  --workspace-evidence-label-inline-size: 3rem;
+  --workspace-repair-label-inline-size: 6rem;
 
   /* Scientific result workspace geometry. */
   --workspace-result-reading-max-inline-size: 72ch;
+  --workspace-chat-message-max-inline-size: min(
+    var(--workspace-result-reading-max-inline-size),
+    88%
+  );
+  --workspace-result-wide-max-inline-size: 76rem;
   --workspace-result-graph-block-size: min(42rem, 66dvh);
   --workspace-result-inspector-inline-size: 22rem;
   --workspace-result-navigation-inline-size: 14rem;
-  --workspace-result-sheet-inline-size: min(32rem, 92vw);
+  --workspace-result-sheet-inline-size: min(24rem, 85vw);
+  --workspace-result-sheet-narrow-inline-size: min(20rem, 92vw);
   --workspace-result-public-max-inline-size: 72rem;
   --workspace-result-node-inline-size: 14rem;
-  --workspace-result-node-block-size: 4.5rem;
-  --workspace-result-node-separation: 3rem;
+  --workspace-result-node-block-size: 4rem;
+  --workspace-result-node-separation: 0.5rem;
   --workspace-result-rank-separation: 6rem;
   --workspace-result-graph-focus-padding: 0.24;
   --workspace-result-code-max-block-size: 20rem;
   --workspace-result-table-max-block-size: 26rem;
   --workspace-result-chart-min-block-size: 22rem;
   --workspace-result-sky-min-block-size: 28rem;
+  --workspace-result-pdf-loading-block-size: 60dvh;
   --workspace-result-control-inline-size: 12rem;
+  --workspace-result-settings-popover-inline-size: 22rem;
+  --workspace-result-header-title-max-inline-size: 32rem;
+  --workspace-result-rejected-opacity: 0.7;
+  --workspace-result-table-identity-inline-size: 10rem;
+  --workspace-result-table-numeric-inline-size: 7rem;
+  --workspace-result-table-descriptive-inline-size: 12rem;
+  --workspace-layer-sticky: 1;
 
   --workspace-composer-max-block-size: 15rem;
   --workspace-composer-input-min-block-size: 1.25rem;
@@ -71,10 +109,12 @@
   --workspace-command-menu-max-inline-size: 36rem;
   --workspace-provider-dialog-max-inline-size: 36rem;
   --workspace-provider-dialog-max-block-size: calc(100dvh - var(--space-8));
+  --workspace-provider-summary-label-inline-size: 5rem;
   --workspace-provider-status-indicator-size: 0.5rem;
   --workspace-command-menu-max-block-size: 70vh;
   --workspace-command-menu-viewport-offset: 12vh;
   --workspace-tab-overflow-min-inline-size: 8rem;
+  --workspace-pending-opacity: 0.7;
   --workspace-motion-panel: var(--motion-panel);
   --workspace-ease-panel: var(--ease-panel);
   --workspace-motion-navigation: var(--motion-fast);

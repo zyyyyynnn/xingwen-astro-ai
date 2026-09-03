@@ -23,14 +23,20 @@ def test_development_allows_local_defaults() -> None:
     assert not re.fullmatch(settings.cors_origin_regex, "https://example.test")
 
 
-def test_dashscope_credentials_use_the_platform_environment_name() -> None:
+def test_dashscope_credentials_use_the_platform_environment_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DASHSCOPE_MODEL", raising=False)
+    monkeypatch.delenv("DASHSCOPE_EXPLICIT_MODEL_REVISION", raising=False)
     settings = Settings(_env_file=None, DASHSCOPE_API_KEY="test-key")
 
     assert settings.DASHSCOPE_API_KEY is not None
     assert settings.DASHSCOPE_API_KEY.get_secret_value() == "test-key"
-    assert settings.DASHSCOPE_MODEL == "qwen3.8-max"
+    assert settings.DASHSCOPE_MODEL == ""
+    assert settings.research_assistant_ready is False
     assert settings.DASHSCOPE_EXPLICIT_MODEL_REVISION is None
-    assert settings.DASHSCOPE_MAX_RETRIES == 2
+    assert settings.DASHSCOPE_TIMEOUT_SECONDS == 300.0
+    assert settings.DASHSCOPE_MAX_RETRIES == 0
     assert settings.MODEL_EXECUTION_LEASE_GRACE_SECONDS == 30.0
 
 
@@ -45,10 +51,37 @@ def test_dashscope_retry_budget_is_bounded() -> None:
         Settings(_env_file=None, DASHSCOPE_MAX_RETRIES=5)
 
 
-def test_dashscope_model_is_not_limited_to_repository_test_baselines() -> None:
-    settings = Settings(_env_file=None, DASHSCOPE_MODEL="qwen-plus")
+@pytest.mark.parametrize(
+    ("key", "model", "ready"),
+    [("test-key", "", False), ("test-key", "  ", False),
+     (None, "runtime-model", False), ("test-key", " runtime-model ", True)],
+)
+def test_research_assistant_requires_credentials_and_runtime_model(
+    key: str | None, model: str, ready: bool,
+) -> None:
+    settings = Settings(
+        _env_file=None, DASHSCOPE_API_KEY=key, DASHSCOPE_MODEL=model,
+        DASHSCOPE_EXPLICIT_MODEL_REVISION=None,
+    )
+    assert settings.research_assistant_ready is ready
+    assert settings.DASHSCOPE_MODEL == model.strip()
 
-    assert settings.DASHSCOPE_MODEL == "qwen-plus"
+
+@pytest.mark.parametrize("revision", [None, "runtime-model"])
+def test_runtime_model_accepts_optional_matching_revision(revision: str | None) -> None:
+    settings = Settings(
+        _env_file=None, DASHSCOPE_MODEL="runtime-model",
+        DASHSCOPE_EXPLICIT_MODEL_REVISION=revision,
+    )
+    assert settings.DASHSCOPE_EXPLICIT_MODEL_REVISION == revision
+
+
+def test_runtime_model_rejects_mismatched_revision() -> None:
+    with pytest.raises(ValidationError, match="must equal"):
+        Settings(
+            _env_file=None, DASHSCOPE_MODEL="runtime-model",
+            DASHSCOPE_EXPLICIT_MODEL_REVISION="different-model",
+        )
 
 
 def test_paddleocr_remote_and_local_backends_are_mutually_exclusive() -> None:
@@ -58,6 +91,15 @@ def test_paddleocr_remote_and_local_backends_are_mutually_exclusive() -> None:
             PADDLEOCR_VL_BASE_URL="http://127.0.0.1:9000",
             PADDLEOCR_VL_MODEL_REVISION="paddle-revision",
             PADDLEOCR_VL_LOCAL_BUNDLE="E:/models/paddleocr-vl",
+        )
+
+
+def test_visual_page_budget_cannot_exceed_document_page_budget() -> None:
+    with pytest.raises(ValidationError, match="must not exceed"):
+        Settings(
+            _env_file=None,
+            DOCUMENT_PARSE_MAX_PAGES=2,
+            DOCUMENT_PARSE_MAX_VISUAL_PAGES=3,
         )
 
 
@@ -94,6 +136,49 @@ def test_production_rejects_local_defaults_and_wildcard_cors() -> None:
     assert "DATABASE_URL must not use the local default credentials" in message
     assert "POSTGRES_PASSWORD must not use the local default" in message
     assert "CORS_ORIGINS must not contain '*'" in message
+
+
+@pytest.mark.parametrize(
+    ("cors_origins", "expected_error"),
+    (
+        ("", "CORS_ORIGINS must not be empty"),
+        ("http://astro.example", "CORS_ORIGINS must use explicit HTTPS origins"),
+        ("https://localhost", "CORS_ORIGINS must not use loopback hosts"),
+    ),
+)
+def test_production_rejects_insecure_cors_origins(
+    cors_origins: str, expected_error: str
+) -> None:
+    with pytest.raises(ValidationError, match=expected_error):
+        Settings(
+            _env_file=None,
+            APP_ENV="production",
+            DEBUG=False,
+            DATABASE_URL="postgresql+psycopg://app:secret@db.example/xingwen",
+            CORS_ORIGINS=cors_origins,
+            SESSION_COOKIE_SECURE=True,
+            CURSOR_SIGNING_KEY="production-cursor-signing-key-with-high-entropy",
+        )
+
+
+def test_production_rejects_insecure_remote_model_backends() -> None:
+    with pytest.raises(ValidationError) as captured:
+        Settings(
+            _env_file=None,
+            APP_ENV="production",
+            DEBUG=False,
+            DATABASE_URL="postgresql+psycopg://app:secret@db.example/xingwen",
+            CORS_ORIGINS="https://astro.example",
+            SESSION_COOKIE_SECURE=True,
+            CURSOR_SIGNING_KEY="production-cursor-signing-key-with-high-entropy",
+            DASHSCOPE_BASE_URL="http://dashscope.example/v1",
+            PADDLEOCR_VL_BASE_URL="http://paddle.example",
+            PADDLEOCR_VL_MODEL_REVISION="paddle-revision",
+        )
+
+    message = str(captured.value)
+    assert "DASHSCOPE_BASE_URL must use HTTPS in production" in message
+    assert "PADDLEOCR_VL_BASE_URL must use HTTPS in production" in message
 
 
 def test_production_requires_database_url() -> None:

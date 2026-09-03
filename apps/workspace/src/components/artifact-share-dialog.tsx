@@ -11,10 +11,14 @@ import {
   DialogHeader,
   DialogTitle,
   Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
   FieldLabel,
   Input,
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -40,7 +44,6 @@ export function ArtifactShareDialog({
   projectId,
   artifactVersionId,
   artifactTitle,
-  evidenceIds,
   open,
   onOpenChange,
 }: {
@@ -48,7 +51,6 @@ export function ArtifactShareDialog({
   readonly projectId: DomainEntityId;
   readonly artifactVersionId: DomainEntityId;
   readonly artifactTitle: string;
-  readonly evidenceIds: readonly DomainEntityId[];
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
 }) {
@@ -78,7 +80,6 @@ export function ArtifactShareDialog({
         request: {
           title: artifactTitle,
           artifactVersionIds: [artifactVersionId],
-          evidenceIds: [...new Set(evidenceIds)],
           expiresAt,
           redactionPolicy: "redacted_public_snapshot",
         },
@@ -112,43 +113,55 @@ export function ArtifactShareDialog({
         {shareUrl ? (
           <Field>
             <FieldLabel htmlFor="artifact-share-url">分享链接</FieldLabel>
-            <div className="flex gap-2">
+            <FieldContent className="flex-row gap-2">
               <Input
                 id="artifact-share-url"
                 value={shareUrl}
                 readOnly
                 onFocus={(event) => event.currentTarget.select()}
+                className="min-w-0 flex-1"
               />
-              <Button type="button" onClick={() => void copyLink()}>
+              <Button
+                type="button"
+                className="shrink-0 whitespace-nowrap"
+                onClick={() => void copyLink()}
+              >
                 复制链接
               </Button>
-            </div>
+            </FieldContent>
             {copyState === "copied" ? (
-              <p className="ui-text-label text-muted-foreground" role="status">
+              <p className="ui-text-label artifact-share__status" role="status">
                 已复制
               </p>
             ) : copyState === "failed" ? (
-              <p className="ui-text-label text-destructive" role="status">
+              <p className="ui-text-label artifact-share__error" role="status">
                 复制失败，请手动复制
               </p>
             ) : null}
           </Field>
         ) : (
-          <Field>
-            <FieldLabel htmlFor="artifact-share-expiry">有效期</FieldLabel>
-            <Select value={expiryDays} onValueChange={setExpiryDays}>
-              <SelectTrigger id="artifact-share-expiry">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {EXPIRY_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="artifact-share-expiry">有效期</FieldLabel>
+              <Select value={expiryDays} onValueChange={setExpiryDays}>
+                <SelectTrigger id="artifact-share-expiry">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {EXPIRY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              <FieldDescription>
+                到期后链接自动失效，原研究与结果版本不受影响。
+              </FieldDescription>
+            </Field>
+          </FieldGroup>
         )}
 
         {create.isError ? (

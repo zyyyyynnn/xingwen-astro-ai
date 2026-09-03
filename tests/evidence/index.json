@@ -1,0 +1,27 @@
+{
+ "scope": "xingwen live competition delivery evidence",
+ "live_project_id": "049bfd29-4736-43a2-abf5-2885123d8f19",
+ "delivery_source_commit": "a8679a66341d10cd9b578cffe81524f230a0bc20",
+ "runtime_source_commit": "2dbfdff1b24138a029e98f6d4b8489fa6771294a",
+ "base_commit": "7fd0bf30afd1f4460749e96d1a7c7a338b4dcd5c",
+ "execution_mode": "live",
+ "qwen": {
+  "provider": "DashScope / Alibaba Cloud Model Studio",
+  "route": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "model": "qwen3.8-max-0902",
+  "revision": "qwen3.8-max-0902",
+  "console_proof": [
+   "qwen-call-proof/dashscope-usage-report.png",
+   "qwen-call-proof/dashscope-invocation-log.png"
+  ],
+  "machine_execution_records": "live/runtime-2c0acb1e-0ee8-4965-a66f-b25e249f556b.json (58 model executions)"
+ },
+ "layout": {
+  "live/": "runs, contract, planning, per-run runtime projections (model + producer executions)",
+  "live/artifacts/": "typed ArtifactVersion payloads by kind, version lineage preserved; dataset cell provenance lives in dataset-provenance.json",
+  "browser/screenshots/": "live-chain desktop browser captures",
+  "failures/": "bounded external failure examples with real retry behavior",
+  "validation/": "CI, CodeQL, database state, restart recovery, session recovery, test results",
+  "qwen-call-proof/": "DashScope console usage and invocation-log captures"
+ }
+}

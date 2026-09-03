@@ -54,11 +54,34 @@ class ModelExecutionRequest:
     conversation: tuple[dict[str, Any], ...] = ()
     tools: tuple[dict[str, Any], ...] = ()
     response_mode: Literal["json", "tool"] = "json"
+    response_schema_name: str | None = None
+    response_schema: dict[str, Any] | None = None
     enable_thinking: bool = True
+
+    def __post_init__(self) -> None:
+        has_schema_name = bool(
+            self.response_schema_name and self.response_schema_name.strip()
+        )
+        has_schema = self.response_schema is not None
+        if has_schema_name != has_schema:
+            raise ValueError(
+                "response_schema_name and response_schema must be provided together"
+            )
+        if has_schema and self.response_mode != "json":
+            raise ValueError("response_schema requires json response mode")
 
     @property
     def input_hash(self) -> str:
-        return canonical_request_hash(self.input_payload)
+        if self.response_schema is None:
+            return canonical_request_hash(self.input_payload)
+        return canonical_request_hash(
+            {
+                "input_payload": self.input_payload,
+                "response_schema_name": self.response_schema_name,
+                "response_schema": self.response_schema,
+                "enable_thinking": self.enable_thinking,
+            }
+        )
 
     @property
     def parameters_hash(self) -> str:
@@ -100,6 +123,7 @@ class ModelExecutionError(RuntimeError):
         token_usage: dict[str, int] | None = None,
         latency_ms: int | None = None,
         provider_request_id: str | None = None,
+        provider_returned_model: str | None = None,
     ) -> None:
         super().__init__(message)
         self.code = code
@@ -108,6 +132,30 @@ class ModelExecutionError(RuntimeError):
         self.token_usage = token_usage
         self.latency_ms = latency_ms
         self.provider_request_id = provider_request_id
+        self.provider_returned_model = provider_returned_model
+
+
+def model_execution_failure_response(
+    error: ModelExecutionError,
+) -> ModelExecutionResponse | None:
+    """Project safe provider metadata from a failed model call for persistence."""
+
+    if (
+        error.latency_ms is None
+        and error.token_usage is None
+        and error.provider_request_id is None
+        and error.provider_returned_model is None
+        and error.output_hash is None
+    ):
+        return None
+    return ModelExecutionResponse(
+        payload={},
+        output_hash=error.output_hash or ("sha256:" + "0" * 64),
+        token_usage=error.token_usage,
+        latency_ms=error.latency_ms or 0,
+        provider_request_id=error.provider_request_id,
+        provider_returned_model=error.provider_returned_model,
+    )
 
 
 class ModelRuntimeUnavailable(ModelExecutionError):
@@ -158,6 +206,8 @@ class OpenAICompatibleModelExecutionAdapter:
     def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
         if not self._api_key:
             raise ModelRuntimeUnavailable()
+        if self._qwen_thinking_control:
+            self._validate_qwen_request(request)
 
         client = cast(OpenAI, self._client)
         started = monotonic()
@@ -188,7 +238,18 @@ class OpenAICompatibleModelExecutionAdapter:
                 "preserve_thinking": request.enable_thinking,
             }
         if request.response_mode == "json":
-            create_arguments["response_format"] = {"type": "json_object"}
+            create_arguments["response_format"] = (
+                {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": request.response_schema_name,
+                        "strict": True,
+                        "schema": request.response_schema,
+                    },
+                }
+                if request.response_schema is not None and self._qwen_thinking_control
+                else {"type": "json_object"}
+            )
         if request.tools:
             create_arguments["tools"] = list(request.tools)
             create_arguments["tool_choice"] = "auto"
@@ -235,12 +296,38 @@ class OpenAICompatibleModelExecutionAdapter:
                 **failure_metadata,
             ) from exc
         except (APIConnectionError, APIError) as exc:
-            raise ModelRuntimeUnavailable(
+            raise ModelExecutionError(
+                "MODEL_PROVIDER_UNAVAILABLE",
+                "研究助手服务暂时不可用，请稍后重试。",
                 latency_ms=_elapsed_ms(started),
                 provider_request_id=getattr(exc, "request_id", None),
             ) from exc
 
         latency_ms = _elapsed_ms(started)
+        if raw.finish_reason == "length":
+            raise ModelExecutionError(
+                "MODEL_RESPONSE_TRUNCATED",
+                "研究助手返回结果不完整，请稍后重试。",
+                output_hash=canonical_request_hash({"provider_content": raw.content}),
+                token_usage=raw.token_usage,
+                latency_ms=latency_ms,
+                provider_request_id=raw.provider_request_id,
+                provider_returned_model=raw.model,
+            )
+        if request.response_mode == "tool" and raw.finish_reason not in (
+            None,
+            "stop",
+            "tool_calls",
+        ):
+            raise ModelExecutionError(
+                "MODEL_RESPONSE_UNFINISHED",
+                "研究助手未返回完整结果，请稍后重试。",
+                output_hash=canonical_request_hash({"provider_content": raw.content}),
+                token_usage=raw.token_usage,
+                latency_ms=latency_ms,
+                provider_request_id=raw.provider_request_id,
+                provider_returned_model=raw.model,
+            )
         try:
             payload = (
                 _parse_json_content(raw.content)
@@ -261,6 +348,7 @@ class OpenAICompatibleModelExecutionAdapter:
                 token_usage=raw.token_usage,
                 latency_ms=latency_ms,
                 provider_request_id=raw.provider_request_id,
+                provider_returned_model=raw.model,
             ) from exc
 
         return ModelExecutionResponse(
@@ -286,6 +374,19 @@ class OpenAICompatibleModelExecutionAdapter:
             provider_returned_model=raw.model,
             tool_calls=tool_calls,
         )
+
+    @staticmethod
+    def _validate_qwen_request(request: ModelExecutionRequest) -> None:
+        if request.response_schema is not None:
+            if request.enable_thinking:
+                raise ValueError(
+                    "Qwen structured output with response_schema requires enable_thinking=False"
+                )
+            for forbidden in ("max_tokens", "max_completion_tokens"):
+                if forbidden in request.parameters:
+                    raise ValueError(
+                        f"Qwen structured output with response_schema must not specify parameter '{forbidden}'"
+                    )
 
 
 class QwenModelExecutionAdapter(OpenAICompatibleModelExecutionAdapter):
@@ -313,6 +414,7 @@ class QwenModelExecutionAdapter(OpenAICompatibleModelExecutionAdapter):
 @dataclass(frozen=True, slots=True)
 class _RawCompletion:
     content: str
+    finish_reason: str | None
     tool_calls: tuple[dict[str, str], ...]
     token_usage: dict[str, int] | None
     provider_request_id: str | None
@@ -323,6 +425,11 @@ def _consume_completion(
     completion: Any,  # noqa: ANN401
 ) -> _RawCompletion:
     message = completion.choices[0].message if completion.choices else None
+    finish_reason = (
+        getattr(completion.choices[0], "finish_reason", None)
+        if completion.choices
+        else None
+    )
     content = getattr(message, "content", None) or ""
     # Provider private reasoning_content is deliberately not read, stored or
     # returned: it must never enter Thread, RunEvent, shares, exports or
@@ -339,6 +446,7 @@ def _consume_completion(
     returned_model = getattr(completion, "model", None)
     return _RawCompletion(
         content=content,
+        finish_reason=finish_reason,
         tool_calls=tool_calls,
         token_usage=_standard_token_usage(getattr(completion, "usage", None)),
         provider_request_id=(
@@ -406,6 +514,7 @@ __all__ = [
     "ModelExecutionResponse",
     "ModelToolCall",
     "ModelRuntimeUnavailable",
+    "model_execution_failure_response",
     "OpenAICompatibleModelExecutionAdapter",
     "QwenModelExecutionAdapter",
     "qwen_execution_lease_duration",

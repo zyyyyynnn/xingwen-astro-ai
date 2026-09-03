@@ -89,6 +89,12 @@ authority 的每个 row 由 admission 的 canonical row identity、admission ID 
 row ID 绑定，不伪造 pairwise alignment 或 conflict 语义。所有 Dataset row 的
 字段对象层级必须符合 Field Manifest；不会从同行原始列隐式连接宿主上下文。
 
+Dataset 浏览按 row 的 entity level 分组，视图列来自该组实际投影的字段。
+不适用于该组的字段不展示；已投影但源目录缺失的 typed null 仍保留，不能按
+非空值筛掉整列。对象切换只改变浏览视图，下载与 Evidence 仍绑定同一不可变版本。
+科学数据概览分别统计记录中存在的字段、未包含的字段与显式空值；未投影字段
+不计入空值数。数值分布只使用实际存在的有限数值。
+
 `FieldSelectionRecord` 记录候选集合、策略与原因；不同 canonical value 形成
 `FieldConflictRecord`。source priority 只决定展示选择，不删除低优先级原值或
 provenance。
@@ -128,6 +134,7 @@ public candidate 不携带完整 replay input，也不新增 replay hash。该�
 
 confirmed data revision 先从 Plan 的三个独立 version decisions 读取 Dataset、
 FieldDictionary、SourceCollection baseline，并始终核对 frozen version identity 与 latest。
+baseline content hash 使用 Publisher 的 canonical persisted payload，保留来源 metadata 中的显式 null。
 reuse compatibility 继续校验 typed content/schema/input hash、SourceSnapshot/Evidence、
 Quality projection、共同 input hash、Contract/Manifest/current policy、replay input
 self-validation 与 build-result cross-binding；all-reuse 任一项不兼容均在 Producer 启动前

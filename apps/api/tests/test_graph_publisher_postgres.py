@@ -54,6 +54,10 @@ from app.workflow.publisher import (
     admit_artifact_candidate,
 )
 from app.workflow.store import PersistentWorkflowStore
+from services.graph_pipeline import (
+    PublishedLiteratureClaimsVersion,
+    PublishedLiteratureRelationsVersion,
+)
 from services.graph_pipeline.pipeline import GraphPipeline
 
 from graph_pipeline_test_support import (
@@ -330,8 +334,6 @@ def _seed_upstream_graph_closure(
     attempt_id: UUID,
     generation: int,
 ) -> None:
-    upstream = fixture.inputs.literature_relations
-    pins = upstream.pins
     step = session.scalar(
         select(RunStepModel).where(
             RunStepModel.run_id == run_id,
@@ -339,116 +341,136 @@ def _seed_upstream_graph_closure(
         )
     )
     assert step is not None
-    upstream_artifact = ResearchArtifactModel(
-        id=UUID(pins.artifact_id),
-        project_id=project.id,
-        kind="literature_relations",
-        title="LiteratureRelation Pipeline admitted LiteratureRelations",
-        logical_key="literature_relation-literature-relations",
-    )
-    upstream_execution = ProducerExecutionModel(
-        id=UUID(pins.producer_execution.id),
-        run_id=run_id,
-        run_step_id=step.id,
-        step_attempt_id=attempt_id,
-        step_key=step_key,
-        idempotency_key=f"upstream-{pins.artifact_version_id}",
-        lease_generation=generation,
-        producer_type=pins.producer_execution.producer.type,
-        producer_name=pins.producer_execution.producer.name,
-        producer_version=pins.producer_execution.producer.version,
-        model_provider=pins.producer_execution.producer.model_provider,
-        requested_model=pins.producer_execution.producer.requested_model,
-        prompt_name=pins.producer_execution.producer.prompt_name,
-        prompt_version=pins.producer_execution.producer.prompt_version,
-        prompt_hash=pins.producer_execution.producer.prompt_hash,
-        parameters={},
-        parameters_hash=pins.producer_execution.parameters_hash,
-        input_hash=pins.input_hash,
-        output_hash=pins.content_hash,
-        status="completed",
-        started_at=pins.producer_execution.started_at,
-        finished_at=pins.producer_execution.finished_at,
-        token_usage=None,
-        latency_ms=pins.producer_execution.latency_ms,
-        error_code=None,
-    )
-    session.add_all((upstream_artifact, upstream_execution))
-    session.flush()
-    upstream_version = ArtifactVersionModel(
-        id=UUID(pins.artifact_version_id),
-        artifact_id=upstream_artifact.id,
-        project_id=project.id,
-        created_by_run_id=run_id,
-        run_step_id=step.id,
-        step_attempt_id=attempt_id,
-        producer_execution_id=upstream_execution.id,
-        version_number=pins.version_number,
-        publication_key="literature_relation.fixture.upstream",
-        schema_version=pins.schema_version,
-        content=upstream.candidate.model_dump(mode="json", exclude_none=True),
-        content_hash=pins.content_hash,
-        input_hash=pins.input_hash,
-        source_mode=pins.source_mode.value,
-        producer={
-            "type": upstream_execution.producer_type,
-            "name": upstream_execution.producer_name,
-            "version": upstream_execution.producer_version,
-            "parameters_hash": upstream_execution.parameters_hash,
-        },
-        source_snapshot_ids=[
-            item.persisted_source_snapshot_id
-            for item in upstream.source_snapshot_bindings
+    published_inputs: tuple[
+        tuple[
+            PublishedLiteratureClaimsVersion | PublishedLiteratureRelationsVersion,
+            str,
         ],
-        evidence_ids=[
-            item.persisted_evidence_id for item in upstream.evidence_bindings
-        ],
+        ...,
+    ] = (
+        *((item, "literature_claims") for item in fixture.inputs.literature_claims),
+        (fixture.inputs.literature_relations, "literature_relations"),
     )
-    session.add(upstream_version)
-    session.flush()
-    upstream_artifact.latest_version_id = upstream_version.id
+    source_snapshots: dict[UUID, SourceSnapshotModel] = {}
+    evidence_rows: dict[UUID, EvidenceModel] = {}
 
-    for binding in upstream.source_snapshot_bindings:
-        item = binding.source_snapshot
-        session.add(
-            SourceSnapshotModel(
-                id=UUID(item.id),
-                project_id=project.id,
-                source_id=item.source_id,
-                source_type=item.source_type,
-                retrieved_at=item.retrieved_at,
-                query=item.query,
-                query_hash=item.query_hash,
-                source_version_or_etag=item.source_version_or_etag,
-                content_hash=item.content_hash,
-                license_note=item.license_note,
-                cache_version=item.cache_version,
-                request_metadata=item.request_metadata,
-            )
+    for upstream, artifact_kind in published_inputs:
+        pins = upstream.pins
+        upstream_artifact = ResearchArtifactModel(
+            id=UUID(pins.artifact_id),
+            project_id=project.id,
+            kind=artifact_kind,
+            title=f"Published {artifact_kind.replace('_', ' ')} input",
+            logical_key=f"{artifact_kind}-{pins.artifact_id}",
         )
+        upstream_execution = ProducerExecutionModel(
+            id=UUID(pins.producer_execution.id),
+            run_id=run_id,
+            run_step_id=step.id,
+            step_attempt_id=attempt_id,
+            step_key=step_key,
+            idempotency_key=f"upstream-{pins.artifact_version_id}",
+            lease_generation=generation,
+            producer_type=pins.producer_execution.producer.type,
+            producer_name=pins.producer_execution.producer.name,
+            producer_version=pins.producer_execution.producer.version,
+            model_provider=pins.producer_execution.producer.model_provider,
+            requested_model=pins.producer_execution.producer.requested_model,
+            prompt_name=pins.producer_execution.producer.prompt_name,
+            prompt_version=pins.producer_execution.producer.prompt_version,
+            prompt_hash=pins.producer_execution.producer.prompt_hash,
+            parameters={},
+            parameters_hash=pins.producer_execution.parameters_hash,
+            input_hash=pins.input_hash,
+            output_hash=pins.content_hash,
+            status="completed",
+            started_at=pins.producer_execution.started_at,
+            finished_at=pins.producer_execution.finished_at,
+            token_usage=None,
+            latency_ms=pins.producer_execution.latency_ms,
+            error_code=None,
+        )
+        session.add_all((upstream_artifact, upstream_execution))
+        session.flush()
+        upstream_version = ArtifactVersionModel(
+            id=UUID(pins.artifact_version_id),
+            artifact_id=upstream_artifact.id,
+            project_id=project.id,
+            created_by_run_id=run_id,
+            run_step_id=step.id,
+            step_attempt_id=attempt_id,
+            producer_execution_id=upstream_execution.id,
+            version_number=pins.version_number,
+            publication_key=f"{artifact_kind}.fixture.upstream",
+            schema_version=pins.schema_version,
+            content=upstream.candidate.model_dump(mode="json", exclude_none=True),
+            content_hash=pins.content_hash,
+            input_hash=pins.input_hash,
+            source_mode=pins.source_mode.value,
+            producer={
+                "type": upstream_execution.producer_type,
+                "name": upstream_execution.producer_name,
+                "version": upstream_execution.producer_version,
+                "parameters_hash": upstream_execution.parameters_hash,
+            },
+            source_snapshot_ids=[
+                item.persisted_source_snapshot_id
+                for item in upstream.source_snapshot_bindings
+            ],
+            evidence_ids=[
+                item.persisted_evidence_id for item in upstream.evidence_bindings
+            ],
+        )
+        session.add(upstream_version)
+        session.flush()
+        upstream_artifact.latest_version_id = upstream_version.id
+
+        for binding in upstream.source_snapshot_bindings:
+            item = binding.source_snapshot
+            source_snapshots.setdefault(
+                UUID(item.id),
+                SourceSnapshotModel(
+                    id=UUID(item.id),
+                    project_id=project.id,
+                    source_id=item.source_id,
+                    source_type=item.source_type,
+                    retrieved_at=item.retrieved_at,
+                    query=item.query,
+                    query_hash=item.query_hash,
+                    source_version_or_etag=item.source_version_or_etag,
+                    content_hash=item.content_hash,
+                    license_note=item.license_note,
+                    cache_version=item.cache_version,
+                    request_metadata=item.request_metadata,
+                ),
+            )
+        for binding in upstream.evidence_bindings:
+            item = binding.evidence
+            evidence_rows.setdefault(
+                UUID(item.id),
+                EvidenceModel(
+                    id=UUID(item.id),
+                    project_id=project.id,
+                    artifact_version_id=UUID(item.artifact_version_id),
+                    target_type=item.target_type,
+                    target_id=item.target_id,
+                    evidence_type=item.evidence_type,
+                    source_snapshot_id=UUID(item.source_snapshot_id),
+                    paper_id=item.paper_id,
+                    locator=item.locator,
+                    quote_or_value=item.quote_or_value,
+                    extraction_method=item.extraction_method,
+                    confidence=item.confidence,
+                    is_restricted=binding.is_restricted,
+                ),
+            )
+
+    session.add_all(source_snapshots.values())
+    session.flush()
+    session.add_all(evidence_rows.values())
     session.flush()
     expected_use_ids = {item.upstream_evidence_id for item in candidate.evidence_uses}
-    for binding in upstream.evidence_bindings:
-        item = binding.evidence
-        if item.id not in expected_use_ids:
-            continue
-        session.add(
-            EvidenceModel(
-                id=UUID(item.id),
-                project_id=project.id,
-                artifact_version_id=UUID(item.artifact_version_id),
-                target_type=item.target_type,
-                target_id=item.target_id,
-                evidence_type=item.evidence_type,
-                source_snapshot_id=UUID(item.source_snapshot_id),
-                paper_id=item.paper_id,
-                locator=item.locator,
-                quote_or_value=item.quote_or_value,
-                extraction_method=item.extraction_method,
-                confidence=item.confidence,
-                is_restricted=binding.is_restricted,
-            )
-        )
+    assert expected_use_ids <= {str(item) for item in evidence_rows}
 
 
 def _publish(active: ActiveGraphPublication) -> PublicationResult:
@@ -488,14 +510,11 @@ def test_graph_publish_materializes_new_edge_owned_evidence_and_replays_once(
         )
         assert len(rows) == len(uses)
         assert {row.id for row in rows}.isdisjoint(upstream_ids)
-        assert (
-            session.scalar(
-                select(func.count())
-                .select_from(EvidenceModel)
-                .where(EvidenceModel.artifact_version_id == version_id)
-            )
-            == len(uses)
-        )
+        assert session.scalar(
+            select(func.count())
+            .select_from(EvidenceModel)
+            .where(EvidenceModel.artifact_version_id == version_id)
+        ) == len(uses)
         for row in rows:
             use = uses[row.locator["graph_evidence_use_id"]]
             snapshot = session.get(SourceSnapshotModel, row.source_snapshot_id)
@@ -705,8 +724,13 @@ def test_graph_evidence_write_failure_rolls_back_entire_publication(
             )
             == 0
         )
-        assert set(
-            session.scalars(
-                select(EvidenceModel.id).where(EvidenceModel.id.in_(graph_evidence_ids))
+        assert (
+            set(
+                session.scalars(
+                    select(EvidenceModel.id).where(
+                        EvidenceModel.id.in_(graph_evidence_ids)
+                    )
+                )
             )
-        ) == set()
+            == set()
+        )

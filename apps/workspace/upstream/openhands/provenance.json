@@ -1,5 +1,5 @@
 {
-  "schema": "xingwen.agent-upstream.provenance/v2",
+  "schema": "xingwen.agent-upstream.provenance",
   "generated_by": "scripts/generate-agent-upstream-provenance.mjs",
   "source": {
     "repository": "https://github.com/OpenHands/OpenHands.git",
@@ -7,256 +7,255 @@
     "commit": "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
     "license": "MIT"
   },
-  "keep_as_is_tree_sha256": "b795bc60424132268381ba064f32210922d57e5219898c2798f17182b0d5e329",
   "entries": [
     {
       "upstream_path": "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands collapsed disclosure interaction for server-validated public step analysis while excluding provider-private reasoning."
     },
     {
       "upstream_path": "src/components/conversation-events/chat/event-message-components/event-group.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/conversation-events/chat/event-message-components/event-group.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/conversation-events/chat/event-message-components/event-group.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands collapsible action-run group over persisted project-private research Activities."
     },
     {
       "upstream_path": "src/components/conversation-events/chat/event-message.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/conversation-events/chat/event-message.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/conversation-events/chat/event-message.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands Action to Observation event disclosure while projecting one stable research Activity row in place."
     },
     {
       "upstream_path": "src/components/conversation-events/chat/group-events.ts",
-      "local_path": "apps/workspace/upstream/openhands/src/components/conversation-events/chat/group-events.ts",
+      "local_path": "apps/workspace/src/mechanics/components/conversation-events/chat/group-events.ts",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands consecutive action grouping algorithm over the project-private Activity presentation contract."
     },
     {
       "upstream_path": "src/components/conversation-events/chat/messages.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/conversation-events/chat/messages.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/conversation-events/chat/messages.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands ordered Messages composition and finalized action-group behavior."
     },
     {
       "upstream_path": "src/components/features/chat/chat-interface.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/chat-interface.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/chat/chat-interface.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands scroll stream, tail following, and Composer placement while reserving one shared Inspector inset so the native scrollbar stays at the main surface edge and the Composer remains centered in the available workspace."
     },
     {
       "upstream_path": "src/components/features/chat/chat-message.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/chat-message.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/chat/chat-message.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept OpenHands user and agent message geometry while removing runtime-only markdown, media, copy, and branch dependencies."
     },
     {
       "upstream_path": "src/components/features/chat/chat-send-button.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/chat-send-button.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/chat/chat-send-button.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands submit and pending button behavior with shared Xingwen icons."
     },
     {
       "upstream_path": "src/components/features/chat/components/chat-input-actions.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/components/chat-input-actions.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/chat/components/chat-input-actions.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands Composer action-row and submit ownership while injecting research-domain leading actions."
     },
     {
       "upstream_path": "src/components/features/chat/components/chat-input-container.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/components/chat-input-container.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/chat/components/chat-input-container.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands single Composer container and focus boundary while removing coding attachments and mode controls."
     },
     {
       "upstream_path": "src/components/features/chat/components/chat-input-field.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/components/chat-input-field.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/chat/components/chat-input-field.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands contenteditable input behavior with controlled research copy."
     },
     {
       "upstream_path": "src/components/features/chat/components/chat-input-grip.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/components/chat-input-grip.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/chat/components/chat-input-grip.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands pointer and keyboard Composer resize grip."
     },
     {
       "upstream_path": "src/components/features/chat/components/chat-input-row.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/components/chat-input-row.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/chat/components/chat-input-row.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands Composer input-row geometry without coding-only controls."
     },
     {
       "upstream_path": "src/components/features/chat/custom-chat-input.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/custom-chat-input.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/chat/custom-chat-input.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands contenteditable, paste, submit, controlled-value, and resize orchestration over the research submit adapter."
     },
     {
       "upstream_path": "src/components/features/chat/interactive-chat-box.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/interactive-chat-box.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/chat/interactive-chat-box.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands InteractiveChatBox boundary while injecting controlled research Composer state."
     },
     {
       "upstream_path": "src/components/features/chat/user-message-body.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/user-message-body.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/chat/user-message-body.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands long-user-message measurement, collapse, fade, and explicit expansion mechanic over public research text."
     },
     {
       "upstream_path": "src/components/features/command-menu/command-menu-items.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/command-menu/command-menu-items.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/command-menu/command-menu-items.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept searchable command item rendering while limiting definitions to current Workspace capabilities."
     },
     {
       "upstream_path": "src/components/features/command-menu/command-menu-trigger.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/command-menu/command-menu-trigger.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/command-menu/command-menu-trigger.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept command-menu trigger keyboard and focus behavior with the Workspace label and shortcut."
     },
     {
       "upstream_path": "src/components/features/command-menu/command-menu.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/command-menu/command-menu.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/command-menu/command-menu.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept portal, combobox, filtering, active-option scroll, keyboard selection, and focus return mechanics."
     },
     {
       "upstream_path": "src/components/features/conversation/conversation-main/chat-interface-wrapper.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/conversation/conversation-main/chat-interface-wrapper.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/conversation/conversation-main/chat-interface-wrapper.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the centered conversation frame and project Thread panel ownership while injecting the thin runtime seam."
     },
     {
       "upstream_path": "src/components/features/conversation/conversation-main/conversation-main.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/conversation/conversation-main/conversation-main.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/conversation/conversation-main/conversation-main.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
-      "modification_reason": "Kept ConversationMain split-panel, resize, visibility, header, and panel-frame mechanics while adapting the panel to a single docked right rail with stable geometry and the shared shadcn ScrollArea."
+      "modification_reason": "Kept ConversationMain split-panel, resize, visibility, header, and panel-frame mechanics while adding the Docked to Floating to Hidden transition, a non-overlay safe track, stable animated geometry, versioned presentation requests, and the shared shadcn ScrollArea."
     },
     {
       "upstream_path": "src/components/features/conversation/conversation-name-with-status.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/conversation/conversation-name-with-status.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/conversation/conversation-name-with-status.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept title/status header alignment while replacing conversation identity with the Workspace label."
     },
     {
       "upstream_path": "src/components/features/sidebar/sidebar-layout.ts",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/sidebar/sidebar-layout.ts",
+      "local_path": "apps/workspace/src/mechanics/components/features/sidebar/sidebar-layout.ts",
       "adoption_class": "KEEP_WITH_MINIMAL_PATCH",
       "modified": true,
       "modification_reason": "Kept desktop rail width and clipping geometry while removing mobile and coding navigation branches."
     },
     {
       "upstream_path": "src/components/features/sidebar/sidebar-rail-body.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/sidebar/sidebar-rail-body.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/sidebar/sidebar-rail-body.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept rail collapse controls, stable inner geometry, and task-list composition with Xingwen labels."
     },
     {
       "upstream_path": "src/components/features/sidebar/sidebar.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/sidebar/sidebar.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/features/sidebar/sidebar.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept desktop sidebar state, toggle anchoring, and keyboard activation for the Workspace shell."
     },
     {
       "upstream_path": "src/components/shared/buttons/scroll-to-bottom-button.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/shared/buttons/scroll-to-bottom-button.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/shared/buttons/scroll-to-bottom-button.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands return-to-latest control with shared Xingwen icons and research-language accessibility copy."
     },
     {
       "upstream_path": "src/components/ui/resize-handle.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/ui/resize-handle.tsx",
+      "local_path": "apps/workspace/src/mechanics/components/ui/resize-handle.tsx",
       "adoption_class": "KEEP_WITH_MINIMAL_PATCH",
       "modified": true,
       "modification_reason": "Kept split-panel pointer and keyboard resizing with a stable separator and motion-safe transitions."
     },
     {
       "upstream_path": "src/hooks/chat/use-grip-resize.ts",
-      "local_path": "apps/workspace/upstream/openhands/src/hooks/chat/use-grip-resize.ts",
+      "local_path": "apps/workspace/src/mechanics/hooks/chat/use-grip-resize.ts",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands Composer height, pointer, keyboard, and content-resize mechanics."
     },
     {
       "upstream_path": "src/hooks/use-resizable-panels.ts",
-      "local_path": "apps/workspace/upstream/openhands/src/hooks/use-resizable-panels.ts",
+      "local_path": "apps/workspace/src/mechanics/hooks/use-resizable-panels.ts",
       "adoption_class": "KEEP_WITH_MINIMAL_PATCH",
       "modified": true,
       "modification_reason": "Kept split-panel percentage sizing, persistence, pointer drag, and keyboard adjustment mechanics."
     },
     {
       "upstream_path": "src/hooks/use-scroll-to-bottom.ts",
-      "local_path": "apps/workspace/upstream/openhands/src/hooks/use-scroll-to-bottom.ts",
+      "local_path": "apps/workspace/src/mechanics/hooks/use-scroll-to-bottom.ts",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands manual-scroll-aware tail-following state and explicit resume behavior."
     },
     {
       "upstream_path": "src/root.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/root.tsx",
+      "local_path": "apps/workspace/src/mechanics/root.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the OpenHands root composition while exposing only the thin runtime, project Research Thread and Inspector seams, and a one-shot Inspector presentation request."
     },
     {
       "upstream_path": "src/routes/conversation.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/routes/conversation.tsx",
+      "local_path": "apps/workspace/src/mechanics/routes/conversation.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the upstream conversation route boundary as a direct ConversationMain composition."
     },
     {
       "upstream_path": "src/routes/root-layout.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/routes/root-layout.tsx",
+      "local_path": "apps/workspace/src/mechanics/routes/root-layout.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept the single Workspace layout composition for desktop navigation, conversation, and command overlay."
     },
     {
       "upstream_path": "src/stores/command-menu-store.ts",
-      "local_path": "apps/workspace/upstream/openhands/src/stores/command-menu-store.ts",
+      "local_path": "apps/workspace/src/mechanics/stores/command-menu-store.ts",
       "adoption_class": "KEEP_AS_IS",
       "modified": false,
       "modification_reason": null
     },
     {
       "upstream_path": "src/stores/sidebar-store.ts",
-      "local_path": "apps/workspace/upstream/openhands/src/stores/sidebar-store.ts",
+      "local_path": "apps/workspace/src/mechanics/stores/sidebar-store.ts",
       "adoption_class": "KEEP_WITH_MINIMAL_PATCH",
       "modified": true,
       "modification_reason": "Kept persistent sidebar collapse state and the desktop rail ownership boundary."
     },
     {
       "upstream_path": "src/utils/utils.ts",
-      "local_path": "apps/workspace/upstream/openhands/src/utils/utils.ts",
+      "local_path": "apps/workspace/src/mechanics/utils/utils.ts",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
       "modified": true,
       "modification_reason": "Kept only the class-composition utility required by the adopted Workspace import graph."

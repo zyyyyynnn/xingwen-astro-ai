@@ -42,6 +42,12 @@ class FeedbackCategory(StrEnum):
     evidence = "evidence"
     quality = "quality"
     interpretation = "interpretation"
+    adjudication = "adjudication"
+
+
+class RelationAdjudicationDecision(StrEnum):
+    accepted = "accepted"
+    rejected = "rejected"
 
 
 class RevisionPlanStatus(StrEnum):
@@ -62,8 +68,23 @@ class CreateUserFeedbackRequest(BaseModel):
     target_id: Identifier
     target_locator: dict[str, JsonValue] = Field(default_factory=dict)
     category: FeedbackCategory
+    adjudication_decision: RelationAdjudicationDecision | None = None
     summary: FeedbackText
     requested_change: FeedbackText
+
+    @model_validator(mode="after")
+    def validate_adjudication(self) -> CreateUserFeedbackRequest:
+        if self.category is FeedbackCategory.adjudication:
+            if (
+                self.target_type is not FeedbackTargetType.relation
+                or self.adjudication_decision is None
+            ):
+                raise ValueError(
+                    "relation adjudication requires a relation target and decision"
+                )
+        elif self.adjudication_decision is not None:
+            raise ValueError("adjudication_decision requires adjudication category")
+        return self
 
 
 class UserFeedback(BaseModel):
@@ -79,10 +100,25 @@ class UserFeedback(BaseModel):
     target_id: Identifier
     target_locator: dict[str, JsonValue]
     category: FeedbackCategory
+    adjudication_decision: RelationAdjudicationDecision | None = None
     summary: FeedbackText
     requested_change: FeedbackText
     feedback_hash: ContentHash
     created_at: UtcDateTime
+
+    @model_validator(mode="after")
+    def validate_adjudication(self) -> UserFeedback:
+        if self.category is FeedbackCategory.adjudication:
+            if (
+                self.target_type is not FeedbackTargetType.relation
+                or self.adjudication_decision is None
+            ):
+                raise ValueError(
+                    "relation adjudication requires a relation target and decision"
+                )
+        elif self.adjudication_decision is not None:
+            raise ValueError("adjudication_decision requires adjudication category")
+        return self
 
 
 class CreateRevisionPlanRequest(BaseModel):

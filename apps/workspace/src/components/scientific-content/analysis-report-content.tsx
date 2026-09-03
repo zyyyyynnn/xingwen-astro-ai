@@ -57,6 +57,14 @@ const COLUMN_LABELS: Readonly<Record<string, string>> = {
   mapped_field_count: "已映射字段",
   validated_row_count: "已校验记录",
   null_cell_count: "空值单元格",
+  field: "字段",
+  row_count: "记录数",
+  field_count: "字段数",
+  present_count: "包含字段的记录",
+  absent_count: "未包含字段的记录",
+  non_null_count: "有值记录",
+  null_count: "空值记录",
+  distinct_count: "不同取值数",
   quality_status: "质量状态",
   algorithm: "算法",
   sample_count: "样本数",
@@ -268,7 +276,7 @@ function StructuredValue({
         {Object.entries(value as Record<string, unknown>).map(([key, item]) => (
           <div key={key}>
             <dt className="font-medium">{humanColumnLabel(key)}</dt>
-            <dd className="text-[var(--oh-muted)]">
+            <dd className="text-[var(--color-ink-secondary)]">
               <StructuredValue value={item} fieldKey={key} />
             </dd>
           </div>
@@ -300,6 +308,21 @@ function sourceDetails(payload: unknown): readonly [string, string][] {
   );
 }
 
+function recordDetails(payload: unknown): readonly [string, string][] {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload))
+    return [];
+  return Object.entries(payload).flatMap(([key, value]) => {
+    if (!isScalar(value)) return [];
+    const rawValue = value === null ? "—" : String(value);
+    return [
+      [humanColumnLabel(key), PUBLIC_VALUE_LABELS[rawValue] ?? rawValue] as [
+        string,
+        string,
+      ],
+    ];
+  });
+}
+
 export function ResultBlock({
   block,
   onSelectEvidence,
@@ -307,15 +330,17 @@ export function ResultBlock({
   readonly block: ScientificResultBlockReview;
   readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
 }) {
-  const table = tableModel(block);
-  const details = sourceDetails(block.payload);
+  const record =
+    block.representation === "record" ? recordDetails(block.payload) : [];
+  const table = record.length > 0 ? null : tableModel(block);
+  const details = record.length > 0 ? [] : sourceDetails(block.payload);
   return (
     <section className="scientific-result">
       <header>
         <h4>{block.label}</h4>
       </header>
       {details.length > 0 ? (
-        <dl className="ui-text-label flex flex-wrap gap-x-4 gap-y-1 text-[var(--oh-muted)]">
+        <dl className="ui-text-label flex flex-wrap gap-x-4 gap-y-1 text-[var(--color-ink-secondary)]">
           {details.map(([label, value]) => (
             <div key={label}>
               <dt className="inline font-medium">{label}：</dt>
@@ -324,7 +349,16 @@ export function ResultBlock({
           ))}
         </dl>
       ) : null}
-      {table ? (
+      {record.length > 0 ? (
+        <dl className="scientific-result__record">
+          {record.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : table ? (
         <ScientificTable
           caption={`${block.label}结构化结果`}
           columns={table.columns}

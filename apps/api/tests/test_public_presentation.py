@@ -15,6 +15,7 @@ from app.services.public_presentation import (
     PresentationIntegrityError,
     build_artifact_presentation,
 )
+from app.schemas.literature_relation import literature_relation_adjudicable
 from data_artifact_test_support import build_input
 from graph_read_test_support import build_graph_read_fixture
 from literature_artifact_test_support import build_literature_fixture
@@ -22,6 +23,9 @@ from services.data_pipeline.data_artifacts import build_data_artifact_candidates
 from services.paper_pipeline.benchmark import load_frozen_benchmark
 from services.paper_pipeline.claim_benchmark_cases import (
     build_frozen_claim_benchmark_cases,
+)
+from services.paper_pipeline.relation_benchmark_cases import (
+    build_frozen_relation_benchmark_cases,
 )
 from services.paper_pipeline.demo_fixture import build_demo_collection
 from services.paper_pipeline.demo_summary_fixture import build_demo_summary_read
@@ -264,6 +268,12 @@ def test_literature_presentation_preserves_scientific_decision_fields() -> None:
         fact.label: fact.values for fact in relation_presentation.entries[0].facts
     }
     assert {"对象可比性", "指标可比性", "单位可比性", "置信度"} <= set(relation_facts)
+    relation_entry = relation_presentation.entries[0]
+    assert relation_entry.relation is not None
+    assert relation_entry.title == (
+        f"{relation_entry.relation.source_claim} → "
+        f"{relation_entry.relation.target_claim}"
+    )
 
     rejected = next(
         case.admission.publisher_candidate
@@ -280,3 +290,60 @@ def test_literature_presentation_preserves_scientific_decision_fields() -> None:
         fact.label: fact.values for fact in rejected_presentation.entries[0].facts
     }
     assert rejected_facts["未采纳原因"] == ("内容重复",)
+
+
+def test_literature_relation_adjudicable_is_single_confidence_gate() -> None:
+    cases = {
+        case.case_id: case
+        for case in build_frozen_relation_benchmark_cases(load_frozen_benchmark())
+    }
+    adjudicable_relation = next(
+        relation
+        for relation in cases[
+            "scientific.relation.clark_catalog_derived_from_tic"
+        ].admission.publisher_candidate.relations
+        if relation.status.value == "candidate"
+    )
+    accepted_relation = next(
+        relation
+        for relation in cases[
+            "scientific.relation.revised_tic_extends_initial_tic"
+        ].admission.publisher_candidate.relations
+        if relation.status.value == "accepted"
+    )
+    assert literature_relation_adjudicable(adjudicable_relation) is True
+    assert literature_relation_adjudicable(accepted_relation) is False
+
+
+def test_literature_presentation_exposes_can_adjudicate() -> None:
+    cases = {
+        case.case_id: case
+        for case in build_frozen_relation_benchmark_cases(load_frozen_benchmark())
+    }
+    adjudicable_presentation = build_artifact_presentation(
+        ArtifactKind.literature_relations,
+        cases[
+            "scientific.relation.clark_catalog_derived_from_tic"
+        ].admission.publisher_candidate.model_dump(mode="json"),
+        (),
+    )
+    candidate_entry = next(
+        entry
+        for entry in adjudicable_presentation.entries
+        if entry.status == "candidate"
+    )
+    assert candidate_entry.can_adjudicate is True
+
+    accepted_presentation = build_artifact_presentation(
+        ArtifactKind.literature_relations,
+        cases[
+            "scientific.relation.revised_tic_extends_initial_tic"
+        ].admission.publisher_candidate.model_dump(mode="json"),
+        (),
+    )
+    accepted_entry = next(
+        entry
+        for entry in accepted_presentation.entries
+        if entry.status == "accepted"
+    )
+    assert accepted_entry.can_adjudicate is False

@@ -20,12 +20,15 @@ from services.scientific_document.model_asset_contract import (
 
 from .hybrid_parser import (
     LOCAL_PADDLE_ENGINE_IDENTITY,
+    _MAX_VISUAL_GENERATION_TOKENS,
     VisualPageResult,
     VisualParseError,
     project_visual_page_result,
 )
 
 _PIPELINE_VERSION = "1.6"
+_CPU_THREADS = 2
+_MKLDNN_CACHE_CAPACITY = 1
 
 def pinned_visual_model_revision() -> str:
     """The committed HF snapshot revision for the VLM component."""
@@ -86,6 +89,10 @@ class LocalPaddleOcrVlPipeline:
                 ) from exc
             self._engine = PaddleOCRVL(
                 pipeline_version="v1.6",
+                device="cpu",
+                cpu_threads=_CPU_THREADS,
+                enable_mkldnn=True,
+                mkldnn_cache_capacity=_MKLDNN_CACHE_CAPACITY,
                 layout_detection_model_name="PP-DocLayoutV3",
                 layout_detection_model_dir=str(self._layout_dir),
                 vl_rec_model_name=self.model_id,
@@ -109,7 +116,13 @@ class LocalPaddleOcrVlPipeline:
         if array is None:
             raise VisualParseError("visual backend could not decode the page image")
         try:
-            results = list(self._pipeline().predict(array, format_block_content=True))
+            results = list(
+                self._pipeline().predict(
+                    array,
+                    format_block_content=True,
+                    max_new_tokens=_MAX_VISUAL_GENERATION_TOKENS,
+                )
+            )
         except VisualParseError:
             raise
         except Exception as exc:  # noqa: BLE001 - vendor errors are normalized

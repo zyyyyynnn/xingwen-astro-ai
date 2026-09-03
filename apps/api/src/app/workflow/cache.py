@@ -184,7 +184,7 @@ class CacheRecordStore:
             evidence_ids = _sorted_uuid_text(version.evidence_ids)
             producer_identity = dict(identity.producer_identity)
             evidence_hash = _evidence_hash(evidence)
-            valid_from = version.created_at
+            valid_from = version.created_at.astimezone(UTC)
             record_payload = {
                 "project_id": str(version.project_id),
                 "origin_run_id": str(run.id),
@@ -864,12 +864,14 @@ def _record_provenance_is_closed(
         and tuple(record.evidence_ids) == _sorted_uuid_text(version.evidence_ids)
         and record.evidence_hash == _evidence_hash(evidence)
         and record.quality_projection_hash == version.quality_projection_hash
-        and record.valid_from == version.created_at
+        and record.valid_from.astimezone(UTC) == version.created_at.astimezone(UTC)
         and record.record_hash == _cache_record_hash(record)
     )
 
 
 def _cache_record_hash(record: CacheRecordModel) -> str:
+    valid_from = record.valid_from.astimezone(UTC)
+    expires_at = record.expires_at.astimezone(UTC)
     return compute_canonical_payload_hash(
         {
             "project_id": str(record.project_id),
@@ -887,8 +889,8 @@ def _cache_record_hash(record: CacheRecordModel) -> str:
             "evidence_ids": tuple(record.evidence_ids),
             "evidence_hash": record.evidence_hash,
             "quality_projection_hash": record.quality_projection_hash,
-            "valid_from": record.valid_from.isoformat(),
-            "expires_at": record.expires_at.isoformat(),
+            "valid_from": valid_from.isoformat(),
+            "expires_at": expires_at.isoformat(),
         }
     )
 

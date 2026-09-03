@@ -1,5 +1,4 @@
-import { createHash } from "node:crypto";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 
 export function toPosix(path) {
@@ -22,18 +21,4 @@ export function listVendoredFiles(directory) {
       "en",
     ),
   );
-}
-
-export function computeSelectedTreeSha256(directory, relativePaths) {
-  const digest = createHash("sha256");
-  for (const path of [...new Set(relativePaths)].sort((left, right) =>
-    left.localeCompare(right, "en"),
-  )) {
-    const absolutePath = resolve(directory, path);
-    digest.update(path, "utf8");
-    digest.update("\0");
-    digest.update(readFileSync(absolutePath));
-    digest.update("\0");
-  }
-  return digest.digest("hex");
 }

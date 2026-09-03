@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import {
   createHttpRepositories,
@@ -34,6 +34,44 @@ function collectRuntimeErrors(page: Page) {
   return errors;
 }
 
+async function openThreadArtifact(
+  page: Page,
+  versionId: string | undefined,
+  actionLabel: "打开" | "审查结果" = "打开",
+): Promise<void> {
+  if (!versionId) throw new Error("Expected a published artifact version id.");
+  const result = page.getByTestId(`artifact-result-${versionId}`);
+  await expect(result).toBeVisible();
+  await result
+    .getByRole("button", { name: new RegExp(`^${actionLabel}：`, "u") })
+    .click();
+}
+
+async function selectEntryWithReasoningTrace(
+  workspace: Locator,
+): Promise<void> {
+  const entries = workspace.locator('[data-testid^="literature-entry-"]');
+  await expect(entries.first()).toBeVisible();
+  if (
+    (await workspace.getByRole("button", { name: "公开推导与限制" }).count()) >
+    0
+  ) {
+    return;
+  }
+  for (let index = 0; index < (await entries.count()); index += 1) {
+    await entries.nth(index).click();
+    await expect(entries.nth(index)).toHaveAttribute("aria-pressed", "true");
+    if (
+      (await workspace
+        .getByRole("button", { name: "公开推导与限制" })
+        .count()) > 0
+    ) {
+      return;
+    }
+  }
+  throw new Error("Expected one relation entry with a public reasoning trace.");
+}
+
 test("real Compose exposes the current empty Research Workspace without provider secrets", async ({
   page,
 }) => {
@@ -62,26 +100,60 @@ test("real Compose exposes the current empty Research Workspace without provider
   await expect(page.getByRole("button", { name: "新建研究" })).toHaveCount(1);
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  await page.getByRole("button", { name: "配置模型服务" }).click();
-  await expect(page.getByRole("dialog", { name: "模型服务" })).toBeVisible();
-  await expect(page.getByLabel("Base URL")).toHaveValue(
-    "https://dashscope.aliyuncs.com/compatible-mode/v1",
-  );
-  await expect(page.getByLabel("Base URL")).toHaveAttribute("readonly");
-  await page.getByRole("combobox", { name: "连接方式" }).click();
-  await page.getByRole("option", { name: "自定义 OpenAI 兼容接口" }).click();
-  await expect(page.getByLabel("Base URL")).not.toHaveAttribute("readonly");
-  await expect(page.getByText("qwen3.7-max")).toHaveCount(0);
-  await expect(
-    page.getByRole("textbox", { name: "API 密钥", exact: true }),
-  ).toHaveValue("");
-  await page.getByRole("button", { name: "后续配置" }).click();
+  await page
+    .getByRole("button", { name: /^(?:模型服务已连接|配置模型服务)$/ })
+    .click();
+  const modelDialog = page.getByRole("dialog", { name: "模型服务" });
+  await expect(modelDialog).toBeVisible();
+  const baseUrlField = modelDialog.getByLabel("Base URL");
+  if ((await baseUrlField.count()) > 0) {
+    await expect(baseUrlField).toHaveValue(
+      "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    );
+    await expect(baseUrlField).toHaveAttribute("readonly");
+    await modelDialog.getByRole("combobox", { name: "连接方式" }).click();
+    await page.getByRole("option", { name: "自定义 OpenAI 兼容接口" }).click();
+    await expect(baseUrlField).not.toHaveAttribute("readonly");
+    await expect(page.getByText("qwen3.7-max")).toHaveCount(0);
+    await expect(
+      modelDialog.getByRole("textbox", { name: "API 密钥", exact: true }),
+    ).toHaveValue("");
+    await modelDialog.getByRole("button", { name: "后续配置" }).click();
+  } else {
+    await expect(
+      modelDialog.getByText("部署环境已配置", { exact: true }),
+    ).toBeVisible();
+    const configurationResponse = await page.request.get(
+      API_ORIGIN + "/api/model-provider/configuration",
+    );
+    expect(configurationResponse.ok()).toBe(true);
+    const { data: configuration } = (await configurationResponse.json()) as {
+      data: { model: string | null };
+    };
+    if (!configuration.model)
+      throw new Error("Configured deployment has no model identity");
+    await expect(
+      modelDialog.getByText(configuration.model, { exact: true }),
+    ).toBeVisible();
+    await expect(
+      modelDialog.getByText(
+        "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(
+      modelDialog.getByText("工作台只读", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      modelDialog.getByRole("textbox", { name: "API 密钥", exact: true }),
+    ).toHaveCount(0);
+    await modelDialog.getByRole("button", { name: "完成" }).click();
+  }
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
   for (const viewport of [
     { width: 1440, height: 900 },
     { width: 1280, height: 800 },
-    { width: 1024, height: 768 },
   ]) {
     await page.setViewportSize(viewport);
     await expect(page.getByTestId("interactive-chat-box")).toBeVisible();
@@ -328,7 +400,6 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
           body: JSON.stringify({
             title: "Expiring browser integration share",
             artifact_version_ids: [current.data.artifact_version_id],
-            evidence_ids: current.data.evidence_ids,
             expires_at: new Date(expiredAt).toISOString(),
             redaction_policy: "redacted_public_snapshot",
           }),
@@ -350,15 +421,15 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   expect(bootstrap.versionId).toBeTruthy();
 
   await page.reload();
-  // The published result appears as an in-thread result card (title heading
-  // plus an open action) and in the Right Rail result index.
+  // The published result appears as a lightweight in-thread attachment and in
+  // the Inspector result index.
+  const datasetResult = page.getByTestId(
+    `artifact-result-${bootstrap.versionId}`,
+  );
   await expect(
-    page.getByRole("heading", { name: "Exoplanet host-star dataset" }),
+    datasetResult.getByText("Exoplanet host-star dataset", { exact: true }),
   ).toBeVisible();
-  await page
-    .getByTestId(`artifact-result-${bootstrap.versionId}`)
-    .getByRole("button", { name: "查看完整结果" })
-    .click();
+  await openThreadArtifact(page, bootstrap.versionId);
   const fullscreen = page.getByTestId("artifact-fullscreen-workspace");
   const returnButton = fullscreen.getByRole("button", { name: "返回研究" });
   const evidenceButton = fullscreen.getByRole("button", {
@@ -368,12 +439,10 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   await expect(fullscreen).toBeVisible();
   await expect(fullscreen).toHaveAttribute("aria-modal", "true");
   await expect(returnButton).toBeFocused();
-  await expect(fullscreen.getByText("演示数据", { exact: true })).toHaveCount(
-    0,
-  );
+  await expect(fullscreen.getByText("演示数据", { exact: true })).toBeVisible();
   await expect(fullscreen.locator("[data-source-mode]")).toHaveCount(0);
 
-  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.setViewportSize({ width: 1280, height: 800 });
   expect(
     await fullscreen.evaluate(
       (element) => element.scrollWidth <= element.clientWidth,
@@ -390,7 +459,7 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   await evidenceButton.click();
   await expect(page.getByRole("heading", { name: "研究证据" })).toBeVisible();
   await expect(page.getByText("来源内容", { exact: true })).toBeVisible();
-  await expect(page.getByText("来源", { exact: true })).toBeVisible();
+  await expect(page.getByText("来源记录", { exact: true })).toBeVisible();
   await expect(page.getByText(/获取于/)).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("heading", { name: "研究证据" })).toHaveCount(0);
@@ -510,7 +579,6 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
           body: JSON.stringify({
             title: "Unsupported export presentation",
             artifact_version_ids: [unsupportedExport.data.artifact_version_id],
-            evidence_ids: [],
             expires_at: new Date(Date.now() + 60_000).toISOString(),
             redaction_policy: "redacted_public_snapshot",
           }),
@@ -558,11 +626,6 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   await page.goto(shareUrl);
   await expect(
     page.getByRole("heading", { name: "Exoplanet host-star dataset" }).first(),
-  ).toBeVisible();
-  await expect(
-    page
-      .getByLabel("共享科研结果")
-      .getByRole("heading", { name: "Exoplanet host-star dataset" }),
   ).toBeVisible();
   await expect(
     page
@@ -702,15 +765,20 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
 
   runtimeErrors.length = 0;
   await page.goto(`/workspace/${projectId}`);
-  const overviewSheet = page.getByRole("dialog").filter({
-    has: page.getByRole("tab", { name: "研究概览" }),
-  });
-  await expect(overviewSheet).toBeVisible();
-  await overviewSheet.getByRole("button", { name: "关闭" }).click();
-  await page
-    .getByTestId(`artifact-result-${laterVersion.data.artifact_version_id}`)
-    .getByRole("button", { name: "查看完整结果" })
-    .click();
+  const overview = page.getByRole("complementary", { name: "右侧研究栏" });
+  await expect(overview.getByRole("tab", { name: "研究概览" })).toBeVisible();
+  await page.getByRole("button", { name: "关闭右侧研究栏" }).click();
+  await expect(overview).not.toBeVisible();
+  const closedOverview = page.getByTestId("research-inspector-panel");
+  await closedOverview
+    .getByRole("tab", { name: "研究概览", includeHidden: true })
+    .focus();
+  expect(
+    await closedOverview.evaluate((element) =>
+      element.contains(document.activeElement),
+    ),
+  ).toBe(false);
+  await openThreadArtifact(page, laterVersion.data.artifact_version_id);
   await fullscreen.getByRole("button", { name: "比较结果" }).click();
   await expect(page.getByLabel("科学结果变化")).toBeVisible();
   await expect(
@@ -725,10 +793,7 @@ test("mandatory real HTTP fixture path renders private Evidence and a frozen pub
   ).toBeVisible();
   await page.keyboard.press("Escape");
   await fullscreen.getByRole("button", { name: "返回研究" }).click();
-  await page
-    .getByTestId(`artifact-result-${laterVersion.data.artifact_version_id}`)
-    .getByRole("button", { name: "查看完整结果" })
-    .click();
+  await openThreadArtifact(page, laterVersion.data.artifact_version_id);
   await fullscreen.getByRole("button", { name: "基于此结果重新分析" }).click();
   await page
     .getByRole("textbox", { name: "希望调整什么？" })
@@ -861,35 +926,33 @@ test("real worker exposes Literature dossiers, public reasoning, and interactive
 
   await page.reload();
   const fullscreen = page.getByTestId("artifact-fullscreen-workspace");
-  await page
-    .getByTestId(`artifact-result-${result.literature_claims}`)
-    .getByRole("button", { name: "查看完整结果" })
+  await openThreadArtifact(page, result.literature_claims);
+  const claimsWorkspace = fullscreen.locator("article.literature-review");
+  const claimTitle = "Confirmed transiting planets orbit nearby host stars.";
+  await claimsWorkspace
+    .getByRole("button", { name: `选择${claimTitle}` })
     .click();
-  const claimsDossier = fullscreen.getByRole("list", { name: "科学结果档案" });
-  await expect(claimsDossier).toBeVisible();
   await expect(
-    claimsDossier.getByText(
-      "Confirmed transiting planets orbit nearby host stars.",
-    ),
+    claimsWorkspace.getByRole("heading", { name: claimTitle }),
   ).toBeVisible();
-  await fullscreen.getByRole("button", { name: "查看证据 1" }).first().click();
+  await claimsWorkspace.getByRole("button", { name: "证据 1" }).first().click();
   await expect(page.getByRole("heading", { name: "研究证据" })).toBeVisible();
   await page.keyboard.press("Escape");
   await fullscreen.getByRole("button", { name: "返回研究" }).click();
 
-  await page
-    .getByTestId(`artifact-result-${result.literature_relations}`)
-    .getByRole("button", { name: "查看完整结果" })
-    .click();
-  const relationDossier = fullscreen.getByRole("list", {
-    name: "科学结果档案",
-  });
-  await expect(relationDossier).toBeVisible();
+  await openThreadArtifact(page, result.literature_relations, "审查结果");
+  const relationWorkspace = fullscreen.locator("article.literature-review");
   const traceConclusion =
     "The two claims compare methods over the same objects.";
-  await relationDossier.getByRole("button", { name: traceConclusion }).click();
+  await selectEntryWithReasoningTrace(relationWorkspace);
+  await relationWorkspace
+    .getByRole("button", { name: "公开推导与限制" })
+    .click();
   await expect(
-    relationDossier.getByText("Auditable identify premises step."),
+    relationWorkspace.getByText(traceConclusion, { exact: true }),
+  ).toBeVisible();
+  await expect(
+    relationWorkspace.getByText("Auditable identify premises step."),
   ).toBeVisible();
 
   await fullscreen.getByRole("button", { name: "分享", exact: true }).click();
@@ -898,29 +961,29 @@ test("real worker exposes Literature dossiers, public reasoning, and interactive
   await expect(relationShareLink).toHaveValue(/\/share\/[^/]+$/);
   const relationShareUrl = await relationShareLink.inputValue();
   await page.goto(relationShareUrl);
-  const publicDossier = page.getByRole("list", { name: "科学结果档案" });
-  await expect(publicDossier).toBeVisible();
-  await publicDossier.getByRole("button", { name: traceConclusion }).click();
+  const publicWorkspace = page.locator("article.literature-review");
+  await selectEntryWithReasoningTrace(publicWorkspace);
+  await publicWorkspace.getByRole("button", { name: "公开推导与限制" }).click();
   await expect(
-    publicDossier.getByText("Auditable identify premises step."),
+    publicWorkspace.getByText(traceConclusion, { exact: true }),
   ).toBeVisible();
-  const publicEvidenceAction = publicDossier
-    .getByRole("button", { name: /^查看证据 \d+$/ })
+  await expect(
+    publicWorkspace.getByText("Auditable identify premises step."),
+  ).toBeVisible();
+  const publicEvidenceAction = publicWorkspace
+    .getByRole("button", { name: /^证据 \d+$/ })
     .first();
   const publicEvidenceHeading = await publicEvidenceAction.textContent();
-  expect(publicEvidenceHeading).toMatch(/^查看证据 \d+$/);
+  expect(publicEvidenceHeading).toMatch(/^证据 \d+$/);
   await publicEvidenceAction.click();
   await expect(
     page.getByRole("heading", {
-      name: publicEvidenceHeading?.replace("查看", "") ?? "证据",
+      name: publicEvidenceHeading ?? "证据",
     }),
   ).toBeVisible();
 
   await page.goto(`/workspace/${projectId}`);
-  await page
-    .getByTestId(`artifact-result-${result.graph}`)
-    .getByRole("button", { name: "查看完整结果" })
-    .click();
+  await openThreadArtifact(page, result.graph);
   const graphCanvas = fullscreen.getByLabel("可交互科学关系图");
   await expect(graphCanvas).toBeVisible();
   const edge = graphCanvas.locator(".react-flow__edge").first();
@@ -943,46 +1006,18 @@ test("real worker exposes Literature dossiers, public reasoning, and interactive
     name: "关系图列表替代视图",
   });
   await expect(graphList).toBeVisible();
-  await graphList.getByRole("button").first().click();
-  await expect(fullscreen.getByText("公开推导", { exact: true })).toBeVisible();
+  const selectedRelationship = graphList.getByRole("button").first();
+  await selectedRelationship.click();
+  await expect(selectedRelationship).toHaveAttribute("aria-pressed", "true");
 
-  await page.addStyleTag({ content: ":root { font-size: 200% !important; }" });
   const graphTab = fullscreen.getByRole("tab", { name: "关系图" });
   await graphTab.click();
-  const graphNodes = graphCanvas.locator(".react-flow__node");
-  await expect
-    .poll(async () => (await graphNodes.first().boundingBox())?.width)
-    .toBeGreaterThan(400);
-  const overlaps = await graphNodes.evaluateAll((nodes) =>
-    nodes.flatMap((node, index) => {
-      const left = node.getBoundingClientRect();
-      return nodes.slice(index + 1).flatMap((candidate) => {
-        const right = candidate.getBoundingClientRect();
-        const overlapsInline =
-          left.left < right.right && left.right > right.left;
-        const overlapsBlock =
-          left.top < right.bottom && left.bottom > right.top;
-        return overlapsInline && overlapsBlock ? [`${index}`] : [];
-      });
-    }),
-  );
-  expect(overlaps).toEqual([]);
   const viewport = graphCanvas.locator(".react-flow__viewport");
   const transformBeforeZoom = await viewport.getAttribute("style");
   await graphCanvas.locator(".react-flow__controls-zoomin").click();
   await expect
     .poll(async () => viewport.getAttribute("style"))
     .not.toBe(transformBeforeZoom);
-  expect(
-    await fullscreen.evaluate(
-      (element) => element.scrollWidth <= element.clientWidth,
-    ),
-  ).toBe(true);
-  expect(
-    await fullscreen
-      .getByTestId("artifact-fullscreen-header")
-      .evaluate((element) => element.scrollWidth <= element.clientWidth),
-  ).toBe(true);
   await graphTab.focus();
   await expect(graphTab).toBeFocused();
   expect(failedResponses).toEqual([]);

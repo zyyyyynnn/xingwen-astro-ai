@@ -11,7 +11,6 @@
   "source_policy_file": "source-policy.json",
   "selection_status": "confirmed",
   "source_mode": "source-level-vendor",
-  "keep_as_is_tree_sha256": "b795bc60424132268381ba064f32210922d57e5219898c2798f17182b0d5e329",
   "product_mechanics_policy": "preserve-upstream",
   "domain_adaptation_policy": "adapter-and-renderer",
   "forbid_design_level_reimplementation": true,

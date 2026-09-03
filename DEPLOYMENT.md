@@ -4,7 +4,7 @@
 | --------- | -------------------------------------------- |
 | Authority | 环境拓扑、配置边界、迁移、健康检查与发布验证 |
 
-本文定义系统在本地与生产环境的部署、运行与发布规范。安全要求见 [Security](SECURITY.md)，退出标准见 [Acceptance](docs/product/ACCEPTANCE.md)，本地开发命令见 [Setup](docs/setup.md)。
+本文定义系统在本地与生产环境的部署、运行与发布规范。安全要求见 [Security](SECURITY.md)，本地开发命令见 [Setup](docs/setup.md)。
 
 ## 1. 部署拓扑
 

@@ -10,6 +10,7 @@ controlled integration evidence.
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 import subprocess
@@ -69,6 +70,8 @@ def _stub_visual_client() -> object:
         assert request.url.path.endswith("/layout-parsing")
         body = json.loads(request.content.decode("ascii"))
         assert isinstance(body["file"], str)
+        assert body["formatBlockContent"] is True
+        assert body["maxNewTokens"] == 4096
         base64.b64decode(body["file"])  # must be real page bytes
         return httpx.Response(200, json=_stub_layout_parsing_payload())
 
@@ -114,33 +117,33 @@ def test_native_report_stable_and_passes_checker(tmp_path: Path) -> None:
 
 
 @pytest.mark.scientific_document_native
-def test_hybrid_refuses_to_start_without_configured_backend(
+def test_paired_refuses_to_start_without_configured_backend(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from app.config import settings
     from services.scientific_document.benchmark_runner import (
-        run_hybrid,
-        visual_parser_from_settings,
+        require_visual_parser,
+        run_paired,
     )
 
     monkeypatch.setattr(settings, "PADDLEOCR_VL_BASE_URL", None, raising=False)
     monkeypatch.setattr(settings, "PADDLEOCR_VL_MODEL_REVISION", None, raising=False)
     monkeypatch.setattr(settings, "PADDLEOCR_VL_LOCAL_BUNDLE", None, raising=False)
     with pytest.raises(RuntimeError, match="visual backend"):
-        visual_parser_from_settings()
+        require_visual_parser()
     with pytest.raises(RuntimeError, match="visual backend"):
-        run_hybrid()
+        run_paired()
 
 
 def _paired_report_with_stub() -> object:
     from services.scientific_document import benchmark_runner
 
-    original = benchmark_runner.visual_parser_from_settings
-    benchmark_runner.visual_parser_from_settings = lambda: _stub_visual_client()
+    original = benchmark_runner.require_visual_parser
+    benchmark_runner.require_visual_parser = lambda: _stub_visual_client()
     try:
         return benchmark_runner.run_paired()
     finally:
-        benchmark_runner.visual_parser_from_settings = original
+        benchmark_runner.require_visual_parser = original
 
 
 @pytest.mark.scientific_document_native
@@ -293,72 +296,33 @@ def test_missing_memory_measurement_is_not_reported_as_zero() -> None:
     assert metrics["peak_memory"].rate is None
 
 
-def test_checker_rejects_unproven_hybrid_latency(tmp_path: Path) -> None:
+def test_checker_rejects_paired_without_measured_hybrid_latency(tmp_path: Path) -> None:
     from app.schemas.scientific_document_benchmark import (
-        BenchmarkCaseResult,
-        BenchmarkMetricValue,
         BenchmarkParserMode,
-        BenchmarkReport,
         compute_benchmark_report_hash,
     )
 
-    case = BenchmarkCaseResult(
-        entry_id="gs-x",
-        parser_mode=BenchmarkParserMode.hybrid,
-        document_parse_id="parse_x",
-        overall_quality="accepted",
-        latency_seconds=None,
-        input_hash="sha256:" + "a" * 64,
-        output_hash="sha256:" + "b" * 64,
+    report = _paired_report_with_stub()
+    cases = tuple(
+        case.model_copy(update={"latency_seconds": None})
+        if case.parser_mode == BenchmarkParserMode.hybrid
+        else case
+        for case in report.cases
     )
-
-    def metric(name: str) -> BenchmarkMetricValue:
-        return BenchmarkMetricValue(
-            name=name,
-            status="measured",
-            numerator=1,
-            denominator=1,
-            rate=1.0,
-            version="1.2.0",
-        )
-
-    report = BenchmarkReport(
-        report_id="r-hybrid",
-        schema_version="1.2.0",
-        parser_mode=BenchmarkParserMode.hybrid,
-        golden_set_manifest_id="m",
-        golden_set_version="1.0.0",
-        golden_set_content_hash="sha256:" + "c" * 64,
-        expected_annotation_hash="sha256:" + "d" * 64,
-        native_engine="docling-parse==7.11.0",
-        native_engine_version="7.11.0",
-        visual_engine="PaddleOCR-VL layout-parsing service",
-        visual_engine_version="1.6",
-        visual_model_id="PaddleOCR-VL-1.6-0.9B",
-        visual_model_revision="stub-0",
-        visual_runtime_binding_hash="sha256:" + "f" * 64,
-        config_hash="sha256:" + "e" * 64,
-        metrics=(
-            metric("accepted_rate"),
-            metric("latency"),
-            metric("visual_routing_coverage"),
-        ),
-        cases=(case,),
-        input_hash="sha256:" + "f" * 64,
-        output_hash="sha256:" + "0" * 64,
-        created_at="2026-08-25T00:00:00Z",
+    report = report.model_copy(
+        update={"cases": cases, "output_hash": "sha256:" + "0" * 64}
     )
     report = report.model_copy(
         update={"output_hash": compute_benchmark_report_hash(report)}
     )
-    path = tmp_path / "unproven-hybrid.json"
+    path = tmp_path / "paired-without-hybrid-latency.json"
     path.write_text(report.model_dump_json(), encoding="utf-8")
     result = _run_checker(path)
     assert result.returncode == 1
     assert "latency-measured" in result.stderr
 
 
-def test_checker_rejects_hybrid_without_successful_visual_routing(
+def test_checker_rejects_paired_without_successful_visual_routing(
     tmp_path: Path,
 ) -> None:
     from app.schemas.scientific_document_benchmark import (
@@ -407,14 +371,14 @@ def test_local_bundle_backend_refuses_unverified_bundle(
     """An unverified/absent bundle must fail closed before any vendor import."""
     from app.config import settings
     from services.scientific_document.benchmark_runner import (
-        visual_parser_from_settings,
+        require_visual_parser,
     )
 
     monkeypatch.setattr(settings, "PADDLEOCR_VL_BASE_URL", None, raising=False)
     monkeypatch.setattr(settings, "PADDLEOCR_VL_MODEL_REVISION", None, raising=False)
     monkeypatch.setattr(settings, "PADDLEOCR_VL_LOCAL_BUNDLE", str(tmp_path))
-    with pytest.raises(RuntimeError):
-        visual_parser_from_settings()
+    with pytest.raises(ValueError):
+        require_visual_parser()
 
 
 def test_local_bundle_backend_wiring(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -422,7 +386,7 @@ def test_local_bundle_backend_wiring(monkeypatch: pytest.MonkeyPatch) -> None:
     import app.services.scientific_document.local_paddle_pipeline as local_mod
     from app.config import settings
     from services.scientific_document.benchmark_runner import (
-        visual_parser_from_settings,
+        require_visual_parser,
     )
 
     class _Dummy:
@@ -436,7 +400,7 @@ def test_local_bundle_backend_wiring(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "PADDLEOCR_VL_MODEL_REVISION", None, raising=False)
     monkeypatch.setattr(settings, "PADDLEOCR_VL_LOCAL_BUNDLE", "bundle-x")
     monkeypatch.setattr(local_mod, "LocalPaddleOcrVlPipeline", _Dummy)
-    parser = visual_parser_from_settings()
+    parser = require_visual_parser()
     assert isinstance(parser, _Dummy)
 
 
@@ -479,6 +443,7 @@ def test_local_pipeline_projects_official_layout_block_objects(
     class _Engine:
         def predict(self, _array, **kwargs):
             assert kwargs["format_block_content"] is True
+            assert kwargs["max_new_tokens"] == 4096
             return [
                 {
                     "width": 200,
@@ -519,6 +484,226 @@ def test_local_pipeline_projects_official_layout_block_objects(
     assert result.blocks[0].order == 2
 
 
+def test_recorded_real_paddle_table_enters_document_summary_evidence() -> None:
+    from app.schemas.scientific_document import DocumentParseInput
+    from app.services.scientific_document.hybrid_parser import (
+        HybridScientificDocumentParser,
+        PaddleOcrVlClient,
+    )
+    from app.services.document_parse_store import validate_document_locator
+    from services.paper_pipeline.summary import build_document_evidence_candidates
+
+    fixture_dir = ROOT / "tests" / "fixtures" / "scientific-documents" / "papers"
+    image_path = fixture_dir / "cadieux-2025-l98-59-page-14.png"
+    recorded_path = (
+        fixture_dir
+        / "cadieux-2025-l98-59-table-5.paddleocr-vl-1.6.recorded.json"
+    )
+    recorded = json.loads(recorded_path.read_text(encoding="utf-8"))
+    official_payload = {
+        "errorCode": 0,
+        "result": {
+            "layoutParsingResults": [
+                {
+                    "prunedResult": {
+                        "width": recorded["width_pixels"],
+                        "height": recorded["height_pixels"],
+                        "parsing_res_list": [
+                            {
+                                "block_label": block["label"],
+                                "block_content": block["content"],
+                                "block_bbox": block["bbox"],
+                                "block_order": block["order"],
+                            }
+                            for block in recorded["blocks"]
+                        ],
+                    }
+                }
+            ]
+        },
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content.decode("ascii"))
+        assert body["formatBlockContent"] is True
+        assert body["maxNewTokens"] == 4096
+        return httpx.Response(200, json=official_payload)
+
+    image_bytes = image_path.read_bytes()
+    parser = HybridScientificDocumentParser(
+        visual_parser=PaddleOcrVlClient(
+            base_url="http://127.0.0.1:9/vision",
+            model_revision="cdc88f5feff0e4079e75863205053a68358e52f7",
+            client=httpx.Client(transport=httpx.MockTransport(handler)),
+        )
+    )
+    candidate = parser.parse_document(
+        DocumentParseInput(
+            research_input_id="00000000-0000-4000-8000-0000000000aa",
+            content_hash="sha256:" + hashlib.sha256(image_bytes).hexdigest(),
+            source_type="upload",
+            mime_type="image/png",
+            filename=image_path.name,
+            input_bytes=image_bytes,
+        )
+    )
+
+    assert candidate.overall_quality.value == "accepted"
+    assert len(candidate.tables) == 1
+    assert candidate.tables[0].row_count >= 10
+    assert candidate.tables[0].column_count == 6
+
+    evidence = build_document_evidence_candidates(
+        document_parse=candidate,
+        document_parse_id="00000000-0000-4000-8000-0000000000bb",
+        paper_id="paper.cadieux",
+        source_id="arxiv",
+        source_record_id="2507.09343",
+        source_snapshot_id="00000000-0000-4000-8000-0000000000cc",
+    )
+    table = candidate.tables[0]
+    table_quotes = [
+        item
+        for item in evidence
+        if item.locator.document_locator is not None
+        and item.locator.document_locator.block_id == table.block_id
+    ]
+    assert table_quotes
+    quoted_text = "".join(item.quote_or_value for item in table_quotes)
+    for row in table.rows:
+        for cell in row:
+            if cell.text:
+                assert cell.text in quoted_text
+            assert cell.bbox is None
+    for item in table_quotes:
+        locator = item.locator.document_locator
+        assert locator is not None and locator.text_span is not None
+        validate_document_locator(candidate, locator)
+        block = next(
+            block for block in candidate.blocks if block.block_id == locator.block_id
+        )
+        assert block.text is not None
+        assert (
+            block.text[locator.text_span.start : locator.text_span.end]
+            == item.quote_or_value
+        )
+
+
+@pytest.mark.parametrize(
+    "caption_label", ["figure_title", "figure_caption", "table_title", "table_caption"]
+)
+def test_visual_image_placeholder_preserves_figure_without_becoming_text_evidence(
+    caption_label: str,
+) -> None:
+    from app.schemas.scientific_document import DocumentBlockKind, DocumentParseInput
+    from app.services.scientific_document.hybrid_parser import (
+        HybridScientificDocumentParser,
+        PaddleOcrVlClient,
+    )
+    from services.paper_pipeline.summary import build_document_evidence_candidates
+
+    payload = _stub_layout_parsing_payload()
+    blocks = payload["result"]["layoutParsingResults"][0]["prunedResult"][
+        "parsing_res_list"
+    ]
+    blocks.extend(
+        [
+            {
+                "block_label": "image",
+                "block_content": '<div style="text-align: center;"><img src="imgs/chart.jpg" alt="Image" /></div>',
+                "block_bbox": [40, 180, 560, 400],
+                "block_order": 2,
+            },
+            {
+                "block_label": caption_label,
+                "block_content": '<div style="text-align: center;">Figure 1. Stellar radius versus effective temperature.</div>',
+                "block_bbox": [40, 410, 560, 440],
+                "block_order": 3,
+            },
+        ]
+    )
+    visual = PaddleOcrVlClient(
+        base_url="http://127.0.0.1:9/vision",
+        model_revision="stub-0",
+        client=httpx.Client(
+            transport=httpx.MockTransport(
+                lambda _request: httpx.Response(200, json=payload)
+            )
+        ),
+    )
+    image = (
+        ROOT
+        / "tests/fixtures/scientific-documents/papers/cadieux-2025-l98-59-page-14.png"
+    ).read_bytes()
+    document = HybridScientificDocumentParser(visual_parser=visual).parse_document(
+        DocumentParseInput(
+            research_input_id="00000000-0000-4000-8000-0000000000aa",
+            content_hash="sha256:" + hashlib.sha256(image).hexdigest(),
+            source_type="upload",
+            mime_type="image/png",
+            input_bytes=image,
+        )
+    )
+    evidence = build_document_evidence_candidates(
+        document_parse=document,
+        document_parse_id="00000000-0000-4000-8000-0000000000bb",
+        paper_id="paper.figure",
+        source_id="arxiv",
+        source_record_id="figure-test",
+        source_snapshot_id="00000000-0000-4000-8000-0000000000cc",
+    )
+    figure = document.figures[0]
+    assert figure.bbox is not None
+    assert figure.caption is None
+    assert (
+        next(
+            block for block in document.blocks if block.kind is DocumentBlockKind.figure
+        ).text
+        is None
+    )
+    assert any(
+        item.quote_or_value == "Figure 1. Stellar radius versus effective temperature."
+        for item in evidence
+    )
+    assert all(
+        item.locator.document_locator.block_id != figure.block_id for item in evidence
+    )
+
+
+def test_local_pipeline_bounds_cpu_inference_resources(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sys
+    from types import SimpleNamespace
+
+    from app.services.scientific_document.local_paddle_pipeline import (
+        LocalPaddleOcrVlPipeline,
+    )
+
+    captured: dict[str, object] = {}
+    engine = object()
+
+    def _construct(**kwargs: object) -> object:
+        captured.update(kwargs)
+        return engine
+
+    monkeypatch.setitem(
+        sys.modules,
+        "paddleocr",
+        SimpleNamespace(PaddleOCRVL=_construct),
+    )
+    pipeline = object.__new__(LocalPaddleOcrVlPipeline)
+    pipeline._engine = None
+    pipeline._layout_dir = Path("layout")
+    pipeline._vlm_dir = Path("recognition")
+
+    assert pipeline._pipeline() is engine
+    assert captured["device"] == "cpu"
+    assert captured["cpu_threads"] == 2
+    assert captured["enable_mkldnn"] is True
+    assert captured["mkldnn_cache_capacity"] == 1
+
+
 def test_visual_projection_rejects_oversized_block_lists_before_projection() -> None:
     from app.services.scientific_document.hybrid_parser import (
         VisualParseError,
@@ -554,7 +739,26 @@ def test_visual_projection_rejects_oversized_block_content() -> None:
         )
 
 
-def test_official_html_table_projects_to_canonical_cells() -> None:
+@pytest.mark.parametrize(
+    ("content", "expected_cells", "expected_text"),
+    [
+        (
+            "<table><tr><td>TOI</td><td>Teff [K]</td></tr>"
+            "<tr><td>101.01</td><td>5200</td></tr></table>",
+            [["TOI", "Teff [K]"], ["101.01", "5200"]],
+            "TOI\tTeff [K]\n101.01\t5200",
+        ),
+        (
+            '<table><tr><th rowspan="2">L 98-59</th><td>1.2 ± 0.1</td></tr>'
+            '<tr><td>&lt; 3.5</td></tr><tr><td colspan="2">No measurement</td></tr></table>',
+            [["L 98-59", "1.2 ± 0.1"], ["< 3.5"], ["No measurement"]],
+            "L 98-59\t1.2 ± 0.1\n\t< 3.5\nNo measurement",
+        ),
+    ],
+)
+def test_official_html_table_projects_to_canonical_cells(
+    content: str, expected_cells: list[list[str]], expected_text: str
+) -> None:
     from app.services.scientific_document.hybrid_parser import (
         VisualPageBlock,
         VisualPageResult,
@@ -568,10 +772,7 @@ def test_official_html_table_projects_to_canonical_cells() -> None:
             blocks=(
                 VisualPageBlock(
                     label="table",
-                    content=(
-                        "<table><tr><td>TOI</td><td>Teff [K]</td></tr>"
-                        "<tr><td>101.01</td><td>5200</td></tr></table>"
-                    ),
+                    content=content,
                     bbox=(10.0, 20.0, 190.0, 90.0),
                     order=0,
                 ),
@@ -585,12 +786,10 @@ def test_official_html_table_projects_to_canonical_cells() -> None:
 
     assert len(tables) == 1
     assert tables[0].quality.value == "accepted"
-    assert [[cell.text for cell in row] for row in tables[0].rows] == [
-        ["TOI", "Teff [K]"],
-        ["101.01", "5200"],
-    ]
+    assert [[cell.text for cell in row] for row in tables[0].rows] == expected_cells
     assert all(cell.bbox is None for row in tables[0].rows for cell in row)
     assert _blocks[0].bbox is not None
+    assert _blocks[0].text == expected_text
 
 
 def test_official_html_table_rejects_unbounded_span_before_projection() -> None:
@@ -622,22 +821,17 @@ def test_official_html_table_rejects_unbounded_span_before_projection() -> None:
         )
 
 
-@pytest.mark.parametrize(
-    "report_name,expected_mode",
-    (
-        ("real-paddle-cpu-hybrid.json", "hybrid"),
-        ("real-paddle-cpu-paired.json", "paired"),
-    ),
-)
 def test_committed_real_paddle_machine_evidence_passes_checker(
-    report_name: str,
-    expected_mode: str,
 ) -> None:
-    report_path = ROOT / "services/scientific_document/evidence" / report_name
+    report_path = (
+        ROOT
+        / "services/scientific_document/evidence"
+        / "real-paddle-cpu-paired.json"
+    )
     assert report_path.is_file(), f"missing exact-head machine evidence: {report_path}"
 
     payload = json.loads(report_path.read_text(encoding="utf-8"))
-    assert payload["parser_mode"] == expected_mode
+    assert payload["parser_mode"] == "paired"
     assert payload["golden_set_manifest_id"] == "scientific_document-golden-set"
     assert payload["visual_model_id"] == "PaddleOCR-VL-1.6-0.9B"
     assert payload["visual_model_revision"]

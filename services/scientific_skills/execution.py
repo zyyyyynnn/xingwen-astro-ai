@@ -35,6 +35,7 @@ from app.schemas.scientific_skills import (
     ModelArtifactContent,
     ModelBinaryReference,
     ModelEvaluationArtifactContent,
+    ModelEvaluationMetric,
     ModelSplitReference,
     ScientificMetric,
     ScientificEvidence,
@@ -417,10 +418,7 @@ def _admit_gaia_output(
         truncated, bool
     ):
         raise ValueError("Gaia result completion status is invalid")
-    if (
-        (status == "empty") != (not raw_rows)
-        or (status == "truncated") != truncated
-    ):
+    if (status == "empty") != (not raw_rows) or (status == "truncated") != truncated:
         raise ValueError(
             "Gaia result completion status is inconsistent with rows and truncated"
         )
@@ -952,6 +950,7 @@ def _model_evaluation(
         "split": split.model_dump(mode="json"),
         "metrics": [item.model_dump(mode="json") for item in metrics],
         "baseline_metrics": [item.model_dump(mode="json") for item in baseline],
+        "diagnostics": output.get("diagnostics"),
         "skill_execution": _skill_execution(outcome).model_dump(mode="json"),
         "model_binary": model_binary.model_dump(mode="json"),
         "diagnostic_visualization_ids": [],
@@ -1010,7 +1009,9 @@ def _model_artifact(
         "target_field": _text(output, "target_field", fallback=outcome.task.parameters),
         "model_binary": model_binary.model_dump(mode="json"),
         "input_name": _text(raw_model_binary, "input_name"),
+        "input_dtype": _text(raw_model_binary, "input_dtype"),
         "output_names": _string_list(raw_model_binary, "output_names"),
+        "output_metadata": raw_model_binary.get("output_metadata"),
         "input_shape": _input_shape(raw_model_binary),
         "opset_imports": _opset_imports(raw_model_binary),
         "dependency_revisions": _model_dependency_revisions(outcome),
@@ -1228,14 +1229,17 @@ def _named_metrics(
     *,
     prefix: str,
     evidence_ids: tuple[str, ...],
-) -> tuple[ScientificMetric, ...]:
+) -> tuple[ModelEvaluationMetric, ...]:
     if not isinstance(raw, dict) or not raw:
         if prefix == "metric":
             raise ValueError("model task produced no evaluation metrics")
         return ()
     return tuple(
-        ScientificMetric(
+        ModelEvaluationMetric(
             metric_id=_stable_id(prefix, outcome.task.task_id, str(name)),
+            metric_key=str(name),
+            optimization=_model_metric_optimization(str(name)),
+            category=_model_metric_category(str(name)),
             label=_model_metric_label(str(name)),
             value=value,
             evidence_ids=evidence_ids,
@@ -1245,12 +1249,50 @@ def _named_metrics(
     )
 
 
+def _model_metric_category(
+    name: str,
+) -> Literal["holdout", "cross_validation", "feature_importance"]:
+    if name.startswith("cv_"):
+        return "cross_validation"
+    if name.startswith("feature_importance_"):
+        return "feature_importance"
+    return "holdout"
+
+
+def _model_metric_optimization(name: str) -> Literal["maximize", "minimize", "none"]:
+    if name in {"accuracy", "precision", "recall", "f1", "macro_f1", "roc_auc", "r2"}:
+        return "maximize"
+    if name in {
+        "log_loss",
+        "brier_score",
+        "mae",
+        "mse",
+        "rmse",
+        "mean_absolute_error",
+        "root_mean_squared_error",
+    }:
+        return "minimize"
+    return "none"
+
+
 def _model_metric_label(name: str) -> str:
+    if name.startswith("feature_importance_"):
+        return name.removeprefix("feature_importance_")
+    if name.startswith("cv_"):
+        metric, _, statistic = name.removeprefix("cv_").rpartition("_")
+        if statistic in {"mean", "stddev"}:
+            suffix = "均值" if statistic == "mean" else "标准差"
+            return f"{_model_metric_label(metric)} · {suffix}"
     labels = {
         "accuracy": "准确率",
         "precision": "精确率",
         "recall": "召回率",
         "f1": "F1 分数",
+        "macro_f1": "宏平均 F1 分数",
+        "log_loss": "对数损失",
+        "brier_score": "Brier 评分",
+        "mean_absolute_error": "平均绝对误差",
+        "root_mean_squared_error": "均方根误差",
         "roc_auc": "ROC AUC",
         "mae": "平均绝对误差",
         "mse": "均方误差",

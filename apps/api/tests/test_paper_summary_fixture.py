@@ -158,7 +158,9 @@ class _Artifacts:
             collection_version.artifact_id: ("paper_collection", collection_version),
         }
 
-    def get_version(self, *, version_id: str, session_id: str) -> ArtifactVersionDetail:
+    def get_version(
+        self, *, version_id: str, session_id: str, full_content: bool = False
+    ) -> ArtifactVersionDetail:
         version = self._versions.get(version_id) if session_id == "owner" else None
         if version is None:
             raise SecurityProblem(

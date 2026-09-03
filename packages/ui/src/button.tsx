@@ -9,8 +9,17 @@ import { cn } from "#utils";
  * button and anchor controls.
  * See ../component-sources.json for the reviewed source and consumers.
  */
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "destructive";
-export type ButtonSize = "default" | "small" | "icon";
+export type ButtonVariant =
+  "primary" | "secondary" | "outline" | "ghost" | "destructive" | "link";
+export type ButtonSize =
+  | "default"
+  | "xsmall"
+  | "small"
+  | "large"
+  | "inline"
+  | "icon"
+  | "icon-small"
+  | "icon-xsmall";
 
 type NativeButtonProps = Omit<
   ButtonHTMLAttributes<HTMLButtonElement>,
@@ -19,13 +28,13 @@ type NativeButtonProps = Omit<
 
 interface TextButtonProps extends NativeButtonProps {
   variant?: ButtonVariant;
-  size?: Exclude<ButtonSize, "icon">;
+  size?: Exclude<ButtonSize, "icon" | "icon-small" | "icon-xsmall">;
   "aria-label"?: string;
 }
 
 interface IconButtonProps extends NativeButtonProps {
   variant?: ButtonVariant;
-  size: "icon";
+  size: "icon" | "icon-small" | "icon-xsmall";
   "aria-label": string;
 }
 

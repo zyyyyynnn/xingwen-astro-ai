@@ -41,9 +41,9 @@ const repositoryTextFiles = trackedFiles.filter(
   (file) =>
     isRepositoryTextPath(file) &&
     !file.startsWith("apps/workspace/upstream/") &&
+    !file.startsWith("tests/evidence/") &&
     !["apps/api/uv.lock", "pnpm-lock.yaml"].includes(file) &&
     file !== "scripts/governance-identifiers.mjs" &&
-    file !== "scripts/check-architecture-delegacy.mjs" &&
     file !== "scripts/check-title-governance.mjs",
 );
 
@@ -193,16 +193,11 @@ for (const file of repositoryTextFiles) {
 const indexFile = "docs/README.md";
 const indexTargets = new Set();
 const indexContent = readFileSync(resolve(root, indexFile), "utf8");
-const authorityMapContent = indexContent
-  .split(/^## 1\. Authority Map\s*$/mu, 2)
-  .at(1)
-  ?.split(/^##\s+/mu, 1)
-  .at(0);
-const authorityMapLines = authorityMapContent?.split(/\r?\n/u) ?? [];
-for (const link of authorityMapContent
-  ? inspectMarkdown(authorityMapContent, { requireSingleH1: false }).links
-  : []) {
-  if (!authorityMapLines[link.line - 1]?.trimStart().startsWith("|")) continue;
+const indexLines = indexContent.split(/\r?\n/u);
+for (const link of inspectMarkdown(indexContent, {
+  requireSingleH1: false,
+}).links) {
+  if (!indexLines[link.line - 1]?.trimStart().startsWith("|")) continue;
   const target = localTarget(link.target);
   if (!target) continue;
   const absolute = resolve(root, dirname(indexFile), target);

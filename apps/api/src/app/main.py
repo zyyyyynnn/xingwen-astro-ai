@@ -63,6 +63,10 @@ from app.services.resource_authority import (
     ResourceAuthority,
 )
 from app.services.revisions import RevisionApplicationService
+from app.services.scientific_document.hybrid_parser import (
+    HybridScientificDocumentParser,
+)
+from app.services.scientific_document.visual_backend import build_visual_parser
 from app.services.snapshots import PersistentSnapshotStore, SnapshotService
 from app.workflow.cache import CacheRecordStore, CacheSelector
 from app.workflow.persistent_executor import PersistentWorkflowExecutor
@@ -175,24 +179,10 @@ def _configure_database_runtime(
 
     content_storage = LocalContentStorage(settings.RESEARCH_INPUT_UPLOAD_DIR)
     app.state.content_storage = content_storage
-    from app.services.scientific_document.hybrid_parser import (
-        HybridScientificDocumentParser,
-        PaddleOcrVlClient,
-    )
-
-    visual_parser = (
-        PaddleOcrVlClient(
-            base_url=settings.PADDLEOCR_VL_BASE_URL,
-            model_revision=settings.PADDLEOCR_VL_MODEL_REVISION,
-            timeout_seconds=settings.PADDLEOCR_VL_TIMEOUT_SECONDS,
-        )
-        if settings.PADDLEOCR_VL_BASE_URL is not None
-        and settings.PADDLEOCR_VL_MODEL_REVISION is not None
-        else None
-    )
     app.state.document_parser = HybridScientificDocumentParser(
-        visual_parser=visual_parser,
+        visual_parser=build_visual_parser(settings),
         max_pages=settings.DOCUMENT_PARSE_MAX_PAGES,
+        max_visual_pages=settings.DOCUMENT_PARSE_MAX_VISUAL_PAGES,
     )
 
     def _resolve_planner() -> ResearchContractPlanner:

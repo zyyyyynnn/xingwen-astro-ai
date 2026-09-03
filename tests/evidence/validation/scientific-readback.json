@@ -1,0 +1,11 @@
+{
+ "statement": "analysis-report artifact full scientific read verification",
+ "analysis_artifact_version_id": "0d2aef77-a982-42c6-9831-70388d125508",
+ "verified_at_commit": "f085345490fcd3c1dfe8cbe0dcbe4e6ae8fce108",
+ "method": "ScientificArtifactReadService direct execution against preserved live PostgreSQL data with current workspace source",
+ "result": "PASS",
+ "scientific_evidence": {
+  "count": 4,
+  "upstream_evidence_ids_per_item": 982
+ }
+}

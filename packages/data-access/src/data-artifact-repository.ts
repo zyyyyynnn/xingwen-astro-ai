@@ -119,7 +119,42 @@ function mapBase(dto: DataArtifactReadDto): DataArtifactReviewBase {
   };
 }
 
-function mapCell(field: DatasetRow["fields"][number]): DatasetCellReview {
+function persistedEvidenceBindings(
+  dto: DatasetArtifactReadDto,
+): ReadonlyMap<string, DomainEntityId> {
+  // Publisher replaces the candidate registry with persisted ids without
+  // changing its order; ArtifactReadService preserves that version order.
+  const bindings = new Map<string, DomainEntityId>();
+  const pipelineIds = dto.dataset.evidence_ids;
+  if (pipelineIds.length !== dto.evidence.length) return bindings;
+  for (const [index, pipelineId] of pipelineIds.entries()) {
+    const persisted = dto.evidence[index];
+    if (persisted) bindings.set(pipelineId, id(persisted.id));
+  }
+  return bindings;
+}
+
+function mapCellEvidenceIds(
+  pipelineIds: readonly string[],
+  bindings: ReadonlyMap<string, DomainEntityId>,
+): readonly DomainEntityId[] {
+  return pipelineIds.map((pipelineId) => {
+    const persistedId = bindings.get(pipelineId);
+    if (!persistedId) {
+      throw new ValidationError(
+        `Dataset cell references Evidence without a persisted binding: ${pipelineId}`,
+        "SCHEMA_VALIDATION_FAILED",
+        [],
+      );
+    }
+    return persistedId;
+  });
+}
+
+function mapCell(
+  field: DatasetRow["fields"][number],
+  evidenceBindings: ReadonlyMap<string, DomainEntityId>,
+): DatasetCellReview {
   if ("canonical_value" in field) {
     return {
       canonicalFieldId: id(field.canonical_field_id),
@@ -128,7 +163,10 @@ function mapCell(field: DatasetRow["fields"][number]): DatasetCellReview {
       unit: field.canonical_unit,
       reason: null,
       conflictIds: field.conflict_ids.map(id),
-      evidenceIds: field.transformation_evidence_ids.map(id),
+      evidenceIds: mapCellEvidenceIds(
+        field.transformation_evidence_ids,
+        evidenceBindings,
+      ),
     };
   }
   if ("conflict_ids" in field) {
@@ -139,7 +177,10 @@ function mapCell(field: DatasetRow["fields"][number]): DatasetCellReview {
       unit: null,
       reason: field.reason,
       conflictIds: field.conflict_ids.map(id),
-      evidenceIds: field.transformation_evidence_ids.map(id),
+      evidenceIds: mapCellEvidenceIds(
+        field.transformation_evidence_ids,
+        evidenceBindings,
+      ),
     };
   }
   return {
@@ -149,19 +190,66 @@ function mapCell(field: DatasetRow["fields"][number]): DatasetCellReview {
     unit: null,
     reason: field.reason,
     conflictIds: [],
-    evidenceIds: field.transformation_evidence_ids.map(id),
+    evidenceIds: mapCellEvidenceIds(
+      field.transformation_evidence_ids,
+      evidenceBindings,
+    ),
   };
 }
 
-function mapRow(dto: DatasetRow): DatasetRowReview {
+function rowDisplayIdentity(
+  authority: DatasetRow["row_authority"],
+  cells: readonly DatasetCellReview[],
+): string {
+  if (!("logical_key" in authority)) {
+    return authority.canonical_row_identity.canonical_identity;
+  }
+  const values = authority.canonical_row_identity.member_entities.flatMap(
+    (entity) => entity.identity_values,
+  );
+  // Names/catalogue identifiers describe the entity. Coordinate crossmatch
+  // keys and the order of source members must not choose its display name.
+  const preferredFields =
+    authority.entity_level === "host_star"
+      ? ["star.name", "star.tic_id", "star.gaia_dr3_id"]
+      : ["planet.name", "planet.toi_id"];
+  for (const field of preferredFields) {
+    const identityValues = values.filter((value) => value.field_id === field);
+    if (identityValues.length === 0) continue;
+    const selected = cells.find(
+      (cell) =>
+        cell.canonicalFieldId === field &&
+        cell.status === "mapped" &&
+        cell.value,
+    );
+    const labels = (
+      selected?.value
+        ? [selected.value]
+        : identityValues.map((value) => value.normalized_value)
+    ).map((label) => {
+      return field === "planet.toi_id" && /^\d+(?:\.\d+)?$/u.test(label)
+        ? `TOI-${label}`
+        : label;
+    });
+    if (labels.length > 0) return [...new Set(labels)].join(" / ");
+  }
+  return [
+    ["system.right_ascension", "RA"],
+    ["system.declination", "Dec"],
+  ]
+    .flatMap(([field, label]) => {
+      const coordinate = values.find((value) => value.field_id === field);
+      return coordinate ? [`${label} ${coordinate.normalized_value}°`] : [];
+    })
+    .join(" · ");
+}
+
+function mapRow(
+  dto: DatasetRow,
+  evidenceBindings: ReadonlyMap<string, DomainEntityId>,
+): DatasetRowReview {
   const authority = dto.row_authority;
-  const identity =
-    "logical_key" in authority
-      ? authority.canonical_row_identity.member_entities
-          .flatMap((entity) => entity.identity_values)
-          .map((value) => `${value.field_id}=${value.normalized_value}`)
-          .join(" · ")
-      : authority.canonical_row_identity.canonical_identity;
+  const cells = dto.fields.map((field) => mapCell(field, evidenceBindings));
   return {
     rowId: dto.row_id,
     entityLevel:
@@ -174,8 +262,8 @@ function mapRow(dto: DatasetRow): DatasetRowReview {
       "alignment_status" in authority
         ? String(authority.alignment_status)
         : "not_applicable",
-    identity,
-    cells: dto.fields.map(mapCell),
+    identity: rowDisplayIdentity(authority, cells),
+    cells,
     sourceSnapshotIds: dto.source_snapshot_ids.map(id),
     evidenceIds: dto.evidence_ids.map(id),
   };
@@ -183,13 +271,14 @@ function mapRow(dto: DatasetRow): DatasetRowReview {
 
 function mapDataset(dto: DatasetArtifactReadDto): DatasetArtifactReview {
   const candidate: DatasetArtifactCandidate = dto.dataset;
+  const evidenceBindings = persistedEvidenceBindings(dto);
   return {
     ...mapBase(dto),
     kind: "dataset",
     candidateId: id(candidate.candidate_id),
     requestedFields: candidate.requested_fields.map(id),
     columns: candidate.columns.map((column) => mapField(column.field)),
-    rows: candidate.rows.map(mapRow),
+    rows: candidate.rows.map((row) => mapRow(row, evidenceBindings)),
     rowCount: candidate.row_count,
     fieldCount: candidate.field_count,
     conflictCount: candidate.conflicts.length,

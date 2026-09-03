@@ -24,6 +24,7 @@ export interface WwtSceneOptions {
   readonly loadContent: (contentHash: ContentHash) => Promise<ArrayBuffer>;
   readonly onProgress: (message: string) => void;
   readonly onAsyncError?: (error: unknown) => void;
+  readonly onReadback?: (readback: WwtSceneReadback) => void;
 }
 
 export interface WwtSceneReadback {
@@ -53,6 +54,9 @@ export interface WwtSessionLease {
 }
 
 const ENGINE_ROOT_ID = "xingwen-wwt-engine-root";
+// WWT's sky camera zoom is six times the vertical angular field of view.
+const SKY_ZOOM_PER_FIELD_OF_VIEW_DEGREE = 6;
+const READBACK_INTERVAL_MS = 250;
 
 let engineRoot: HTMLDivElement | null = null;
 let engineSessionPromise: Promise<EngineSession> | null = null;
@@ -341,11 +345,55 @@ function configureObserver(
   settings: import("@wwtelescope/engine").Settings,
   observer: WwtSceneVisualizationReview["observer"],
 ) {
-  if (observer === null) return;
+  if (observer === null || observer === undefined) {
+    settings.set_locationLat(0);
+    settings.set_locationLng(0);
+    settings.set_locationAltitude(0);
+    settings.set_localHorizonMode(false);
+    return;
+  }
   settings.set_locationLat(observer.latitudeDegrees);
   settings.set_locationLng(observer.longitudeDegrees);
   settings.set_locationAltitude(observer.elevationMeters);
   settings.set_localHorizonMode(observer.localHorizonMode);
+}
+
+function configureSceneAppearance(
+  session: EngineSession,
+  spec: WwtSceneVisualizationReview,
+) {
+  configureTime(session, spec.time);
+  configureObserver(session.instance.si.settings, spec.observer);
+  configureGrid(session.instance.si.settings, spec.coordinateGrids);
+  configureOverlays(session.instance.si.settings, spec);
+  session.instance.setBackgroundImageByName(IMAGE_SET_NAMES[spec.background]);
+  if (spec.foreground === null) {
+    session.instance.setForegroundOpacity(0);
+  } else {
+    session.instance.setForegroundImageByName(
+      IMAGE_SET_NAMES[spec.foreground.imageSet],
+    );
+    session.instance.setForegroundOpacity(spec.foreground.opacity * 100);
+  }
+}
+
+function canUpdateSceneInPlace(
+  previous: WwtSpec | null,
+  next: WwtSceneVisualizationReview,
+): previous is WwtSceneVisualizationReview {
+  return (
+    previous?.mode === "wwt_scene" &&
+    !previous.tourAutoplay &&
+    !next.tourAutoplay &&
+    previous.fitsLayers.length === next.fitsLayers.length &&
+    previous.fitsLayers.every(
+      (layer, index) => layer === next.fitsLayers[index],
+    ) &&
+    previous.tableLayers.length === next.tableLayers.length &&
+    previous.tableLayers.every(
+      (layer, index) => layer === next.tableLayers[index],
+    )
+  );
 }
 
 function configureOverlays(
@@ -380,7 +428,7 @@ async function gotoView(
     await session.instance.gotoRADecZoom(
       (view.center.raHours * Math.PI) / 12,
       (view.center.decDegrees * Math.PI) / 180,
-      view.fieldOfViewDegrees,
+      view.fieldOfViewDegrees * SKY_ZOOM_PER_FIELD_OF_VIEW_DEGREE,
       view.transitionSeconds === 0,
       (view.rollDegrees * Math.PI) / 180,
       view.transitionSeconds || undefined,
@@ -394,7 +442,7 @@ async function gotoView(
   place.set_target(SolarSystemObjects[view.target]);
   place.set_zoomLevel(view.fieldOfViewDegrees);
   const camera = place.get_camParams();
-  camera.rotation = view.rollDegrees;
+  camera.rotation = (view.rollDegrees * Math.PI) / 180;
   place.set_camParams(camera);
   await session.instance.gotoTarget({
     place,
@@ -557,7 +605,7 @@ function sceneReadback(
       ? session.instance.ctl.renderContext.get_fovAngle()
       : null,
     cameraRollDegrees: requested.has("camera_roll")
-      ? session.instance.ctl.renderContext.viewCamera.rotation
+      ? (session.instance.ctl.renderContext.viewCamera.rotation * 180) / Math.PI
       : null,
     currentTime: requested.has("current_time")
       ? session.engine.SpaceTimeController.get_now().toISOString()
@@ -606,10 +654,11 @@ async function renderScene(
   spec: WwtSpec,
   options: WwtSceneOptions,
   signal: AbortSignal,
+  previousSpec: WwtSpec | null,
 ): Promise<WwtSceneReadback | null> {
   assertLease(token);
-  resetScene(session);
   if (spec.mode === "fits_image") {
+    resetScene(session);
     options.onProgress("正在载入 FITS 图像");
     const data = await options.loadContent(spec.contentHash);
     await addFitsLayer(session, token, data, {
@@ -621,20 +670,26 @@ async function renderScene(
     });
     return null;
   }
-  configureTime(session, spec.time);
-  configureObserver(session.instance.si.settings, spec.observer);
-  configureGrid(session.instance.si.settings, spec.coordinateGrids);
-  configureOverlays(session.instance.si.settings, spec);
-  session.instance.setBackgroundImageByName(IMAGE_SET_NAMES[spec.background]);
-  if (spec.foreground !== null) {
-    session.instance.setForegroundImageByName(
-      IMAGE_SET_NAMES[spec.foreground.imageSet],
+
+  if (canUpdateSceneInPlace(previousSpec, spec)) {
+    configureSceneAppearance(session, spec);
+    if (previousSpec.view !== spec.view) {
+      await gotoView(session, token, spec.view);
+    }
+    session.instance.si.clearAnnotations();
+    spec.annotations.forEach((annotation) =>
+      configureAnnotation(annotation, session, spec.view.fieldOfViewDegrees),
     );
-    session.instance.setForegroundOpacity(spec.foreground.opacity * 100);
+    return sceneReadback(session, spec);
   }
+
+  resetScene(session);
+  configureSceneAppearance(session, spec);
   await gotoView(session, token, spec.view);
-  for (const fitsLayer of spec.fitsLayers) {
-    options.onProgress(`正在载入 FITS 图层 ${fitsLayer.layerId}`);
+  for (const [index, fitsLayer] of spec.fitsLayers.entries()) {
+    options.onProgress(
+      `正在载入 FITS 图层 ${index + 1}/${spec.fitsLayers.length}`,
+    );
     const data = await options.loadContent(fitsLayer.contentHash);
     await addFitsLayer(session, token, data, {
       name: fitsLayer.layerId,
@@ -646,8 +701,10 @@ async function renderScene(
       vmax: fitsLayer.vmax,
     });
   }
-  for (const tableLayer of spec.tableLayers) {
-    options.onProgress(`正在载入表格图层 ${tableLayer.layerId}`);
+  for (const [index, tableLayer] of spec.tableLayers.entries()) {
+    options.onProgress(
+      `正在载入表格图层 ${index + 1}/${spec.tableLayers.length}`,
+    );
     const data = await options.loadContent(tableLayer.contentHash);
     await addTableLayer(session, token, data, tableLayer);
   }
@@ -667,6 +724,8 @@ async function renderScene(
 export function openWwtSession(host: HTMLElement): WwtSessionLease {
   const token = Symbol("wwt-session-lease");
   const abortController = new AbortController();
+  let previousSpec: WwtSpec | null = null;
+  let stopReadback = () => {};
   activeLease = token;
   const sessionPromise = getEngineSession(host);
   void sessionPromise
@@ -682,25 +741,51 @@ export function openWwtSession(host: HTMLElement): WwtSessionLease {
       queue(async () => {
         const session = await sessionPromise;
         assertLease(token);
+        stopReadback();
         if (session.canvas.parentElement !== host) host.append(session.canvas);
         try {
-          return await renderScene(
+          const readback = await renderScene(
             session,
             token,
             spec,
             options,
             abortController.signal,
+            previousSpec,
           );
+          previousSpec = spec;
+          if (spec.mode === "wwt_scene" && options.onReadback) {
+            let lastReadAt = 0;
+            const onFrame = () => {
+              if (activeLease !== token) {
+                stopReadback();
+                return;
+              }
+              const now = performance.now();
+              if (now - lastReadAt < READBACK_INTERVAL_MS) return;
+              lastReadAt = now;
+              options.onReadback?.(sceneReadback(session, spec));
+            };
+            session.instance.addFrameCallback(onFrame);
+            stopReadback = () => {
+              session.instance.removeFrameCallback(onFrame);
+            };
+          }
+          return readback;
         } catch (error) {
           if (error instanceof SupersededWwtLeaseError) return null;
-          if (activeLease === token) resetScene(session);
+          if (activeLease === token) {
+            previousSpec = null;
+            resetScene(session);
+          }
           throw error;
         }
       }),
     close: () => {
+      stopReadback();
       if (activeLease !== token) return;
       abortController.abort();
       activeLease = null;
+      previousSpec = null;
       void queue(async () => {
         const session = await sessionPromise;
         if (activeLease !== null) return;

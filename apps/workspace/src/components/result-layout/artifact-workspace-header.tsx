@@ -1,0 +1,160 @@
+import type { ReactNode } from "react";
+import type { DomainEntityId } from "@xingwen/domain";
+import type { ArtifactVersionSummary } from "@xingwen/domain";
+import {
+  Button,
+  DialogClose,
+  DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@xingwen/ui";
+import {
+  ArrowLeft,
+  ChevronDown,
+  History,
+  Quote,
+  RotateCcw,
+  Share2,
+} from "@xingwen/ui/icons";
+
+export interface ArtifactWorkspaceHeaderProps {
+  readonly title: string;
+  readonly artifactVersionId: DomainEntityId;
+  readonly versions?: readonly ArtifactVersionSummary[];
+  readonly onSelectVersion?: (versionId: DomainEntityId) => void;
+  readonly hasEvidence?: boolean;
+  readonly onOpenEvidence?: () => void;
+  readonly canCompare?: boolean;
+  readonly onOpenCompare?: () => void;
+  readonly canShare?: boolean;
+  readonly onOpenShare?: () => void;
+  readonly canRevise?: boolean;
+  readonly onOpenRevision?: () => void;
+  readonly actions?: ReactNode;
+}
+
+function versionTimestamp(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString("zh-CN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+}
+
+export function ArtifactWorkspaceHeader({
+  title,
+  artifactVersionId,
+  versions = [],
+  onSelectVersion,
+  hasEvidence = false,
+  onOpenEvidence,
+  canCompare = false,
+  onOpenCompare,
+  canShare = false,
+  onOpenShare,
+  canRevise = false,
+  onOpenRevision,
+  actions = null,
+}: ArtifactWorkspaceHeaderProps) {
+  const orderedVersions = [...versions].sort(
+    (left, right) => right.versionNumber - left.versionNumber,
+  );
+  const selectedVersion =
+    orderedVersions.find((version) => version.id === artifactVersionId) ?? null;
+  const isCurrentVersion =
+    orderedVersions.length > 0 && orderedVersions[0]?.id === artifactVersionId;
+
+  return (
+    <header
+      className="xw-artifact-header"
+      data-testid="artifact-fullscreen-header"
+    >
+      <div className="xw-artifact-header__main">
+        <DialogClose asChild>
+          <Button variant="ghost" size="small" className="ui-text-label">
+            <ArrowLeft aria-hidden="true" />
+            <span>返回研究</span>
+          </Button>
+        </DialogClose>
+        <DialogTitle className="xw-artifact-header__title">{title}</DialogTitle>
+        {orderedVersions.length > 1 && selectedVersion && onSelectVersion ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="small"
+                aria-haspopup="listbox"
+                className="ui-text-label"
+                data-testid="artifact-version-selector"
+              >
+                <span>{isCurrentVersion ? "当前结果" : "历史结果"}</span>
+                <span className="ui-text-label">
+                  {versionTimestamp(selectedVersion.createdAt)}
+                </span>
+                <ChevronDown aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="xw-artifact-header__version-menu"
+            >
+              {orderedVersions.map((version) => {
+                const isCurrent = orderedVersions[0]?.id === version.id;
+                const isActive = version.id === artifactVersionId;
+                return (
+                  <DropdownMenuItem
+                    key={version.id}
+                    onClick={() => {
+                      if (!isActive) onSelectVersion(version.id);
+                    }}
+                    className={isActive ? "font-medium" : undefined}
+                  >
+                    <span>{isCurrent ? "当前结果" : "历史结果"}</span>
+                    <span className="ui-text-label xw-artifact-header__timestamp">
+                      {versionTimestamp(version.createdAt)}
+                    </span>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+      </div>
+
+      <div className="xw-artifact-header__actions">
+        {actions}
+        {hasEvidence && onOpenEvidence ? (
+          <Button size="small" variant="ghost" onClick={onOpenEvidence}>
+            <Quote aria-hidden="true" />
+            证据
+          </Button>
+        ) : null}
+        {canCompare && onOpenCompare ? (
+          <Button size="small" variant="ghost" onClick={onOpenCompare}>
+            <History aria-hidden="true" />
+            比较结果
+          </Button>
+        ) : null}
+        {canShare && onOpenShare ? (
+          <Button size="small" variant="ghost" onClick={onOpenShare}>
+            <Share2 aria-hidden="true" />
+            分享
+          </Button>
+        ) : null}
+        {canRevise && onOpenRevision ? (
+          <Button size="small" variant="ghost" onClick={onOpenRevision}>
+            <RotateCcw aria-hidden="true" />
+            基于此结果重新分析
+          </Button>
+        ) : null}
+      </div>
+    </header>
+  );
+}

@@ -147,7 +147,7 @@ class ScriptedStepAgentModel:
             },
             latency_ms=3,
             provider_request_id="req-scripted-agent",
-            provider_returned_model="qwen3.8-max-2026-08-01",
+            provider_returned_model="test-returned-model-snapshot",
             tool_calls=(
                 ModelToolCall(
                     id="call-scripted-1",
@@ -1059,6 +1059,25 @@ def test_gaia_scientific_admission_publishes_uuid_cell_evidence_end_to_end(
         assert all(
             evidence.authority.authority_kind == "source_table"
             for evidence in dataset_read.dataset.transformation_evidence
+        )
+        persisted_by_pipeline_id = dict(
+            zip(
+                dataset_read.dataset.evidence_ids,
+                dataset_read.evidence,
+                strict=True,
+            )
+        )
+        cell_pipeline_evidence_ids = tuple(
+            evidence_id
+            for row in dataset_read.dataset.rows
+            for field in row.fields
+            for evidence_id in field.transformation_evidence_ids
+        )
+        assert cell_pipeline_evidence_ids
+        assert all(
+            str(UUID(persisted_by_pipeline_id[evidence_id].id))
+            in dataset_version.evidence_ids
+            for evidence_id in cell_pipeline_evidence_ids
         )
         replay_repository = DataArtifactBuildInputRepository(factory)
         for run_id in run_ids:
@@ -2467,7 +2486,7 @@ def _assert_publication_chain(
         for execution in model_executions
     )
     assert all(
-        execution.provider_returned_model == "qwen3.8-max-2026-08-01"
+        execution.provider_returned_model == "test-returned-model-snapshot"
         for execution in model_executions
     )
 

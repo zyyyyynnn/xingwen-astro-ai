@@ -133,7 +133,6 @@ def _candidate(
         content_hash=INPUT_HASH,
         profile=DocumentParseProfile(
             parser_profile_id="native-default",
-            parser_profile_version="1.0.0",
             native_backend="docling-parse",
             routing_policy_id="native-only",
             resource_policy_id="cpu",
@@ -404,21 +403,21 @@ def test_persist_reuse_lazy_snapshot_and_locator_validation(
         bbox=DocumentBBox(x1=20, y1=40, x2=100, y2=70),
     )
     persisted = asyncio.run(
-        service.persist_locator(
+        service.persist_locators(
             project_id=request.project_id,
             document_parse_id=first.id,
             source_snapshot_id=first.source_snapshot_id,
-            locator=locator,
+            locators=(locator,),
         )
-    )
+    )[0]
     replayed = asyncio.run(
-        service.persist_locator(
+        service.persist_locators(
             project_id=request.project_id,
             document_parse_id=first.id,
             source_snapshot_id=first.source_snapshot_id,
-            locator=locator,
+            locators=(locator,),
         )
-    )
+    )[0]
     assert replayed.id == persisted.id
     assert replayed.reused is True
 
@@ -444,11 +443,11 @@ def test_persist_reuse_lazy_snapshot_and_locator_validation(
     for invalid in invalid_locators:
         with pytest.raises(DocumentParseIntegrityError):
             asyncio.run(
-                service.persist_locator(
+                service.persist_locators(
                     project_id=request.project_id,
                     document_parse_id=first.id,
                     source_snapshot_id=first.source_snapshot_id,
-                    locator=invalid,
+                    locators=(invalid,),
                 )
             )
 
@@ -799,13 +798,13 @@ def test_cross_project_reads_fail_closed_and_rows_are_database_immutable(
 
     locator = DocumentLocator(page_index=0, block_id="primary-table-block")
     persisted_locator = asyncio.run(
-        service.persist_locator(
+        service.persist_locators(
             project_id=request.project_id,
             document_parse_id=record.id,
             source_snapshot_id=record.source_snapshot_id,
-            locator=locator,
+            locators=(locator,),
         )
-    )
+    )[0]
     with pytest.raises(DBAPIError, match="immutable"):
         with factory() as session, session.begin():  # type: ignore[operator]
             session.execute(
@@ -827,11 +826,11 @@ def test_cross_project_reads_fail_closed_and_rows_are_database_immutable(
         )
     with pytest.raises(DocumentParseIntegrityError, match="conflicting immutable"):
         asyncio.run(
-            service.persist_locator(
+            service.persist_locators(
                 project_id=request.project_id,
                 document_parse_id=record.id,
                 source_snapshot_id=record.source_snapshot_id,
-                locator=DocumentLocator(page_index=0),
+                locators=(DocumentLocator(page_index=0),),
             )
         )
 
@@ -888,7 +887,6 @@ def test_different_parser_configuration_creates_new_record(
             "profile": {
                 **candidate_payload["profile"],
                 "parser_profile_id": "native-alternate",
-                "parser_profile_version": "2.0.0",
                 "configuration_hash": config_hash,
             },
             "config_hash": config_hash,
@@ -1165,4 +1163,131 @@ def test_real_research_input_upload_document_parse_provenance_roundtrip(
         assert isinstance(snapshot_row.request_metadata, dict)
         assert snapshot_row.request_metadata["ingestion_source"] == "upload"
         assert snapshot_row.request_metadata["input_type"] == "pdf"
+
+
+def test_persist_locators_batch_contract(
+    context: dict[str, object],
+) -> None:
+    service = context["service"]
+    request = context["request"]
+    factory = context["factory"]
+    assert isinstance(service, DocumentParseService)
+    assert isinstance(request, PersistDocumentParseRequest)
+
+    first = asyncio.run(service.persist(request))
+
+    loc_a = DocumentLocator(page_index=0)
+    loc_b = DocumentLocator(
+        page_index=0, block_id="primary-table-block", reading_order=0
+    )
+    loc_c = DocumentLocator(
+        page_index=0, table_id="temperature-table", cell_id="temperature-cell"
+    )
+
+    # A. persist_locators(locator A, locator B, locator C)
+    # -> 三个 authoritative rows -> 内容正确 -> 顺序确定。
+    batch_results = asyncio.run(
+        service.persist_locators(
+            project_id=request.project_id,
+            document_parse_id=first.id,
+            source_snapshot_id=first.source_snapshot_id,
+            locators=(loc_a, loc_b, loc_c),
+        )
+    )
+    assert len(batch_results) == 3
+    assert [r.locator for r in batch_results] == [loc_a, loc_b, loc_c]
+    assert all(r.reused is False for r in batch_results)
+    assert all(r.project_id == request.project_id for r in batch_results)
+    assert all(r.document_parse_id == first.id for r in batch_results)
+    assert all(r.source_snapshot_id == first.source_snapshot_id for r in batch_results)
+
+    with factory() as session:  # type: ignore[operator]
+        db_count_after_first = session.scalar(
+            select(func.count())
+            .select_from(DocumentParseLocatorModel)
+            .where(DocumentParseLocatorModel.document_parse_id == first.id)
+        )
+        assert db_count_after_first == 3
+
+    # B. 重复调用同一 batch:
+    # -> id 相同 -> reused=True -> DB row 数不增加。
+    replayed = asyncio.run(
+        service.persist_locators(
+            project_id=request.project_id,
+            document_parse_id=first.id,
+            source_snapshot_id=first.source_snapshot_id,
+            locators=(loc_a, loc_b, loc_c),
+        )
+    )
+    assert len(replayed) == 3
+    assert [r.id for r in replayed] == [r.id for r in batch_results]
+    assert all(r.reused is True for r in replayed)
+
+    with factory() as session:  # type: ignore[operator]
+        db_count_after_replay = session.scalar(
+            select(func.count())
+            .select_from(DocumentParseLocatorModel)
+            .where(DocumentParseLocatorModel.document_parse_id == first.id)
+        )
+        assert db_count_after_replay == 3
+
+    # C. 一个 batch 中有 duplicate locator:
+    # -> 只持久化一个 authoritative row -> deterministic result。
+    deduped = asyncio.run(
+        service.persist_locators(
+            project_id=request.project_id,
+            document_parse_id=first.id,
+            source_snapshot_id=first.source_snapshot_id,
+            locators=(loc_a, loc_b, loc_a, loc_c, loc_b),
+        )
+    )
+    assert len(deduped) == 3
+    assert [r.locator for r in deduped] == [loc_a, loc_b, loc_c]
+    assert [r.id for r in deduped] == [r.id for r in batch_results]
+
+    # D. batch 中存在一个 invalid locator:
+    # valid A, invalid B, valid C
+    # -> 整个操作抛 DocumentParseIntegrityError -> 本次 batch 不产生 partial DB writes。
+    loc_new_valid = DocumentLocator(
+        page_index=0,
+        block_id="primary-table-block",
+        text_span=TextSpan(start=0, end=4),
+    )
+    invalid_loc = DocumentLocator(page_index=99)
+    loc_new_valid_2 = DocumentLocator(
+        page_index=0,
+        block_id="primary-table-block",
+        text_span=TextSpan(start=5, end=16),
+    )
+
+    with pytest.raises(DocumentParseIntegrityError):
+        asyncio.run(
+            service.persist_locators(
+                project_id=request.project_id,
+                document_parse_id=first.id,
+                source_snapshot_id=first.source_snapshot_id,
+                locators=(loc_new_valid, invalid_loc, loc_new_valid_2),
+            )
+        )
+
+    with factory() as session:  # type: ignore[operator]
+        db_count_after_failed = session.scalar(
+            select(func.count())
+            .select_from(DocumentParseLocatorModel)
+            .where(DocumentParseLocatorModel.document_parse_id == first.id)
+        )
+        # Exactly 3, neither loc_new_valid nor loc_new_valid_2 was inserted
+        assert db_count_after_failed == 3
+
+    # E. 错误 SourceSnapshot:
+    # -> entire batch fail closed。
+    with pytest.raises(DocumentParseIntegrityError, match="locator SourceSnapshot"):
+        asyncio.run(
+            service.persist_locators(
+                project_id=request.project_id,
+                document_parse_id=first.id,
+                source_snapshot_id=uuid4(),
+                locators=(loc_a, loc_b),
+            )
+        )
 

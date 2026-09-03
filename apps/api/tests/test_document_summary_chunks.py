@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from app.schemas._hashing import compute_canonical_payload_hash
@@ -25,14 +27,16 @@ from app.services.document_summary import (
     ExecuteDocumentSummaryRequest,
 )
 from app.services.document_summary_chunks import (
-    ChunkEvidenceViolationError,
     ChunkedDocumentSummaryExecution,
     ChunkedDocumentSummaryService,
+    SummaryChunkViolation,
 )
 from app.services.model_execution import (
+    ModelExecutionError,
     ModelExecutionRequest,
     ModelExecutionResponse,
 )
+from packages.prompts.registry import PromptRegistry
 
 _CONTENT_HASH = "sha256:" + "b" * 64
 _CONFIG_HASH = "sha256:" + "c" * 64
@@ -78,7 +82,6 @@ def _parse_candidate(block_count: int) -> DocumentParseCandidate:
         content_hash=_CONTENT_HASH,
         profile=DocumentParseProfile(
             parser_profile_id="chunked-summary-profile",
-            parser_profile_version="1.0.0",
             native_backend="native-engine==1.0.0",
             routing_policy_id="native-only",
             resource_policy_id="cpu-capable",
@@ -128,10 +131,12 @@ class _ChunkModel:
         self,
         *,
         invent_evidence: bool = False,
+        cite_all_evidence: bool = False,
         vary_returned_model: bool = False,
     ) -> None:
         self.requests: list[ModelExecutionRequest] = []
         self.invent_evidence = invent_evidence
+        self.cite_all_evidence = cite_all_evidence
         self.vary_returned_model = vary_returned_model
 
     def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
@@ -144,7 +149,13 @@ class _ChunkModel:
         else:
             evidence_ids = [item["evidence_id"] for item in chunk["evidence"]]
             chunk_id = chunk["chunk_id"]
-        cited = "evidence.invented" if self.invent_evidence else evidence_ids[0]
+        cited = (
+            ["evidence.invented"]
+            if self.invent_evidence
+            else evidence_ids
+            if self.cite_all_evidence
+            else [evidence_ids[0]]
+        )
         payload = {
             "background": [],
             "methodology": [],
@@ -153,13 +164,12 @@ class _ChunkModel:
                 {
                     "statement_id": f"finding.{chunk_id}",
                     "text": f"Chunk {chunk_id} reports an observation.",
-                    "evidence_ids": [cited],
+                    "evidence_ids": cited,
                 }
             ],
             "discussion": [],
             "limitations": [],
             "research_questions": [],
-            "evidence_ids": [cited],
         }
         return ModelExecutionResponse(
             payload=payload,
@@ -174,7 +184,7 @@ class _ChunkModel:
             provider_returned_model=(
                 f"qwen3.8-max-route-{len(self.requests) % 2}"
                 if self.vary_returned_model
-                else "qwen3.8-max-2026-08-01"
+                else "test-returned-model-snapshot"
             ),
         )
 
@@ -188,6 +198,46 @@ def test_small_document_delegates_to_the_single_execution_path() -> None:
     assert "chunk" not in model.requests[0].input_payload["paper_payload"]
 
 
+def test_small_document_truncation_accounts_for_both_provider_calls() -> None:
+    class SmallTruncatingModel(_ChunkModel):
+        def __init__(self) -> None:
+            super().__init__()
+            self.call_count = 0
+
+        def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
+            self.call_count += 1
+            if self.call_count == 1:
+                self.requests.append(request)
+                raise ModelExecutionError(
+                    "MODEL_RESPONSE_TRUNCATED",
+                    "研究助手返回结果不完整，请稍后重试。",
+                    output_hash="sha256:" + "a" * 64,
+                    token_usage={
+                        "prompt_tokens": 10,
+                        "completion_tokens": 20,
+                        "total_tokens": 30,
+                    },
+                    latency_ms=7,
+                    provider_request_id="summary-small-truncated",
+                    provider_returned_model="test-returned-model-snapshot",
+                )
+            return super().execute(request)
+
+    model = SmallTruncatingModel()
+    result = ChunkedDocumentSummaryService(model).execute(_request(3))
+
+    assert isinstance(result, DocumentSummaryExecution)
+    assert len(model.requests) == 2
+    assert result.token_usage is not None
+    assert result.token_usage.total_tokens == 45
+    assert result.latency_ms == 11
+    assert result.provider_request_id is None
+    assert result.model_response.provider_request_id is None
+    assert (
+        result.model_response.provider_returned_model == "test-returned-model-snapshot"
+    )
+
+
 def test_long_document_runs_one_bounded_call_per_chunk() -> None:
     model = _ChunkModel()
     result = ChunkedDocumentSummaryService(model).execute(_request(513))
@@ -195,6 +245,18 @@ def test_long_document_runs_one_bounded_call_per_chunk() -> None:
     assert isinstance(result, ChunkedDocumentSummaryExecution)
     assert result.chunk_count == len(model.requests)
     assert result.chunk_count > 1
+    assert all(
+        request.response_schema_name == "paper_summary" for request in model.requests
+    )
+    assert all(request.enable_thinking is False for request in model.requests)
+    for request in model.requests:
+        schema = request.response_schema
+        assert schema is not None
+        chunk = request.input_payload["paper_payload"]["chunk"]
+        statement_schema = schema["$defs"]["PaperSummaryStatementCandidate"]
+        assert statement_schema["properties"]["evidence_ids"]["items"]["enum"] == [
+            item["evidence_id"] for item in chunk["evidence"]
+        ]
     assert result.admission.admission_status is PaperSummaryAdmissionStatus.accepted
     summary = result.admission.summary
     assert summary is not None
@@ -214,11 +276,46 @@ def test_long_document_runs_one_bounded_call_per_chunk() -> None:
     assert len(result.chunk_provider_request_ids) == result.chunk_count
     assert result.model_response.provider_request_id is None
     assert result.admission.producer.provider_request_id is None
-    assert result.model_response.provider_returned_model == "qwen3.8-max-2026-08-01"
-    assert result.admission.producer.provider_returned_model == "qwen3.8-max-2026-08-01"
+    assert (
+        result.model_response.provider_returned_model == "test-returned-model-snapshot"
+    )
+    assert (
+        result.admission.producer.provider_returned_model
+        == "test-returned-model-snapshot"
+    )
     assert (
         result.chunk_provider_returned_models
-        == ("qwen3.8-max-2026-08-01",) * result.chunk_count
+        == ("test-returned-model-snapshot",) * result.chunk_count
+    )
+
+
+def test_oversized_parse_block_keeps_every_bounded_evidence_span() -> None:
+    request = _request(2)
+    paragraph = request.document_parse.blocks[1]
+    long_text = "Observations in the first interval. " * 6000
+    request = replace(
+        request,
+        document_parse=request.document_parse.model_copy(
+            update={
+                "blocks": (
+                    request.document_parse.blocks[0],
+                    paragraph.model_copy(update={"text": long_text}),
+                ),
+            }
+        ),
+    )
+    model = _ChunkModel()
+    result = ChunkedDocumentSummaryService(model).execute(request)
+    assert isinstance(result, ChunkedDocumentSummaryExecution)
+    chunks = [call.input_payload["paper_payload"]["chunk"] for call in model.requests]
+    quoted = [item["text"] for chunk in chunks for item in chunk["evidence"]]
+    assert "".join(quoted[1:]) == long_text
+    assert all(
+        sum(len(item["text"]) for item in chunk["evidence"]) <= 12_000
+        for chunk in chunks
+    )
+    assert all("text" not in chunk for chunk in chunks), (
+        "do not duplicate full block text outside precise Evidence"
     )
 
 
@@ -244,8 +341,209 @@ def test_chunked_execution_is_deterministic() -> None:
     assert first.admission.producer.input_hash == second.admission.producer.input_hash
 
 
+def test_long_document_truncation_uses_one_split_without_recursion() -> None:
+    class TruncatingChunkModel(_ChunkModel):
+        def __init__(self) -> None:
+            super().__init__()
+            self.call_count = 0
+
+        def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
+            self.call_count += 1
+            self.requests.append(request)
+            if self.call_count == 1:
+                raise ModelExecutionError(
+                    "MODEL_RESPONSE_TRUNCATED",
+                    "研究助手返回结果不完整，请稍后重试。",
+                    output_hash="sha256:" + "e" * 64,
+                    token_usage={
+                        "prompt_tokens": 10,
+                        "completion_tokens": 20,
+                        "total_tokens": 30,
+                    },
+                    latency_ms=7,
+                    provider_request_id="summary-truncated-1",
+                )
+            paper_payload = request.input_payload["paper_payload"]
+            chunk = paper_payload["chunk"]
+            evidence_ids = [item["evidence_id"] for item in chunk["evidence"]]
+            safe_chunk_id = str(chunk["chunk_id"]).lower()
+            payload = {
+                "background": [],
+                "methodology": [],
+                "dataset": [],
+                "experiments": [
+                    {
+                        "statement_id": f"finding.{safe_chunk_id}",
+                        "text": f"Chunk {safe_chunk_id} reports an observation.",
+                        "evidence_ids": [evidence_ids[0]],
+                    }
+                ],
+                "discussion": [],
+                "limitations": [],
+                "research_questions": [],
+            }
+            return ModelExecutionResponse(
+                payload=payload,
+                output_hash=compute_canonical_payload_hash(payload),
+                token_usage={
+                    "prompt_tokens": 10,
+                    "completion_tokens": 5,
+                    "total_tokens": 15,
+                },
+                latency_ms=4,
+                provider_request_id=f"request-{safe_chunk_id}",
+                provider_returned_model="test-returned-model-snapshot",
+            )
+
+    model = TruncatingChunkModel()
+    result = ChunkedDocumentSummaryService(model).execute(_request(513))
+
+    assert isinstance(result, ChunkedDocumentSummaryExecution)
+    assert result.split_count == 1
+    assert result.correction_count == 0
+    assert len(model.requests) > result.chunk_count
+    assert result.token_usage is not None
+    assert result.token_usage.total_tokens == 90
+    assert result.latency_ms == 23
+
+
+def test_single_block_truncation_uses_one_concise_correction() -> None:
+    class SingleBlockTruncatingModel(_ChunkModel):
+        def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
+            paper_payload = request.input_payload["paper_payload"]
+            chunk = paper_payload["chunk"]
+            if (
+                len(chunk["evidence"]) == 1
+                and "validation_feedback" not in request.input_payload
+            ):
+                self.requests.append(request)
+                raise ModelExecutionError(
+                    "MODEL_RESPONSE_TRUNCATED",
+                    "研究助手返回结果不完整，请稍后重试。",
+                    output_hash="sha256:" + "d" * 64,
+                    token_usage={
+                        "prompt_tokens": 10,
+                        "completion_tokens": 20,
+                        "total_tokens": 30,
+                    },
+                    latency_ms=7,
+                    provider_request_id="summary-single-truncated",
+                )
+            return super().execute(request)
+
+    model = SingleBlockTruncatingModel()
+    result = ChunkedDocumentSummaryService(model).execute(_request(513))
+
+    assert isinstance(result, ChunkedDocumentSummaryExecution)
+    assert result.correction_count == 1
+    assert result.split_count == 0
+    corrected = [
+        request
+        for request in model.requests
+        if request.input_payload.get("validation_feedback") is not None
+    ]
+    assert len(corrected) == 1
+    assert corrected[0].input_payload["validation_feedback"]["concise_output"] is True
+    assert result.token_usage is not None
+    assert result.token_usage.total_tokens == 75
+    assert result.latency_ms == 19
+
+
+def test_schema_correction_receives_bounded_actionable_validation_issues() -> None:
+    class SchemaRepairModel(_ChunkModel):
+        def __init__(self) -> None:
+            super().__init__()
+            self.invalid_sent = False
+
+        def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
+            if not self.invalid_sent:
+                self.invalid_sent = True
+                self.requests.append(request)
+                chunk = request.input_payload["paper_payload"]["chunk"]
+                evidence_id = chunk["evidence"][0]["evidence_id"]
+                payload = {
+                    "background": [],
+                    "methodology": [],
+                    "dataset": [],
+                    "experiments": [
+                        {
+                            "statement_id": "Invalid Statement ID",
+                            "text": "<div>PRIVATE_PROVIDER_CONTENT</div>",
+                            "evidence_ids": [evidence_id],
+                        }
+                    ],
+                    "discussion": [],
+                    "limitations": [],
+                }
+                return ModelExecutionResponse(
+                    payload=payload,
+                    output_hash=compute_canonical_payload_hash(payload),
+                    token_usage={
+                        "prompt_tokens": 10,
+                        "completion_tokens": 5,
+                        "total_tokens": 15,
+                    },
+                    latency_ms=4,
+                    provider_request_id="request-schema-invalid",
+                    provider_returned_model="test-returned-model-snapshot",
+                )
+            return super().execute(request)
+
+    model = SchemaRepairModel()
+    result = ChunkedDocumentSummaryService(model).execute(_request(513))
+
+    assert isinstance(result, ChunkedDocumentSummaryExecution)
+    assert result.admission.admission_status is PaperSummaryAdmissionStatus.accepted
+    assert result.correction_count == 1
+    corrected = [
+        request
+        for request in model.requests
+        if request.input_payload.get("validation_feedback") is not None
+    ]
+    assert len(corrected) == 1
+    feedback = corrected[0].input_payload["validation_feedback"]
+    assert feedback["code"] == "DOCUMENT_SUMMARY_CHUNK_SCHEMA_INVALID"
+    assert any(
+        issue["loc"] == ["experiments", 0, "statement_id"]
+        for issue in feedback["schema_issues"]
+    )
+    assert any(
+        issue["loc"] == ["research_questions"] for issue in feedback["schema_issues"]
+    )
+    assert all(
+        set(issue) == {"loc", "type", "message"} for issue in feedback["schema_issues"]
+    )
+    assert "PRIVATE_PROVIDER_CONTENT" not in str(feedback)
+    assert "model_response" not in feedback
+
+
 def test_chunk_statement_citing_foreign_evidence_is_rejected() -> None:
-    with pytest.raises(ChunkEvidenceViolationError):
+    with pytest.raises(SummaryChunkViolation):
         ChunkedDocumentSummaryService(_ChunkModel(invent_evidence=True)).execute(
             _request(513)
         )
+
+
+def test_chunk_statement_keeps_all_valid_in_chunk_evidence() -> None:
+    result = ChunkedDocumentSummaryService(_ChunkModel(cite_all_evidence=True)).execute(
+        _request(513)
+    )
+
+    assert isinstance(result, ChunkedDocumentSummaryExecution)
+    assert result.admission.admission_status is PaperSummaryAdmissionStatus.accepted
+    assert result.admission.summary is not None
+    assert (
+        max(
+            len(statement.evidence_ids)
+            for statement in result.admission.summary.experiments
+        )
+        > 32
+    )
+
+
+def test_paper_summary_prompt_declares_validation_feedback_contract() -> None:
+    content = PromptRegistry().get("paper_summary").content
+    assert "validation_feedback" in content
+    assert "schema_issues" in content
+    assert "affected_evidence_ids" in content
+    assert "concise_output" in content

@@ -42,7 +42,7 @@ const ARTIFACT_ID = "art_graph_01" as never;
 const VERSION_ID = "artv_graph_01" as never;
 const PAPER_SUMMARY_VERSION_ID = "artv_papsum_01" as never;
 const EVIDENCE_ID = "evd_01" as never;
-const SOURCE_SNAPSHOT_ID = "snap_01" as never;
+const SOURCE_SNAPSHOT_ID = "snap_host_star_toi_recorded" as never;
 
 it("projects.getById returns the same domain entity", async () => {
   const httpRepos = setupHttpRepos();
@@ -164,13 +164,22 @@ it("artifacts.getArtifact returns the same domain entity", async () => {
   expect(httpArtifact).toEqual(fixtureArtifact);
 });
 
-it("artifacts.getVersion returns the same domain entity", async () => {
+it("artifacts.getVersion returns the same version facts across hydration levels", async () => {
   const httpRepos = setupHttpRepos();
   const [fixtureVersion, httpVersion] = await Promise.all([
     fixtureRepos.artifacts.getVersion(VERSION_ID),
     httpRepos.artifacts.getVersion(VERSION_ID),
   ]);
-  expect(httpVersion).toEqual(fixtureVersion);
+  // FixtureBundle.artifactVersions carries the generic version DTO, while the
+  // HTTP getVersion boundary carries ArtifactVersionDetail and therefore an
+  // explicit inline Evidence field. Optional hydration must not change any
+  // version identity or provenance fact, and absence must stay `undefined`
+  // rather than being falsified as an empty Evidence collection.
+  expect(fixtureVersion?.evidence).toBeUndefined();
+  expect(httpVersion).toEqual({
+    ...fixtureVersion,
+    evidence: httpVersion?.evidence,
+  });
 });
 
 it("artifacts.getEvidence returns the same domain entity", async () => {

@@ -57,10 +57,15 @@ export const workspaceQueryKeys = Object.freeze({
       "artifact-version",
       artifactVersionId,
     ] as const,
-  evidence: (projectId: DomainEntityId, evidenceId: DomainEntityId) =>
+  evidence: (
+    projectId: DomainEntityId,
+    expectedArtifactVersionId: DomainEntityId,
+    evidenceId: DomainEntityId,
+  ) =>
     [
       ...workspaceQueryKeys.projectScope(projectId),
       "evidence",
+      expectedArtifactVersionId,
       evidenceId,
     ] as const,
   sourceSnapshot: (

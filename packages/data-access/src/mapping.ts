@@ -705,6 +705,8 @@ export function mapArtifactVersionMetadata(
     producer: mapProducer(dto.producer),
     sourceSnapshotIds: mapIds(dto.source_snapshot_ids),
     evidenceIds: mapIds(dto.evidence_ids),
+    evidence:
+      "evidence" in dto ? dto.evidence.map(mapEvidenceDetail) : undefined,
     presentation: mapPublicArtifactPresentation(presentation),
     supersedesVersionId: (dto.supersedes_version_id ??
       null) as DomainEntityId | null,
@@ -848,7 +850,6 @@ export function mapCreateShareSnapshotRequestToDto(
       string,
       ...string[],
     ],
-    evidence_ids: domain.evidenceIds.map(String),
     expires_at: domain.expiresAt,
     redaction_policy: domain.redactionPolicy,
   };
@@ -944,6 +945,7 @@ export function mapPublicArtifactPresentation(
       evidenceIds: (entry.evidence_ids ?? []).map(mapId),
       reasoningTrace: entry.reasoning_trace
         ? {
+            traceId: mapId(entry.reasoning_trace.trace_id),
             conclusion: entry.reasoning_trace.conclusion as NonEmptyString,
             steps: entry.reasoning_trace.steps.map(
               (step) => step as NonEmptyString,
@@ -953,6 +955,13 @@ export function mapPublicArtifactPresentation(
               values: fact.values.map((value) => value as NonEmptyString),
             })),
             evidenceIds: (entry.reasoning_trace.evidence_ids ?? []).map(mapId),
+          }
+        : null,
+      canAdjudicate: entry.can_adjudicate ?? null,
+      relation: entry.relation
+        ? {
+            sourceClaim: entry.relation.source_claim as NonEmptyString,
+            targetClaim: entry.relation.target_claim as NonEmptyString,
           }
         : null,
     })),
@@ -1058,9 +1067,16 @@ function mapEvidenceLocator(raw: unknown): EvidenceLocator | null {
       return {
         kind: "paper_text",
         section: readString(record, "section"),
-        page: readNumberOrNull(record, "page"),
+        page:
+          readNumberOrNull(record, "page_index") ??
+          readNumberOrNull(record, "page"),
         paragraph: readNumberOrNull(record, "paragraph"),
-        range: typeof record.range === "string" ? record.range : null,
+        range:
+          typeof record.text_range === "string"
+            ? record.text_range
+            : typeof record.range === "string"
+              ? record.range
+              : null,
       };
     case "model_extraction":
       return {

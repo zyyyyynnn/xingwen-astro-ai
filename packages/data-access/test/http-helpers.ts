@@ -140,7 +140,6 @@ const PUBLIC_SHARE = {
 function shareCreated(body: {
   title: string;
   artifact_version_ids: readonly string[];
-  evidence_ids: readonly string[];
   redaction_policy: string;
   expires_at: string;
 }): Record<string, unknown> {
@@ -151,7 +150,7 @@ function shareCreated(body: {
     status: "active",
     redaction_policy: body.redaction_policy,
     artifact_version_ids: body.artifact_version_ids,
-    evidence_ids: body.evidence_ids,
+    evidence_ids: PUBLIC_SHARE.evidence.map((item) => item.id),
     created_at: "2026-07-21T09:00:00Z",
     expires_at: body.expires_at,
     revoked_at: null,
@@ -181,7 +180,12 @@ export const defaultHandlers = [
     // is an opaque base64 project id, mirroring the runtime keyset cursor.
     const url = new URL(request.url);
     const cursor = url.searchParams.get("cursor");
-    const ordered = [...exoplanetHostStarFixture.data.projects];
+    const ordered = [...exoplanetHostStarFixture.data.projects].sort((a, b) => {
+      if (a.created_at !== b.created_at) {
+        return a.created_at < b.created_at ? 1 : -1;
+      }
+      return a.id < b.id ? 1 : -1;
+    });
     let start = 0;
     if (cursor) {
       let anchor: string;

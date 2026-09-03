@@ -42,9 +42,8 @@ from app.schemas.scientific_document import (
 
 _NATIVE_PACKAGE = "docling-parse"
 _PARSER_PROFILE_ID = "scientific-document-hybrid"
-_PARSER_PROFILE_VERSION = "1.1.0"
 _ROUTING_POLICY_ID = "native-first-page-hybrid"
-_RESOURCE_POLICY_ID = "bounded-document-pages"
+_RESOURCE_POLICY_ID = "bounded-document-and-visual-pages"
 _VISUAL_ENGINE = "PaddleOCR-VL layout-parsing service"
 LOCAL_PADDLE_ENGINE_IDENTITY = (
     "PaddleOCRVL official in-process pipeline (verified local bundle)"
@@ -59,6 +58,16 @@ _MAX_TABLE_CONTENT_CHARS = 4 * 1024 * 1024
 _MAX_TABLE_ROWS = 512
 _MAX_TABLE_COLUMNS = 256
 _MAX_TABLE_LOGICAL_CELLS = 65_536
+_MAX_VISUAL_GENERATION_TOKENS = 4096
+# Dense native text is sufficient even when a page contains decorative/vector
+# resources; only genuinely sparse structured pages remain eligible for visual
+# recovery. The threshold is deliberately independent from the native-text
+# minimum because these are different admission decisions.
+_DEFAULT_VISUAL_STRUCTURE_NATIVE_CHARACTER_CEILING = 256
+# Real local visual inference is minutes-per-page on CPU. Two pages still cover
+# cross-page scientific tables while bounding worst-case latency for long
+# scanned or graphics-heavy documents; remaining pages stay explicit partial.
+_DEFAULT_MAX_VISUAL_PAGES = 2
 _BLOCK_ATTRIBUTE_NAMES = {
     "block_label": "label",
     "block_content": "content",
@@ -159,7 +168,8 @@ class PaddleOcrVlClient:
                     "useLayoutDetection": True,
                     "useChartRecognition": False,
                     "useSealRecognition": False,
-                    "formatBlockContent": False,
+                    "formatBlockContent": True,
+                    "maxNewTokens": _MAX_VISUAL_GENERATION_TOKENS,
                     "returnMarkdownImages": False,
                     "visualize": False,
                 },
@@ -195,22 +205,40 @@ class HybridScientificDocumentParser:
         *,
         visual_parser: VisualPageParserPort | None = None,
         min_native_characters: int = 80,
+        visual_structure_native_character_ceiling: int = (
+            _DEFAULT_VISUAL_STRUCTURE_NATIVE_CHARACTER_CEILING
+        ),
         max_pages: int = 200,
+        max_visual_pages: int = _DEFAULT_MAX_VISUAL_PAGES,
     ) -> None:
-        if min_native_characters < 1 or max_pages < 1:
+        if (
+            min_native_characters < 1
+            or max_pages < 1
+            or max_visual_pages < 1
+        ):
             raise ValueError("document parser limits must be positive")
+        if visual_structure_native_character_ceiling < min_native_characters:
+            raise ValueError(
+                "visual structure native character ceiling must not be below the native minimum"
+            )
         self._visual = visual_parser
         self._min_native_characters = min_native_characters
+        self._visual_structure_native_character_ceiling = (
+            visual_structure_native_character_ceiling
+        )
         self._max_pages = max_pages
+        self._max_visual_pages = max_visual_pages
 
     @property
     def profile(self) -> DocumentParseProfile:
         native_version = version(_NATIVE_PACKAGE)
         configuration = {
-            "profile_version": _PARSER_PROFILE_VERSION,
             "native_engine": f"{_NATIVE_PACKAGE}=={native_version}",
             "visual_engine": (
                 self._visual.engine_identity if self._visual is not None else None
+            ),
+            "visual_engine_version": (
+                self._visual.engine_version if self._visual is not None else None
             ),
             "visual_model_id": self._visual.model_id if self._visual else None,
             "visual_model_revision": (
@@ -220,12 +248,15 @@ class HybridScientificDocumentParser:
                 self._visual.runtime_binding_hash if self._visual else None
             ),
             "min_native_characters": self._min_native_characters,
+            "visual_structure_native_character_ceiling": (
+                self._visual_structure_native_character_ceiling
+            ),
             "max_pages": self._max_pages,
+            "max_visual_pages": self._max_visual_pages,
             "max_document_bytes": _MAX_DOCUMENT_BYTES,
         }
         return DocumentParseProfile(
             parser_profile_id=_PARSER_PROFILE_ID,
-            parser_profile_version=_PARSER_PROFILE_VERSION,
             native_backend=configuration["native_engine"],
             visual_backend=configuration["visual_engine"],
             routing_policy_id=_ROUTING_POLICY_ID,
@@ -451,11 +482,14 @@ class HybridScientificDocumentParser:
         formulas: list[DocumentFormula] = []
         figures: list[DocumentFigure] = []
         unresolved_pages = 0
-        for page_count, (page_index, page) in enumerate(
+        visual_pages_attempted = 0
+        for page_count, (page_number, page) in enumerate(
             document.iterate_pages(), start=1
         ):
             if page_count > self._max_pages:
                 raise ValueError("PDF exceeds the configured document page budget")
+            # Docling uses one-based page numbers; canonical locators are zero-based.
+            page_index = page_number - 1
             dimension = page.dimension
             page_width = float(dimension.width)
             page_height = float(dimension.height)
@@ -470,19 +504,27 @@ class HybridScientificDocumentParser:
                 text_unit=text_unit,
             )
             native_characters = sum(len(block.text or "") for block in native)
-            needs_visual = (
-                native_characters < self._min_native_characters
-                or len(page.bitmap_resources) > 0
-                or len(page.shapes) > 0
+            needs_visual = _should_route_native_page_to_visual(
+                native_characters=native_characters,
+                has_bitmap_resources=bool(page.bitmap_resources),
+                has_vector_shapes=bool(page.shapes),
+                min_native_characters=self._min_native_characters,
+                visual_structure_native_character_ceiling=(
+                    self._visual_structure_native_character_ceiling
+                ),
             )
             page_blocks = native
             page_tables: tuple[DocumentTable, ...] = ()
             page_formulas: tuple[DocumentFormula, ...] = ()
             page_figures: tuple[DocumentFigure, ...] = ()
             if needs_visual:
-                if self._visual is None:
+                if (
+                    self._visual is None
+                    or visual_pages_attempted >= self._max_visual_pages
+                ):
                     unresolved_pages += 1
                 else:
+                    visual_pages_attempted += 1
                     try:
                         image_bytes = _render_page_png(page, text_unit)
                         visual = admit_visual_page_result(
@@ -519,6 +561,29 @@ class HybridScientificDocumentParser:
                 )
             )
         return pages, blocks, tables, formulas, figures, unresolved_pages
+
+
+def _should_route_native_page_to_visual(
+    *,
+    native_characters: int,
+    has_bitmap_resources: bool,
+    has_vector_shapes: bool,
+    min_native_characters: int,
+    visual_structure_native_character_ceiling: int,
+) -> bool:
+    """Route visual inference only when it closes a native-content gap.
+
+    Bitmap/vector presence by itself is not evidence that a born-digital text
+    layer is unusable.  Structured pages get visual treatment only while the
+    native text remains sparse enough that the visual structure can materially
+    recover missing scientific content.
+    """
+
+    if native_characters < min_native_characters:
+        return True
+    if not (has_bitmap_resources or has_vector_shapes):
+        return False
+    return native_characters < visual_structure_native_character_ceiling
 
 
 def _native_page_blocks(
@@ -610,11 +675,23 @@ def _canonical_visual_page(
             page_width=page_width,
             page_height=page_height,
         )
+        text = _visual_text(item.content)
         quality = (
             DocumentParseQuality.accepted
-            if item.content is not None
+            if text is not None
             else DocumentParseQuality.partial
         )
+        if kind is DocumentBlockKind.table:
+            table = _markdown_table(
+                item.content,
+                table_id=f"table-{block_id}",
+                block_id=block_id,
+                page_index=page_index,
+                bbox=bbox,
+            )
+            tables.append(table)
+            text = _table_block_text(table)
+            quality = table.quality
         blocks.append(
             DocumentBlock(
                 block_id=block_id,
@@ -622,30 +699,20 @@ def _canonical_visual_page(
                 reading_order=index,
                 kind=kind,
                 bbox=bbox,
-                text=item.content,
+                text=text,
                 quality=quality,
                 parser_backend=ParserBackend.visual,
                 parser_profile_id=profile_id,
             )
         )
-        if kind is DocumentBlockKind.table:
-            tables.append(
-                _markdown_table(
-                    item.content,
-                    table_id=f"table-{block_id}",
-                    block_id=block_id,
-                    page_index=page_index,
-                    bbox=bbox,
-                )
-            )
-        elif kind is DocumentBlockKind.formula:
+        if kind is DocumentBlockKind.formula:
             formulas.append(
                 DocumentFormula(
                     block_id=block_id,
                     page_index=page_index,
                     bbox=bbox,
                     raw_text=item.content,
-                    latex=item.content,
+                    latex=text,
                     quality=quality,
                     parser_backend=ParserBackend.visual,
                     parser_profile_id=profile_id,
@@ -657,7 +724,7 @@ def _canonical_visual_page(
                     block_id=block_id,
                     page_index=page_index,
                     bbox=bbox,
-                    caption=item.content,
+                    caption=text,
                     quality=quality,
                     parser_backend=ParserBackend.visual,
                     parser_profile_id=profile_id,
@@ -669,14 +736,14 @@ def _canonical_visual_page(
 def _block_kind(label: str) -> DocumentBlockKind:
     if label in {"doc_title", "paragraph_title", "title", "section_title"}:
         return DocumentBlockKind.heading
+    if "caption" in label or label in {"figure_title", "table_title"}:
+        return DocumentBlockKind.caption
     if "table" in label:
         return DocumentBlockKind.table
     if "formula" in label or "equation" in label:
         return DocumentBlockKind.formula
     if label in {"image", "figure", "chart"}:
         return DocumentBlockKind.figure
-    if "caption" in label or label in {"figure_title", "table_title"}:
-        return DocumentBlockKind.caption
     if "reference" in label:
         return DocumentBlockKind.reference
     if label in {"footnote", "header", "footer", "number"}:
@@ -684,6 +751,74 @@ def _block_kind(label: str) -> DocumentBlockKind:
     if "list" in label:
         return DocumentBlockKind.list
     return DocumentBlockKind.paragraph
+
+
+class _VisualTextParser(HTMLParser):
+    """Project presentation markup to text without promoting image attributes."""
+
+    _FORMATTING_TAGS = frozenset(
+        {
+            "div",
+            "span",
+            "p",
+            "br",
+            "b",
+            "strong",
+            "i",
+            "em",
+            "sub",
+            "sup",
+            "img",
+            "figure",
+            "figcaption",
+            "a",
+        }
+    )
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+
+    def handle_data(self, data: str) -> None:
+        self.parts.append(data)
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in {"br", "div", "p", "figcaption"}:
+            self.parts.append("\n")
+        elif tag not in self._FORMATTING_TAGS:
+            self.parts.append(self.get_starttag_text())
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in {"div", "p", "figcaption"}:
+            self.parts.append("\n")
+        elif tag not in self._FORMATTING_TAGS:
+            self.parts.append(f"</{tag}>")
+
+
+def _visual_text(content: str | None) -> str | None:
+    if content is None:
+        return None
+    parser = _VisualTextParser()
+    parser.feed(content)
+    parser.close()
+    return "".join(parser.parts).strip() or None
+
+
+def _table_block_text(table: DocumentTable) -> str | None:
+    """Expose canonical cell text, not vendor markup, to readers and Evidence.
+
+    Keep each anchor in its actual column. Covered positions stay empty rather
+    than duplicating merged-cell values or fabricating missing observations.
+    """
+    if not table.rows:
+        return None
+    lines: list[str] = []
+    for row in table.rows:
+        columns = [""] * table.column_count
+        for cell in row:
+            columns[cell.column_index] = cell.text or ""
+        lines.append("\t".join(columns))
+    return "\n".join(lines)
 
 
 def _markdown_table(
@@ -931,9 +1066,8 @@ def project_visual_page_result(
 
     page_width = _positive_int(width, "width")
     page_height = _positive_int(height, "height")
-    if (
-        not isinstance(raw_blocks, Iterable)
-        or isinstance(raw_blocks, (str, bytes, bytearray, dict))
+    if not isinstance(raw_blocks, Iterable) or isinstance(
+        raw_blocks, (str, bytes, bytearray, dict)
     ):
         raise VisualParseError("PaddleOCR-VL omitted parsing_res_list")
     if isinstance(raw_blocks, Sized) and len(raw_blocks) > _MAX_VISUAL_BLOCKS:
@@ -971,9 +1105,7 @@ def project_visual_page_result(
                     page_width,
                     page_height,
                 ),
-                order=_non_negative_int(
-                    _visual_block_field(raw, "block_order"), index
-                ),
+                order=_non_negative_int(_visual_block_field(raw, "block_order"), index),
             )
         )
     return VisualPageResult(page_width, page_height, tuple(blocks))
@@ -981,8 +1113,12 @@ def project_visual_page_result(
 
 def _is_visual_block(item: object) -> bool:
     get = getattr(item, "get", None)
-    return isinstance(item, dict) or callable(get) or any(
-        hasattr(item, attribute) for attribute in _BLOCK_ATTRIBUTE_NAMES.values()
+    return (
+        isinstance(item, dict)
+        or callable(get)
+        or any(
+            hasattr(item, attribute) for attribute in _BLOCK_ATTRIBUTE_NAMES.values()
+        )
     )
 
 

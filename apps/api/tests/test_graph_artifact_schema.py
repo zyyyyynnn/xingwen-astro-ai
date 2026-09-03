@@ -34,7 +34,10 @@ from app.schemas.graph_artifact import (
     compute_graph_upstream_evidence_hash,
 )
 from services.graph_pipeline.admission import build_integrity_report
-from services.graph_pipeline.pipeline import GraphPipeline, build_complete_progressive_input
+from services.graph_pipeline.pipeline import (
+    GraphPipeline,
+    build_complete_progressive_input,
+)
 
 from graph_pipeline_test_support import (
     build_data_graph_fixture,
@@ -44,6 +47,7 @@ from graph_pipeline_test_support import (
 
 _PROJECT_ID = "00000000-0000-4000-8000-000000000001"
 _RELATION_VERSION_ID = "00000000-0000-4000-8000-000000000002"
+_CLAIM_VERSION_ID = "00000000-0000-4000-8000-000000000003"
 
 
 def _scope() -> GraphBuildScope:
@@ -65,6 +69,7 @@ def _request_payload() -> dict:
     scope = _scope()
     progressive = build_complete_progressive_input(
         progressive_id="progressive.test",
+        literature_claims_artifact_version_ids=(_CLAIM_VERSION_ID,),
         literature_relations_artifact_version_id=_RELATION_VERSION_ID,
         dataset_artifact_version_id=None,
         field_dictionary_artifact_version_id=None,
@@ -72,6 +77,7 @@ def _request_payload() -> dict:
     )
     return {
         "project_id": _PROJECT_ID,
+        "literature_claims_artifact_version_ids": (_CLAIM_VERSION_ID,),
         "literature_relations_artifact_version_id": _RELATION_VERSION_ID,
         "scope": scope,
         "progressive": progressive,
@@ -85,9 +91,7 @@ def test_graph_request_is_strict_and_data_versions_are_an_exact_pair() -> None:
     with pytest.raises(ValidationError, match="extra_forbidden"):
         GraphBuildRequest(**_request_payload(), unknown=True)
     payload = _request_payload()
-    payload["dataset_artifact_version_id"] = (
-        "00000000-0000-4000-8000-000000000003"
-    )
+    payload["dataset_artifact_version_id"] = "00000000-0000-4000-8000-000000000003"
     with pytest.raises(ValidationError, match="one pair"):
         GraphBuildRequest(**payload)
 
@@ -154,8 +158,12 @@ def test_graph_json_schema_exposes_only_the_exact_authorized_taxonomy() -> None:
 
     assert set(node_schema["properties"]["node_type"]["enum"]) == expected_node_types
     assert set(edge_schema["properties"]["edge_type"]["enum"]) == expected_edge_types
-    assert GraphNodeType.source.value not in node_schema["properties"]["node_type"]["enum"]
-    assert GraphEdgeType.cites.value not in edge_schema["properties"]["edge_type"]["enum"]
+    assert (
+        GraphNodeType.source.value not in node_schema["properties"]["node_type"]["enum"]
+    )
+    assert (
+        GraphEdgeType.cites.value not in edge_schema["properties"]["edge_type"]["enum"]
+    )
     assert (
         GraphEdgeType.corrected_by_feedback.value
         not in edge_schema["properties"]["edge_type"]["enum"]
@@ -165,12 +173,12 @@ def test_graph_json_schema_exposes_only_the_exact_authorized_taxonomy() -> None:
     taxonomy_edge_schema = taxonomy_schema["properties"]["edge_types"]
     assert taxonomy_node_schema["minItems"] == taxonomy_node_schema["maxItems"] == 5
     assert taxonomy_edge_schema["minItems"] == taxonomy_edge_schema["maxItems"] == 10
-    assert tuple(item["const"] for item in taxonomy_node_schema["prefixItems"]) == tuple(
-        sorted(expected_node_types)
-    )
-    assert tuple(item["const"] for item in taxonomy_edge_schema["prefixItems"]) == tuple(
-        sorted(expected_edge_types)
-    )
+    assert tuple(
+        item["const"] for item in taxonomy_node_schema["prefixItems"]
+    ) == tuple(sorted(expected_node_types))
+    assert tuple(
+        item["const"] for item in taxonomy_edge_schema["prefixItems"]
+    ) == tuple(sorted(expected_edge_types))
 
 
 def test_graph_scope_cannot_infer_unpinned_research_goal() -> None:
@@ -180,7 +188,7 @@ def test_graph_scope_cannot_infer_unpinned_research_goal() -> None:
 
 def test_integrity_report_hash_and_first_failure_are_recomputed() -> None:
     counts = GraphIntegrityCounts(
-        input_version_count=1,
+        input_version_count=2,
         node_count=0,
         edge_count=0,
         evidence_use_count=0,
