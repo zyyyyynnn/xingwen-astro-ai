@@ -813,6 +813,7 @@ export function ArtifactFullscreenWorkspace({
         <ArtifactEvidenceSheet
           runtime={runtime}
           projectId={projectId}
+          artifactVersionId={artifactVersionId}
           evidenceId={selectedEvidenceId}
           open={selectedEvidenceId !== null}
           onOpenChange={(open) => {

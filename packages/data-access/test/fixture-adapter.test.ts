@@ -203,8 +203,9 @@ describe("Fixture adapter — provenance and semantics", () => {
 
   it("reports evidence completeness from the fixture", () => {
     const { state } = repos.provenance;
-    expect(state.evidenceCompleteness.covered).toBe(8);
-    expect(state.evidenceCompleteness.total).toBe(8);
+    const evidenceCount = exoplanetHostStarFixture.data.evidence.length;
+    expect(state.evidenceCompleteness.covered).toBe(evidenceCount);
+    expect(state.evidenceCompleteness.total).toBe(evidenceCount);
   });
 });
 

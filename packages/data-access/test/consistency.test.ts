@@ -164,13 +164,22 @@ it("artifacts.getArtifact returns the same domain entity", async () => {
   expect(httpArtifact).toEqual(fixtureArtifact);
 });
 
-it("artifacts.getVersion returns the same domain entity", async () => {
+it("artifacts.getVersion returns the same version facts across hydration levels", async () => {
   const httpRepos = setupHttpRepos();
   const [fixtureVersion, httpVersion] = await Promise.all([
     fixtureRepos.artifacts.getVersion(VERSION_ID),
     httpRepos.artifacts.getVersion(VERSION_ID),
   ]);
-  expect(httpVersion).toEqual(fixtureVersion);
+  // FixtureBundle.artifactVersions carries the generic version DTO, while the
+  // HTTP getVersion boundary carries ArtifactVersionDetail and therefore an
+  // explicit inline Evidence field. Optional hydration must not change any
+  // version identity or provenance fact, and absence must stay `undefined`
+  // rather than being falsified as an empty Evidence collection.
+  expect(fixtureVersion?.evidence).toBeUndefined();
+  expect(httpVersion).toEqual({
+    ...fixtureVersion,
+    evidence: httpVersion?.evidence,
+  });
 });
 
 it("artifacts.getEvidence returns the same domain entity", async () => {

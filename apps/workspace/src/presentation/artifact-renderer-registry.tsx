@@ -89,20 +89,10 @@ export interface ArtifactDiffRendererProps {
 }
 
 export interface ArtifactThreadRendererProps {
-  readonly runtime?: WorkspaceRuntimeBoundaries;
-  readonly projectId?: DomainEntityId;
   readonly artifact: ResearchArtifactViewModel;
   readonly versionId: DomainEntityId;
   readonly summary: string | null;
   readonly onOpen: (() => void) | null;
-}
-
-export interface ArtifactSummaryRendererProps {
-  readonly runtime: WorkspaceRuntimeBoundaries;
-  readonly projectId: DomainEntityId;
-  readonly artifact: ResearchArtifactViewModel;
-  readonly versionId: DomainEntityId;
-  readonly children: (summary: string | null) => ReactNode;
 }
 
 export type RevisionIntent = PresentationRevisionIntent;
@@ -143,7 +133,6 @@ interface TypedRendererDefinition<
   ) => UseQueryOptions<ViewModel, Error, ViewModel, QueryKey>;
   readonly fullscreen: (props: LoadedRendererProps<ViewModel>) => ReactNode;
   readonly textFallback: (viewModel: ViewModel) => string;
-  readonly threadSummary?: (viewModel: ViewModel) => string | null;
   readonly buildDiffSnapshot: (viewModel: ViewModel) => ScientificDiffSnapshot;
   readonly accepts?: (viewModel: ViewModel) => boolean;
 }
@@ -161,7 +150,6 @@ export interface ArtifactRendererDescriptor {
   readonly layoutMode: ArtifactLayoutMode;
   readonly capabilities: ArtifactRendererCapabilities;
   readonly ThreadRenderer: ComponentType<ArtifactThreadRendererProps>;
-  readonly SummaryRenderer: ComponentType<ArtifactSummaryRendererProps>;
   readonly FullscreenRenderer: ComponentType<ArtifactFullscreenRendererProps>;
   readonly TextFallback: ComponentType<ArtifactFullscreenRendererProps>;
   readonly DiffRenderer: ComponentType<ArtifactDiffRendererProps>;
@@ -280,65 +268,6 @@ function defineRenderer<
     );
   }
 
-  function LoadedSummary(
-    props: ArtifactSummaryRendererProps & {
-      readonly artifact: ResearchArtifactViewModel & { readonly kind: Kind };
-      readonly version: ArtifactVersionMetadataViewModel;
-    },
-  ) {
-    const query = useQuery(
-      definition.load({
-        runtime: props.runtime,
-        projectId: props.projectId,
-        artifact: props.artifact,
-        version: props.version,
-        onSelectEvidence: () => undefined,
-      }),
-    );
-    if (!query.data) return props.children(null);
-    return props.children(
-      definition.threadSummary?.(query.data) ??
-        definition.textFallback(query.data),
-    );
-  }
-
-  function SummaryRenderer(props: ArtifactSummaryRendererProps) {
-    const versionQuery = useQuery(
-      props.runtime.application.queries.artifactVersion(
-        props.projectId,
-        props.versionId,
-      ),
-    );
-    if (props.artifact.kind !== definition.kind || !versionQuery.data) {
-      return props.children(null);
-    }
-    return (
-      <LoadedSummary
-        {...props}
-        artifact={{ ...props.artifact, kind: definition.kind }}
-        version={versionQuery.data}
-      />
-    );
-  }
-
-  function ThreadRenderer(props: ArtifactThreadRendererProps) {
-    if (!props.runtime || !props.projectId) {
-      return <ThreadResultBlock {...props} />;
-    }
-    return (
-      <SummaryRenderer
-        runtime={props.runtime}
-        projectId={props.projectId}
-        artifact={props.artifact}
-        versionId={props.versionId}
-      >
-        {(summary) => (
-          <ThreadResultBlock {...props} summary={summary ?? props.summary} />
-        )}
-      </SummaryRenderer>
-    );
-  }
-
   function LoadedTextFallback(props: KindMatchedProps) {
     const query = useQuery(definition.load(props));
     if (query.isPending) return <p aria-busy="true">正在读取文本替代内容。</p>;
@@ -425,6 +354,7 @@ function defineRenderer<
         : props.baselineVersion.provenance.evidenceIds.map((evidenceId) =>
             props.runtime.application.queries.evidence(
               props.projectId,
+              props.baselineVersion.id,
               evidenceId,
             ),
           ),
@@ -435,6 +365,7 @@ function defineRenderer<
         : props.currentVersion.provenance.evidenceIds.map((evidenceId) =>
             props.runtime.application.queries.evidence(
               props.projectId,
+              props.currentVersion.id,
               evidenceId,
             ),
           ),
@@ -560,8 +491,7 @@ function defineRenderer<
     displayPriority: definition.displayPriority,
     layoutMode: definition.layoutMode,
     capabilities: definition.capabilities,
-    ThreadRenderer,
-    SummaryRenderer,
+    ThreadRenderer: ThreadResultBlock,
     FullscreenRenderer,
     TextFallback,
     DiffRenderer,
@@ -626,15 +556,6 @@ function data(
     ),
     textFallback: (viewModel: DataArtifactReviewViewModel) =>
       `${artifactKindLabel(kind)}，证据 ${viewModel.evidenceIds.length} 条。`,
-    threadSummary: (viewModel: DataArtifactReviewViewModel) => {
-      if (viewModel.kind === "dataset") {
-        return `${viewModel.rowCount} 行 · ${viewModel.fieldCount} 个字段 · ${viewModel.sourceSnapshots.length} 个来源`;
-      }
-      if (viewModel.kind === "field_dictionary") {
-        return `${viewModel.fieldDefinitions.length} 个字段定义`;
-      }
-      return `${viewModel.members.length} 个来源 · ${viewModel.alignedRecordCount} 条对齐记录`;
-    },
     buildDiffSnapshot: buildDataArtifactDiffSnapshot,
   });
 }
@@ -694,17 +615,6 @@ const paperSummary = defineRenderer({
   fullscreen: (props) => <PaperSummaryFullscreen {...props} />,
   textFallback: (viewModel: PaperSummaryReview) =>
     `${viewModel.paper.title}，包含结构化论文摘要章节。`,
-  threadSummary: (viewModel: PaperSummaryReview) => {
-    const sections = [
-      viewModel.background,
-      viewModel.methodology,
-      viewModel.dataset,
-      viewModel.experiments,
-      viewModel.discussion,
-      viewModel.limitations,
-    ].filter((section) => section.length > 0).length;
-    return `${sections} 个章节 · 可对照原文`;
-  },
   buildDiffSnapshot: buildPaperSummaryDiffSnapshot,
 });
 
@@ -726,8 +636,6 @@ const paperCollection = defineRenderer({
   ),
   textFallback: (viewModel: PaperAcquisitionReviewViewModel) =>
     `论文集合，候选 ${viewModel.candidates.length} 篇。`,
-  threadSummary: (viewModel: PaperAcquisitionReviewViewModel) =>
-    `${viewModel.metrics.candidateCount} 篇候选 · ${viewModel.metrics.selectedCount} 篇已选`,
   buildDiffSnapshot: buildPaperCollectionDiffSnapshot,
 });
 
@@ -769,18 +677,6 @@ function literature(
       </div>
     ),
     textFallback: () => `${artifactKindLabel(kind)}。`,
-    threadSummary: (viewModel) => {
-      if (viewModel.kind === "literature_claims") {
-        const accepted = viewModel.claims.filter(
-          (claim) => claim.status === "accepted",
-        ).length;
-        return `${viewModel.claims.length} 条论断 · ${accepted} 条已接受`;
-      }
-      const candidates = viewModel.relations.filter(
-        (relation) => relation.status === "candidate",
-      ).length;
-      return `${viewModel.relations.length} 条关系 · ${candidates} 条待审定`;
-    },
     buildDiffSnapshot: buildLiteratureDiffSnapshot,
   });
 }
@@ -806,8 +702,6 @@ const graph = defineRenderer({
   ),
   textFallback: (viewModel: GraphArtifactReviewViewModel) =>
     `证据关系，${viewModel.nodeCount} 个节点，${viewModel.edgeCount} 条关系。`,
-  threadSummary: (viewModel: GraphArtifactReviewViewModel) =>
-    `${viewModel.nodeCount} 个节点 · ${viewModel.edgeCount} 条边`,
   buildDiffSnapshot: buildGraphDiffSnapshot,
 });
 
@@ -833,7 +727,6 @@ const exportUnsupported: ArtifactRendererDescriptor = {
     compare: false,
   },
   ThreadRenderer: ThreadResultBlock,
-  SummaryRenderer: ({ children }) => <>{children(null)}</>,
   FullscreenRenderer: () => (
     <UnsupportedArtifactPresentation descriptor={exportUnsupported} />
   ),
@@ -864,31 +757,6 @@ function scientificTextFallback(viewModel: ScientificArtifactReview): string {
       return `${content.title}，算法 ${content.algorithm}。`;
     case "model_artifact":
       return `${content.title}，ONNX 模型，算法 ${content.algorithm}。`;
-  }
-}
-
-function scientificThreadSummary(viewModel: ScientificArtifactReview): string {
-  const content = viewModel.content;
-  switch (content.kind) {
-    case "analysis_report":
-      return `${content.findings.length} 项发现 · ${content.metrics.length} 项指标`;
-    case "visualization":
-      return content.description || "科学可视化";
-    case "spectrum":
-      return `${content.sampleCount} 个采样点 · ${content.detectedLines.length} 条检出谱线`;
-    case "light_curve":
-      return `${content.sampleCount} 个采样点 · 最佳周期 ${content.bestPeriod} ${content.timeUnit}`;
-    case "model_evaluation": {
-      const primaryMetrics = content.metrics
-        .slice(0, 2)
-        .map(
-          (metric) =>
-            `${metric.label} ${metric.value}${metric.unit ? ` ${metric.unit}` : ""}`,
-        );
-      return primaryMetrics.join(" · ") || content.algorithm;
-    }
-    case "model_artifact":
-      return `${content.algorithm} ${content.algorithmVersion} · ONNX 模型`;
   }
 }
 
@@ -940,7 +808,6 @@ function scientific(
       </div>
     ),
     textFallback: scientificTextFallback,
-    threadSummary: scientificThreadSummary,
     buildDiffSnapshot: buildScientificArtifactDiffSnapshot,
   });
 }

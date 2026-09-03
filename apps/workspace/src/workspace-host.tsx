@@ -962,8 +962,6 @@ export function WorkspaceHost({
         }}
       />
       <ResearchMessageStream
-        runtime={runtime}
-        projectId={projectId}
         items={streamItems}
         onOpenArtifactVersion={onOpenArtifactVersion}
         onConfirmProtocol={confirmAndRun}

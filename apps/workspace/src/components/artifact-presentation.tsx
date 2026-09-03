@@ -7,8 +7,6 @@ import { useMemo, type ReactNode } from "react";
 import type { ResearchWorkspaceRuntime } from "../mechanics/root";
 import type { WorkspaceRuntimeBoundaries } from "../boundaries";
 import { artifactKindLabel } from "../presentation/artifact-presentation-labels";
-import { artifactResultSummary } from "../presentation/artifact-result-summary";
-import { resolveArtifactRenderer } from "../presentation/artifact-renderer-registry";
 import { ArtifactFullscreenWorkspace } from "./artifact-fullscreen-workspace";
 import { ResultIndexItem } from "./result-layout";
 
@@ -61,14 +59,34 @@ function ArtifactResultIndex({
     } => artifact.latestVersionId !== null,
   );
 
-  const versionQueries = useQueries({
-    queries: visible.slice(0, 8).map((artifact) => ({
-      ...runtime.application.queries.artifactVersion(
+  // Only literature relations carry an actionable review state, so only they
+  // are read here — through their own typed contract. An index row must never
+  // hydrate a whole artifact workspace behind the scenes.
+  const relationArtifacts = visible.filter(
+    (artifact) => artifact.kind === "literature_relations",
+  );
+  const relationQueries = useQueries({
+    queries: relationArtifacts.map((artifact) =>
+      runtime.application.queries.literatureArtifact(
         projectId,
         artifact.latestVersionId,
+        "literature_relations",
       ),
-      staleTime: 60_000,
-    })),
+    ),
+  });
+  const reviewByArtifactId = new Map<
+    DomainEntityId,
+    { readonly total: number; readonly candidates: number }
+  >();
+  relationArtifacts.forEach((artifact, index) => {
+    const review = relationQueries[index]?.data;
+    if (!review || review.kind !== "literature_relations") return;
+    reviewByArtifactId.set(artifact.id, {
+      total: review.relations.length,
+      candidates: review.relations.filter(
+        (relation) => relation.status === "candidate",
+      ).length,
+    });
   });
 
   if (visible.length === 0) {
@@ -79,65 +97,37 @@ function ArtifactResultIndex({
     );
   }
 
-  const indexed = visible.map((artifact, index) => ({
-    artifact,
-    versionData: versionQueries[index]?.data,
-  }));
-  const reviewItems = indexed.filter(({ artifact, versionData }) => {
-    if (artifact.kind !== "literature_relations") return false;
-    return Boolean(
-      versionData?.presentation.entries?.some(
-        (entry) => entry.status === "candidate",
-      ),
-    );
-  });
-  const ordinaryItems = indexed.filter((item) => !reviewItems.includes(item));
-
-  const renderItem = ({ artifact, versionData }: (typeof indexed)[number]) => {
-    const kindLabel = artifactKindLabel(artifact.kind);
-    const evidenceCount = versionData?.provenance.evidenceIds.length ?? 0;
-    const fallbackSummary = versionData
-      ? artifactResultSummary(versionData.presentation)
-      : evidenceCount > 0
-        ? `证据 ${evidenceCount} 条`
-        : null;
-    const descriptor = resolveArtifactRenderer(artifact.kind);
-    const reviewCount =
-      artifact.kind === "literature_relations"
-        ? (versionData?.presentation.entries?.filter(
-            (entry) => entry.status === "candidate",
-          ).length ?? 0)
-        : 0;
-
-    const row = (metadataSummary: string | null) => (
+  const renderItem = (
+    artifact: ResearchArtifactViewModel & {
+      readonly latestVersionId: DomainEntityId;
+    },
+  ) => {
+    const review = reviewByArtifactId.get(artifact.id);
+    const candidates = review?.candidates ?? 0;
+    return (
       <ResultIndexItem
         key={artifact.id}
         artifactId={artifact.id}
         latestVersionId={artifact.latestVersionId}
         kind={artifact.kind}
-        kindLabel={kindLabel}
+        kindLabel={artifactKindLabel(artifact.kind)}
         title={artifact.title}
-        metadataSummary={metadataSummary}
-        statusLabel={reviewCount > 0 ? `${reviewCount} 待审` : null}
-        statusVariant={reviewCount > 0 ? "outline" : undefined}
+        metadataSummary={
+          review ? `${review.total} 条关系 · ${candidates} 条待审定` : null
+        }
+        statusLabel={candidates > 0 ? `${candidates} 待审` : null}
+        statusVariant={candidates > 0 ? "outline" : undefined}
         onOpen={onOpen}
       />
     );
-
-    if (!descriptor) return row(fallbackSummary);
-    const SummaryRenderer = descriptor.SummaryRenderer;
-    return (
-      <SummaryRenderer
-        key={artifact.id}
-        runtime={runtime}
-        projectId={projectId}
-        artifact={artifact}
-        versionId={artifact.latestVersionId}
-      >
-        {(summary) => row(summary ?? fallbackSummary)}
-      </SummaryRenderer>
-    );
   };
+
+  const reviewItems = visible.filter(
+    (artifact) => (reviewByArtifactId.get(artifact.id)?.candidates ?? 0) > 0,
+  );
+  const ordinaryItems = visible.filter(
+    (artifact) => !reviewItems.includes(artifact),
+  );
 
   return (
     <div className="space-y-4" aria-label="研究结果">

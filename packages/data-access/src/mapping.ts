@@ -705,7 +705,8 @@ export function mapArtifactVersionMetadata(
     producer: mapProducer(dto.producer),
     sourceSnapshotIds: mapIds(dto.source_snapshot_ids),
     evidenceIds: mapIds(dto.evidence_ids),
-    evidence: "evidence" in dto ? dto.evidence.map(mapEvidenceDetail) : [],
+    evidence:
+      "evidence" in dto ? dto.evidence.map(mapEvidenceDetail) : undefined,
     presentation: mapPublicArtifactPresentation(presentation),
     supersedesVersionId: (dto.supersedes_version_id ??
       null) as DomainEntityId | null,

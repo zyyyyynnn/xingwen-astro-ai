@@ -20,6 +20,7 @@ import {
 export function ArtifactEvidenceSheet({
   runtime,
   projectId,
+  artifactVersionId,
   evidenceId,
   open,
   onOpenChange,
@@ -27,6 +28,7 @@ export function ArtifactEvidenceSheet({
 }: {
   readonly runtime: WorkspaceRuntimeBoundaries;
   readonly projectId: DomainEntityId;
+  readonly artifactVersionId: DomainEntityId;
   readonly evidenceId: DomainEntityId | null;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
@@ -35,6 +37,7 @@ export function ArtifactEvidenceSheet({
   const query = useQuery({
     ...runtime.application.queries.evidence(
       projectId,
+      artifactVersionId,
       evidenceId as DomainEntityId,
     ),
     enabled: open && evidenceId !== null,

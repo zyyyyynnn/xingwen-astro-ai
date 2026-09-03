@@ -1210,6 +1210,11 @@ const versionProducer = {
   version: "1.0.0",
 };
 
+const graphEvidence = graphEdgeReads.flatMap((read) =>
+  read.evidence.map((item) => mapEvidenceDetail(item.evidence)),
+);
+const graphEvidenceIds = graphEvidence.map((item) => item.id);
+
 const makeVersion = (
   id: string,
   artifactId: string,
@@ -1287,7 +1292,7 @@ const artifactVersions: readonly ArtifactVersionDto[] = [
     "art_graph_01",
     "proj_01JEXAMPLE",
     "graph",
-    ["evd_03"],
+    graphEvidenceIds,
     "run_01JEXAMPLE",
     ["snap_01", "snap_toi_1233_recorded"],
   ),
@@ -1477,6 +1482,7 @@ const evidence = [
     confidence: 1,
     createdAt: T8,
   },
+  ...graphEvidence,
   ...paperSummaryReadFixture.evidence.map((item) =>
     mapEvidenceDetail(item as unknown as EvidenceDetailDto),
   ),
